@@ -36,7 +36,7 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({
     },
     {
       id: 'workspace',
-      label: 'Your workspace',
+      label: 'Coworkers',
       icon: UserCheck,
       count: workspaceCount,
     },

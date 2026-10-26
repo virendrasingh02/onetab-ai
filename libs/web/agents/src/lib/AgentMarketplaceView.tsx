@@ -25,10 +25,8 @@ import {
   MarketplaceCatalogView,
   MarketplaceInstalledView,
   MarketplaceWorkspaceView,
-  isWorkspaceFilter,
-  type WorkspaceFilter,
   openStudioTab,
-  useWorkspaceCatalog,
+  useWorkspaceCoworkers,
   MarketplaceDeveloperView,
   UniversalInstallModal,
   RequestAccessModal,
@@ -90,15 +88,6 @@ export function AgentAvatar({
 
 export interface AgentMarketplaceViewProps {
   /**
-   * Renders the coworker creation dialog. Coworkers live in a library above
-   * this one, so the app supplies it; without it the "New coworker" button is hidden.
-   */
-  renderCoworkerCreate?: (props: {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    workspaceId: string;
-  }) => ReactNode;
-  /**
    * Renders the live connectors (Gmail, GitHub, Jira, Stripe…: connect,
    * sync, disconnect) at the top of "Apps & Integrations". They live in
    * `@org/web-integrations`, so the app supplies them; without it the tab
@@ -108,7 +97,6 @@ export interface AgentMarketplaceViewProps {
 }
 
 export function AgentMarketplaceView({
-  renderCoworkerCreate,
   renderIntegrations,
 }: AgentMarketplaceViewProps = {}) {
   const navigate = useNavigate();
@@ -132,30 +120,6 @@ export function AgentMarketplaceView({
   const urlApp = searchParams.get('app');
   const urlAgent = searchParams.get('agent');
   const urlQuery = searchParams.get('q') || '';
-
-  const rawType = searchParams.get('type');
-  const workspaceFilter: WorkspaceFilter = isWorkspaceFilter(rawType)
-    ? rawType
-    : 'all';
-  const [coworkerCreateOpen, setCoworkerCreateOpen] = useState(
-    searchParams.get('create') === 'coworker',
-  );
-
-  // The sidebar's "Add coworker" can arrive while the marketplace is already open.
-  const createParam = searchParams.get('create');
-  useEffect(() => {
-    if (createParam === 'coworker') setCoworkerCreateOpen(true);
-  }, [createParam]);
-
-  const handleWorkspaceFilterChange = (next: WorkspaceFilter) => {
-    setSearchParams((prev) => {
-      const params = new URLSearchParams(prev);
-      if (next === 'all') params.delete('type');
-      else params.set('type', next);
-      params.delete('create');
-      return params;
-    });
-  };
 
   const [activeTab, setActiveTab] = useState<MarketplaceActiveTab>(urlTab);
   const [searchQuery, setSearchQuery] = useState(urlQuery);
@@ -255,7 +219,7 @@ export function AgentMarketplaceView({
     listings.some((l) => l.kind === 'INTEGRATION');
   const installations = installationsQuery.data || [];
   const approvals = approvalsQuery.data || [];
-  const catalog = useWorkspaceCatalog(activeWorkspaceId, installations);
+  const workspaceCoworkers = useWorkspaceCoworkers(activeWorkspaceId);
 
   // Active detail page selection
   const selectedAppListing = useMemo(() => {
@@ -390,7 +354,7 @@ export function AgentMarketplaceView({
             activeTab={activeTab}
             onTabChange={handleTabChange}
             installedCount={installations.length}
-            workspaceCount={catalog.items.length}
+            workspaceCount={workspaceCoworkers.coworkers.length}
           />
         </>
       )}
@@ -542,27 +506,13 @@ export function AgentMarketplaceView({
 
               {activeTab === 'workspace' && (
                 <MarketplaceWorkspaceView
-                  filter={workspaceFilter}
-                  onFilterChange={handleWorkspaceFilterChange}
-                  onCreateCoworker={
-                    renderCoworkerCreate
-                      ? () => setCoworkerCreateOpen(true)
-                      : undefined
-                  }
-                  items={catalog.items}
-                  isLoading={catalog.isLoading}
+                  coworkers={workspaceCoworkers.coworkers}
+                  isLoading={workspaceCoworkers.isLoading}
+                  isError={workspaceCoworkers.isError}
+                  onRetry={workspaceCoworkers.refetch}
                   workspaceSlug={activeWorkspaceSlug}
                   searchQuery={searchQuery}
                   onOpenStudio={handleOpenStudio}
-                  onConfigure={(inst) => setConfigModalItem(inst)}
-                  onOpenListing={(slug, kind) =>
-                    setSearchParams((prev) => {
-                      const next = new URLSearchParams(prev);
-                      next.set(kind === 'AGENT' ? 'agent' : 'app', slug);
-                      return next;
-                    })
-                  }
-                  onBrowse={() => handleTabChange('apps')}
                 />
               )}
 
@@ -577,21 +527,6 @@ export function AgentMarketplaceView({
           )}
         </div>
       </div>
-
-      {renderCoworkerCreate?.({
-        open: coworkerCreateOpen,
-        onOpenChange: (open) => {
-          setCoworkerCreateOpen(open);
-          if (!open && searchParams.get('create')) {
-            setSearchParams((prev) => {
-              const params = new URLSearchParams(prev);
-              params.delete('create');
-              return params;
-            });
-          }
-        },
-        workspaceId: activeWorkspaceId,
-      })}
 
       {/* Universal 5-step Install Modal */}
       {installModalListing && (

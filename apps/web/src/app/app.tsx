@@ -194,26 +194,14 @@ const AIEntityEditorRoute = lazy(() =>
 const AgentMarketplaceView = lazy(() =>
   import('@org/web-agents').then((m) => ({ default: m.AgentMarketplaceView })),
 );
-const CoworkerCreateDialog = lazy(() =>
-  import('@org/web-coworkers').then((m) => ({
-    default: m.CoworkerCreateDialog,
-  })),
-);
 
 /**
- * The marketplace, with coworker creation and the live connectors (both of
- * which live outside `@org/web-agents`) plugged in.
+ * The marketplace, with the live connectors (which live outside
+ * `@org/web-agents`) plugged in.
  */
 function MarketplaceRoute() {
   return (
     <AgentMarketplaceView
-      renderCoworkerCreate={(props) =>
-        props.open ? (
-          <Suspense fallback={null}>
-            <CoworkerCreateDialog {...props} />
-          </Suspense>
-        ) : null
-      }
       renderIntegrations={({ searchQuery }) => (
         <Suspense fallback={null}>
           <IntegrationHubView embedded searchQuery={searchQuery} />

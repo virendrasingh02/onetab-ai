@@ -1,30 +1,20 @@
-import { automationsApi, coworkersApi, queryKeys } from '@org/api-client';
-import type { MarketplaceInstallation } from '@org/types';
-import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
-import { useAgents } from '../use-agents';
+import { coworkersApi, queryKeys } from '@org/api-client';
+import type { AICoworkerDetail, CoworkerRosterEntry } from '@org/types';
+import { RealtimeEventType, useRealtime } from '@org/realtime';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo } from 'react';
 
-export type WorkspaceCatalogKind = 'agent' | 'coworker' | 'app' | 'automation';
-
-/** One thing the workspace has — an agent, coworker, app or automation. */
-export interface WorkspaceCatalogItem {
-  /** Unique across kinds. */
-  key: string;
+/** One coworker of the workspace: the same record the sidebar lists, plus its live roster numbers. */
+export interface WorkspaceCoworker {
   id: string;
-  kind: WorkspaceCatalogKind;
   name: string;
-  subtitle: string;
+  role: string;
   description: string;
-  /** `icon:<preset>` or an image URL, for `EntityIcon`. */
-  icon?: string | null;
-  status: 'active' | 'paused';
-  /** Marketplace slug, for apps and installed marketplace agents. */
-  slug?: string;
-  /** The installation behind an app / marketplace agent. */
-  installation?: MarketplaceInstallation;
-  /** An automation that was planned in the AI Agent Studio (has a blueprint). */
-  studioAgent?: boolean;
+  avatarUrl: string | null;
+  isActive: boolean;
   updatedAt?: string;
+  /** Connectors, specialists, workflows and activity — absent until the roster loads. */
+  roster?: CoworkerRosterEntry;
 }
 
 function trimText(value: string | null | undefined, fallback: string): string {
@@ -33,110 +23,76 @@ function trimText(value: string | null | undefined, fallback: string): string {
 }
 
 /**
- * Everything the workspace owns, in one list: published agents, coworkers,
- * installed apps and automations. Agents appear only once published from the
- * AI Agent Studio (see `useAgents`); the other kinds are listed as they are.
+ * The workspace's coworkers — the same API list the sidebar's "AI Coworkers"
+ * section reads, enriched with the roster (connectors, specialists, workflows,
+ * 30-day activity). The roster is optional: the list renders without it.
  */
-export function useWorkspaceCatalog(
-  workspaceId: string,
-  installations: MarketplaceInstallation[],
-) {
-  const agents = useAgents(workspaceId);
-  const coworkers = useQuery({
+export function useWorkspaceCoworkers(workspaceId: string) {
+  const queryClient = useQueryClient();
+  const { bus } = useRealtime();
+
+  // Coworkers are built in the AI Agent Studio (another tab): refresh when a
+  // coworker changes or a run finishes, and again when this tab regains focus.
+  useEffect(() => {
+    if (!workspaceId) return;
+    const refresh = (event: { payload?: { workspaceId?: string } }) => {
+      if (event.payload?.workspaceId === workspaceId) {
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.coworkers.list(workspaceId),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.coworkers.roster(workspaceId),
+        });
+      }
+    };
+    const offs = [
+      bus.on(RealtimeEventType.CoworkerExecutionCompleted, refresh),
+      bus.on(RealtimeEventType.CoworkerStatusChanged, refresh),
+    ];
+    return () => offs.forEach((off) => off());
+  }, [bus, queryClient, workspaceId]);
+
+  const list = useQuery<AICoworkerDetail[]>({
     queryKey: queryKeys.coworkers.list(workspaceId),
     queryFn: () => coworkersApi.list(workspaceId),
     enabled: Boolean(workspaceId),
-    staleTime: 30_000,
+    staleTime: 15_000,
+    refetchOnWindowFocus: 'always',
   });
-  const automations = useQuery({
-    queryKey: queryKeys.automations.list(workspaceId),
-    queryFn: () => automationsApi.list(workspaceId),
+  const roster = useQuery({
+    queryKey: queryKeys.coworkers.roster(workspaceId),
+    queryFn: () => coworkersApi.roster(workspaceId),
     enabled: Boolean(workspaceId),
-    staleTime: 30_000,
+    staleTime: 15_000,
+    refetchOnWindowFocus: 'always',
   });
 
-  const items = useMemo<WorkspaceCatalogItem[]>(() => {
-    const out: WorkspaceCatalogItem[] = [];
-
-    for (const agent of agents.data ?? []) {
-      out.push({
-        key: `agent:${agent.id}`,
-        id: agent.id,
-        kind: 'agent',
-        name: agent.name,
-        subtitle: trimText(agent.role, 'AI agent'),
-        description: trimText(
-          agent.description ?? agent.systemPrompt,
-          'No description yet.',
-        ),
-        icon: agent.avatarUrl || 'icon:bot',
-        status: agent.isActive ? 'active' : 'paused',
-        updatedAt: agent.updatedAt,
-      });
-    }
-
-    for (const coworker of coworkers.data ?? []) {
-      out.push({
-        key: `coworker:${coworker.id}`,
-        id: coworker.id,
-        kind: 'coworker',
-        name: coworker.name,
-        subtitle: trimText(coworker.role, 'AI coworker'),
-        description: trimText(
-          coworker.description ?? coworker.systemPrompt,
-          'No description yet.',
-        ),
-        icon: coworker.avatarUrl || 'icon:brain',
-        status: coworker.isActive ? 'active' : 'paused',
-        updatedAt: coworker.updatedAt,
-      });
-    }
-
-    for (const workflow of automations.data ?? []) {
-      if (workflow.archivedAt) continue;
-      out.push({
-        key: `automation:${workflow.id}`,
-        id: workflow.id,
-        kind: 'automation',
-        name: workflow.name,
-        subtitle: workflow.agentProfile
-          ? 'Studio agent workflow'
-          : `Trigger: ${workflow.triggerType}`,
-        description: trimText(workflow.description, 'No description yet.'),
-        icon: 'icon:layers',
-        status: workflow.isActive ? 'active' : 'paused',
-        studioAgent: Boolean(workflow.agentProfile),
-        updatedAt: workflow.updatedAt,
-      });
-    }
-
-    for (const inst of installations) {
-      const kind = inst.kind ?? inst.listing?.kind;
-      const slug = inst.listingSlug ?? inst.listing?.slug;
-      out.push({
-        key: `${kind === 'AGENT' ? 'agent' : 'app'}:inst:${inst.id}`,
-        id: inst.id,
-        kind: kind === 'AGENT' ? 'agent' : 'app',
-        name: inst.name ?? inst.listing?.name ?? slug ?? 'Installed item',
-        subtitle: kind === 'AGENT' ? 'Marketplace agent' : 'Installed app',
-        description: trimText(
-          inst.listing?.description,
-          'Installed from the marketplace.',
-        ),
-        icon: inst.iconUrl ?? inst.listing?.iconUrl ?? null,
-        status:
-          (inst.enabled ?? inst.status === 'ACTIVE') ? 'active' : 'paused',
-        slug,
-        installation: inst,
-        updatedAt: inst.lastActivityAt ?? inst.installedAt,
-      });
-    }
-
-    return out;
-  }, [agents.data, coworkers.data, automations.data, installations]);
+  const coworkers = useMemo<WorkspaceCoworker[]>(() => {
+    const byId = new Map(
+      (roster.data?.coworkers ?? []).map((entry) => [entry.id, entry]),
+    );
+    return (list.data ?? []).map((cw) => ({
+      id: cw.id,
+      name: cw.name,
+      role: trimText(cw.role, 'AI coworker'),
+      description: trimText(
+        cw.description ?? cw.systemPrompt,
+        'No description yet.',
+      ),
+      avatarUrl: cw.avatarUrl ?? null,
+      isActive: cw.isActive,
+      updatedAt: cw.updatedAt,
+      roster: byId.get(cw.id),
+    }));
+  }, [list.data, roster.data]);
 
   return {
-    items,
-    isLoading: agents.isLoading || coworkers.isLoading || automations.isLoading,
+    coworkers,
+    isLoading: list.isLoading,
+    isError: list.isError,
+    refetch: () => {
+      void list.refetch();
+      void roster.refetch();
+    },
   };
 }
