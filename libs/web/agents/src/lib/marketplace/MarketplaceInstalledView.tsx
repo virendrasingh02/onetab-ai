@@ -4,7 +4,7 @@ import { Badge, Button, Card, EmptyState, Switch } from '@org/ui';
 import { Check, Settings, ShieldAlert, Trash2, XCircle } from 'lucide-react';
 import { EntityIcon, KindBadge, SectionTabs } from './marketplace-ui';
 
-type InstalledFilter = 'all' | 'active' | 'disabled' | 'agents' | 'apps';
+type InstalledFilter = 'all' | 'active' | 'disabled';
 
 interface MarketplaceInstalledViewProps {
   installations: MarketplaceInstallation[];
@@ -36,8 +36,6 @@ export const MarketplaceInstalledView: React.FC<MarketplaceInstalledViewProps> =
     return installations.filter((item) => {
       if (filter === 'active' && !item.enabled) return false;
       if (filter === 'disabled' && item.enabled) return false;
-      if (filter === 'agents' && item.kind !== 'AGENT') return false;
-      if (filter === 'apps' && item.kind !== 'INTEGRATION') return false;
       return true;
     });
   }, [installations, filter]);
@@ -146,16 +144,6 @@ export const MarketplaceInstalledView: React.FC<MarketplaceInstalledViewProps> =
               value: 'disabled',
               label: 'Disabled',
               count: installations.filter((i) => !i.enabled).length,
-            },
-            {
-              value: 'agents',
-              label: 'AI agents',
-              count: installations.filter((i) => i.kind === 'AGENT').length,
-            },
-            {
-              value: 'apps',
-              label: 'Apps',
-              count: installations.filter((i) => i.kind === 'INTEGRATION').length,
             },
           ]}
         />

@@ -50,6 +50,7 @@ export {
   oauthAppsApi,
   invitationApi,
   marketplaceApi,
+  agentInstallApi,
   matrixApi,
   memberApi,
   peopleApi,

@@ -5,9 +5,11 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  UnprocessableEntityException,
   type OnModuleInit,
 } from '@nestjs/common';
 import { PrismaService } from '@org/database';
+import { compareSemver, evaluateAgentPackage, parseAccess } from './agent-manifest.js';
 import {
   DEFAULT_PAGE_SIZE,
   LISTING_KINDS,
@@ -512,6 +514,7 @@ export class MarketplaceService implements OnModuleInit {
         `'${listing.slug}' is ${listing.status.toLowerCase()} and cannot be installed.`,
       );
     }
+    assertNotAgent(listing.kind);
 
     const existing = await this.prisma.marketplaceInstallation.findUnique({
       where: {
@@ -560,10 +563,6 @@ export class MarketplaceService implements OnModuleInit {
       });
     }
 
-    if (listing.kind === 'AGENT') {
-      await this.provisionAgent(input.workspaceId, listing, input.installedById);
-    }
-
     this.logger.log(
       `Installed '${listing.slug}' into workspace ${input.workspaceId}`,
     );
@@ -572,16 +571,13 @@ export class MarketplaceService implements OnModuleInit {
 
   async uninstall(workspaceId: string, listingSlug: string) {
     const listing = await this.requireListing(listingSlug);
+    assertNotAgent(listing.kind);
     const installation = await this.requireInstallation(workspaceId, listing.id);
 
     await this.prisma.marketplaceInstallation.update({
       where: { id: installation.id },
       data: { status: 'UNINSTALLED' },
     });
-
-    if (listing.kind === 'AGENT') {
-      await this.deprovisionAgent(workspaceId, listing);
-    }
 
     if (installation.status !== 'UNINSTALLED') {
       await this.prisma.marketplaceListing.update({
@@ -602,6 +598,7 @@ export class MarketplaceService implements OnModuleInit {
     reason: string,
   ): Promise<InstallationView> {
     const listing = await this.requireListing(listingSlug);
+    assertNotAgent(listing.kind);
     const approvalRequest = {
       requestedBy: userId,
       requestedByName: userName,
@@ -664,6 +661,7 @@ export class MarketplaceService implements OnModuleInit {
     rejectionReason?: string,
   ): Promise<InstallationView> {
     const listing = await this.requireListing(listingSlug);
+    assertNotAgent(listing.kind);
     const installation = await this.requireInstallation(workspaceId, listing.id);
 
     const existingSettings = parseJson<Record<string, unknown>>(
@@ -696,31 +694,6 @@ export class MarketplaceService implements OnModuleInit {
         },
         include: { listing: { include: { publisher: PUBLISHER_SELECT } } },
       });
-
-      if (listing.kind === 'AGENT') {
-        const existingAgent = await this.prisma.aIAgent.findFirst({
-          where: { workspaceId, name: listing.name },
-        });
-        if (!existingAgent) {
-          await this.prisma.aIAgent.create({
-            data: {
-              workspaceId,
-              name: listing.name,
-              role: listing.category,
-              description: listing.tagline || listing.description,
-              avatarUrl: listing.iconUrl,
-              systemPrompt: `You are ${listing.name}, an autonomous ${listing.category} assistant.`,
-              isMarketplace: true,
-              isActive: true,
-            },
-          });
-        } else if (!existingAgent.isActive) {
-          await this.prisma.aIAgent.update({
-            where: { id: existingAgent.id },
-            data: { isActive: true },
-          });
-        }
-      }
 
       return this.toInstallation(updated);
     } else {
@@ -826,6 +799,7 @@ export class MarketplaceService implements OnModuleInit {
     enabled: boolean,
   ) {
     const listing = await this.requireListing(listingSlug);
+    assertNotAgent(listing.kind);
     const installation = await this.requireInstallation(workspaceId, listing.id);
 
     const updated = await this.prisma.marketplaceInstallation.update({
@@ -842,6 +816,7 @@ export class MarketplaceService implements OnModuleInit {
     settings: Record<string, unknown>,
   ) {
     const listing = await this.requireListing(listingSlug);
+    assertNotAgent(listing.kind);
     const installation = await this.requireInstallation(workspaceId, listing.id);
 
     const updated = await this.prisma.marketplaceInstallation.update({
@@ -966,161 +941,12 @@ export class MarketplaceService implements OnModuleInit {
       where: {
         workspaceId,
         listingId: { in: listingIds },
-        status: { not: 'UNINSTALLED' },
+        // A failed, pending or half-finished install is not "installed" — it must stay retryable.
+        status: { in: ['ACTIVE', 'DISABLED', 'UPDATING'] },
       },
       select: { listingId: true },
     });
     return new Set(rows.map((row) => row.listingId));
-  }
-
-  // -------------------------------------------------------------------------
-  // Agents: install / uninstall
-  // -------------------------------------------------------------------------
-
-  /** The workspace agent an AGENT listing resolves to, however it got there. */
-  private async findListingAgent(
-    workspaceId: string,
-    listing: { slug: string; name: string; sourceAgentId?: string | null; ownerWorkspaceId?: string | null },
-  ) {
-    // The publishing workspace already owns the real agent — never clone it onto itself.
-    if (listing.sourceAgentId && listing.ownerWorkspaceId === workspaceId) {
-      return this.prisma.aIAgent.findFirst({
-        where: { id: listing.sourceAgentId, workspaceId },
-      });
-    }
-    const installed = await this.prisma.aIAgent.findFirst({
-      where: {
-        workspaceId,
-        configuration: { path: ['marketplace', 'listingSlug'], equals: listing.slug },
-      },
-    });
-    if (installed) return installed;
-    // Seeded/legacy listings were matched by name.
-    return this.prisma.aIAgent.findFirst({ where: { workspaceId, name: listing.name } });
-  }
-
-  /**
-   * Makes an installed AGENT listing a real workspace agent. A listing published
-   * from AI Agent Studio carries the agent's blueprint, so the install is an
-   * exact, independent copy (own graph, prompt, tools); seeded listings without
-   * one still get a plain agent so they can be chatted with.
-   */
-  private async provisionAgent(
-    workspaceId: string,
-    listing: {
-      slug: string;
-      name: string;
-      category: string;
-      tagline: string;
-      description: string;
-      iconUrl: string | null;
-      version: string;
-      payloadJson: string;
-      sourceAgentId?: string | null;
-      ownerWorkspaceId?: string | null;
-    },
-    userId?: string,
-  ) {
-    try {
-      const existing = await this.findListingAgent(workspaceId, listing);
-      if (existing) {
-        if (!existing.isActive) {
-          await this.prisma.aIAgent.update({
-            where: { id: existing.id },
-            data: { isActive: true },
-          });
-        }
-        return;
-      }
-
-      const blueprint = parseJson<{ blueprint?: AgentBlueprint }>(listing.payloadJson, {}).blueprint;
-      const marketplace = { listingSlug: listing.slug, version: listing.version };
-
-      if (blueprint) {
-        const now = new Date().toISOString();
-        await this.prisma.aIAgent.create({
-          data: {
-            workspaceId,
-            creatorId: userId ?? null,
-            type: 'agent',
-            name: blueprint.name || listing.name,
-            role: blueprint.role || listing.category,
-            description: blueprint.description || listing.tagline || listing.description,
-            avatarUrl: blueprint.avatarUrl ?? listing.iconUrl,
-            systemPrompt: blueprint.systemPrompt,
-            systemInstructions: blueprint.systemInstructions ?? '',
-            provider: blueprint.provider,
-            model: blueprint.model,
-            tools: blueprint.tools,
-            graphJson: blueprint.graphJson ?? null,
-            isMarketplace: true,
-            isActive: true,
-            configuration: {
-              ...(blueprint.configuration ?? {}),
-              // A copy starts live in the new workspace, as its own version 1.
-              status: 'published',
-              currentVersion: 1,
-              publishedAt: now,
-              versions: [
-                {
-                  version: 1,
-                  versionTag: 'v1.0.0',
-                  name: blueprint.name || listing.name,
-                  description: blueprint.description ?? null,
-                  model: blueprint.model,
-                  provider: blueprint.provider,
-                  graphJson: blueprint.graphJson ?? null,
-                  tools: blueprint.tools,
-                  publishedAt: now,
-                  changeSummary: `Installed from marketplace (${listing.slug} v${listing.version})`,
-                  status: 'PUBLISHED',
-                },
-              ],
-              marketplace,
-            },
-          },
-        });
-        return;
-      }
-
-      await this.prisma.aIAgent.create({
-        data: {
-          workspaceId,
-          creatorId: userId ?? null,
-          name: listing.name,
-          role: listing.category,
-          description: listing.tagline || listing.description,
-          avatarUrl: listing.iconUrl,
-          systemPrompt: `You are ${listing.name}, an autonomous ${listing.category} assistant.`,
-          isMarketplace: true,
-          isActive: true,
-          configuration: { status: 'published', marketplace },
-        },
-      });
-    } catch (err) {
-      this.logger.warn(
-        `Could not auto-provision workspace AIAgent: ${err instanceof Error ? err.message : String(err)}`,
-      );
-    }
-  }
-
-  private async deprovisionAgent(
-    workspaceId: string,
-    listing: { slug: string; name: string; sourceAgentId?: string | null; ownerWorkspaceId?: string | null },
-  ) {
-    // Uninstalling your own published listing must not switch off your own agent.
-    if (listing.sourceAgentId && listing.ownerWorkspaceId === workspaceId) return;
-    try {
-      const agent = await this.findListingAgent(workspaceId, listing);
-      if (agent) {
-        await this.prisma.aIAgent.update({
-          where: { id: agent.id },
-          data: { isActive: false },
-        });
-      }
-    } catch (err) {
-      this.logger.warn(`Could not deactivate AIAgent: ${err}`);
-    }
   }
 
   // -------------------------------------------------------------------------
@@ -1135,7 +961,17 @@ export class MarketplaceService implements OnModuleInit {
       },
       include: { publisher: PUBLISHER_SELECT },
     });
-    return row ? this.toSummary(row) : null;
+    if (!row) return null;
+    const live = await this.prisma.marketplaceInstallation.groupBy({
+      by: ['version'],
+      where: { listingId: row.id, status: { in: ['ACTIVE', 'DISABLED', 'UPDATING'] } },
+      _count: { _all: true },
+    });
+    const byVersion = Object.fromEntries(live.map((g) => [g.version, g._count._all]));
+    const behind = live
+      .filter((g) => compareSemver(row.version, g.version) > 0)
+      .reduce((n, g) => n + g._count._all, 0);
+    return { ...this.toSummary(row), installStats: { byVersion, behind } };
   }
 
   /**
@@ -1144,12 +980,25 @@ export class MarketplaceService implements OnModuleInit {
    * its draft, so what other workspaces install is what the author shipped.
    * Defaults to workspace-only; `PUBLIC` shares it with every workspace.
    */
-  async publishStudioAgent(
+  /**
+   * What publishing this Studio agent would ship, and whether the platform would
+   * accept it as an installable package. Writes nothing, so a creator can check
+   * permissions and manifest problems before anyone installs it.
+   */
+  async validateStudioAgent(workspaceId: string, agentId: string, userId: string, input: PublishStudioAgentInput = {}) {
+    const { evaluated, data } = await this.buildStudioPackage(workspaceId, agentId, userId, input);
+    return evaluated.ok
+      ? { valid: true as const, version: data.version, permissions: evaluated.permissions, configFields: evaluated.manifest.configFields, issues: [] }
+      : { valid: false as const, version: data.version, permissions: [], configFields: [], issues: evaluated.issues };
+  }
+
+  private async buildStudioPackage(
     workspaceId: string,
     agentId: string,
     userId: string,
-    input: PublishStudioAgentInput = {},
-  ): Promise<ListingSummary> {
+    input: PublishStudioAgentInput,
+  ) {
+    void userId;
     const agent = await this.prisma.aIAgent.findFirst({
       where: { id: agentId, workspaceId, type: 'agent' },
     });
@@ -1170,16 +1019,6 @@ export class MarketplaceService implements OnModuleInit {
     }
 
     const visibility = input.visibility === 'PUBLIC' ? 'PUBLIC' : 'WORKSPACE';
-    const workspace = await this.prisma.workspace.findUnique({
-      where: { id: workspaceId },
-      select: { name: true },
-    });
-    const publisher = await this.ensurePublisher(
-      `ws-${workspaceId.slice(-10).toLowerCase()}`,
-      workspace?.name ?? 'Workspace',
-      userId,
-    );
-
     const existing = await this.prisma.marketplaceListing.findUnique({
       where: {
         ownerWorkspaceId_sourceAgentId: { ownerWorkspaceId: workspaceId, sourceAgentId: agentId },
@@ -1256,18 +1095,47 @@ export class MarketplaceService implements OnModuleInit {
       priceCents: 0,
       status: 'PUBLISHED',
       visibility,
-      publisherId: publisher.id,
     };
+
+    const evaluated = evaluateAgentPackage(data.manifestJson, data.payloadJson);
+    return { data, existing, visibility, name, evaluated };
+  }
+
+  async publishStudioAgent(
+    workspaceId: string,
+    agentId: string,
+    userId: string,
+    input: PublishStudioAgentInput = {},
+  ): Promise<ListingSummary> {
+    const { data, existing, visibility, name, evaluated } = await this.buildStudioPackage(workspaceId, agentId, userId, input);
+    if (!evaluated.ok) {
+      throw new UnprocessableEntityException({
+        code: 'INVALID_PACKAGE',
+        message: evaluated.issues[0]?.message ?? 'This agent cannot be packaged for install.',
+        issues: evaluated.issues,
+      });
+    }
+    const workspace = await this.prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { name: true },
+    });
+    const publisher = await this.ensurePublisher(
+      `ws-${workspaceId.slice(-10).toLowerCase()}`,
+      workspace?.name ?? 'Workspace',
+      userId,
+    );
+
+    const listingData = { ...data, publisherId: publisher.id };
 
     const row = existing
       ? await this.prisma.marketplaceListing.update({
           where: { id: existing.id },
-          data: { ...data, publishedAt: new Date() },
+          data: { ...listingData, publishedAt: new Date() },
           include: { publisher: PUBLISHER_SELECT },
         })
       : await this.prisma.marketplaceListing.create({
           data: {
-            ...data,
+            ...listingData,
             slug: await this.uniqueSlug(`${toSlug(name) || 'agent'}-${workspaceId.slice(-6).toLowerCase()}`),
             ownerWorkspaceId: workspaceId,
             sourceAgentId: agentId,
@@ -1313,7 +1181,7 @@ export class MarketplaceService implements OnModuleInit {
       : { visibility: 'PUBLIC' };
   }
 
-  private canSee(
+  canSee(
     listing: { visibility?: string; ownerWorkspaceId?: string | null },
     workspaceId?: string,
   ) {
@@ -1332,7 +1200,7 @@ export class MarketplaceService implements OnModuleInit {
     return listing;
   }
 
-  private async requireInstallation(workspaceId: string, listingId: string) {
+  async requireInstallation(workspaceId: string, listingId: string) {
     const installation = await this.prisma.marketplaceInstallation.findUnique({
       where: { listingId_workspaceId: { listingId, workspaceId } },
     });
@@ -1342,7 +1210,7 @@ export class MarketplaceService implements OnModuleInit {
     return installation;
   }
 
-  private toSummary(
+  toSummary(
     row: ListingRow,
     installed?: boolean,
     includePayload = false,
@@ -1397,7 +1265,7 @@ export class MarketplaceService implements OnModuleInit {
     };
   }
 
-  private toInstallation(row: {
+  toInstallation(row: {
     id: string;
     listingId: string;
     workspaceId: string;
@@ -1406,6 +1274,14 @@ export class MarketplaceService implements OnModuleInit {
     settingsJson: string;
     grantedScopes: string;
     installedAt: Date;
+    installedById?: string | null;
+    scope?: string;
+    accessJson?: string;
+    agentId?: string | null;
+    lastError?: string | null;
+    lastErrorCode?: string | null;
+    healthJson?: string;
+    approvedPermissions?: string;
     listing: ListingRow;
   }): InstallationView {
     const settings = parseJson<Record<string, unknown>>(row.settingsJson, {});
@@ -1429,7 +1305,33 @@ export class MarketplaceService implements OnModuleInit {
       approvalRequest: approvalRequest ?? null,
       lastActivityAt,
       entityType: isAgent ? 'AGENT' : 'APP',
+      installedById: row.installedById ?? null,
+      scope: row.scope ?? 'WORKSPACE',
+      access: parseAccess(row.accessJson),
+      agentId: row.agentId ?? null,
+      lastError: row.lastError ?? null,
+      lastErrorCode: row.lastErrorCode ?? null,
+      // A column default of '{}' (never checked) must read as "no result", not an empty result.
+      health: parseHealth(row.healthJson),
+      approvedPermissions: parseJson<string[]>(row.approvedPermissions, []),
+      latestVersion: row.listing.version,
+      updateAvailable: isAgent && compareSemver(row.listing.version, row.version) > 0,
     };
+  }
+}
+
+function parseHealth(raw: string | undefined): InstallationView['health'] {
+  const value = parseJson<Partial<NonNullable<InstallationView['health']>>>(raw, {});
+  return Array.isArray(value.checks) ? (value as NonNullable<InstallationView['health']>) : null;
+}
+
+/** Agents have a lifecycle (permissions, config, health, rollback) the generic install lacks. */
+function assertNotAgent(kind: string) {
+  if (kind === 'AGENT') {
+    throw new BadRequestException({
+      code: 'USE_AGENT_INSTALL_FLOW',
+      message: 'Agents are installed through the agent install flow.',
+    });
   }
 }
 

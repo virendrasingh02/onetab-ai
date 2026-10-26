@@ -186,6 +186,12 @@ import type {
   MarketplaceBrowseParams,
   MarketplaceCategoryCount,
   MarketplaceInstallation,
+  AgentAuditEntry,
+  AgentPackageValidation,
+  AgentHealthResult,
+  AgentInstallPreview,
+  AgentInstallRequest,
+  AgentInstallResult,
   MarketplaceKind,
   MarketplaceListing,
   MarketplaceListingDetail,
@@ -1869,6 +1875,53 @@ export const aiAnalyticsApi = {
  * listings are already installed; it is a query param rather than a path
  * segment because browsing itself is not workspace-scoped.
  */
+/** Agent install lifecycle — the server decides every outcome; nothing is optimistic. */
+export const agentInstallApi = {
+  list: (workspaceId: string) =>
+    request<MarketplaceInstallation[]>(http.get(`/marketplace/workspaces/${workspaceId}/agent-installs`)),
+
+  approvals: (workspaceId: string) =>
+    request<MarketplaceInstallation[]>(http.get(`/marketplace/workspaces/${workspaceId}/agent-installs/approvals`)),
+
+  audit: (workspaceId: string) =>
+    request<AgentAuditEntry[]>(http.get(`/marketplace/workspaces/${workspaceId}/agent-installs/audit`)),
+
+  preview: (workspaceId: string, slug: string) =>
+    request<AgentInstallPreview>(http.get(`/marketplace/workspaces/${workspaceId}/agent-installs/${slug}/preview`)),
+
+  install: (workspaceId: string, slug: string, input: AgentInstallRequest) =>
+    request<AgentInstallResult>(http.post(`/marketplace/workspaces/${workspaceId}/agent-installs/${slug}`, input)),
+
+  requestApproval: (workspaceId: string, slug: string, input: AgentInstallRequest) =>
+    request<MarketplaceInstallation>(http.post(`/marketplace/workspaces/${workspaceId}/agent-installs/${slug}/request`, input)),
+
+  resolve: (
+    workspaceId: string,
+    slug: string,
+    input: AgentInstallRequest & { action: 'APPROVE' | 'REJECT'; rejectionReason?: string },
+  ) =>
+    request<AgentInstallResult>(http.post(`/marketplace/workspaces/${workspaceId}/agent-installs/${slug}/resolve`, input)),
+
+  update: (workspaceId: string, slug: string, input: Pick<AgentInstallRequest, 'settings' | 'approvedPermissions'>) =>
+    request<AgentInstallResult>(http.post(`/marketplace/workspaces/${workspaceId}/agent-installs/${slug}/update`, input)),
+
+  setEnabled: (workspaceId: string, slug: string, enabled: boolean) =>
+    request<MarketplaceInstallation>(http.patch(`/marketplace/workspaces/${workspaceId}/agent-installs/${slug}/enabled`, { enabled })),
+
+  updateAccess: (workspaceId: string, slug: string, input: Pick<AgentInstallRequest, 'scope' | 'access'>) =>
+    request<MarketplaceInstallation>(http.patch(`/marketplace/workspaces/${workspaceId}/agent-installs/${slug}/access`, input)),
+
+  health: (workspaceId: string, slug: string) =>
+    request<AgentHealthResult>(http.post(`/marketplace/workspaces/${workspaceId}/agent-installs/${slug}/health`)),
+
+  uninstall: (workspaceId: string, slug: string, opts: { purge?: boolean } = {}) =>
+    request<{ listingSlug: string; status: string; purged: boolean }>(
+      http.delete(`/marketplace/workspaces/${workspaceId}/agent-installs/${slug}`, {
+        params: opts.purge ? { purge: true, confirm: true } : undefined,
+      }),
+    ),
+};
+
 export const marketplaceApi = {
   storefronts: () =>
     request<MarketplaceStorefronts>(http.get('/marketplace/storefronts')),
@@ -3153,6 +3206,19 @@ export const agentsApi = {
     request<MarketplaceListing>(
       http.put(
         `/workspaces/${workspaceId}/agents/${agentId}/marketplace`,
+        input,
+      ),
+    ),
+
+  /** Dry run of publishing: the permissions the package would request and any problems. */
+  validateForMarketplace: (
+    workspaceId: string,
+    agentId: string,
+    input: PublishAgentListingInput = {},
+  ) =>
+    request<AgentPackageValidation>(
+      http.post(
+        `/workspaces/${workspaceId}/agents/${agentId}/marketplace/validate`,
         input,
       ),
     ),

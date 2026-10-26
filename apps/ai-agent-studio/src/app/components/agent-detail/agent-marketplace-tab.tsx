@@ -3,7 +3,7 @@ import type { AIAgentDetail, MarketplaceListing, MarketplaceVisibility } from '@
 import { Badge, Button, Card, confirm, ErrorState, Field, Input, LoadingState, SegmentedControl, Textarea, toast } from '@org/ui';
 import { cn } from '@org/utils';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ExternalLink, Globe, Lock, Rocket, Store } from 'lucide-react';
+import { ExternalLink, Globe, Lock, Rocket, ShieldAlert, ShieldCheck, Store } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { WEB_APP_URL } from '../../auth-redirect.js';
 import { useStudioSession } from '../../session-guard.js';
@@ -71,6 +71,18 @@ export function AgentMarketplaceTab({ agent }: { agent: AIAgentDetail }) {
       });
     },
     onError: (err) => toast.error('Could not publish', { description: errorMessage(err) }),
+    meta: { disableToast: true },
+  });
+
+  // Dry run: what installers will be asked to approve, and whether the package is accepted at all.
+  const validate = useMutation({
+    mutationFn: () =>
+      agentsApi.validateForMarketplace(workspaceId, agent.id, {
+        visibility,
+        tagline: tagline.trim() || undefined,
+        category: category.trim() || undefined,
+      }),
+    onError: (err) => toast.error('Could not check the package', { description: errorMessage(err) }),
     meta: { disableToast: true },
   });
 
@@ -151,10 +163,40 @@ export function AgentMarketplaceTab({ agent }: { agent: AIAgentDetail }) {
             </Field>
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4">
               <p className="text-xs text-muted-foreground">Publishes v{version}. Tools that need credentials must be reconnected by whoever installs it.</p>
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => validate.mutate()} loading={validate.isPending}>
+                <ShieldCheck className="size-3.5" /> Check &amp; preview
+              </Button>
               <Button size="sm" className="gap-1.5 text-xs font-semibold" onClick={() => publish.mutate()} loading={publish.isPending}>
                 <Rocket className="size-3.5" /> {live ? 'Update listing' : 'Publish to marketplace'}
               </Button>
             </div>
+            {validate.data && (
+              <div className="space-y-2 rounded-lg border border-border/60 bg-surface-raised/40 p-3" role="status">
+                {validate.data.valid ? (
+                  <>
+                    <p className="text-xs font-semibold text-foreground">Ready to publish as v{validate.data.version}. Installers will be shown:</p>
+                    <ul className="space-y-1">
+                      {validate.data.permissions.map((p) => (
+                        <li key={p.id} className="flex items-center gap-2 text-xs">
+                          {p.sensitive ? <ShieldAlert className="size-3.5 text-warning-text" aria-hidden /> : <ShieldCheck className="size-3.5 text-success-text" aria-hidden />}
+                          <span className="text-foreground">{p.label}</span>
+                          {p.sensitive && <Badge variant="warning" className="text-2xs">Needs admin approval</Badge>}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs font-semibold text-destructive-text">This package can’t be published yet:</p>
+                    <ul className="list-disc pl-4 text-xs text-foreground">
+                      {validate.data.issues.map((i) => (
+                        <li key={i.message}>{i.message}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+            )}
           </AgentTabSection>
         )}
 
@@ -177,6 +219,15 @@ export function AgentMarketplaceTab({ agent }: { agent: AIAgentDetail }) {
               {listing.installCount} install{listing.installCount === 1 ? '' : 's'}
               {listing.ratingCount > 0 ? ` · ${listing.rating.toFixed(1)} ★ (${listing.ratingCount})` : ''}
             </p>
+            {listing.installStats && Object.keys(listing.installStats.byVersion).length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Installed versions:{' '}
+                {Object.entries(listing.installStats.byVersion)
+                  .map(([v, n]) => `v${v} × ${n}`)
+                  .join(', ')}
+                {listing.installStats.behind > 0 ? ` — ${listing.installStats.behind} can update to v${listing.version}` : ''}
+              </p>
+            )}
             {behind && (
               <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-foreground">
                 Studio is on v{version}; the listing still serves v{listing.version}. Update the listing to ship the newer version.

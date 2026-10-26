@@ -83,6 +83,16 @@ export interface InstallationView {
   approvalRequest?: Record<string, unknown> | null;
   lastActivityAt?: string | null;
   entityType?: 'APP' | 'AGENT';
+  installedById?: string | null;
+  scope?: string;
+  access?: { mode: 'EVERYONE' | 'RESTRICTED'; userIds: string[]; roles: string[] };
+  agentId?: string | null;
+  lastError?: string | null;
+  lastErrorCode?: string | null;
+  health?: { ok: boolean; checkedAt: string; checks: Array<{ name: string; ok: boolean; detail?: string }> } | null;
+  approvedPermissions?: string[];
+  latestVersion?: string;
+  updateAvailable?: boolean;
 }
 
 export interface BrowseQuery {

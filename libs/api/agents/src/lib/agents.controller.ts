@@ -15,6 +15,7 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import { WorkspaceRoleGuard } from '@org/api-auth';
 import {
+  AgentInstallService,
   MarketplaceService,
   type PublishStudioAgentInput,
 } from '@org/api-marketplace';
@@ -64,11 +65,21 @@ export class AgentsController {
   constructor(
     private readonly agentsService: AgentsService,
     private readonly marketplace: MarketplaceService,
+    private readonly agentInstalls: AgentInstallService,
   ) {}
 
   @Get()
-  getAgents(@WorkspaceId() workspaceId: string) {
-    return this.agentsService.getAgents(workspaceId);
+  async getAgents(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
+    @WorkspaceMemberRole() role: WorkspaceRole | undefined,
+  ) {
+    const [agents, hidden] = await Promise.all([
+      this.agentsService.getAgents(workspaceId),
+      this.agentInstalls.hiddenAgentIds(workspaceId, userId, role),
+    ]);
+    // Restricted marketplace installs are not listed to members without access.
+    return hidden.size ? agents.filter((a: { id: string }) => !hidden.has(a.id)) : agents;
   }
 
   /**
@@ -241,6 +252,19 @@ export class AgentsController {
     @Param('agentId') agentId: string,
   ) {
     return this.marketplace.getStudioListing(workspaceId, agentId);
+  }
+
+  /** Dry run of publishing: the permissions it would request and any manifest problems. Writes nothing. */
+  @Post(':agentId/marketplace/validate')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @CanManageAIEntity('agentId')
+  validateForMarketplace(
+    @WorkspaceId() workspaceId: string,
+    @Param('agentId') agentId: string,
+    @CurrentUser('id') userId: string,
+    @Body(zodBody(publishAgentListingSchema)) body: PublishStudioAgentInput,
+  ) {
+    return this.marketplace.validateStudioAgent(workspaceId, agentId, userId, body);
   }
 
   /** Publishes (or re-publishes) the agent's latest published version as a listing. */

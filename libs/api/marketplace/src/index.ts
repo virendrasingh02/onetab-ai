@@ -1,6 +1,14 @@
 export { MarketplaceModule } from './lib/marketplace.module.js';
 export { MarketplaceService } from './lib/marketplace.service.js';
 export { MarketplaceController } from './lib/marketplace.controller.js';
+export { AgentInstallService, type InstallActor } from './lib/agent-install.service.js';
+export {
+  evaluateAgentPackage,
+  type ConfigField,
+  type InstallAccess,
+  type ManifestIssue,
+  type PermissionRequest,
+} from './lib/agent-manifest.js';
 export { PluginSDKService } from './lib/plugin-sdk.service.js';
 
 export {

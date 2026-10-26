@@ -3272,20 +3272,37 @@ model MarketplaceListing {
 }
 
 model MarketplaceInstallation {
-  id            String             @id @default(cuid())
-  listingId     String
-  workspaceId   String
-  installedById String?
-  version       String             @default("1.0.0")
-  status        String             @default("ACTIVE")
-  settingsJson  String             @default("{}")
+  id                  String             @id @default(cuid())
+  listingId           String
+  workspaceId         String
+  installedById       String?
+  version             String             @default("1.0.0")
+  status              String             @default("ACTIVE")
+  settingsJson        String             @default("{}")
   /// Scopes the workspace admin actually granted, which may be narrower than
   /// the manifest requested.
-  grantedScopes String             @default("[]")
-  installedAt   DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
-  listing       MarketplaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  workspace     Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  grantedScopes       String             @default("[]")
+  /// WORKSPACE | PERSONAL | ADMIN_MANAGED — who may manage / see the install.
+  scope               String             @default("WORKSPACE")
+  /// `{ mode: 'EVERYONE' | 'RESTRICTED', userIds, roles }` — enforced when the agent runs.
+  accessJson          String             @default("{}")
+  /// Workspace agent this install provisioned (AGENT listings only).
+  agentId             String?
+  /// Permission ids a person explicitly approved at install/update time.
+  approvedPermissions String             @default("[]")
+  /// Manifest as it was when installed; an update never widens it silently.
+  pinnedManifestJson  String             @default("{}")
+  /// Agent state before the last update, so a failed update can be rolled back.
+  rollbackJson        String?
+  lastError           String?
+  lastErrorCode       String?
+  healthJson          String             @default("{}")
+  /// Lease taken while an install/update runs, so concurrent requests cannot interleave.
+  lockedAt            DateTime?
+  installedAt         DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  listing             MarketplaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  workspace           Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([listingId, workspaceId])
   @@index([workspaceId, status])

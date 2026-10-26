@@ -4,8 +4,12 @@ import {
   WORKSPACE_PERMISSIONS_KEY,
 } from '@org/api-common';
 import { SystemRole, WorkspacePermission } from '@org/types';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('@org/api-ai', () => ({ AISecretsService: class {} }));
+import { AgentInstallController } from './agent-install.controller';
 import { MarketplaceController } from './marketplace.controller';
+import { MarketplaceService } from './marketplace.service';
 
 const proto = MarketplaceController.prototype as unknown as Record<string, () => void>;
 const meta = (key: string, name: string) => Reflect.getMetadata(key, proto[name]);
@@ -22,5 +26,62 @@ describe('marketplace authorization (privilege escalation regressions)', () => {
 
   it('publishing into the global catalogue is operator-only', () => {
     expect(meta(SYSTEM_ROLES_KEY, 'publishCustom')).toEqual([SystemRole.SUPERADMIN]);
+  });
+});
+
+describe('agent install authorization', () => {
+  const agentProto = AgentInstallController.prototype as unknown as Record<string, () => void>;
+  const agentMeta = (name: string) => Reflect.getMetadata(WORKSPACE_PERMISSIONS_KEY, agentProto[name]);
+
+  it.each(['resolve', 'updateAccess'])('%s is admin-only (MANAGE_SETTINGS)', (name) => {
+    expect(agentMeta(name)).toContain(WorkspacePermission.MANAGE_SETTINGS);
+  });
+
+  it.each(['install', 'request', 'update', 'setEnabled', 'health', 'uninstall'])(
+    '%s needs at least CREATE, so guests/viewers cannot call it',
+    (name) => {
+      expect(agentMeta(name)).toContain(WorkspacePermission.CREATE);
+    },
+  );
+
+  it('sits behind WorkspaceRoleGuard so non-members are rejected before any handler', () => {
+    const guards = Reflect.getMetadata('__guards__', AgentInstallController) as unknown[];
+    expect(guards.map((g) => (g as { name: string }).name)).toContain('WorkspaceRoleGuard');
+  });
+
+  it('the generic install path refuses AGENT listings so it cannot bypass approval', async () => {
+    const service = new MarketplaceService({
+      marketplaceListing: {
+        findUnique: async () => ({ id: 'l', kind: 'AGENT', slug: 'a', status: 'PUBLISHED', visibility: 'PUBLIC' }),
+      },
+    } as never);
+    await expect(service.install({ workspaceId: 'w', listingSlug: 'a' })).rejects.toMatchObject({
+      response: { code: 'USE_AGENT_INSTALL_FLOW' },
+    });
+    await expect(service.uninstall('w', 'a')).rejects.toMatchObject({ response: { code: 'USE_AGENT_INSTALL_FLOW' } });
+  });
+});
+
+describe('installation view', () => {
+  const service = new MarketplaceService({} as never);
+  const row = (healthJson: string) =>
+    service.toInstallation({
+      id: 'i', listingId: 'l', workspaceId: 'w', version: '1.0.0', status: 'ACTIVE', settingsJson: '{}',
+      grantedScopes: '[]', installedAt: new Date(), healthJson,
+      listing: {
+        id: 'l', kind: 'AGENT', slug: 'a', name: 'A', tagline: '', category: 'x', version: '1.0.0', iconUrl: null,
+        previewUrl: null, tags: '[]', pricingModel: 'FREE', priceCents: 0, status: 'PUBLISHED', isOfficial: false,
+        isFeatured: false, installCount: 0, ratingSum: 0, ratingCount: 0, manifestJson: '{}',
+      },
+    } as never);
+
+  it('reports a never-checked install (default "{}") as no health result, not an empty one', () => {
+    expect(row('{}').health).toBeNull();
+    expect(row('not json').health).toBeNull();
+  });
+
+  it('passes a real health result through', () => {
+    const health = { ok: true, checkedAt: 'now', checks: [{ name: 'Agent exists', ok: true }] };
+    expect(row(JSON.stringify(health)).health).toEqual(health);
   });
 });

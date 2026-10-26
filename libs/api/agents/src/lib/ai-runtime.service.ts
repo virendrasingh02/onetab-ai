@@ -1,3 +1,4 @@
+import { AgentInstallService } from '@org/api-marketplace';
 import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
@@ -374,6 +375,7 @@ export class AIRuntimeService {
     private readonly knowledge: KnowledgeService,
     @Optional() private readonly events?: EventEmitter2,
     @Optional() private readonly modelResolver?: ModelResolverService,
+    @Optional() private readonly agentInstalls?: AgentInstallService,
   ) {}
 
   /**
@@ -432,6 +434,8 @@ export class AIRuntimeService {
     if (!entity.isActive) {
       throw new Error(`AI Entity '${entity.name}' is deactivated.`);
     }
+    // Marketplace installs carry their own on/off state and an access list.
+    await this.agentInstalls?.assertCanRun(workspaceId, entity.id, context.requesterId);
     if (!isAIEntityType(entity.type)) {
       throw new Error(`Invalid entity type '${entity.type}'. Expected 'agent' or 'coworker'.`);
     }

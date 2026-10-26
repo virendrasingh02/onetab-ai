@@ -22,6 +22,9 @@
     },
     {
       "path": "../auth/tsconfig.lib.json"
+    },
+    {
+      "path": "../ai/tsconfig.lib.json"
     }
   ]
 }

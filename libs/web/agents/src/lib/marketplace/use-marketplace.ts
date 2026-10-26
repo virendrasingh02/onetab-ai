@@ -12,6 +12,7 @@ import type {
 } from '@org/types';
 import { toast } from '@org/ui';
 import { useMemo } from 'react';
+import { normalizeInstallation } from './use-agent-install';
 
 export function useMarketplaceBrowse(
   params: MarketplaceBrowseParams,
@@ -64,6 +65,7 @@ export function useMarketplaceInstallations(
     queryFn: () => marketplaceApi.installations(workspaceId, kind),
     enabled: Boolean(workspaceId),
     staleTime: 10_000,
+    select: (rows) => rows.map(normalizeInstallation),
   });
 }
 
@@ -73,6 +75,7 @@ export function useMarketplaceApprovals(workspaceId: string) {
     queryFn: () => marketplaceApi.approvals(workspaceId),
     enabled: Boolean(workspaceId),
     staleTime: 10_000,
+    select: (rows) => rows.map(normalizeInstallation),
   });
 }
 

@@ -27,7 +27,15 @@ export const LISTING_STATUSES = [
 
 export type ListingStatus = (typeof LISTING_STATUSES)[number];
 
-export const INSTALL_STATUSES = ['ACTIVE', 'DISABLED', 'UNINSTALLED'] as const;
+export const INSTALL_STATUSES = [
+  'ACTIVE',
+  'DISABLED',
+  'UNINSTALLED',
+  'PENDING_APPROVAL',
+  'INSTALLING',
+  'UPDATING',
+  'FAILED',
+] as const;
 
 export type InstallStatus = (typeof INSTALL_STATUSES)[number];
 

@@ -10,13 +10,16 @@ import type {
 } from '@org/types';
 import { AiEntityAvatar, confirm, toast } from '@org/ui';
 import { studioWorkspacePath } from '@org/platform';
-import { useCurrentWorkspace } from '@org/web-workspace';
+import { useCurrentWorkspace, useWorkspacePermission } from '@org/web-workspace';
+import { useCurrentUser } from '@org/auth';
+import { WorkspacePermission } from '@org/types';
 import {
   useMarketplaceBrowse,
   useMarketplaceInstallations,
   useMarketplaceApprovals,
   useMarketplaceMutations,
 } from './marketplace/use-marketplace';
+import { useAgentApprovals } from './marketplace/use-agent-install';
 import {
   MarketplaceHeader,
   MarketplaceTabs,
@@ -29,6 +32,9 @@ import {
   useWorkspaceCoworkers,
   MarketplaceDeveloperView,
   UniversalInstallModal,
+  AgentInstallDialog,
+  AgentInstallsSection,
+  AgentAdminPanel,
   RequestAccessModal,
   IntegrationConfigModal,
   AppDetailPage,
@@ -106,6 +112,9 @@ export function AgentMarketplaceView({
   const activeWorkspaceId = workspaceId || '';
   const activeWorkspaceSlug = slug || 'default';
   const activeWorkspaceName = workspace?.name || 'My Workspace';
+  const { can } = useWorkspacePermission();
+  const canManage = can(WorkspacePermission.MANAGE_SETTINGS);
+  const currentUser = useCurrentUser();
 
   // Read URL query params
   const rawTab = searchParams.get('tab');
@@ -232,9 +241,10 @@ export function AgentMarketplaceView({
     return listings.find((l) => l.slug === urlAgent) || null;
   }, [urlAgent, listings]);
 
-  const pendingApprovalsCount = approvals.filter(
-    (a) => a.approvalStatus === 'PENDING',
-  ).length;
+  const agentApprovals = useAgentApprovals(activeWorkspaceId, canManage);
+  const pendingApprovalsCount =
+    approvals.filter((a) => a.approvalStatus === 'PENDING' && a.kind !== 'AGENT').length +
+    (agentApprovals.data?.length ?? 0);
 
   // Handlers
   const handleSelectListing = (listing: MarketplaceListing) => {
@@ -274,13 +284,21 @@ export function AgentMarketplaceView({
     }
   };
 
+  /** Agents go through the install lifecycle (which also handles requests); apps keep the access-request modal. */
+  const handleRequestAccess = (listing: MarketplaceListing) => {
+    if (listing.kind === 'AGENT') setInstallModalListing(listing);
+    else setRequestAccessListing(listing);
+  };
+
   const handleStartChatForInstalledAgent = (
     agentSlug: string,
     prompt?: string,
   ) => {
-    const inst = installations.find((i) => i.listingSlug === agentSlug);
-    if (inst) {
-      handleOpenChat(inst.id, prompt);
+    const inst = installations.find(
+      (i) => i.listingSlug === agentSlug && i.status === 'ACTIVE' && i.agentId,
+    );
+    if (inst?.agentId) {
+      handleOpenChat(inst.agentId, prompt);
     } else {
       toast.info('Please install the agent first to start chatting.');
       const l = listings.find((x) => x.slug === agentSlug);
@@ -385,9 +403,7 @@ export function AgentMarketplaceView({
               agent={selectedAgentListing as MarketplaceListingDetail}
               onBack={handleBackToDirectory}
               onInstall={() => setInstallModalListing(selectedAgentListing)}
-              onRequestAccess={() =>
-                setRequestAccessListing(selectedAgentListing)
-              }
+              onRequestAccess={() => handleRequestAccess(selectedAgentListing)}
               onConfigure={() => {
                 const inst = installations.find(
                   (i) => i.listingSlug === selectedAgentListing.slug,
@@ -412,7 +428,7 @@ export function AgentMarketplaceView({
                   isLoading={browseQuery.isLoading}
                   onSelectListing={handleSelectListing}
                   onInstall={(l) => setInstallModalListing(l)}
-                  onRequestAccess={(l) => setRequestAccessListing(l)}
+                  onRequestAccess={handleRequestAccess}
                   onConfigure={(l) => {
                     const inst = installations.find(
                       (i) => i.listingSlug === l.slug,
@@ -453,7 +469,7 @@ export function AgentMarketplaceView({
                   searchQuery={searchQuery}
                   onSelectListing={handleSelectListing}
                   onInstall={(l) => setInstallModalListing(l)}
-                  onRequestAccess={(l) => setRequestAccessListing(l)}
+                  onRequestAccess={handleRequestAccess}
                   onConfigure={(l) => {
                     const inst = installations.find(
                       (i) => i.listingSlug === l.slug,
@@ -470,7 +486,7 @@ export function AgentMarketplaceView({
                   searchQuery={searchQuery}
                   onSelectListing={handleSelectListing}
                   onInstall={(l) => setInstallModalListing(l)}
-                  onRequestAccess={(l) => setRequestAccessListing(l)}
+                  onRequestAccess={handleRequestAccess}
                   onConfigure={(l) => {
                     const inst = installations.find(
                       (i) => i.listingSlug === l.slug,
@@ -481,27 +497,50 @@ export function AgentMarketplaceView({
               )}
 
               {activeTab === 'installed' && (
-                <MarketplaceInstalledView
-                  installations={installations}
-                  approvals={approvals}
-                  isAdmin={true}
-                  onConfigure={(inst) => setConfigModalItem(inst)}
-                  onToggleEnabled={(slug, enabled) =>
-                    setEnabled.mutate({ slug, enabled })
-                  }
-                  onUninstall={handleUninstall}
-                  onApprove={(slug) =>
-                    resolveApproval.mutate({ slug, action: 'APPROVE' })
-                  }
-                  onReject={(slug, reason) =>
-                    resolveApproval.mutate({
-                      slug,
-                      action: 'REJECT',
-                      rejectionReason: reason,
-                    })
-                  }
-                  onBrowseMore={() => handleTabChange('discover')}
-                />
+                <div className="space-y-8 py-3">
+                  <section aria-labelledby="installed-agents-heading" className="space-y-3">
+                    <h2 id="installed-agents-heading" className="text-sm font-semibold text-foreground">
+                      AI agents
+                    </h2>
+                    <AgentInstallsSection
+                      workspace={{ id: activeWorkspaceId, slug: activeWorkspaceSlug }}
+                      currentUserId={currentUser?.id}
+                      canManage={canManage}
+                      onOpenChat={(agentId) => handleOpenChat(agentId)}
+                      onRetry={(inst) => setInstallModalListing(inst.listing)}
+                      onBrowse={() => handleTabChange('discover')}
+                    />
+                  </section>
+
+                  {canManage && <AgentAdminPanel workspaceId={activeWorkspaceId} />}
+
+                  <section aria-labelledby="installed-apps-heading" className="space-y-1">
+                    <h2 id="installed-apps-heading" className="text-sm font-semibold text-foreground">
+                      Apps &amp; integrations
+                    </h2>
+                    <MarketplaceInstalledView
+                      installations={installations.filter((i) => i.kind !== 'AGENT')}
+                      approvals={approvals.filter((a) => a.kind !== 'AGENT')}
+                      isAdmin={canManage}
+                      onConfigure={(inst) => setConfigModalItem(inst)}
+                      onToggleEnabled={(slug, enabled) =>
+                        setEnabled.mutate({ slug, enabled })
+                      }
+                      onUninstall={handleUninstall}
+                      onApprove={(slug) =>
+                        resolveApproval.mutate({ slug, action: 'APPROVE' })
+                      }
+                      onReject={(slug, reason) =>
+                        resolveApproval.mutate({
+                          slug,
+                          action: 'REJECT',
+                          rejectionReason: reason,
+                        })
+                      }
+                      onBrowseMore={() => handleTabChange('discover')}
+                    />
+                  </section>
+                </div>
               )}
 
               {activeTab === 'workspace' && (
@@ -528,8 +567,24 @@ export function AgentMarketplaceView({
         </div>
       </div>
 
-      {/* Universal 5-step Install Modal */}
-      {installModalListing && (
+      {/* Agents: server-confirmed install lifecycle. Apps: the generic 5-step modal. */}
+      {installModalListing && installModalListing.kind === 'AGENT' && (
+        <AgentInstallDialog
+          open
+          onClose={() => setInstallModalListing(null)}
+          listing={installModalListing}
+          workspace={{
+            id: activeWorkspaceId,
+            name: activeWorkspaceName,
+            slug: activeWorkspaceSlug,
+          }}
+          onOpenChat={(agentId) => {
+            setInstallModalListing(null);
+            handleOpenChat(agentId);
+          }}
+        />
+      )}
+      {installModalListing && installModalListing.kind !== 'AGENT' && (
         <UniversalInstallModal
           isOpen={Boolean(installModalListing)}
           onClose={() => setInstallModalListing(null)}

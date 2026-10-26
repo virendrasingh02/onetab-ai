@@ -153,6 +153,16 @@ export interface MarketplaceListing {
   approvalStatus?: string;
   installationCount?: number;
   ratingAverage?: number;
+  /** Creator view of a Studio listing: live installs per version, and how many lag the listed version. */
+  installStats?: { byVersion: Record<string, number>; behind: number };
+}
+
+export interface AgentPackageValidation {
+  valid: boolean;
+  version: string;
+  permissions: AgentPermissionRequest[];
+  configFields: AgentConfigField[];
+  issues: Array<{ code: string; message: string }>;
 }
 
 export interface MarketplaceReview {
@@ -192,6 +202,8 @@ export interface MarketplaceStorefrontStat {
 export type InstallationStatus =
   | 'ACTIVE'
   | 'DISABLED'
+  | 'INSTALLING'
+  | 'UPDATING'
   | 'PENDING_APPROVAL'
   | 'CONFIG_REQUIRED'
   | 'SUSPENDED'
@@ -220,6 +232,91 @@ export interface MarketplaceInstallation {
   requestReason?: string;
   requestedBy?: string;
   requesterName?: string;
+  // --- agent install lifecycle (AGENT listings) ---
+  installedById?: string | null;
+  scope?: AgentInstallScope;
+  access?: AgentInstallAccess;
+  /** The workspace agent this install provisioned — what chat opens. */
+  agentId?: string | null;
+  lastError?: string | null;
+  lastErrorCode?: string | null;
+  health?: AgentHealthResult | null;
+  approvedPermissions?: string[];
+  latestVersion?: string;
+  updateAvailable?: boolean;
+}
+
+export type AgentInstallScope = 'WORKSPACE' | 'PERSONAL' | 'ADMIN_MANAGED';
+
+export interface AgentInstallAccess {
+  mode: 'EVERYONE' | 'RESTRICTED';
+  userIds: string[];
+  roles: string[];
+}
+
+export interface AgentHealthResult {
+  ok: boolean;
+  checkedAt: string;
+  checks: Array<{ name: string; ok: boolean; detail?: string }>;
+}
+
+export interface AgentPermissionRequest {
+  id: string;
+  kind: 'tool' | 'network' | 'data' | 'code' | 'connector';
+  label: string;
+  description: string;
+  sensitive: boolean;
+}
+
+export interface AgentConfigField {
+  key: string;
+  label: string;
+  type: 'text' | 'secret' | 'url' | 'select' | 'boolean';
+  required: boolean;
+  description?: string;
+  options?: string[];
+}
+
+export interface AgentInstallPreview {
+  listing: MarketplaceListing;
+  installable: boolean;
+  ownAgent: boolean;
+  listingStatus: string;
+  issues: Array<{ code: string; message: string }>;
+  permissions: AgentPermissionRequest[];
+  configFields: AgentConfigField[];
+  dependencies: { connectors: string[]; externalServices: string[] } | null;
+  compatibility: { minPlatformVersion: string; platforms: string[] } | null;
+  /** True when the caller cannot install on their own and must ask an admin. */
+  requiresAdminApproval: boolean;
+  canInstall: boolean;
+  forcedScope: AgentInstallScope | null;
+  reason: string | null;
+  installation: MarketplaceInstallation | null;
+  /** Permissions an available update would add on top of what was approved. */
+  newPermissions: AgentPermissionRequest[];
+}
+
+export interface AgentInstallRequest {
+  scope?: AgentInstallScope;
+  access?: Partial<AgentInstallAccess>;
+  settings?: Record<string, unknown>;
+  approvedPermissions?: string[];
+  reason?: string;
+}
+
+export interface AgentInstallResult {
+  installation: MarketplaceInstallation;
+  alreadyInstalled: boolean;
+}
+
+export interface AgentAuditEntry {
+  id: string;
+  action: string;
+  target: string | null;
+  actor: { id: string; name: string | null; email: string } | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
 }
 
 export interface MarketplaceBrowseParams {

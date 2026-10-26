@@ -167,6 +167,14 @@ export const queryKeys = {
       ['marketplace', 'installations', workspaceId, kind] as const,
     approvals: (workspaceId: string) =>
       ['marketplace', 'approvals', workspaceId] as const,
+    agentInstalls: (workspaceId: string) =>
+      ['marketplace', 'agent-installs', workspaceId] as const,
+    agentPreview: (workspaceId: string, slug: string) =>
+      ['marketplace', 'agent-preview', workspaceId, slug] as const,
+    agentApprovals: (workspaceId: string) =>
+      ['marketplace', 'agent-approvals', workspaceId] as const,
+    agentAudit: (workspaceId: string) =>
+      ['marketplace', 'agent-audit', workspaceId] as const,
     sdk: () => ['marketplace', 'sdk'] as const,
     registration: (slug: string) =>
       ['marketplace', 'registration', slug] as const,
