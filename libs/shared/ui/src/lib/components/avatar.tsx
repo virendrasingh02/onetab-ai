@@ -252,6 +252,21 @@ export function useResolvedPresence(
   return live ?? fallback;
 }
 
+/**
+ * How many of `userIds` are online right now, from the same live presence the
+ * avatars draw. Ids may be platform or Matrix spellings.
+ */
+export function useOnlineCount(userIds: readonly string[]): number {
+  const resolve = useContext(AvatarPresenceContext);
+  let online = 0;
+  for (const id of userIds) {
+    if (toPresenceStatus(resolve(normalizeAvatarSeed(id))) === 'online') {
+      online += 1;
+    }
+  }
+  return online;
+}
+
 export interface UserAvatarProps extends Omit<AvatarProps, 'shape'> {
   name: string;
   src?: string | null;

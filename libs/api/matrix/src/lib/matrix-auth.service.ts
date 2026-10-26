@@ -631,8 +631,7 @@ export class MatrixAuthService {
         createdById: true,
         announcementPosterIds: true,
         members: {
-          where: { role: 'ADMIN' },
-          select: { userId: true },
+          select: { userId: true, role: true },
         },
       },
     });
@@ -654,7 +653,9 @@ export class MatrixAuthService {
       const posterUserIds = announcementPosterUserIds({
         createdById: channel.createdById,
         announcementPosterIds: channel.announcementPosterIds,
-        channelAdminIds: channel.members.map((m) => m.userId),
+        channelAdminIds: channel.members
+          .filter((m) => m.role === 'ADMIN')
+          .map((m) => m.userId),
         workspaceAdminIds: workspaceAdmins.map((m) => m.userId),
       });
 
@@ -668,11 +669,28 @@ export class MatrixAuthService {
       );
     }
 
+    // Guests may not ping the whole room — hold them below the room-ping level.
+    const guests = await this.prisma.workspaceMember.findMany({
+      where: {
+        workspaceId: channel.workspaceId,
+        role: 'GUEST',
+        status: 'ACTIVE',
+        userId: { in: channel.members.map((m) => m.userId) },
+      },
+      select: { userId: true },
+    });
+    const guestMatrixUserIds = (
+      await Promise.all(
+        guests.map((g) => this.ensureIdentity(g.userId).catch(() => null)),
+      )
+    ).filter((id): id is string => !!id);
+
     try {
       await this.admin.applyAnnouncementPolicy(channel.matrixRoomId, {
         enabled,
         allowReactions: channel.allowReactions,
         authorizedMatrixUserIds,
+        guestMatrixUserIds,
       });
     } catch (error) {
       this.logger.warn(

@@ -43,6 +43,7 @@ export {
   PRESENCE_STYLES,
   PresenceDot,
   toPresenceStatus,
+  useOnlineCount,
   useResolvedPresence,
   UserAvatar,
   UserCover,

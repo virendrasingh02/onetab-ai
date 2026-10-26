@@ -27,6 +27,8 @@ import {
   collectUnreadMentions,
   ALSO_SEND_TO_CHANNEL_KEY,
   MENTIONS_KEY,
+  buildMentionsContent,
+  hasRoomMention,
   ATTACHMENT_BATCH_KEY,
   FORWARDED_CONTENT_KEY,
   forwardFallbackBody,
@@ -1340,22 +1342,25 @@ export class OneTabMatrixClient {
     } = {},
   ): Promise<string> {
     const { alsoSendToChannel, mentions, ...rest } = options;
-    const mentionContent = mentions?.length
-      ? {
-          // `m.mentions` is for Matrix ids only; platform ids ride in ours.
-          'm.mentions': {
-            user_ids: [
-              ...new Set(
-                mentions.map((m) => m.userId).filter((id) => id.startsWith('@')),
-              ),
-            ],
-          },
-          [MENTIONS_KEY]: mentions.map((m) => ({
-            user_id: m.userId,
-            label: m.label,
-          })),
-        }
-      : undefined;
+    const roomMention = hasRoomMention(body);
+    const mentionContent =
+      mentions?.length || roomMention
+        ? {
+            // `m.mentions` is for Matrix ids only; platform ids ride in ours.
+            'm.mentions': buildMentionsContent(
+              body,
+              (mentions ?? []).map((m) => m.userId),
+            ),
+            ...(mentions?.length
+              ? {
+                  [MENTIONS_KEY]: mentions.map((m) => ({
+                    user_id: m.userId,
+                    label: m.label,
+                  })),
+                }
+              : {}),
+          }
+        : undefined;
     const mentionEcho = mentions?.length ? { mentions } : undefined;
     if (!alsoSendToChannel || !options.threadRootId) {
       return this.sendTextEvent(roomId, body, {
@@ -1605,21 +1610,20 @@ export class OneTabMatrixClient {
       ...(retriedMessage.alsoSentToChannel
         ? { [ALSO_SEND_TO_CHANNEL_KEY]: true }
         : {}),
-      ...(retriedMessage.mentions?.length
+      ...(retriedMessage.mentions?.length || hasRoomMention(retriedMessage.body)
         ? {
-            'm.mentions': {
-              user_ids: [
-                ...new Set(
-                  retriedMessage.mentions
-                    .map((m) => m.userId)
-                    .filter((id) => id.startsWith('@')),
-                ),
-              ],
-            },
-            [MENTIONS_KEY]: retriedMessage.mentions.map((m) => ({
-              user_id: m.userId,
-              label: m.label,
-            })),
+            'm.mentions': buildMentionsContent(
+              retriedMessage.body,
+              (retriedMessage.mentions ?? []).map((m) => m.userId),
+            ),
+            ...(retriedMessage.mentions?.length
+              ? {
+                  [MENTIONS_KEY]: retriedMessage.mentions.map((m) => ({
+                    user_id: m.userId,
+                    label: m.label,
+                  })),
+                }
+              : {}),
           }
         : {}),
       msgtype: 'm.text',
@@ -1725,11 +1729,12 @@ export class OneTabMatrixClient {
     );
     if (keptMentions.length) {
       newContent[MENTIONS_KEY] = keptMentions;
-      newContent['m.mentions'] = {
-        user_ids: keptMentions
-          .map((m) => m.user_id as string)
-          .filter((id) => id.startsWith('@')),
-      };
+    }
+    if (keptMentions.length || hasRoomMention(newBody)) {
+      newContent['m.mentions'] = buildMentionsContent(
+        newBody,
+        keptMentions.map((m) => m.user_id as string),
+      );
     }
 
     await withRetry(() =>

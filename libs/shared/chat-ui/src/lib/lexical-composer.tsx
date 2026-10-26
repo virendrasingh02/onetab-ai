@@ -183,6 +183,8 @@ const EDITOR_THEME = {
   link: 'rounded-[0.3em] px-[0.3em] py-px font-medium box-decoration-clone cursor-pointer bg-info/10 text-info-text no-underline hover:bg-info/20',
   hashtag: 'rounded-[0.3em] px-[0.3em] py-px font-medium box-decoration-clone bg-info/10 text-info-text',
   mention: 'rounded-[0.3em] px-[0.3em] py-px font-medium box-decoration-clone bg-primary/15 text-primary-text',
+  // Same warm chip the sent message draws for @everyone / @channel / @here.
+  groupMention: 'rounded-[0.3em] px-[0.3em] py-px font-medium box-decoration-clone bg-warning/20 text-foreground',
   command: 'rounded-[0.3em] px-[0.3em] py-px font-medium box-decoration-clone bg-info/10 text-info-text',
 };
 
@@ -1194,8 +1196,8 @@ function MentionsPlugin({
                 />
               )}
               <span className="min-w-0 flex-1">
-                <span className="gap-1.5 font-semibold flex items-center text-foreground">
-                  <span className="truncate">@{option.candidate.name}</span>
+                <span className="gap-1.5 text-sm font-semibold flex items-center text-foreground">
+                  <span className="truncate">{option.candidate.name}</span>
                   {option.candidate.isSelf ? (
                     <span className="px-1 py-0 font-bold tracking-wider rounded-md shrink-0 bg-muted text-2xs text-muted-foreground uppercase">
                       You
@@ -1210,7 +1212,7 @@ function MentionsPlugin({
                   ) : null}
                 </span>
                 {option.candidate.subtitle ? (
-                  <span className="block truncate text-2xs text-muted-foreground">
+                  <span className="block truncate text-xs text-muted-foreground">
                     {option.candidate.subtitle}
                   </span>
                 ) : null}
@@ -1383,11 +1385,11 @@ function ChannelMentionsPlugin({
                     <Hash className="size-3.5" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="font-semibold block truncate text-foreground">
-                      #{option.candidate.name}
+                    <span className="text-sm font-semibold block truncate text-foreground">
+                      {option.candidate.name}
                     </span>
                     {option.candidate.subtitle ? (
-                      <span className="block truncate text-2xs text-muted-foreground">
+                      <span className="block truncate text-xs text-muted-foreground">
                         {option.candidate.subtitle}
                       </span>
                     ) : null}

@@ -48,6 +48,11 @@ export class MatrixMembershipListener {
           50,
         );
       }
+      // A guest who joins must be held below the room-ping level straight
+      // away, not on the reconciler's next pass.
+      if (event.action === 'join') {
+        await this.auth.applyChannelPostingPolicy(event.channelId);
+      }
     } catch (error) {
       this.logger.warn(
         `Channel membership mirror failed for ${event.userId}: ${String(error)}`,

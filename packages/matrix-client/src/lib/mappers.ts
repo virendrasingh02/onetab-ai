@@ -336,6 +336,26 @@ export const ALSO_SEND_TO_CHANNEL_KEY = 'org.onetab.also_send_to_channel';
 /** Content key listing `{ user_id, label }` for each person @mentioned. */
 export const MENTIONS_KEY = 'org.onetab.mentions';
 
+/**
+ * Whether `body` addresses the whole room (`@everyone`, `@channel`, `@here`).
+ * Matrix models that as `m.mentions.room`, which its `is_room_mention` push
+ * rule turns into a notification + highlight for every member.
+ */
+export function hasRoomMention(body: string): boolean {
+  return /(^|[^\w@])@(everyone|channel|here)\b/i.test(body);
+}
+
+/** The `m.mentions` content for a message: named users plus the room flag. */
+export function buildMentionsContent(
+  body: string,
+  userIds: readonly string[],
+): { user_ids: string[]; room?: true } {
+  const matrixIds = [...new Set(userIds.filter((id) => id.startsWith('@')))];
+  return hasRoomMention(body)
+    ? { user_ids: matrixIds, room: true }
+    : { user_ids: matrixIds };
+}
+
 function readMentionRefs(
   content: Record<string, unknown>,
 ): { userId: string; label: string }[] | undefined {

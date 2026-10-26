@@ -19,6 +19,7 @@ import {
   PopoverTrigger,
   UnifiedEmojiPickerPopover,
   toast,
+  useOnlineCount,
   type UnifiedPickerTab,
 } from '@org/ui';
 import {
@@ -105,6 +106,7 @@ export {
  * pinged.
  */
 export function buildGroupMentions(counts: {
+  online?: number;
   channel?: number;
   workspace?: number;
 }): MentionCandidate[] {
@@ -115,7 +117,10 @@ export function buildGroupMentions(counts: {
       id: 'here',
       name: 'here',
       kind: 'group',
-      subtitle: 'Notify active members in this channel',
+      subtitle:
+        counts.online !== undefined
+          ? `${counts.online} online in this channel`
+          : 'Notify active members in this channel',
     },
     {
       id: 'channel',
@@ -975,6 +980,8 @@ export function Composer({
     });
   }, [slashCommands, surfaceKind, viewerCanManage, isGuest]);
 
+  const onlineInRoom = useOnlineCount(members.map((m) => m.userId));
+
   const mentionCandidates = useMemo<MentionCandidate[]>(() => {
     const allowGroups =
       canMentionGroups !== undefined
@@ -988,8 +995,9 @@ export function Composer({
 
     const groups = allowGroups
       ? buildGroupMentions({
+          online: onlineInRoom,
           channel: members.length,
-          workspace: workspaceMembers?.length || members.length,
+          workspace: Math.max(workspaceMembers?.length ?? 0, members.length),
         })
       : [];
 
@@ -1033,6 +1041,7 @@ export function Composer({
     ];
   }, [
     members,
+    onlineInRoom,
     workspaceMembers,
     currentUserId,
     agentMentions,

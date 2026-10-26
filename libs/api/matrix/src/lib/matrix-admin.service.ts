@@ -58,11 +58,17 @@ const MAX_RATE_LIMIT_WAIT_MS = 8_000;
  *  not worth pushing through the homeserver media repo. */
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 
+/** Power level needed to ping the whole room; guests sit one below it. */
+const ROOM_PING_LEVEL = 1;
+
 /** Room state holding the pinned messages. */
 const PINNED_EVENTS_TYPE = 'm.room.pinned_events';
 
 type PowerLevelsContent = {
   events_default?: number;
+  users_default?: number;
+  /** Levels needed to trigger a notification — `room` is `@room` / `@everyone`. */
+  notifications?: Record<string, number>;
   events?: Record<string, number>;
   users?: Record<string, number>;
 };
@@ -83,7 +89,9 @@ export function samePowerLevels(
 ): boolean {
   return (
     (a.events_default ?? 0) === (b.events_default ?? 0) &&
+    (a.users_default ?? 0) === (b.users_default ?? 0) &&
     sameLevels(a.events, b.events) &&
+    sameLevels(a.notifications, b.notifications) &&
     sameLevels(a.users, b.users)
   );
 }
@@ -816,6 +824,14 @@ export class MatrixAdminService {
           name: input.name,
           topic: input.topic,
           preset: input.isPrivate ? 'private_chat' : 'public_chat',
+          // Room-wide pings (`@everyone` / `@channel` / `@here`) need PL1.
+          // Everyone defaults to PL1; workspace guests are pinned to PL0 by
+          // `applyAnnouncementPolicy`, which is what makes the guest
+          // restriction a homeserver rule rather than a composer courtesy.
+          power_level_content_override: {
+            users_default: ROOM_PING_LEVEL,
+            notifications: { room: ROOM_PING_LEVEL },
+          },
           // Encrypting a room the browsers cannot decrypt would make it
           // unreadable, so the deployment switch has the final say.
           initial_state: input.encrypted && config.encryption
@@ -967,6 +983,8 @@ export class MatrixAdminService {
       enabled: boolean;
       allowReactions: boolean;
       authorizedMatrixUserIds: string[];
+      /** Workspace guests in the room — held below the room-ping level. */
+      guestMatrixUserIds?: string[];
     },
   ): Promise<void> {
     this.assertEnabled();
@@ -994,11 +1012,25 @@ export class MatrixAdminService {
     // announcement channel only the people who may post.
     events[PINNED_EVENTS_TYPE] = opts.enabled ? 50 : 0;
 
+    // Guests stay at PL0 — below the room-ping level — unless they were
+    // explicitly promoted to a moderator level.
+    for (const id of opts.guestMatrixUserIds ?? []) {
+      if ((users[id] ?? 0) < 50) users[id] = 0;
+    }
+
     const next = {
       ...current,
       events_default: opts.enabled ? 50 : 0,
+      // Everyone else defaults one level above the guests; PL1 grants nothing
+      // else (every moderation threshold is 50).
+      users_default: ROOM_PING_LEVEL,
       events,
       users,
+      // Announcement channels: only people who may post may ping everyone.
+      notifications: {
+        ...(current.notifications ?? {}),
+        room: opts.enabled ? 50 : ROOM_PING_LEVEL,
+      },
     };
     // The reconciler converges every room on a timer — skip the write (and
     // the power-levels event it would add to the timeline) when nothing moved.

@@ -17,6 +17,8 @@ import {
   threadMuteRuleId,
   toReaders,
   toRoomKind,
+  buildMentionsContent,
+  hasRoomMention,
 } from './mappers.js';
 
 /**
@@ -1166,5 +1168,23 @@ describe('forwarding', () => {
     expect(forwardFallbackBody('  see this ', 'Bob', '')).toBe(
       'see this\n\nForwarded message from Bob:\n> (attachment)',
     );
+  });
+});
+
+describe('room mentions', () => {
+  it('detects @everyone, @channel and @here as whole words', () => {
+    expect(hasRoomMention('@everyone Hi')).toBe(true);
+    expect(hasRoomMention('ping @here and @Channel')).toBe(true);
+    expect(hasRoomMention('mail a@here.com')).toBe(false);
+    expect(hasRoomMention('@everyones')).toBe(false);
+    expect(hasRoomMention('nothing')).toBe(false);
+  });
+
+  it('sets m.mentions.room alongside the named users', () => {
+    expect(buildMentionsContent('@here hi', ['@a:x', 'cuid1'])).toEqual({
+      user_ids: ['@a:x'],
+      room: true,
+    });
+    expect(buildMentionsContent('hi', ['@a:x'])).toEqual({ user_ids: ['@a:x'] });
   });
 });

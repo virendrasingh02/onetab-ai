@@ -53,9 +53,13 @@ export class MentionNode extends TextNode {
 
   override createDOM(config: EditorConfig): HTMLElement {
     const element = super.createDOM(config);
-    addClassNamesToElement(element, config.theme.mention);
+    const kind = $getState(this, mentionKindState);
+    addClassNamesToElement(
+      element,
+      kind === 'group' ? config.theme.groupMention : config.theme.mention,
+    );
     element.setAttribute('data-mention-id', $getState(this, targetIdState));
-    element.setAttribute('data-mention-kind', $getState(this, mentionKindState));
+    element.setAttribute('data-mention-kind', kind);
     return element;
   }
 
