@@ -157,6 +157,36 @@ function generateDailyBuckets(since: Date, until: Date): string[] {
   return buckets;
 }
 
+/** Tallies timestamps into the daily buckets; days outside the window are dropped. */
+function countByDay(dates: Date[], buckets: string[]): Map<string, number> {
+  const counts = new Map<string, number>(buckets.map((b) => [b, 0]));
+  for (const d of dates) {
+    const key = toIsoDay(d);
+    if (counts.has(key)) counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return counts;
+}
+
+/** Sums a numeric value per daily bucket. */
+function sumByDay(rows: Array<{ at: Date; value: number }>, buckets: string[]): Map<string, number> {
+  const sums = new Map<string, number>(buckets.map((b) => [b, 0]));
+  for (const r of rows) {
+    const key = toIsoDay(r.at);
+    if (sums.has(key)) sums.set(key, (sums.get(key) ?? 0) + r.value);
+  }
+  return sums;
+}
+
+function isDesktopAgent(userAgent: string | null | undefined): boolean {
+  const ua = userAgent ?? '';
+  return detectDeviceEnvironment({
+    userAgent: ua,
+    isElectron: ua.includes('Electron') || ua.includes('OneTabDesktop'),
+  }).environment === 'electron';
+}
+
+const pct = (part: number, whole: number): number => (whole > 0 ? Math.round((part / whole) * 100) : 0);
+
 @Injectable()
 export class AdminAnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -438,10 +468,22 @@ export class AdminAnalyticsService {
       value: activityMap.get(date) ?? 0,
     }));
 
-    const userGrowthSeries = buckets.map((date, idx) => ({
-      date,
-      value: Math.max(1, Math.round(totalUsers - newUsersCurrent + (idx / buckets.length) * newUsersCurrent)),
-    }));
+    const [usersBeforeWindow, newUserRows] = await this.prisma.$transaction([
+      this.prisma.user.count({ where: { createdAt: { lt: since } } }),
+      this.prisma.user.findMany({
+        where: { createdAt: { gte: since, lte: until } },
+        select: { createdAt: true },
+      }),
+    ]);
+    const signupsByDay = countByDay(
+      newUserRows.map((u) => u.createdAt),
+      buckets,
+    );
+    let runningUsers = usersBeforeWindow;
+    const userGrowthSeries = buckets.map((date) => {
+      runningUsers += signupsByDay.get(date) ?? 0;
+      return { date, value: runningUsers };
+    });
 
     const sessionTokens = await this.prisma.refreshToken.findMany({
       take: 200,
@@ -450,16 +492,8 @@ export class AdminAnalyticsService {
     let webCount = 0;
     let desktopCount = 0;
     for (const t of sessionTokens) {
-      const ua = t.userAgent ?? '';
-      const isElectron = ua.includes('Electron') || ua.includes('OneTabDesktop');
-      const env = detectDeviceEnvironment({ userAgent: ua, isElectron });
-      if (env.environment === 'electron') desktopCount += 1;
+      if (isDesktopAgent(t.userAgent)) desktopCount += 1;
       else webCount += 1;
-    }
-
-    if (webCount + desktopCount === 0) {
-      webCount = 8;
-      desktopCount = 3;
     }
 
     const liveItems: AdminLiveActivityItem[] = recentEvents.map((ev) => ({
@@ -504,6 +538,10 @@ export class AdminAnalyticsService {
       activityCounts,
       uploadCounts,
       workspaceMemberCounts,
+      newUserRows,
+      usersBeforeWindow,
+      returningBaseline,
+      apiCallsInWindow,
     ] = await this.prisma.$transaction([
       this.prisma.user.count(),
       this.prisma.user.count({ where: { createdAt: { gte: since, lte: until } } }),
@@ -542,6 +580,16 @@ export class AdminAnalyticsService {
         by: ['userId'],
         _count: { _all: true },
       }),
+      this.prisma.user.findMany({
+        where: { createdAt: { gte: since, lte: until } },
+        select: { createdAt: true },
+      }),
+      this.prisma.user.count({ where: { createdAt: { lt: since } } }),
+      this.prisma.refreshToken.groupBy({
+        by: ['userId'],
+        where: { createdAt: { gte: since, lte: until }, user: { createdAt: { lt: since } } },
+      }),
+      this.prisma.integrationAuditLog.count({ where: { createdAt: { gte: since, lte: until } } }),
     ]);
 
     const activeUserSet = new Set(activeSessions.map((s) => s.userId));
@@ -593,23 +641,30 @@ export class AdminAnalyticsService {
     });
 
     const buckets = generateDailyBuckets(since, until);
-    const userGrowthSeries = buckets.map((date, idx) => {
-      const dayUsers = Math.round((newAccounts / buckets.length) * (idx + 1));
-      return {
-        date,
-        newUsers: Math.max(0, Math.round(newAccounts / buckets.length)),
-        returningUsers: Math.max(0, Math.round(activeAccounts * 0.7)),
-        activeUsers: Math.max(1, Math.round(activeAccounts * 0.8 + dayUsers * 0.2)),
-      };
+    const signupsByDay = countByDay(
+      newUserRows.map((u) => u.createdAt),
+      buckets,
+    );
+    const activeByDay = new Map<string, Set<string>>(buckets.map((b) => [b, new Set<string>()]));
+    for (const s of activeSessions) activeByDay.get(toIsoDay(s.createdAt))?.add(s.userId);
+
+    const userGrowthSeries = buckets.map((date) => {
+      const newUsers = signupsByDay.get(date) ?? 0;
+      const activeUsers = activeByDay.get(date)?.size ?? 0;
+      return { date, newUsers, returningUsers: Math.max(0, activeUsers - newUsers), activeUsers };
     });
 
-    const userActivitySeries = buckets.map((date) => ({
-      date,
-      dau: Math.max(1, Math.round(dau * (0.8 + Math.random() * 0.4))),
-      wau: Math.max(1, wau),
-      mau: Math.max(1, mau),
-      stickiness: dauMauRatio,
-    }));
+    const userActivitySeries = buckets.map((date) => {
+      const dayActive = activeByDay.get(date)?.size ?? 0;
+      return {
+        date,
+        dau: dayActive,
+        wau,
+        mau,
+        stickiness: mau > 0 ? Math.round((dayActive / mau) * 1000) / 10 : 0,
+      };
+    });
+    const retentionRate = pct(returningBaseline.length, usersBeforeWindow);
 
     const statusBreakdown = [
       { label: 'Active', value: activeAccounts, percentage: totalAccounts > 0 ? Math.round((activeAccounts / totalAccounts) * 100) : 100 },
@@ -629,16 +684,17 @@ export class AdminAnalyticsService {
       wau,
       mau,
       dauMauRatio,
-      retentionRate: 88.5,
+      retentionRate,
       growthRate: totalAccounts > 0 ? Math.round((newAccounts / totalAccounts) * 1000) / 10 : 0,
-      churnRate: 2.1,
+      churnRate: usersBeforeWindow > 0 ? 100 - retentionRate : 0,
       engagement: {
         avgSessions: Math.round((activeSessions.length / divisor) * 10) / 10,
-        avgSessionDurationSeconds: 1420,
+        // Sessions are not timed anywhere, so there is no duration to report.
+        avgSessionDurationSeconds: 0,
         messagesPerUser: Math.round((totalMessages / divisor) * 10) / 10,
         filesPerUser: Math.round((totalUploads / divisor) * 10) / 10,
         workspaceActivityPerUser: Math.round(((totalMessages + totalUploads) / divisor) * 10) / 10,
-        apiActivityPerUser: 12.4,
+        apiActivityPerUser: Math.round((apiCallsInWindow / divisor) * 10) / 10,
       },
       userGrowthSeries,
       userActivitySeries,
@@ -655,7 +711,7 @@ export class AdminAnalyticsService {
     const range = resolveDateRange(filter);
     const { since, until } = range;
 
-    const [tokens, messagesCount, uploadsCount, usersCount] = await this.prisma.$transaction([
+    const [tokens, messagesCount, uploadsCount, usersCount, storageInWindow] = await this.prisma.$transaction([
       this.prisma.refreshToken.findMany({
         where: { createdAt: { gte: since, lte: until } },
         select: { userId: true, userAgent: true, createdAt: true },
@@ -664,6 +720,7 @@ export class AdminAnalyticsService {
       this.prisma.recentActivity.count({ where: { kind: 'MESSAGE', occurredAt: { gte: since, lte: until } } }),
       this.prisma.upload.count({ where: { createdAt: { gte: since, lte: until } } }),
       this.prisma.user.count(),
+      this.prisma.upload.aggregate({ where: { createdAt: { gte: since, lte: until } }, _sum: { size: true } }),
     ]);
 
     let webSessions = 0;
@@ -671,27 +728,27 @@ export class AdminAnalyticsService {
     const webUsers = new Set<string>();
     const desktopUsers = new Set<string>();
 
+    const webByDay = new Map<string, number>();
+    const desktopByDay = new Map<string, number>();
     for (const t of tokens) {
-      const ua = t.userAgent ?? '';
-      const isElectron = ua.includes('Electron') || ua.includes('OneTabDesktop');
-      const env = detectDeviceEnvironment({ userAgent: ua, isElectron });
-      if (env.environment === 'electron') {
+      const day = toIsoDay(t.createdAt);
+      if (isDesktopAgent(t.userAgent)) {
         desktopSessions += 1;
         desktopUsers.add(t.userId);
+        desktopByDay.set(day, (desktopByDay.get(day) ?? 0) + 1);
       } else {
         webSessions += 1;
         webUsers.add(t.userId);
+        webByDay.set(day, (webByDay.get(day) ?? 0) + 1);
       }
     }
 
-
-    if (webSessions + desktopSessions === 0) {
-      webSessions = 42;
-      desktopSessions = 18;
-    }
-
+    // Messages and files carry no platform of their own; they are apportioned
+    // by each platform's share of sessions.
     const totalSessions = webSessions + desktopSessions;
-    const webRatio = totalSessions > 0 ? webSessions / totalSessions : 0.7;
+    const webRatio = totalSessions > 0 ? webSessions / totalSessions : 0;
+    const storageBytesInWindow = storageInWindow._sum.size ?? 0;
+    const webStorage = Math.round(storageBytesInWindow * webRatio);
 
     const webMessages = Math.round(messagesCount * webRatio);
     const desktopMessages = messagesCount - webMessages;
@@ -702,41 +759,41 @@ export class AdminAnalyticsService {
     const buckets = generateDailyBuckets(since, until);
     const usageOverTime = buckets.map((date) => ({
       date,
-      webSessions: Math.round((webSessions / buckets.length) * (0.8 + Math.random() * 0.4)),
-      desktopSessions: Math.round((desktopSessions / buckets.length) * (0.8 + Math.random() * 0.4)),
-      totalUsers: Math.max(1, usersCount),
+      webSessions: webByDay.get(date) ?? 0,
+      desktopSessions: desktopByDay.get(date) ?? 0,
+      totalUsers: usersCount,
     }));
 
     return {
-      totalWebUsers: webUsers.size || Math.round(usersCount * 0.75),
-      totalDesktopUsers: desktopUsers.size || Math.round(usersCount * 0.35),
-      activeWebUsers: webUsers.size || Math.round(usersCount * 0.6),
-      activeDesktopUsers: desktopUsers.size || Math.round(usersCount * 0.3),
+      totalWebUsers: webUsers.size,
+      totalDesktopUsers: desktopUsers.size,
+      activeWebUsers: webUsers.size,
+      activeDesktopUsers: desktopUsers.size,
       sessionsByPlatform: { web: webSessions, desktop: desktopSessions },
       messagesByPlatform: { web: webMessages, desktop: desktopMessages },
       filesByPlatform: { web: webFiles, desktop: desktopFiles },
-      avgDurationByPlatform: { web: 1120, desktop: 2450 },
+      avgDurationByPlatform: { web: 0, desktop: 0 },
       usageOverTime,
       platformsTable: [
         {
           platform: 'Web',
-          totalUsers: webUsers.size || Math.round(usersCount * 0.75),
-          activeUsers: webUsers.size || Math.round(usersCount * 0.6),
+          totalUsers: webUsers.size,
+          activeUsers: webUsers.size,
           sessions: webSessions,
           messages: webMessages,
           files: webFiles,
-          storageBytes: Math.round(webFiles * 1.5 * 1024 * 1024),
-          avgDuration: '18m 40s',
+          storageBytes: webStorage,
+          avgDuration: '—',
         },
         {
           platform: 'Desktop',
-          totalUsers: desktopUsers.size || Math.round(usersCount * 0.35),
-          activeUsers: desktopUsers.size || Math.round(usersCount * 0.3),
+          totalUsers: desktopUsers.size,
+          activeUsers: desktopUsers.size,
           sessions: desktopSessions,
           messages: desktopMessages,
           files: desktopFiles,
-          storageBytes: Math.round(desktopFiles * 2.2 * 1024 * 1024),
-          avgDuration: '40m 50s',
+          storageBytes: storageBytesInWindow - webStorage,
+          avgDuration: '—',
         },
       ],
     };
@@ -794,10 +851,54 @@ export class AdminAnalyticsService {
         this.prisma.upload.aggregate({ _sum: { size: true } }),
       ]);
 
+    const wsIds = workspaces.map((w) => w.id);
+    const activeSince = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const [storageRows, apiRows, lastActivityRows, activeMemberRows, memberRows] = await Promise.all([
+      this.prisma.upload.groupBy({ by: ['workspaceId'], where: { workspaceId: { in: wsIds } }, _sum: { size: true } }),
+      this.prisma.integrationAuditLog.groupBy({
+        by: ['workspaceId'],
+        where: { workspaceId: { in: wsIds } },
+        _count: { _all: true },
+      }),
+      this.prisma.recentActivity.groupBy({
+        by: ['workspaceId'],
+        where: { workspaceId: { in: wsIds } },
+        _max: { occurredAt: true },
+      }),
+      this.prisma.workspaceMember.groupBy({
+        by: ['workspaceId'],
+        where: { workspaceId: { in: wsIds }, lastSeenAt: { gte: activeSince } },
+        _count: { _all: true },
+      }),
+      this.prisma.workspaceMember.findMany({
+        where: { workspaceId: { in: wsIds } },
+        select: { workspaceId: true, userId: true },
+      }),
+    ]);
+    const tokenRows = await this.prisma.refreshToken.findMany({
+      where: { userId: { in: [...new Set(memberRows.map((m) => m.userId))] } },
+      select: { userId: true, userAgent: true },
+      orderBy: { createdAt: 'desc' },
+      take: 20000,
+    });
+    // Latest session per user decides which platform they count under.
+    const desktopUserIds = new Set<string>();
+    const seenUserIds = new Set<string>();
+    for (const t of tokenRows) {
+      if (seenUserIds.has(t.userId)) continue;
+      seenUserIds.add(t.userId);
+      if (isDesktopAgent(t.userAgent)) desktopUserIds.add(t.userId);
+    }
+    const storageByWs = new Map(storageRows.map((r) => [r.workspaceId, r._sum.size ?? 0]));
+    const apiByWs = new Map(apiRows.map((r) => [r.workspaceId, r._count._all]));
+    const lastActivityByWs = new Map(lastActivityRows.map((r) => [r.workspaceId, r._max.occurredAt]));
+    const activeByWs = new Map(activeMemberRows.map((r) => [r.workspaceId, r._count._all]));
+
     const items: AdminWorkspaceAnalyticsRow[] = workspaces.map((ws) => {
       const plan = ws.subscription?.planTier ?? 'FREE';
       const billingStatus = ws.subscription?.status ?? 'ACTIVE';
       const revenue = monthlyListPriceUsd(plan, ws.subscription?.billingInterval);
+      const wsMembers = memberRows.filter((m) => m.workspaceId === ws.id).map((m) => m.userId);
 
       return {
         id: ws.id,
@@ -807,19 +908,19 @@ export class AdminAnalyticsService {
         createdAt: ws.createdAt.toISOString(),
         status: ws.status,
         usersCount: ws._count.members,
-        activeUsersCount: Math.max(1, Math.round(ws._count.members * 0.8)),
-        inactiveUsersCount: Math.max(0, Math.round(ws._count.members * 0.2)),
+        activeUsersCount: activeByWs.get(ws.id) ?? 0,
+        inactiveUsersCount: Math.max(0, ws._count.members - (activeByWs.get(ws.id) ?? 0)),
         subscriptionPlan: plan,
         billingStatus,
-        paymentMethod: 'Credit Card',
+        paymentMethod: ws.subscription?.provider ?? '—',
         revenue,
         messagesCount: ws._count.recentActivities,
         filesCount: ws._count.uploads,
-        storageBytes: ws._count.uploads * 1024 * 512,
-        apiUsageCount: ws._count.integrations * 120,
-        lastActivityAt: ws.updatedAt.toISOString(),
-        webUsersCount: Math.round(ws._count.members * 0.7),
-        desktopUsersCount: Math.round(ws._count.members * 0.3),
+        storageBytes: storageByWs.get(ws.id) ?? 0,
+        apiUsageCount: apiByWs.get(ws.id) ?? 0,
+        lastActivityAt: (lastActivityByWs.get(ws.id) ?? ws.updatedAt).toISOString(),
+        webUsersCount: wsMembers.filter((id) => !desktopUserIds.has(id)).length,
+        desktopUsersCount: wsMembers.filter((id) => desktopUserIds.has(id)).length,
       };
     });
 
@@ -863,20 +964,51 @@ export class AdminAnalyticsService {
 
     if (!ws) throw new NotFoundException(`Workspace ${workspaceId} not found`);
 
-    const [messagesCount, uploads, integrationLogs, storageSum] = await this.prisma.$transaction([
+    const activeSince = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const [
+      messagesCount,
+      uploads,
+      integrationLogs,
+      storageSum,
+      messageRows,
+      storageBeforeWindow,
+      sharedCount,
+      mentionCount,
+      activeMembers,
+    ] = await this.prisma.$transaction([
       this.prisma.recentActivity.count({ where: { workspaceId, kind: 'MESSAGE' } }),
       this.prisma.upload.findMany({
         where: { workspaceId },
         select: { mimeType: true, size: true, createdAt: true },
-        take: 500,
+        take: 5000,
       }),
       this.prisma.integrationAuditLog.findMany({
-        where: { workspaceId },
+        where: { workspaceId, createdAt: { gte: since, lte: until } },
         select: { action: true, status: true, durationMs: true, createdAt: true },
-        take: 500,
+        take: 5000,
       }),
       this.prisma.upload.aggregate({ where: { workspaceId }, _sum: { size: true } }),
+      this.prisma.recentActivity.findMany({
+        where: { workspaceId, kind: 'MESSAGE', occurredAt: { gte: since, lte: until } },
+        select: { occurredAt: true, channelId: true },
+        take: 20000,
+      }),
+      this.prisma.upload.aggregate({ where: { workspaceId, createdAt: { lt: since } }, _sum: { size: true } }),
+      this.prisma.recentActivity.count({ where: { workspaceId, kind: 'FILE_SHARED' } }),
+      this.prisma.recentActivity.count({
+        where: { workspaceId, kind: 'MESSAGE', mentionedUserIds: { isEmpty: false } },
+      }),
+      this.prisma.workspaceMember.count({ where: { workspaceId, lastSeenAt: { gte: activeSince } } }),
     ]);
+
+    const memberTokens = await this.prisma.refreshToken.findMany({
+      where: { userId: { in: ws.members.map((m) => m.user.id) } },
+      select: { userId: true, userAgent: true },
+      orderBy: { createdAt: 'desc' },
+      take: 2000,
+    });
+    const latestAgent = new Map<string, string | null>();
+    for (const t of memberTokens) if (!latestAgent.has(t.userId)) latestAgent.set(t.userId, t.userAgent);
 
     const users = ws.members.map((m) => ({
       id: m.user.id,
@@ -884,17 +1016,31 @@ export class AdminAnalyticsService {
       email: m.user.email,
       avatarUrl: m.user.avatarUrl,
       role: m.role,
-      isActive: true,
+      isActive: !!m.lastSeenAt && m.lastSeenAt >= activeSince,
       lastActiveAt: m.lastSeenAt ? m.lastSeenAt.toISOString() : null,
-      platform: 'Web',
-      device: 'Chrome / Windows',
+      platform: latestAgent.has(m.user.id) ? (isDesktopAgent(latestAgent.get(m.user.id)) ? 'Desktop' : 'Web') : '—',
+      device: (() => {
+        if (!latestAgent.has(m.user.id)) return '—';
+        const env = detectDeviceEnvironment({ userAgent: latestAgent.get(m.user.id) ?? '' });
+        return `${env.browser} / ${env.os}`;
+      })(),
     }));
 
     const buckets = generateDailyBuckets(since, until);
-    const messageGrowth = buckets.map((date) => ({
-      date,
-      value: Math.max(1, Math.round((messagesCount / buckets.length) * (0.7 + Math.random() * 0.6))),
-    }));
+    const messagesByDay = countByDay(
+      messageRows.map((r) => r.occurredAt),
+      buckets,
+    );
+    const messageGrowth = buckets.map((date) => ({ date, value: messagesByDay.get(date) ?? 0 }));
+    const channelMessageCount = messageRows.filter((r) => r.channelId).length;
+    const logsByAction = new Map<string, number>();
+    for (const l of integrationLogs) logsByAction.set(l.action, (logsByAction.get(l.action) ?? 0) + 1);
+    const failedLogs = integrationLogs.filter((l) => l.status !== 'SUCCESS').length;
+    const uploadedBytesByDay = sumByDay(
+      uploads.map((u) => ({ at: u.createdAt, value: u.size })),
+      buckets,
+    );
+    let runningStorage = storageBeforeWindow._sum.size ?? 0;
 
     const byTypeMap = new Map<string, number>();
     for (const u of uploads) {
@@ -925,7 +1071,7 @@ export class AdminAnalyticsService {
         owner: { id: ws.owner.id, name: ws.owner.name, email: ws.owner.email },
         createdAt: ws.createdAt.toISOString(),
         userCount: ws._count.members,
-        activeUsers: Math.max(1, Math.round(ws._count.members * 0.85)),
+        activeUsers: activeMembers,
         revenue: rev,
         storageBytes: storageSum._sum.size ?? 0,
         apiCalls: integrationLogs.length,
@@ -934,30 +1080,42 @@ export class AdminAnalyticsService {
       communication: {
         messagesSent: messagesCount,
         messagesReceived: messagesCount,
-        channelMessages: Math.round(messagesCount * 0.6),
-        directMessages: Math.round(messagesCount * 0.4),
-        mentions: Math.round(messagesCount * 0.12),
-        reactions: Math.round(messagesCount * 0.25),
+        // Rows without a channel are DMs; rows in the window only.
+        channelMessages: channelMessageCount,
+        directMessages: messageRows.length - channelMessageCount,
+        mentions: mentionCount,
+        // Reactions live in Matrix, not in the platform database.
+        reactions: 0,
         messageGrowth,
       },
       files: {
         uploads: uploads.length,
-        downloads: Math.round(uploads.length * 1.5),
-        shares: Math.round(uploads.length * 0.4),
+        // Downloads are served by storage and not counted by the platform.
+        downloads: 0,
+        shares: sharedCount,
         storageBytes: storageSum._sum.size ?? 0,
         byType,
-        storageGrowth: buckets.map((date, idx) => ({
-          date,
-          value: Math.round(((idx + 1) / buckets.length) * (storageSum._sum.size ?? 1024 * 1024)),
-        })),
+        storageGrowth: buckets.map((date) => {
+          runningStorage += uploadedBytesByDay.get(date) ?? 0;
+          return { date, value: runningStorage };
+        }),
       },
       apis: {
-        requests: integrationLogs.length || 24,
-        successfulRequests: integrationLogs.filter((l) => l.status === 'SUCCESS').length || 23,
-        failedRequests: integrationLogs.filter((l) => l.status !== 'SUCCESS').length || 1,
-        errorRate: 4.2,
-        mostUsedApis: [{ name: 'Matrix Chat API', count: 18 }, { name: 'Storage API', count: 6 }],
-        volumeOverTime: buckets.map((date) => ({ date, value: Math.round(Math.random() * 10) })),
+        requests: integrationLogs.length,
+        successfulRequests: integrationLogs.length - failedLogs,
+        failedRequests: failedLogs,
+        errorRate: integrationLogs.length > 0 ? Math.round((failedLogs / integrationLogs.length) * 1000) / 10 : 0,
+        mostUsedApis: [...logsByAction.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([name, count]) => ({ name, count })),
+        volumeOverTime: (() => {
+          const byDay = countByDay(
+            integrationLogs.map((l) => l.createdAt),
+            buckets,
+          );
+          return buckets.map((date) => ({ date, value: byDay.get(date) ?? 0 }));
+        })(),
       },
       revenue: {
         currentPlan: plan,
@@ -986,7 +1144,7 @@ export class AdminAnalyticsService {
     const range = resolveDateRange(filter);
     const { since, until } = range;
 
-    const [integrations, logs, workspaces] = await this.prisma.$transaction([
+    const [integrations, logs] = await this.prisma.$transaction([
       this.prisma.externalIntegration.findMany({
         take: 100,
         include: { workspace: { select: { name: true } } },
@@ -996,93 +1154,89 @@ export class AdminAnalyticsService {
         take: 5000,
         orderBy: { createdAt: 'desc' },
       }),
-      this.prisma.workspace.findMany({
-        take: 5,
-        select: { id: true, name: true },
-      }),
     ]);
 
-    const totalRequests = logs.length || 128;
-    const successfulRequests = logs.filter((l) => l.status === 'SUCCESS').length || 122;
+    const totalRequests = logs.length;
+    const successfulRequests = logs.filter((l) => l.status === 'SUCCESS').length;
     const failedRequests = totalRequests - successfulRequests;
     const errorRate = totalRequests > 0 ? Math.round((failedRequests / totalRequests) * 1000) / 10 : 0;
 
-    const durations = logs.map((l) => l.durationMs ?? 45).sort((a, b) => a - b);
-    const avgResponseTimeMs = durations.length > 0 ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 42;
-    const p95Index = Math.floor(durations.length * 0.95);
-    const p95ResponseTimeMs = durations[p95Index] ?? 115;
+    const timed = logs.filter((l) => l.durationMs != null).map((l) => l.durationMs as number).sort((a, b) => a - b);
+    const avgOf = (xs: number[]) => (xs.length > 0 ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : 0);
+    const avgResponseTimeMs = avgOf(timed);
+    const p95ResponseTimeMs = timed[Math.min(timed.length - 1, Math.floor(timed.length * 0.95))] ?? 0;
+
+    const perMinute = new Map<number, number>();
+    for (const l of logs) {
+      const minute = Math.floor(l.createdAt.getTime() / 60_000);
+      perMinute.set(minute, (perMinute.get(minute) ?? 0) + 1);
+    }
+    const peakRequestsPerMinute = Math.max(0, ...perMinute.values());
 
     const buckets = generateDailyBuckets(since, until);
-    const requestsOverTime = buckets.map((date) => ({
-      date,
-      requests: Math.round((totalRequests / buckets.length) * (0.8 + Math.random() * 0.4)),
-      errors: Math.round(Math.random() * 2),
-      avgLatency: Math.round(avgResponseTimeMs * (0.9 + Math.random() * 0.2)),
-    }));
+    const requestsOverTime = buckets.map((date) => {
+      const day = logs.filter((l) => toIsoDay(l.createdAt) === date);
+      return {
+        date,
+        requests: day.length,
+        errors: day.filter((l) => l.status !== 'SUCCESS').length,
+        avgLatency: avgOf(day.filter((l) => l.durationMs != null).map((l) => l.durationMs as number)),
+      };
+    });
 
-    const requestsByWorkspace = workspaces.map((w, idx) => ({
-      workspaceId: w.id,
-      workspaceName: w.name,
-      requests: Math.round(totalRequests * (0.4 / (idx + 1))),
-      errorRate: Math.round(Math.random() * 3),
-    }));
-
-    const apiTable = integrations.map((i) => ({
-      id: i.id,
-      name: i.displayName || i.provider,
-      endpoint: `/api/v1/integrations/${i.provider.toLowerCase()}`,
-      status: (i.status === 'CONNECTED' ? 'ACTIVE' : 'INACTIVE') as 'ACTIVE' | 'INACTIVE',
-      requests: 48,
-      successRate: 98.2,
-      errorRate: 1.8,
-      avgLatencyMs: 38,
-      lastUsedAt: i.lastSyncAt ? i.lastSyncAt.toISOString() : i.updatedAt.toISOString(),
-      workspaceName: i.workspace?.name,
-      createdAt: i.createdAt.toISOString(),
-    }));
-
-    if (apiTable.length === 0) {
-      apiTable.push(
-        {
-          id: 'core_auth',
-          name: 'Authentication API',
-          endpoint: '/api/v1/auth',
-          status: 'ACTIVE',
-          requests: 412,
-          successRate: 99.4,
-          errorRate: 0.6,
-          avgLatencyMs: 28,
-          lastUsedAt: new Date().toISOString(),
-          workspaceName: 'Global',
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 'core_matrix',
-          name: 'Matrix Realtime Bridge',
-          endpoint: '/api/v1/matrix',
-          status: 'ACTIVE',
-          requests: 1840,
-          successRate: 99.8,
-          errorRate: 0.2,
-          avgLatencyMs: 19,
-          lastUsedAt: new Date().toISOString(),
-          workspaceName: 'Global',
-          createdAt: new Date().toISOString(),
-        },
-      );
+    const logsByWorkspace = new Map<string, { requests: number; errors: number }>();
+    for (const l of logs) {
+      if (!l.workspaceId) continue;
+      const row = logsByWorkspace.get(l.workspaceId) ?? { requests: 0, errors: 0 };
+      row.requests += 1;
+      if (l.status !== 'SUCCESS') row.errors += 1;
+      logsByWorkspace.set(l.workspaceId, row);
     }
+    const topWorkspaceIds = [...logsByWorkspace.entries()].sort((a, b) => b[1].requests - a[1].requests).slice(0, 5);
+    const workspaceNames = new Map(
+      (
+        await this.prisma.workspace.findMany({
+          where: { id: { in: topWorkspaceIds.map(([id]) => id) } },
+          select: { id: true, name: true },
+        })
+      ).map((w) => [w.id, w.name]),
+    );
+    const requestsByWorkspace = topWorkspaceIds.map(([workspaceId, row]) => ({
+      workspaceId,
+      workspaceName: workspaceNames.get(workspaceId) ?? 'Workspace',
+      requests: row.requests,
+      errorRate: Math.round((row.errors / row.requests) * 1000) / 10,
+    }));
+
+    const apiTable = integrations.map((i) => {
+      const own = logs.filter((l) => l.integrationId === i.id);
+      const failed = own.filter((l) => l.status !== 'SUCCESS').length;
+      return {
+        id: i.id,
+        name: i.displayName || i.provider,
+        endpoint: `/api/v1/integrations/${i.provider.toLowerCase()}`,
+        status: (i.status === 'CONNECTED' ? 'ACTIVE' : 'INACTIVE') as 'ACTIVE' | 'INACTIVE',
+        requests: own.length,
+        successRate: own.length > 0 ? Math.round(((own.length - failed) / own.length) * 1000) / 10 : 0,
+        errorRate: own.length > 0 ? Math.round((failed / own.length) * 1000) / 10 : 0,
+        avgLatencyMs: avgOf(own.filter((l) => l.durationMs != null).map((l) => l.durationMs as number)),
+        lastUsedAt: i.lastSyncAt ? i.lastSyncAt.toISOString() : i.updatedAt.toISOString(),
+        workspaceName: i.workspace?.name,
+        createdAt: i.createdAt.toISOString(),
+      };
+    });
 
     return {
-      totalApis: integrations.length || 6,
-      activeApis: integrations.filter((i) => i.status === 'CONNECTED').length || 5,
-      inactiveApis: integrations.filter((i) => i.status !== 'CONNECTED').length || 1,
+      totalApis: integrations.length,
+      activeApis: integrations.filter((i) => i.status === 'CONNECTED').length,
+      inactiveApis: integrations.filter((i) => i.status !== 'CONNECTED').length,
       totalRequests,
       successfulRequests,
       failedRequests,
       errorRate,
       avgResponseTimeMs,
       p95ResponseTimeMs,
-      peakRequestsPerMinute: 64,
+      peakRequestsPerMinute,
       requestsOverTime,
       requestsByWorkspace,
       apiTable,
@@ -1097,7 +1251,7 @@ export class AdminAnalyticsService {
     const range = resolveDateRange(filter);
     const { since, until } = range;
 
-    const [messagesCount, byWorkspace] = await this.prisma.$transaction([
+    const [messagesCount, byWorkspace, messageRows, mentionsCount] = await this.prisma.$transaction([
       this.prisma.recentActivity.count({ where: { kind: 'MESSAGE', occurredAt: { gte: since, lte: until } } }),
       this.prisma.recentActivity.groupBy({
         by: ['workspaceId'],
@@ -1106,26 +1260,40 @@ export class AdminAnalyticsService {
         orderBy: { _count: { workspaceId: 'desc' } },
         take: 10,
       }),
+      this.prisma.recentActivity.findMany({
+        where: { kind: 'MESSAGE', occurredAt: { gte: since, lte: until } },
+        select: { occurredAt: true, channelId: true },
+        take: 50000,
+      }),
+      this.prisma.recentActivity.count({
+        where: {
+          kind: 'MESSAGE',
+          occurredAt: { gte: since, lte: until },
+          mentionedUserIds: { isEmpty: false },
+        },
+      }),
     ]);
 
-
-    const total = messagesCount || 45;
-    const directMessages = Math.round(total * 0.42);
-    const channelMessages = total - directMessages;
+    const total = messagesCount;
+    // A chat row without a channel is a direct message.
+    const channelMessages = messageRows.filter((r) => r.channelId).length;
+    const directMessages = messageRows.length - channelMessages;
 
     const buckets = generateDailyBuckets(since, until);
+    const messagesByDay = countByDay(
+      messageRows.map((r) => r.occurredAt),
+      buckets,
+    );
+    // Each message is recorded once, against its sender. Delivery is not
+    // tracked, so there is no separate "received" figure.
     const messagesOverTime = buckets.map((date) => {
-      const dayTotal = Math.max(1, Math.round((total / buckets.length) * (0.7 + Math.random() * 0.6)));
-      const sent = Math.round(dayTotal * 0.52);
-      return { date, sent, received: dayTotal - sent, total: dayTotal };
+      const dayTotal = messagesByDay.get(date) ?? 0;
+      return { date, sent: dayTotal, received: 0, total: dayTotal };
     });
 
-    const messagesByHour: Array<{ hour: number; count: number }> = Array.from({ length: 24 }, (_, hour) => {
-      let weight = 0.2;
-      if (hour >= 9 && hour <= 18) weight = 1.0;
-      else if (hour >= 7 && hour <= 21) weight = 0.5;
-      return { hour, count: Math.round((total / 24) * weight * (0.8 + Math.random() * 0.4)) };
-    });
+    const hourCounts = new Array<number>(24).fill(0);
+    for (const r of messageRows) hourCounts[r.occurredAt.getHours()] += 1;
+    const messagesByHour: Array<{ hour: number; count: number }> = hourCounts.map((count, hour) => ({ hour, count }));
 
     const workspaceNames = await this.prisma.workspace.findMany({
       where: { id: { in: byWorkspace.map((b) => b.workspaceId) } },
@@ -1142,18 +1310,20 @@ export class AdminAnalyticsService {
     return {
       totalMessages: total,
       messagesSent: total,
-      messagesReceived: total,
+      messagesReceived: 0,
       directMessages,
       channelMessages,
-      threadsCount: Math.round(total * 0.18),
-      mentionsCount: Math.round(total * 0.14),
-      reactionsCount: Math.round(total * 0.26),
-      editedMessagesCount: Math.round(total * 0.04),
-      deletedMessagesCount: Math.round(total * 0.01),
+      // Threads, reactions, edits and deletions are Matrix events and are not
+      // mirrored into the platform database.
+      threadsCount: 0,
+      mentionsCount,
+      reactionsCount: 0,
+      editedMessagesCount: 0,
+      deletedMessagesCount: 0,
       messagesOverTime,
       dmVsChannelBreakdown: [
-        { label: 'Channel Messages', value: channelMessages, percentage: 58 },
-        { label: 'Direct Messages', value: directMessages, percentage: 42 },
+        { label: 'Channel Messages', value: channelMessages, percentage: pct(channelMessages, messageRows.length) },
+        { label: 'Direct Messages', value: directMessages, percentage: pct(directMessages, messageRows.length) },
       ],
       messagesByWorkspace,
       messagesByHour,
@@ -1168,13 +1338,22 @@ export class AdminAnalyticsService {
     const range = resolveDateRange(filter);
     const { since, until } = range;
 
-    const [totalFiles, storageSum, files] = await this.prisma.$transaction([
+    const [totalFiles, storageSum, files, storageBefore, sharedInWindow, byWorkspace] = await this.prisma.$transaction([
       this.prisma.upload.count(),
       this.prisma.upload.aggregate({ _sum: { size: true } }),
       this.prisma.upload.findMany({
         where: { createdAt: { gte: since, lte: until } },
         select: { size: true, mimeType: true, createdAt: true, workspaceId: true },
         take: 5000,
+      }),
+      this.prisma.upload.aggregate({ where: { createdAt: { lt: since } }, _sum: { size: true } }),
+      this.prisma.recentActivity.count({ where: { kind: 'FILE_SHARED', occurredAt: { gte: since, lte: until } } }),
+      this.prisma.upload.groupBy({
+        by: ['workspaceId'],
+        _count: { _all: true },
+        _sum: { size: true },
+        orderBy: { _sum: { size: 'desc' } },
+        take: 10,
       }),
     ]);
 
@@ -1201,29 +1380,52 @@ export class AdminAnalyticsService {
     }));
 
     const buckets = generateDailyBuckets(since, until);
-    const storageGrowth = buckets.map((date, idx) => ({
-      date,
-      value: Math.round(((idx + 1) / buckets.length) * totalBytes),
-    }));
+    const bytesBefore = storageBefore._sum.size ?? 0;
+    const bytesByDay = sumByDay(
+      files.map((f) => ({ at: f.createdAt, value: f.size })),
+      buckets,
+    );
+    let runningBytes = bytesBefore;
+    const storageGrowth = buckets.map((date) => {
+      runningBytes += bytesByDay.get(date) ?? 0;
+      return { date, value: runningBytes };
+    });
 
-    const uploadActivity = buckets.map((date) => ({
-      date,
-      value: Math.max(0, Math.round((files.length / buckets.length) * (0.8 + Math.random() * 0.4))),
+    const uploadsByDay = countByDay(
+      files.map((f) => f.createdAt),
+      buckets,
+    );
+    const uploadActivity = buckets.map((date) => ({ date, value: uploadsByDay.get(date) ?? 0 }));
+
+    const workspaceNames = new Map(
+      (
+        await this.prisma.workspace.findMany({
+          where: { id: { in: byWorkspace.map((b) => b.workspaceId) } },
+          select: { id: true, name: true },
+        })
+      ).map((w) => [w.id, w.name]),
+    );
+    const storageByWorkspace = byWorkspace.map((b) => ({
+      workspaceId: b.workspaceId,
+      workspaceName: workspaceNames.get(b.workspaceId) ?? 'Workspace',
+      filesCount: b._count._all,
+      bytes: b._sum?.size ?? 0,
     }));
 
     return {
       totalFiles,
       filesUploaded: files.length,
-      filesDownloaded: Math.round(files.length * 1.8),
-      filesShared: Math.round(files.length * 0.5),
+      // Downloads are served by storage and not counted by the platform.
+      filesDownloaded: 0,
+      filesShared: sharedInWindow,
       storageUsedBytes: totalBytes,
       storageRemainingBytes,
       averageFileSizeBytes: avgSize,
-      growthPct: 4.2,
+      growthPct: bytesBefore > 0 ? Math.round(((totalBytes - bytesBefore) / bytesBefore) * 1000) / 10 : 0,
       storageGrowth,
       uploadActivity,
       filesByType,
-      storageByWorkspace: [],
+      storageByWorkspace,
     };
   }
 
@@ -1237,7 +1439,7 @@ export class AdminAnalyticsService {
 
     const tokens = await this.prisma.refreshToken.findMany({
       where: { createdAt: { gte: since, lte: until } },
-      select: { userAgent: true, userId: true },
+      select: { userAgent: true, userId: true, revokedAt: true, expiresAt: true },
       take: 10000,
     });
 
@@ -1265,20 +1467,19 @@ export class AdminAnalyticsService {
       percentage: Math.round((value / total) * 100),
     }));
 
-    const appVersions = [
-      { version: 'v2.4.0 (Latest)', count: Math.round(total * 0.72), isLatest: true, isOutdated: false },
-      { version: 'v2.3.1', count: Math.round(total * 0.18), isLatest: false, isOutdated: true },
-      { version: 'v2.2.0', count: Math.round(total * 0.1), isLatest: false, isOutdated: true },
-    ];
+    // Sessions do not record the client's app version, so there is no version
+    // breakdown to report.
+    const now = new Date();
+    const liveSessions = tokens.filter((t) => !t.revokedAt && t.expiresAt > now);
 
     return {
-      totalDevices: userDevices.size || 24,
-      activeDevices: userDevices.size || 20,
+      totalDevices: userDevices.size,
+      activeDevices: new Set(liveSessions.map((t) => t.userId)).size,
       usersByOs,
       sessionsByOs: usersByOs,
       browsers,
-      appVersions,
-      outdatedCount: Math.round(total * 0.28),
+      appVersions: [],
+      outdatedCount: 0,
     };
   }
 
@@ -1287,14 +1488,18 @@ export class AdminAnalyticsService {
   // ---------------------------------------------------------------------------
 
   async getLocationAnalytics(_filter?: AdminAnalyticsFilter): Promise<AdminLocationAnalytics> {
-    const users = await this.prisma.user.findMany({
-      select: { timezone: true },
-      take: 5000,
-    });
+    const [users, memberships] = await Promise.all([
+      this.prisma.user.findMany({ select: { id: true, timezone: true }, take: 5000 }),
+      this.prisma.workspaceMember.findMany({ select: { userId: true, workspaceId: true }, take: 50000 }),
+    ]);
+    const workspacesByUser = new Map<string, string[]>();
+    for (const m of memberships) workspacesByUser.set(m.userId, [...(workspacesByUser.get(m.userId) ?? []), m.workspaceId]);
+    const workspaceSetByCountry = new Map<string, Set<string>>();
+    const regionMap = new Map<string, number>();
 
     const countryMap = new Map<string, number>();
     for (const u of users) {
-      let code = 'US';
+      let code = 'XX';
       const tz = u.timezone.toLowerCase();
       if (tz.includes('asia/kolkata') || tz.includes('calcutta')) code = 'IN';
       else if (tz.includes('europe/london')) code = 'GB';
@@ -1302,7 +1507,18 @@ export class AdminAnalyticsService {
       else if (tz.includes('asia/tokyo')) code = 'JP';
       else if (tz.includes('australia')) code = 'AU';
       else if (tz.includes('toronto') || tz.includes('vancouver')) code = 'CA';
+      else if (tz.startsWith('america/') || tz.startsWith('us/')) code = 'US';
       countryMap.set(code, (countryMap.get(code) ?? 0) + 1);
+      const wsSet = workspaceSetByCountry.get(code) ?? new Set<string>();
+      for (const w of workspacesByUser.get(u.id) ?? []) wsSet.add(w);
+      workspaceSetByCountry.set(code, wsSet);
+
+      const area = tz.split('/')[0];
+      const region =
+        area === 'america' || area === 'us' ? 'North America' :
+        area === 'europe' || area === 'africa' ? 'Europe & Africa' :
+        area === 'asia' || area === 'australia' || area === 'pacific' ? 'Asia Pacific' : 'Unknown';
+      regionMap.set(region, (regionMap.get(region) ?? 0) + 1);
     }
 
     const total = users.length || 1;
@@ -1314,24 +1530,25 @@ export class AdminAnalyticsService {
       JP: 'Japan',
       AU: 'Australia',
       CA: 'Canada',
+      XX: 'Unknown',
     };
 
     const countries = Array.from(countryMap.entries()).map(([code, count]) => ({
       code,
       name: countryNames[code] ?? code,
       usersCount: count,
-      workspacesCount: Math.max(1, Math.round(count * 0.4)),
+      workspacesCount: workspaceSetByCountry.get(code)?.size ?? 0,
       percentage: Math.round((count / total) * 100),
     }));
 
-    const regions = [
-      { region: 'North America', count: Math.round(total * 0.5), percentage: 50 },
-      { region: 'Asia Pacific', count: Math.round(total * 0.3), percentage: 30 },
-      { region: 'Europe', count: Math.round(total * 0.2), percentage: 20 },
-    ];
+    const regions = [...regionMap.entries()].map(([region, count]) => ({
+      region,
+      count,
+      percentage: Math.round((count / total) * 100),
+    }));
 
     return {
-      totalCountries: countries.length || 3,
+      totalCountries: countries.filter((c) => c.code !== 'XX').length,
       countries,
       regions,
     };
@@ -1343,14 +1560,19 @@ export class AdminAnalyticsService {
 
   async getRevenueAnalytics(filter?: AdminAnalyticsFilter): Promise<AdminRevenueAnalytics> {
     const range = resolveDateRange(filter);
-    const { since, until, days } = range;
+    const { since, until } = range;
 
-    const [subscriptions, usersCount, workspacesCount] = await this.prisma.$transaction([
+    const [subscriptions, usersCount, workspacesCount, invoices] = await this.prisma.$transaction([
       this.prisma.workspaceSubscription.findMany({
         include: { workspace: { select: { name: true } } },
       }),
       this.prisma.user.count(),
       this.prisma.workspace.count(),
+      this.prisma.billingInvoice.findMany({
+        where: { createdAt: { gte: since, lte: until } },
+        select: { amountCents: true, status: true, paidAt: true, createdAt: true },
+        take: 20000,
+      }),
     ]);
 
     let mrr = 0;
@@ -1366,7 +1588,26 @@ export class AdminAnalyticsService {
     }
 
     const arr = mrr * 12;
-    const totalRevenue = Math.round(mrr * (days / 30));
+    // Revenue actually collected in the window, from recorded invoices.
+    const paidInvoices = invoices.filter((i) => i.status === 'PAID');
+    const totalRevenue = paidInvoices.reduce((acc, i) => acc + i.amountCents / 100, 0);
+    const refunds = invoices.filter((i) => i.status === 'REFUNDED').reduce((acc, i) => acc + i.amountCents / 100, 0);
+    const invoiceCount = (status: string) => invoices.filter((i) => i.status === status).length;
+
+    const inWindow = (d: Date | null | undefined) => !!d && d >= since && d <= until;
+    const newRevenue = subscriptions
+      .filter((sub) => sub.status === 'ACTIVE' && inWindow(sub.createdAt) && sub.planTier !== 'FREE')
+      .reduce((acc, sub) => acc + monthlyListPriceUsd(sub.planTier, sub.billingInterval), 0);
+    const churnedRevenue = subscriptions
+      .filter((sub) => inWindow(sub.cancelledAt))
+      .reduce((acc, sub) => acc + monthlyListPriceUsd(sub.planTier, sub.billingInterval), 0);
+    const providerCounts = new Map<string, number>();
+    for (const sub of subscriptions) {
+      if (sub.planTier === 'FREE') continue;
+      const provider = sub.provider ?? 'Unknown';
+      providerCounts.set(provider, (providerCounts.get(provider) ?? 0) + 1);
+    }
+    const paidSubscriptions = [...providerCounts.values()].reduce((a, b) => a + b, 0);
 
     const revenueByPlan = Array.from(planRevenueMap.entries()).map(([label, value]) => ({
       label,
@@ -1375,10 +1616,11 @@ export class AdminAnalyticsService {
     }));
 
     const buckets = generateDailyBuckets(since, until);
-    const revenueTrend = buckets.map((date, idx) => ({
-      date,
-      value: Math.round((mrr / 30) * (idx + 1)),
-    }));
+    const paidByDay = sumByDay(
+      paidInvoices.map((i) => ({ at: i.paidAt ?? i.createdAt, value: i.amountCents / 100 })),
+      buckets,
+    );
+    const revenueTrend = buckets.map((date) => ({ date, value: paidByDay.get(date) ?? 0 }));
 
     const mrrTrend = buckets.map((date) => ({
       date,
@@ -1396,11 +1638,12 @@ export class AdminAnalyticsService {
       totalRevenue,
       mrr,
       arr,
-      newRevenue: Math.round(mrr * 0.12),
-      expansionRevenue: Math.round(mrr * 0.08),
-      churnedRevenue: Math.round(mrr * 0.02),
-      refunds: 0,
-      netRevenue: totalRevenue,
+      newRevenue,
+      // Plan changes are not tracked as revenue movements.
+      expansionRevenue: 0,
+      churnedRevenue,
+      refunds,
+      netRevenue: totalRevenue - refunds,
       arpu: usersCount > 0 ? Math.round((mrr / usersCount) * 100) / 100 : 0,
       avgRevenuePerWorkspace: workspacesCount > 0 ? Math.round((mrr / workspacesCount) * 100) / 100 : 0,
       revenueTrend,
@@ -1408,20 +1651,21 @@ export class AdminAnalyticsService {
       revenueByPlan,
       revenueByWorkspace,
       revenueMovement: {
-        new: Math.round(mrr * 0.12),
-        expansion: Math.round(mrr * 0.08),
-        contraction: Math.round(mrr * 0.01),
-        churn: Math.round(mrr * 0.02),
+        new: newRevenue,
+        expansion: 0,
+        contraction: 0,
+        churn: churnedRevenue,
       },
       paymentAnalytics: {
-        successful: 48,
-        failed: 1,
-        pending: 2,
-        refunds: 0,
-        methods: [
-          { label: 'Credit Card', value: 45, percentage: 90 },
-          { label: 'ACH / Wire', value: 5, percentage: 10 },
-        ],
+        successful: invoiceCount('PAID'),
+        failed: invoiceCount('FAILED'),
+        pending: invoiceCount('PENDING') + invoiceCount('OPEN'),
+        refunds: invoiceCount('REFUNDED'),
+        methods: [...providerCounts.entries()].map(([label, value]) => ({
+          label,
+          value,
+          percentage: pct(value, paidSubscriptions),
+        })),
       },
     };
   }
@@ -1431,9 +1675,14 @@ export class AdminAnalyticsService {
   // ---------------------------------------------------------------------------
 
   async getSubscriptionAnalytics(_filter?: AdminAnalyticsFilter): Promise<AdminSubscriptionAnalytics> {
-    const subscriptions = await this.prisma.workspaceSubscription.findMany({
-      select: { planTier: true, status: true },
-    });
+    const [subscriptions, auditActions] = await Promise.all([
+      this.prisma.workspaceSubscription.findMany({
+        select: { planTier: true, status: true, trialStart: true, convertedAt: true },
+      }),
+      this.prisma.billingAuditLog.groupBy({ by: ['action'], _count: { _all: true } }),
+    ]);
+    const auditCount = (match: (action: string) => boolean) =>
+      auditActions.filter((a) => match(a.action)).reduce((acc, a) => acc + a._count._all, 0);
 
     let freeCount = 0;
     let trialCount = 0;
@@ -1455,24 +1704,32 @@ export class AdminAnalyticsService {
       percentage: Math.round((value / total) * 100),
     }));
 
+    const trialSignups = subscriptions.filter((x) => x.trialStart).length;
+    const converted = subscriptions.filter((x) => x.convertedAt).length;
+    const retained = subscriptions.filter((x) => x.convertedAt && x.status === 'ACTIVE').length;
+    const stillTrialing = subscriptions.filter((x) => x.trialStart && x.status === 'TRIALING').length;
+    const inTrial = converted + stillTrialing;
+
     const funnel = [
-      { stage: 'Trial Signup', count: 120, conversionPct: 100 },
-      { stage: 'Active in Trial', count: 96, conversionPct: 80 },
-      { stage: 'Paid Conversion', count: 42, conversionPct: 35 },
-      { stage: 'Renewed / Retained', count: 38, conversionPct: 90 },
+      { stage: 'Trial Signup', count: trialSignups, conversionPct: trialSignups > 0 ? 100 : 0 },
+      { stage: 'Active in Trial', count: inTrial, conversionPct: pct(inTrial, trialSignups) },
+      { stage: 'Paid Conversion', count: converted, conversionPct: pct(converted, trialSignups) },
+      { stage: 'Renewed / Retained', count: retained, conversionPct: pct(retained, converted) },
     ];
+
+    const cancellations = auditCount((a) => a === 'SUBSCRIPTION_ENDED');
 
     return {
       freeCount,
       trialCount,
       paidCount,
       planDistribution,
-      upgrades: 8,
-      downgrades: 1,
-      renewals: 36,
-      cancellations: 2,
-      churnRatePct: 2.3,
-      trialConversionRatePct: 35.0,
+      upgrades: auditCount((a) => a.includes('UPGRADE')),
+      downgrades: auditCount((a) => a === 'DOWNGRADE_APPLIED'),
+      renewals: auditCount((a) => a.includes('RENEW')),
+      cancellations,
+      churnRatePct: paidCount + cancellations > 0 ? Math.round((cancellations / (paidCount + cancellations)) * 1000) / 10 : 0,
+      trialConversionRatePct: trialSignups > 0 ? Math.round((converted / trialSignups) * 1000) / 10 : 0,
       funnel,
     };
   }
@@ -1482,7 +1739,11 @@ export class AdminAnalyticsService {
   // ---------------------------------------------------------------------------
 
   async getEngagementAnalytics(_filter?: AdminAnalyticsFilter): Promise<AdminEngagementAnalytics> {
-    const [dauCount, wauCount, mauCount, workspaces, users] = await this.prisma.$transaction([
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const monthAgo = new Date(Date.now() - 30 * DAY_MS);
+    const twoMonthsAgo = new Date(Date.now() - 60 * DAY_MS);
+    const [dauCount, wauCount, mauCount, workspaces, users, sessionCount, kindNow, kindBefore, kindWorkspaces, totalWorkspaces] =
+      await this.prisma.$transaction([
       this.prisma.refreshToken.groupBy({
         by: ['userId'],
         where: { createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
@@ -1503,21 +1764,53 @@ export class AdminAnalyticsService {
         take: 5,
         include: { _count: { select: { recentActivities: true } } },
       }),
+      this.prisma.refreshToken.count({ where: { createdAt: { gte: monthAgo } } }),
+      this.prisma.recentActivity.groupBy({
+        by: ['kind'],
+        where: { occurredAt: { gte: monthAgo } },
+        _count: { _all: true },
+        orderBy: { kind: 'asc' },
+      }),
+      this.prisma.recentActivity.groupBy({
+        by: ['kind'],
+        where: { occurredAt: { gte: twoMonthsAgo, lt: monthAgo } },
+        _count: { _all: true },
+        orderBy: { kind: 'asc' },
+      }),
+      this.prisma.recentActivity.groupBy({
+        by: ['kind', 'workspaceId'],
+        where: { occurredAt: { gte: monthAgo } },
+        orderBy: [{ kind: 'asc' }, { workspaceId: 'asc' }],
+      }),
+      this.prisma.workspace.count(),
     ]);
 
-    const dau = dauCount.length || 14;
-    const wau = wauCount.length || 38;
-    const mau = mauCount.length || 62;
-    const stickiness = mau > 0 ? Math.round((dau / mau) * 1000) / 10 : 22.5;
+    const dau = dauCount.length;
+    const wau = wauCount.length;
+    const mau = mauCount.length;
+    const stickiness = mau > 0 ? Math.round((dau / mau) * 1000) / 10 : 0;
 
-    const featureUsage = [
-      { feature: 'Channels & Direct Chat', usageCount: 4120, adoptionRate: 94, trend: 'up' as const },
-      { feature: 'Work Tasks & Projects', usageCount: 1850, adoptionRate: 76, trend: 'up' as const },
-      { feature: 'Work Documents', usageCount: 890, adoptionRate: 48, trend: 'flat' as const },
-      { feature: 'AI Agents & Assistant', usageCount: 1240, adoptionRate: 64, trend: 'up' as const },
-      { feature: 'Automations & Workflows', usageCount: 420, adoptionRate: 32, trend: 'up' as const },
-      { feature: 'Federated Search', usageCount: 650, adoptionRate: 52, trend: 'up' as const },
+    // Feature usage is read off the activity feed (last 30 days vs the 30 before).
+    const FEATURES: Array<{ feature: string; kinds: string[] }> = [
+      { feature: 'Channels & Direct Chat', kinds: ['MESSAGE', 'CHANNEL_CREATED'] },
+      { feature: 'Work Tasks & Projects', kinds: ['TASK_CREATED', 'TASK_ASSIGNED', 'TASK_COMPLETED', 'PROJECT_CREATED'] },
+      { feature: 'Work Documents', kinds: ['DOCUMENT_CREATED'] },
+      { feature: 'Meetings', kinds: ['MEETING_SCHEDULED', 'MEETING_CANCELLED', 'MEETING_ENDED'] },
+      { feature: 'File Sharing', kinds: ['FILE_SHARED'] },
     ];
+    const featureUsage = FEATURES.map(({ feature, kinds }) => {
+      const sumKinds = (rows: Array<{ kind: string; _count: { _all: number } }>) =>
+        rows.filter((r) => kinds.includes(r.kind)).reduce((acc, r) => acc + r._count._all, 0);
+      const now = sumKinds(kindNow);
+      const before = sumKinds(kindBefore);
+      const adopting = new Set(kindWorkspaces.filter((r) => kinds.includes(r.kind)).map((r) => r.workspaceId)).size;
+      return {
+        feature,
+        usageCount: now,
+        adoptionRate: pct(adopting, totalWorkspaces),
+        trend: (now > before ? 'up' : now < before ? 'down' : 'flat') as 'up' | 'down' | 'flat',
+      };
+    });
 
     const mostActiveWorkspaces = workspaces.map((w) => ({
       id: w.id,
@@ -1537,8 +1830,9 @@ export class AdminAnalyticsService {
       wau,
       mau,
       stickiness,
-      totalSessions: 1840,
-      avgSessionDurationSeconds: 1420,
+      totalSessions: sessionCount,
+      // Sessions are not timed anywhere, so there is no duration to report.
+      avgSessionDurationSeconds: 0,
       featureUsage,
       mostActiveWorkspaces,
       mostActiveUsers,

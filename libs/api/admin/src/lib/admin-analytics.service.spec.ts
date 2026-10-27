@@ -14,18 +14,18 @@ describe('AdminAnalyticsService', () => {
       recentActivity: { count: vi.fn().mockResolvedValue(200), findMany: vi.fn().mockResolvedValue([]), groupBy: vi.fn().mockResolvedValue([]) },
       upload: { count: vi.fn().mockResolvedValue(50), findMany: vi.fn().mockResolvedValue([]), aggregate: vi.fn().mockResolvedValue({ _sum: { size: 10485760 } }), groupBy: vi.fn().mockResolvedValue([]) },
       externalIntegration: { count: vi.fn().mockResolvedValue(4), findMany: vi.fn().mockResolvedValue([]) },
-      integrationAuditLog: { count: vi.fn().mockResolvedValue(120), findMany: vi.fn().mockResolvedValue([]) },
+      integrationAuditLog: { count: vi.fn().mockResolvedValue(120), findMany: vi.fn().mockResolvedValue([]), groupBy: vi.fn().mockResolvedValue([]) },
       workspaceSubscription: { findMany: vi.fn().mockResolvedValue([]) },
       anonymousMessage: { count: vi.fn().mockResolvedValue(10) },
       emailMessage: { count: vi.fn().mockResolvedValue(5) },
-      workspaceMember: { groupBy: vi.fn().mockResolvedValue([]) },
+      workspaceMember: { groupBy: vi.fn().mockResolvedValue([]), findMany: vi.fn().mockResolvedValue([]) },
     };
 
     service = new AdminAnalyticsService(mockPrisma);
   });
 
   it('calculates overview metrics with previous period comparison', async () => {
-    mockPrisma.$transaction.mockResolvedValue([
+    mockPrisma.$transaction.mockResolvedValueOnce([
       100, // totalUsers
       10,  // newUsersCurrent
       8,   // newUsersPrevious
@@ -52,6 +52,10 @@ describe('AdminAnalyticsService', () => {
       [], // recentEvents
       [], // activityRows
     ]);
+    mockPrisma.$transaction.mockResolvedValueOnce([
+      90, // usersBeforeWindow
+      [], // newUserRows
+    ]);
 
     const res = await service.getOverview({ range: '30d' });
 
@@ -74,6 +78,7 @@ describe('AdminAnalyticsService', () => {
       50, // messages
       10, // uploads
       20, // users
+      { _sum: { size: 0 } }, // storage in window
     ]);
 
     const res = await service.getPlatformUsage({ range: '7d' });
