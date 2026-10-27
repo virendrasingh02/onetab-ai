@@ -1,6 +1,6 @@
 import { Badge, Button, Input, AIModelBadge, AppSelect, Switch, toast, Label, Textarea, Checkbox, Slider, Tabs, TabsList, TabsTrigger } from '@org/ui';
 import { cn } from '@org/utils';
-import type { StudioGraphIssue } from '@org/types';
+import { AGENT_EVENTS, type StudioGraphIssue } from '@org/types';
 import type { Connection, Edge, Node } from '@xyflow/react';
 import {
   Braces,
@@ -68,6 +68,9 @@ interface NodeInspectorProps {
   /** Reports unsaved module edits, so the page can guard clicks that would close the panel. */
   onModuleDirtyChange?: (dirty: boolean) => void;
 }
+
+/** Workspace events a canvas trigger can start on — channel messages also need a channel, which this card can't pick yet. */
+const WORKSPACE_EVENT_OPTIONS = AGENT_EVENTS.filter((e) => e.filter !== 'channel').map((e) => ({ value: e.value, label: e.label }));
 
 const WIDTH_KEY = 'studio.inspector.width';
 const MIN_WIDTH = 320;
@@ -1022,9 +1025,9 @@ export function NodeInspector({
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-semibold text-foreground">Model</Label>
-                <AIModelBadge modelId={config.model || 'gpt-4o'} size="xs" variant="subtle" />
+                {config.model && <AIModelBadge modelId={config.model} size="xs" variant="subtle" />}
               </div>
-              <ModelSelect value={config.model || 'gpt-4o'} onChange={(v) => updateConfig('model', v)} />
+              <ModelSelect value={config.model || ''} onChange={(v) => updateConfig('model', v)} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-foreground">
@@ -1071,6 +1074,20 @@ export function NodeInspector({
                   className="h-8 text-xs font-mono"
                 />
                 <span className="text-2xs text-muted-foreground">Every weekday at 09:00 UTC</span>
+              </div>
+            )}
+            {nodeType === 'TRIGGER_APP_EVENT' && !config.provider && !config.connectorId && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground">Starts when</Label>
+                <AppSelect
+                  value={String(config.eventType || config.event || '')}
+                  onValueChange={(v) => updateConfig('eventType', v)}
+                  placeholder="Pick a workspace event"
+                  options={WORKSPACE_EVENT_OPTIONS}
+                />
+                <span className="block text-2xs text-muted-foreground">
+                  Switch it on in Copilot. It runs as the agent’s owner, with the event’s details in <span className="font-mono">{'{{event}}'}</span>.
+                </span>
               </div>
             )}
             {nodeType === 'TRIGGER_LOCATION' && (
@@ -1143,6 +1160,9 @@ export function NodeInspector({
                     { value: 'PUT', label: 'PUT' },
                   ]}
                 />
+                <span className="block text-2xs text-muted-foreground">
+                  Switch it on in Copilot to get its URL and secret. Callers send the secret as the <span className="font-mono">x-webhook-secret</span> header; the JSON body is available as <span className="font-mono">{'{{event}}'}</span>.
+                </span>
               </div>
             )}
             {nodeType === 'TRIGGER_CHAT' && (
@@ -1279,7 +1299,8 @@ export function NodeInspector({
 /** Built-in tools from the live registry (was a hard-coded list of ten). */
 function ModelSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const options = useModelOptions(value);
-  return <AppSelect searchable value={value} loading={options.isLoading} onValueChange={onChange} options={options.groups} />;
+  // Empty = the workspace's default model, which always has a key.
+  return <AppSelect searchable value={value} placeholder="Workspace default model" loading={options.isLoading} onValueChange={onChange} options={options.groups} />;
 }
 
 function BuiltinToolSelect({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) {

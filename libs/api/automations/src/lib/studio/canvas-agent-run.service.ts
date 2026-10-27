@@ -1,9 +1,11 @@
-import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { randomBytes } from 'node:crypto';
+import { BadRequestException, Injectable, NotFoundException, Optional, UnauthorizedException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { AppEvent } from '@org/api-common';
+import { AppEvent, secretsEqual } from '@org/api-common';
 import { ConnectorRegistryService } from '@org/api-integrations';
 import { PrismaService } from '@org/database';
 import {
+  AGENT_EVENTS,
   CANVAS_AGENT_TRIGGER,
   compileStudioGraph,
   isStudioGraph,
@@ -44,6 +46,32 @@ export function canvasAppTrigger(
       ? (connector.input as Record<string, unknown>)
       : {};
   return { provider: connector.provider, triggerId: connector.triggerId, input };
+}
+
+/** The workspace event a compiled canvas graph starts on (`task.created`, …), if any. */
+export function canvasEvent(compiled: CompiledStudioGraph): { name: string; label: string } | null {
+  const trigger = compiled.nodes.find((n) => n.type === 'TRIGGER');
+  if (trigger?.config['trigger'] !== 'TRIGGER_APP_EVENT' || trigger.config['connector']) return null;
+  const known = AGENT_EVENTS.find((e) => e.value === trigger.config['event']);
+  return known ? { name: known.value, label: known.label } : null;
+}
+
+/** Whether a compiled canvas graph starts on its inbound webhook. */
+export function canvasWebhook(compiled: CompiledStudioGraph): boolean {
+  return compiled.nodes.find((n) => n.type === 'TRIGGER')?.config['trigger'] === 'TRIGGER_WEBHOOK';
+}
+
+/** The route a canvas agent's webhook is served on, relative to the API base URL. */
+export const canvasWebhookPath = (workspaceId: string, agentId: string) => `/workspaces/${workspaceId}/agent-graphs/${agentId}/webhook`;
+
+/** The trigger node of a synced engine workflow, if its nodes parse. */
+function syncedTriggerConfig(nodesJson: string | null | undefined): Record<string, unknown> | null {
+  try {
+    const nodes = JSON.parse(nodesJson ?? '[]') as Array<{ type?: string; config?: Record<string, unknown> }>;
+    return nodes.find((n) => n.type === 'TRIGGER')?.config ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export interface CanvasAppTriggerStatus {
@@ -110,16 +138,26 @@ export class CanvasAgentRunService {
    * its saved graph starts with a schedule or an app event. An app event also
    * reports how watching it is going (last check, last run, last problem).
    */
-  async activation(workspaceId: string, agentId: string) {
+  async activation(workspaceId: string, agentId: string, opts: { canManage?: boolean } = {}) {
     const agent = await this.load(workspaceId, agentId);
     const workflow = await this.prisma.automationWorkflow.findFirst({
       where: { workspaceId, triggerType: CANVAS_AGENT_TRIGGER, description: canvasMarker(agentId) },
-      select: { id: true, isActive: true },
+      select: { id: true, isActive: true, nodesJson: true },
     });
     const compiled =
       agent.graphJson && isStudioGraph(agent.graphJson) ? compileStudioGraph(JSON.parse(agent.graphJson) as Record<string, unknown>) : null;
     const schedule = compiled ? canvasSchedule(compiled) : null;
     const app = compiled ? canvasAppTrigger(compiled) : null;
+    const event = compiled ? canvasEvent(compiled) : null;
+    const secret = syncedTriggerConfig(workflow?.nodesJson)?.['webhookSecret'];
+    const webhook =
+      compiled && canvasWebhook(compiled)
+        ? {
+            path: canvasWebhookPath(workspaceId, agentId),
+            // The secret starts runs as the owner, so only they or an admin see it.
+            ...(opts.canManage && workflow?.isActive && typeof secret === 'string' ? { secret } : {}),
+          }
+        : null;
     let appTrigger: CanvasAppTriggerStatus | null = null;
     if (app) {
       const state = workflow?.id
@@ -137,7 +175,7 @@ export class CanvasAgentRunService {
         lastError: state?.lastError ?? null,
       };
     }
-    return { active: !!workflow?.isActive, schedule, appTrigger };
+    return { active: !!workflow?.isActive, schedule, appTrigger, event, webhook };
   }
 
   /**
@@ -146,20 +184,21 @@ export class CanvasAgentRunService {
    * owner's access, like any live run.
    */
   async setActive(workspaceId: string, agentId: string, active: boolean) {
-    const result = await this.applyActive(workspaceId, agentId, active);
+    await this.applyActive(workspaceId, agentId, active);
     // The agent's "on/off + schedule" shows in lists and its header everywhere.
     this.events?.emit(AppEvent.AgentChanged, { workspaceId, agentId, kind: 'entity', action: 'state' });
-    return result;
+    // Only the owner or an admin can switch it, so they get the webhook secret.
+    return this.activation(workspaceId, agentId, { canManage: true });
   }
 
-  private async applyActive(workspaceId: string, agentId: string, active: boolean) {
+  private async applyActive(workspaceId: string, agentId: string, active: boolean): Promise<void> {
     const agent = await this.load(workspaceId, agentId);
     if (!active) {
       await this.prisma.automationWorkflow.updateMany({
         where: { workspaceId, triggerType: CANVAS_AGENT_TRIGGER, description: canvasMarker(agentId) },
         data: { isActive: false },
       });
-      return { active: false, schedule: null, appTrigger: null };
+      return;
     }
     const compiled = this.compile(agent.graphJson);
     const errors = compiled.issues.filter((i) => i.level === 'error');
@@ -168,11 +207,12 @@ export class CanvasAgentRunService {
     }
     const schedule = canvasSchedule(compiled);
     const app = canvasAppTrigger(compiled);
-    if (!schedule && !app) {
+    const webhook = canvasWebhook(compiled);
+    if (!schedule && !app && !canvasEvent(compiled) && !webhook && !canvasGeofence(compiled)) {
       throw new BadRequestException({
         code: 'NO_SCHEDULE',
         message:
-          'It has nothing to start it. Give its trigger a schedule (for example “every weekday at 9 AM”) or an app event (for example “New email”), then switch it on.',
+          'It has nothing to start it. Give its trigger a schedule (for example “every weekday at 9 AM”), an app event (for example “New email”), a workspace event or a webhook, then switch it on.',
       });
     }
     if (app && this.connectors && !this.knownTrigger(app.provider, app.triggerId)) {
@@ -181,22 +221,98 @@ export class CanvasAgentRunService {
         message: `${this.appName(app.provider)} has no “${app.triggerId}” event. Pick another event on the trigger.`,
       });
     }
-    const workflowId = await this.syncWorkflow(agent, compiled);
+    // A webhook gets its secret the first time it is switched on; `syncWorkflow` keeps it from then on.
+    const workflowId = await this.syncWorkflow(agent, compiled, webhook ? randomBytes(24).toString('base64url') : undefined);
     await this.prisma.automationWorkflow.update({ where: { id: workflowId }, data: { isActive: true } });
-    return {
-      active: true,
-      schedule,
-      appTrigger: app
-        ? {
-            provider: app.provider,
-            triggerId: app.triggerId,
-            label: this.triggerLabel(app.provider, app.triggerId),
-            lastPolledAt: null,
-            lastFiredAt: null,
-            lastError: null,
-          }
-        : null,
-    };
+  }
+
+  /** Issues a new webhook secret; the old one stops working at once. */
+  async rotateWebhookSecret(workspaceId: string, agentId: string) {
+    const agent = await this.load(workspaceId, agentId);
+    const compiled = this.compile(agent.graphJson);
+    if (!canvasWebhook(compiled)) {
+      throw new BadRequestException({ code: 'NO_WEBHOOK', message: 'This agent doesn’t start on a webhook.' });
+    }
+    const workflowId = await this.syncWorkflow(agent, compiled, randomBytes(24).toString('base64url'), { replaceSecret: true });
+    const workflow = await this.prisma.automationWorkflow.findUniqueOrThrow({ where: { id: workflowId }, select: { isActive: true } });
+    if (!workflow.isActive) {
+      throw new BadRequestException({ code: 'NOT_ACTIVE', message: 'Switch the agent on first; its webhook gets a secret then.' });
+    }
+    return this.activation(workspaceId, agentId, { canManage: true });
+  }
+
+  /**
+   * An inbound webhook call. The agent must be switched on and the caller
+   * must send its secret; the run is live and acts as the agent's owner.
+   */
+  async webhook(workspaceId: string, agentId: string, payload: Record<string, unknown>, secretHeader: string | undefined) {
+    const agent = await this.prisma.aIAgent.findFirst({
+      where: { id: agentId, workspaceId, type: 'agent' },
+      select: { id: true, name: true, creatorId: true, graphJson: true },
+    });
+    const workflow = agent
+      ? await this.prisma.automationWorkflow.findFirst({
+          where: { workspaceId, triggerType: CANVAS_AGENT_TRIGGER, description: canvasMarker(agentId), archivedAt: null },
+          select: { id: true, isActive: true, nodesJson: true },
+        })
+      : null;
+    const secret = syncedTriggerConfig(workflow?.nodesJson)?.['webhookSecret'];
+    // One answer for "no such agent", "not switched on" and "wrong secret", so the route can't be probed.
+    if (!agent || !workflow?.isActive || typeof secret !== 'string' || !secretsEqual(secretHeader?.trim(), secret)) {
+      throw new UnauthorizedException('Unknown agent, agent switched off, or invalid x-webhook-secret header.');
+    }
+    const compiled = this.compile(agent.graphJson);
+    if (!canvasWebhook(compiled) || compiled.issues.some((i) => i.level === 'error')) {
+      throw new BadRequestException({ code: 'GRAPH_INVALID', message: 'This agent no longer starts on a webhook, or its canvas has problems to fix.' });
+    }
+    await this.syncWorkflow(agent, compiled);
+    const started = await this.engine.startWorkflow(
+      workflow.id,
+      { trigger: 'WEBHOOK', ...payload, event: payload, triggeredAt: new Date().toISOString() },
+      { startedBy: 'webhook', limits: compiled.limits },
+    );
+    return { runId: started.runId, status: started.status };
+  }
+
+  /**
+   * Switched-on canvas agents in a workspace that start on a workspace event,
+   * read from (and synced to) their current graph — what
+   * `AutomationTriggerListener` starts alongside plain workflows.
+   */
+  async activeEventTriggers(workspaceId: string, event: string, excludeWorkflowId?: string) {
+    const workflows = await this.prisma.automationWorkflow.findMany({
+      where: {
+        workspaceId,
+        isActive: true,
+        archivedAt: null,
+        triggerType: CANVAS_AGENT_TRIGGER,
+        ...(excludeWorkflowId ? { id: { not: excludeWorkflowId } } : {}),
+      },
+      select: { id: true, description: true },
+    });
+    const out: Array<{ id: string; name: string; nodesJson: string; creatorId: string | null; limits: CompiledStudioGraph['limits'] }> = [];
+    for (const workflow of workflows) {
+      const agentId = workflow.description?.startsWith('canvas-agent:') ? workflow.description.slice('canvas-agent:'.length) : null;
+      if (!agentId) continue;
+      const agent = await this.prisma.aIAgent.findFirst({
+        where: { id: agentId, workspaceId, type: 'agent' },
+        select: { id: true, name: true, creatorId: true, graphJson: true },
+      });
+      if (!agent?.graphJson || !isStudioGraph(agent.graphJson)) continue;
+      const compiled = compileStudioGraph(JSON.parse(agent.graphJson) as Record<string, unknown>);
+      if (canvasEvent(compiled)?.name !== event || compiled.issues.some((i) => i.level === 'error')) continue;
+      await this.syncWorkflow(agent, compiled);
+      const trigger = compiled.nodes.find((n) => n.type === 'TRIGGER');
+      out.push({
+        id: workflow.id,
+        name: agent.name,
+        // Just the trigger, which is all the listener's filter reads.
+        nodesJson: JSON.stringify(trigger ? [trigger] : []),
+        creatorId: agent.creatorId,
+        limits: compiled.limits,
+      });
+    }
+    return out;
   }
 
   /**
@@ -384,9 +500,32 @@ export class CanvasAgentRunService {
   private async syncWorkflow(
     agent: { id: string; name: string; creatorId: string | null },
     compiled: CompiledStudioGraph,
+    newWebhookSecret?: string,
+    opts: { replaceSecret?: boolean } = {},
   ): Promise<string> {
+    const existing = await this.prisma.automationWorkflow.findFirst({
+      where: { triggerType: CANVAS_AGENT_TRIGGER, description: canvasMarker(agent.id) },
+      select: { id: true, nodesJson: true },
+    });
+    // The webhook secret lives on the engine workflow, not the canvas (which
+    // any member can read), and survives every re-sync. A graph that no
+    // longer starts on a webhook drops it.
+    const kept = syncedTriggerConfig(existing?.nodesJson)?.['webhookSecret'];
+    const webhookSecret = canvasWebhook(compiled)
+      ? opts.replaceSecret
+        ? newWebhookSecret
+        : typeof kept === 'string' && kept
+          ? kept
+          : newWebhookSecret
+      : undefined;
     // Agent nodes run as this agent: its owner, credits and logs.
-    const nodes = compiled.nodes.map((n) => (n.type === 'AGENT' ? { ...n, config: { ...n.config, hostAgentId: agent.id } } : n));
+    const nodes = compiled.nodes.map((n) =>
+      n.type === 'AGENT'
+        ? { ...n, config: { ...n.config, hostAgentId: agent.id } }
+        : n.type === 'TRIGGER' && webhookSecret
+          ? { ...n, config: { ...n.config, webhookSecret } }
+          : n,
+    );
     // `isActive` is "runs by itself on its schedule" — only `setActive` turns
     // it on; a test or manual run never does.
     const data = {
@@ -394,10 +533,6 @@ export class CanvasAgentRunService {
       nodesJson: JSON.stringify(nodes),
       edgesJson: JSON.stringify(compiled.edges),
     };
-    const existing = await this.prisma.automationWorkflow.findFirst({
-      where: { triggerType: CANVAS_AGENT_TRIGGER, description: canvasMarker(agent.id) },
-      select: { id: true },
-    });
     if (existing) {
       await this.prisma.automationWorkflow.update({ where: { id: existing.id }, data });
       return existing.id;

@@ -9,6 +9,7 @@ import { RealtimeModule } from '@org/api-realtime';
 import { AutomationTriggerListener } from './automation-trigger.listener.js';
 import { AIRunsController } from './ai-runs.controller.js';
 import { AutomationsController } from './automations.controller.js';
+import { AutomationWebhooksController } from './automation-webhooks.controller.js';
 import { PlanGateService } from './plan-gate.service.js';
 import { AutomationsService } from './automations.service.js';
 import { AgentArchitectController } from './studio/agent-architect.controller.js';
@@ -39,6 +40,7 @@ import { LocationAutomationService } from './location-automation.service.js';
   ],
   controllers: [
     AutomationsController,
+    AutomationWebhooksController,
     AIRunsController,
     AgentStudioController,
     CanvasAgentRunController,

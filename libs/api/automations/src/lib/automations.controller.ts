@@ -3,7 +3,6 @@ import {
   Controller,
   Delete,
   Get,
-  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -17,7 +16,6 @@ import { CanManageWorkflow } from '@org/api-agents';
 import { WorkspaceRoleGuard } from '@org/api-auth';
 import {
   CurrentUser,
-  Public,
   RequireWorkspacePermissions,
   WorkspaceId,
   zodBody,
@@ -137,22 +135,8 @@ export class AutomationsController {
     );
   }
 
-  @Post('workflows/:workflowId/webhook')
-  @Public()
-  @Throttle({ default: { limit: 60, ttl: 60_000 } })
-  triggerWebhook(
-    @WorkspaceId() workspaceId: string,
-    @Param('workflowId') workflowId: string,
-    @Body() body: Record<string, unknown>,
-    @Headers('x-webhook-secret') secretHeader?: string,
-  ) {
-    return this.automationsService.triggerWebhook(
-      workspaceId,
-      workflowId,
-      body,
-      secretHeader,
-    );
-  }
+  // POST workflows/:workflowId/webhook lives in AutomationWebhooksController:
+  // this guard needs a signed-in member, so a webhook here can't be called.
 
   @Get('workflows/:workflowId')
   getWorkflow(

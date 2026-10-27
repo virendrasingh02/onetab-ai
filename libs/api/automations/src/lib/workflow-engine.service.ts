@@ -135,6 +135,16 @@ const CONTROL_STEP_TYPES = new Set([
 ]);
 
 /**
+ * A node's config as recorded on its run step — without a trigger's webhook
+ * secret, since anyone who can see the run can read its steps.
+ */
+export function stepInputConfig(config: Record<string, unknown> | undefined): Record<string, unknown> {
+  if (!config || !('webhookSecret' in config || 'secret' in config)) return config ?? {};
+  const { webhookSecret: _w, secret: _s, ...rest } = config;
+  return rest;
+}
+
+/**
  * The text a step produced, for the next step to work on by default
  * (`{{__last}}`): the model's answer, the agent's reply, the tool's result…
  */
@@ -1197,7 +1207,7 @@ export class WorkflowEngineService {
           stepId: node.id,
           nodeType: node.type,
           status: 'RUNNING',
-          inputJson: (node.config ?? {}) as any,
+          inputJson: stepInputConfig(node.config) as any,
           outputJson: {},
         },
       });
@@ -1234,7 +1244,7 @@ export class WorkflowEngineService {
         await this.prisma.aIExecutionStep.update({ where: { id: rowId }, data });
       } else {
         await this.prisma.aIExecutionStep.create({
-          data: { executionId: env.runId, stepId: node.id, nodeType: node.type, inputJson: (node.config ?? {}) as any, ...data },
+          data: { executionId: env.runId, stepId: node.id, nodeType: node.type, inputJson: stepInputConfig(node.config) as any, ...data },
         });
       }
     } catch (error) {

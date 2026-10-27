@@ -126,7 +126,7 @@ Gotcha: the Studio's Vite server serves `@org/*` libs through `node_modules`, wh
 ## Next passes, most valuable first
 
 1. **Strip the remaining mock fallbacks**, starting with `agentService` (library and list), Tools / MCP (`integrationService` → `integrationsApi` / `mcpApi`) and Knowledge.
-2. **Canvas triggers**: schedule cards now run unattended once switched on (see `AI_AGENT_STUDIO_PROMPT_TO_AGENT.md`). App-event, webhook, email and form triggers are still open.
+2. **Canvas triggers**: schedule, connector app-event, location, workspace-event (`task.created`, `meeting.ended`, … via `AutomationTriggerListener` → `CanvasAgentRunService.activeEventTriggers`) and webhook cards all run unattended once switched on (2026-10-27). The webhook is `POST /api/v1/workspaces/:id/agent-graphs/:agentId/webhook` with an `x-webhook-secret` header. The secret lives on the engine workflow's trigger node, is kept across re-syncs, is stripped from run-step records, is shown only to the owner or an admin, and can be rotated (`POST …/webhook-secret`). Still open: email and form triggers, and channel-message events on the canvas card (they need a channel picker).
 3. **Agentic Mode**: a plan → act → evaluate → replan loop with completion criteria, on top of the team budget.
 4. **Reviewer / critic and debate patterns** as delegation modes: a member's output is checked, and a retry is fed back.
 5. **Agent Operations** dashboard with Recharts from `AIExecution` + `AgentTask`, plus per-agent and per-workspace cost limits.

@@ -262,7 +262,6 @@ class AgentNodeRegistry {
         ],
         defaultConfig: {
           instructions: 'You are an intelligent autonomous AI employee. Execute your assigned tasks carefully.',
-          model: 'gpt-4o',
           temperature: 0.3,
           tools: ['firecrawl_search', 'kb_search'],
         },
@@ -288,7 +287,6 @@ class AgentNodeRegistry {
         ],
         defaultConfig: {
           instructions: 'You lead a team of specialist agents. Break the request down, delegate each part to the right sub-agent and combine their results.',
-          model: 'gpt-4o',
           temperature: 0.2,
           delegation: 'router',
         },
@@ -324,7 +322,7 @@ class AgentNodeRegistry {
           { id: 'output', label: 'Model Text', type: 'string', position: 'right' },
           { id: 'error', label: 'Error', type: 'error', position: 'right' },
         ],
-        defaultConfig: { model: 'gpt-4o', temperature: 0.7, maxTokens: 2048 },
+        defaultConfig: { temperature: 0.7, maxTokens: 2048 },
         runtime: 'model',
       },
       {

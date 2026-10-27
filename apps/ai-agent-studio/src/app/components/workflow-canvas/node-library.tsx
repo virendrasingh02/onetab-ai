@@ -161,7 +161,6 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     badge: 'AI',
     defaultConfig: {
       instructions: 'You are an intelligent autonomous AI employee. Execute your assigned tasks carefully.',
-      model: 'gpt-4o',
       temperature: 0.3,
       tools: ['firecrawl_search', 'kb_search'],
     },
@@ -176,7 +175,6 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     badge: 'Team',
     defaultConfig: {
       instructions: 'You lead a team of specialist agents. Break the request down, delegate each part to the right sub-agent and combine their results.',
-      model: 'gpt-4o',
       temperature: 0.2,
       delegation: 'router',
     },
@@ -203,7 +201,7 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     description: 'Direct completion or chat model invocation without autonomous loop',
     icon: Cpu,
     badge: 'AI',
-    defaultConfig: { model: 'gpt-4o', temperature: 0.7, maxTokens: 2048 },
+    defaultConfig: { temperature: 0.7, maxTokens: 2048 },
   },
   {
     type: 'PROMPT_TEMPLATE',

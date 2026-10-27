@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import {
@@ -10,6 +10,8 @@ import {
   type TaskOverdueEvent,
 } from '@org/api-common';
 import { PrismaService } from '@org/database';
+import { CANVAS_AGENT_TRIGGER, type AgentRunLimits } from '@org/types';
+import { CanvasAgentRunService } from './studio/canvas-agent-run.service.js';
 import { WorkflowEngineService } from './workflow-engine.service.js';
 import { normalizeWorkflowNodes } from './workflow-graph.js';
 
@@ -56,6 +58,7 @@ export class AutomationTriggerListener {
   constructor(
     private readonly prisma: PrismaService,
     private readonly engine: WorkflowEngineService,
+    @Optional() private readonly canvasAgents?: CanvasAgentRunService,
   ) {}
 
   @OnEvent(AppEvent.TaskCreated)
@@ -175,9 +178,10 @@ export class AutomationTriggerListener {
     const since = this.lastOverdueSweep;
     const until = new Date();
     this.lastOverdueSweep = until;
-    // Only worth the query when something listens for it.
+    // Only worth the query when something listens for it (a switched-on
+    // canvas agent might — `dispatch` checks which event it starts on).
     const listening = await this.prisma.automationWorkflow.count({
-      where: { isActive: true, archivedAt: null, triggerType: AppEvent.TaskOverdue },
+      where: { isActive: true, archivedAt: null, triggerType: { in: [AppEvent.TaskOverdue, CANVAS_AGENT_TRIGGER] } },
     });
     if (listening === 0) return;
     const tasks = await this.prisma.task.findMany({
@@ -216,9 +220,9 @@ export class AutomationTriggerListener {
       return;
     }
 
-    let workflows: Array<{ id: string; name: string; nodesJson: string; creatorId: string | null }>;
+    let workflows: Array<{ id: string; name: string; nodesJson: string; creatorId: string | null; limits?: AgentRunLimits }>;
     try {
-      workflows = await this.prisma.automationWorkflow.findMany({
+      const plain = await this.prisma.automationWorkflow.findMany({
         where: {
           workspaceId: payload.workspaceId,
           isActive: true,
@@ -229,6 +233,9 @@ export class AutomationTriggerListener {
         },
         select: { id: true, name: true, nodesJson: true, creatorId: true },
       });
+      // Studio canvas agents switched on with this event as their trigger.
+      const canvas = (await this.canvasAgents?.activeEventTriggers(payload.workspaceId, trigger, origin?.workflowId)) ?? [];
+      workflows = [...plain, ...canvas];
     } catch (err) {
       this.logger.warn(
         `Trigger lookup failed for '${trigger}': ${
@@ -247,7 +254,7 @@ export class AutomationTriggerListener {
           // (`{{event.title}}`); the root spread keeps canvas workflows'
           // `{{title}}` references working.
           { trigger, ...payload, event: payload },
-          { startedBy: 'event', depth },
+          { startedBy: 'event', depth, ...(workflow.limits ? { limits: workflow.limits } : {}) },
         );
         this.logger.log(
           `Ran workflow '${workflow.name}' (${workflow.id}) for '${trigger}'`,

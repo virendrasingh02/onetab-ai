@@ -2058,4 +2058,12 @@ export interface CanvasAgentActivation {
     lastFiredAt: string | null;
     lastError: string | null;
   } | null;
+  /** The workspace event that starts it (`task.created`, …). */
+  event?: { name: string; label: string } | null;
+  /**
+   * Its inbound webhook. `path` is relative to the API base URL; `secret`
+   * (sent as `x-webhook-secret`) is only returned to the owner or an admin,
+   * and only once switched on.
+   */
+  webhook?: { path: string; secret?: string } | null;
 }

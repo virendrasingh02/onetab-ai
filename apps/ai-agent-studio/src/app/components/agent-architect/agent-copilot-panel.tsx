@@ -343,7 +343,7 @@ export function AgentCopilotPanel({
     queryFn: () => agentGraphsApi.listRuns(workspaceId, agentId),
     staleTime: 15_000,
   });
-  const { data: activation, refetch: refetchActivation } = useQuery({
+  const { data: activation } = useQuery({
     queryKey: ['canvas-agent-activation', workspaceId, agentId],
     queryFn: () => agentGraphsApi.activation(workspaceId, agentId),
     staleTime: 30_000,
@@ -736,17 +736,45 @@ export function AgentCopilotPanel({
   const toggleActivation = async (active: boolean) => {
     setSwitching(true);
     try {
-      await agentGraphsApi.setActivation(workspaceId, agentId, active);
-      await refetchActivation();
+      const next = await agentGraphsApi.setActivation(workspaceId, agentId, active);
+      queryClient.setQueryData(['canvas-agent-activation', workspaceId, agentId], next);
       toast.success(
         active
-          ? activation?.appTrigger
-            ? `It now starts on ${activation.appTrigger.label}.`
-            : 'It now runs on its schedule.'
+          ? next.appTrigger
+            ? `It now starts on ${next.appTrigger.label}.`
+            : next.event
+              ? `It now starts when ${next.event.label.charAt(0).toLowerCase()}${next.event.label.slice(1)}.`
+              : next.webhook
+                ? 'It now starts when its webhook is called.'
+                : next.schedule
+                  ? 'It now runs on its schedule.'
+                  : 'It now runs by itself.'
           : 'It no longer runs by itself.',
       );
     } catch (err) {
       say({ role: 'assistant', text: errorText(err, active ? 'It couldn’t be switched on.' : 'It couldn’t be switched off.') });
+    } finally {
+      setSwitching(false);
+    }
+  };
+
+  const copyText = async (text: string, what: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`${what} copied.`);
+    } catch {
+      toast.error(`Couldn’t copy the ${what.toLowerCase()}.`);
+    }
+  };
+
+  const rotateSecret = async () => {
+    setSwitching(true);
+    try {
+      const next = await agentGraphsApi.rotateWebhookSecret(workspaceId, agentId);
+      queryClient.setQueryData(['canvas-agent-activation', workspaceId, agentId], next);
+      toast.success('New secret issued. The old one no longer works.');
+    } catch (err) {
+      toast.error(errorText(err, 'A new secret couldn’t be issued.'));
     } finally {
       setSwitching(false);
     }
@@ -788,15 +816,25 @@ export function AgentCopilotPanel({
 
   const schedule = activation?.schedule;
   const appTrigger = activation?.appTrigger ?? null;
-  const runsOnItsOwnText = appTrigger
+  const workspaceEvent = activation?.event ?? null;
+  const webhook = activation?.webhook ?? null;
+  const hasStarter = !!(schedule || appTrigger || workspaceEvent || webhook);
+  const off = activation?.active ? '' : 'Off · ';
+  const runsOnItsOwnText = !activation
+    ? 'Checking…'
+    : appTrigger
     ? appTrigger.lastError
       ? appTrigger.lastError
       : activation?.active
         ? `On ${appTrigger.label}${appTrigger.lastPolledAt ? ` · checked ${new Date(appTrigger.lastPolledAt).toLocaleTimeString()}` : ' · first check within 2 min'}`
         : `On ${appTrigger.label}`
-    : schedule
-      ? `${activation?.active ? '' : 'Off · '}${describeCronExpression(schedule.cron)}${schedule.timezone ? ` (${schedule.timezone})` : ''}`
-      : 'No schedule or app event — ask me to “run it every weekday at 9”';
+    : workspaceEvent
+      ? `${off}When ${workspaceEvent.label.charAt(0).toLowerCase()}${workspaceEvent.label.slice(1)}`
+      : webhook
+        ? `${off}When its webhook is called`
+        : schedule
+          ? `${off}${describeCronExpression(schedule.cron)}${schedule.timezone ? ` (${schedule.timezone})` : ''}`
+          : 'No schedule, event or webhook — ask me to “run it every weekday at 9”';
 
   const last = messages[messages.length - 1];
   const showSuggestions = !busy && last?.role === 'assistant' && last.proposal?.state !== 'pending' && suggestions.length > 0;
@@ -855,11 +893,41 @@ export function AgentCopilotPanel({
         </div>
         <Switch
           checked={!!activation?.active}
-          disabled={switching || (!activation?.active && !schedule && !appTrigger)}
+          disabled={switching || (!activation?.active && !hasStarter)}
           onCheckedChange={(v) => void toggleActivation(v)}
-          aria-label={appTrigger ? 'Start on the app event' : 'Run on its schedule'}
+          aria-label={appTrigger || workspaceEvent ? 'Start on the event' : webhook ? 'Start on the webhook' : 'Run on its schedule'}
         />
       </div>
+      {webhook && activation?.active && (
+        <div className="mx-4 mt-2 space-y-1.5 rounded-xl border border-border bg-surface-raised/40 px-3 py-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-medium text-foreground">Webhook</p>
+            <Button variant="ghost" size="icon-sm" type="button" className={iconBtn} aria-label="Copy webhook URL" title="Copy URL" onClick={() => void copyText(agentGraphsApi.webhookUrl(webhook.path), 'Webhook URL')}>
+              <Copy className="size-3.5" />
+            </Button>
+          </div>
+          <p className="truncate font-mono text-2xs text-muted-foreground" title={agentGraphsApi.webhookUrl(webhook.path)}>
+            POST {agentGraphsApi.webhookUrl(webhook.path)}
+          </p>
+          {webhook.secret ? (
+            <div className="flex items-center justify-between gap-2">
+              <p className="min-w-0 truncate text-2xs text-muted-foreground">
+                Send header <span className="font-mono">x-webhook-secret</span>
+              </p>
+              <div className="flex shrink-0 items-center gap-0.5">
+                <Button variant="ghost" size="sm" type="button" className="h-6 px-2 text-2xs" onClick={() => void copyText(webhook.secret as string, 'Secret')}>
+                  Copy secret
+                </Button>
+                <Button variant="ghost" size="sm" type="button" className="h-6 px-2 text-2xs" disabled={switching} onClick={() => void rotateSecret()}>
+                  New secret
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-2xs text-muted-foreground">Only the agent’s owner or an admin can see its secret.</p>
+          )}
+        </div>
+      )}
 
       {/* Conversation */}
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4" aria-live="polite">

@@ -53,11 +53,34 @@ export class CanvasAgentRunController {
     return this.runs.run(workspaceId, agentId, userId, body);
   }
 
-  /** Whether the agent runs by itself on its schedule. */
+  /** Whether the agent runs by itself, and what starts it. */
   @Get(':agentId/activation')
-  activation(@WorkspaceId() workspaceId: string, @Param('agentId') agentId: string) {
-    return this.runs.activation(workspaceId, agentId);
+  async activation(
+    @WorkspaceId() workspaceId: string,
+    @Param('agentId') agentId: string,
+    @CurrentUser('id') userId: string,
+    @WorkspacePermissions() permissions: readonly WorkspacePermission[] | undefined,
+  ) {
+    return this.runs.activation(workspaceId, agentId, { canManage: await this.canManage(workspaceId, agentId, userId, permissions) });
   }
+
+  /** A new webhook secret for a switched-on webhook agent (owner or admin). */
+  @Post(':agentId/webhook-secret')
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
+  async rotateWebhookSecret(
+    @WorkspaceId() workspaceId: string,
+    @Param('agentId') agentId: string,
+    @CurrentUser('id') userId: string,
+    @WorkspacePermissions() permissions: readonly WorkspacePermission[] | undefined,
+  ) {
+    if (!(await this.canManage(workspaceId, agentId, userId, permissions))) {
+      throw new ForbiddenException('Only the agent’s owner or a workspace admin can change its webhook secret.');
+    }
+    return this.runs.rotateWebhookSecret(workspaceId, agentId);
+  }
+
+  // POST :agentId/webhook (called from outside the app) lives in
+  // AutomationWebhooksController, out from under this member-only guard.
 
   /**
    * Switches scheduled runs on or off. Scheduled runs are live and act with
@@ -72,11 +95,21 @@ export class CanvasAgentRunController {
     @WorkspacePermissions() permissions: readonly WorkspacePermission[] | undefined,
     @Body(zodBody(setCanvasActivationSchema)) body: { active: boolean },
   ) {
-    const agent = await this.prisma.aIAgent.findFirst({ where: { id: agentId, workspaceId }, select: { creatorId: true } });
-    if (agent && !canManageOwnedAIResource(agent.creatorId, { userId, permissions: permissions ?? [] })) {
+    if (!(await this.canManage(workspaceId, agentId, userId, permissions))) {
       throw new ForbiddenException('Only the agent’s owner or a workspace admin can switch its scheduled runs on or off.');
     }
     return this.runs.setActive(workspaceId, agentId, body.active);
+  }
+
+  /** The owner or an admin; a missing agent passes here and 404s in the service. */
+  private async canManage(
+    workspaceId: string,
+    agentId: string,
+    userId: string,
+    permissions: readonly WorkspacePermission[] | undefined,
+  ): Promise<boolean> {
+    const agent = await this.prisma.aIAgent.findFirst({ where: { id: agentId, workspaceId }, select: { creatorId: true } });
+    return !agent || canManageOwnedAIResource(agent.creatorId, { userId, permissions: permissions ?? [] });
   }
 
   @Get(':agentId/runs')

@@ -18,6 +18,7 @@
  * the same issues to warn before anyone runs anything.
  */
 
+import { AGENT_EVENTS } from './agent-blueprint.js';
 import type { AgentAutonomy, AgentStructuredRules, AutonomyLevel } from './agent-config.js';
 import { connectorActionRef, connectorToolName, connectorTriggerEventType, parseConnectorActionRef } from './connectors.js';
 import {
@@ -643,10 +644,33 @@ export function compileStudioGraph(graph: {
         }
         return step('TRIGGER', { trigger: type, geofence });
       }
+      if (type === 'TRIGGER_APP_EVENT') {
+        // A workspace event (`task.created`, `meeting.ended`, …). The card and
+        // its inspector save `eventType`; `event` is the older spelling.
+        const event = asText(cfg['eventType']) ?? asText(cfg['event']);
+        const known = AGENT_EVENTS.find((e) => e.value === event);
+        if (!known) {
+          issues.push({
+            nodeId: node.id,
+            level: 'error',
+            message: `${label ?? 'App event trigger'}: ${event ? `“${event}” is not a workspace event an agent can start on` : 'pick the workspace event that starts the agent'}.`,
+          });
+          return step('TRIGGER', { trigger: type });
+        }
+        const channelId = asText(cfg['channelId']);
+        const projectId = asText(cfg['projectId']);
+        if (known.filter === 'channel' && !channelId) {
+          issues.push({ nodeId: node.id, level: 'error', message: `${label ?? 'App event trigger'}: pick the channel whose messages start the agent.` });
+        }
+        return step('TRIGGER', {
+          trigger: type,
+          event: known.value,
+          ...(channelId || projectId ? { filter: { ...(channelId ? { channelId } : {}), ...(projectId ? { projectId } : {}) } } : {}),
+        });
+      }
       return step('TRIGGER', {
         trigger: type,
         ...(cron && cron.split(/\s+/).length === 5 ? { cron, ...(asText(cfg['timezone']) ? { timezone: asText(cfg['timezone']) } : {}) } : {}),
-        ...(type === 'TRIGGER_APP_EVENT' && asText(cfg['event']) ? { event: asText(cfg['event']) } : {}),
       });
     }
 

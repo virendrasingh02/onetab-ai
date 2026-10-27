@@ -2919,6 +2919,16 @@ export const agentGraphsApi = {
         { active },
       ),
     ),
+
+  /** A new secret for a switched-on webhook agent; the old one stops working (owner or admin). */
+  rotateWebhookSecret: (workspaceId: string, agentId: string) =>
+    request<CanvasAgentActivation>(
+      http.post(`/workspaces/${workspaceId}/agent-graphs/${agentId}/webhook-secret`),
+    ),
+
+  /** The full URL a canvas agent's webhook is called on. */
+  webhookUrl: (path: string) =>
+    `${String(http.defaults.baseURL ?? '').replace(/\/$/, '')}${path}`,
 };
 
 /**

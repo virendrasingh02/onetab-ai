@@ -12,6 +12,7 @@ import {
   type AppSelectOption,
   Label,
 } from '@org/ui';
+import { AGENT_EVENTS } from '@org/types';
 import { cn } from '@org/utils';
 import { Handle, NodeResizer, NodeToolbar, Position, useNodesData, type NodeProps } from '@xyflow/react';
 import {
@@ -982,6 +983,25 @@ export function NodeActionToolbar({
   );
 }
 
+/** What starts the agent, in words, for a start card that isn't an app connector. */
+function startBlurb(type: string, cfg: Record<string, unknown>): string {
+  switch (type) {
+    case 'TRIGGER_WEBHOOK':
+      return 'Runs when its webhook is called, once switched on in Copilot.';
+    case 'TRIGGER_SCHEDULE':
+      return 'Runs on its schedule, once switched on in Copilot.';
+    case 'TRIGGER_APP_EVENT': {
+      const name = String(cfg['eventType'] ?? cfg['event'] ?? '');
+      const event = AGENT_EVENTS.find((e) => e.value === name);
+      return event
+        ? `Runs when ${event.label.charAt(0).toLowerCase()}${event.label.slice(1)}, once switched on in Copilot.`
+        : 'Pick the workspace event that starts it.';
+    }
+    default:
+      return 'Runs when you test the agent or send it a message.';
+  }
+}
+
 // 1. Start / Trigger Node (Universal support for Webhooks, Manual, Chat, Schedules, and SaaS App Connector Triggers)
 export const StartNode = memo(({ id, type, data, selected }: NodeProps) => {
   const nodeData = data as WorkflowNodePayload;
@@ -1039,7 +1059,7 @@ export const StartNode = memo(({ id, type, data, selected }: NodeProps) => {
       />
 
       {!nodeData.run?.output && !isConnectorTrigger && (
-        <p className="mt-2 text-xs leading-snug text-muted-foreground">Runs when you test the agent or send it a message.</p>
+        <p className="mt-2 text-xs leading-snug text-muted-foreground">{startBlurb(String(type), cfg)}</p>
       )}
       {nodeData.run?.output && (
         <div className="nodrag nowheel mt-3 max-h-28 overflow-auto whitespace-pre-wrap [overflow-wrap:anywhere] rounded-lg bg-surface-raised px-2.5 py-2 text-xs leading-relaxed text-foreground">
@@ -1648,8 +1668,9 @@ export const LlmNode = memo(({ id, data, selected }: NodeProps) => {
   const cfg = nodeData.config || {};
   const locked = Boolean(nodeData.locked) || !nodeData.onUpdateConfig;
   const update = (patch: Record<string, unknown>) => nodeData.onUpdateConfig?.(patch);
-  const model = String(cfg.model ?? 'gpt-4o');
-  const { groups: options, isLoading: modelsLoading } = useModelOptions(model);
+  // No model set → the run uses the workspace default, so don't show one.
+  const model = cfg.model ? String(cfg.model) : '';
+  const { groups: options, isLoading: modelsLoading } = useModelOptions(model || undefined);
   return (
     <div
       className={cn(
@@ -1668,7 +1689,7 @@ export const LlmNode = memo(({ id, data, selected }: NodeProps) => {
         defaultDescription="Chat model"
         customIcon={
           <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-raised border border-border/80">
-            <AIModelIcon modelId={model} size={18} />
+            {model ? <AIModelIcon modelId={model} size={18} /> : <Cpu className="size-[18px] text-muted-foreground" />}
           </div>
         }
         locked={Boolean(nodeData.locked)}
@@ -1684,6 +1705,7 @@ export const LlmNode = memo(({ id, data, selected }: NodeProps) => {
             aria-label="Model"
             searchable
             value={model}
+            placeholder="Workspace default model"
             options={options}
             loading={modelsLoading}
             disabled={locked}
