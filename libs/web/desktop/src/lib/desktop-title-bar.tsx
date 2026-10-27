@@ -1,6 +1,7 @@
 import { useDesktop } from './desktop-provider.js';
 import { DesktopTitleBarInset } from './desktop-title-bar-inset.js';
 import { DesktopWindowControls } from './desktop-window-controls.js';
+import { cn } from '@org/utils';
 import { DRAG } from './drag-region.js';
 import { useWindowChromeStore } from './window-chrome-store.js';
 
@@ -25,6 +26,7 @@ import { useWindowChromeStore } from './window-chrome-store.js';
 export function DesktopTitleBar() {
   const { isDesktop, appInfo, windowState, toggleMaximize } = useDesktop();
   const claimedElsewhere = useWindowChromeStore((state) => state.claims > 0);
+  const forcedDark = useWindowChromeStore((state) => state.darkClaims > 0);
 
   // Full screen hides the OS chrome entirely; keeping our strip would leave a
   // dead bar at the top of an otherwise borderless window.
@@ -35,7 +37,10 @@ export function DesktopTitleBar() {
     <div
       style={DRAG}
       onDoubleClick={toggleMaximize}
-      className="flex h-8 shrink-0 select-none items-center gap-2 border-b border-border bg-sidebar px-2"
+      className={cn(
+        'flex h-8 shrink-0 select-none items-center gap-2 border-b border-border bg-sidebar px-2',
+        forcedDark && 'dark',
+      )}
     >
       <DesktopTitleBarInset />
 

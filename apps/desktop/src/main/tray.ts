@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { IPC_EVENT, type DesktopCommand } from '../shared/ipc.js';
 import { getStartupState, setStartupState } from './startup.js';
 import { getPreference, setPreference } from './store.js';
+import { defaultMinimizeToTray, MINIMIZE_TO_TRAY_KEY } from './tray-policy.js';
 import { getMainWindow, markQuitting, showMainWindow } from './window.js';
 
 let tray: Tray | null = null;
@@ -49,9 +50,9 @@ export function buildTrayMenu(): Menu {
     {
       label: 'Keep running in the background',
       type: 'checkbox',
-      checked: getPreference('minimizeToTray', process.platform === 'darwin'),
+      checked: getPreference(MINIMIZE_TO_TRAY_KEY, defaultMinimizeToTray(process.platform)),
       click: (item) => {
-        setPreference('minimizeToTray', item.checked);
+        setPreference(MINIMIZE_TO_TRAY_KEY, item.checked);
         refreshTrayMenu();
       },
     },

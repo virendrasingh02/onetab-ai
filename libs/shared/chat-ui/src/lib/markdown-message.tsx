@@ -6,6 +6,7 @@ import { CheckSquare, ChevronDown, ChevronUp, ChevronsUpDown, Link2, Square } fr
 import { Fragment, useCallback, useMemo, useState, type ReactNode } from 'react';
 
 import { compactBlankLineCount } from './blank-lines.js';
+import { LinkHoverCard } from './link-hover-card.js';
 import { useMentionAliases } from './mention-aliases.js';
 
 /**
@@ -111,6 +112,8 @@ type InlineOptions = {
    * right profile. Undefined when the handle matches nobody on the roster.
    */
   resolveMention?: (handle: string) => string | undefined;
+  /** Link hover cards also fetch the page's title/description/thumbnail. */
+  enrichLinks?: boolean;
   /** Rendering a link's label: nested links/mentions/tags stay plain text. */
   inLink?: boolean;
 };
@@ -227,16 +230,15 @@ function renderInline(
       const display = label || (href ? href.replace(/^https?:\/\//i, '') : '');
       nodes.push(
         href ? (
-          <a
+          <LinkHoverCard
             key={key}
             href={href}
-            target="_blank"
-            rel="noreferrer noopener"
             className={LINK_CHIP_CLASS}
+            enrich={options.enrichLinks}
           >
             <Link2 className={CHIP_ICON_CLASS} aria-hidden="true" />
             {label ? renderInline(label, key, linkLabelOptions(options), depth + 1) : display}
-          </a>
+          </LinkHoverCard>
         ) : (
           // Nowhere safe to go (empty, relative, `javascript:`…): keep the
           // words, drop the link syntax.
@@ -288,15 +290,10 @@ function renderInline(
       nodes.push(
         href ? (
           <Fragment key={key}>
-            <a
-              href={href}
-              target="_blank"
-              rel="noreferrer noopener"
-              className={LINK_CHIP_CLASS}
-            >
+            <LinkHoverCard href={href} className={LINK_CHIP_CLASS} enrich={options.enrichLinks}>
               <Link2 className={CHIP_ICON_CLASS} aria-hidden="true" />
               {display}
-            </a>
+            </LinkHoverCard>
             {trailingPunct}
           </Fragment>
         ) : (
@@ -656,6 +653,13 @@ export interface MarkdownMessageProps {
    * Lets a chip follow the person's current name even after a rename.
    */
   mentionRefs?: { userId: string; label: string }[];
+  /**
+   * Let a hovered link fetch the page's title, description and thumbnail.
+   * Pass the same visibility the message's inline link previews follow, so
+   * switching previews off also stops hover lookups. Links always show their
+   * destination and copy/open actions regardless.
+   */
+  enrichLinks?: boolean;
 }
 
 export function MarkdownMessage({
@@ -665,6 +669,7 @@ export function MarkdownMessage({
   onMentionClick,
   mentionProfiles,
   mentionRefs,
+  enrichLinks,
 }: MarkdownMessageProps) {
   const openProfile = useRightPanelStore((s) => s.openProfile);
   const aliases = useMentionAliases();
@@ -762,8 +767,9 @@ export function MarkdownMessage({
       mentionNames: cleaned,
       onMentionClick: handleMentionClick,
       resolveMention,
+      enrichLinks,
     };
-  }, [mentionNames, mentionProfiles, mentionRefs, aliases, handleMentionClick]);
+  }, [mentionNames, mentionProfiles, mentionRefs, aliases, handleMentionClick, enrichLinks]);
 
   return (
     <div

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { DesktopTitleBar } from './desktop-title-bar.js';
+import { ScreenSharePicker } from './screen-share-picker.js';
 
 /**
  * The frame the app renders inside: title bar above, routed content filling
@@ -31,6 +32,8 @@ export function DesktopChrome({ children }: { children: ReactNode }) {
         without it a flex child refuses to shrink and the bars get pushed out.
       */}
       <div className="min-h-0 flex-1 overflow-auto">{children}</div>
+      {/* Answers `getDisplayMedia` for the shell; renders nothing in a browser. */}
+      <ScreenSharePicker />
     </div>
   );
 }

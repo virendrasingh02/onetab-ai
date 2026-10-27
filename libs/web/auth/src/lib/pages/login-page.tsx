@@ -67,6 +67,7 @@ import {
 import { useAuthStore } from '../auth.store.js';
 import {
   authorizeDesktopHandoff,
+  isSignedOutError,
   desktopCancelUrl,
   withDesktopHandoff,
 } from '../desktop-handoff.js';
@@ -148,6 +149,8 @@ export function LoginPage() {
   const [desktopHandoffRunning, setDesktopHandoffRunning] = useState(false);
   const [handoffUrl, setHandoffUrl] = useState<string | null>(null);
   const [handoffError, setHandoffError] = useState<string | null>(null);
+  // Shown on the sign-in form when the hand-off found this browser signed out.
+  const [handoffNotice, setHandoffNotice] = useState<string | null>(null);
 
   // Mobile QR pairing mode state
   const [isMobileQRMode, setIsMobileQRMode] = useState(false);
@@ -219,6 +222,15 @@ export function LoginPage() {
       setHandoffUrl(await authorizeDesktopHandoff(handoff));
     } catch (error) {
       handoffInFlight.current = false; // allow "Try again"
+      if (isSignedOutError(error)) {
+        // Even a renewed session was refused, so there is nothing to hand over.
+        // Retrying would loop on the same dead session: drop it and show the
+        // form so the person can simply sign in.
+        useAuthStore.getState().clear();
+        setDesktopHandoffRunning(false);
+        setHandoffNotice('Your session in this browser expired. Sign in again to connect the desktop app.');
+        return;
+      }
       setHandoffError(
         toApiError(error).message ||
           'Could not hand your session to the desktop app. Try again.',
@@ -543,7 +555,9 @@ export function LoginPage() {
           <Laptop aria-hidden className="size-4 mt-px shrink-0" />
           <div className="min-w-0 flex-1">
             <p className="font-semibold">Signing in to Onetab AI Desktop</p>
-            <p className="mt-0.5">After you sign in, you’ll be sent back to the app.</p>
+            <p className="mt-0.5">
+              {handoffNotice ?? 'After you sign in, you’ll be sent back to the app.'}
+            </p>
           </div>
           <button
             type="button"

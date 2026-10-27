@@ -4,6 +4,7 @@
   "productName": "Onetab AI",
   "copyright": "Copyright © Onetab AI Inc.",
   "directories": {
+    "app": "apps/desktop",
     "output": "apps/desktop/release",
     "buildResources": "apps/desktop/resources"
   },
@@ -13,40 +14,27 @@
     "productName": "Onetab AI",
     "version": "0.0.1",
     "description": "Onetab AI desktop application",
-    "author": "Onetab AI Inc.",
-    "main": "apps/desktop/dist/main.js"
+    "author": "Onetab AI Inc."
   },
   "files": [
-    "apps/desktop/dist/main.js",
-    "apps/desktop/dist/preload.js",
-    "apps/desktop/dist/main/**/*",
-    "apps/desktop/dist/shared/**/*",
-    "apps/desktop/resources/**/*",
-    "apps/desktop/package.json",
+    "dist/main.js",
+    "dist/preload.js",
+    "dist/main/**/*",
+    "dist/shared/**/*",
+    "resources/**/*",
+    "!resources/app-update.yml",
+    "package.json",
     "!**/*.map",
-    "!**/*.d.ts",
-    "!node_modules/**/*",
-    "node_modules/electron-updater/**/*",
-    "node_modules/tiny-typed-emitter/**/*",
-    "node_modules/builder-util-runtime/**/*",
-    "node_modules/js-yaml/**/*",
-    "node_modules/lazy-val/**/*",
-    "node_modules/lodash.escaperegexp/**/*",
-    "node_modules/lodash.isequal/**/*",
-    "node_modules/semver/**/*",
-    "node_modules/fs-extra/**/*",
-    "node_modules/graceful-fs/**/*",
-    "node_modules/jsonfile/**/*",
-    "node_modules/universalify/**/*",
-    "node_modules/argparse/**/*",
-    "node_modules/sax/**/*",
-    "node_modules/debug/**/*",
-    "node_modules/ms/**/*"
+    "!**/*.d.ts"
   ],
   "extraResources": [
     {
       "from": "apps/web/dist",
       "to": "web"
+    },
+    {
+      "from": "apps/desktop/resources/app-update.yml",
+      "to": "app-update.yml"
     }
   ],
   "asar": true,
@@ -73,7 +61,11 @@
     "icon": "apps/desktop/resources/icon.png",
     "hardenedRuntime": true,
     "entitlements": "apps/desktop/resources/entitlements.mac.plist",
-    "entitlementsInherit": "apps/desktop/resources/entitlements.mac.plist"
+    "entitlementsInherit": "apps/desktop/resources/entitlements.mac.plist",
+    "extendInfo": {
+      "NSMicrophoneUsageDescription": "Onetab AI uses your microphone to record voice messages and for huddles and calls.",
+      "NSCameraUsageDescription": "Onetab AI uses your camera for video in huddles and calls."
+    }
   },
   "linux": {
     "target": ["AppImage", "deb"],

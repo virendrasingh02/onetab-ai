@@ -358,7 +358,7 @@ export function DesignSystemStudio() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div className="flex min-h-full flex-col bg-background text-foreground">
       {/* Top Studio Control Bar */}
       <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-4 border-b border-border bg-surface/90 backdrop-blur-md px-6 py-3 shadow-xs">
         <div className="flex items-center gap-3">

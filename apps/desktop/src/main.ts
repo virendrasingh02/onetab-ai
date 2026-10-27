@@ -1,4 +1,4 @@
-import { app, dialog, globalShortcut, nativeTheme, session } from 'electron';
+import { app, dialog, globalShortcut, nativeTheme } from 'electron';
 import { appendFileSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { IPC_EVENT, type DesktopCommand } from './shared/ipc.js';
@@ -8,6 +8,7 @@ import {
   startBackgroundSync,
   stopBackgroundSync,
 } from './main/background-sync.js';
+import { loadRuntimeConfig } from './main/config.js';
 import {
   deepLinkFromArgv,
   dispatchDeepLink,
@@ -19,13 +20,15 @@ import { setSingleInstanceHeld } from './main/diagnostics.js';
 import { dispatchFileOpened, fileFromArgv, flushPendingFile } from './main/file-handler.js';
 import { dispatchHandoffActivity, flushPendingHandoff } from './main/handoff.js';
 import { registerIpcHandlers } from './main/ipc.js';
+import { applyDisplayMediaPolicy } from './main/display-media.js';
+import { applySessionPolicy } from './main/permissions.js';
 import { setJumpListIconSource, setupWindowsJumpList } from './main/jump-list.js';
 import { focusApp } from './main/lifecycle.js';
 import { logger } from './main/logger.js';
 import { installAppMenu } from './main/menu.js';
 import { startStaticServer, type StaticServer } from './main/static-server.js';
 import { createTray, destroyTray } from './main/tray.js';
-import { scheduleUpdateChecks } from './main/updater.js';
+import { scheduleUpdateChecks, setApiUrlForUpdates, setUpdateFeedUrl } from './main/updater.js';
 import { shouldStartHidden, syncLoginItemOnLaunch } from './main/startup.js';
 import { getPreference } from './main/store.js';
 import {
@@ -117,28 +120,6 @@ function resolveResourcesDir(): string {
   return candidates.find((candidate) => existsSync(candidate)) ?? candidates[0];
 }
 
-/**
- * Renderer permission requests.
- */
-function applySessionPolicy(appOrigin: string): void {
-  const allowed = new Set(['notifications', 'clipboard-sanitized-write', 'fullscreen']);
-  const sameOrigin = (url: string) => {
-    try {
-      return new URL(url).origin === new URL(appOrigin).origin;
-    } catch {
-      return false;
-    }
-  };
-
-  session.defaultSession.setPermissionRequestHandler((contents, permission, callback) => {
-    callback(sameOrigin(contents.getURL()) && allowed.has(permission));
-  });
-
-  session.defaultSession.setPermissionCheckHandler((_contents, permission, origin) =>
-    sameOrigin(origin) && allowed.has(permission),
-  );
-}
-
 function sendCommand(command: DesktopCommand): void {
   showMainWindow();
   getMainWindow()?.webContents.send(IPC_EVENT.command, command);
@@ -188,13 +169,16 @@ let resolvedAppUrl: string | null = null;
  */
 async function initializeApp(): Promise<string> {
   const appUrl = await resolveAppUrl();
-  const apiUrl = process.env['VITE_API_URL'] || 'http://localhost:3000/api/v1';
-  setApiUrlForDeepLinks(apiUrl);
-  setApiUrlForAuth(apiUrl);
-  setApiUrlForBackgroundSync(apiUrl);
+  const config = loadRuntimeConfig(appUrl, resolveResourcesDir(), isDev);
+  setApiUrlForDeepLinks(config.apiUrl);
+  setApiUrlForAuth(config.apiUrl);
+  setApiUrlForBackgroundSync(config.apiUrl);
+  setApiUrlForUpdates(config.apiUrl);
+  setUpdateFeedUrl(config.updateUrl);
 
   applySessionPolicy(appUrl);
-  registerIpcHandlers(isDev, appUrl);
+  applyDisplayMediaPolicy(appUrl);
+  registerIpcHandlers(isDev, config);
   installAppMenu(isDev);
   configureAboutPanel();
 

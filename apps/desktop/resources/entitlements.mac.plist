@@ -19,5 +19,11 @@
     <!-- File picker uploads and "save to disk". -->
     <key>com.apple.security.files.user-selected.read-write</key>
     <true/>
+    <!-- Voice messages, huddles and calls. Without these the hardened runtime
+         hands getUserMedia silence rather than a prompt. -->
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
+    <key>com.apple.security.device.camera</key>
+    <true/>
   </dict>
 </plist>

@@ -4,6 +4,9 @@
   "description": "Onetab AI desktop shell — hosts the web app in Electron and adds the native capabilities a browser tab cannot provide.",
   "private": true,
   "main": "./dist/main.js",
+  "dependencies": {
+    "electron-updater": "^6.8.11"
+  },
   "nx": {
     "projectType": "application",
     "tags": ["type:app", "scope:desktop"],
@@ -58,7 +61,11 @@
         "cache": false,
         "dependsOn": ["build", "@org/web:build"],
         "options": {
-          "command": "electron-builder --config apps/desktop/electron-builder.json --publish never",
+          "commands": [
+            "node apps/desktop/scripts/write-config.mjs",
+            "electron-builder --config apps/desktop/electron-builder.json --publish never"
+          ],
+          "parallel": false,
           "cwd": "{workspaceRoot}"
         }
       }

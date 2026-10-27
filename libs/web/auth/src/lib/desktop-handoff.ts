@@ -1,4 +1,4 @@
-import { authApi } from '@org/api-client';
+import { ApiError, authApi, refreshSession, toApiError } from '@org/api-client';
 
 /**
  * The browser half of "Sign in with browser" for the desktop app.
@@ -49,11 +49,44 @@ export function desktopCancelUrl(state: string): string {
   return `${DESKTOP_PROTOCOL}://auth/callback?error=cancelled&state=${encodeURIComponent(state)}`;
 }
 
-/** Mints the one-time code for the current browser session. */
+/**
+ * HTTP status of a failed API call. `authApi` methods already throw an
+ * `ApiError`, and `toApiError` only understands axios failures — handed an
+ * `ApiError` it returns status 0 — so the error has to be read directly.
+ */
+function statusOf(error: unknown): number {
+  return error instanceof ApiError ? error.status : toApiError(error).status;
+}
+
+/**
+ * Mints the one-time code for the current browser session.
+ *
+ * The page treats a cached user as signed in the instant it loads, so this runs
+ * with whatever access token the browser kept — and those last 15 minutes. The
+ * 401 interceptor deliberately never retries `/auth/*` calls, so without the
+ * renewal below a tab that had merely been idle failed with a bare
+ * "Unauthorized" while its refresh cookie was perfectly good. A 401 that
+ * survives the renewal is a genuinely signed-out browser and is rethrown as such.
+ */
 export async function authorizeDesktopHandoff(handoff: DesktopHandoff): Promise<string> {
-  const { code } = await authApi.authorizeDesktop({
-    state: handoff.state,
-    codeChallenge: handoff.codeChallenge,
-  });
-  return desktopCallbackUrl(code, handoff.state);
+  const mint = async () => {
+    const { code } = await authApi.authorizeDesktop({
+      state: handoff.state,
+      codeChallenge: handoff.codeChallenge,
+    });
+    return desktopCallbackUrl(code, handoff.state);
+  };
+
+  try {
+    return await mint();
+  } catch (error) {
+    if (statusOf(error) !== 401) throw error;
+    await refreshSession();
+    return mint();
+  }
+}
+
+/** Whether a failed hand-off means this browser has no usable session left. */
+export function isSignedOutError(error: unknown): boolean {
+  return statusOf(error) === 401;
 }

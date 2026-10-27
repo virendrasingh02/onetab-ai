@@ -595,7 +595,7 @@ export function SettingsLayout({
     setCollapsed((current) => ({ ...current, [id]: !current[id] }));
 
   return (
-    <div className="gap-1.5 p-1.5 flex h-screen w-screen flex-col overflow-hidden bg-background font-sans text-foreground">
+    <div className="gap-1.5 p-1.5 flex h-full w-full flex-col overflow-hidden bg-background font-sans text-foreground">
       {/* Live-apply preferences (font size, …) so a change previews here. */}
       <WorkspacePreferencesEffects workspaceId={workspaceId} />
       {/* Rounds trips the automations/schedule/pulse/documents/files/general

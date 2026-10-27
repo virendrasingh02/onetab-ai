@@ -427,6 +427,14 @@ export {
 } from './lib/link-detector.js';
 
 export {
+  LinkHoverCard,
+  describeLinkTarget,
+  type LinkHoverCardProps,
+  type LinkKind,
+  type LinkTarget,
+} from './lib/link-hover-card.js';
+
+export {
   LinkPreviewCard,
   type LinkPreviewCardProps,
 } from './lib/link-preview-card.js';

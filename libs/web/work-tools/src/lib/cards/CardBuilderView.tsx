@@ -289,7 +289,7 @@ export function CardBuilderView() {
     breakpoint === 'mobile' ? 'max-w-[360px]' : breakpoint === 'tablet' ? 'max-w-[500px]' : 'max-w-[640px]';
 
   return (
-    <div className="flex flex-col h-screen w-full bg-background text-foreground overflow-hidden">
+    <div className="flex flex-col h-full w-full bg-background text-foreground overflow-hidden">
       {/* --- TOP BAR --- */}
       <header className="h-13 border-b border-border/80 bg-surface px-4 flex items-center justify-between shrink-0 z-20">
         <div className="flex items-center gap-3">

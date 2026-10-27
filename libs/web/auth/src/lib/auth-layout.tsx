@@ -1,5 +1,6 @@
 import { useTranslation } from '@org/i18n';
 import { LanguageSelect } from '@org/ui';
+import { useForcesDarkWindowChrome } from '@org/web-desktop';
 import { cn } from '@org/utils';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
@@ -37,9 +38,11 @@ export function AuthLayout({
   brandLogoText = 'O',
 }: AuthLayoutProps) {
   const { locale, setLocale } = useTranslation();
+  // The desktop title strip lives outside this layout's `dark` scope.
+  useForcesDarkWindowChrome();
 
   return (
-    <div className="dark min-h-screen flex flex-col justify-between items-center bg-background text-foreground px-4 py-8 sm:py-10 selection:bg-primary/25">
+    <div className="dark min-h-full flex flex-col justify-between items-center bg-background text-foreground px-4 py-8 sm:py-10 selection:bg-primary/25">
       {/* Top Header Bar with centered Brand Emblem */}
       <header className="pt-2 sm:pt-4 w-full max-w-4xl px-4 flex items-center justify-center">
         <Link

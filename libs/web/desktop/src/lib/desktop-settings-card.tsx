@@ -105,9 +105,11 @@ export function DesktopSettingsCard() {
   } = useDesktop();
 
   const [startup, updateStartup] = useDesktopStartup();
+  // Mirrors `defaultMinimizeToTray` in the shell, which answers for it once the
+  // preference has loaded: Linux often has no tray, so it stays opt-in there.
   const [minimizeToTray, setMinimizeToTray] = useDesktopPreference(
     'minimizeToTray',
-    appInfo?.platform === 'darwin',
+    appInfo?.platform === 'darwin' || appInfo?.platform === 'win32',
   );
   const [desktopNotificationsEnabled, setDesktopNotificationsEnabled] = useDesktopPreference(
     'desktopNotificationsEnabled',

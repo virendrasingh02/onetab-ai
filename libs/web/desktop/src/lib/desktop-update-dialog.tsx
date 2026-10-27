@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Download,
+  ExternalLink,
   RotateCcw,
   ShieldAlert,
   Sparkles,
@@ -140,6 +141,17 @@ export function DesktopUpdateDialog({
             </div>
           )}
 
+          {/* No in-app updater: the installer page was opened in the browser */}
+          {isAvailable && updateStatus.openedInBrowser && (
+            <div className="p-3 bg-accent-blue/10 border border-accent-blue/20 rounded-md text-xs flex items-start gap-2">
+              <ExternalLink className="size-4 shrink-0 mt-0.5 text-accent-blue" />
+              <span>
+                The download page opened in your browser. Run the installer, then restart Onetab AI to
+                finish updating.
+              </span>
+            </div>
+          )}
+
           {/* Release Notes */}
           {isAvailable && updateStatus.releaseNotes && (
             <div className="space-y-1">
@@ -176,7 +188,7 @@ export function DesktopUpdateDialog({
               className="gap-1.5"
             >
               <Download className="size-3.5" />
-              <span>Update Now</span>
+              <span>{updateStatus.openedInBrowser ? 'Open download page again' : 'Update Now'}</span>
             </Button>
           ) : null}
         </DialogFooter>

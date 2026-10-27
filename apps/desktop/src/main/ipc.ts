@@ -40,6 +40,7 @@ import {
 } from './auth.js';
 import { resetBadgeOnSignOut } from './background-sync.js';
 import { detectDesktopCapabilities, detectDistribution, isMasBuild } from './capabilities.js';
+import type { DesktopRuntimeConfig } from './config.js';
 import {
   collectDiagnostics,
   getAppPathValue,
@@ -54,17 +55,20 @@ import {
   setJumpListWorkspaces,
   setupWindowsJumpList,
 } from './jump-list.js';
+import { displayMediaBroker } from './display-media.js';
 import { dockBounce, focusApp, quitApp, restartApp, showAboutPanel } from './lifecycle.js';
 import { logger } from './logger.js';
 import { getStartupState, setStartupState } from './startup.js';
 import { checkForUpdates, downloadUpdate, installUpdate } from './updater.js';
 import { getPreference, setPreference } from './store.js';
+import { defaultMinimizeToTray, MINIMIZE_TO_TRAY_KEY } from './tray-policy.js';
 import { applyBadgeCount, refreshTrayMenu } from './tray.js';
 import {
   getMainWindow,
   showMainWindow,
   TITLE_BAR_INSET,
   USES_CUSTOM_TITLE_BAR,
+  windowBackground,
   windowState,
 } from './window.js';
 
@@ -82,6 +86,15 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   '.json': 'application/json',
   '.zip': 'application/zip',
 };
+
+/**
+ * What a preference reads as before the user has touched it. Kept here, not in
+ * the renderer, so the window's close handler and the Settings toggle can never
+ * disagree about the default.
+ */
+function preferenceDefault(key: string): unknown {
+  return key === MINIMIZE_TO_TRAY_KEY ? defaultMinimizeToTray(process.platform) : null;
+}
 
 function guessMimeType(path: string): string {
   return MIME_BY_EXTENSION[extname(path).toLowerCase()] ?? 'application/octet-stream';
@@ -118,7 +131,7 @@ async function readPickedFile(path: string): Promise<DesktopPickedFile> {
   };
 }
 
-export function registerIpcHandlers(isDev: boolean, webAppUrl: string): void {
+export function registerIpcHandlers(isDev: boolean, config: DesktopRuntimeConfig): void {
   ipcMain.handle(
     IPC.appInfo,
     guard((): DesktopAppInfo => ({
@@ -164,7 +177,7 @@ export function registerIpcHandlers(isDev: boolean, webAppUrl: string): void {
   ipcMain.handle(
     IPC.authStartBrowserLogin,
     guard(async (_event, intent?: unknown) => {
-      return startBrowserLogin(webAppUrl, intent === 'sign-up' ? 'sign-up' : 'sign-in');
+      return startBrowserLogin(config.webUrl, intent === 'sign-up' ? 'sign-up' : 'sign-in');
     }),
   );
 
@@ -284,7 +297,7 @@ export function registerIpcHandlers(isDev: boolean, webAppUrl: string): void {
   ipcMain.handle(
     IPC.openAppOrWeb,
     guard(async (_event, request: DesktopHandoffRequest) => {
-      const targetUrl = request.fallbackUrl || `${webAppUrl}${request.route}`;
+      const targetUrl = request.fallbackUrl || `${config.webUrl}${request.route}`;
       if (!/^https?:\/\//i.test(targetUrl)) return false;
       await shell.openExternal(targetUrl);
       return true;
@@ -301,6 +314,12 @@ export function registerIpcHandlers(isDev: boolean, webAppUrl: string): void {
   ipcMain.handle(
     IPC.openSystemSettings,
     guard(async (_event, setting: string) => {
+      if (process.platform === 'darwin' && setting === 'screen-recording') {
+        await shell.openExternal(
+          'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture',
+        );
+        return true;
+      }
       if (process.platform === 'win32') {
         if (setting === 'taskbar') {
           await shell.openExternal('ms-settings:taskbar');
@@ -379,7 +398,7 @@ export function registerIpcHandlers(isDev: boolean, webAppUrl: string): void {
 
   ipcMain.handle(
     IPC.getPreference,
-    guard((_event, key: string) => getPreference<unknown>(key, null)),
+    guard((_event, key: string) => getPreference<unknown>(key, preferenceDefault(key))),
   );
 
   ipcMain.handle(
@@ -399,11 +418,7 @@ export function registerIpcHandlers(isDev: boolean, webAppUrl: string): void {
       nativeTheme.themeSource = source;
       setPreference('theme', source);
       const window = getMainWindow();
-      if (window && !window.isDestroyed()) {
-        const isDark =
-          source === 'dark' || (source === 'system' && nativeTheme.shouldUseDarkColors);
-        window.setBackgroundColor(isDark ? '#0c0d0e' : '#fbfbfc');
-      }
+      if (window && !window.isDestroyed()) window.setBackgroundColor(windowBackground());
     }),
   );
 
@@ -411,7 +426,7 @@ export function registerIpcHandlers(isDev: boolean, webAppUrl: string): void {
 
   ipcMain.handle(
     IPC.checkForUpdates,
-    guard(() => checkForUpdates(isDev, webAppUrl)),
+    guard(() => checkForUpdates(isDev, config.apiUrl)),
   );
   ipcMain.handle(
     IPC.downloadUpdate,
@@ -519,12 +534,22 @@ export function registerIpcHandlers(isDev: boolean, webAppUrl: string): void {
   );
 
   ipcMain.handle(
+    IPC.displayMediaRespond,
+    guard((_event, requestId: unknown, sourceId: unknown) =>
+      displayMediaBroker.respond(
+        typeof requestId === 'string' ? requestId : '',
+        typeof sourceId === 'string' ? sourceId : null,
+      ),
+    ),
+  );
+
+  ipcMain.handle(
     IPC.agentExecute,
     guard(async (_event, req: DesktopAgentExecuteRequest): Promise<DesktopAgentExecuteResponse> => {
       try {
         const session = await loadSecureSession();
         const token = req.apiKey || session?.accessToken;
-        const targetUrl = new URL(`/api/v1/agents/${encodeURIComponent(req.agentId)}/execute`, webAppUrl);
+        const targetUrl = `${config.apiUrl}/agents/${encodeURIComponent(req.agentId)}/execute`;
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
         };
@@ -534,7 +559,7 @@ export function registerIpcHandlers(isDev: boolean, webAppUrl: string): void {
           headers['Authorization'] = `Bearer ${token}`;
         }
 
-        const res = await fetch(targetUrl.toString(), {
+        const res = await fetch(targetUrl, {
           method: 'POST',
           headers,
           body: JSON.stringify({

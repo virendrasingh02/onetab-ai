@@ -1263,6 +1263,7 @@ export function ChatBubble({
                 onMentionClick={onMentionClick}
                 mentionProfiles={mentionProfiles}
                 mentionRefs={message.mentions}
+                enrichLinks={isPreviewsVisible}
               />
             ) : null}
             {message.isEdited && !editSlot ? (

@@ -59,6 +59,7 @@ export const IPC = {
   setUserActivity: 'onetab:handoff/set-user-activity',
   invalidateUserActivity: 'onetab:handoff/invalidate-user-activity',
   dockBounce: 'onetab:dock/bounce',
+  displayMediaRespond: 'onetab:display-media/respond',
 } as const;
 
 /** Main → renderer, fire and forget. */
@@ -76,6 +77,7 @@ export const IPC_EVENT = {
   fileOpened: 'onetab:event/file-opened',
   handoffActivity: 'onetab:event/handoff-activity',
   accessibilitySupportChanged: 'onetab:event/accessibility-changed',
+  displayMediaRequest: 'onetab:event/display-media-request',
 } as const;
 
 /** Named folders the renderer may ask the OS to reveal or inspect. Never an arbitrary path. */
@@ -330,12 +332,38 @@ export type DesktopUpdateStatus =
       downloadUrl?: string;
       changelog?: string;
       minSupportedVersion?: string;
+      /** The installer's page was opened in the system browser (no in-app updater is configured). */
+      openedInBrowser?: boolean;
     }
   | { state: 'downloading'; percent: number }
   | { state: 'ready'; version: string }
   | { state: 'not-available' }
   | { state: 'unsupported' }
   | { state: 'error'; message: string };
+
+/** One screen or window the user can pick to share. */
+export interface DesktopCaptureSource {
+  /** Opaque id, passed back to `displayMedia.respond`. */
+  id: string;
+  name: string;
+  kind: 'screen' | 'window';
+  /** A small JPEG data URL. */
+  thumbnail: string;
+  /** The owning app's icon, for windows, when the OS has one. */
+  appIcon?: string;
+}
+
+/**
+ * Pushed when a page calls `getDisplayMedia` (screen share). Electron has no
+ * built-in picker, so the renderer shows one and answers with
+ * `displayMedia.respond`; an unanswered request is cancelled after a minute.
+ */
+export interface DesktopDisplayMediaRequest {
+  requestId: string;
+  sources: DesktopCaptureSource[];
+  /** Why `sources` is empty, when the cause is not "nothing to share". */
+  blocked?: 'os-permission';
+}
 
 /** Menu/tray/global-shortcut actions pushed into the renderer. */
 export type DesktopCommand =

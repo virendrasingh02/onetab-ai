@@ -22,10 +22,17 @@ export const useWindowChromeStore = create<{
   claims: number;
   claim: () => void;
   release: () => void;
+  /** Screens that paint themselves dark whatever the theme is (sign-in). */
+  darkClaims: number;
+  claimDark: () => void;
+  releaseDark: () => void;
 }>((set) => ({
   claims: 0,
   claim: () => set((state) => ({ claims: state.claims + 1 })),
   release: () => set((state) => ({ claims: Math.max(0, state.claims - 1) })),
+  darkClaims: 0,
+  claimDark: () => set((state) => ({ darkClaims: state.darkClaims + 1 })),
+  releaseDark: () => set((state) => ({ darkClaims: Math.max(0, state.darkClaims - 1) })),
 }));
 
 /**
@@ -40,4 +47,20 @@ export function useClaimsWindowChrome(): void {
     claim();
     return release;
   }, [claim, release]);
+}
+
+/**
+ * For a screen that forces its own dark palette regardless of the user's theme
+ * (the sign-in pages): the fallback title strip sits outside that screen's
+ * `dark` scope, so without this it stays light and cuts a pale band across a
+ * dark page.
+ */
+export function useForcesDarkWindowChrome(): void {
+  const claimDark = useWindowChromeStore((state) => state.claimDark);
+  const releaseDark = useWindowChromeStore((state) => state.releaseDark);
+
+  useEffect(() => {
+    claimDark();
+    return releaseDark;
+  }, [claimDark, releaseDark]);
 }

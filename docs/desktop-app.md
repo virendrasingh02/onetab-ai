@@ -11,13 +11,18 @@ apps/desktop/src
 ├── main.ts                 app entry: single instance, session policy, bootstrap
 ├── main/
 │   ├── window.ts           frameless window, bounds persistence, navigation policy
+│   ├── context-menu.ts     right-click menu: spelling fixes, links, images, editing
+│   ├── config.ts           the three URLs: renderer origin, API, public web app
+│   ├── permissions.ts      default-deny renderer permissions (mic/camera for calls)
+│   ├── display-media.ts    screen-share requests → renderer picker → chosen source
+│   ├── tray-policy.ts      close-to-tray default and the one-time hint
 │   ├── ipc.ts              every renderer-callable handler
 │   ├── tray.ts             tray icon and its menu
 │   ├── menu.ts             application menu + accelerators
 │   ├── deep-link.ts        `onetab://` parsing and replay
 │   ├── static-server.ts    serves the built web bundle in packaged builds
 │   ├── store.ts            JSON prefs/window state in userData
-│   └── updater.ts          optional `electron-updater` wiring
+│   └── updater.ts          API update check + `electron-updater` when a feed is set
 ├── preload.ts              the contextBridge surface (`window.onetabDesktop`)
 └── shared/ipc.ts           channel names + payload types (main + preload)
 ```
@@ -70,6 +75,31 @@ launcher script rather than left for the next person to rediscover:
   Vitest from `realpathSync.native()`, the canonical spelling — not a
   desktop-specific script.
 
+## Four URLs, four different jobs
+
+The shell juggles four URLs and `main/config.ts` keeps them apart — mixing them
+up is how a packaged build ends up signing in against the user's own machine.
+
+| URL | Used for | Dev | Packaged |
+| --- | --- | --- | --- |
+| `appUrl` | where the renderer loads from | Vite, `localhost:4200` | the internal static server |
+| `apiUrl` | the main process's own API calls: sign-in code exchange, token refresh, update check, background notifications, agent execute | `VITE_API_URL`, else `http://localhost:3000/api/v1` | `desktop-config.json`, else the same default (logged as a warning) |
+| `webUrl` | what the **system browser** is sent to: sign-in, "open in browser" | `appUrl` | `desktop-config.json`, else `appUrl` |
+| `updateUrl` | the folder holding `latest.yml` + the installer, for in-app update install | unused (dev never self-updates) | `desktop-config.json`; optional — without it "Update now" opens the installer page instead |
+
+Precedence is environment (`ONETAB_API_URL` / `VITE_API_URL`, `ONETAB_WEB_URL`, `ONETAB_UPDATE_URL`) →
+`resources/desktop-config.json` → default. The web bundle already has the API URL
+compiled in, but the main process never sees a Vite env, so `nx package` runs
+`scripts/write-config.mjs` first and bakes them in:
+
+```bash
+VITE_API_URL=https://api.example.com/api/v1 \nONETAB_WEB_URL=https://app.example.com \nONETAB_UPDATE_URL=https://downloads.example.com/desktop \nnx package @org/desktop
+```
+
+A relative `VITE_API_URL` (the dev-proxy form `/api/v1`) is ignored there, and a stale
+file from a previous package is removed so a local build cannot ship another
+environment's endpoints. The resolved origins are logged at startup (`[Config]`).
+
 ## Why the packaged app serves over localhost
 
 A packaged build starts a tiny HTTP server on `localhost:4200–4209` and loads the
@@ -99,9 +129,10 @@ IPv6-only listener and hand back a port something else is already using.
 | `navigator.clipboard` | Needs a secure context and a permission prompt | `copyText()` uses the native clipboard in the shell |
 | Web `Notification` API | Only fires while the window is alive | `notify()` uses OS notifications, which survive a hidden window and can carry a route to open on click |
 | Downloads via `<a download>` | No "Save as…", lands in the default folder | `saveFile()` opens a real save dialog and writes the file |
-| Camera / microphone | ❌ **Denied** | Only `notifications`, `clipboard-sanitized-write` and `fullscreen` are allowed; add `media` to the allowlist in `main.ts` when voice input actually ships |
+| Camera / microphone | ✅ **Allowed** | Voice messages, huddles and calls use `getUserMedia`, so `media` (and `speaker-selection` for the device picker) is allowed for the app's own page — see `permissions.ts`. macOS additionally needs the usage strings and entitlements already in `electron-builder.json` / `entitlements.mac.plist`, and the main process asks for OS access before answering. Screen sharing (`display-capture`) is allowed the same way, and Electron has no built-in "choose what to share" sheet, so `display-media.ts` forwards the request to `ScreenSharePicker` (in `DesktopChrome`) and matches the answer back — only to a source it actually offered, cancelled after a minute. macOS 15+ uses the system picker; older macOS needs Screen Recording permission, which the picker explains and links to. |
 | `<webview>` / nested frames | ❌ Denied | `will-attach-webview` is blocked; nothing in the app uses it |
 | Multiple windows | ❌ Not supported | Single-window by design; a second launch focuses the running one |
+| Closing the window | ✅ **Keeps running** on Windows and macOS | Closing hides the window into the tray so notifications keep arriving; the first time, a notification says so. Linux stays opt-in (many desktops have no tray). Settings → "Keep running in background" and the tray menu change it. Quit from the tray, the app menu or the updater; a Windows shutdown is never blocked (`session-end`). Defaults live in `tray-policy.ts`. |
 | PWA install / service worker | N/A | The app uses neither |
 | Invite links in email (`https://…/invite/x`) | Opens the browser, not the app | Register `onetab://invite/<token>` in the email template to hand the link to the desktop app |
 | Matrix E2EE (WASM + IndexedDB) | ✅ Works | The static server serves `.wasm` as `application/wasm`; do not add a CSP without `wasm-unsafe-eval` |
@@ -274,7 +305,9 @@ new `if (isWindows)`/`if (isMacAppStore)` check at the call site.
 - Every IPC handler checks the sender is the main window's `webContents`.
 - `openExternal` accepts only `http(s):` and `mailto:`; handing an arbitrary
   scheme to the OS is a code-execution vector.
-- Permissions are default-deny and same-origin only.
+- Permissions are default-deny and same-origin only (`permissions.ts`): notifications
+  and clipboard writes need the asking frame to be the app; mic/camera are judged on
+  the page, so the embedded call frame works while any other origin gets nothing.
 - The renderer cannot open windows or navigate off-origin.
 
 ## Packaging notes
@@ -282,11 +315,13 @@ new `if (isWindows)`/`if (isMacAppStore)` check at the call site.
 - `apps/desktop/electron-builder.json` copies `apps/web/dist` into the bundle as
   `resources/web`, which is where `resolveAppUrl()` looks. Installers land in
   `apps/desktop/release/`, which is gitignored.
-- **electron-builder runs from the workspace root**, so it reads the *root*
-  `package.json` as the app manifest — which has no `main`, and a version of
-  `0.0.0`. `extraMetadata` supplies `main`, `name`, `version`, `description` and
-  `author` for the manifest written into the asar. Without it Electron finds no
-  entry point and silently falls through to its default app.
+- **The app is `apps/desktop`, not the repo root** (`directories.app`). electron-builder
+  runs from the workspace root, and left to itself it reads the *root* `package.json` as
+  the app manifest — no `main`, version `0.0.0`, and every Nest/Prisma/React dependency
+  of the monorepo as a runtime dependency of the shell. Pointing it at `apps/desktop`
+  gives the asar the desktop workspace's own manifest (`main`, and a `dependencies` of
+  just `electron-updater`); `extraMetadata` supplies `productName`, `author` and the
+  rest. `files` patterns are relative to that folder.
 - **`electronDist` points at `node_modules/electron/dist`.** The packaged
   Electron is then by construction the same build as the pinned `electron`
   devDependency, and packaging neither re-downloads a second 225 MB copy nor
@@ -299,17 +334,30 @@ new `if (isWindows)`/`if (isMacAppStore)` check at the call site.
   else that has ever been written there — Nx caches `dist` as a build output, so
   one stray directory stays in the cache and is restored into every later build.
   That is how a 214 KB `app.asar` once shipped as 364 MB.
-- `node_modules` is excluded: the main process imports nothing but `electron`
-  and Node built-ins. The root `dependencies` (Nest, Prisma, React, Matrix,
-  native `bcrypt`) would otherwise all be packed and rebuilt. The
-  `node_modules/electron-updater/**` entries and its dependencies below the
-  exclusion are the re-includes that turn auto-update on the moment the package
-  is installed — extend that list if its dependency tree changes.
+- **`node_modules` is whatever `apps/desktop/package.json` depends on, and nothing else.**
+  That is `electron-updater` and its small closure (the asar is ~1.4 MB). Do not try to
+  allow-list packages with `files` patterns: for `node_modules` electron-builder honours
+  only the `!` exclusions, so a `!node_modules/**/*` followed by re-includes silently
+  ships *none* of them — which is exactly how `electron-updater` was missing from the
+  package until this was checked against a real build. Add a runtime dependency to
+  `apps/desktop/package.json` and it ships; keep the main process's imports to
+  `electron`, Node built-ins and those.
 - Icons in `apps/desktop/resources/` are generated placeholders
   (`node apps/desktop/scripts/make-icons.mjs`) — replace `icon.png` with real
   artwork before a release.
-- Auto-update is wired but inert: install `electron-updater` and publish a feed
-  to turn it on. Without it, `updates.check()` reports `not-available` instead of
-  throwing.
+- **Updates.** The check goes to the API (`/app-versions/check-update`), which also
+  carries the mandatory/minimum-version rules. What "Update now" does depends on the
+  build: with `ONETAB_UPDATE_URL` set, `electron-updater` (a runtime dependency) reads
+  `latest.yml` from that folder, downloads on request and installs on restart; without
+  it — or if that download fails — the installer's page opens in the browser and the
+  dialog says so, so the button is never a no-op. Store builds (MAS / Microsoft Store)
+  skip all of this. To publish a release, upload `release/latest.yml`, the installer
+  and its `.blockmap` to the update folder. `electron-builder` is a declared
+  devDependency, so `nx package` works from a clean install. electron-updater can
+  *check* a feed it was given at runtime but will not *download* without
+  `app-update.yml` beside the asar (it takes its cache folder name from it), so
+  `write-config.mjs` writes one when `ONETAB_UPDATE_URL` is set and `extraResources`
+  ships it. The whole path — check, download with checksum verification, `ready`, and
+  the installer-page fallback — was exercised against a packaged build and a mock feed.
 - macOS builds need signing and notarisation; the entitlements file is already in
   `resources/entitlements.mac.plist`.

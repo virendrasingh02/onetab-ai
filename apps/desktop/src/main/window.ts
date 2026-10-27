@@ -1,11 +1,26 @@
-import { app, BrowserWindow, clipboard, Menu, screen, shell } from 'electron';
+import { app, BrowserWindow, clipboard, Menu, nativeTheme, screen, shell } from 'electron';
 import { IPC_EVENT, type DesktopWindowState } from '../shared/ipc.js';
+import { buildContextMenuTemplate } from './context-menu.js';
 import { logger } from './logger.js';
-import { getPreference, readStore, writeStore } from './store.js';
+import { getPreference, readStore, setPreference, writeStore } from './store.js';
+import { showTrayHint } from './tray-hint.js';
+import {
+  defaultMinimizeToTray,
+  MINIMIZE_TO_TRAY_KEY,
+  resolveCloseAction,
+  TRAY_HINT_SHOWN_KEY,
+} from './tray-policy.js';
 
 /** macOS keeps its own traffic lights; other platforms get our own controls. */
 export const USES_CUSTOM_TITLE_BAR = true;
 export const TITLE_BAR_INSET = process.platform === 'darwin' ? 78 : 0;
+
+/** The window paints this before the page does, so it must match the theme or dark users get a white flash. */
+export const WINDOW_BACKGROUND = { light: '#fbfbfc', dark: '#0c0d0e' } as const;
+
+export function windowBackground(): string {
+  return nativeTheme.shouldUseDarkColors ? WINDOW_BACKGROUND.dark : WINDOW_BACKGROUND.light;
+}
 
 let mainWindow: BrowserWindow | null = null;
 let quitting = false;
@@ -112,51 +127,22 @@ function applyNavigationPolicy(window: BrowserWindow, appOrigin: string): void {
   window.webContents.on('will-attach-webview', (event) => event.preventDefault());
 }
 
-/**
- * Native context menu for text fields, links, and selected text.
- */
+/** Native context menu: spelling fixes, links, images, text editing. */
 function applyContextMenu(window: BrowserWindow): void {
   window.webContents.on('context-menu', (_event, params) => {
-    const template: Electron.MenuItemConstructorOptions[] = [];
-
-    if (params.linkURL && /^https?:\/\//i.test(params.linkURL)) {
-      template.push(
-        {
-          label: 'Open link in browser',
-          click: () => void shell.openExternal(params.linkURL),
-        },
-        {
-          label: 'Copy link address',
-          click: () => clipboard.writeText(params.linkURL),
-        },
-        { type: 'separator' },
-      );
-    }
-
-    if (params.isEditable) {
-      template.push(
-        { role: 'undo' },
-        { role: 'redo' },
-        { type: 'separator' },
-        { role: 'cut' },
-        { role: 'copy' },
-        { role: 'paste' },
-        { role: 'selectAll' },
-      );
-    } else if (params.selectionText && params.selectionText.trim().length > 0) {
-      template.push(
-        { role: 'copy' },
-        { role: 'selectAll' },
-      );
-    }
-
-    if (!app.isPackaged) {
-      if (template.length > 0) template.push({ type: 'separator' });
-      template.push({
-        label: 'Inspect element',
-        click: () => window.webContents.inspectElement(params.x, params.y),
-      });
-    }
+    const { webContents } = window;
+    const template = buildContextMenuTemplate(
+      params,
+      {
+        openExternal: (url) => void shell.openExternal(url),
+        copyText: (text) => clipboard.writeText(text),
+        replaceMisspelling: (suggestion) => webContents.replaceMisspelling(suggestion),
+        addToDictionary: (word) => webContents.session.addWordToSpellCheckerDictionary(word),
+        copyImage: (x, y) => webContents.copyImageAt(x, y),
+        inspect: (x, y) => webContents.inspectElement(x, y),
+      },
+      app.isPackaged,
+    );
 
     if (template.length > 0) {
       Menu.buildFromTemplate(template).popup({ window });
@@ -193,7 +179,7 @@ export function createMainWindow({
     minHeight: 600,
     title: 'Onetab AI',
     show: false,
-    backgroundColor: '#fbfbfc',
+    backgroundColor: windowBackground(),
     autoHideMenuBar: process.platform !== 'darwin',
     titleBarStyle: 'hidden',
     ...(process.platform === 'darwin'
@@ -261,14 +247,27 @@ export function createMainWindow({
   window.on('close', (event) => {
     persistWindowState(window);
 
-    // Closing the last window is a "hide" on macOS by convention, and opt-in
-    // elsewhere, so background notifications keep arriving.
-    const minimizeToTray = getPreference('minimizeToTray', process.platform === 'darwin');
-    if (!quitting && minimizeToTray) {
-      event.preventDefault();
-      window.hide();
+    // Closing the last window is a "hide" on Windows and macOS (the user can opt
+    // out), so background notifications keep arriving.
+    const action = resolveCloseAction({
+      quitting,
+      minimizeToTray: getPreference(MINIMIZE_TO_TRAY_KEY, defaultMinimizeToTray(process.platform)),
+      hintShown: getPreference(TRAY_HINT_SHOWN_KEY, false),
+      platform: process.platform,
+    });
+    if (action === 'quit') return;
+
+    event.preventDefault();
+    window.hide();
+    if (action === 'hide-with-hint') {
+      setPreference(TRAY_HINT_SHOWN_KEY, true);
+      showTrayHint(showMainWindow);
     }
   });
+
+  // Windows ends the session (shutdown, restart, log off) by closing windows;
+  // a close that is always cancelled into the tray makes the OS wait on us.
+  window.on('session-end', markQuitting);
 
   window.on('closed', () => {
     if (persistTimer) clearTimeout(persistTimer);

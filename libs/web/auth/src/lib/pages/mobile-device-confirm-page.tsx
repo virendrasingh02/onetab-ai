@@ -74,7 +74,7 @@ export function MobileDeviceConfirmPage() {
   // If user is unauthenticated, redirect to login while preserving device request parameters
   if (authStatus === 'anonymous' || (!authUser && authStatus !== 'authenticating' && authStatus !== 'idle')) {
     return (
-      <div className="dark min-h-screen flex items-center justify-center bg-background text-foreground p-4">
+      <div className="dark min-h-full flex items-center justify-center bg-background text-foreground p-4">
         <div className="w-full max-w-md bg-surface border border-border rounded-xl p-6 shadow-2xl text-center space-y-4">
           <div className="mx-auto size-12 rounded-full bg-surface-raised border border-border flex items-center justify-center text-foreground">
             <Laptop className="size-6 text-foreground" />
@@ -144,7 +144,7 @@ export function MobileDeviceConfirmPage() {
   // SUCCESS STATE
   if (approved) {
     return (
-      <div className="dark min-h-screen flex items-center justify-center bg-background text-foreground p-4">
+      <div className="dark min-h-full flex items-center justify-center bg-background text-foreground p-4">
         <div className="w-full max-w-md bg-surface border border-border rounded-xl p-6 shadow-2xl text-center space-y-4">
           <div className="mx-auto size-14 rounded-full bg-surface-raised border border-border flex items-center justify-center text-success-text">
             <CheckCircle2 className="size-8" />
@@ -185,7 +185,7 @@ export function MobileDeviceConfirmPage() {
   // REJECTED STATE
   if (rejected) {
     return (
-      <div className="dark min-h-screen flex items-center justify-center bg-background text-foreground p-4">
+      <div className="dark min-h-full flex items-center justify-center bg-background text-foreground p-4">
         <div className="w-full max-w-md bg-surface border border-border rounded-xl p-6 shadow-2xl text-center space-y-4">
           <div className="mx-auto size-12 rounded-full bg-surface-raised border border-border flex items-center justify-center text-destructive">
             <XCircle className="size-6" />
@@ -211,7 +211,7 @@ export function MobileDeviceConfirmPage() {
   // ERROR / EXPIRED STATE
   if (error || !deviceInfo) {
     return (
-      <div className="dark min-h-screen flex items-center justify-center bg-background text-foreground p-4">
+      <div className="dark min-h-full flex items-center justify-center bg-background text-foreground p-4">
         <div className="w-full max-w-md bg-surface border border-border rounded-xl p-6 shadow-2xl text-center space-y-4">
           <div className="mx-auto size-12 rounded-full bg-surface-raised border border-border flex items-center justify-center text-warning">
             <AlertCircle className="size-6" />
@@ -247,7 +247,7 @@ export function MobileDeviceConfirmPage() {
 
   // CONFIRMATION UI
   return (
-    <div className="dark min-h-screen flex items-center justify-center bg-background text-foreground p-4">
+    <div className="dark min-h-full flex items-center justify-center bg-background text-foreground p-4">
       <div className="w-full max-w-md bg-surface border border-border rounded-xl p-6 shadow-2xl space-y-4">
         <div className="text-center pb-2">
           <div className="mx-auto size-14 rounded-full bg-surface-raised border border-border flex items-center justify-center mb-3 text-foreground">

@@ -64,7 +64,7 @@ export function ProfilePage() {
   const workspaceRole = workspace?.role || 'Member';
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground select-none">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-background text-foreground select-none">
       {/* Top Navigation Bar */}
       <header className="h-12 shrink-0 border-b border-border/70 bg-surface/80 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between z-10">
         <div className="flex items-center gap-2.5 text-xs">

@@ -10,6 +10,7 @@ import type {
   DesktopCapabilities,
   DesktopCommand,
   DesktopDeepLink,
+  DesktopDisplayMediaRequest,
   DesktopDownloadRequest,
   DesktopHandoffRequest,
   DesktopNotificationRequest,
@@ -88,6 +89,7 @@ const IPC = {
   setUserActivity: 'onetab:handoff/set-user-activity',
   invalidateUserActivity: 'onetab:handoff/invalidate-user-activity',
   dockBounce: 'onetab:dock/bounce',
+  displayMediaRespond: 'onetab:display-media/respond',
 } as const satisfies typeof IpcContract;
 
 const IPC_EVENT = {
@@ -104,6 +106,7 @@ const IPC_EVENT = {
   fileOpened: 'onetab:event/file-opened',
   handoffActivity: 'onetab:event/handoff-activity',
   accessibilitySupportChanged: 'onetab:event/accessibility-changed',
+  displayMediaRequest: 'onetab:event/display-media-request',
 } as const satisfies typeof IpcEventContract;
 
 type Unsubscribe = () => void;
@@ -250,6 +253,15 @@ const api = {
       ipcRenderer.invoke(IPC.addRecentDocument, path),
     onAccessibilityChange: (handler: (enabled: boolean) => void): Unsubscribe =>
       subscribe(IPC_EVENT.accessibilitySupportChanged, handler),
+  },
+
+  displayMedia: {
+    /** A page asked to share its screen; answer with `respond`. */
+    onRequest: (handler: (request: DesktopDisplayMediaRequest) => void): Unsubscribe =>
+      subscribe(IPC_EVENT.displayMediaRequest, handler),
+    /** `null` cancels. */
+    respond: (requestId: string, sourceId: string | null): Promise<boolean> =>
+      ipcRenderer.invoke(IPC.displayMediaRespond, requestId, sourceId),
   },
 
   agent: {

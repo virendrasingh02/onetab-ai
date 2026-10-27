@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { MarkdownMessage } from './markdown-message.js';
 import { MentionAliasesProvider } from './mention-aliases.js';
@@ -45,6 +46,23 @@ describe('MarkdownMessage', () => {
       'href',
       'https://example.com/docs',
     );
+  });
+
+  it('shows a labelled link’s real destination on hover, for bare URLs too', async () => {
+    const user = userEvent.setup();
+    render(
+      <MarkdownMessage
+        text={'[url](https://files.example.com/clip.mp4) and https://example.com/page'}
+      />,
+    );
+
+    await user.hover(screen.getByRole('link', { name: 'url' }));
+    expect(await screen.findByText('files.example.com')).toBeInTheDocument();
+    expect(screen.getByText('MP4')).toBeInTheDocument();
+    await user.unhover(screen.getByRole('link', { name: 'url' }));
+
+    await user.hover(screen.getByRole('link', { name: 'example.com/page' }));
+    expect(await screen.findByRole('button', { name: 'Copy link' })).toBeInTheDocument();
   });
 
   it('renders fenced code blocks with unified CodeBlock and language header', () => {

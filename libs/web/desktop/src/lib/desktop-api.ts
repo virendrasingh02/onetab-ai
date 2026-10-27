@@ -124,12 +124,32 @@ export type DesktopUpdateStatus =
       downloadUrl?: string;
       changelog?: string;
       minSupportedVersion?: string;
+      /** The installer's page was opened in the system browser (no in-app updater is configured). */
+      openedInBrowser?: boolean;
     }
   | { state: 'downloading'; percent: number }
   | { state: 'ready'; version: string }
   | { state: 'not-available' }
   | { state: 'unsupported' }
   | { state: 'error'; message: string };
+
+/** Mirrors `DesktopCaptureSource` in `apps/desktop/src/shared/ipc.ts`. */
+export interface DesktopCaptureSource {
+  id: string;
+  name: string;
+  kind: 'screen' | 'window';
+  /** A small JPEG data URL. */
+  thumbnail: string;
+  appIcon?: string;
+}
+
+/** Mirrors `DesktopDisplayMediaRequest`: a page asked to share its screen. */
+export interface DesktopDisplayMediaRequest {
+  requestId: string;
+  sources: DesktopCaptureSource[];
+  /** Why `sources` is empty when the OS, not the machine, is the cause. */
+  blocked?: 'os-permission';
+}
 
 export type DesktopCommand =
   | 'open-search'
@@ -396,6 +416,12 @@ export interface OneTabDesktopApi {
     clearRecentDocuments?: () => Promise<void>;
     addRecentDocument?: (path: string) => Promise<void>;
     onAccessibilityChange?: (handler: (enabled: boolean) => void) => Unsubscribe;
+  };
+  /** Screen sharing: the shell has no picker of its own, so the renderer shows one. */
+  displayMedia?: {
+    onRequest: (handler: (request: DesktopDisplayMediaRequest) => void) => Unsubscribe;
+    /** `null` cancels. */
+    respond: (requestId: string, sourceId: string | null) => Promise<boolean>;
   };
   onDeepLink: (handler: (link: DesktopDeepLink) => void) => Unsubscribe;
   onFileOpened?: (handler: (file: DesktopFileOpened) => void) => Unsubscribe;
