@@ -1,8 +1,7 @@
 /**
  * Web Audio synthesiser for calm notification cues.
  *
- * Sibling of `focus-audio.ts` (which does continuous ambient soundscapes); this
- * one does short, one-shot notification tones. No MP3 / network assets: every
+ * Short, one-shot notification tones. No MP3 / network assets: every
  * sound is a handful of gently enveloped oscillators through a shared low-pass,
  * so nothing is downloaded and the `AudioContext` is created lazily on first
  * use. Everything is deliberately soft, short (< ~700 ms) and warm — no sharp

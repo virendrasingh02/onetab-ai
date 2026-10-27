@@ -7,7 +7,6 @@ import {
   type ChannelSummary,
   type WorkspaceMember,
 } from '@org/types';
-import { useFocusStore } from '@org/ui';
 import { useDirectMessagePreferences } from '@org/web-chat';
 import { useMemo } from 'react';
 
@@ -20,7 +19,7 @@ import { useMemo } from 'react';
  * global on/off / volume / timbre are shared across workspaces (a user
  * preference), but *whether a given message chimes* depends on this workspace's
  * muted channels, "mentions only" delivery, quiet hours, the per-workspace sound
- * mute, and Focus Mode — all read for the active workspace, so switching
+ * mute — all read for the active workspace, so switching
  * workspace switches the behaviour without touching another workspace's state.
  */
 export interface ChatSoundGate {
@@ -67,7 +66,6 @@ export function useChatNotificationSoundGate(params: {
   const { data: prefs } = useNotificationPreferences(workspaceId);
   const workspaceSoundMuted = useWorkspaceSoundMuted(workspaceId);
   const dmPrefs = useDirectMessagePreferences(workspaceId);
-  const focusActive = useFocusStore((s) => s.isActive && !s.isPaused);
 
   const mutedChannelIds = prefs?.mutedChannelIds;
   const mutedPeerIds = dmPrefs.mutedIds;
@@ -108,7 +106,6 @@ export function useChatNotificationSoundGate(params: {
 
   const suppressed =
     workspaceSoundMuted ||
-    focusActive ||
     withinQuietHours(quietStart, quietEnd);
 
   return {

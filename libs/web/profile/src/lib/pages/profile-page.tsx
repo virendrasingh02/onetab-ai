@@ -1,6 +1,6 @@
 import { userApi } from '@org/api-client';
 import { useAuthStore, useCurrentUser } from '@org/auth';
-import { Button, LoadingState, useFocusStore } from '@org/ui';
+import { Button, LoadingState, useStatusModalStore } from '@org/ui';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import { useMutation } from '@tanstack/react-query';
 import { ArrowLeft, Sparkles, UserCheck } from 'lucide-react';
@@ -18,7 +18,7 @@ export function ProfilePage() {
   const { workspace, isLoading: isWorkspaceLoading } = useCurrentWorkspace();
   const user = useCurrentUser();
   const setUser = useAuthStore((state) => state.setUser);
-  const openStatusModal = useFocusStore((s) => s.openStatusModal);
+  const openStatusModal = useStatusModalStore((s) => s.openStatusModal);
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [cropperOpen, setCropperOpen] = useState(false);

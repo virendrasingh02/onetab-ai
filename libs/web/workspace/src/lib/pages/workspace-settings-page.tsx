@@ -51,12 +51,8 @@ import {
   UserAvatar,
   WorkspaceAvatar,
   toast,
-  useFocusStore,
+  useStatusModalStore,
   useSidebarCustomizerStore,
-  FOCUS_SOUND_OPTIONS,
-  FOCUS_DURATION_OPTIONS,
-  focusAudio,
-  type FocusSoundType,
   SettingsBadge,
   SettingsCard,
   SettingsRow,
@@ -93,12 +89,7 @@ import {
   Upload,
   Trash2,
   Smile,
-  Target,
   Clock,
-  Volume2,
-  VolumeX,
-  Play,
-  Pause,
   Mail,
   Smartphone,
   Copy,
@@ -496,11 +487,7 @@ export function WorkspaceSettingsPage({
   );
 
   // Dialog & transient UI state (not persisted).
-  const openStatusModal = useFocusStore((s) => s.openStatusModal);
-  const openFocusModal = useFocusStore((s) => s.openFocusModal);
-  const focusStore = useFocusStore();
-  const [testSoundPlaying, setTestSoundPlaying] =
-    useState<FocusSoundType | null>(null);
+  const openStatusModal = useStatusModalStore((s) => s.openStatusModal);
 
   // Profile Update Form & Mutation
   const updateProfile = useMutation({
@@ -1236,16 +1223,6 @@ export function WorkspaceSettingsPage({
                           <Smile className="size-3.5 text-primary" />
                           {user.statusText ? 'Edit Status' : 'Set Status'}
                         </Button>
-                        <Button
-                          type="button"
-                          variant="primary"
-                          size="sm"
-                          onClick={openFocusModal}
-                          className="text-xs gap-1.5"
-                        >
-                          <Target className="size-3.5" />
-                          Focus Mode
-                        </Button>
                       </div>
                     </div>
 
@@ -1453,306 +1430,6 @@ export function WorkspaceSettingsPage({
                     </Form>
                   </SettingsCard>
                 ))}
-
-            {/* Subsection: Slack Status */}
-            <div className="space-y-3">
-              <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
-                Slack-Style Status
-              </h3>
-              <div className="p-5 space-y-5 rounded-xl border border-border bg-surface shadow-xs">
-                <div className="sm:flex-row sm:items-center gap-4 p-4 flex flex-col justify-between rounded-xl border border-border bg-surface">
-                  <div className="gap-3 flex items-center">
-                    <span className="text-3xl">{user.statusEmoji || '💬'}</span>
-                    <div>
-                      <h4 className="text-xs font-semibold text-foreground">
-                        {user.statusText || 'No active status'}
-                      </h4>
-                      <p className="mt-0.5 text-[11px] text-muted-foreground">
-                        {user.statusExpiresAt
-                          ? `Clears automatically at ${new Date(user.statusExpiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                          : 'Visible to all teammates across channels and direct messages'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="gap-2 flex items-center">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={openStatusModal}
-                      className="text-xs gap-1.5"
-                    >
-                      <Smile className="size-3.5 text-primary" />
-                      {user.statusText ? 'Edit Status' : 'Set Status'}
-                    </Button>
-                    {user.statusText && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          userApi.clearStatus().then((updated) => {
-                            setUser(updated);
-                          });
-                        }}
-                        className="text-xs text-muted-foreground hover:text-destructive"
-                      >
-                        Clear
-                      </Button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Quick Status Presets */}
-                <div className="space-y-2">
-                  <label className="text-xs font-medium block text-foreground">
-                    Quick 1-Click Status Presets
-                  </label>
-                  <div className="sm:grid-cols-3 md:grid-cols-4 gap-2 grid grid-cols-2">
-                    {[
-                      { emoji: '💬', text: 'In a meeting' },
-                      { emoji: '🚗', text: 'Commuting' },
-                      { emoji: '🤒', text: 'Out sick' },
-                      { emoji: '🌴', text: 'Vacationing' },
-                      { emoji: '🍱', text: 'Out for lunch' },
-                      { emoji: '🏠', text: 'Working remotely' },
-                      { emoji: '🎯', text: 'Deep focus' },
-                      { emoji: '☕', text: 'Taking a break' },
-                    ].map((preset) => (
-                      <button
-                        key={preset.text}
-                        type="button"
-                        onClick={() => {
-                          userApi
-                            .updateStatus({
-                              statusText: preset.text,
-                              statusEmoji: preset.emoji,
-                              statusExpiresAt: new Date(
-                                Date.now() + 60 * 60 * 1000,
-                              ).toISOString(),
-                            })
-                            .then((updated) => {
-                              setUser(updated);
-                            });
-                        }}
-                        className="gap-2 p-2.5 text-xs flex items-center rounded-xl border border-border bg-surface text-left text-foreground transition-all hover:border-primary/40 hover:bg-accent/50"
-                      >
-                        <span className="text-base leading-none">
-                          {preset.emoji}
-                        </span>
-                        <span className="font-medium truncate">
-                          {preset.text}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Subsection: Focus Mode & Pomodoro */}
-            <div className="space-y-3">
-              <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
-                Focus Mode & Ambient Zen Audio
-              </h3>
-              <SettingsCard>
-                {/* Active Session Bar or Launch Trigger */}
-                {focusStore.isActive ? (
-                  <div className="p-4 sm:flex-row sm:items-center gap-4 flex flex-col justify-between rounded-xl border border-primary/40 bg-primary/10">
-                    <div className="gap-3 flex items-center">
-                      <div className="size-10 font-bold text-sm flex items-center justify-center rounded-xl bg-primary font-mono text-primary-foreground">
-                        {Math.floor(focusStore.remainingSeconds / 60)}m
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-bold gap-2 flex items-center text-foreground">
-                          <span>Active Focus Session</span>
-                          <span className="px-2 py-0.5 font-bold rounded-full bg-primary text-[10px] text-primary-foreground">
-                            {focusStore.isPaused ? 'PAUSED' : 'IN PROGRESS'}
-                          </span>
-                        </h4>
-                        <p className="mt-0.5 text-[11px] text-muted-foreground">
-                          {focusStore.taskObjective || 'Deep work session'}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="gap-2 flex items-center">
-                      {focusStore.isPaused ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={focusStore.resumeFocus}
-                          className="text-xs gap-1.5"
-                        >
-                          <Play className="size-3.5" />
-                          Resume
-                        </Button>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={focusStore.pauseFocus}
-                          className="text-xs gap-1.5"
-                        >
-                          <Pause className="size-3.5" />
-                          Pause
-                        </Button>
-                      )}
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => focusStore.stopFocus()}
-                        className="text-xs"
-                      >
-                        Stop Session
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="text-xs font-semibold text-foreground">
-                          Launch a Focus Session
-                        </h4>
-                        <p className="mt-0.5 text-[11px] text-muted-foreground">
-                          Blocks distractions, generates ambient focus audio,
-                          and updates your Slack status.
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="primary"
-                        size="sm"
-                        onClick={openFocusModal}
-                        className="text-xs gap-1.5"
-                      >
-                        <Target className="size-3.5" />
-                        Start Focus Session
-                      </Button>
-                    </div>
-
-                    {/* Preset Buttons */}
-                    <div className="sm:grid-cols-4 gap-3 grid grid-cols-2">
-                      {FOCUS_DURATION_OPTIONS.map((opt) => (
-                        <button
-                          key={opt.minutes}
-                          type="button"
-                          onClick={() => {
-                            focusStore.startFocus({
-                              durationMinutes: opt.minutes,
-                              taskObjective: opt.label,
-                            });
-                          }}
-                          className="p-3.5 space-y-1 rounded-xl border border-border bg-surface text-left transition-all hover:border-primary/50 hover:bg-accent/40"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-lg">{opt.icon}</span>
-                            <span className="text-xs font-bold font-mono text-primary">
-                              {opt.minutes}m
-                            </span>
-                          </div>
-                          <div className="text-xs font-semibold text-foreground">
-                            {opt.label}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Ambient Audio Synthesizer */}
-                <div className="space-y-3 pt-4 border-t border-border/40">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-xs font-medium gap-1.5 flex items-center text-foreground">
-                        <Volume2 className="size-3.5 text-primary" />
-                        Ambient Audio Soundscape
-                      </h4>
-                      <p className="mt-0.5 text-[11px] text-muted-foreground">
-                        Native Web Audio synthesized noise and alpha wave beat
-                        generators.
-                      </p>
-                    </div>
-                    {testSoundPlaying && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          focusAudio.stop();
-                          setTestSoundPlaying(null);
-                        }}
-                        className="h-7 text-xs gap-1 text-destructive"
-                      >
-                        <VolumeX className="size-3" />
-                        Stop Audio
-                      </Button>
-                    )}
-                  </div>
-
-                  <div className="sm:grid-cols-2 md:grid-cols-3 gap-2.5 grid grid-cols-1">
-                    {FOCUS_SOUND_OPTIONS.filter((s) => s.id !== 'none').map(
-                      (sound) => {
-                        const isTesting = testSoundPlaying === sound.id;
-                        const isSelected = focusStore.soundType === sound.id;
-
-                        return (
-                          <div
-                            key={sound.id}
-                            className={cn(
-                              'p-3 gap-2 text-xs flex items-center justify-between rounded-xl border transition-all',
-                              isSelected
-                                ? 'border-primary/50 bg-primary/5'
-                                : 'border-border bg-surface hover:bg-accent/30',
-                            )}
-                          >
-                            <div
-                              className="gap-2 flex flex-1 cursor-pointer items-center truncate"
-                              onClick={() => focusStore.setSound(sound.id)}
-                            >
-                              <span className="text-base">{sound.icon}</span>
-                              <span className="font-medium truncate text-foreground">
-                                {sound.name}
-                              </span>
-                            </div>
-
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => {
-                                if (isTesting) {
-                                  focusAudio.stop();
-                                  setTestSoundPlaying(null);
-                                } else {
-                                  focusAudio.play(
-                                    sound.id,
-                                    focusStore.soundVolume,
-                                  );
-                                  setTestSoundPlaying(sound.id);
-                                }
-                              }}
-                              className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
-                            >
-                              {isTesting ? (
-                                <Pause className="size-3.5 text-primary" />
-                              ) : (
-                                <Play className="size-3.5" />
-                              )}
-                            </Button>
-                          </div>
-                        );
-                      },
-                    )}
-                  </div>
-                </div>
-              </SettingsCard>
-            </div>
           </div>
         )}
 

@@ -6,7 +6,6 @@ import {
   type CommandItem,
   EmptyState,
   ErrorBoundary,
-  FocusModeWidget,
   HuddleDock,
   LoadingState,
   Sheet,
@@ -216,7 +215,7 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
   const membersQuery = useMembers(workspaceId);
 
   // Per-workspace gate for the calm chat notification sounds — muted channels,
-  // muted DMs, "mentions only", quiet hours, Focus Mode and the per-workspace
+  // muted DMs, "mentions only", quiet hours and the per-workspace
   // sound mute, all read for the active workspace.
   const chatSoundGate = useChatNotificationSoundGate({
     workspaceId,
@@ -896,12 +895,6 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
           `@org/ui` is presentational and cannot call the API itself, so the
           shell supplies the two status operations both surfaces share.
         */}
-        <FocusModeWidget
-          currentUser={user}
-          onUserUpdated={setUser}
-          onSaveStatus={userApi.updateStatus}
-          onClearStatus={userApi.clearStatus}
-        />
         <StatusModal
           currentUser={user}
           onUserUpdated={setUser}

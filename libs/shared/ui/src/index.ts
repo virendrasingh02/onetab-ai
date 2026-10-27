@@ -517,13 +517,6 @@ export {
 } from './lib/components/emoji-gif-picker/index.js';
 
 export {
-  focusAudio,
-  FOCUS_SOUND_OPTIONS,
-  type FocusSoundType,
-  type SoundOption,
-} from './lib/components/focus-audio.js';
-
-export {
   notificationAudio,
   NOTIFICATION_SOUND_PROFILE_OPTIONS,
   NOTIFICATION_SOUND_EVENT_LABELS,
@@ -531,9 +524,9 @@ export {
 } from './lib/components/notification-audio.js';
 
 export {
-  useFocusStore,
-  type FocusState,
-} from './lib/components/focus-mode-store.js';
+  useStatusModalStore,
+  type StatusModalState,
+} from './lib/components/status-modal-store.js';
 
 export {
   ActivityDot,
@@ -583,17 +576,10 @@ export {
   SLACK_STATUS_PRESETS,
   CLEAR_AFTER_OPTIONS,
   type StatusModalProps,
+  type StatusPublisher,
   type StatusPreset,
   type ClearOption,
 } from './lib/components/status-modal.js';
-
-export {
-  FocusModeWidget,
-  FOCUS_DURATION_OPTIONS,
-  type FocusModeWidgetProps,
-  type FocusDurationOption,
-  type StatusPublisher,
-} from './lib/components/focus-mode-widget.js';
 
 export {
   RegionSelect,

@@ -11,7 +11,7 @@ import {
   KbdShortcut,
   toast,
   UserAvatar,
-  useFocusStore,
+  useStatusModalStore,
   useRightPanelStore,
   WorkspaceMenuSkeleton,
 } from '@org/ui';
@@ -106,7 +106,7 @@ export function AppHeader({
   // as long as it's on screen — otherwise a workspace would show both.
   useClaimsWindowChrome();
 
-  const openStatusModal = useFocusStore((s) => s.openStatusModal);
+  const openStatusModal = useStatusModalStore((s) => s.openStatusModal);
   const isRightPanelOpen = useRightPanelStore((s) => s.open);
   const rightPanelView = useRightPanelStore((s) => s.view);
   const dismissRightPanel = useRightPanelStore((s) => s.dismiss);
