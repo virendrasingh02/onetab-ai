@@ -4,7 +4,7 @@ import {
   Switch,
   AppSelect,
   Label,
-  Textarea,
+  CodeInput,
   ToggleGroup,
   ToggleGroupItem,
 } from '@org/ui';
@@ -114,7 +114,7 @@ export function WidgetConfigDrawer({
       {tab === 'code' ? (
         <div className="flex-1 p-3 flex flex-col space-y-2">
           <Label className="text-xs font-medium text-foreground">Direct JSON Definition</Label>
-          <Textarea value={rawJson} onChange={(e) => setRawJson(e.target.value)} onBlur={handleJsonBlur} rows={22} className="flex-1 font-mono text-xs resize-none" />
+          <CodeInput language="json" fill invalid={Boolean(jsonError)} value={rawJson} onChange={setRawJson} onBlur={handleJsonBlur} />
           {jsonError && <p className="text-xs text-destructive">{jsonError}</p>}
         </div>
       ) : (
@@ -253,19 +253,19 @@ export function WidgetConfigDrawer({
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Initial / Mock Data (JSON)</Label>
-              <Textarea
+              <CodeInput
+                language="json"
                 value={typeof config.initialData === 'object' ? JSON.stringify(config.initialData, null, 2) : String(config.initialData ?? '')}
-                onChange={(e) => {
+                onChange={(text) => {
                   try {
-                    const parsed = JSON.parse(e.target.value);
+                    const parsed = JSON.parse(text);
                     updateConfig('initialData', parsed);
                   } catch {
-                    updateConfig('initialData', e.target.value);
+                    updateConfig('initialData', text);
                   }
                 }}
-                rows={5}
+                minRows={5}
                 placeholder='{"value": "1,280", "change": "+14%"}'
-                className="font-mono text-xs"
               />
             </div>
           </div>

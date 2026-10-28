@@ -1,5 +1,5 @@
 import type { CardDefinition } from '@org/types';
-import { Button, toast } from '@org/ui';
+import { Button, CodeInput, toast } from '@org/ui';
 import { Check, Copy } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -62,14 +62,16 @@ export function JsonSourceEditor({ card, onChange }: JsonSourceEditorProps) {
         </div>
       )}
 
-      <textarea
+      <CodeInput
+        language="json"
+        fill
+        showCopy={false}
+        invalid={Boolean(error)}
         value={jsonText}
-        onChange={(e) => {
-          setJsonText(e.target.value);
+        onChange={(text) => {
+          setJsonText(text);
           setError(null);
         }}
-        spellCheck={false}
-        className="flex-1 w-full p-3 font-mono text-[11px] leading-relaxed bg-surface-inset text-foreground rounded-xl border border-border/70 focus:outline-none focus:ring-1 focus:ring-primary resize-none overflow-y-auto"
       />
     </div>
   );

@@ -1,6 +1,6 @@
 import { agentsApi } from '@org/api-client';
 import { Link } from '../../../router.js';
-import { AppSelect, Badge, Button, Checkbox, confirm, Input, SearchInput, Textarea, Label } from '@org/ui';
+import { AppSelect, Badge, Button, Checkbox, CodeInput, confirm, Input, SearchInput, Textarea, Label } from '@org/ui';
 import { cn } from '@org/utils';
 import { connectorActionRef, generateToolGuidance, readPromptSettings, READ_ONLY_AGENT_TOOLS, type ToolGuidanceSource, type CanvasToolPolicy, type ConnectorCapability, type ConnectorSummary } from '@org/types';
 import { ChevronRight, ExternalLink, Eye, Loader2, Play, Plug, RefreshCw, ShieldAlert, Trash2, Wrench } from 'lucide-react';
@@ -467,7 +467,7 @@ function ToolTester({ entries, builtin, connectors, testSignal }: { entries: Too
               {fields.map((f) => (
                 <SettingField key={f.name} label={`${f.name}${f.type ? ` (${f.type})` : ''}`} required={f.required} hint={f.description} htmlFor={`tool-in-${f.name}`}>
                   {f.type === 'object' || f.type === 'array' ? (
-                    <Textarea id={`tool-in-${f.name}`} minRows={2} maxRows={8} value={values[f.name] ?? ''} placeholder="JSON" onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.target.value }))} className="font-mono text-xs" />
+                    <CodeInput id={`tool-in-${f.name}`} language="json" showHeader={false} minRows={2} maxRows={8} value={values[f.name] ?? ''} placeholder={f.type === 'array' ? '[ ]' : '{ }'} onChange={(val) => setValues((v) => ({ ...v, [f.name]: val }))} />
                   ) : (
                     <Input id={`tool-in-${f.name}`} inputSize="sm" value={values[f.name] ?? ''} onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.target.value }))} className="text-xs" />
                   )}

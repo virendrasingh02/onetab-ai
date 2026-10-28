@@ -1,4 +1,4 @@
-import { AppSelect, Input, Switch, Textarea, Label } from '@org/ui';
+import { AppSelect, CodeInput, Input, Switch, Textarea, Label } from '@org/ui';
 
 /** One input of a JSON-Schema object, as the connector manifest declares it. */
 interface SchemaProperty {
@@ -123,14 +123,18 @@ export function SchemaFields({
           control = (
             <Switch id={id} checked={value === 'true'} onCheckedChange={(checked) => set(key, checked ? 'true' : 'false')} />
           );
-        } else if (type === 'object' || /body|text|content|message|description|markdown|query/i.test(key)) {
+        } else if (type === 'object') {
+          control = (
+            <CodeInput id={id} language="json" showHeader={false} minRows={4} maxRows={12} value={value} onChange={(v) => set(key, v)} placeholder="{ }" />
+          );
+        } else if (/body|text|content|message|description|markdown|query/i.test(key)) {
           control = (
             <Textarea
               id={id}
               value={value}
-              rows={type === 'object' ? 4 : 3}
+              rows={3}
               onChange={(e) => set(key, e.target.value)}
-              placeholder={type === 'object' ? '{ }' : allowVariables ? 'Text, or {{steps.previous.output}}' : undefined}
+              placeholder={allowVariables ? 'Text, or {{steps.previous.output}}' : undefined}
               className="font-mono text-xs"
             />
           );

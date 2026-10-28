@@ -9,6 +9,7 @@ import {
   ShieldAlert,
   Terminal,
 } from 'lucide-react';
+import { CodeInput } from '@org/ui';
 import { useMemo, useState } from 'react';
 import { Panel, QueryState, ViewHeader, ViewShell } from './marketplace-ui.js';
 import { Storefront } from './storefront-view.js';
@@ -168,13 +169,16 @@ function ManifestConsole() {
         subtitle="Declare your runtime, scopes and UI surfaces"
         actions={<CopyButton value={source} label="Copy" />}
       >
-        <textarea
+        <CodeInput
+          language="json"
+          title="manifest.json"
+          showCopy={false}
+          minRows={16}
+          maxRows={28}
           value={source}
-          onChange={(event) => setSource(event.target.value)}
-          spellCheck={false}
-          rows={16}
+          onChange={setSource}
+          invalid={Boolean(parsed.error)}
           aria-label="Plugin manifest JSON"
-          className="px-3 py-2 text-xs w-full resize-y rounded-lg border border-border bg-background font-mono text-foreground transition outline-none focus:border-border"
         />
 
         {parsed.error ? (

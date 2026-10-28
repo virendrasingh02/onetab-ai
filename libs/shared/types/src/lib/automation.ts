@@ -98,6 +98,40 @@ export interface AgentVersion {
   graphJson?: string | null;
 }
 
+/**
+ * Next semver tag after the highest real one: publish bumps minor
+ * (v1.0.0 → v1.1.0 → v1.2.0), snapshots bump patch. First tag is v1.0.0.
+ * The placeholder `-draft` row the API returns before any publish is ignored.
+ * Shared by the API (which assigns tags) and the UI (which previews them).
+ */
+export function nextAgentVersionTag(
+  versions: ReadonlyArray<{ versionTag?: string }>,
+  bump: 'minor' | 'patch',
+): string {
+  let best: [number, number, number] | null = null;
+  for (const v of versions) {
+    if (/-draft$/i.test(v.versionTag ?? '')) continue;
+    const m = /^v?(\d+)\.(\d+)\.(\d+)/.exec(v.versionTag ?? '');
+    if (!m) continue;
+    const cur: [number, number, number] = [+m[1], +m[2], +m[3]];
+    if (
+      !best ||
+      cur[0] > best[0] ||
+      (cur[0] === best[0] && (cur[1] > best[1] || (cur[1] === best[1] && cur[2] > best[2])))
+    ) {
+      best = cur;
+    }
+  }
+  if (!best) return 'v1.0.0';
+  const [major, minor, patch] = best;
+  return bump === 'minor' ? `v${major}.${minor + 1}.0` : `v${major}.${minor}.${patch + 1}`;
+}
+
+/** Display label for a version: its API tag, or a semver-shaped fallback for legacy rows. */
+export function agentVersionLabel(v: { version: number; versionTag?: string }): string {
+  return v.versionTag || `v${v.version}.0.0`;
+}
+
 export interface AgentSchedule {
   id: string;
   agentId: string;

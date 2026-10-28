@@ -38,6 +38,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
+  CodeInput,
   confirm,
   toast,
 } from '@org/ui';
@@ -1316,12 +1317,7 @@ export function EmailDeliveriesView() {
                   Supports &#123;&#123;variable&#125;&#125; and &#123;#if&#125; conditionals
                 </span>
               </div>
-              <textarea
-                value={editHtml}
-                onChange={(e) => setEditHtml(e.target.value)}
-                rows={14}
-                className="w-full rounded-xl border border-border/80 bg-background/50 p-3 font-mono text-[11px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              />
+              <CodeInput language="html" minRows={14} maxRows={24} value={editHtml} onChange={setEditHtml} />
             </div>
           </DialogBody>
 

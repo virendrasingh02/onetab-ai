@@ -6,7 +6,7 @@ import {
   Card,
   Input,
   SearchInput,
-  Textarea,
+  CodeInput,
   toast,
   AppSelect,
 } from '@org/ui';
@@ -329,12 +329,7 @@ export function AutomationTriggersTab() {
                 <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
                   Interactive Test JSON Payload
                 </label>
-                <Textarea
-                  value={webhookPayload}
-                  onChange={(e) => setWebhookPayload(e.target.value)}
-                  rows={4}
-                  className="font-mono text-xs"
-                />
+                <CodeInput language="json" value={webhookPayload} onChange={setWebhookPayload} minRows={4} maxRows={12} />
               </div>
 
               <div className="flex items-center gap-3">

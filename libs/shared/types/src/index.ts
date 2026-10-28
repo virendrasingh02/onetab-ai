@@ -294,7 +294,7 @@ export type {
   MetricDefinition,
 } from './lib/admin.js';
 
-export { isAIEntityType } from './lib/automation.js';
+export { isAIEntityType, nextAgentVersionTag, agentVersionLabel } from './lib/automation.js';
 
 export type {
   AIEntity,

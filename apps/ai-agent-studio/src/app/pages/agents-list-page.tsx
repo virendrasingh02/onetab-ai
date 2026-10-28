@@ -22,6 +22,7 @@ import {
   AppSelect,
   Label,
   Textarea,
+  CodeInput,
   AiEntityIdentityPicker,
   confirm,
   formatAiEntityIconAvatar,
@@ -1057,7 +1058,7 @@ export function AgentsListPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogBody className="space-y-3 py-3">
-            <Textarea rows={8} value={importJson} onChange={(e) => setImportJson(e.target.value)} placeholder="Paste agent configuration JSON here…" className="font-mono text-xs" />
+            <CodeInput language="json" minRows={8} maxRows={16} value={importJson} onChange={setImportJson} placeholder="Paste agent configuration JSON here…" />
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setIsImportOpen(false)}>

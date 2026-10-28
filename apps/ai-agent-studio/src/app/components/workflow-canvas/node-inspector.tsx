@@ -1,4 +1,4 @@
-import { Badge, Button, Input, AIModelBadge, AppSelect, Switch, toast, Label, Textarea, Checkbox, Slider, Tabs, TabsList, TabsTrigger } from '@org/ui';
+import { Badge, Button, CodeInput, Input, AIModelBadge, AppSelect, Switch, toast, Label, Textarea, Checkbox, Slider, Tabs, TabsList, TabsTrigger } from '@org/ui';
 import { cn } from '@org/utils';
 import { AGENT_EVENTS, type StudioGraphIssue } from '@org/types';
 import type { Connection, Edge, Node } from '@xyflow/react';
@@ -1207,7 +1207,12 @@ export function NodeInspector({
           <div className="space-y-3 pt-2 border-t border-border">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-foreground">Sandboxed Code</Label>
-              <Textarea rows={8} value={config.code || '// Custom transformation\nreturn input;'} onChange={(e) => updateConfig('code', e.target.value)} className="font-mono text-xs" />
+              <CodeInput
+                language={nodeType === 'CODE_PYTHON' ? 'python' : 'javascript'}
+                minRows={8}
+                value={config.code || '// Custom transformation\nreturn input;'}
+                onChange={(v) => updateConfig('code', v)}
+              />
             </div>
           </div>
         )}
@@ -1244,7 +1249,7 @@ export function NodeInspector({
           <div className="space-y-3 pt-2 border-t border-border">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-foreground">SQL Query</Label>
-              <Textarea rows={4} value={config.query || 'SELECT * FROM records LIMIT 20;'} onChange={(e) => updateConfig('query', e.target.value)} className="font-mono text-xs" />
+              <CodeInput language="sql" minRows={4} value={config.query || 'SELECT * FROM records LIMIT 20;'} onChange={(v) => updateConfig('query', v)} />
             </div>
           </div>
         )}

@@ -38,7 +38,7 @@ import {
   formatAiEntityIconAvatar,
   parseAiEntityAvatar,
 } from '@org/ui';
-import { canManageOwnedAIResource, compileStudioGraph, isStudioGraph, diffStudioGraphs, type StudioCanvasGraph, type StudioGraphIssue } from '@org/types';
+import { agentVersionLabel, canManageOwnedAIResource, compileStudioGraph, nextAgentVersionTag, isStudioGraph, diffStudioGraphs, type StudioCanvasGraph, type StudioGraphIssue } from '@org/types';
 import { cn, generateId } from '@org/utils';
 import {
   addEdge,
@@ -1885,28 +1885,14 @@ export function AgentDetailPage() {
   const isPublished =
     (agent?.configuration as { status?: string } | undefined)?.status === 'published';
 
-  // Determine the next version number to publish
-  const targetPublishVersion = useMemo(() => {
-    if (!versions || versions.length === 0) {
-      return isPublished ? 'v2.0' : 'v1.0';
-    }
-    const maxVerNum = versions.reduce((max, v) => Math.max(max, Number(v.version) || 0), 0);
-    const latest = versions.find((v) => v.version === maxVerNum) || versions[0];
-    const isLatestPublished =
-      latest?.status?.toUpperCase() === 'PUBLISHED' || isPublished;
-
-    if (isLatestPublished) {
-      return `v${(maxVerNum || 1) + 1}.0`;
-    }
-    return `v${maxVerNum || 1}.0`;
-  }, [versions, isPublished]);
+  // The tag the next publish will get — same rule the API uses to assign it
+  const targetPublishVersion = useMemo(() => nextAgentVersionTag(versions, 'minor'), [versions]);
 
   // The version that is actually live (not the one the next publish would create)
   const liveVersionTag = useMemo(() => {
     const published = versions.filter((v) => v.status?.toUpperCase() === 'PUBLISHED');
     if (published.length === 0) return null;
-    const latest = published.reduce((a, b) => (Number(b.version) > Number(a.version) ? b : a));
-    return latest.versionTag ?? `v${latest.version}`;
+    return agentVersionLabel(published.reduce((a, b) => (Number(b.version) > Number(a.version) ? b : a)));
   }, [versions]);
 
   // `curl` for the execute endpoint, built from the API base URL the app is really using
@@ -2281,8 +2267,9 @@ export function AgentDetailPage() {
         `Published version ${targetPublishVersion}`,
       );
     },
-    onSuccess: () => {
-      toast.success(`Published update ${targetPublishVersion} successfully`);
+    onSuccess: (result) => {
+      const tag = (result as { version?: AgentVersion } | undefined)?.version;
+      toast.success(`Published ${tag ? agentVersionLabel(tag) : targetPublishVersion}`);
       queryClient.invalidateQueries({ queryKey: agentQueryKey });
       queryClient.invalidateQueries({ queryKey: ['agent-versions', activeWorkspace.id, agentId] });
       queryClient.invalidateQueries({ queryKey: ['workspace-agents'] });
@@ -3498,7 +3485,7 @@ export function AgentDetailPage() {
   };
 
   const handleRestoreVersion = async (version: AgentVersion) => {
-    const tag = version.versionTag ?? `v${version.version}`;
+    const tag = agentVersionLabel(version);
     const ok = await confirm({
       title: `Restore ${tag}?`,
       description: isDirty
@@ -4701,7 +4688,7 @@ export function AgentDetailPage() {
           <DialogHeader>
             <DialogTitle className="text-sm font-bold flex items-center gap-2">
               <GitBranch className="h-4 w-4 text-primary" />
-              Graph Diff: Current vs {diffModalTarget?.versionTag || `v${diffModalTarget?.version}`}
+              Graph Diff: Current vs {diffModalTarget ? agentVersionLabel(diffModalTarget) : ''}
             </DialogTitle>
           </DialogHeader>
 

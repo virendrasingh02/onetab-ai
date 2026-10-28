@@ -3,6 +3,7 @@ export { CodeBlockHeader, type CodeBlockHeaderProps } from './code-block-header.
 export { CodeBlockActions, type CodeBlockActionsProps } from './code-block-actions.js';
 export { CodeBlockContent, type CodeBlockContentProps } from './code-block-content.js';
 export { CodeBlockEditor, type CodeBlockEditorProps } from './code-block-editor.js';
+export { CodeInput, type CodeInputProps } from './code-input.js';
 export { CodeBlockDiff, type CodeBlockDiffProps } from './code-block-diff.js';
 export { CodeBlockPreview, type CodeBlockPreviewProps, isLanguagePreviewable } from './code-block-preview.js';
 export { CodeBlockExecution, type CodeBlockExecutionProps } from './code-block-execution.js';

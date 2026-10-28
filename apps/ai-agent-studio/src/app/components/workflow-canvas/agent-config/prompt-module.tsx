@@ -2,6 +2,7 @@ import {
   AppSelect,
   Badge,
   Button,
+  CodeInput,
   Input,
   Popover,
   PopoverContent,
@@ -18,6 +19,7 @@ import {
   jsonSchemaError,
   PROMPT_TONES,
   promptVariableDefaults,
+  agentVersionLabel,
   promptVariableRefs,
   resolvePromptVariables,
   RUNTIME_VARIABLE_ROOTS,
@@ -248,16 +250,17 @@ export function PromptModule({ view, agent, nodes, issues, readOnly, setConfig, 
               </Button>
             }
           >
-            <Textarea
+            <CodeInput
               id="cfg-schema"
+              language="json"
+              title="JSON Schema"
               minRows={5}
               maxRows={16}
               value={s.output.schema}
               disabled={readOnly}
               invalid={Boolean(jsonSchemaError(s.output.schema))}
               placeholder={'{\n  "type": "object",\n  "properties": { "answer": { "type": "string" } },\n  "required": ["answer"]\n}'}
-              onChange={(e) => setSettings({ output: { ...s.output, schema: e.target.value } })}
-              className="font-mono text-xs"
+              onChange={(v) => setSettings({ output: { ...s.output, schema: v } })}
             />
           </SettingField>
         )}
@@ -755,7 +758,7 @@ function PromptVersions({ view, agent, readOnly, setConfig }: Pick<ModuleEditorP
               <div className="flex items-center gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-medium text-foreground">
-                    {version.versionTag ?? `v${version.version}`}
+                    {agentVersionLabel(version)}
                     <span className="ml-1.5 text-2xs font-normal text-muted-foreground">{version.publishedAt ? new Date(version.publishedAt).toLocaleString() : ''}</span>
                   </p>
                   <p className="truncate text-xs text-muted-foreground">{prompt ? (same ? 'Same as now' : version.changeSummary || 'Different prompt') : 'This agent isn’t in that version'}</p>
@@ -774,7 +777,7 @@ function PromptVersions({ view, agent, readOnly, setConfig }: Pick<ModuleEditorP
                       onClick={() => {
                         setConfig(view.prompt.textNodeId, { [view.prompt.textKey]: prompt.text });
                         setConfig(view.agentId, { promptSettings: prompt.settings ?? undefined, role: prompt.role || undefined });
-                        toast.success(`Restored the prompt from ${version.versionTag ?? `v${version.version}`} into the draft`);
+                        toast.success(`Restored the prompt from ${agentVersionLabel(version)} into the draft`);
                       }}
                     >
                       <RotateCcw className="size-3.5" />

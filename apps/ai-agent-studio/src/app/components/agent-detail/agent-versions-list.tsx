@@ -1,4 +1,4 @@
-import type { AgentVersion } from '@org/types';
+import { agentVersionLabel, type AgentVersion } from '@org/types';
 import { Badge, Button, EmptyState, Input } from '@org/ui';
 import { cn } from '@org/utils';
 import { Clock, Eye, RotateCcw, Search } from 'lucide-react';
@@ -14,7 +14,7 @@ const FILTERS: Array<{ id: Filter; label: string }> = [
 ];
 
 const VISIBLE = 8;
-const tagOf = (v: AgentVersion) => v.versionTag ?? `v${v.version}`;
+const tagOf = agentVersionLabel;
 
 /** "Today", "Yesterday", or the date: the heading a version is grouped under. */
 function dayLabel(iso?: string): string {

@@ -1,4 +1,4 @@
-import type { AgentDeploymentEnvironment, AgentDeploymentView, AgentVersion } from '@org/types';
+import { agentVersionLabel, type AgentDeploymentEnvironment, type AgentDeploymentView, type AgentVersion } from '@org/types';
 import {
   AppSelect,
   Badge,
@@ -41,7 +41,7 @@ export function formatWhen(iso?: string | null): string {
   return new Date(iso).toLocaleDateString();
 }
 
-const versionLabel = (v: AgentVersion) => v.versionTag || `v${v.version}.0.0`;
+const versionLabel = agentVersionLabel;
 
 /** Puts a published version of the agent live on this deployment. */
 export function PublishDialog({

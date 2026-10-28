@@ -15,6 +15,7 @@ import {
   Badge,
   Button,
   Checkbox,
+  CodeInput,
   copyToClipboard,
   Field,
   Hint,
@@ -328,15 +329,17 @@ function ToolFields({
           </div>
           {asJson ? (
             <Field error={jsonError ?? undefined}>
-              <Textarea
-                rows={6}
-                className="font-mono text-xs"
+              <CodeInput
+                language="json"
+                minRows={6}
+                maxRows={16}
+                invalid={Boolean(jsonError)}
                 value={jsonText}
                 aria-label="Step input as JSON"
-                onChange={(e) => {
-                  setJsonText(e.target.value);
+                onChange={(text) => {
+                  setJsonText(text);
                   try {
-                    const parsed = JSON.parse(e.target.value || '{}');
+                    const parsed = JSON.parse(text || '{}');
                     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Must be an object');
                     setJsonError(null);
                     onChange({ ...step, input: parsed });

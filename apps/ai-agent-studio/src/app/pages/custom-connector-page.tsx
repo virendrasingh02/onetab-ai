@@ -22,6 +22,7 @@ import {
   SegmentedControl,
   Switch,
   Textarea,
+  CodeInput,
   confirm,
   toast,
 } from '@org/ui';
@@ -584,7 +585,7 @@ function ActionEditor({
 
           {hasBody && (
             <Field label="Body (JSON)" htmlFor={`${a.key}-body`} hint='Put placeholders in quotes: {"customer": "{{customer}}", "qty": "{{qty}}"}. Leave empty to send the inputs that aren’t in the path or query.'>
-              <Textarea id={`${a.key}-body`} rows={5} value={a.body ?? ''} onChange={(e) => onChange({ body: e.target.value })} className="font-mono text-xs" placeholder={'{\n  "customer": "{{customer}}"\n}'} />
+              <CodeInput id={`${a.key}-body`} language="json" minRows={5} value={a.body ?? ''} onChange={(v) => onChange({ body: v })} placeholder={'{\n  "customer": "{{customer}}"\n}'} />
             </Field>
           )}
 

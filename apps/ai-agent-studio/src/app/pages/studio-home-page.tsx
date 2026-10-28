@@ -16,7 +16,7 @@ import {
   StatCard,
   AIModelBadge,
   toast,
-  Textarea,
+  CodeInput,
   Input,
   SegmentedControl,
   ToggleGroup,
@@ -793,12 +793,13 @@ function StudioInsights() {
             </DialogDescription>
           </DialogHeader>
           <DialogBody className="space-y-3 py-4">
-            <Textarea
-              rows={8}
+            <CodeInput
+              language="json"
+              minRows={8}
+              maxRows={16}
               value={importJsonText}
-              onChange={(e) => setImportJsonText(e.target.value)}
+              onChange={setImportJsonText}
               placeholder="Paste workflow JSON here (containing nodes and edges array)…"
-              className="font-mono text-xs"
             />
           </DialogBody>
           <DialogFooter>

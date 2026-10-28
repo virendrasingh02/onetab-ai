@@ -10,6 +10,7 @@ import {
   DialogTitle,
   Field,
   Textarea,
+  CodeInput,
 } from '@org/ui';
 import { formatMs, RunDetailPanel, useAIRun } from '@org/web-ai';
 import { FlaskConical, RotateCcw } from 'lucide-react';
@@ -153,7 +154,7 @@ export function TestRunDialog({
               </Field>
               {eventSample ? (
                 <Field label="Sample event" hint="The event the agent reacts to. Edit it to try other cases." error={eventError ?? undefined}>
-                  <Textarea rows={8} className="font-mono text-xs" value={eventText} onChange={(e) => setEventText(e.target.value)} />
+                  <CodeInput language="json" minRows={8} maxRows={16} invalid={Boolean(eventError)} value={eventText} onChange={setEventText} />
                 </Field>
               ) : null}
             </>

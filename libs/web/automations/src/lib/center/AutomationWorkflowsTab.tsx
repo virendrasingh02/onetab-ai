@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
   Switch,
-  Textarea,
+  CodeInput,
   toast,
   type EntityAction,
 } from '@org/ui';
@@ -361,12 +361,13 @@ export function AutomationWorkflowsTab({
           </DialogHeader>
 
           <DialogBody className="space-y-3 py-2">
-            <Textarea
+            <CodeInput
+              language="json"
               placeholder='{"name": "My Automation", "nodes": [...], "edges": [...]}'
               value={importJson}
-              onChange={(e) => setImportJson(e.target.value)}
-              rows={8}
-              className="font-mono text-xs"
+              onChange={setImportJson}
+              minRows={8}
+              maxRows={16}
             />
           </DialogBody>
 

@@ -14,7 +14,7 @@ import {
   LoadingState,
   Page,
   PageHeader,
-  Textarea,
+  CodeInput,
   toast,
 } from '@org/ui';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -298,12 +298,14 @@ export function ToolsPage() {
                           onCheckedChange={(c) => setValues((v) => ({ ...v, [name]: c === true }))}
                         />
                       ) : def.type === 'object' || def.type === 'array' ? (
-                        <Textarea
-                          rows={3}
+                        <CodeInput
+                          language="json"
+                          showHeader={false}
+                          minRows={3}
+                          maxRows={10}
                           value={(values[name] as string) ?? ''}
-                          onChange={(e) => setValues((v) => ({ ...v, [name]: e.target.value }))}
+                          onChange={(text) => setValues((v) => ({ ...v, [name]: text }))}
                           placeholder={def.type === 'array' ? '[ ]' : '{ }'}
-                          className="font-mono text-xs"
                         />
                       ) : (
                         <Input

@@ -8,6 +8,7 @@ import {
   compileStudioGraph,
   deriveAgentFromGraph,
   isStudioGraph,
+  nextAgentVersionTag,
   type AgentConnectionStatus,
   type AgentReadinessCheck,
   type AgentToolExecution,
@@ -21,32 +22,6 @@ import { MCPToolRegistryService } from './mcp-tool-registry.service.js';
 /** Every app named by an agent on the canvas, sub-agents included. */
 function connectorsOf(agents: readonly InlineAgentSpec[]): string[] {
   return agents.flatMap((a) => [...(a.connectors ?? []), ...connectorsOf(a.members ?? [])]);
-}
-
-/**
- * Next semver tag after the highest existing one: publish bumps minor
- * (v1.0.0 → v1.1.0 → v1.2.0), snapshots bump patch. First tag is v1.0.0.
- */
-function nextSemverTag(
-  versions: Array<{ versionTag?: string }>,
-  bump: 'minor' | 'patch',
-): string {
-  let best: [number, number, number] | null = null;
-  for (const v of versions) {
-    const m = /^v?(\d+)\.(\d+)\.(\d+)/.exec(v.versionTag ?? '');
-    if (!m) continue;
-    const cur: [number, number, number] = [+m[1], +m[2], +m[3]];
-    if (
-      !best ||
-      cur[0] > best[0] ||
-      (cur[0] === best[0] && (cur[1] > best[1] || (cur[1] === best[1] && cur[2] > best[2])))
-    ) {
-      best = cur;
-    }
-  }
-  if (!best) return 'v1.0.0';
-  const [major, minor, patch] = best;
-  return bump === 'minor' ? `v${major}.${minor + 1}.0` : `v${major}.${minor}.${patch + 1}`;
 }
 
 @Injectable()
@@ -429,7 +404,7 @@ export class AgentsService {
 
     const newVersion = {
       version: nextVersionNumber,
-      versionTag: nextSemverTag(versions, 'minor'),
+      versionTag: nextAgentVersionTag(versions, 'minor'),
       name: agent.name,
       description: agent.description,
       model: agent.model,
@@ -531,7 +506,7 @@ export class AgentsService {
 
     const newVersion = {
       version: nextVersionNumber,
-      versionTag: `${nextSemverTag(versions, 'patch')}-snapshot`,
+      versionTag: `${nextAgentVersionTag(versions, 'patch')}-snapshot`,
       name: agent.name,
       description: agent.description,
       model: agent.model,

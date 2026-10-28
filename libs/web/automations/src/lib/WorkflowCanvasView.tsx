@@ -37,6 +37,7 @@ import {
   SelectValue,
   Switch,
   Textarea,
+  CodeInput,
   toast,
   type EntityAction,
 } from '@org/ui';
@@ -890,9 +891,20 @@ function StepField({
       hint={field.hint}
       error={invalidJson ? 'Not valid JSON yet.' : undefined}
     >
-      {field.kind === 'textarea' || field.kind === 'json' ? (
+      {field.kind === 'json' ? (
+        <CodeInput
+          language="json"
+          showHeader={false}
+          minRows={5}
+          maxRows={14}
+          invalid={invalidJson}
+          value={value}
+          placeholder={field.placeholder}
+          onChange={(text) => onChange({ [field.key]: text })}
+        />
+      ) : field.kind === 'textarea' ? (
         <Textarea
-          rows={field.kind === 'json' ? 5 : 4}
+          rows={4}
           value={value}
           placeholder={field.placeholder}
           onChange={(e) => onChange({ [field.key]: e.target.value })}
@@ -997,7 +1009,7 @@ function RunDialog({
         </DialogHeader>
         <DialogBody className="space-y-3">
           <Field label="Input (JSON)" error={parsed ? undefined : 'Enter a JSON object.'}>
-            <Textarea rows={7} value={text} onChange={(e) => setText(e.target.value)} className="font-mono text-xs" />
+            <CodeInput language="json" minRows={7} maxRows={16} invalid={!parsed} value={text} onChange={setText} />
           </Field>
           {result ? (
             <div role="status" className="space-y-2 rounded-lg border border-border p-3 text-sm">

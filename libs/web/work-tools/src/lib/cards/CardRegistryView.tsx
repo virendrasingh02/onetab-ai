@@ -24,6 +24,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  CodeInput,
   toast,
 } from '@org/ui';
 import {
@@ -402,12 +403,13 @@ export function CardRegistryView() {
             </DialogHeader>
 
             <DialogBody>
-              <textarea
+              <CodeInput
+                language="json"
+                minRows={12}
+                maxRows={20}
                 value={importJsonText}
-                onChange={(e) => setImportJsonText(e.target.value)}
+                onChange={setImportJsonText}
                 placeholder="Paste card JSON schema here…"
-                rows={12}
-                className="w-full p-3 font-mono text-xs bg-surface-inset text-foreground rounded-xl border border-border/70 focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </DialogBody>
 
