@@ -381,9 +381,9 @@ export interface WorkspaceActivityIndicatorProps {
 
 /**
  * Workspace-level indicator — the switcher trigger and each workspace row. Same
- * engine as {@link SidebarActivityIndicator}, pinned to the `workspace` surface
- * and a hair larger so workspace activity is not mistaken for a single
- * channel's (brief §3 visual hierarchy).
+ * engine as {@link SidebarActivityIndicator}, pinned to the `workspace` surface,
+ * but always a plain dot: a mention is a red dot, ambient activity a quieter
+ * primary one. Counts belong to channel rows; here they are only read aloud.
  */
 export function WorkspaceActivityIndicator({
   state,
@@ -398,37 +398,13 @@ export function WorkspaceActivityIndicator({
 
   if (resolved.render === 'none') return null;
 
-  if (resolved.tone === 'mention') {
-    return (
-      <SidebarMentionBadge
-        // Over an avatar corner the full-size pill would cover the glyph.
-        size={overlay ? 'sm' : 'md'}
-        count={resolved.render === 'badge' ? resolved.count : 0}
-        display={resolved.display}
-        label={resolved.label}
-        className={cn(overlay && 'ring-2 ring-background', className)}
-      />
-    );
-  }
-
-  if (resolved.render === 'badge') {
-    return (
-      <SidebarBadge
-        tone={resolved.tone}
-        label={resolved.label}
-        className={cn(overlay && 'ring-2 ring-background', className)}
-      >
-        {resolved.display}
-      </SidebarBadge>
-    );
-  }
-
   return (
     <span
       role="img"
       aria-label={resolved.label}
       className={cn(
-        'size-2.5 block shrink-0 rounded-full bg-primary',
+        'size-2 block shrink-0 rounded-full',
+        resolved.tone === 'mention' ? 'bg-destructive' : 'bg-primary/70',
         overlay && 'ring-2 ring-background',
         className,
       )}

@@ -269,32 +269,28 @@ export function WorkspaceMenu({
               'cursor-pointer outline-none select-none focus-visible:ring-1 focus-visible:ring-ring',
             )}
           >
-            {/* Avatar with Activity Dot */}
-            <span className="relative shrink-0">
-              <WorkspaceAvatar
-                name={current.name}
-                src={current.avatarUrl}
-                icon={current.icon}
-                iconColor={current.iconColor}
-                seed={current.id}
-                size="sm"
-                className="shadow-2xs rounded-sm"
-              />
-              <WorkspaceActivityIndicator
-                overlay
-                state={{ activityType: othersLevel }}
-                itemLabel="another workspace"
-                className="-right-0.5 -top-0.5 absolute"
-              />
-            </span>
+            <WorkspaceAvatar
+              name={current.name}
+              src={current.avatarUrl}
+              icon={current.icon}
+              iconColor={current.iconColor}
+              seed={current.id}
+              size="sm"
+              className="shadow-2xs shrink-0 rounded-sm"
+            />
 
-            {/* Workspace Name — the plan lives in the switcher menu */}
+            {/* Workspace Name — the plan lives in the switcher menu; the dot
+                after it flags unread activity in another workspace. */}
             <span className="min-w-0 leading-tight flex flex-1 flex-col justify-center">
               <span className="font-semibold tracking-tight text-sm sm:text-base gap-1.5 flex items-center truncate text-foreground">
                 <span className="truncate">{current.name}</span>
                 <ChevronDown
                   className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-(--duration-fast) group-data-[state=open]/trigger:rotate-180"
                   aria-hidden
+                />
+                <WorkspaceActivityIndicator
+                  state={{ activityType: othersLevel }}
+                  itemLabel="another workspace"
                 />
               </span>
             </span>
