@@ -1725,7 +1725,7 @@ type BlockType =
   'paragraph' | 'h1' | 'h2' | 'h3' | 'quote' | 'code' | 'ul' | 'ol' | 'check';
 
 const TOOL_BUTTON_BASE =
-  'size-7 flex items-center justify-center rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/60';
+  'size-7 flex shrink-0 items-center justify-center rounded-md transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/60 [&_svg]:size-4';
 const TOOL_BUTTON_ON = 'bg-primary/15 text-primary-text';
 const TOOL_BUTTON_OFF =
   'text-muted-foreground hover:bg-accent hover:text-foreground';
@@ -1958,12 +1958,35 @@ export function ToolbarContent({
       role="toolbar"
       aria-label="Formatting tools"
       className={cn(
-        'gap-0.5 p-1 border-border inline-flex items-center rounded-xl border bg-popover text-popover-foreground whitespace-nowrap select-none',
+        'gap-px p-0.5 border-border inline-flex items-center rounded-lg border bg-popover text-popover-foreground whitespace-nowrap select-none',
         floating
-          ? 'shadow-xl ring-1 ring-black/5 dark:ring-white/10 [&_button]:size-8'
+          ? 'shadow-xl ring-1 ring-black/5 dark:ring-white/10'
           : 'shadow-lg',
       )}
     >
+      {/* Bold Button */}
+      <ToolButton label="Bold" shortcut="Ctrl+B" active={formats.bold} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')}>
+          <span className="font-bold text-[15px] leading-none">B</span>
+      </ToolButton>
+
+      {/* Italic Button */}
+      <ToolButton label="Italic" shortcut="Ctrl+I" active={formats.italic} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')}>
+          <span className="font-serif font-semibold text-[15px] leading-none italic">
+            I
+          </span>
+      </ToolButton>
+
+      {/* Strikethrough Button */}
+      <ToolButton label="Strikethrough" shortcut="Ctrl+Shift+X" active={formats.strikethrough} onClick={() =>
+          editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'strikethrough')}>
+          <Strikethrough />
+      </ToolButton>
+
+      {/* Inline Code Button */}
+      <ToolButton label="Inline code" shortcut="Ctrl+Shift+C" active={formats.code} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code')}>
+          <Code />
+      </ToolButton>
+
       {/* Link Button & Popover */}
       <div ref={linkContainerRef} className="relative">
         <Hint label={isLink ? 'Remove link' : 'Add link'} side="top">
@@ -1985,9 +2008,9 @@ export function ToolbarContent({
             )}
           >
             {isLink ? (
-              <Link2Off className="size-4" />
+              <Link2Off />
             ) : (
-              <Link2 className="size-4" />
+              <Link2 />
             )}
           </button>
         </Hint>
@@ -2039,56 +2062,33 @@ export function ToolbarContent({
         ) : null}
       </div>
 
-      {/* Bold Button */}
-      <ToolButton label="Bold" shortcut="Ctrl+B" active={formats.bold} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')}>
-          <span className="font-bold text-sm leading-none">B</span>
-      </ToolButton>
-
-      {/* Italic Button */}
-      <ToolButton label="Italic" shortcut="Ctrl+I" active={formats.italic} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')}>
-          <span className="font-serif font-semibold text-sm leading-none italic">
-            I
-          </span>
-      </ToolButton>
-
-      {/* Strikethrough Button */}
-      <ToolButton label="Strikethrough" shortcut="Ctrl+Shift+X" active={formats.strikethrough} onClick={() =>
-          editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'strikethrough')}>
-          <Strikethrough className="size-3.5" />
-      </ToolButton>
-
-      {/* Inline Code Button */}
-      <ToolButton label="Inline code" shortcut="Ctrl+Shift+C" active={formats.code} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code')}>
-          <Code className="size-3.5" />
-      </ToolButton>
-
-      <span className="mx-1 h-4 bg-border w-px shrink-0" />
+      <span className="mx-0.5 h-4 bg-border w-px shrink-0" />
 
       {/* Bulleted List Button */}
       <ToolButton label="Bulleted list" shortcut="Ctrl+Shift+8" active={blockType === 'ul'} onClick={() => setBlock('ul')}>
-          <List className="size-3.5" />
+          <List />
       </ToolButton>
 
       {/* Numbered List Button */}
       <ToolButton label="Numbered list" shortcut="Ctrl+Shift+7" active={blockType === 'ol'} onClick={() => setBlock('ol')}>
-          <ListOrdered className="size-3.5" />
+          <ListOrdered />
       </ToolButton>
 
-      <span className="mx-1 h-4 bg-border w-px shrink-0" />
+      <span className="mx-0.5 h-4 bg-border w-px shrink-0" />
 
       {/* Quote Button */}
       <ToolButton label="Quote" shortcut="Ctrl+Shift+9" active={blockType === 'quote'} onClick={() => setBlock('quote')}>
-          <Quote className="size-3.5" />
+          <Quote />
       </ToolButton>
 
       {/* Code Block Button */}
       <ToolButton label="Code block" shortcut="```" active={blockType === 'code'} onClick={() => setBlock('code')}>
-          <SquareCode className="size-3.5" />
+          <SquareCode />
       </ToolButton>
 
       {toolbarSlot && !floating ? (
         <>
-          <span className="mx-1 h-4 bg-border w-px shrink-0" />
+          <span className="mx-0.5 h-4 bg-border w-px shrink-0" />
           {toolbarSlot}
         </>
       ) : null}
