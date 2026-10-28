@@ -73,23 +73,56 @@ describe('Desktop Tray and App Icon Badge', () => {
     Object.defineProperty(process, 'platform', { value: originalPlatform });
   });
 
-  it('buildOverlayBadge creates a blue notification indicator bitmap', () => {
-    const badge = buildOverlayBadge(3);
-    expect(badge).toBeDefined();
+  it('buildOverlayBadge draws one cached dot per tone, never a count', () => {
+    const activity = buildOverlayBadge('activity');
+    expect(buildOverlayBadge('activity')).toBe(activity);
 
-    // Verify cache returns identical instance
-    const badgeAgain = buildOverlayBadge(3);
-    expect(badgeAgain).toBe(badge);
+    const mention = buildOverlayBadge('mention');
+    expect(mention).not.toBe(activity);
 
-    // Verify higher count badge (e.g. >9)
-    const badgeHigh = buildOverlayBadge(25);
-    expect(badgeHigh).toBeDefined();
+    // Centre pixel (premultiplied BGRA, 32px @2x): blue for activity, red for mention.
+    const centre = (16 * 32 + 16) * 4;
+    const pixel = (image: unknown) =>
+      Array.from((image as { buffer: Buffer }).buffer.subarray(centre, centre + 4));
+    expect(pixel(activity)).toEqual([246, 130, 59, 255]);
+    expect(pixel(mention)).toEqual([68, 68, 239, 255]);
+  });
+
+  it('turns the Windows overlay red for a mention and keeps it through count-only updates', () => {
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+
+    applyBadgeCount(2, true);
+    expect(mockSetOverlayIcon).toHaveBeenLastCalledWith(
+      buildOverlayBadge('mention'),
+      'You were mentioned — 2 unread notifications',
+    );
+
+    // The background poller does not know about mentions — stay red.
+    applyBadgeCount(3);
+    expect(mockSetOverlayIcon).toHaveBeenLastCalledWith(
+      buildOverlayBadge('mention'),
+      'You were mentioned — 3 unread notifications',
+    );
+
+    applyBadgeCount(3, false);
+    expect(mockSetOverlayIcon).toHaveBeenLastCalledWith(
+      buildOverlayBadge('activity'),
+      '3 unread notifications',
+    );
+
+    // Clearing resets the mention state.
+    applyBadgeCount(0);
+    applyBadgeCount(1);
+    expect(mockSetOverlayIcon).toHaveBeenLastCalledWith(
+      buildOverlayBadge('activity'),
+      '1 unread notification',
+    );
   });
 
   it('applies taskbar overlay icon on Windows when unread count > 0', () => {
     Object.defineProperty(process, 'platform', { value: 'win32' });
 
-    applyBadgeCount(5);
+    applyBadgeCount(5, false);
     expect(getBadgeCount()).toBe(5);
     expect(mockSetOverlayIcon).toHaveBeenCalledWith(expect.anything(), '5 unread notifications');
   });
@@ -102,14 +135,14 @@ describe('Desktop Tray and App Icon Badge', () => {
     expect(mockSetOverlayIcon).toHaveBeenCalledWith(null, '');
   });
 
-  it('uses app.dock.setBadge on macOS', () => {
+  it('shows a dot (not a count) on the macOS dock', () => {
     Object.defineProperty(process, 'platform', { value: 'darwin' });
 
     applyBadgeCount(4);
-    expect(mockSetBadge).toHaveBeenCalledWith('4');
+    expect(mockSetBadge).toHaveBeenCalledWith('•');
 
     applyBadgeCount(120);
-    expect(mockSetBadge).toHaveBeenCalledWith('99+');
+    expect(mockSetBadge).toHaveBeenLastCalledWith('•');
 
     applyBadgeCount(0);
     expect(mockSetBadge).toHaveBeenCalledWith('');
@@ -118,7 +151,7 @@ describe('Desktop Tray and App Icon Badge', () => {
   it('refreshBadgeOverlay re-applies the overlay icon on Windows when restored', () => {
     Object.defineProperty(process, 'platform', { value: 'win32' });
 
-    applyBadgeCount(7);
+    applyBadgeCount(7, false);
     mockSetOverlayIcon.mockClear();
 
     refreshBadgeOverlay();

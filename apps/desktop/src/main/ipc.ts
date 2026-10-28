@@ -269,9 +269,9 @@ export function registerIpcHandlers(isDev: boolean, config: DesktopRuntimeConfig
 
   ipcMain.handle(
     IPC.setBadgeCount,
-    guard((_event, count: number) => {
+    guard((_event, count: number, mention?: boolean) => {
       const value = Number.isFinite(count) ? Math.max(0, Math.trunc(count)) : 0;
-      applyBadgeCount(value);
+      applyBadgeCount(value, mention === true);
     }),
   );
 

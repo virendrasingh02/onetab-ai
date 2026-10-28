@@ -2,16 +2,20 @@ import { useEffect } from 'react';
 import { getDesktopApi, setBadgeCount } from './desktop-api.js';
 
 /**
- * Mirrors an unread count onto the dock/taskbar badge, and bounces the window
- * when the count goes up while the app is in the background.
+ * Mirrors unread state onto the dock/taskbar as a dot — red when `mention`,
+ * a calm accent dot otherwise — and bounces the window when the count goes up
+ * while the app is in the background.
  *
  * Only one component should own this per app — two callers would fight over
  * the same badge.
  */
-export function useDesktopBadge(count: number): void {
+export function useDesktopBadge(
+  count: number,
+  { mention = false }: { mention?: boolean } = {},
+): void {
   useEffect(() => {
-    void setBadgeCount(count);
-  }, [count]);
+    void setBadgeCount(count, mention);
+  }, [count, mention]);
 
   useEffect(() => {
     const api = getDesktopApi();

@@ -158,8 +158,8 @@ const api = {
   notifications: {
     show: (request: DesktopNotificationRequest): Promise<boolean> =>
       ipcRenderer.invoke(IPC.notify, request),
-    setBadgeCount: (count: number): Promise<void> =>
-      ipcRenderer.invoke(IPC.setBadgeCount, count),
+    setBadgeCount: (count: number, mention?: boolean): Promise<void> =>
+      ipcRenderer.invoke(IPC.setBadgeCount, count, mention === true),
     flashFrame: (value: boolean): Promise<void> => ipcRenderer.invoke(IPC.flashFrame, value),
     onActivated: (handler: (payload: { id?: string; route?: string }) => void): Unsubscribe =>
       subscribe(IPC_EVENT.notificationActivated, handler),

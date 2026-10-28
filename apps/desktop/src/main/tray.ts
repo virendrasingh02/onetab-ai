@@ -102,85 +102,64 @@ export function setTrayBadge(count: number): void {
 }
 
 let currentBadgeCount = 0;
+let currentBadgeMention = false;
 let windowListenersAttached = false;
-const badgeCache = new Map<number, Electron.NativeImage>();
+const badgeCache = new Map<BadgeTone, Electron.NativeImage>();
 
-// 3x5 bitmap font for digits 1-9 centered on 16x16 overlay
-const DIGIT_GLYPHS: Record<number, number[]> = {
-  1: [0, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1],
-  2: [1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1],
-  3: [1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1],
-  4: [1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1],
-  5: [1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1],
-  6: [1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1],
-  7: [1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0],
-  8: [1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1],
-  9: [1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1],
+/** `activity` = something unread; `mention` = someone is waiting on you. */
+export type BadgeTone = 'activity' | 'mention';
+
+// BGR(A) fills — calm accent blue for ambient unread, alert red for mentions.
+const BADGE_FILL: Record<BadgeTone, [b: number, g: number, r: number]> = {
+  activity: [246, 130, 59], // #3B82F6
+  mention: [68, 68, 239], // #EF4444
 };
 
 /**
- * Builds a Slack-style blue notification indicator badge for Windows taskbar.
- *
- * For counts 1-9: renders a Slack-blue circle with a white border and crisp white count.
- * For counts > 9: renders a Slack-blue notification dot with a crisp white border ring.
- * Uses BGRA bitmap format with anti-aliased edges for crisp contrast on light and dark taskbars.
+ * Builds the Windows taskbar overlay: a single dot, never a number — the count
+ * lives in the app (and the overlay's accessible label). Blue means unread
+ * activity, red means a mention. Drawn at 2x for crisp edges on high-DPI
+ * taskbars, with a thin white ring so it separates from any app icon.
  */
-export function buildOverlayBadge(count: number): Electron.NativeImage {
-  const cacheKey = count > 0 && count <= 9 ? count : 10;
-  const cached = badgeCache.get(cacheKey);
+export function buildOverlayBadge(tone: BadgeTone): Electron.NativeImage {
+  const cached = badgeCache.get(tone);
   if (cached) return cached;
 
-  const size = 16;
+  const scale = 2;
+  const size = 16 * scale;
   const buffer = Buffer.alloc(size * size * 4);
   const centre = (size - 1) / 2;
-
-  // Slack notification blue (#007AFF -> B: 255, G: 122, R: 0)
-  const BLUE_B = 255;
-  const BLUE_G = 122;
-  const BLUE_R = 0;
-
-  const glyph = count > 0 && count <= 9 ? DIGIT_GLYPHS[count] : null;
-  const glyphStartX = 6;
-  const glyphStartY = 5;
+  const outer = 5.5 * scale; // ring edge — an ~11pt dot inside the 16pt overlay
+  const inner = 4.25 * scale; // fill edge
+  const [fillB, fillG, fillR] = BADGE_FILL[tone];
 
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       const distance = Math.hypot(x - centre, y - centre);
-      if (distance > 7.3) continue;
+      if (distance > outer + 0.5) continue;
 
       const offset = (y * size + x) * 4;
-      const alpha = distance > 6.3 ? Math.round((7.3 - distance) * 255) : 255;
+      // 1px anti-aliased outer edge.
+      const alpha = Math.round(Math.min(1, outer + 0.5 - distance) * 255);
+      // Blend fill → ring across a 1px band so the inner edge is smooth too.
+      const fill = Math.min(1, Math.max(0, inner + 0.5 - distance));
+      const channel = (value: number) =>
+        Math.round(((value * fill + 255 * (1 - fill)) * alpha) / 255);
 
-      const isWhiteRing = distance >= 5.5 && distance <= 7.0;
-
-      // Check if this pixel falls inside the digit glyph
-      const gx = x - glyphStartX;
-      const gy = y - glyphStartY;
-      const isDigitPixel =
-        glyph &&
-        gx >= 0 &&
-        gx < 3 &&
-        gy >= 0 &&
-        gy < 5 &&
-        glyph[gy * 3 + gx] === 1;
-
-      if (isDigitPixel || isWhiteRing) {
-        // Crisp white ring or digit (#FFFFFF)
-        buffer[offset] = Math.round((255 * alpha) / 255); // B
-        buffer[offset + 1] = Math.round((255 * alpha) / 255); // G
-        buffer[offset + 2] = Math.round((255 * alpha) / 255); // R
-      } else {
-        // Vibrant Slack Blue (#007AFF)
-        buffer[offset] = Math.round((BLUE_B * alpha) / 255); // B
-        buffer[offset + 1] = Math.round((BLUE_G * alpha) / 255); // G
-        buffer[offset + 2] = Math.round((BLUE_R * alpha) / 255); // R
-      }
+      // Premultiplied BGRA.
+      buffer[offset] = channel(fillB);
+      buffer[offset + 1] = channel(fillG);
+      buffer[offset + 2] = channel(fillR);
       buffer[offset + 3] = alpha;
     }
   }
 
-  const image = nativeImage.createFromBitmap(buffer, { width: size, height: size });
-  badgeCache.set(cacheKey, image);
+  const image = nativeImage.createFromBitmap(buffer, {
+    width: size,
+    height: size,
+    scaleFactor: scale,
+  });
+  badgeCache.set(tone, image);
   return image;
 }
 
@@ -199,31 +178,41 @@ export function getBadgeCount(): number {
 
 export function refreshBadgeOverlay(): void {
   if (process.platform === 'win32') {
-    setWindowsOverlay(currentBadgeCount);
+    setWindowsOverlay(currentBadgeCount, currentBadgeMention);
   }
 }
 
-function setWindowsOverlay(count: number): void {
+function setWindowsOverlay(count: number, mention: boolean): void {
   const window = getMainWindow();
   if (!window || window.isDestroyed()) return;
   attachWindowOverlayListeners();
 
   if (count > 0) {
-    const label = `${count} unread notification${count === 1 ? '' : 's'}`;
-    window.setOverlayIcon(buildOverlayBadge(count), label);
+    const label = mention
+      ? `You were mentioned — ${count} unread notification${count === 1 ? '' : 's'}`
+      : `${count} unread notification${count === 1 ? '' : 's'}`;
+    window.setOverlayIcon(buildOverlayBadge(mention ? 'mention' : 'activity'), label);
   } else {
     window.setOverlayIcon(null, '');
   }
 }
 
-/** The one place a badge count reaches the OS (dock/launcher badge, taskbar overlay, tray tooltip). */
-export function applyBadgeCount(count: number): void {
+/**
+ * The one place a badge reaches the OS (dock/launcher badge, taskbar overlay,
+ * tray tooltip). `mention` is omitted by callers that cannot tell (the
+ * background poller) — the last value the renderer reported is kept while
+ * anything is still unread, so a red dot does not flicker back to blue.
+ */
+export function applyBadgeCount(count: number, mention?: boolean): void {
   currentBadgeCount = count;
+  currentBadgeMention = count > 0 && (mention ?? currentBadgeMention);
   if (process.platform === 'win32') {
-    setWindowsOverlay(count);
+    setWindowsOverlay(count, currentBadgeMention);
   } else if (process.platform === 'darwin') {
+    // A dot, not a number — the dock badge is always red, so it only says
+    // "something is waiting".
     if (app.dock?.setBadge) {
-      app.dock.setBadge(count > 0 ? (count > 99 ? '99+' : String(count)) : '');
+      app.dock.setBadge(count > 0 ? '•' : '');
     } else {
       app.setBadgeCount(count);
     }

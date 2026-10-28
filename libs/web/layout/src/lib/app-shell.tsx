@@ -242,8 +242,6 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
   const unread = useNotificationUnread(workspaceId, notificationFeed.data);
   const serverUnreadCountQuery = useNotificationUnreadCount(workspaceId);
   const totalUnreadBadge = serverUnreadCountQuery.data ?? unread.count;
-  // Synchronize unread badge to native OS icon (Windows taskbar overlay, macOS dock badge, Linux launcher)
-  useDesktopBadge(totalUnreadBadge);
   const feedChannelActivity = useChannelActivity(
     workspaceId,
     notificationFeed.data,
@@ -329,6 +327,27 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
     }
     return counts;
   }, [liveRoomActivity]);
+
+  /*
+   * Any channel or 1:1 DM waiting on a mention — turns the OS taskbar/dock dot
+   * red. Read from the same merged feed + live Matrix counts the sidebar uses,
+   * so a fresh mention lights the dot before the feed poll catches up.
+   */
+  const hasPendingMention = useMemo(
+    () =>
+      Object.values(channelActivity).some(
+        (entry) => entry.level === 'mention' || entry.mentionCount > 0,
+      ) ||
+      Object.values(directMessageLiveCounts).some(
+        (entry) => entry.mentionCount > 0,
+      ),
+    [channelActivity, directMessageLiveCounts],
+  );
+  // Mirror unread state to the native OS icon as a dot (Windows taskbar
+  // overlay, macOS dock, Linux launcher) — red for a mention, blue otherwise.
+  useDesktopBadge(hasPendingMention ? Math.max(totalUnreadBadge, 1) : totalUnreadBadge, {
+    mention: hasPendingMention,
+  });
 
   /*
    * Every workspace's feed, not just this one's — the switcher has to say

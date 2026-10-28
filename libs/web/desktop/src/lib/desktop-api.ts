@@ -350,7 +350,8 @@ export interface OneTabDesktopApi {
   };
   notifications: {
     show: (request: DesktopNotificationRequest) => Promise<boolean>;
-    setBadgeCount: (count: number) => Promise<void>;
+    /** `mention` turns the taskbar dot red; otherwise it is a calm activity dot. */
+    setBadgeCount: (count: number, mention?: boolean) => Promise<void>;
     flashFrame: (value: boolean) => Promise<void>;
     onActivated: (
       handler: (payload: { id?: string; route?: string }) => void,
@@ -501,11 +502,17 @@ export async function notify(request: DesktopNotificationRequest): Promise<boole
   }
 }
 
-/** Unread count on the dock/taskbar; a no-op in the browser. */
-export async function setBadgeCount(count: number): Promise<void> {
+/**
+ * Unread dot on the dock/taskbar (red when `mention`); the browser falls back
+ * to the Badging API.
+ */
+export async function setBadgeCount(
+  count: number,
+  mention = false,
+): Promise<void> {
   const api = getDesktopApi();
   if (api) {
-    await api.notifications.setBadgeCount(count);
+    await api.notifications.setBadgeCount(count, mention);
     return;
   }
 
@@ -514,7 +521,8 @@ export async function setBadgeCount(count: number): Promise<void> {
     clearAppBadge?: () => Promise<void>;
   };
   try {
-    if (count > 0) await badging.setAppBadge?.(count);
+    // No argument = a plain dot, matching the desktop taskbar.
+    if (count > 0) await badging.setAppBadge?.();
     else await badging.clearAppBadge?.();
   } catch {
     // ignore
