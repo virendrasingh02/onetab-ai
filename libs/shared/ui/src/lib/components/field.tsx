@@ -113,7 +113,9 @@ export function Field({
       {control}
 
       {message ? (
-        <p
+        // A <div>, not a <p>: `hint`/`error` are any ReactNode, and callers
+        // pass block content (icon rows, <div>s) that a <p> may not contain.
+        <div
           id={messageId}
           role={error ? 'alert' : undefined}
           className={cn(
@@ -129,7 +131,7 @@ export function Field({
             <CheckCircle2 className="size-3 shrink-0" aria-hidden />
           ) : null}
           {message}
-        </p>
+        </div>
       ) : null}
     </div>
   );

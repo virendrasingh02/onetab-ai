@@ -2,7 +2,10 @@ import type { Accent } from '@org/design-system';
 import type { MarketplaceListing } from '@org/types';
 import {
   accentClasses,
+  AI_ENTITY_COLORS,
   Badge,
+  getAiEntityPresetIcon,
+  parseAiEntityAvatar,
   Button,
   ResponsiveTabsList,
   Tabs,
@@ -71,15 +74,15 @@ export function EntityIcon({ iconUrl, kind, className = 'size-10' }: EntityIconP
   useEffect(() => setFailed(false), [iconUrl]);
 
   if (iconUrl?.startsWith('icon:')) {
-    const preset = PRESET_GLYPHS[iconUrl.slice('icon:'.length)];
-    if (preset) {
-      const Glyph = preset.icon;
+    // Same icon catalogue as every agent/coworker avatar; a chosen colour wins over the preset accent.
+    const parsed = parseAiEntityAvatar(iconUrl);
+    const Glyph = getAiEntityPresetIcon(iconUrl);
+    if (parsed.type === 'icon' && Glyph) {
+      const accent = PRESET_GLYPHS[parsed.icon === 'sparkles' ? 'spark' : parsed.icon]?.accent;
+      const tone = parsed.color ? AI_ENTITY_COLORS.find((c) => c.id === parsed.color)?.tone : undefined;
       return (
-        <div className={cn(TILE, className)}>
-          <Glyph
-            className={cn('size-5', accentClasses[preset.accent].text)}
-            aria-hidden
-          />
+        <div className={cn(TILE, tone, className)}>
+          <Glyph className={cn('size-5', !tone && (accent ? accentClasses[accent].text : 'text-primary-text'))} aria-hidden />
         </div>
       );
     }

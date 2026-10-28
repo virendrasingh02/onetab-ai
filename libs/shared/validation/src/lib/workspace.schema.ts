@@ -1,4 +1,4 @@
-import { WorkspaceRole } from '@org/types';
+import { AVATAR_COLOR_COUNT, WorkspaceRole } from '@org/types';
 import { z } from 'zod';
 import { iconPatchShape } from './icon.schema.js';
 
@@ -94,6 +94,8 @@ export const updateWorkspaceSchema = z.object({
   avatarUrl: z.string().url('Enter a valid URL').nullable().optional().or(z.literal('')),
   supportEmail: z.string().trim().email('Enter a valid email address').nullable().optional().or(z.literal('')),
   accentColor: z.string().nullable().optional(),
+  /** Avatar palette slot for the workspace tile; `null` = derive from the id. */
+  avatarColor: z.number().int().min(0).max(AVATAR_COLOR_COUNT - 1).nullable().optional(),
   defaultLandingView: z.enum(['home', 'projects', 'tasks', 'chat', 'docs', 'meetings', 'agents']).optional(),
   allowExternalSharing: z.boolean().optional(),
   aiProjectRecaps: z.boolean().optional(),
@@ -106,6 +108,11 @@ export const workspaceRoleSchema = z.enum([
   WorkspaceRole.MEMBER,
   WorkspaceRole.GUEST,
 ]);
+
+/** `null` hands the choice back to the workspace (least-used colour). */
+export const updateAvatarColorSchema = z.object({
+  color: z.number().int().min(0).max(AVATAR_COLOR_COUNT - 1).nullable(),
+});
 
 export const updateMemberRoleSchema = z.object({
   role: workspaceRoleSchema.refine((role) => role !== WorkspaceRole.OWNER, {
@@ -156,6 +163,7 @@ export const declineInvitationSchema = z.object({
 export type CreateWorkspaceInput = z.infer<typeof createWorkspaceSchema>;
 export type UpdateWorkspaceInput = z.infer<typeof updateWorkspaceSchema>;
 export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleSchema>;
+export type UpdateAvatarColorInput = z.infer<typeof updateAvatarColorSchema>;
 export type InviteMembersInput = z.infer<typeof inviteMembersSchema>;
 export type CreateInvitationLinkInput = z.infer<typeof createInvitationLinkSchema>;
 export type UpdateInvitationLinkInput = z.infer<typeof updateInvitationLinkSchema>;

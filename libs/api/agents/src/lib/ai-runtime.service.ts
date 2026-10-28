@@ -331,6 +331,17 @@ interface TurnState {
   pendingApprovals: number;
   /** Tokens team members spent for this turn (their own members included). */
   memberTokens?: number;
+  /** Measured model/tool usage for the run, persisted for analytics. */
+  metrics?: RunMetrics;
+}
+
+/** What a run really cost, measured at the call sites (not derived later). */
+interface RunMetrics {
+  inputTokens: number;
+  outputTokens: number;
+  modelCalls: number;
+  modelMs: number;
+  toolMs: number;
 }
 
 const RESPONSE_FORMAT_INSTRUCTION: Record<string, string> = {
@@ -613,9 +624,16 @@ export class AIRuntimeService {
     const status = error ? 'FAILED' : state.pendingApprovals > 0 ? 'WAITING_APPROVAL' : 'COMPLETED';
     const message = error instanceof Error ? error.message : error ? String(error) : undefined;
     try {
+      const opened = await this.prisma.aIExecution.findUnique({
+        where: { id: state.executionId },
+        select: { stateJson: true },
+      });
       await this.prisma.aIExecution.update({
         where: { id: state.executionId },
         data: {
+          ...(state.metrics
+            ? { stateJson: { ...((opened?.stateJson ?? {}) as Record<string, unknown>), metrics: state.metrics } as any }
+            : {}),
           status,
           // A run waiting on a person is not finished; deciding the approval
           // closes it (ApprovalsService.decide).
@@ -1104,6 +1122,7 @@ export class AIRuntimeService {
     const tools = plan.toolSchemas.length > 0 ? plan.toolSchemas : undefined;
     let tokensUsed = 0;
     const callModel = async () => {
+      const calledAt = Date.now();
       const result = await this.aiService.chat({
         provider,
         model: entity.model || undefined,
@@ -1114,6 +1133,11 @@ export class AIRuntimeService {
         ...plan.sampling,
       });
       tokensUsed += result.usage?.totalTokens ?? 0;
+      const metrics = (state.metrics ??= { inputTokens: 0, outputTokens: 0, modelCalls: 0, modelMs: 0, toolMs: 0 });
+      metrics.inputTokens += result.usage?.promptTokens ?? 0;
+      metrics.outputTokens += result.usage?.completionTokens ?? 0;
+      metrics.modelCalls += 1;
+      metrics.modelMs += Date.now() - calledAt;
       return result;
     };
 
@@ -1137,7 +1161,11 @@ export class AIRuntimeService {
         };
         toolTrace.push(entry);
         await emitProgress('running');
+        const toolStartedAt = Date.now();
         contents[index] = await this.runToolCall(entry, call, input, entity, workspaceId, context, plan, state, delegationDepth);
+        // Parallel delegations overlap, so this is tool-seconds, not wall time.
+        const metrics = (state.metrics ??= { inputTokens: 0, outputTokens: 0, modelCalls: 0, modelMs: 0, toolMs: 0 });
+        metrics.toolMs += Date.now() - toolStartedAt;
         await emitProgress('running');
       };
       // Delegations asked for in the same round are independent: the team

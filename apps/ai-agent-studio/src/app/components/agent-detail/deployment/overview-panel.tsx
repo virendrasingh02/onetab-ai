@@ -21,9 +21,9 @@ import type { ReactNode } from 'react';
 import { useSearchParams } from '../../../router.js';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { CopyButton } from './parts.js';
-import { ANALYTICS_PERIODS, errorMessage, type AnalyticsPeriod, type DeploymentApi } from './use-deployment.js';
+import { ANALYTICS_PERIODS, errorMessage, publishableVersions, type AnalyticsPeriod, type DeploymentApi } from './use-deployment.js';
 
-export type DeploymentSection = 'overview' | 'targets' | 'widget' | 'webhooks' | 'api-keys' | 'versions';
+export type DeploymentSection = 'overview' | 'targets' | 'widget' | 'webhooks' | 'api-keys' | 'versions' | 'settings';
 
 const PERIOD_LABELS: Record<AnalyticsPeriod, string> = { '24h': '24h', '7d': '7 days', '30d': '30 days', '90d': '90 days' };
 
@@ -70,7 +70,7 @@ function Stat({ icon, label, value, hint, tone }: { icon: ReactNode; label: stri
 function SectionTitle({ icon, title, action }: { icon?: ReactNode; title: string; action?: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+      <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
         {icon}
         {title}
       </h3>
@@ -158,6 +158,15 @@ export function OverviewPanel({
   const webhooks = webhooksQuery.data ?? [];
   const failingWebhooks = webhooks.filter((w) => w.lastDeliveryStatus && w.lastDeliveryStatus !== 'SUCCESS').length;
   const openOrigins = deployment.allowedOrigins.length === 0 || deployment.allowedOrigins.includes('*');
+  const versionPublished = publishableVersions(api.versionsQuery.data).some((v) => v.version === deployment.versionNumber);
+  // Each step is derived from what the API holds, so it ticks itself as the work is done.
+  const checklist: Array<{ label: string; done: boolean; section: DeploymentSection; cta: string }> = [
+    { label: 'A published version is live', done: versionPublished, section: 'versions', cta: 'Choose version' },
+    { label: 'Allowed origins are restricted', done: !openOrigins, section: 'widget', cta: 'Restrict' },
+    { label: 'Deployment is active', done: deployment.status === 'ACTIVE', section: 'settings', cta: 'Reactivate' },
+    { label: 'Someone has called it', done: hasRuns, section: 'targets', cta: 'Install' },
+    { label: 'A webhook reports run results', done: webhooks.length > 0, section: 'webhooks', cta: 'Add' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -171,9 +180,32 @@ export function OverviewPanel({
         </div>
       )}
 
+      {checklist.some((c) => !c.done) && (
+        <Card className="space-y-3 p-5 shadow-2xs">
+          <SectionTitle
+            icon={<CheckCircle2 className="size-4 text-primary" />}
+            title="Before you go live"
+            action={<span className="text-xs text-muted-foreground tabular-nums">{checklist.filter((c) => c.done).length} of {checklist.length} done</span>}
+          />
+          <ul className="grid gap-2 md:grid-cols-2">
+            {checklist.map((item) => (
+              <li key={item.label} className="flex items-center gap-2.5 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-xs">
+                <CheckCircle2 className={`size-4 shrink-0 ${item.done ? 'text-success' : 'text-muted-foreground/40'}`} />
+                <span className={`min-w-0 flex-1 ${item.done ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{item.label}</span>
+                {!item.done && (
+                  <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => onNavigate(item.section)}>
+                    {item.cta} <ArrowRight className="size-3" />
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-sm font-bold text-foreground">Traffic</h2>
+          <h2 className="text-sm font-semibold text-foreground">Traffic</h2>
           <p className="text-xs text-muted-foreground">
             Runs through this deployment in the last {PERIOD_LABELS[analyticsPeriod]}. Studio test runs aren’t counted.
           </p>
@@ -362,7 +394,7 @@ export function OverviewPanel({
           <Card className="space-y-4 p-5 shadow-2xs">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div>
-                <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
                   <Activity className="size-4 text-primary" /> Live configuration
                 </h3>
                 <p className="mt-0.5 text-xs text-muted-foreground">What every embed and API call is answered with right now.</p>

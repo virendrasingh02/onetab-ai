@@ -1,7 +1,6 @@
 import { agentsApi } from '@org/api-client';
 import { agentService } from '../services/agentService.js';
 import {
-  Badge,
   Button,
   Dialog,
   DialogContent,
@@ -19,44 +18,36 @@ import {
   LoadingState,
   Page,
   PageHeader,
-  AIModelBadge,
   toast,
   AppSelect,
   Label,
   Textarea,
-  SegmentedControl,
+  AiEntityIdentityPicker,
   confirm,
+  formatAiEntityIconAvatar,
+  parseAiEntityAvatar,
 } from '@org/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Archive,
   Bot,
-  CheckCircle2,
   Copy,
   Download,
   Edit2,
   MessageSquare,
   MoreVertical,
-  Pause,
   Plus,
   RotateCcw,
   Search,
   Tag,
   Trash2,
   Upload,
-  User,
   Wand2,
-  Zap,
 } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from '../router.js';
-import {
-  AGENT_ICONS,
-  AgentAvatar,
-  DEFAULT_CATEGORIES,
-  THEME_COLORS,
-} from '../data/agent-metadata.js';
+import { AgentAvatar, DEFAULT_CATEGORIES } from '../data/agent-metadata.js';
 import { useStudioSession } from '../session-guard.js';
+import { AIEntityFacts, AIEntityHeader, AIEntityOwner, plural } from '../components/common/ai-entity-summary.js';
 import { useAiModels, useModelOptions } from '../components/workflow-canvas/agent-config/use-agent-config-data.js';
 
 /** Platform default (NVIDIA Nemotron 3 Super) — matches AI_DEFAULT_MODEL. */
@@ -64,6 +55,17 @@ const DEFAULT_AGENT_MODEL = 'nvidia/nemotron-3-super-120b-a12b';
 
 type AgentStatus = 'draft' | 'testing' | 'published' | 'paused' | 'archived';
 type AgentEnvironment = 'development' | 'staging' | 'production';
+
+const DEFAULT_IDENTITY = formatAiEntityIconAvatar('bot', 'emerald');
+
+/** `configuration.icon` / `theme` / `avatar`, which older readers still look at. */
+function legacyIdentityFields(avatarUrl: string): { icon?: string; theme?: string; avatar: string } {
+  const parsed = parseAiEntityAvatar(avatarUrl);
+  if (parsed.type === 'icon') return { icon: parsed.icon, ...(parsed.color ? { theme: parsed.color } : {}), avatar: '' };
+  return { avatar: parsed.type === 'photo' ? parsed.src : '' };
+}
+
+const ENV_LABEL: Record<AgentEnvironment, string> = { development: 'Development', staging: 'Staging', production: 'Production' };
 
 function countTools(tools: string | null | undefined): number {
   if (!tools) return 0;
@@ -108,13 +110,9 @@ export function AgentsListPage() {
     modelCatalog.data?.find((m) => m.model === model || m.id === model)?.provider ??
     (model.startsWith('nvidia/') ? 'nvidia' : undefined);
   const [newEnvironment, setNewEnvironment] = useState<AgentEnvironment>('development');
-  const [newTheme, setNewTheme] = useState('emerald');
-  const [newIcon, setNewIcon] = useState('Bot');
-  const [newAvatarUrl, setNewAvatarUrl] = useState('');
-  const [avatarMode, setAvatarMode] = useState<'icon' | 'upload' | 'url'>('icon');
+  // One identity value (photo URL or `icon:<icon>:<color>`), the same shape coworkers use.
+  const [newIdentity, setNewIdentity] = useState(DEFAULT_IDENTITY);
   const [newTags, setNewTags] = useState('support, autonomous');
-  const [newOwnerName, setNewOwnerName] = useState(user?.name || 'Workspace Owner');
-  const [newOwnerEmail, setNewOwnerEmail] = useState(user?.email || '');
 
   // Rename Modal
   const [renameAgentTarget, setRenameAgentTarget] = useState<any | null>(null);
@@ -225,22 +223,12 @@ export function AgentsListPage() {
     setNewPrompt('You are an intelligent autonomous AI employee.');
     setNewModel(DEFAULT_AGENT_MODEL);
     setNewEnvironment('development');
-    setNewTheme('emerald');
-    setNewIcon('Bot');
-    setNewAvatarUrl('');
-    setAvatarMode('icon');
+    setNewIdentity(DEFAULT_IDENTITY);
     setNewTags('support, autonomous');
-    setNewOwnerName(user?.name || 'Workspace Owner');
-    setNewOwnerEmail(user?.email || '');
   };
 
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    const ownerObj = {
-      name: newOwnerName.trim() || user?.name || 'Workspace Owner',
-      email: newOwnerEmail.trim() || user?.email || '',
-    };
 
     if (!newName.trim()) return;
     const initialGraph = {
@@ -286,18 +274,16 @@ export function AgentsListPage() {
       systemPrompt: newPrompt,
       model: newModel,
       provider: providerForModel(newModel),
-      avatarUrl: newAvatarUrl || null,
+      avatarUrl: newIdentity,
       tools: ['firecrawl_search', 'kb_search'],
       graphJson: JSON.stringify(initialGraph),
       configuration: {
         category: newCategory,
         environment: newEnvironment,
         status: 'draft',
-        theme: newTheme,
-        icon: newIcon,
-        avatar: newAvatarUrl || '',
+        // Kept for readers of the older per-field shape.
+        ...legacyIdentityFields(newIdentity),
         tags: newTags.split(',').map((t) => t.trim()).filter(Boolean),
-        owner: ownerObj,
       },
     });
   };
@@ -584,46 +570,10 @@ export function AgentsListPage() {
             const status: AgentStatus = config.status || 'draft';
             const env: AgentEnvironment = config.environment || 'development';
             const tags = config.tags || [];
-            const owner = config.owner || { name: 'Unassigned', email: '' };
+            // The creator's real profile from the API; the free-text name only covers older agents.
+            const owner = agent.owner || (config.owner?.name ? { name: config.owner.name } : null);
             const isDeleted = Boolean(agent.deletedAt) || status === ('deleted' as any);
             const toolsCount = countTools(agent.tools);
-
-            // Status Badge Variant
-            const getStatusBadge = () => {
-              if (status === 'published') {
-                return (
-                  <Badge variant="success" className="text-2xs gap-1">
-                    <CheckCircle2 className="size-2.5" /> PUBLISHED
-                  </Badge>
-                );
-              }
-              if (status === 'testing') {
-                return (
-                  <Badge className="bg-warning/15 text-warning border border-warning/30 text-2xs gap-1">
-                    <Zap className="size-2.5" /> TESTING
-                  </Badge>
-                );
-              }
-              if (status === 'paused') {
-                return (
-                  <Badge className="bg-accent-blue/15 text-accent-blue border border-accent-blue/30 text-2xs gap-1">
-                    <Pause className="size-2.5" /> PAUSED
-                  </Badge>
-                );
-              }
-              if (status === 'archived') {
-                return (
-                  <Badge className="bg-muted-foreground/15 text-muted-foreground border border-muted-foreground/30 text-2xs gap-1">
-                    <Archive className="size-2.5" /> ARCHIVED
-                  </Badge>
-                );
-              }
-              return (
-                <Badge variant="outline" className="text-2xs">
-                  DRAFT
-                </Badge>
-              );
-            };
 
             return (
               <div
@@ -632,49 +582,19 @@ export function AgentsListPage() {
               >
                 <div>
                   <div className="flex items-start justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-3">
-                      {/* Avatar & Icon with custom theme styling */}
-                      <AgentAvatar agent={agent} size="lg" />
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <div
-                            onClick={() => !isDeleted && navigate(`/agents/${agent.id}`)}
-                            className={`text-base font-semibold leading-tight text-foreground transition-colors line-clamp-1 ${
-                              !isDeleted ? 'cursor-pointer hover:text-foreground' : ''
-                            }`}
-                          >
-                            {agent.name}
-                          </div>
-                          {!isDeleted && (
-                            <Button
-                              variant="ghost"
-                              size="icon-xs"
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setRenameAgentTarget(agent);
-                                setRenameNameInput(agent.name);
-                              }}
-                              title="Rename agent"
-                              className="size-5 opacity-0 group-hover:opacity-100"
-                            >
-                              <Edit2 className="size-3" />
-                            </Button>
-                          )}
-                        </div>
-                        <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1">
-                          <span>{agent.role || 'Assistant'}</span>
-                          <span>•</span>
-                          <span className="font-mono text-2xs uppercase text-muted-foreground/80">
-                            {env}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                    {/* Same identity block as an AI Coworker card. */}
+                    <AIEntityHeader
+                      avatar={<AgentAvatar agent={agent} size="lg" />}
+                      name={agent.name}
+                      kind="Agent"
+                      role={agent.role || 'Assistant'}
+                      meta={[ENV_LABEL[env]]}
+                      status={isDeleted ? 'trash' : status}
+                      model={agent.model || null}
+                      provider={agent.provider || null}
+                    />
 
-                    <div className="flex items-center gap-1">
-                      {getStatusBadge()}
-
+                    <div className="flex shrink-0 items-center gap-1">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
@@ -830,18 +750,14 @@ export function AgentsListPage() {
                 </div>
 
                 <div className="mt-4 border-t border-border/60 pt-3">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground font-mono">
-                    <span className="flex items-center gap-1 text-2xs">
-                      <User className="size-3 text-muted-foreground" />
-                      <span>{owner.name}</span>
-                    </span>
-                    <AIModelBadge modelId={agent.model || 'gpt-4o'} variant="subtle" size="xs" />
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                    <AIEntityFacts
+                      facts={[{ label: plural(toolsCount, 'tool'), value: toolsCount, muted: !toolsCount }]}
+                    />
+                    <AIEntityOwner owner={owner} />
                   </div>
 
-                  <div className="mt-3 flex items-center justify-between pt-1">
-                    <span className="text-xs text-muted-foreground">
-                      {toolsCount} tool{toolsCount === 1 ? '' : 's'} connected
-                    </span>
+                  <div className="mt-3 flex items-center justify-end">
                     {!isDeleted ? (
                       <Button
                         size="xs"
@@ -1001,175 +917,7 @@ export function AgentsListPage() {
                 />
               </div>
 
-              {/* Agent Icon, Custom Avatar & Theme (Module 1.2 Specs) */}
-              <div className="rounded-xl border border-border bg-background p-3 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-foreground">
-                    Agent Icon, Avatar & Theme
-                  </span>
-                  {/* Avatar Mode switcher: Icon vs Custom Image */}
-                  <SegmentedControl
-                    aria-label="Avatar source"
-                    size="sm"
-                    value={avatarMode}
-                    onChange={(mode) => setAvatarMode(mode)}
-                    options={[
-                      { value: 'icon', label: 'Icon Library' },
-                      { value: 'upload', label: 'Upload File' },
-                      { value: 'url', label: 'Image URL' },
-                    ]}
-                  />
-                </div>
-
-                <div className="flex items-start gap-4">
-                  {/* Live Preview Avatar */}
-                  <div className="flex flex-col items-center gap-1.5 shrink-0">
-                    <AgentAvatar
-                      icon={newIcon}
-                      avatarUrl={newAvatarUrl}
-                      theme={newTheme}
-                      size="lg"
-                    />
-                    <span className="text-2xs text-muted-foreground font-mono">Live Preview</span>
-                  </div>
-
-                  <div className="flex-1 space-y-2.5">
-                    {/* Icon Picker Mode */}
-                    {avatarMode === 'icon' && (
-                      <div>
-                        <Label className="text-2xs text-muted-foreground block mb-1">
-                          Choose Built-in Icon:
-                        </Label>
-                        <div className="grid grid-cols-10 gap-1.5 max-h-24 overflow-y-auto pr-1">
-                          {AGENT_ICONS.map((item) => {
-                            const IconComp = item.icon;
-                            const isSelected = newIcon.toLowerCase() === item.id.toLowerCase() && !newAvatarUrl;
-                            return (
-                              <button
-                                key={item.id}
-                                type="button"
-                                onClick={() => {
-                                  setNewIcon(item.id);
-                                  setNewAvatarUrl('');
-                                }}
-                                title={item.label}
-                                className={`size-7 rounded-lg flex items-center justify-center border transition-all ${
-                                  isSelected
-                                    ? 'border-success bg-success/20 text-success ring-1 ring-success'
-                                    : 'border-border bg-background text-muted-foreground hover:text-foreground hover:border-border-strong'
-                                }`}
-                              >
-                                <IconComp className="size-3.5" />
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* File Upload Mode */}
-                    {avatarMode === 'upload' && (
-                      <div className="space-y-1.5">
-                        <Label className="text-2xs text-muted-foreground block">
-                          Upload custom avatar image (PNG, JPG, SVG):
-                        </Label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="file"
-                            id="agent-avatar-file-upload"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                if (file.size > 2 * 1024 * 1024) {
-                                  toast.error('Avatar file must be under 2MB');
-                                  return;
-                                }
-                                const reader = new FileReader();
-                                reader.onload = (loadEvt) => {
-                                  const result = loadEvt.target?.result as string;
-                                  setNewAvatarUrl(result);
-                                  toast.success('Custom avatar uploaded');
-                                };
-                                reader.readAsDataURL(file);
-                              }
-                            }}
-                          />
-                          <Label
-                            htmlFor="agent-avatar-file-upload"
-                            className="h-8 px-3 rounded-lg border border-border bg-muted hover:bg-muted/70 text-foreground text-xs flex items-center gap-1.5 cursor-pointer font-medium transition-colors"
-                          >
-                            <Upload className="size-3.5 text-success" />
-                            <span>Choose Image…</span>
-                          </Label>
-                          {newAvatarUrl && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setNewAvatarUrl('')}
-                              className="h-8 text-xs text-destructive hover:text-destructive"
-                            >
-                              Clear Avatar
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* URL Mode */}
-                    {avatarMode === 'url' && (
-                      <div className="space-y-1">
-                        <Label className="text-2xs text-muted-foreground block">
-                          Avatar Image URL:
-                        </Label>
-                        <div className="flex items-center gap-1.5">
-                          <Input
-                            value={newAvatarUrl}
-                            onChange={(e) => setNewAvatarUrl(e.target.value)}
-                            placeholder="https://example.com/avatar.png"
-                            className="h-8 text-xs bg-background border-border text-foreground"
-                          />
-                          {newAvatarUrl && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setNewAvatarUrl('')}
-                              className="h-8 text-xs text-destructive hover:text-destructive"
-                            >
-                              Clear
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Theme Color Row */}
-                    <div className="pt-1 flex items-center justify-between">
-                      <span className="text-2xs text-muted-foreground font-medium">Theme Color:</span>
-                      <div className="flex items-center gap-1.5">
-                        {THEME_COLORS.map((item) => {
-                          const color = item.id;
-                          return (
-                            <button
-                              key={color}
-                              type="button"
-                              onClick={() => setNewTheme(color)}
-                              style={{ backgroundColor: item.colorHex }}
-                              className={`size-5 rounded-full transition-all ${
-                                newTheme === color ? 'ring-2 ring-white scale-125' : 'opacity-70 hover:opacity-100 hover:scale-110'
-                              }`}
-                              title={color}
-                            />
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <AiEntityIdentityPicker name={newName} kind="agent" value={newIdentity} onChange={setNewIdentity} label="Icon & colour" />
 
               {/* System Instructions */}
               <div className="space-y-1">
@@ -1210,31 +958,10 @@ export function AgentsListPage() {
                 </div>
               </div>
 
-              {/* Owner & Tags */}
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <div className="space-y-1">
-                  <Label className="text-xs font-semibold text-foreground">
-                    Owner / Lead Name
-                  </Label>
-                  <Input
-                    value={newOwnerName}
-                    onChange={(e) => setNewOwnerName(e.target.value)}
-                    placeholder="e.g. Jane Doe"
-                    className="h-9 text-xs bg-background border-border text-foreground"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs font-semibold text-foreground">
-                    Owner Email
-                  </Label>
-                  <Input
-                    value={newOwnerEmail}
-                    onChange={(e) => setNewOwnerEmail(e.target.value)}
-                    placeholder="owner@company.com"
-                    className="h-9 text-xs bg-background border-border text-foreground"
-                  />
-                </div>
+              {/* The creator owns the agent; shown here so it isn't a surprise on the card. */}
+              <div className="flex items-center gap-2 text-xs">
+                <span className="font-semibold text-foreground">Owner</span>
+                <AIEntityOwner owner={user ? { id: user.id, name: user.name, avatarUrl: user.avatarUrl } : null} />
               </div>
 
               <div className="space-y-1">

@@ -183,7 +183,7 @@ export function TargetsPanel({
       <div className="space-y-4 md:col-span-3">
         <Card className="space-y-4 p-6 shadow-2xs">
           <div>
-            <h3 className="text-base font-bold text-foreground">{target.title}</h3>
+            <h3 className="text-sm font-semibold text-foreground">{target.title}</h3>
             <p className="mt-1 text-xs text-muted-foreground">{target.description}</p>
           </div>
 

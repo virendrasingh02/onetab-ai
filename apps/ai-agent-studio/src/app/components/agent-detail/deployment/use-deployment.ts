@@ -163,6 +163,16 @@ export function useDeployment(agentId: string) {
     onError: (e) => toast.error('Could not change the status', { description: errorMessage(e) }),
   });
 
+  const remove = useMutation({
+    meta: QUIET,
+    mutationFn: () => agentDeploymentsApi.delete(workspaceId, agentId, requireDeployment()),
+    onSuccess: () => {
+      void refreshDeployments();
+      toast.success('Deployment deleted: its embeds and API keys stop working');
+    },
+    onError: (e) => toast.error('Could not delete the deployment', { description: errorMessage(e) }),
+  });
+
   const createSnapshot = useMutation({
     meta: QUIET,
     mutationFn: (summary?: string) => agentsApi.createVersion(workspaceId, agentId, summary),
@@ -219,6 +229,7 @@ export function useDeployment(agentId: string) {
     publish,
     rollback,
     setStatus,
+    remove,
     createSnapshot,
     createWebhook,
     deleteWebhook,

@@ -31,9 +31,12 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-  SegmentedControl,
   Textarea,
   toast,
+  AiEntityIdentityPicker,
+  aiEntityAvatarFromLegacy,
+  formatAiEntityIconAvatar,
+  parseAiEntityAvatar,
 } from '@org/ui';
 import { canManageOwnedAIResource, compileStudioGraph, isStudioGraph, diffStudioGraphs, type StudioCanvasGraph, type StudioGraphIssue } from '@org/types';
 import { cn, generateId } from '@org/utils';
@@ -110,7 +113,6 @@ import {
   Tag,
   Trash2,
   Undo2,
-  Upload,
   KeyRound,
   Wand2,
   X,
@@ -127,12 +129,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { scopeStudioPath, useNavigate, useParams, useSearchParams } from '../router.js';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  AGENT_ICONS,
-  AgentAvatar,
-  DEFAULT_CATEGORIES,
-  THEME_COLORS,
-} from '../data/agent-metadata.js';
+import { AgentAvatar, DEFAULT_CATEGORIES } from '../data/agent-metadata.js';
 import { useMemberPreference } from '../hooks/use-member-preference.js';
 import { useStudioSession } from '../session-guard.js';
 import { AgentRuntimeSettings, type AgentRuntimeDraft } from '../components/agent-detail/agent-runtime-settings.js';
@@ -1844,7 +1841,6 @@ export function AgentDetailPage() {
   const [isCreatingCustomCategory, setIsCreatingCustomCategory] = useState(false);
   const [customCategoryInput, setCustomCategoryInput] = useState('');
   const [tagInput, setTagInput] = useState('');
-  const [avatarMode, setAvatarMode] = useState<'icon' | 'upload' | 'url'>('icon');
 
   const agentQueryKey = ['agent-detail', activeWorkspace.id, agentId];
 
@@ -1973,7 +1969,8 @@ export function AgentDetailPage() {
       category: config.category || 'Customer Support',
       theme: config.theme || 'emerald',
       icon: config.icon || 'Bot',
-      avatar: agent.avatarUrl || config.avatar || '',
+      // One identity value — a photo or `icon:<icon>:<color>` — folding in what older agents kept in configuration.
+      avatar: aiEntityAvatarFromLegacy(agent.avatarUrl, config) ?? formatAiEntityIconAvatar(config.icon || 'bot', config.theme || 'emerald'),
       tags: Array.isArray(config.tags) ? config.tags : ['support', 'autonomous'],
       ownerName: config.owner?.name || '',
       ownerEmail: config.owner?.email || '',
@@ -2022,24 +2019,6 @@ export function AgentDetailPage() {
       setHeaderNameInput(current ?? '');
       toast.error(errorMessage(err, 'Could not rename the agent'));
     }
-  };
-
-  const handleAvatarFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error('Image size must be less than 2MB');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
-      if (dataUrl) {
-        updateSettings({ avatar: dataUrl });
-        toast.success('Custom avatar uploaded');
-      }
-    };
-    reader.readAsDataURL(file);
   };
 
   const handleAddTag = () => {
@@ -2115,7 +2094,7 @@ export function AgentDetailPage() {
         category: settingsDraft.category,
         theme: settingsDraft.theme,
         icon: settingsDraft.icon,
-        avatar: settingsDraft.avatar,
+        avatar: settingsDraft.avatar.startsWith('icon:') ? '' : settingsDraft.avatar,
         tags: settingsDraft.tags,
         owner: {
           name: settingsDraft.ownerName,
@@ -4430,156 +4409,22 @@ export function AgentDetailPage() {
             </AgentTabSection>
 
             {/* Visual Branding & Appearance */}
-            <AgentTabSection id="settings-appearance" title="Icon, Custom Avatar & Theme" icon={<Palette />}>
-
-              {/* Live Preview */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-3 rounded-lg bg-surface-raised border border-border">
-                <AgentAvatar
-                  agent={{
-                    name: settingsDraft?.name || agent.name,
-                    role: settingsDraft?.role || agent.role,
-                  }}
-                  icon={settingsDraft?.icon}
-                  avatarUrl={settingsDraft?.avatar}
-                  theme={settingsDraft?.theme}
-                  size="lg"
-                />
-                <div className="space-y-1">
-                  <div className="text-xs font-bold text-foreground flex items-center gap-2">
-                    <span>{settingsDraft?.name || agent.name}</span>
-                    <Badge variant="outline" className="text-2xs">
-                      {settingsDraft?.category || 'General'}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Theme: <span className="font-semibold capitalize text-foreground">{settingsDraft?.theme || 'emerald'}</span> •{' '}
-                    Avatar: <span className="font-semibold text-foreground">{settingsDraft?.avatar ? 'Custom Image' : `Icon (${settingsDraft?.icon || 'Bot'})`}</span>
-                  </p>
-                </div>
-              </div>
-
-              {/* Theme Picker */}
-              <Field label="Theme Accent Color">
-                <div role="radiogroup" aria-label="Theme accent color" className="flex flex-wrap gap-2">
-                  {THEME_COLORS.map((t) => {
-                    const selected = settingsDraft?.theme === t.id;
-                    return (
-                      <Button
-                        key={t.id}
-                        type="button"
-                        role="radio"
-                        aria-checked={selected}
-                        variant={selected ? 'secondary' : 'outline'}
-                        size="sm"
-                        onClick={() => updateSettings({ theme: t.id })}
-                        className={cn('gap-1.5', selected && 'ring-2 ring-primary/20 font-semibold')}
-                      >
-                        <span className={cn('h-3 w-3 rounded-full', t.bg)} />
-                        {t.label}
-                      </Button>
-                    );
-                  })}
-                </div>
-              </Field>
-
-              {/* Avatar / Icon Source Selection */}
-              <div className="space-y-3">
-                <SegmentedControl
-                  aria-label="Avatar source"
-                  size="sm"
-                  value={avatarMode}
-                  onChange={(mode) => setAvatarMode(mode)}
-                  options={[
-                    { value: 'icon', label: 'Icon Library' },
-                    { value: 'upload', label: 'Upload Image' },
-                    { value: 'url', label: 'Image URL' },
-                  ]}
-                />
-
-                {avatarMode === 'icon' && (
-                  <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground">Select an icon from the built-in library:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {AGENT_ICONS.map((item) => {
-                        const IconComponent = item.icon;
-                        const isSelected = settingsDraft?.icon === item.name && !settingsDraft?.avatar;
-                        return (
-                          <Button
-                            key={item.name}
-                            type="button"
-                            variant={isSelected ? 'secondary' : 'outline'}
-                            size="icon-lg"
-                            aria-label={item.label}
-                            aria-pressed={isSelected}
-                            title={item.label}
-                            onClick={() => updateSettings({ icon: item.name, avatar: '' })}
-                            className={cn('size-10 rounded-lg', isSelected && 'ring-2 ring-primary/30')}
-                          >
-                            <IconComponent className="h-4 w-4" />
-                          </Button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {avatarMode === 'upload' && (
-                  <div className="space-y-3">
-                    <p className="text-xs text-muted-foreground">Upload an avatar image (PNG, JPG, SVG, max 2MB):</p>
-                    <div className="flex items-center gap-3">
-                      <Button asChild variant="outline" size="md" className="border-dashed">
-                        <Label className="cursor-pointer">
-                          <Upload className="h-4 w-4" />
-                          Choose image file
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="sr-only"
-                            onChange={handleAvatarFileUpload}
-                          />
-                        </Label>
-                      </Button>
-                      {settingsDraft?.avatar && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => updateSettings({ avatar: '' })}
-                          className="text-xs text-destructive hover:text-destructive/80 h-8"
-                        >
-                          Clear Custom Image
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {avatarMode === 'url' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="settings-avatar-url" className="text-xs text-muted-foreground">
-                      Direct Image Web Link
-                    </Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        id="settings-avatar-url"
-                        placeholder="https://example.com/agent-avatar.png"
-                        value={settingsDraft?.avatar || ''}
-                        onChange={(e) => updateSettings({ avatar: e.target.value })}
-                        className="text-xs flex-1"
-                      />
-                      {settingsDraft?.avatar && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => updateSettings({ avatar: '' })}
-                          className="text-xs text-muted-foreground h-8"
-                        >
-                          Clear
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
+            <AgentTabSection id="settings-appearance" title="Icon & colour" icon={<Palette />}>
+              {/* The same picker coworkers use, so an agent looks the same everywhere it appears. */}
+              <AiEntityIdentityPicker
+                name={settingsDraft?.name || agent.name}
+                kind="agent"
+                value={settingsDraft?.avatar}
+                onChange={(avatar) => {
+                  const parsed = parseAiEntityAvatar(avatar);
+                  updateSettings(
+                    parsed.type === 'icon'
+                      ? { avatar, icon: parsed.icon, ...(parsed.color ? { theme: parsed.color } : {}) }
+                      : { avatar },
+                  );
+                }}
+                label="Avatar"
+              />
             </AgentTabSection>
 
             {/* Categorization, Tags & Ownership */}

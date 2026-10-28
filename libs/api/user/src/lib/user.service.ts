@@ -656,7 +656,7 @@ export class UserService {
     return {
       chat: {
         messageDensity: density,
-        openPosition: 'last-read',
+        openPosition: settings?.openPosition === 'newest' ? 'newest' : 'last-read',
         readReceipts,
         enterToSend,
         sendTypingNotice,
@@ -709,6 +709,7 @@ export class UserService {
         create: {
           userId,
           density: densityForDb,
+          openPosition: updated.chat.openPosition ?? 'last-read',
           showReadReceipts: updated.chat.readReceipts,
           enterToSend: updated.chat.enterToSend ?? true,
           sendTypingNotice: updated.chat.sendTypingNotice ?? true,
@@ -720,6 +721,7 @@ export class UserService {
         },
         update: {
           density: densityForDb,
+          openPosition: updated.chat.openPosition ?? 'last-read',
           showReadReceipts: updated.chat.readReceipts,
           enterToSend: updated.chat.enterToSend ?? true,
           sendTypingNotice: updated.chat.sendTypingNotice ?? true,

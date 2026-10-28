@@ -340,6 +340,8 @@ export type {
 
 export {
   COWORKER_TEMPLATES,
+  COWORKER_TEMPLATE_AVATARS,
+  coworkerTemplateAvatar,
   coworkerTemplateKey,
   getCoworkerTemplate,
   resolveCoworkerCollaborators,
@@ -350,6 +352,7 @@ export type {
   CoworkerTemplateKey,
 } from './lib/coworker-templates.js';
 export {
+  buildConnectableApps,
   buildRosterConnectors,
   workflowCoworkerIds,
 } from './lib/coworker-roster.js';
@@ -482,6 +485,7 @@ export type {
   UpdateModelSettingsInput,
 } from './lib/ai.js';
 
+export * from './lib/avatar-color.js';
 export * from './lib/chat.js';
 export * from './lib/system-event.js';
 export * from './lib/gifs.js';
@@ -593,3 +597,18 @@ export * from './lib/agent-deployment.js';
 
 /* Employee profile & engagement: privacy, dates, anniversaries, completion. */
 export * from './lib/people.js';
+export {
+  AI_ENTITY_COLOR_DEFS,
+  AI_ENTITY_ICON_ALIASES,
+  AI_ENTITY_ICON_DEFS,
+  DEFAULT_AI_ENTITY_COLOR,
+  DEFAULT_AI_ENTITY_ICON,
+  aiEntityAvatarFromLegacy,
+  aiEntityAvatarImageUrl,
+  aiEntityColorHex,
+  formatAiEntityIconAvatar,
+  parseAiEntityAvatar,
+  resolveAiEntityColorId,
+  resolveAiEntityIconId,
+} from './lib/ai-entity-identity.js';
+export type { AiEntityColorDef, AiEntityIconDef, AiEntityIdentity } from './lib/ai-entity-identity.js';

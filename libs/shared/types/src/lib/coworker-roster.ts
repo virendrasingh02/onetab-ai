@@ -67,6 +67,8 @@ export interface CoworkerRosterEntry {
   status: string;
   isActive: boolean;
   creatorId: string | null;
+  /** The creator's profile; null for seeded coworkers or a removed user. */
+  owner: { id: string; name: string; avatarUrl: string | null } | null;
   templateKey: CoworkerTemplateKey | null;
   adoptedFrom: string | null;
   /** Explicit model, or null when it follows the workspace default. */
@@ -97,6 +99,11 @@ export interface CoworkerRosterEntry {
 
 export interface CoworkerRoster {
   coworkers: CoworkerRosterEntry[];
+  /**
+   * Every app with a working connection in this workspace, as `ready_to_attach`
+   * nodes. "Add app" offers the ones a coworker doesn't already show.
+   */
+  connectableApps: RosterConnector[];
   /** The workspace plan's shared allocation; -1 = custom/unlimited. */
   plan: {
     name: string;
@@ -197,6 +204,40 @@ export function buildRosterConnectors(input: {
     }
   }
   return out;
+}
+
+/**
+ * Apps any coworker could attach right now: one node per provider with a
+ * working connection (workspace-wide preferred over personal), by name.
+ */
+export function buildConnectableApps(input: {
+  registry: ReadonlyMap<string, RosterConnectorInput>;
+  /** integrationId → coworkers attached to it. */
+  sharing: ReadonlyMap<string, Array<{ id: string; name: string }>>;
+}): RosterConnector[] {
+  const out: RosterConnector[] = [];
+  for (const info of input.registry.values()) {
+    const usable = info.connections
+      .filter((c) => c.status === 'CONNECTED')
+      .sort((a, b) => (a.scopeType === b.scopeType ? 0 : a.scopeType === 'WORKSPACE' ? -1 : 1))[0];
+    if (!usable) continue;
+    out.push({
+      provider: info.provider.toUpperCase(),
+      name: info.name,
+      category: info.category,
+      state: 'ready_to_attach',
+      integrationId: usable.id,
+      connectionLabel: usable.displayName,
+      connectionScope: usable.scopeType,
+      readActions: info.readActions,
+      writeActions: info.writeActions,
+      triggers: info.triggers,
+      sharedWith: input.sharing.get(usable.id) ?? [],
+      fromTemplate: false,
+      reason: null,
+    });
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /** Ids of the coworkers an automation workflow's AI_COWORKER nodes call. */

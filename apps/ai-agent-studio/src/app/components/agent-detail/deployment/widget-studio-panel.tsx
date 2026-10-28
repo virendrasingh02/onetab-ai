@@ -1,4 +1,4 @@
-import type { AgentDeploymentView, AgentWidgetLayout } from '@org/types';
+import { aiEntityAvatarImageUrl, type AgentDeploymentView, type AgentWidgetLayout } from '@org/types';
 import { Button, Card, Field, Input, Label, SegmentedControl, Switch, Textarea, ToggleGroup, ToggleGroupItem } from '@org/ui';
 import { cn } from '@org/utils';
 import { ImageUp, Laptop, Palette, RotateCcw, Smartphone, X } from 'lucide-react';
@@ -103,7 +103,8 @@ export function WidgetStudioPanel({
 
   const brand = cleanColor(form.primaryColor) ?? '#6366f1';
   // Same order the API resolves for the embed: the widget's own image, else the agent's.
-  const avatarSrc = cleanAvatarUrl(form.avatarUrl) ?? cleanAvatarUrl(agentAvatarUrl);
+  // An icon identity is drawn as the same SVG image the embed gets.
+  const avatarSrc = cleanAvatarUrl(form.avatarUrl) ?? cleanAvatarUrl(aiEntityAvatarImageUrl(agentAvatarUrl, brand));
   const dark = form.theme === 'dark' || (form.theme === 'system' && prefersDark());
   const title = form.title.trim() || agentName;
   const privacyOk = !form.privacyPolicyUrl.trim() || !!cleanLinkUrl(form.privacyPolicyUrl);
@@ -131,7 +132,7 @@ export function WidgetStudioPanel({
         <Card className="space-y-5 p-5 shadow-2xs">
           <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
             <div>
-              <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <Palette className="size-4 text-primary" /> Appearance & access
               </h3>
               <p className="text-xs text-muted-foreground">Saved to the deployment and applied by the embed.</p>

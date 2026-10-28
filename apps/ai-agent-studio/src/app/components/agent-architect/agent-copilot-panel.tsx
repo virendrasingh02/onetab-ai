@@ -1,5 +1,6 @@
 import { agentArchitectApi, agentGraphsApi, agentsApi, knowledgeApi } from '@org/api-client';
 import {
+  appLabel,
   applyGraphEdits,
   compileStudioGraph,
   describeCronExpression,
@@ -29,6 +30,7 @@ import {
   toast,
   Label,
   Textarea,
+  formatAiEntityIconAvatar,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -68,7 +70,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { useNavigate } from '../../router.js';
 import type { CanvasNodeStatus } from '../workflow-canvas/run-console-drawer.js';
 import type { NodeRunResult } from '../workflow-canvas/node-chrome.js';
-import { ChangeList, FlowLine, IssueList, errorText, integrationsHref } from './architect-ui.js';
+import { ChangeList, FlowLine, IssueList, errorText } from './architect-ui.js';
+import { ActivityTimeline, ConnectApps, RichText, connectionsQueryKey, type ActivityStep } from './copilot-activity.js';
 import { CopilotReviewCard } from './copilot-review-card.js';
 import { CopilotRunCard } from './copilot-run-card.js';
 import { reviewWorkflow, type WorkflowReview } from './workflow-review.js';
@@ -82,6 +85,8 @@ interface Proposal {
   summary: string;
   state: 'pending' | 'applying' | 'applied' | 'discarded' | 'undone';
   version?: number;
+  /** The step "Show on canvas" frames once it's applied. */
+  focus?: string;
   /** A whole new workflow from Create — Apply replaces the canvas, or it can become its own agent. */
   rebuild?: { spec: AgentArchitectSpec; savedAgentId?: string };
 }
@@ -94,13 +99,15 @@ interface Message {
   proposal?: Proposal;
   diagnosis?: ArchitectDiagnosisResult;
   optimization?: ArchitectOptimizeResult;
-  /** Shows the "Open Integrations" link. */
-  connect?: boolean;
+  /** Shows a Connect button per app still missing; 'if-needed' shows nothing when none is. */
+  connect?: boolean | 'if-needed';
   by?: string;
   /** A run started from the chat, followed live in the reply. */
   run?: { runId: string; mode: 'test' | 'live' };
   /** A full check of every step and wire. */
   review?: WorkflowReview;
+  /** What the Copilot did for a request, step by step. */
+  steps?: ActivityStep[];
 }
 
 /** What the composer does with what's typed. */
@@ -147,22 +154,60 @@ const nextId = () => `m${++messageSeq}`;
 
 type Intent = 'explain' | 'debug' | 'optimize' | 'test' | 'permissions' | 'missing' | 'check' | 'create' | 'edit';
 
+const nodeLabel = (n: StudioCanvasGraph['nodes'][number]) => String(n.data?.label || n.type);
+const isEndpoint = (type: string) => /^TRIGGER|^START$|^END$|^OUTPUT$/.test(type);
+
+/**
+ * The workflow as numbered steps, each with what it uses underneath —
+ * the tools and sub-agents plugged into an AI step, the app a tool step calls.
+ */
+function workflowOutline(graph: StudioCanvasGraph): string[] {
+  const path = mainPath(graph);
+  const onPath = new Set(path.map((n) => n.id));
+  const byId = new Map(graph.nodes.map((n) => [n.id, n]));
+  const lines: string[] = [];
+  path
+    .filter((n) => !isEndpoint(String(n.type)))
+    .forEach((n, i) => {
+      const t = String(n.type);
+      const cfg = n.data?.config ?? {};
+      const tag = /APPROVAL|REVIEW|ESCALATE/.test(t) ? ' — waits for you' : /AGENT/.test(t) ? ' — AI agent' : '';
+      const subtitle = typeof n.data?.subtitle === 'string' && n.data.subtitle ? ` — ${n.data.subtitle}` : '';
+      lines.push(`${i + 1}. **${nodeLabel(n)}**${tag || subtitle}`);
+      const sub: string[] = [];
+      if (typeof cfg['toolName'] === 'string' && cfg['toolName']) sub.push(`Uses ${String(cfg['toolName']).replace(/_/g, ' ')}`);
+      else if (typeof cfg['needsConnection'] === 'string') sub.push(`Needs ${appLabel(cfg['needsConnection'])} connected`);
+      // Tools, knowledge and sub-agents plugged into this step's slots
+      for (const e of graph.edges) {
+        const other = e.source === n.id ? e.target : e.target === n.id ? e.source : null;
+        const node = other ? byId.get(other) : undefined;
+        if (node && !onPath.has(node.id)) sub.push(nodeLabel(node));
+      }
+      if (Array.isArray(cfg['tools'])) for (const tool of cfg['tools'] as unknown[]) if (typeof tool === 'string') sub.push(`Can use ${tool.replace(/_/g, ' ')}`);
+      for (const line of [...new Set(sub)].slice(0, 5)) lines.push(`   - ${line}`);
+    });
+  return lines;
+}
+
 /** The opening message for a freshly built agent: trigger, numbered steps, and what still needs connecting. */
 function builtSummary(agentName: string, graph: StudioCanvasGraph): string {
-  const path = mainPath(graph);
-  const label = (n: StudioCanvasGraph['nodes'][number]) => String(n.data?.label || n.type);
-  const steps = path.filter((n) => !/^TRIGGER|^START$|^END$|^OUTPUT$/.test(String(n.type)));
-  if (!steps.length) return `I built ${agentName}. ${explainStudioGraph(graph)}`;
-  const lines = [`I built ${agentName}.`, '', explainStudioGraph(graph).split('. ')[0]?.replace(/\.$/, '') + '.', '', 'Steps'];
-  steps.forEach((n, i) => {
-    const t = String(n.type);
-    const tag = /APPROVAL|REVIEW|ESCALATE/.test(t) ? ' — waits for you' : /AGENT/.test(t) ? ' — AI agent' : '';
-    lines.push(`${i + 1}. ${label(n)}${tag}`);
-  });
+  const outline = workflowOutline(graph);
+  if (!outline.length) return `I built **${agentName}**. ${explainStudioGraph(graph)}`;
+  const lines = [`Your **${agentName}** agent is ready. ${explainStudioGraph(graph).split('. ')[0]?.replace(/\.$/, '')}.`, '', 'The workflow:', ...outline];
   const needs = [...new Set(graph.nodes.map((n) => n.data?.config?.['needsConnection']).filter((v): v is string => typeof v === 'string'))];
-  if (needs.length) lines.push('', `Still to connect: ${needs.join(', ')}.`);
+  if (needs.length) lines.push('', `Connect ${needs.map((n) => appLabel(n)).join(', ')} before a live run.`);
   lines.push('', 'It stays off until you switch on “Runs on its own”. Run a test first to see each step.');
   return lines.join('\n');
+}
+
+/** One finished step per part of a freshly built workflow — what the welcome trail shows. */
+function builtSteps(graph: StudioCanvasGraph): ActivityStep[] {
+  const path = mainPath(graph);
+  return [
+    { id: nextId(), label: 'Understood the request', state: 'done' },
+    ...path.map((n): ActivityStep => ({ id: nextId(), label: `${isEndpoint(String(n.type)) ? 'Set up' : 'Configured'} ${nodeLabel(n)}`, state: 'done' })),
+    { id: nextId(), label: 'Saved the agent', state: 'done' },
+  ];
 }
 
 /** What kind of request it is — editing goes to the API, the rest is answered from the graph and its runs. */
@@ -301,6 +346,7 @@ export function AgentCopilotPanel({
   const greeting = (built: boolean): Message => ({
     id: nextId(),
     role: 'assistant',
+    ...(built ? { steps: builtSteps(graph), connect: 'if-needed' as const } : {}),
     text: built
       ? builtSummary(agentName, graph)
       : `Everything happens right here:\n• Modify — “add Slack notifications”, “run it every Monday at 9”\n• Check — I go through every step, connection and setting, and suggest what to add\n• Test — run it with any input and watch each step\n• Create — describe an agent and I’ll build the whole workflow\nChanges go onto the canvas live and I check them after — Undo reverts any. Turn off “Live changes” below to approve each one yourself.`,
@@ -386,6 +432,45 @@ export function AgentCopilotPanel({
   const updateProposal = (id: string, patch: Partial<Proposal>) =>
     setMessages((list) => list.map((m) => (m.id === id && m.proposal ? { ...m, proposal: { ...m.proposal, ...patch } } : m)));
 
+  // The request being handled keeps its step-by-step trail on one message
+  const activityRef = useRef<string | null>(null);
+  const [activityId, setActivityId] = useState<string | null>(null);
+  const patchSteps = (fn: (steps: ActivityStep[]) => ActivityStep[]) => {
+    const id = activityRef.current;
+    if (!id) return;
+    setMessages((list) => list.map((m) => (m.id === id ? { ...m, steps: fn(m.steps ?? []) } : m)));
+  };
+  const settle = (steps: ActivityStep[], state: ActivityStep['state'] = 'done') =>
+    steps.map((s) => (s.state === 'running' ? { ...s, state } : s));
+  /** What's happening now — the running step of the trail while a request is handled. */
+  const progress = (label: string) => {
+    setBusy(label);
+    patchSteps((steps) => (steps[steps.length - 1]?.label === label ? steps : [...settle(steps), { id: nextId(), label, state: 'running' }]));
+  };
+  /** A step that's already finished — what was saved, what was set up. */
+  const addStep = (label: string, detail?: string[]) =>
+    patchSteps((steps) => [...settle(steps), { id: nextId(), label, state: 'done', ...(detail?.length ? { detail } : {}) }]);
+  const beginActivity = () => {
+    const id = nextId();
+    activityRef.current = id;
+    setActivityId(id);
+    setMessages((list) => [...list, { id, role: 'assistant', text: '', steps: [] }]);
+  };
+  /** Closes the trail; a request that needed no steps leaves none behind. */
+  const endActivity = (failed: boolean) => {
+    const id = activityRef.current;
+    if (!id) return;
+    activityRef.current = null;
+    setActivityId(null);
+    setMessages((list) =>
+      list.flatMap((m) => {
+        if (m.id !== id) return [m];
+        const steps = settle(m.steps ?? [], failed ? 'failed' : 'done');
+        return steps.length ? [{ ...m, steps }] : [];
+      }),
+    );
+  };
+
   /** A proposal from ops computed here (diagnosis and optimisation fixes). */
   const proposeOps = async (ops: GraphEditOp[], summary: string, intro: string) => {
     const before = graphRef.current;
@@ -404,7 +489,7 @@ export function AgentCopilotPanel({
 
   /** Saves, checks and starts a test run; the reply then follows it live. */
   const runTest = async (message: string) => {
-    setBusy('Saving and checking the workflow…');
+    progress('Saving and checking the workflow…');
     await onBeforeRun();
     const check = await agentGraphsApi.validate(workspaceId, agentId);
     const blocking = check.issues.filter((i) => i.level === 'error');
@@ -417,7 +502,7 @@ export function AgentCopilotPanel({
       });
       return;
     }
-    setBusy('Starting the run…');
+    progress('Starting the run…');
     const started = await agentGraphsApi.run(workspaceId, agentId, { mode: 'test', ...(message ? { message } : {}) });
     say({
       role: 'assistant',
@@ -430,7 +515,7 @@ export function AgentCopilotPanel({
 
   /** Checks every step, wire and setting — locally and with the server's own validator. */
   const checkWorkflow = async (focus: string) => {
-    setBusy('Checking every step and connection…');
+    progress('Checking every step and connection…');
     const current = graphRef.current;
     let serverIssues: StudioGraphIssue[] = [];
     let serverChecked = true;
@@ -457,16 +542,21 @@ export function AgentCopilotPanel({
 
   /** Plans a whole workflow from a description, as a proposal that replaces the canvas. */
   const createFromScratch = async (prompt: string) => {
-    setBusy('Planning the workflow — this can take a minute…');
+    progress('Planning the workflow — this can take a minute…');
     const res = await agentArchitectApi.understand(workspaceId, { prompt });
     const diff = diffStudioGraphs(graphRef.current, res.graph);
     const missing = res.spec.missingConfiguration.filter((m) => m.required).map((m) => `${m.title} — ${m.detail}`);
     const message: Message = {
       id: nextId(),
       role: 'assistant',
-      text: liveRef.current
-        ? `Building “${res.spec.agent.name}”: ${res.spec.agent.description}\nIt’s going onto the canvas now — Undo brings the old one back.`
-        : `Here’s “${res.spec.agent.name}”: ${res.spec.agent.description}\nApply puts it on this canvas, or save it as a separate agent.`,
+      text: [
+        `**${res.spec.agent.name}** — ${res.spec.agent.description}`,
+        '',
+        'The workflow:',
+        ...workflowOutline(res.graph),
+        '',
+        liveRef.current ? 'It’s going onto the canvas now — Undo brings the old one back.' : 'Apply puts it on this canvas, or save it as a separate agent.',
+      ].join('\n'),
       notes: missing.length ? [`Before a live run: ${missing.join('; ')}`] : undefined,
       connect: res.spec.missingConfiguration.some((m) => m.kind === 'connection' || !!m.provider),
       by: res.plannedBy === 'ai' ? `Planned by ${res.model ?? 'AI'} in ${(res.durationMs / 1000).toFixed(0)}s` : 'Planned from a template',
@@ -505,6 +595,8 @@ export function AgentCopilotPanel({
         role: `${spec.agent.category} agent`,
         description: spec.agent.description,
         systemPrompt: spec.agent.instructions,
+        // The architect's icon as the shared identity, so it shows everywhere the agent does.
+        avatarUrl: formatAiEntityIconAvatar(spec.agent.icon),
         graphJson: JSON.stringify(p.graph),
         configuration: {
           category: spec.agent.category,
@@ -540,6 +632,8 @@ export function AgentCopilotPanel({
         : as === 'check' ? (command ? `Check: ${command}` : 'Check every step')
         : command,
     });
+    beginActivity();
+    let failed = false;
     const intent: Intent = as === 'modify' ? intentOf(command) : as;
     const current = graphRef.current;
     const graphJson = JSON.stringify(current);
@@ -577,14 +671,14 @@ export function AgentCopilotPanel({
           return;
         }
         case 'debug': {
-          setBusy('Reading the last runs…');
+          progress('Reading the last runs…');
           const diagnosis = await agentArchitectApi.diagnose(workspaceId, agentId, graphJson);
           say({ role: 'assistant', text: diagnosis.summary, diagnosis, connect: diagnosis.findings.some((f) => f.connect) });
           if (diagnosis.ops.length) await proposeOps(diagnosis.ops,'Retry the steps that failed temporarily', 'I can make the steps that failed temporarily retry on their own:');
           return;
         }
         case 'optimize': {
-          setBusy('Looking for waste…');
+          progress('Looking for waste…');
           const optimization = await agentArchitectApi.optimize(workspaceId, agentId, graphJson);
           say({
             role: 'assistant',
@@ -596,7 +690,7 @@ export function AgentCopilotPanel({
           return;
         }
         default: {
-          setBusy('Working out the change…');
+          progress('Working out the change…');
           // The reply is written live: its text grows as Nemotron produces it,
           // then the finished message (with its proposal) takes its place.
           const liveId = nextId();
@@ -612,7 +706,7 @@ export function AgentCopilotPanel({
           const drop = () => live && setMessages((list) => list.filter((m) => m.id !== liveId));
           let res;
           try {
-            res = await agentArchitectApi.editStream(workspaceId, { command, graphJson }, { onStatus: (m) => setBusy(m), onExplanation: showLive });
+            res = await agentArchitectApi.editStream(workspaceId, { command, graphJson }, { onStatus: progress, onExplanation: showLive });
           } catch (err) {
             drop();
             throw err;
@@ -634,9 +728,11 @@ export function AgentCopilotPanel({
         }
       }
     } catch (err) {
+      failed = true;
       say({ role: 'assistant', text: errorText(err, 'That didn’t work.'), notes: ['Nothing was changed.'] });
     } finally {
       setBusy(null);
+      endActivity(failed);
     }
   };
 
@@ -648,7 +744,7 @@ export function AgentCopilotPanel({
    * connection, say) is shown with Fix buttons.
    */
   const selfCheck = async (checked: StudioCanvasGraph, mayFix: boolean) => {
-    setBusy('Checking the result…');
+    progress('Checking the result…');
     try {
       let serverIssues: StudioGraphIssue[] = [];
       try {
@@ -664,11 +760,11 @@ export function AgentCopilotPanel({
       }
       if (mayFix && error > 0) {
         const problems = [...review.general, ...review.steps.flatMap((s) => s.problems)].filter((p) => p.level === 'error');
-        setBusy('Fixing what I found…');
+        progress('Fixing what I found…');
         const res = await agentArchitectApi.editStream(
           workspaceId,
           { command: `Fix these problems:\n${problems.map((p) => `- ${p.message}`).join('\n')}`, graphJson: JSON.stringify(checked) },
-          { onStatus: (m) => setBusy(m) },
+          { onStatus: progress },
         );
         if (res.changedAnything) {
           const fix: Message = {
@@ -702,16 +798,21 @@ export function AgentCopilotPanel({
     const next = message.proposal.graph;
     updateProposal(message.id, { state: 'applying' });
     try {
+      progress(message.proposal.rebuild ? 'Building the agent…' : 'Updating the agent…');
       const version = await onApply(next, message.proposal.summary);
       // Undo puts back exactly the graph that was there before.
       undoGraphs.current.set(message.id, previous);
-      updateProposal(message.id, { state: 'applied', version });
+      const known = new Set(previous.nodes.map((n) => n.id));
+      const freshNodes = next.nodes.filter((n) => !known.has(n.id));
+      addStep(`${message.proposal.rebuild ? 'Built' : 'Updated'} the agent${version ? ` · version ${version}` : ''}`, message.proposal.changes);
+      for (const n of freshNodes.slice(0, 8)) addStep(`Configured ${nodeLabel(n)}`);
+      const focus = freshNodes[0]?.id ?? mainPath(next)[0]?.id;
+      updateProposal(message.id, { state: 'applied', version, ...(focus ? { focus } : {}) });
       queryClient.invalidateQueries({ queryKey: ['canvas-agent-activation', workspaceId, agentId] });
+      queryClient.invalidateQueries({ queryKey: connectionsQueryKey(workspaceId, agentId) });
       if (opts.auto) {
         // Bring the first new step into view, so the change is seen as it lands
-        const known = new Set(previous.nodes.map((n) => n.id));
-        const fresh = next.nodes.find((n) => !known.has(n.id));
-        if (fresh) onFocusNode?.(fresh.id);
+        if (freshNodes[0]) onFocusNode?.(freshNodes[0].id);
         await selfCheck(next, !opts.fixRound);
       }
     } catch (err) {
@@ -972,7 +1073,8 @@ export function AgentCopilotPanel({
             </div>
           ) : (
             <div key={m.id} className="group/msg space-y-2.5 text-sm leading-relaxed text-foreground">
-              <p className="whitespace-pre-line">{m.text}</p>
+              {m.steps && m.steps.length > 0 && <ActivityTimeline steps={m.steps} />}
+              {m.text && <RichText text={m.text} />}
               {m.by && <p className="text-xs text-muted-foreground">{m.by}</p>}
               {m.notes?.length ? (
                 <ul className="space-y-1">
@@ -984,13 +1086,6 @@ export function AgentCopilotPanel({
                   ))}
                 </ul>
               ) : null}
-              {m.connect && (
-                <Button size="xs" variant="outline" asChild>
-                  <a href={integrationsHref(workspaceSlug)} target="_blank" rel="noreferrer">
-                    Open Integrations <ExternalLink className="size-3" aria-hidden />
-                  </a>
-                </Button>
-              )}
 
               {m.diagnosis && m.diagnosis.findings.length > 0 && (
                 <ul className="space-y-2">
@@ -1093,13 +1188,26 @@ export function AgentCopilotPanel({
                     </p>
                   )}
                   {m.proposal.state === 'applied' && (
-                    <div className="flex items-center gap-2">
-                      <p className="flex items-center gap-1 text-xs text-success-text">
-                        <Check className="size-3.5" aria-hidden /> Applied{m.proposal.version ? ` · version ${m.proposal.version}` : ''}
-                      </p>
-                      <Button size="xs" variant="ghost" onClick={() => void undo(m)} className="gap-1">
-                        <RotateCcw className="size-3" /> Undo
+                    <div className="flex items-center gap-2.5 rounded-xl border border-border bg-surface-raised/40 px-3 py-2">
+                      <span className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground" aria-hidden>
+                        <Workflow className="size-3.5" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-medium text-foreground">
+                          {m.proposal.rebuild ? `Built ${m.proposal.rebuild.spec.agent.name}` : 'Agent updated'}
+                        </p>
+                        <p className="flex items-center gap-1 text-2xs text-success-text">
+                          <Check className="size-3" aria-hidden /> On the canvas{m.proposal.version ? ` · version ${m.proposal.version}` : ''}
+                        </p>
+                      </div>
+                      <Button size="icon-sm" variant="ghost" onClick={() => void undo(m)} className={iconBtn} aria-label="Undo this change" title="Undo">
+                        <RotateCcw className="size-3.5" />
                       </Button>
+                      {onFocusNode && m.proposal.focus && (
+                        <Button variant="link" size="xs" type="button" onClick={() => m.proposal?.focus && onFocusNode(m.proposal.focus)} className="h-auto shrink-0 px-0 text-xs">
+                          Show on canvas
+                        </Button>
+                      )}
                     </div>
                   )}
                   {m.proposal.state === 'discarded' && <p className="text-xs text-muted-foreground">Discarded — nothing changed.</p>}
@@ -1126,8 +1234,11 @@ export function AgentCopilotPanel({
                 />
               )}
 
+              {/* The apps it uses — a Connect button for each one still missing */}
+              {m.connect && <ConnectApps workspaceId={workspaceId} workspaceSlug={workspaceSlug} agentId={agentId} graph={graph} quiet={m.connect === 'if-needed'} />}
+
               {/* Reply actions */}
-              <div className="flex items-center gap-0.5 opacity-70 transition-opacity group-hover/msg:opacity-100 focus-within:opacity-100">
+              {m.text && <div className="flex items-center gap-0.5 opacity-70 transition-opacity group-hover/msg:opacity-100 focus-within:opacity-100">
                 <Button variant="ghost" size="icon-sm" type="button" onClick={() => void copyMessage(m)} className={iconBtn} aria-label="Copy reply" title="Copy">
                   {copiedId === m.id ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
                 </Button>
@@ -1150,12 +1261,13 @@ export function AgentCopilotPanel({
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </div>
+              </div>}
             </div>
           ),
         )}
 
-        {busy && (
+        {/* The step trail already shows what's running */}
+        {busy && !activityId && (
           <p className="flex items-center gap-2 text-xs text-muted-foreground">
             <span className="flex gap-0.5" aria-hidden>
               <span className="size-1.5 animate-bounce rounded-full bg-primary [animation-delay:-0.3s]" />

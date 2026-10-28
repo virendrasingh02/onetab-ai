@@ -215,6 +215,9 @@ export interface Workspace extends IconSelection {
   slug: string;
   description: string | null;
   avatarUrl: string | null;
+  /** Avatar palette slot (0..AVATAR_COLOR_COUNT-1) for the initial tile — the
+   *  same for every member. `null` = derive from the id. */
+  avatarColor?: number | null;
   ownerId: string;
   status: WorkspaceStatus;
   supportEmail?: string | null;
@@ -349,6 +352,9 @@ export interface WorkspaceMember {
   lastSeenAt?: IsoDateString | null;
   invitedAt?: IsoDateString | null;
   invitedBy?: PublicUser | null;
+  /** Avatar palette slot (0..AVATAR_COLOR_COUNT-1) — this member's colour in
+   *  this workspace. Assigned by the API; `null` only for very old payloads. */
+  avatarColor?: number | null;
 }
 
 export interface Channel {
@@ -576,6 +582,7 @@ export interface Invitation {
     avatarUrl?: string | null;
     icon?: string | null;
     iconColor?: string | null;
+    avatarColor?: number | null;
   } | null;
   channelId?: string | null;
   channel?: { id: string; name: string; slug: string } | null;

@@ -268,6 +268,48 @@ export class MatrixAuthService {
   }
 
   /**
+   * Enforces the peer's "Direct Message Privacy" choice (Chat & Messaging
+   * settings): `everyone` lets any workspace-mate start a DM, `members` rules
+   * out guests, `admins` allows only workspace owners/admins. The caller
+   * passes when *any* workspace they share with the peer grants a qualifying
+   * role. Existing rooms are unaffected — this gates only starting one.
+   */
+  private async assertDirectMessageAllowed(
+    callerUserId: string,
+    peerId: string,
+  ): Promise<void> {
+    const settings = await this.prisma.chatSettings.findUnique({
+      where: { userId: peerId },
+      select: { allowDirectMessagesFrom: true },
+    });
+    const policy = settings?.allowDirectMessagesFrom ?? 'everyone';
+    if (policy === 'everyone') return;
+
+    const roles =
+      policy === 'admins'
+        ? (['OWNER', 'ADMIN'] as const)
+        : (['OWNER', 'ADMIN', 'MEMBER'] as const);
+    const qualifying = await this.prisma.workspaceMember.findFirst({
+      where: {
+        userId: callerUserId,
+        status: 'ACTIVE',
+        role: { in: [...roles] },
+        workspace: {
+          members: { some: { userId: peerId, status: 'ACTIVE' } },
+        },
+      },
+      select: { id: true },
+    });
+    if (!qualifying) {
+      throw new ForbiddenException(
+        policy === 'admins'
+          ? 'This person only accepts direct messages from workspace admins.'
+          : 'This person only accepts direct messages from workspace members.',
+      );
+    }
+  }
+
+  /**
    * The Matrix identity of a peer the caller may open a direct message with —
    * a teammate, an AI agent, an AI coworker, or a connected app.
    *
@@ -343,6 +385,8 @@ export class MatrixAuthService {
       select: { id: true },
     });
     if (!shared) return null;
+
+    await this.assertDirectMessageAllowed(callerUserId, peerId);
 
     return this.ensureIdentity(peerId);
   }

@@ -1289,6 +1289,14 @@ export const memberApi = {
   leave: (workspaceId: string) =>
     request<void>(http.post(`/workspaces/${workspaceId}/members/leave`)),
 
+  /** Sets the caller's avatar colour in this workspace (`null` = auto). */
+  updateAvatarColor: (workspaceId: string, color: number | null) =>
+    request<{ avatarColor: number }>(
+      http.patch(`/workspaces/${workspaceId}/members/me/avatar-color`, {
+        color,
+      }),
+    ),
+
   suspend: (workspaceId: string, userId: string) =>
     request<void>(
       http.post(`/workspaces/${workspaceId}/members/${userId}/suspend`),

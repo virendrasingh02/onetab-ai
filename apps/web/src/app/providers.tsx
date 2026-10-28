@@ -8,12 +8,14 @@ import {
   resolveMediaUrl,
   stickersApi,
   queryKeys,
+  workspaceApi,
 } from '@org/api-client';
 import { useCurrentUser } from '@org/auth';
 import { store, useNotificationDisplayPreferences } from '@org/common';
 import { ThemeProvider } from '@org/design-system';
 import { MediaPreviewProvider } from '@org/media-preview';
 import {
+  AvatarColorProvider,
   AvatarPresenceProvider,
   ConfirmRoot,
   ErrorBoundary,
@@ -23,8 +25,11 @@ import {
   NativeTitleTooltips,
   TooltipProvider,
   toast,
+  type AvatarColorResolver,
   type GifSource,
   type StickerSource,
+  type WorkspaceColorResolver,
+  WorkspaceColorProvider,
 } from '@org/ui';
 import { RealtimeProvider, useUserPresenceMap } from '@org/realtime';
 import {
@@ -159,7 +164,7 @@ function RealtimeAppBridge({ children }: { children: ReactNode }) {
         <AvatarPresenceBridge>
           <AgentAvatarBridge workspaceId={activeWorkspaceId ?? undefined}>
             <MemberProfileBridge workspaceId={activeWorkspaceId ?? undefined}>
-              {children}
+              <WorkspaceColorBridge enabled={!!user}>{children}</WorkspaceColorBridge>
             </MemberProfileBridge>
           </AgentAvatarBridge>
         </AvatarPresenceBridge>
@@ -250,8 +255,47 @@ function MemberProfileBridge({
     },
     [byUserId],
   );
+  // Each person's workspace avatar colour, so every `UserAvatar` (chat senders
+  // included — they're Matrix ids) paints the same stored swatch.
+  const resolveColor = useCallback<AvatarColorResolver>(
+    (userId) => byUserId.get(toPlatformUserId(userId))?.avatarColor,
+    [byUserId],
+  );
   return (
-    <MemberProfileProvider value={resolve}>{children}</MemberProfileProvider>
+    <MemberProfileProvider value={resolve}>
+      <AvatarColorProvider resolve={resolveColor}>{children}</AvatarColorProvider>
+    </MemberProfileProvider>
+  );
+}
+
+/**
+ * Gives every `WorkspaceAvatar` (rail, switcher, notifications…) the
+ * workspace's stored tile colour from `GET /workspaces`, on the switcher's own
+ * query key so it shares that cache and refreshes on `workspace.updated`.
+ */
+function WorkspaceColorBridge({
+  enabled,
+  children,
+}: {
+  enabled: boolean;
+  children: ReactNode;
+}) {
+  const { data: workspaces } = useQuery({
+    queryKey: queryKeys.workspaces.list(),
+    queryFn: () => workspaceApi.list(),
+    enabled,
+    staleTime: 60_000,
+  });
+  const byId = useMemo(
+    () => new Map((workspaces ?? []).map((w) => [w.id, w.avatarColor])),
+    [workspaces],
+  );
+  const resolve = useCallback<WorkspaceColorResolver>(
+    (workspaceId) => byId.get(workspaceId),
+    [byId],
+  );
+  return (
+    <WorkspaceColorProvider resolve={resolve}>{children}</WorkspaceColorProvider>
   );
 }
 

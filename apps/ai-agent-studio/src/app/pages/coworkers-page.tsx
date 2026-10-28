@@ -3,6 +3,12 @@ import {
   Badge,
   Button,
   Card,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
   EmptyState,
   ErrorState,
   LoadingState,
@@ -14,8 +20,8 @@ import {
 } from '@org/ui';
 import { formatRelative } from '@org/utils';
 import { AgentBuilderOptionsProvider, AIEntityAvatar } from '@org/web-agents';
-import { ProviderModelFields, useCoworkerMutations, useCoworkerRoster } from '@org/web-coworkers';
-import { useCanManageAIResource, useWorkspacePermission } from '@org/web-workspace';
+import { CoworkerCreateDialog, ProviderModelFields, useCoworker, useCoworkerMutations, useCoworkerRoster } from '@org/web-coworkers';
+import { useCanManageAIResource, useCreationPolicies, useWorkspacePermission } from '@org/web-workspace';
 import {
   Activity,
   Bot,
@@ -27,14 +33,24 @@ import {
   MessageSquare,
   Pause,
   Plug,
+  Plus,
   Rocket,
   Settings2,
   ShieldCheck,
   Unlink,
   Users,
 } from 'lucide-react';
-import { useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import { WEB_APP_URL } from '../auth-redirect.js';
+import {
+  AIEntityFacts,
+  AIEntityHeader,
+  AIEntityOwner,
+  aiEntityStatusLabel,
+  plural,
+  type AIEntityFact,
+  type AIEntityStatus,
+} from '../components/common/ai-entity-summary.js';
 import { AppConnectorIcon } from '../components/common/app-connector-icon.jsx';
 import { useNavigate } from '../router.js';
 import { useStudioSession } from '../session-guard.js';
@@ -74,6 +90,11 @@ export function CoworkersPage() {
   const { activeWorkspace } = useStudioSession();
   const roster = useCoworkerRoster(activeWorkspace.id);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const [createOpen, setCreateOpen] = useState(false);
+  const { can } = useWorkspacePermission();
+  // Settings → Permissions & Policies → "Who can create AI Coworkers"; the server re-checks it.
+  const { canCreateCoworkers } = useCreationPolicies(activeWorkspace.id);
+  const canCreate = can('create') && canCreateCoworkers;
   const coworkers = roster.data?.coworkers ?? [];
 
   const toggle = (id: string) =>
@@ -92,12 +113,26 @@ export function CoworkersPage() {
         description="Each coworker is an orchestrator: it plans the work, hands reasoning to its specialist agents and acts through the app connectors attached to it. Writes, sends and money moves wait for approval."
         icon={<Users />}
         actions={
-          coworkers.length ? (
-            <Button size="sm" variant="outline" onClick={() => setExpanded(allOpen ? new Set() : new Set(coworkers.map((c) => c.id)))}>
-              {allOpen ? 'Collapse all' : 'Expand all'}
-            </Button>
-          ) : undefined
+          <div className="flex flex-wrap items-center gap-2">
+            {coworkers.length ? (
+              <Button size="sm" variant="outline" onClick={() => setExpanded(allOpen ? new Set() : new Set(coworkers.map((c) => c.id)))}>
+                {allOpen ? 'Collapse all' : 'Expand all'}
+              </Button>
+            ) : null}
+            {canCreate ? (
+              <Button size="sm" leadingIcon={<Plus />} onClick={() => setCreateOpen(true)}>
+                New coworker
+              </Button>
+            ) : null}
+          </div>
         }
+      />
+      <CoworkerCreateDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        workspaceId={activeWorkspace.id}
+        // Open the new one so its apps and specialists can be added straight away.
+        onCreated={(id) => setExpanded((prev) => new Set(prev).add(id))}
       />
 
       {roster.isLoading ? (
@@ -112,7 +147,14 @@ export function CoworkersPage() {
           <ul className="space-y-3" aria-label="Coworkers">
             {coworkers.map((c) => (
               <li key={c.id}>
-                <CoworkerCard coworker={c} workspaceId={activeWorkspace.id} slug={activeWorkspace.slug} open={expanded.has(c.id)} onToggle={() => toggle(c.id)} />
+                <CoworkerCard
+                  coworker={c}
+                  connectable={roster.data?.connectableApps ?? []}
+                  workspaceId={activeWorkspace.id}
+                  slug={activeWorkspace.slug}
+                  open={expanded.has(c.id)}
+                  onToggle={() => toggle(c.id)}
+                />
               </li>
             ))}
           </ul>
@@ -165,45 +207,92 @@ function Stat({ label, value, hint, icon }: { label: string; value: ReactNode; h
   );
 }
 
-function statusOf(c: CoworkerRosterEntry): { label: string; variant: 'success' | 'warning' | 'destructive' | 'neutral' | 'info' } {
-  if (!c.isActive) return { label: 'Paused', variant: 'neutral' };
-  if (c.status === 'ERROR') return { label: 'Error', variant: 'destructive' };
-  if (c.status === 'WORKING' || c.status === 'RUNNING_TASK') return { label: 'Working', variant: 'info' };
-  return { label: 'Live', variant: 'success' };
+function statusOf(c: CoworkerRosterEntry): AIEntityStatus {
+  if (!c.isActive) return 'paused';
+  if (c.status === 'ERROR') return 'error';
+  if (c.status === 'WORKING' || c.status === 'RUNNING_TASK') return 'working';
+  return 'live';
 }
 
-function CoworkerCard({ coworker: c, workspaceId, slug, open, onToggle }: { coworker: CoworkerRosterEntry; workspaceId: string; slug: string; open: boolean; onToggle: () => void }) {
+/**
+ * Edits a coworker in Studio with the same dialog the main app uses (identity,
+ * persona, model, tools, specialists). Loads the full record only when opened.
+ */
+function CoworkerConfigureDialog({ coworkerId, workspaceId, onClose }: { coworkerId: string; workspaceId: string; onClose: () => void }) {
+  const detail = useCoworker(workspaceId, coworkerId);
+  useEffect(() => {
+    if (detail.isError) {
+      toast.error('Couldn’t load this coworker', { description: errorText(detail.error, 'Try again in a moment.') });
+      onClose();
+    }
+  }, [detail.isError, detail.error, onClose]);
+  if (!detail.data) return null;
+  return <CoworkerCreateDialog open onOpenChange={(open) => !open && onClose()} workspaceId={workspaceId} coworker={detail.data} />;
+}
+
+/** Same facts, same order as a My Agents card: tools, apps, then what's specific to a coworker. */
+function coworkerFacts(c: CoworkerRosterEntry): AIEntityFact[] {
+  const attached = c.connectors.filter((x) => x.state === 'attached').length;
+  const facts: AIEntityFact[] = [
+    { label: plural(c.orchestrator.tools, 'tool'), value: c.orchestrator.tools, muted: !c.orchestrator.tools },
+    { label: c.connectors.length ? 'apps attached' : 'apps', value: c.connectors.length ? `${attached}/${c.connectors.length}` : 0, muted: !attached },
+    { label: plural(c.specialists.length, 'specialist'), value: c.specialists.length, muted: !c.specialists.length },
+    { label: plural(c.workflows.length, 'workflow'), value: c.workflows.length, muted: !c.workflows.length },
+    { label: 'runs · 30d', value: number.format(c.activity.runs30d), muted: !c.activity.runs30d },
+  ];
+  if (c.activity.waitingApproval) facts.push({ label: 'awaiting approval', value: c.activity.waitingApproval });
+  return facts;
+}
+
+function CoworkerCard({
+  coworker: c,
+  connectable,
+  workspaceId,
+  slug,
+  open,
+  onToggle,
+}: {
+  coworker: CoworkerRosterEntry;
+  connectable: RosterConnector[];
+  workspaceId: string;
+  slug: string;
+  open: boolean;
+  onToggle: () => void;
+}) {
   const panelId = useId();
   const status = statusOf(c);
   const attached = c.connectors.filter((x) => x.state === 'attached');
+  const { can } = useWorkspacePermission();
+  const canManage = useCanManageAIResource()(c.creatorId) && can('update');
+  const [configureOpen, setConfigureOpen] = useState(false);
   return (
     <Card className="overflow-hidden p-0">
+      {configureOpen ? <CoworkerConfigureDialog coworkerId={c.id} workspaceId={workspaceId} onClose={() => setConfigureOpen(false)} /> : null}
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={open}
         aria-controls={panelId}
-        aria-label={`${c.name}, ${c.role}, ${status.label}. ${attached.length} of ${c.connectors.length} connectors attached. ${open ? 'Collapse' : 'Expand'} details`}
+        aria-label={`${c.name}, ${c.role}, ${aiEntityStatusLabel(status)}. ${attached.length} of ${c.connectors.length} apps attached. ${open ? 'Collapse' : 'Expand'} details`}
         className="flex w-full items-start gap-3 p-4 text-left transition-colors hover:bg-surface-raised/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
-        <AIEntityAvatar name={c.name} type="coworker" avatarUrl={c.avatarUrl} status={c.status as CoworkerStatus} showStatusDot={c.isActive} size="md" />
-        <span className="block min-w-0 flex-1">
-          <span className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold text-foreground">{c.name}</span>
-            <span className="text-xs text-muted-foreground">{c.role}</span>
-            <Badge variant={status.variant} className="text-2xs">{status.label}</Badge>
-            {c.adoptedFrom ? (
-              <Badge variant="outline" className="text-2xs">Was {ADOPTED_LABEL[c.adoptedFrom] ?? c.adoptedFrom}</Badge>
-            ) : null}
-          </span>
-          <span className="mt-1 block text-xs text-muted-foreground">
-            Orchestrator · {c.specialists.length} specialist agent{c.specialists.length === 1 ? '' : 's'} · {attached.length}/{c.connectors.length} connector{c.connectors.length === 1 ? '' : 's'} attached ·{' '}
-            {c.workflows.length} workflow{c.workflows.length === 1 ? '' : 's'}
-            {c.activity.waitingApproval ? ` · ${c.activity.waitingApproval} awaiting approval` : ''}
+        <AIEntityHeader
+          avatar={<AIEntityAvatar name={c.name} type="coworker" avatarUrl={c.avatarUrl} status={c.status as CoworkerStatus} showStatusDot={false} size="md" />}
+          name={c.name}
+          kind="Coworker"
+          role={c.role}
+          status={status}
+          model={c.model}
+          provider={c.provider}
+          badges={c.adoptedFrom ? <Badge variant="outline" className="text-2xs">Was {ADOPTED_LABEL[c.adoptedFrom] ?? c.adoptedFrom}</Badge> : null}
+        >
+          <span className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+            <AIEntityFacts facts={coworkerFacts(c)} />
+            <AIEntityOwner owner={c.owner} />
           </span>
           {c.connectors.length ? (
             // Spans, not a list: a button may only hold phrasing content. The button's label carries the summary.
-            <span className="mt-2 flex flex-wrap gap-1.5" aria-hidden>
+            <span className="flex flex-wrap gap-1.5" aria-hidden>
               {c.connectors.map((x) => (
                 <span
                   key={x.provider}
@@ -215,20 +304,16 @@ function CoworkerCard({ coworker: c, workspaceId, slug, open, onToggle }: { cowo
               ))}
             </span>
           ) : null}
-        </span>
-        <span className="hidden shrink-0 text-right sm:block">
-          <span className="block text-sm font-semibold tabular-nums text-foreground">{number.format(c.activity.runs30d)}</span>
-          <span className="block text-xs text-muted-foreground">runs · 30 days</span>
-        </span>
+        </AIEntityHeader>
         <ChevronDown aria-hidden className={`mt-1 size-4 shrink-0 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open ? (
         <div id={panelId} className="min-w-0 space-y-5 border-t border-border p-4">
-          <OrchestratorPanel coworker={c} workspaceId={workspaceId} slug={slug} />
+          <OrchestratorPanel coworker={c} workspaceId={workspaceId} slug={slug} onConfigure={() => setConfigureOpen(true)} />
           <div className="grid gap-5 lg:grid-cols-2 [&>*]:min-w-0">
-            <SpecialistsSection coworker={c} slug={slug} />
-            <ConnectorsSection coworker={c} workspaceId={workspaceId} />
+            <SpecialistsSection coworker={c} onConfigure={canManage ? () => setConfigureOpen(true) : undefined} />
+            <ConnectorsSection coworker={c} connectable={connectable} workspaceId={workspaceId} />
           </div>
           <WorkflowsSection coworker={c} slug={slug} />
           <MetricsSection coworker={c} slug={slug} />
@@ -251,7 +336,17 @@ function SectionTitle({ icon, children, aside }: { icon: ReactNode; children: Re
 }
 
 /** Model, launch state and what the orchestrator itself may do. */
-function OrchestratorPanel({ coworker: c, workspaceId, slug }: { coworker: CoworkerRosterEntry; workspaceId: string; slug: string }) {
+function OrchestratorPanel({
+  coworker: c,
+  workspaceId,
+  slug,
+  onConfigure,
+}: {
+  coworker: CoworkerRosterEntry;
+  workspaceId: string;
+  slug: string;
+  onConfigure: () => void;
+}) {
   const { can } = useWorkspacePermission();
   const canManage = useCanManageAIResource()(c.creatorId) && can('update');
   const mutations = useCoworkerMutations(workspaceId);
@@ -307,12 +402,15 @@ function OrchestratorPanel({ coworker: c, workspaceId, slug }: { coworker: Cowor
         icon={<Bot />}
         aside={
           <div className="flex flex-wrap items-center gap-2">
-            <Button asChild size="sm" variant="ghost" leadingIcon={<MessageSquare />}>
-              <a href={`${WEB_APP_URL}/w/${slug}/coworkers/${c.id}`}>Chat</a>
+            {/* Chat lives in the main app; say so instead of silently leaving Studio. */}
+            <Button asChild size="sm" variant="ghost" leadingIcon={<MessageSquare />} trailingIcon={<ExternalLink />}>
+              <a href={`${WEB_APP_URL}/w/${slug}/coworkers/${c.id}`} target="_blank" rel="noreferrer">
+                Chat
+              </a>
             </Button>
             {canManage ? (
-              <Button asChild size="sm" variant="ghost" leadingIcon={<Settings2 />}>
-                <a href={`${WEB_APP_URL}/w/${slug}/ai/agents/${c.id}`}>Configure</a>
+              <Button size="sm" variant="ghost" leadingIcon={<Settings2 />} onClick={onConfigure}>
+                Configure
               </Button>
             ) : null}
             {canManage ? (
@@ -380,17 +478,24 @@ function OrchestratorPanel({ coworker: c, workspaceId, slug }: { coworker: Cowor
   );
 }
 
-function SpecialistsSection({ coworker: c, slug }: { coworker: CoworkerRosterEntry; slug: string }) {
+function SpecialistsSection({ coworker: c, onConfigure }: { coworker: CoworkerRosterEntry; onConfigure?: () => void }) {
   return (
     <section aria-label="Specialist agents">
-      <SectionTitle icon={<Bot />}>Specialist agents ({c.specialists.length})</SectionTitle>
+      <SectionTitle
+        icon={<Bot />}
+        aside={
+          onConfigure ? (
+            <Button size="sm" variant="ghost" leadingIcon={<Settings2 />} onClick={onConfigure}>
+              Manage
+            </Button>
+          ) : undefined
+        }
+      >
+        Specialist agents ({c.specialists.length})
+      </SectionTitle>
       {c.specialists.length === 0 ? (
         <p className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">
-          None yet. The orchestrator answers on its own; link reasoning agents in{' '}
-          <a className="text-primary-text underline-offset-2 hover:underline" href={`${WEB_APP_URL}/w/${slug}/ai/agents/${c.id}`}>
-            Configure
-          </a>{' '}
-          to hand them specialised work.
+          None yet. The orchestrator answers on its own.{onConfigure ? ' Use Manage to link agents it can hand specialised work to.' : ''}
         </p>
       ) : (
         <ul className="space-y-1.5">
@@ -410,13 +515,15 @@ function SpecialistsSection({ coworker: c, slug }: { coworker: CoworkerRosterEnt
 }
 
 /** Connector agents: one canonical connection per app, attached to as many coworkers as need it. */
-function ConnectorsSection({ coworker: c, workspaceId }: { coworker: CoworkerRosterEntry; workspaceId: string }) {
+function ConnectorsSection({ coworker: c, connectable, workspaceId }: { coworker: CoworkerRosterEntry; connectable: RosterConnector[]; workspaceId: string }) {
   const navigate = useNavigate();
   const { can } = useWorkspacePermission();
   const canManage = useCanManageAIResource()(c.creatorId) && can('update');
   const mutations = useCoworkerMutations(workspaceId);
   const [busy, setBusy] = useState<string | null>(null);
   const ready = c.connectors.filter((x) => x.state === 'ready_to_attach' && x.integrationId);
+  // Template apps already have their own row and Attach button.
+  const addable = connectable.filter((x) => !c.connectors.some((y) => y.provider === x.provider));
 
   const attach = async (list: RosterConnector[]) => {
     setBusy(list.length > 1 ? '*' : list[0]?.provider ?? null);
@@ -485,17 +592,57 @@ function ConnectorsSection({ coworker: c, workspaceId }: { coworker: CoworkerRos
       <SectionTitle
         icon={<Plug />}
         aside={
-          canManage && ready.length > 1 ? (
-            <Button size="sm" variant="ghost" loading={busy === '*'} onClick={() => void attach(ready)}>
-              Attach all ready ({ready.length})
-            </Button>
+          canManage ? (
+            <div className="flex flex-wrap items-center gap-1">
+              {ready.length > 1 ? (
+                <Button size="sm" variant="ghost" loading={busy === '*'} onClick={() => void attach(ready)}>
+                  Attach all ready ({ready.length})
+                </Button>
+              ) : null}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="outline" leadingIcon={<Plus />} loading={busy !== null && addable.some((x) => x.provider === busy)} aria-label={`Add an app to ${c.name}`}>
+                    Add app
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="max-h-80 w-72 overflow-y-auto">
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">Connected apps</DropdownMenuLabel>
+                  {addable.length === 0 ? (
+                    <p className="px-2 py-1.5 text-xs text-muted-foreground">Every connected app is already on {c.name}.</p>
+                  ) : (
+                    addable.map((x) => (
+                      <DropdownMenuItem key={x.provider} onSelect={() => void attach([x])} className="gap-2 text-xs">
+                        <AppConnectorIcon connectorId={x.provider.toLowerCase()} name={x.name} category={x.category ?? ''} size={15} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-medium text-foreground">{x.name}</span>
+                          <span className="block truncate text-muted-foreground">
+                            {x.readActions} read · {x.writeActions} write
+                            {x.connectionScope === 'USER' ? ' · personal' : ''}
+                          </span>
+                        </span>
+                      </DropdownMenuItem>
+                    ))
+                  )}
+                  {can('update') ? (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onSelect={() => navigate('/connectors')} className="gap-2 text-xs">
+                        <Plug className="size-3.5" /> Connect another app…
+                      </DropdownMenuItem>
+                    </>
+                  ) : null}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           ) : undefined
         }
       >
         Connector agents ({c.connectors.filter((x) => x.state === 'attached').length}/{c.connectors.length})
       </SectionTitle>
       {c.connectors.length === 0 ? (
-        <p className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">No apps for this coworker. Attach a connection from Configure.</p>
+        <p className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">
+          No apps for this coworker yet.{canManage ? ' Use Add app to attach a connected app.' : ''}
+        </p>
       ) : (
         <ul className="space-y-1.5">
           {c.connectors.map((x) => (

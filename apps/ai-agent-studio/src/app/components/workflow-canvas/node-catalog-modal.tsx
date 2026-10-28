@@ -17,6 +17,26 @@ import {
   type NodeCategory,
 } from './node-library.js';
 
+/** Per-category accent colour for the card's icon tile and title (a design-system accent token). */
+const CATEGORY_ACCENT: Record<NodeCategory, string> = {
+  all: 'var(--color-accent-indigo)',
+  triggers: 'var(--color-accent-green)',
+  widgets: 'var(--color-accent-pink)',
+  connectors: 'var(--color-accent-blue)',
+  ai: 'var(--color-accent-violet)',
+  knowledge: 'var(--color-accent-cyan)',
+  logic: 'var(--color-accent-amber)',
+  transform: 'var(--color-accent-teal)',
+  tools: 'var(--color-accent-orange)',
+  human: 'var(--color-accent-rose)',
+  output: 'var(--color-accent-indigo)',
+  annotations: 'var(--color-accent-amber)',
+};
+
+const CATEGORY_LABELS = Object.fromEntries(
+  CATEGORY_ITEMS.map((c: { id: NodeCategory; label: string }) => [c.id, c.label]),
+) as Partial<Record<NodeCategory, string>>;
+
 interface NodeCatalogModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -74,6 +94,13 @@ export function NodeCatalogModal({
     setFocusedIndex(0);
   }, [search, selectedCategory]);
 
+  // Keep the active category tab visible (it can change via ←/→)
+  useEffect(() => {
+    containerRef.current
+      ?.querySelector<HTMLElement>(`[data-category-id="${selectedCategory}"]`)
+      ?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+  }, [selectedCategory]);
+
   // Handle escape and click outside
   useEffect(() => {
     if (!isOpen) return;
@@ -113,30 +140,19 @@ export function NodeCatalogModal({
   }, [focusedIndex]);
 
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const count = filteredNodes.length;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setFocusedIndex((prev) =>
-        filteredNodes.length > 0 ? (prev + 3) % filteredNodes.length : 0,
-      );
+      setFocusedIndex((prev) => (count > 0 ? (prev + 1) % count : 0));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setFocusedIndex((prev) =>
-        filteredNodes.length > 0
-          ? (prev - 3 + filteredNodes.length) % filteredNodes.length
-          : 0,
-      );
-    } else if (e.key === 'ArrowRight') {
+      setFocusedIndex((prev) => (count > 0 ? (prev - 1 + count) % count : 0));
+    } else if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && !search) {
+      // Left/right cycles category tabs (only while the search box is empty, so the caret still moves).
       e.preventDefault();
-      setFocusedIndex((prev) =>
-        filteredNodes.length > 0 ? (prev + 1) % filteredNodes.length : 0,
-      );
-    } else if (e.key === 'ArrowLeft') {
-      e.preventDefault();
-      setFocusedIndex((prev) =>
-        filteredNodes.length > 0
-          ? (prev - 1 + filteredNodes.length) % filteredNodes.length
-          : 0,
-      );
+      const ids = CATEGORY_ITEMS.map((c: { id: NodeCategory }) => c.id);
+      const step = e.key === 'ArrowRight' ? 1 : -1;
+      setSelectedCategory((prev) => ids[(ids.indexOf(prev) + step + ids.length) % ids.length]);
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (filteredNodes[focusedIndex]) {
@@ -234,6 +250,7 @@ export function NodeCatalogModal({
             return (
               <Button
                 key={cat.id}
+                data-category-id={cat.id}
                 type="button"
                 variant={isSelected ? 'primary' : 'subtle'}
                 size="xs"
@@ -258,11 +275,13 @@ export function NodeCatalogModal({
         </div>
       </div>
 
-      {/* GRID VIEW */}
+      {/* LIST VIEW */}
       <div
         ref={gridRef}
         onWheel={(e) => e.stopPropagation()}
-        className="nowheel nodrag nopan flex-1 overflow-y-auto overscroll-contain p-4 scrollbar-subtle max-h-[46vh]"
+        role="listbox"
+        aria-label="Workflow steps"
+        className="nowheel nodrag nopan flex-1 overflow-y-auto overscroll-contain p-3 scrollbar-subtle max-h-[46vh]"
       >
         {filteredNodes.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
@@ -275,73 +294,94 @@ export function NodeCatalogModal({
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+          <div className="flex flex-col gap-1">
             {filteredNodes.map((item, idx) => {
               const Icon = item.icon || Cpu;
               const isFocused = idx === focusedIndex;
+              const accent = CATEGORY_ACCENT[item.category] ?? CATEGORY_ACCENT.all;
+              // Section header whenever the category changes (only in the mixed "All" view).
+              const showHeader =
+                selectedCategory === 'all' &&
+                (idx === 0 || filteredNodes[idx - 1].category !== item.category);
 
               return (
-                <div
-                  key={item.key ?? item.type}
-                  data-catalog-idx={idx}
-                  draggable
-                  onDragStart={(e) => onDragStart(e, item)}
-                  onClick={() => {
-                    onSelectNode(item);
-                    onClose();
-                  }}
-                  onMouseEnter={() => setFocusedIndex(idx)}
-                  className={cn(
-                    'group relative flex flex-col justify-between rounded-xl border p-3 transition-all cursor-pointer select-none text-left',
-                    isFocused
-                      ? 'border-foreground/30 bg-selected shadow-md ring-1 ring-foreground/10 -translate-y-0.5'
-                      : 'border-border/80 bg-surface hover:border-border-strong hover:bg-surface-raised/60 hover:shadow-xs hover:-translate-y-0.5',
+                <React.Fragment key={item.key ?? item.type}>
+                  {showHeader && (
+                    <div
+                      style={{ '--cat': accent } as React.CSSProperties}
+                      className={cn(
+                        'flex items-center gap-2 px-1 pb-1 text-2xs font-semibold uppercase tracking-wider text-muted-foreground',
+                        idx === 0 ? 'pt-0' : 'pt-3',
+                      )}
+                    >
+                      <span className="size-1.5 rounded-full bg-(--cat)" />
+                      {CATEGORY_LABELS[item.category] ?? item.category}
+                    </div>
                   )}
-                >
-                  <div className="space-y-1.5">
-                    <div className="flex items-start justify-between gap-1.5">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div
-                          className={cn(
-                            'flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors',
-                            isFocused
-                              ? 'bg-foreground text-background'
-                              : 'bg-surface-raised text-primary group-hover:bg-foreground group-hover:text-background',
-                          )}
-                        >
-                          {item.defaultConfig?.connectorId ? (
-                            <AppConnectorIcon connectorId={item.defaultConfig.connectorId} size={16} />
-                          ) : (
-                            <Icon className="size-3.5" />
-                          )}
-                        </div>
-                        <span className="font-semibold text-xs text-foreground group-hover:text-primary transition-colors truncate">
-                          {item.label}
-                        </span>
-                      </div>
-
-                      {item.badge && (
-                        <span className="shrink-0 rounded-full bg-surface-raised border border-border/60 px-1.5 py-0.5 text-2xs font-medium text-muted-foreground">
-                          {item.badge}
-                        </span>
+                  <div
+                    data-catalog-idx={idx}
+                    role="option"
+                    aria-selected={isFocused}
+                    draggable
+                    onDragStart={(e) => onDragStart(e, item)}
+                    onClick={() => {
+                      onSelectNode(item);
+                      onClose();
+                    }}
+                    onMouseEnter={() => setFocusedIndex(idx)}
+                    style={{ '--cat': accent } as React.CSSProperties}
+                    className={cn(
+                      'group relative flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors cursor-pointer select-none text-left',
+                      isFocused
+                        ? 'border-(--cat)/40 bg-(--cat)/8'
+                        : 'border-transparent hover:bg-surface-raised/60',
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        'flex size-11 shrink-0 items-center justify-center rounded-xl bg-(--cat)/15 text-(--cat) ring-1 ring-inset ring-(--cat)/30 transition-transform',
+                        isFocused && 'scale-105',
+                      )}
+                    >
+                      {item.defaultConfig?.connectorId ? (
+                        <AppConnectorIcon connectorId={item.defaultConfig.connectorId} size={24} />
+                      ) : (
+                        <Icon className="size-5" />
                       )}
                     </div>
 
-                    <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                      {item.description || item.subtitle}
-                    </p>
-                  </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span
+                          className={cn(
+                            'font-semibold text-sm leading-tight truncate transition-colors',
+                            isFocused ? 'text-(--cat)' : 'text-foreground',
+                          )}
+                        >
+                          {item.label}
+                        </span>
+                        {item.badge && (
+                          <span className="shrink-0 rounded-full bg-(--cat)/12 px-1.5 py-0.5 text-2xs font-medium text-(--cat)">
+                            {item.badge}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-0.5 text-xs text-muted-foreground truncate">
+                        {item.description || item.subtitle}
+                      </p>
+                    </div>
 
-                  <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-border/40 text-2xs text-muted-foreground">
-                    <span className="capitalize font-mono opacity-70">
-                      {item.category}
-                    </span>
-                    <span className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-primary font-semibold transition-opacity">
+                    <span
+                      className={cn(
+                        'flex shrink-0 items-center gap-1 rounded-lg bg-(--cat)/15 px-2 py-1 text-xs font-semibold text-(--cat) transition-opacity',
+                        isFocused ? 'opacity-100' : 'opacity-0',
+                      )}
+                    >
+                      <Plus className="size-3.5 stroke-[2.5]" />
                       <span>Add</span>
-                      <Plus className="size-3 stroke-[2.5]" />
                     </span>
                   </div>
-                </div>
+                </React.Fragment>
               );
             })}
           </div>
@@ -353,15 +393,19 @@ export function NodeCatalogModal({
         <span className="flex items-center gap-1.5">
           <span>Click to place</span>
           <span>•</span>
-          <span>Drag card onto canvas</span>
+          <span>Drag onto canvas</span>
         </span>
         <span className="flex items-center gap-2">
           <span className="flex items-center gap-1">
             <Kbd size="xs">↑</Kbd>
             <Kbd size="xs">↓</Kbd>
+            <span>navigate</span>
+          </span>
+          <span>•</span>
+          <span className="flex items-center gap-1">
             <Kbd size="xs">←</Kbd>
             <Kbd size="xs">→</Kbd>
-            <span>navigate</span>
+            <span>category</span>
           </span>
           <span>•</span>
           <span className="flex items-center gap-1">

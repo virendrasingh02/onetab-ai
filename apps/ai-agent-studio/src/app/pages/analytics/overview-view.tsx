@@ -28,6 +28,16 @@ import {
   Pie,
   Cell,
 } from 'recharts';
+import {
+  DistributionRow,
+  InsightsPanel,
+  QualityCard,
+  RankingsRow,
+  TrendCharts,
+  formatCompact,
+  formatDuration,
+  formatUsd,
+} from './overview-sections.js';
 
 const PIE_COLORS = ['var(--primary)', 'var(--accent-violet)', 'var(--accent-cyan)', 'var(--success)', 'var(--warning)', 'var(--accent-pink)'];
 
@@ -75,7 +85,7 @@ function SlowestCard({
                 {item.name}
               </span>
               <Badge variant="outline" className="text-2xs">
-                {Math.round(item.durationMs)}ms
+                {formatDuration(item.durationMs)}
               </Badge>
             </div>
           ))
@@ -86,7 +96,7 @@ function SlowestCard({
 }
 
 export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
-  const { execution, tokens, cost: costRaw, performance: perf, reliability: rel } = data;
+  const { execution, tokens, cost: costRaw, performance: perf, reliability: rel, deltas } = data;
 
   const executions = {
     total: execution.totalRuns,
@@ -103,13 +113,6 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
     uniqueActiveAgents: execution.uniqueActiveAgents,
     uniqueActiveWorkflows: execution.uniqueActiveWorkflows,
     uniqueActiveUsers: execution.uniqueActiveUsers,
-  };
-
-  // The API only compares run volume and success rate against the previous
-  // window; token/cost movement isn't computed, so those deltas stay hidden.
-  const comparison = {
-    executionVolumeGrowthPct: execution.previousComparison.totalRunsPct,
-    successRateDiffPct: execution.previousComparison.successRateDelta,
   };
 
   const aiUsage = {
@@ -137,7 +140,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
     },
     avgModelResponseMs: perf.avgModelResponseTimeMs,
     totalToolDurationMs: perf.toolExecutionDurationMs,
-    timeToFirstTokenMs: perf.timeToFirstTokenMs ?? 0,
+    timeToFirstTokenMs: perf.timeToFirstTokenMs,
     queueWaitTimeMs: perf.queueWaitTimeMs,
     slowestWorkflows: perf.slowestWorkflows.map((w) => ({ name: w.name, durationMs: w.avgLatencyMs })),
     slowestAgents: perf.slowestAgents.map((a) => ({ name: a.name, durationMs: a.avgLatencyMs })),
@@ -154,15 +157,16 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
     recoveryRate: rel.recoveryRatePct,
   };
 
-  const formatTokens = (t: number) => {
-    if (t >= 1_000_000) return `${(t / 1_000_000).toFixed(2)}M`;
-    if (t >= 1_000) return `${(t / 1_000).toFixed(1)}k`;
-    return t.toLocaleString();
-  };
+  const formatTokens = formatCompact;
+  const formatCurrency = formatUsd;
 
-  const formatCurrency = (amt: number) => `$${amt.toFixed(2)}`;
+  /** "—" when the runtime never measured the value, so 0ms is never shown as a fact. */
+  const measured = (ms: number | null) => (ms === null || ms <= 0 ? '—' : formatDuration(ms));
 
-  const renderDelta = (pct: number, inverse = false) => {
+  const renderDelta = (pct: number | null, inverse = false, unit = '%') => {
+    if (pct === null) {
+      return <span className="text-xs text-muted-foreground">No previous data</span>;
+    }
     const isGood = inverse ? pct <= 0 : pct >= 0;
     const Icon = pct >= 0 ? ArrowUpRight : ArrowDownRight;
     return (
@@ -174,7 +178,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
       >
         <Icon className="size-3" />
         <span>
-          {pct > 0 ? `+${pct.toFixed(1)}%` : `${pct.toFixed(1)}%`} vs previous
+          {pct > 0 ? `+${pct.toFixed(1)}${unit}` : `${pct.toFixed(1)}${unit}`} vs previous
         </span>
       </div>
     );
@@ -182,6 +186,9 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
 
   return (
     <div className="space-y-6">
+      {/* SECTION 0: WHAT NEEDS ATTENTION */}
+      <InsightsPanel insights={data.insights ?? []} onNavigateToTab={onNavigateToTab} />
+
       {/* SECTION 1: EXECUTIVE KPIS */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {/* Total Runs */}
@@ -190,7 +197,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
           className="p-4 sm:p-5 flex flex-col justify-between hover:border-border-strong transition-all cursor-pointer group shadow-2xs"
         >
           <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-medium">Total Workflow Runs</span>
+            <span className="text-xs font-medium">Total Runs</span>
             <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
               <Activity className="size-4" />
             </div>
@@ -199,7 +206,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
             {executions.total.toLocaleString()}
           </div>
           <div className="mt-1 flex items-center justify-between">
-            {renderDelta(comparison.executionVolumeGrowthPct)}
+            {renderDelta(deltas.totalRunsPct)}
             <span className="text-2xs text-muted-foreground">
               {executions.running + executions.queued} active
             </span>
@@ -221,7 +228,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
             {executions.successRate.toFixed(1)}%
           </div>
           <div className="mt-1 flex items-center justify-between">
-            {renderDelta(comparison.successRateDiffPct)}
+            {renderDelta(deltas.successRatePts, false, ' pts')}
             <span className="text-2xs text-muted-foreground">
               {executions.failed} failed
             </span>
@@ -243,6 +250,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
             {formatTokens(aiUsage.totalTokens)}
           </div>
           <div className="mt-1 flex items-center justify-between">
+            {renderDelta(deltas.tokensPct, true)}
             <span className="text-2xs text-muted-foreground">
               {aiUsage.avgTokensPerExecution.toLocaleString()} / run
             </span>
@@ -264,9 +272,38 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
             {formatCurrency(cost.totalEstimatedCost)}
           </div>
           <div className="mt-1 flex items-center justify-between">
+            {renderDelta(deltas.costPct, true)}
             <span className="text-2xs text-muted-foreground">
               Budget: {cost.budgetUtilization.toFixed(0)}%
             </span>
+          </div>
+        </Card>
+      </div>
+
+      {/* SECTION 1b: SECONDARY KPIS */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <Card className="p-4 shadow-2xs">
+          <div className="text-xs font-medium text-muted-foreground">Avg Run Time</div>
+          <div className="mt-1 text-xl font-bold text-foreground">{measured(performance.avgDurationMs)}</div>
+          <div className="mt-1">{renderDelta(deltas.avgLatencyPct, true)}</div>
+        </Card>
+        <Card className="p-4 shadow-2xs">
+          <div className="text-xs font-medium text-muted-foreground">p95 Run Time</div>
+          <div className="mt-1 text-xl font-bold text-foreground">{measured(performance.latencyPercentiles.p95)}</div>
+          <div className="mt-1">{renderDelta(deltas.p95LatencyPct, true)}</div>
+        </Card>
+        <Card className="p-4 shadow-2xs">
+          <div className="text-xs font-medium text-muted-foreground">Cost per Run</div>
+          <div className="mt-1 text-xl font-bold text-foreground">{formatCurrency(costRaw.costPerRunUsd)}</div>
+          <div className="mt-1 text-2xs text-muted-foreground">
+            {formatCurrency(costRaw.costPerSuccessfulRunUsd)} per successful run
+          </div>
+        </Card>
+        <Card className="p-4 shadow-2xs">
+          <div className="text-xs font-medium text-muted-foreground">Tool Calls</div>
+          <div className="mt-1 text-xl font-bold text-foreground">{tokens.toolInvocationCount.toLocaleString()}</div>
+          <div className="mt-1 text-2xs text-muted-foreground">
+            {formatTokens(tokens.totalInputTokens)} in · {formatTokens(tokens.totalOutputTokens)} out tokens
           </div>
         </Card>
       </div>
@@ -359,7 +396,10 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
             </p>
           </div>
 
-          <div className="h-44 w-full my-2">
+          {aiUsage.modelUsageDistribution.length === 0 && (
+            <div className="my-6 text-center text-xs text-muted-foreground">No model calls in this window.</div>
+          )}
+          <div className={cn('h-44 w-full my-2', aiUsage.modelUsageDistribution.length === 0 && 'hidden')}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -415,6 +455,12 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
         </Card>
       </div>
 
+      {/* SECTION 2b: TOKENS, SPEND, LATENCY OVER TIME */}
+      <TrendCharts data={data} />
+
+      {/* SECTION 2c: DISTRIBUTIONS */}
+      <DistributionRow data={data} />
+
       {/* SECTION 3: PERFORMANCE LATENCY & RELIABILITY GRID */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Latency Percentiles */}
@@ -427,7 +473,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
               </h3>
             </div>
             <span className="text-xs text-muted-foreground">
-              Avg: {Math.round(performance.avgDurationMs)}ms
+              Avg: {measured(performance.avgDurationMs)}
             </span>
           </div>
 
@@ -437,7 +483,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
                 p50 (Median)
               </div>
               <div className="mt-1 text-base font-bold text-foreground">
-                {Math.round(performance.latencyPercentiles.p50)}ms
+                {measured(performance.latencyPercentiles.p50)}
               </div>
             </div>
             <div className="rounded-lg border border-border bg-surface-raised p-2.5">
@@ -445,7 +491,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
                 p90
               </div>
               <div className="mt-1 text-base font-bold text-foreground">
-                {Math.round(performance.latencyPercentiles.p90)}ms
+                {measured(performance.latencyPercentiles.p90)}
               </div>
             </div>
             <div className="rounded-lg border border-border bg-surface-raised p-2.5">
@@ -453,7 +499,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
                 p95
               </div>
               <div className="mt-1 text-base font-bold text-warning-text">
-                {Math.round(performance.latencyPercentiles.p95)}ms
+                {measured(performance.latencyPercentiles.p95)}
               </div>
             </div>
             <div className="rounded-lg border border-border bg-surface-raised p-2.5">
@@ -461,34 +507,34 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
                 p99
               </div>
               <div className="mt-1 text-base font-bold text-destructive-text">
-                {Math.round(performance.latencyPercentiles.p99)}ms
+                {measured(performance.latencyPercentiles.p99)}
               </div>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2 text-xs border-t border-border pt-3 text-muted-foreground">
             <div>
-              <span>Model Turnaround: </span>
+              <span>Model Time: </span>
               <strong className="text-foreground">
-                {Math.round(performance.avgModelResponseMs)}ms
+                {measured(performance.avgModelResponseMs)}
               </strong>
             </div>
             <div>
-              <span>Tool Execution: </span>
+              <span>Tool Time: </span>
               <strong className="text-foreground">
-                {Math.round(performance.totalToolDurationMs)}ms
+                {measured(performance.totalToolDurationMs)}
               </strong>
             </div>
             <div>
               <span>Time to 1st Token: </span>
-              <strong className="text-foreground">
-                {Math.round(performance.timeToFirstTokenMs)}ms
+              <strong className="text-foreground" title="Model calls are not streamed yet, so this is not measured">
+                {measured(performance.timeToFirstTokenMs)}
               </strong>
             </div>
             <div>
               <span>Queue Delay: </span>
               <strong className="text-foreground">
-                {Math.round(performance.queueWaitTimeMs)}ms
+                {measured(performance.queueWaitTimeMs)}
               </strong>
             </div>
           </div>
@@ -548,7 +594,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
             <div className="flex justify-between items-center text-muted-foreground">
               <span>Self-Healing Recovery Rate</span>
               <span className="font-semibold text-success-text">
-                {reliability.recoveryRate.toFixed(1)}%
+                {reliability.recoveryRate === null ? 'No retries' : `${reliability.recoveryRate.toFixed(1)}%`}
               </span>
             </div>
           </div>
@@ -579,6 +625,10 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
           items={performance.slowestNodes}
         />
       </div>
+
+      {/* SECTION 4b: RANKINGS + QUALITY */}
+      <RankingsRow data={data} onNavigateToTab={onNavigateToTab} />
+      <QualityCard data={data} onNavigateToTab={onNavigateToTab} />
 
       {/* SECTION 5: ACTIVE POPULATION FOOTER */}
       <div className="flex flex-wrap items-center justify-between p-4 rounded-xl border border-border bg-surface-raised text-xs text-muted-foreground">

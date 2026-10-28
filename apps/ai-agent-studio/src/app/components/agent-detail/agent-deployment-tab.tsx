@@ -1,10 +1,11 @@
 import type { AIAgentDetail } from '@org/types';
 import { Badge, Button, EmptyState, ErrorState, LoadingState, ResponsiveTabs } from '@org/ui';
-import { Activity, CheckCircle2, Globe, History, KeyRound, Minus, Palette, Radio, Rocket, Sparkles, Zap } from 'lucide-react';
+import { Activity, CheckCircle2, Globe, History, KeyRound, Minus, Palette, Radio, Rocket, Settings2, Sparkles, Zap } from 'lucide-react';
 import { useState } from 'react';
 import { AgentTabPage } from './agent-tab-page.js';
 import { ApiKeysManager } from './deployment/api-keys-manager.js';
 import { OverviewPanel, type DeploymentSection } from './deployment/overview-panel.js';
+import { SettingsPanel } from './deployment/settings-panel.js';
 import { TargetsPanel } from './deployment/targets-panel.js';
 import { errorMessage, useDeployment } from './deployment/use-deployment.js';
 import { PublishDialog, VersionsPanel } from './deployment/versions-panel.js';
@@ -145,6 +146,7 @@ export function AgentDeploymentTab({ agent }: { agent: AIAgentDetail }) {
             { value: 'webhooks', label: 'Webhooks', icon: <Zap className="size-3.5" />, count: api.webhooksQuery.data?.length || undefined },
             { value: 'api-keys', label: 'API keys', icon: <KeyRound className="size-3.5" /> },
             { value: 'versions', label: 'Versions', icon: <History className="size-3.5" /> },
+            { value: 'settings', label: 'Settings', icon: <Settings2 className="size-3.5" /> },
           ]}
         />
       }
@@ -160,6 +162,7 @@ export function AgentDeploymentTab({ agent }: { agent: AIAgentDetail }) {
       {section === 'webhooks' && <WebhooksPanel api={api} deployment={deployment} />}
       {section === 'api-keys' && <ApiKeysManager workspaceId={api.workspaceId} />}
       {section === 'versions' && <VersionsPanel api={api} deployment={deployment} onPublish={openPublish} />}
+      {section === 'settings' && <SettingsPanel api={api} deployment={deployment} />}
 
       <PublishDialog api={api} deployment={deployment} open={publishOpen} initialVersion={publishVersion} onOpenChange={setPublishOpen} />
     </AgentTabPage>

@@ -103,7 +103,7 @@ export function WebhooksPanel({ api, deployment }: { api: DeploymentApi; deploym
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h3 className="text-base font-bold text-foreground">Outbound webhooks</h3>
+          <h3 className="text-sm font-semibold text-foreground">Outbound webhooks</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Signed JSON POSTs to your server when this deployment’s runs finish, fail or need a decision.
           </p>

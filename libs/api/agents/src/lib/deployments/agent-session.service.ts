@@ -12,6 +12,7 @@ import type {
   AgentSessionAttachment,
   AgentSessionMessage,
 } from '@org/types';
+import { aiEntityAvatarFromLegacy, aiEntityAvatarImageUrl } from '@org/types';
 import { AgentDeploymentService } from './agent-deployment.service.js';
 
 /** An uploaded file as the session keeps it: what the visitor sees, plus its text for the model. */
@@ -45,6 +46,11 @@ const AVATAR_DATA_URL = /^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,[a-z0
  * The first candidate a third-party page can safely put in an `<img src>`:
  * an http(s) URL, a same-origin path, or a base64 image data URL.
  */
+/** The widget's brand colour when it's a plain hex, for an icon saved without a colour. */
+function brandHex(value: unknown): string | undefined {
+  return typeof value === 'string' && /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(value) ? value : undefined;
+}
+
 export function widgetAvatarUrl(...candidates: unknown[]): string | null {
   for (const c of candidates) {
     if (typeof c !== 'string') continue;
@@ -172,9 +178,14 @@ export class AgentSessionService {
         agentRole: deployment.agent.role,
         // The widget's own avatar wins; otherwise the agent's live avatar, so a
         // later change to the agent shows up without re-saving the widget.
+        // An icon identity (`icon:bot:emerald`) becomes the same glyph-on-colour
+        // as an SVG image, so the widget looks like the agent does in the app.
         avatarUrl: widgetAvatarUrl(
           (deployment.widgetConfig as any)?.appearance?.avatarUrl,
-          deployment.agent.avatarUrl,
+          aiEntityAvatarImageUrl(
+            aiEntityAvatarFromLegacy(deployment.agent.avatarUrl, (deployment.agent as { configuration?: any }).configuration),
+            brandHex((deployment.widgetConfig as any)?.appearance?.primaryColor),
+          ),
         ),
         versionNumber: deployment.versionNumber,
         widgetConfig: deployment.widgetConfig,

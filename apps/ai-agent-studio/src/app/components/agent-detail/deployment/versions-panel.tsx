@@ -157,7 +157,7 @@ export function VersionsPanel({
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h3 className="text-base font-bold text-foreground">Versions</h3>
+          <h3 className="text-sm font-semibold text-foreground">Versions</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">Published versions of this agent, and which one is live on this deployment.</p>
         </div>
         <Button size="sm" variant="outline" onClick={() => setSnapshotOpen(true)} className="gap-1.5 text-xs">

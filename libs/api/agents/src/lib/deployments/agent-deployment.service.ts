@@ -286,7 +286,8 @@ export class AgentDeploymentService {
         ...DEFAULT_AGENT_WIDGET_CONFIG.appearance,
         title: agent.name || 'AI Assistant',
         subtitle: agent.role || 'Universal Agent',
-        avatarUrl: agent.avatarUrl ?? '',
+        // Empty = follow the agent's live avatar, so a later change reaches the deployed widget.
+        avatarUrl: '',
       },
     };
 
@@ -337,7 +338,8 @@ export class AgentDeploymentService {
         ...DEFAULT_AGENT_WIDGET_CONFIG.appearance,
         title: agent.name || 'AI Assistant',
         subtitle: agent.role || 'Universal Agent',
-        avatarUrl: agent.avatarUrl ?? '',
+        // Empty = follow the agent's live avatar, so a later change reaches the deployed widget.
+        avatarUrl: '',
         ...((input.widgetConfig?.['appearance'] as any) || {}),
       },
       behavior: {

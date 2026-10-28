@@ -25,6 +25,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
+import { aiEntityColorHex, parseAiEntityAvatar } from '@org/types';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 import { initials, type StatusTone } from '../lib/format';
 import { haptics } from '../lib/haptics';
@@ -563,7 +564,11 @@ export function Avatar({
   size?: number;
 }) {
   const { colors } = useTheme();
-  const source = useAuthedImageSource(uri, headers);
+  // An agent/coworker built-in identity (`icon:bot:emerald`) isn't an image:
+  // draw it on its chosen colour instead of trying to load it.
+  const identity = parseAiEntityAvatar(uri);
+  const identityHex = identity.type === 'icon' ? aiEntityColorHex(identity.color) : undefined;
+  const source = useAuthedImageSource(identity.type === 'photo' ? uri : null, headers);
   const box = { width: size, height: size, borderRadius: size / 2 };
   if (source) {
     return (
@@ -577,12 +582,12 @@ export function Avatar({
   }
   return (
     <View
-      style={[box, styles.center, { backgroundColor: colors.selected }]}
+      style={[box, styles.center, { backgroundColor: identityHex ?? colors.selected }]}
       accessible={false}
     >
       <Text
         style={{
-          color: colors.primaryText,
+          color: identityHex ? '#ffffff' : colors.primaryText,
           fontWeight: '700',
           fontSize: size * 0.38,
         }}

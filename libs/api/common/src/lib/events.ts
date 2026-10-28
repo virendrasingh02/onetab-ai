@@ -60,6 +60,8 @@ export const AppEvent = {
   WorkspaceInvited: 'workspace.invited',
   MemberJoined: 'member.joined',
   WorkspaceMemberUpdated: 'workspace.member.updated',
+  /** Workspace identity/branding changed (name, logo, icon, avatar colour…). */
+  WorkspaceUpdated: 'workspace.updated',
   NotificationCreated: 'notification.created',
   PresenceUpdated: 'presence.updated',
   /**

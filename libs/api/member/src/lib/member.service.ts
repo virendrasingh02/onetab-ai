@@ -28,6 +28,7 @@ import {
   hasWorkspaceRole,
   isPolicyRoleAllowed,
   normalizePlanTier,
+  pickAvatarColor,
   resolveWorkspacePolicy,
   type Invitation,
   type InvitationPublicPreview,
@@ -39,6 +40,7 @@ import {
 import type {
   CreateInvitationLinkInput,
   InviteMembersInput,
+  UpdateAvatarColorInput,
   UpdateInvitationLinkInput,
   UpdateMemberRoleInput,
 } from '@org/validation';
@@ -56,6 +58,7 @@ const INVITATION_INCLUDE = {
       avatarUrl: true,
       icon: true,
       iconColor: true,
+      avatarColor: true,
     },
   },
   channel: { select: { id: true, name: true, slug: true } },
@@ -86,6 +89,7 @@ export class MemberService {
         invitedBy: { select: PUBLIC_USER_SELECT },
       },
     });
+    const colors = await this.assignMissingAvatarColors(members);
 
     return members.map((member) => ({
       id: member.id,
@@ -93,6 +97,7 @@ export class MemberService {
       role: member.role as WorkspaceRole,
       status: member.status as MembershipStatus,
       joinedAt: member.joinedAt.toISOString(),
+      avatarColor: colors.get(member.id) ?? member.avatarColor,
       user: toPublicUser({
         ...member.user,
         // Uploaded covers are a short API path; a legacy inline data URL could
@@ -107,6 +112,90 @@ export class MemberService {
       invitedAt: member.invitedAt?.toISOString() ?? null,
       invitedBy: member.invitedBy ? toPublicUser(member.invitedBy) : null,
     }));
+  }
+
+  /**
+   * Gives every member without an avatar colour one, in join order, each
+   * taking the slot least used by the members before it — so a workspace's
+   * people stay visually distinct and the colour, once set, never moves.
+   *
+   * Runs lazily on the roster read rather than at each of the many places a
+   * membership row is created (invites, SSO, SCIM, migrations…). The write is
+   * guarded on `avatarColor: null`, so two concurrent reads can't both assign:
+   * the loser re-reads the winner's slot.
+   */
+  private async assignMissingAvatarColors(
+    members: readonly { id: string; userId: string; avatarColor: number | null }[],
+  ): Promise<Map<string, number>> {
+    const assigned = new Map<string, number>();
+    if (members.every((m) => m.avatarColor != null)) return assigned;
+
+    const taken: number[] = members
+      .map((m) => m.avatarColor)
+      .filter((c): c is number => c != null);
+    for (const member of members) {
+      if (member.avatarColor != null) continue;
+      const color = pickAvatarColor(taken, member.userId);
+      const { count } = await this.prisma.workspaceMember.updateMany({
+        where: { id: member.id, avatarColor: null },
+        data: { avatarColor: color },
+      });
+      if (count === 1) {
+        assigned.set(member.id, color);
+        taken.push(color);
+        continue;
+      }
+      const current = await this.prisma.workspaceMember.findUnique({
+        where: { id: member.id },
+        select: { avatarColor: true },
+      });
+      if (current?.avatarColor != null) {
+        assigned.set(member.id, current.avatarColor);
+        taken.push(current.avatarColor);
+      }
+    }
+    return assigned;
+  }
+
+  /**
+   * Sets the caller's own avatar colour in this workspace. `null` hands the
+   * choice back to the workspace: the least-used slot among everyone else.
+   * Broadcast as a member update so every open client recolours live.
+   */
+  async updateAvatarColor(
+    workspaceId: string,
+    userId: string,
+    input: UpdateAvatarColorInput,
+  ): Promise<{ avatarColor: number }> {
+    const self = await this.prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId } },
+      select: { id: true },
+    });
+    if (!self) throw new NotFoundException('Member not found.');
+
+    let color = input.color;
+    if (color == null) {
+      const others = await this.prisma.workspaceMember.findMany({
+        where: { workspaceId, NOT: { id: self.id } },
+        select: { avatarColor: true },
+      });
+      color = pickAvatarColor(
+        others.map((o) => o.avatarColor),
+        userId,
+      );
+    }
+
+    await this.prisma.workspaceMember.update({
+      where: { id: self.id },
+      data: { avatarColor: color },
+    });
+
+    this.events.emit(AppEvent.WorkspaceMemberUpdated, {
+      workspaceId,
+      actorId: userId,
+      userId,
+    });
+    return { avatarColor: color };
   }
 
   /**

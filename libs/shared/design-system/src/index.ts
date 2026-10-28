@@ -19,6 +19,9 @@ export {
   breakpoints,
   avatarTint,
   avatarGradient,
+  avatarColorIndex,
+  avatarSwatch,
+  AVATAR_PALETTE,
   normalizeAvatarSeed,
   ACCENTS,
   accentTokens,
@@ -35,6 +38,7 @@ export {
   type Accent,
   type Density,
   type RadiusPreset,
+  type AvatarSwatch,
 } from './lib/tokens.js';
 
 export {

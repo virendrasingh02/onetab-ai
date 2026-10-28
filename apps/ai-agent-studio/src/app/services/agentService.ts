@@ -1,5 +1,5 @@
 import { agentsApi } from '@org/api-client';
-import type { AIAgent, AIAgentDetail } from '@org/types';
+import { aiEntityAvatarFromLegacy, type AIAgent, type AIAgentDetail } from '@org/types';
 
 /**
  * Agents as Studio uses them. Everything here goes to the platform API and a
@@ -160,7 +160,8 @@ export const agentService = {
       provider: data.provider || 'OpenAI',
       model,
       tools: (data.tools as string[] | undefined) || ['search_docs'],
-      avatarUrl: data.avatarUrl || (configuration['avatar'] as string) || null,
+      // One identity everywhere: a photo, or the icon + colour as `icon:<icon>:<color>`.
+      avatarUrl: aiEntityAvatarFromLegacy(data.avatarUrl as string | undefined, configuration),
       configuration,
       graphJson: data.graphJson || starterGraph(name, model),
     });

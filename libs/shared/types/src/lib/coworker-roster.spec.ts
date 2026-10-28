@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildRosterConnectors, workflowCoworkerIds, type RosterConnectorInput } from './coworker-roster.js';
+import { buildConnectableApps, buildRosterConnectors, workflowCoworkerIds, type RosterConnectorInput } from './coworker-roster.js';
 import { COWORKER_TEMPLATES } from './coworker-templates.js';
 
 const app = (provider: string, over: Partial<RosterConnectorInput> = {}): RosterConnectorInput => ({
@@ -12,6 +12,20 @@ const app = (provider: string, over: Partial<RosterConnectorInput> = {}): Roster
   triggers: 1,
   connections: [],
   ...over,
+});
+
+describe('buildConnectableApps', () => {
+  it('lists only apps with a working connection, workspace-wide first, by name', () => {
+    const registry = new Map([
+      ['XERO', app('XERO', { connections: [{ id: 'x-user', status: 'CONNECTED', scopeType: 'USER', displayName: 'mine' }, { id: 'x-ws', status: 'CONNECTED', scopeType: 'WORKSPACE', displayName: 'Demo Co' }] })],
+      ['GITLAB', app('GITLAB', { connections: [{ id: 'g', status: 'EXPIRED', scopeType: 'WORKSPACE', displayName: 'gl' }] })],
+      ['SENDGRID', app('SENDGRID')],
+      ['ASANA', app('ASANA', { connections: [{ id: 'a-1', status: 'CONNECTED', scopeType: 'USER', displayName: 'me' }] })],
+    ]);
+    const out = buildConnectableApps({ registry, sharing: new Map([['x-ws', [{ id: 'cw-1', name: 'Ledger' }]]]) });
+    expect(out.map((c) => c.provider)).toEqual(['ASANA', 'XERO']);
+    expect(out[1]).toMatchObject({ state: 'ready_to_attach', integrationId: 'x-ws', connectionScope: 'WORKSPACE', sharedWith: [{ id: 'cw-1', name: 'Ledger' }] });
+  });
 });
 
 describe('buildRosterConnectors', () => {

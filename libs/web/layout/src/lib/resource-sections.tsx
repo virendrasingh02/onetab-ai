@@ -4,6 +4,7 @@ import {
   copyToClipboard,
   EntityContextMenu,
   entityUrl,
+  getAiEntityTone,
   Hint,
   IconRenderer,
   ResourceNavSkeleton,
@@ -15,7 +16,6 @@ import {
   useCoworkerMutations,
   useCoworkers,
   getCoworkerGlyph,
-  getGradientByName,
   getEntityInitial,
 } from '@org/web-coworkers';
 import { useAgentMutations, useAgents } from '@org/web-agents';
@@ -470,7 +470,7 @@ export function CoworkerNavRow({
         label={coworker.name}
         image={coworker.avatarUrl}
         glyph={getCoworkerGlyph(coworker.avatarUrl)}
-        toneClassName={cn('bg-gradient-to-br', getGradientByName(coworker.name))}
+        toneClassName={getAiEntityTone('coworker', coworker.name, coworker.avatarUrl)}
         working={coworker.status === 'WORKING' || coworker.status === 'RUNNING_TASK'}
       />
       <span className="flex-1 truncate">{coworker.name}</span>
@@ -547,7 +547,7 @@ export function AgentNavRow({
         label={agent.name}
         image={agent.avatarUrl}
         glyph={getCoworkerGlyph(agent.avatarUrl)}
-        tone="primary"
+        toneClassName={getAiEntityTone('agent', agent.name, agent.avatarUrl)}
       />
       <span className="flex-1 truncate">{agent.name}</span>
     </ResourceRowShell>
@@ -981,7 +981,7 @@ export function CoworkersSection({
             label={cw.name}
             image={cw.avatarUrl}
             glyph={getCoworkerGlyph(cw.avatarUrl)}
-            toneClassName={cn('bg-gradient-to-br', getGradientByName(cw.name))}
+            toneClassName={getAiEntityTone('coworker', cw.name, cw.avatarUrl)}
             size="sm"
             tone="primary"
           />
@@ -1237,8 +1237,8 @@ export function AgentsSection({
             label={agent.name}
             image={agent.avatarUrl}
             glyph={getCoworkerGlyph(agent.avatarUrl)}
+            toneClassName={getAiEntityTone('agent', agent.name, agent.avatarUrl)}
             size="sm"
-            tone="primary"
           />
         ),
         actions: [

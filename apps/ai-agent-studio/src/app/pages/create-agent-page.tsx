@@ -12,7 +12,7 @@ import {
   type MissingConfigItem,
   type StudioCanvasGraph,
 } from '@org/types';
-import { Alert, AlertDescription, AlertTitle, Badge, Button, Checkbox, Input, Page, PromptComposer, toast, Label } from '@org/ui';
+import { Alert, AlertDescription, AlertTitle, Badge, Button, Checkbox, formatAiEntityIconAvatar, Input, Page, PromptComposer, toast, Label } from '@org/ui';
 import { cn } from '@org/utils';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -373,6 +373,8 @@ ${graphJson}`;
         role: `${finalSpec.agent.category} agent`,
         description: finalSpec.agent.description,
         systemPrompt: finalSpec.agent.instructions,
+        // The architect's icon as the shared identity, so it shows everywhere the agent does.
+        avatarUrl: formatAiEntityIconAvatar(finalSpec.agent.icon),
         graphJson: JSON.stringify(preview),
         configuration: {
           category: finalSpec.agent.category,

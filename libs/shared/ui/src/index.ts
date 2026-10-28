@@ -35,8 +35,14 @@ export {
 } from './lib/components/card.js';
 
 export {
+  AvatarColorSwatches,
+  type AvatarColorSwatchesProps,
+} from './lib/components/avatar-color-swatches.js';
+
+export {
   Avatar,
   AvatarFallback,
+  AvatarColorProvider,
   AvatarImage,
   AvatarPresenceProvider,
   PRESENCE_LABELS,
@@ -44,11 +50,14 @@ export {
   PresenceDot,
   toPresenceStatus,
   useOnlineCount,
+  useResolvedAvatarColor,
   useResolvedPresence,
   UserAvatar,
   UserCover,
   WorkspaceAvatar,
+  WorkspaceColorProvider,
   type ApiPresenceStatus,
+  type AvatarColorResolver,
   type AvatarPresenceResolver,
   type AvatarProps,
   type PresenceDotProps,
@@ -57,19 +66,39 @@ export {
   type UserAvatarProps,
   type UserCoverProps,
   type WorkspaceAvatarProps,
+  type WorkspaceColorResolver,
 } from './lib/components/avatar.js';
 
 export {
+  AI_ENTITY_COLORS,
+  AI_ENTITY_ICONS,
   AI_ENTITY_PRESET_ICONS,
   AiEntityAvatar,
+  DEFAULT_AI_ENTITY_COLOR,
+  DEFAULT_AI_ENTITY_ICON,
+  aiEntityAvatarFromLegacy,
+  aiEntityAvatarImageUrl,
+  aiEntityColorHex,
+  formatAiEntityIconAvatar,
+  getAiEntityCover,
   getAiEntityGlyph,
   getAiEntityGradient,
   getAiEntityInitial,
   getAiEntityPresetIcon,
   getAiEntityTone,
+  parseAiEntityAvatar,
+  resolveAiEntityColorId,
+  resolveAiEntityIconId,
   type AiEntityAvatarProps,
+  type AiEntityColorOption,
+  type AiEntityIconOption,
+  type AiEntityIdentity,
   type AiEntityKind,
 } from './lib/components/ai-entity-avatar.js';
+export {
+  AiEntityIdentityPicker,
+  type AiEntityIdentityPickerProps,
+} from './lib/components/ai-entity-identity-picker.js';
 
 export {
   UserAvatarGroup,

@@ -187,21 +187,37 @@ export const breakpoints = {
 export type Breakpoint = keyof typeof breakpoints;
 
 /**
- * Deterministic avatar tint for a user or workspace with no uploaded image.
- * Hashing the id keeps the colour stable across sessions and devices.
+ * The avatar palette: 16 analogous two-stop gradients, a lighter stop flowing
+ * into a deeper one of the *same* hue family. Same-family stops never pass
+ * through the muddy grey a complementary pair (red → teal) produces, and the
+ * deep stop keeps white initials legible.
+ *
+ * A member's slot is stored per workspace (`WorkspaceMember.avatarColor`,
+ * assigned by the API so teammates stay distinct) and resolved by `UserAvatar`
+ * through `AvatarColorProvider`; anyone without a stored slot (a chat
+ * participant outside the roster, an app) falls back to a hash of their id.
+ * Its length is `AVATAR_COLOR_COUNT` in `@org/types` — keep them in step.
  */
-const AVATAR_TINTS = [
-  '#EB5757',
-  '#FC7840',
-  '#F2C94C',
-  '#4CB782',
-  '#0F9B8E',
-  '#26B5CE',
-  '#4EA7FC',
-  '#5E6AD2',
-  '#6771D4',
-  '#E07BB8',
+export const AVATAR_PALETTE = [
+  { name: 'Coral', from: '#FF8A7A', to: '#E0434B' },
+  { name: 'Tangerine', from: '#FFA45E', to: '#E0601F' },
+  { name: 'Amber', from: '#F6B940', to: '#C9700A' },
+  { name: 'Lime', from: '#9ACD52', to: '#4E8A22' },
+  { name: 'Emerald', from: '#4FCF8E', to: '#1A8F5A' },
+  { name: 'Teal', from: '#3CCBBB', to: '#0E8279' },
+  { name: 'Cyan', from: '#4DC4EE', to: '#1680B5' },
+  { name: 'Sky', from: '#6AB0FF', to: '#2A68D6' },
+  { name: 'Indigo', from: '#8C93FF', to: '#4A4FD0' },
+  { name: 'Violet', from: '#A88BFF', to: '#6A43D9' },
+  { name: 'Grape', from: '#C67BFA', to: '#8737C7' },
+  { name: 'Fuchsia', from: '#F07AD0', to: '#B8318F' },
+  { name: 'Rose', from: '#FF84A6', to: '#CF3866' },
+  { name: 'Ocean', from: '#5CAAC6', to: '#2A6585' },
+  { name: 'Mocha', from: '#C79E78', to: '#80593A' },
+  { name: 'Slate', from: '#94A3B8', to: '#4F5D72' },
 ] as const;
+
+export type AvatarSwatch = (typeof AVATAR_PALETTE)[number];
 
 function hashSeed(seed: string): number {
   let hash = 0;
@@ -231,27 +247,42 @@ export function normalizeAvatarSeed(seed: string): string {
   return match ? match[1] : seed;
 }
 
-export function avatarTint(seed: string): string {
-  return AVATAR_TINTS[hashSeed(normalizeAvatarSeed(seed)) % AVATAR_TINTS.length];
+/**
+ * The palette slot for an avatar: the stored per-workspace `color` when there
+ * is a valid one, otherwise a stable hash of the (normalized) seed.
+ */
+export function avatarColorIndex(seed: string, color?: number | null): number {
+  if (
+    typeof color === 'number' &&
+    Number.isInteger(color) &&
+    color >= 0 &&
+    color < AVATAR_PALETTE.length
+  ) {
+    return color;
+  }
+  return hashSeed(normalizeAvatarSeed(seed)) % AVATAR_PALETTE.length;
+}
+
+/** The swatch {@link avatarColorIndex} resolves to. */
+export function avatarSwatch(seed: string, color?: number | null): AvatarSwatch {
+  return AVATAR_PALETTE[avatarColorIndex(seed, color)];
 }
 
 /**
- * Deterministic two-stop gradient for an avatar with no uploaded image.
- *
- * Shares {@link avatarTint}'s hash and palette, so a given seed maps to one
- * fixed gradient for the life of the product — the same person shows the same
- * avatar in the sidebar, a chat bubble, a mention, and the desktop app. The
- * first stop is exactly `avatarTint(seed)`, so existing solid avatars keep
- * their dominant colour and only gain depth. Returns a CSS `linear-gradient()`
- * value for `background-image`.
+ * Solid fallback for an avatar — the swatch's deep stop, so initials on a flat
+ * tile (workspace tiles, renderers that drop gradients) stay legible.
  */
-export function avatarGradient(seed: string): string {
-  const h = hashSeed(normalizeAvatarSeed(seed));
-  const len = AVATAR_TINTS.length;
-  const from = AVATAR_TINTS[h % len];
-  // Second stop is a *different* palette entry (offset 3–6 of 10 never lands
-  // back on the first), so both ends stay legible under white initials.
-  const to = AVATAR_TINTS[(h + 3 + (h % 4)) % len];
-  const angle = 120 + (h % 5) * 15; // 120–180°, seeded but bounded
-  return `linear-gradient(${angle}deg, ${from}, ${to})`;
+export function avatarTint(seed: string, color?: number | null): string {
+  return avatarSwatch(seed, color).to;
+}
+
+/**
+ * The two-stop gradient for an avatar with no uploaded image. Every avatar uses
+ * the same light-to-deep 135° direction, so a list of people reads as one set
+ * and only the hue tells them apart. Returns a CSS `linear-gradient()` value
+ * for `background-image`.
+ */
+export function avatarGradient(seed: string, color?: number | null): string {
+  const { from, to } = avatarSwatch(seed, color);
+  return `linear-gradient(135deg, ${from} 0%, ${to} 100%)`;
 }

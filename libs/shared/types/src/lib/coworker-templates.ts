@@ -893,3 +893,38 @@ export function resolveCoworkerCollaborators(
   }
   return workspaceCoworkers.filter((c) => c.id !== self.id && wanted(c)).map((c) => c.id);
 }
+
+/**
+ * Each template's built-in identity (`icon:<icon>:<color>`), so the defaults
+ * are told apart at a glance and look the same in Studio, the sidebar, chat
+ * and a deployed widget. Someone can change it like any other avatar.
+ */
+export const COWORKER_TEMPLATE_AVATARS: Readonly<Record<CoworkerTemplateKey, string>> = {
+  assistant: 'icon:sparkles:indigo',
+  scheduler: 'icon:workflow:sky',
+  tracker: 'icon:search:cyan',
+  ledger: 'icon:database:emerald',
+  shipper: 'icon:rocket:purple',
+  ada: 'icon:user:rose',
+  relay: 'icon:chat:amber',
+  researcher: 'icon:brain:indigo',
+  sales: 'icon:zap:amber',
+  marketing: 'icon:flame:rose',
+  support: 'icon:support:sky',
+  hr: 'icon:user:purple',
+  finance: 'icon:database:emerald',
+  operations: 'icon:layers:zinc',
+  project_manager: 'icon:workflow:indigo',
+  developer: 'icon:code:cyan',
+  qa: 'icon:shield:emerald',
+  seo: 'icon:globe:sky',
+  content: 'icon:idea:amber',
+  recruiter: 'icon:search:purple',
+  data_analyst: 'icon:cpu:indigo',
+  customer_success: 'icon:support:emerald',
+};
+
+/** The built-in identity a coworker made from `key` starts with. */
+export function coworkerTemplateAvatar(key: unknown): string | undefined {
+  return typeof key === 'string' ? COWORKER_TEMPLATE_AVATARS[key as CoworkerTemplateKey] : undefined;
+}

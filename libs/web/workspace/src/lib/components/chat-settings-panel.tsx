@@ -1,7 +1,4 @@
-import {
-  useChatPreferences,
-  useUserPreferences,
-} from '@org/common';
+import { DEFAULT_USER_PREFERENCES, useChatPreferences } from '@org/common';
 import type { MessageDensity, OpenChatPosition } from '@org/types';
 import { Badge, Button, SettingsRow, Switch } from '@org/ui';
 import { cn } from '@org/utils';
@@ -22,7 +19,11 @@ import {
 
 export function ChatSettingsPanel() {
   const { chat, updateChatPreferences } = useChatPreferences();
-  const { resetPreferences } = useUserPreferences();
+
+  // Only the chat half — a full `resetPreferences()` would also wipe the
+  // user's notification display + sound settings from an unrelated page.
+  const resetChatDefaults = () =>
+    updateChatPreferences(DEFAULT_USER_PREFERENCES.chat);
 
   const handleDensityChange = (density: MessageDensity) => {
     updateChatPreferences({ messageDensity: density });
@@ -78,7 +79,7 @@ export function ChatSettingsPanel() {
           <Button
             variant="outline"
             size="sm"
-            onClick={resetPreferences}
+            onClick={resetChatDefaults}
             className="h-8 text-xs gap-1.5 shrink-0"
           >
             <RotateCcw className="size-3.5 text-muted-foreground" />

@@ -5,7 +5,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PUBLIC_USER_SELECT, toPublicUser, toWorkspace } from '@org/api-common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import {
+  AppEvent,
+  PUBLIC_USER_SELECT,
+  toPublicUser,
+  toWorkspace,
+} from '@org/api-common';
 import { PrismaService } from '@org/database';
 import { StorageService, type IncomingFile } from '@org/api-storage';
 import { ImageProcessingService } from '@org/api-media-processing';
@@ -14,6 +20,7 @@ import {
   WorkspaceRole,
   WorkspaceStatus,
   permissionsForRole,
+  pickAvatarColor,
   type MembershipStatus,
   type Workspace,
   type WorkspaceMember as WorkspaceMemberDto,
@@ -50,6 +57,7 @@ export class WorkspaceService {
     private readonly storage: StorageService,
     private readonly imageProcessing: ImageProcessingService,
     private readonly auditService: WorkspaceAuditService,
+    private readonly events?: EventEmitter2,
   ) {}
 
   /** Every workspace the user belongs to, for the switcher. */
@@ -139,6 +147,13 @@ export class WorkspaceService {
       select: { email: true },
     });
 
+    // The tile colour least used among the creator's other workspaces, so the
+    // rail and switcher show distinct tiles from the start.
+    const siblings = await this.prisma.workspace.findMany({
+      where: { members: { some: { userId } } },
+      select: { avatarColor: true },
+    });
+
     const workspace = await this.prisma.workspace.create({
       data: {
         name: input.name,
@@ -146,6 +161,10 @@ export class WorkspaceService {
         description: input.description || null,
         icon: input.icon ?? null,
         iconColor: input.iconColor ?? null,
+        avatarColor: pickAvatarColor(
+          siblings.map((w) => w.avatarColor),
+          input.slug,
+        ),
         ownerId: userId,
         members: { create: { userId, role: WorkspaceRole.OWNER, email: user?.email ?? null } },
         channels: {
@@ -203,6 +222,9 @@ export class WorkspaceService {
         // the colour alone does not clear the icon and vice versa.
         ...(input.icon !== undefined ? { icon: input.icon } : {}),
         ...(input.iconColor !== undefined ? { iconColor: input.iconColor } : {}),
+        ...(input.avatarColor !== undefined
+          ? { avatarColor: input.avatarColor }
+          : {}),
         ...(input.supportEmail !== undefined
           ? { supportEmail: input.supportEmail || null }
           : {}),
@@ -231,6 +253,11 @@ export class WorkspaceService {
         metadata: { changedKeys: Object.keys(input) },
       });
     }
+
+    this.events?.emit(AppEvent.WorkspaceUpdated, {
+      workspaceId,
+      actorId: actorId ?? null,
+    });
 
     return toWorkspace(workspace);
   }

@@ -5,6 +5,7 @@ import { PrismaService } from '@org/database';
 import {
   BUSINESS_COWORKER_KEYS,
   PLANS_CONFIG,
+  buildConnectableApps,
   buildRosterConnectors,
   coworkerTemplateKey,
   getCoworkerTemplate,
@@ -68,6 +69,14 @@ export class CoworkerRosterService {
       orderBy: { createdAt: 'asc' },
     });
     const ids = coworkers.map((c) => c.id);
+    const creatorIds = [...new Set(coworkers.map((c) => c.creatorId).filter((id): id is string => !!id))];
+    const creators = creatorIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: creatorIds } },
+          select: { id: true, name: true, displayName: true, avatarUrl: true },
+        })
+      : [];
+    const ownerOf = new Map(creators.map((u) => [u.id, { id: u.id, name: u.displayName || u.name, avatarUrl: u.avatarUrl }]));
     const nameOf = new Map(coworkers.map((c) => [c.id, c.name]));
 
     const [summaries, workflows, runs30, runsMonth, lastRuns, waiting, openTasks, doneTasks, subscription, aiRunsThisMonth, runningNow] =
@@ -167,6 +176,7 @@ export class CoworkerRosterService {
         status: c.status,
         isActive: c.isActive,
         creatorId: c.creatorId,
+        owner: c.creatorId ? (ownerOf.get(c.creatorId) ?? null) : null,
         templateKey,
         adoptedFrom: typeof configuration['adoptedFrom'] === 'string' ? (configuration['adoptedFrom'] as string) : null,
         // What the runtime will actually call.
@@ -224,6 +234,7 @@ export class CoworkerRosterService {
     const plan = PLANS_CONFIG[resolveEffectivePlanTier(subscription)];
     return {
       coworkers: entries,
+      connectableApps: buildConnectableApps({ registry, sharing: usersOf }),
       plan: {
         name: plan.name,
         requestsPerMonth: plan.machineLimits.requestsPerMonth,

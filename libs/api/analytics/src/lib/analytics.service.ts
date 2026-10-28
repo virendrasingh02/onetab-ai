@@ -33,6 +33,14 @@ import {
 import { ERROR_EVENT_TYPE } from './error-tracking.service.js';
 import { HealthService } from './health.service.js';
 import { AITelemetryService } from './ai-telemetry.service.js';
+import {
+  buildInsights,
+  deriveRunMeasures,
+  latencyBuckets,
+  meanOf,
+  pctChange,
+  readToolCall,
+} from './ai-run-measures.js';
 
 /** Caps every unbounded scan so one busy workspace cannot exhaust memory. */
 const MAX_SCAN = 20_000;
@@ -583,6 +591,7 @@ export class AnalyticsService {
               latencyMs: true,
               tokensUsed: true,
               errorMessage: true,
+              startedAt: true,
             },
           },
         },
@@ -600,6 +609,7 @@ export class AnalyticsService {
           latencyMs: true,
           tokensUsed: true,
           totalCost: true,
+          model: true,
         },
         take: MAX_SCAN,
       }),
@@ -765,31 +775,37 @@ export class AnalyticsService {
 
     // Tokens & Models
     const totalTokens = currentExecutions.reduce((s, r) => s + (r.tokensUsed || 0), 0);
-    const totalInputTokens = Math.round(totalTokens * 0.4);
-    const totalOutputTokens = Math.round(totalTokens * 0.6);
+    const measures = currentExecutions.map((r) => deriveRunMeasures(r));
+    const totalInputTokens = measures.reduce((sum, m) => sum + m.inputTokens, 0);
+    const totalOutputTokens = measures.reduce((sum, m) => sum + m.outputTokens, 0);
+    const runsWithTokens = measures.filter((_, i) => (currentExecutions[i]?.tokensUsed ?? 0) > 0);
+    const splitCoveragePct =
+      runsWithTokens.length > 0
+        ? Number(((runsWithTokens.filter((m) => m.splitMeasured).length / runsWithTokens.length) * 100).toFixed(1))
+        : 0;
 
-    const modelCounts = new Map<string, { tokens: number; calls: number }>();
+    const modelCounts = new Map<string, { tokens: number; input: number; output: number; calls: number }>();
     let toolInvocationCount = 0;
-    for (const r of currentExecutions) {
+    let unrecordedModelRuns = 0;
+    currentExecutions.forEach((r, i) => {
       const model = r.model || 'unrecorded';
-      const entry = modelCounts.get(model) ?? { tokens: 0, calls: 0 };
+      if (!r.model) unrecordedModelRuns += 1;
+      const entry = modelCounts.get(model) ?? { tokens: 0, input: 0, output: 0, calls: 0 };
       entry.tokens += r.tokensUsed || 0;
+      entry.input += measures[i]?.inputTokens ?? 0;
+      entry.output += measures[i]?.outputTokens ?? 0;
       entry.calls += 1;
       modelCounts.set(model, entry);
 
       if (Array.isArray(r.toolCalls)) {
         toolInvocationCount += r.toolCalls.length;
       }
-    }
+    });
 
     const modelDistribution = [...modelCounts.entries()]
       .map(([model, data]) => {
         const sharePct = totalTokens > 0 ? Number(((data.tokens / totalTokens) * 100).toFixed(1)) : 0;
-        const cost = this.telemetry.calculateCost(
-          model,
-          Math.round(data.tokens * 0.4),
-          Math.round(data.tokens * 0.6),
-        );
+        const cost = this.telemetry.calculateCost(model, data.input, data.output);
         return {
           model,
           provider: model.startsWith('claude')
@@ -811,14 +827,9 @@ export class AnalyticsService {
     const totalCostUsd = Number(
       currentExecutions
         .reduce((s, r) => {
+          const m = deriveRunMeasures(r);
           const runCost =
-            r.totalCost > 0
-              ? r.totalCost
-              : this.telemetry.calculateCost(
-                  r.model,
-                  Math.round((r.tokensUsed || 0) * 0.4),
-                  Math.round((r.tokensUsed || 0) * 0.6),
-                );
+            r.totalCost > 0 ? r.totalCost : this.telemetry.calculateCost(r.model, m.inputTokens, m.outputTokens);
           return s + runCost;
         }, 0)
         .toFixed(4),
@@ -881,6 +892,18 @@ export class AnalyticsService {
     const budgetUtilizationPct = Number(((totalCostUsd / budgetCapUsd) * 100).toFixed(1));
     const projectedSpendUsd = Number((totalCostUsd * (30 / Math.max(days, 1))).toFixed(2));
 
+    // Input vs output share of spend, priced per model from the measured token split.
+    let catalogInput = 0;
+    let catalogOutput = 0;
+    for (const [model, data] of modelCounts) {
+      catalogInput += this.telemetry.calculateCost(model, data.input, 0);
+      catalogOutput += this.telemetry.calculateCost(model, 0, data.output);
+    }
+    const inputCostUsd =
+      catalogInput + catalogOutput > 0
+        ? Number(((totalCostUsd * catalogInput) / (catalogInput + catalogOutput)).toFixed(4))
+        : 0;
+
     // Reliability
     const timeouts = currentExecutions.filter((r) => {
       const err = JSON.stringify(r.errorsJson ?? {}).toLowerCase();
@@ -908,6 +931,154 @@ export class AnalyticsService {
       );
     }).length;
 
+    // Retried runs that ended well vs. ones that still failed.
+    const retriedRuns = currentExecutions.filter((r) => {
+      const state = (r.stateJson ?? {}) as Record<string, unknown>;
+      return Boolean(state['retryOf'] || Number(state['retryCount'] ?? 0) > 0);
+    });
+    const recoveredRetries = retriedRuns.filter((r) => r.status === 'SUCCESS' || r.status === 'COMPLETED').length;
+    const exhaustedRetries = retriedRuns.filter((r) => r.status === 'FAILED').length;
+    const recoveryRate =
+      retriedRuns.length > 0 ? Number(((recoveredRetries / retriedRuns.length) * 100).toFixed(1)) : null;
+
+    // Window-over-window movement.
+    const prevTokens = previousExecutions.reduce((sum, r) => sum + (r.tokensUsed || 0), 0);
+    const prevCost = previousExecutions.reduce(
+      (sum, r) =>
+        sum +
+        (r.totalCost > 0
+          ? r.totalCost
+          : this.telemetry.calculateCost(r.model, Math.round((r.tokensUsed || 0) * 0.4), Math.round((r.tokensUsed || 0) * 0.6))),
+      0,
+    );
+    const prevPerf = this.telemetry.calculatePercentiles(previousExecutions.map((r) => r.latencyMs || 0));
+    const deltas = {
+      totalRunsPct: pctChange(totalRuns, prevTotal),
+      successRatePts: previousComparison.successRateDelta,
+      tokensPct: pctChange(totalTokens, prevTokens),
+      costPct: pctChange(totalCostUsd, prevCost),
+      avgLatencyPct: pctChange(p.avg, prevPerf.avg),
+      p95LatencyPct: pctChange(p.p95, prevPerf.p95),
+    };
+
+    // Per-day latency and token series.
+    const latencyDay = new Map<string, number[]>();
+    const tokenDay = new Map<string, { inputTokens: number; outputTokens: number }>();
+    for (const key of dayMap.keys()) {
+      latencyDay.set(key, []);
+      tokenDay.set(key, { inputTokens: 0, outputTokens: 0 });
+    }
+    currentExecutions.forEach((r, i) => {
+      const key = new Date(r.startedAt).toISOString().slice(5, 10);
+      latencyDay.get(key)?.push(r.latencyMs || 0);
+      const bucket = tokenDay.get(key);
+      if (bucket) {
+        bucket.inputTokens += measures[i]?.inputTokens ?? 0;
+        bucket.outputTokens += measures[i]?.outputTokens ?? 0;
+      }
+    });
+    const latencyTrends = [...latencyDay.entries()].map(([date, values]) => {
+      const dp = this.telemetry.calculatePercentiles(values);
+      return { date, avgMs: dp.avg, p95Ms: dp.p95, runs: values.length };
+    });
+    const tokenTrends = [...tokenDay.entries()].map(([date, v]) => ({ date, ...v }));
+
+    // Breakdowns.
+    const statusCounts = new Map<string, number>();
+    const entityCounts = new Map<string, { runs: number; failed: number; costUsd: number }>();
+    const hourOfDay = new Array<number>(24).fill(0);
+    const toolStats = new Map<string, { calls: number; failed: number; totalMs: number; timed: number }>();
+    const initiatorStats = new Map<string, { runs: number; costUsd: number }>();
+    for (const r of currentExecutions) {
+      statusCounts.set(r.status, (statusCounts.get(r.status) ?? 0) + 1);
+      const entity = entityCounts.get(r.entityType) ?? { runs: 0, failed: 0, costUsd: 0 };
+      entity.runs += 1;
+      if (r.status === 'FAILED') entity.failed += 1;
+      entity.costUsd += r.totalCost || 0;
+      entityCounts.set(r.entityType, entity);
+      hourOfDay[new Date(r.startedAt).getUTCHours()] += 1;
+      if (Array.isArray(r.toolCalls)) {
+        for (const raw of r.toolCalls) {
+          const tc = readToolCall(raw);
+          const stat = toolStats.get(tc.name) ?? { calls: 0, failed: 0, totalMs: 0, timed: 0 };
+          stat.calls += 1;
+          if (tc.failed) stat.failed += 1;
+          if (tc.durationMs !== null) {
+            stat.totalMs += tc.durationMs;
+            stat.timed += 1;
+          }
+          toolStats.set(tc.name, stat);
+        }
+      }
+      if (r.userId) {
+        const who = initiatorStats.get(r.userId) ?? { runs: 0, costUsd: 0 };
+        who.runs += 1;
+        who.costUsd += r.totalCost || 0;
+        initiatorStats.set(r.userId, who);
+      }
+    }
+    const topInitiatorIds = [...initiatorStats.entries()].sort((a, b) => b[1].runs - a[1].runs).slice(0, 5);
+    const [initiatorUsers, feedbacks, approvals] = await Promise.all([
+      topInitiatorIds.length > 0
+        ? this.prisma.user.findMany({
+            where: { id: { in: topInitiatorIds.map(([id]) => id) } },
+            select: { id: true, name: true, displayName: true },
+          })
+        : Promise.resolve([]),
+      this.prisma.aIFeedback.findMany({
+        where: { workspaceId, createdAt: { gte: since, lt: until } },
+        select: { rating: true },
+        take: MAX_SCAN,
+      }),
+      this.prisma.approvalRequest.findMany({
+        where: { workspaceId, createdAt: { gte: since, lt: until } },
+        select: { state: true, createdAt: true, respondedAt: true },
+        take: MAX_SCAN,
+      }),
+    ]);
+    const decidedApprovals = approvals.filter((a) => a.respondedAt);
+    const approvalWaits = decidedApprovals.map((a) => a.respondedAt!.getTime() - a.createdAt.getTime());
+    const breakdown = {
+      byStatus: [...statusCounts.entries()].map(([status, count]) => ({ status, count })).sort((a, b) => b.count - a.count),
+      byEntityType: [...entityCounts.entries()]
+        .map(([entityType, v]) => ({ entityType, runs: v.runs, failed: v.failed, costUsd: Number(v.costUsd.toFixed(4)) }))
+        .sort((a, b) => b.runs - a.runs),
+      hourOfDay,
+      topTools: [...toolStats.entries()]
+        .map(([name, v]) => ({
+          name,
+          calls: v.calls,
+          failed: v.failed,
+          avgDurationMs: v.timed > 0 ? Math.round(v.totalMs / v.timed) : 0,
+        }))
+        .sort((a, b) => b.calls - a.calls)
+        .slice(0, 8),
+      topInitiators: topInitiatorIds.map(([userId, v]) => {
+        const user = initiatorUsers.find((u) => u.id === userId);
+        return {
+          userId,
+          name: user?.displayName || user?.name || 'Unknown user',
+          runs: v.runs,
+          costUsd: Number(v.costUsd.toFixed(4)),
+        };
+      }),
+      topModelsByCost: [...costByModel]
+        .sort((a, b) => b.costUsd - a.costUsd)
+        .slice(0, 5)
+        .map((m) => ({ model: m.model, costUsd: Number(m.costUsd.toFixed(4)) })),
+    };
+    const ratings = feedbacks.map((f) => f.rating);
+    const quality = {
+      feedbackCount: ratings.length,
+      avgRating: ratings.length > 0 ? Number((ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(2)) : null,
+      lowRatedCount: ratings.filter((rt) => rt <= 2).length,
+      approvalsPending: approvals.filter((a) => a.state === 'PENDING').length,
+      approvalsDecided: decidedApprovals.length,
+      approvalsApproved: approvals.filter((a) => a.state === 'APPROVED').length,
+      avgApprovalWaitMs:
+        approvalWaits.length > 0 ? Math.round(approvalWaits.reduce((a, b) => a + b, 0) / approvalWaits.length) : null,
+    };
+
     // Trigger alert evaluation
     this.telemetry.evaluateAlerts(workspaceId, {
       failureRate,
@@ -923,7 +1094,7 @@ export class AnalyticsService {
       total: t.total,
     }));
 
-    return {
+    const overview = {
       window: {
         since: since.toISOString(),
         until: until.toISOString(),
@@ -961,8 +1132,8 @@ export class AnalyticsService {
       comparison: {
         executionVolumeGrowthPct: previousComparison.totalRunsPct,
         successRateDiffPct: previousComparison.successRateDelta,
-        tokenUsageGrowthPct: 0,
-        costGrowthPct: 0,
+        tokenUsageGrowthPct: deltas.tokensPct ?? 0,
+        costGrowthPct: deltas.costPct ?? 0,
       },
       performance: {
         avgLatencyMs: p.avg,
@@ -977,13 +1148,21 @@ export class AnalyticsService {
           p95: p.p95,
           p99: p.p99,
         },
-        timeToFirstTokenMs: Math.round(p.median * 0.35),
-        avgModelResponseTimeMs: Math.round(p.avg * 0.65),
-        avgModelResponseMs: Math.round(p.avg * 0.65),
-        toolExecutionDurationMs: Math.round(p.avg * 0.25),
-        totalToolDurationMs: Math.round(p.avg * 0.25),
-        queueWaitTimeMs: Math.round(p.median * 0.1),
-        nodeProcessingDurationMs: Math.round(p.avg * 0.15),
+        // Model calls are not streamed, so first-token time is not measured.
+        timeToFirstTokenMs: null,
+        avgModelResponseTimeMs: meanOf(measures.map((m) => m.modelMs)),
+        avgModelResponseMs: meanOf(measures.map((m) => m.modelMs)),
+        toolExecutionDurationMs: meanOf(measures.map((m) => m.toolMs)),
+        totalToolDurationMs: meanOf(measures.map((m) => m.toolMs)),
+        queueWaitTimeMs: meanOf(measures.map((m) => m.queueMs)),
+        nodeProcessingDurationMs: meanOf(
+          currentExecutions.map((r) => {
+            const nodes = r.steps.filter((st) => st.stepId !== 'turn');
+            return nodes.length > 0 ? nodes.reduce((sum, st) => sum + (st.latencyMs || 0), 0) : null;
+          }),
+        ),
+        latencyTrends,
+        latencyBuckets: latencyBuckets(durations),
         slowestWorkflows: slowestWorkflows.map((w) => ({
           ...w,
           durationMs: w.avgLatencyMs,
@@ -1009,8 +1188,10 @@ export class AnalyticsService {
         tokensPerWorkflow: workflows.length > 0 ? Math.round(totalTokens / workflows.length) : totalTokens,
         modelDistribution,
         toolInvocationCount,
-        connectorInvocationCount: Math.round(toolInvocationCount * 0.4),
+        connectorInvocationCount: 0,
         avgTokensPerSuccessfulRun: successfulRuns > 0 ? Math.round(totalTokens / successfulRuns) : 0,
+        splitCoveragePct,
+        tokenTrends,
       },
       aiUsage: {
         totalTokens,
@@ -1024,8 +1205,8 @@ export class AnalyticsService {
       cost: {
         totalCostUsd,
         totalEstimatedCost: totalCostUsd,
-        inputCostUsd: Number((totalCostUsd * 0.25).toFixed(4)),
-        outputCostUsd: Number((totalCostUsd * 0.75).toFixed(4)),
+        inputCostUsd,
+        outputCostUsd: Number((totalCostUsd - inputCostUsd).toFixed(4)),
         costPerRunUsd,
         costPerSuccessfulRunUsd,
         costPerAgent: costByAgent,
@@ -1044,7 +1225,7 @@ export class AnalyticsService {
         errorRate: failureRate,
         retryCount: retryRuns,
         retries: retryRuns,
-        exhaustedRetries: 0,
+        exhaustedRetries,
         rateLimitFailures: rateLimits,
         authConnectorFailures: authFailures,
         modelProviderFailures: providerFailures,
@@ -1052,12 +1233,16 @@ export class AnalyticsService {
         timeouts,
         workflowInterruptionRate:
           totalRuns > 0 ? Number(((cancelledRuns / totalRuns) * 100).toFixed(1)) : 0,
-        recoveryRatePct:
-          retryRuns > 0 ? Number(((successfulRuns / Math.max(retryRuns, 1)) * 100).toFixed(1)) : 95.0,
-        recoveryRate:
-          retryRuns > 0 ? Number(((successfulRuns / Math.max(retryRuns, 1)) * 100).toFixed(1)) : 95.0,
+        recoveryRatePct: recoveryRate,
+        recoveryRate,
       },
+      breakdown,
+      quality,
+      deltas,
+      insights: [] as DeepAIAnalyticsOverview['insights'],
     } as any;
+    overview.insights = buildInsights(overview, unrecordedModelRuns);
+    return overview as DeepAIAnalyticsOverview;
   }
 
   async getAgentAnalytics(
@@ -1559,13 +1744,13 @@ export class AnalyticsService {
     for (const exec of executions) {
       if (Array.isArray(exec.toolCalls)) {
         for (const tc of exec.toolCalls as any[]) {
-          const name = tc.name || 'tool';
-          const entry = toolMap.get(name) ?? { calls: 0, successes: 0, durations: [], errors: 0 };
+          const read = readToolCall(tc);
+          const entry = toolMap.get(read.name) ?? { calls: 0, successes: 0, durations: [], errors: 0 };
           entry.calls += 1;
-          if (tc.status !== 'FAILED') entry.successes += 1;
-          else entry.errors += 1;
-          entry.durations.push(Number(tc.latencyMs || 40));
-          toolMap.set(name, entry);
+          if (read.failed) entry.errors += 1;
+          else entry.successes += 1;
+          if (read.durationMs !== null) entry.durations.push(read.durationMs);
+          toolMap.set(read.name, entry);
         }
       }
     }
@@ -1718,19 +1903,36 @@ export class AnalyticsService {
       costByModel: overview.cost.costByModel,
       costPerAgent: overview.cost.costPerAgent,
       costPerWorkflow: overview.cost.costPerWorkflow,
-      optimizationOpportunities: [
-        {
-          title: 'Switch routine classification to lightweight models',
-          description: 'Using gpt-4o-mini or gemini-2.0-flash for simple router steps can reduce prompt costs up to 85%.',
-          estimatedSavingsPct: 35,
-        },
-        {
-          title: 'Enable prompt caching on repetitive system instructions',
-          description: 'Anthropic and OpenAI prompt caching reduces input costs by 50-80% for long system prompts.',
-          estimatedSavingsPct: 20,
-        },
-      ],
+      optimizationOpportunities: this.costOpportunities(overview),
     };
+  }
+
+  /** Savings worth chasing, each sized from this workspace's own numbers. */
+  private costOpportunities(overview: DeepAIAnalyticsOverview): AICostAnalytics['optimizationOpportunities'] {
+    const { cost, execution } = overview;
+    const out: AICostAnalytics['optimizationOpportunities'] = [];
+    if (cost.totalCostUsd <= 0) return out;
+
+    const failedShare = execution.totalRuns > 0 ? execution.failedRuns / execution.totalRuns : 0;
+    const failedPct = Math.round(failedShare * 100);
+    if (failedPct >= 5) {
+      out.push({
+        title: 'Failed runs are spending tokens for no result',
+        description: `${execution.failedRuns} of ${execution.totalRuns} runs failed. Fixing the top error groups stops that spend.`,
+        estimatedSavingsPct: failedPct,
+      });
+    }
+
+    const inputShare = cost.inputCostUsd / cost.totalCostUsd;
+    if (inputShare >= 0.4) {
+      out.push({
+        title: 'Cache repeated prompt prefixes',
+        description: `Input tokens are ${Math.round(inputShare * 100)}% of spend. Prompt caching bills cached input at roughly half price.`,
+        estimatedSavingsPct: Math.round(inputShare * 50),
+      });
+    }
+
+    return out;
   }
 
   async getErrorAnalytics(

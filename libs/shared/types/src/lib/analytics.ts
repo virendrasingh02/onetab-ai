@@ -366,11 +366,16 @@ export interface DeepAIAnalyticsOverview {
     p90LatencyMs: number;
     p95LatencyMs: number;
     p99LatencyMs: number;
+    /** Not measured yet (model calls are not streamed), so always null for now. */
     timeToFirstTokenMs: number | null;
     avgModelResponseTimeMs: number;
     toolExecutionDurationMs: number;
     queueWaitTimeMs: number;
     nodeProcessingDurationMs: number;
+    /** Per-day average / p95 run latency. */
+    latencyTrends: Array<{ date: string; avgMs: number; p95Ms: number; runs: number }>;
+    /** Run counts per latency band, for the distribution chart. */
+    latencyBuckets: Array<{ label: string; count: number }>;
     slowestWorkflows: Array<{
       id: string;
       name: string;
@@ -412,7 +417,46 @@ export interface DeepAIAnalyticsOverview {
     toolInvocationCount: number;
     connectorInvocationCount: number;
     avgTokensPerSuccessfulRun: number;
+    /** Share of runs whose input/output split was measured (the rest are estimated 40/60). */
+    splitCoveragePct: number;
+    tokenTrends: Array<{ date: string; inputTokens: number; outputTokens: number }>;
   };
+  /** Insight sections added after the first overview cut. */
+  breakdown: {
+    byStatus: Array<{ status: string; count: number }>;
+    byEntityType: Array<{ entityType: string; runs: number; failed: number; costUsd: number }>;
+    /** Runs per UTC hour of day, index 0..23. */
+    hourOfDay: number[];
+    topTools: Array<{ name: string; calls: number; failed: number; avgDurationMs: number }>;
+    topInitiators: Array<{ userId: string; name: string; runs: number; costUsd: number }>;
+    topModelsByCost: Array<{ model: string; costUsd: number }>;
+  };
+  quality: {
+    feedbackCount: number;
+    avgRating: number | null;
+    lowRatedCount: number;
+    approvalsPending: number;
+    approvalsDecided: number;
+    approvalsApproved: number;
+    avgApprovalWaitMs: number | null;
+  };
+  /** Window-over-window movement for every headline number (percent, previous window = 0 → null). */
+  deltas: {
+    totalRunsPct: number | null;
+    successRatePts: number;
+    tokensPct: number | null;
+    costPct: number | null;
+    avgLatencyPct: number | null;
+    p95LatencyPct: number | null;
+  };
+  /** Plain-language findings derived from the numbers above. */
+  insights: Array<{
+    id: string;
+    severity: 'info' | 'warning' | 'critical';
+    title: string;
+    detail: string;
+    tab?: string;
+  }>;
   cost: {
     totalCostUsd: number;
     inputCostUsd: number;
@@ -454,7 +498,8 @@ export interface DeepAIAnalyticsOverview {
     modelProviderFailures: number;
     timeoutFailures: number;
     workflowInterruptionRate: number;
-    recoveryRatePct: number;
+    /** Share of retried runs that ended well; null when nothing was retried. */
+    recoveryRatePct: number | null;
   };
 }
 

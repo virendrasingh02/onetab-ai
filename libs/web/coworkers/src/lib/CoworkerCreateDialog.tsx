@@ -18,6 +18,7 @@ import {
   Switch,
   AIProviderIcon,
   AIModelIcon,
+  AiEntityIdentityPicker,
   toast,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -26,18 +27,11 @@ import {
   Bot,
   Brain,
   Check,
-  Code2,
-  Globe,
   Layers,
-  MessageSquare,
-  Rocket,
-  Search,
   Shield,
-  Sparkles,
   Zap,
 } from 'lucide-react';
 import { type FC, useEffect, useState } from 'react';
-import { CoworkerAvatar } from './CoworkerAvatar.js';
 import { useCoworkerMutations } from './use-coworkers.js';
 
 export interface CoworkerCreateDialogProps {
@@ -45,20 +39,9 @@ export interface CoworkerCreateDialogProps {
   onOpenChange: (open: boolean) => void;
   workspaceId: string;
   coworker?: AICoworkerDetail | null;
+  /** Called with the new coworker's id after a create (not an edit) succeeds. */
+  onCreated?: (coworkerId: string) => void;
 }
-
-const PRESET_ICONS = [
-  { id: 'icon:bot', label: 'Bot', icon: Bot },
-  { id: 'icon:brain', label: 'Brain', icon: Brain },
-  { id: 'icon:code', label: 'Code', icon: Code2 },
-  { id: 'icon:spark', label: 'Sparkles', icon: Sparkles },
-  { id: 'icon:shield', label: 'Shield', icon: Shield },
-  { id: 'icon:search', label: 'Search', icon: Search },
-  { id: 'icon:chat', label: 'Chat', icon: MessageSquare },
-  { id: 'icon:rocket', label: 'Rocket', icon: Rocket },
-  { id: 'icon:globe', label: 'Globe', icon: Globe },
-  { id: 'icon:zap', label: 'Zap', icon: Zap },
-];
 
 /** Reads a coworker always has; everything else is opted into below. */
 const BASE_READ_TOOLS = ['search_docs', 'list_projects', 'list_tasks', 'list_channels', 'list_memory'];
@@ -68,6 +51,7 @@ export const CoworkerCreateDialog: FC<CoworkerCreateDialogProps> = ({
   onOpenChange,
   workspaceId,
   coworker,
+  onCreated,
 }) => {
   const isEditing = !!coworker;
   const mutations = useCoworkerMutations(workspaceId);
@@ -171,8 +155,9 @@ export const CoworkerCreateDialog: FC<CoworkerCreateDialogProps> = ({
             personality: personality.trim() || undefined,
             welcomeMessage: welcomeMessage.trim() || undefined,
             systemInstructions: systemInstructions.trim(),
-            ...(provider ? { provider } : {}),
-            ...(model ? { model } : {}),
+            // Empty is a real choice here ("default"), so it's always sent on edit.
+            provider,
+            model,
             permissions,
           },
         });
@@ -197,7 +182,7 @@ export const CoworkerCreateDialog: FC<CoworkerCreateDialogProps> = ({
 
         toast.success(`Updated coworker ${name}`);
       } else {
-        await mutations.create.mutateAsync({
+        const created = await mutations.create.mutateAsync({
           name: name.trim(),
           role: role.trim() || 'AI Coworker',
           description: description.trim() || undefined,
@@ -211,6 +196,7 @@ export const CoworkerCreateDialog: FC<CoworkerCreateDialogProps> = ({
           agentIds: selectedAgentIds,
         });
         toast.success(`Created AI Coworker "${name}"`);
+        if (created?.id) onCreated?.(created.id);
       }
       onOpenChange(false);
     } catch (err: unknown) {
@@ -283,38 +269,7 @@ export const CoworkerCreateDialog: FC<CoworkerCreateDialogProps> = ({
                 />
               </div>
 
-              {/* Avatar Preset Picker */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-foreground">
-                  Avatar Icon / Style
-                </label>
-                <div className="flex items-center gap-3">
-                  <CoworkerAvatar
-                    name={name || 'AI'}
-                    avatarUrl={avatarUrl}
-                    size="lg"
-                    showStatusDot={false}
-                  />
-                  <div className="flex flex-wrap gap-1.5">
-                    {PRESET_ICONS.map((preset) => (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => setAvatarUrl(preset.id)}
-                        className={cn(
-                          'flex h-8 w-8 items-center justify-center rounded-lg border text-xs transition-colors',
-                          avatarUrl === preset.id
-                            ? 'border-primary bg-primary/10 text-primary font-bold shadow-xs'
-                            : 'border-border/60 hover:bg-muted text-muted-foreground',
-                        )}
-                        title={preset.label}
-                      >
-                        <preset.icon className="h-4 w-4" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <AiEntityIdentityPicker name={name} kind="coworker" value={avatarUrl} onChange={setAvatarUrl} label="Avatar" />
             </div>
 
             {/* Persona & System Instructions */}

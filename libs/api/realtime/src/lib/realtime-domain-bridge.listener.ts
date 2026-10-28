@@ -421,6 +421,19 @@ export class RealtimeDomainBridgeListener {
     });
   }
 
+  /** Workspace identity changed — ids only; clients refetch their list. */
+  @OnEvent(AppEvent.WorkspaceUpdated)
+  async onWorkspaceUpdated(e: {
+    workspaceId: string;
+    actorId: string | null;
+  }): Promise<void> {
+    await this.gateway.broadcastToWorkspace(e.workspaceId, {
+      type: 'workspace.updated',
+      actorId: e.actorId,
+      payload: { workspaceId: e.workspaceId },
+    });
+  }
+
   @OnEvent(AppEvent.WorkspaceMemberUpdated)
   async onWorkspaceMemberUpdated(e: {
     workspaceId: string;

@@ -1,7 +1,14 @@
-import { avatarGradient, avatarTint, normalizeAvatarSeed } from '@org/design-system';
+import {
+  AVATAR_PALETTE,
+  avatarGradient,
+  avatarTint,
+  normalizeAvatarSeed,
+} from '@org/design-system';
+import { AVATAR_COLOR_COUNT, pickAvatarColor } from '@org/types';
 import { render } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import {
+  AvatarColorProvider,
   AvatarPresenceProvider,
   PresenceDot,
   UserAvatar,
@@ -210,5 +217,54 @@ describe('WorkspaceAvatar', () => {
       <WorkspaceAvatar name="Dev Space" seed="ws-1" icon="🚀" />,
     );
     expect(fallbackText(container)).toBe('🚀');
+  });
+});
+
+describe('workspace avatar colour', () => {
+  const userId = 'ckz9q1abc000d3b6l7xk2m9pq';
+
+  it('keeps the design-system palette and the API slot count in step', () => {
+    expect(AVATAR_PALETTE).toHaveLength(AVATAR_COLOR_COUNT);
+  });
+
+  it('paints the stored slot, for either id spelling', () => {
+    const slot = 9;
+    const expected = render(<UserAvatar name="Ada" seed={userId} avatarColor={slot} />);
+    const viaUserId = render(
+      <AvatarColorProvider resolve={(id) => (id === userId ? slot : undefined)}>
+        <UserAvatar name="Ada" seed={userId} />
+      </AvatarColorProvider>,
+    );
+    const viaMatrixId = render(
+      <AvatarColorProvider resolve={(id) => (id === userId ? slot : undefined)}>
+        <UserAvatar name="Ada" seed={`@onetab_${userId}:matrix.example.com`} />
+      </AvatarColorProvider>,
+    );
+    const want = renderedGradient(expected.container);
+    expect(want).toMatch(/^linear-gradient/);
+    expect(renderedGradient(viaUserId.container)).toBe(want);
+    expect(renderedGradient(viaMatrixId.container)).toBe(want);
+  });
+
+  it('falls back to the seed hash outside the roster', () => {
+    const plain = render(<UserAvatar name="Ada" seed="someone-else" />);
+    const provided = render(
+      <AvatarColorProvider resolve={() => undefined}>
+        <UserAvatar name="Ada" seed="someone-else" />
+      </AvatarColorProvider>,
+    );
+    expect(renderedGradient(provided.container)).toBe(
+      renderedGradient(plain.container),
+    );
+  });
+
+  it('hands out the least-used slot so teammates stay distinct', () => {
+    const taken: number[] = [];
+    for (let i = 0; i < AVATAR_COLOR_COUNT; i++) {
+      taken.push(pickAvatarColor(taken, `member-${i}`));
+    }
+    expect(new Set(taken).size).toBe(AVATAR_COLOR_COUNT);
+    // Palette full: the 17th member doubles up on some slot, never errors.
+    expect(pickAvatarColor(taken, 'member-x')).toBeGreaterThanOrEqual(0);
   });
 });

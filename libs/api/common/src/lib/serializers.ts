@@ -88,6 +88,7 @@ interface WorkspaceRow {
   avatarUrl: string | null;
   icon: string | null;
   iconColor: string | null;
+  avatarColor?: number | null;
   supportEmail?: string | null;
   accentColor?: string | null;
   defaultLandingView?: string | null;
@@ -109,6 +110,7 @@ export function toWorkspace(workspace: WorkspaceRow): Workspace {
     avatarUrl: workspace.avatarUrl,
     icon: workspace.icon,
     iconColor: workspace.iconColor,
+    avatarColor: workspace.avatarColor ?? null,
     supportEmail: workspace.supportEmail ?? null,
     accentColor: workspace.accentColor ?? null,
     defaultLandingView: workspace.defaultLandingView ?? 'home',
@@ -297,6 +299,7 @@ interface InvitationRow {
     avatarUrl?: string | null;
     icon?: string | null;
     iconColor?: string | null;
+    avatarColor?: number | null;
   } | null;
   channel?: { id: string; name: string; slug: string } | null;
   team?: { id: string; name: string; key: string } | null;

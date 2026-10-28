@@ -1,12 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 import { AIEntitiesService } from './ai-entities.service.js';
 
-const ASSISTANT_ROW = { id: 'a', name: 'Assistant', permissions: { allowActions: [] }, configuration: { coworkerType: 'assistant' } };
+/** An avatar someone picked — seeding must never replace it. */
+const CHOSEN = 'icon:brain:rose';
+
+const ASSISTANT_ROW = { id: 'a', name: 'Assistant', avatarUrl: CHOSEN, permissions: { allowActions: [] }, configuration: { coworkerType: 'assistant' } };
 
 /** The four business defaults added in the coworker roster pass, already seeded. */
-const UPGRADED = ['ledger', 'shipper', 'ada', 'relay'].map((k) => ({ id: k, name: k, permissions: { allowActions: [] }, configuration: { coworkerType: k } }));
+const UPGRADED = ['ledger', 'shipper', 'ada', 'relay'].map((k) => ({ id: k, name: k, avatarUrl: CHOSEN, permissions: { allowActions: [] }, configuration: { coworkerType: k } }));
 
-function setup(rows: Array<{ id: string; name: string; permissions: unknown; configuration: unknown }>) {
+function setup(rows: Array<{ id: string; name: string; avatarUrl?: string | null; permissions: unknown; configuration: unknown }>) {
   const aIAgent = {
     findMany: vi.fn().mockResolvedValue(rows),
     update: vi.fn().mockResolvedValue({}),
@@ -36,8 +39,8 @@ describe('AIEntitiesService.initializeDefaultCoworkers', () => {
   it('does nothing — and opens no transaction — when the workspace is up to date', async () => {
     const { service, prisma } = setup([
       ASSISTANT_ROW,
-      { id: 's', name: 'Scheduler', permissions: { allowActions: [] }, configuration: { coworkerType: 'scheduler' } },
-      { id: 't', name: 'Tracker', permissions: { allowActions: ['notify_user'] }, configuration: { coworkerType: 'tracker' } },
+      { id: 's', name: 'Scheduler', avatarUrl: CHOSEN, permissions: { allowActions: [] }, configuration: { coworkerType: 'scheduler' } },
+      { id: 't', name: 'Tracker', avatarUrl: CHOSEN, permissions: { allowActions: ['notify_user'] }, configuration: { coworkerType: 'tracker' } },
       ...UPGRADED,
     ]);
     await service.initializeDefaultCoworkers('ws-1');
@@ -47,8 +50,8 @@ describe('AIEntitiesService.initializeDefaultCoworkers', () => {
   it('grants an old default its writes, keeping its other permissions', async () => {
     const { service, aIAgent } = setup([
       ASSISTANT_ROW,
-      { id: 's', name: 'Scheduler', permissions: { knowledgeAccess: true }, configuration: { coworkerType: 'scheduler' } },
-      { id: 't', name: 'Tracker', permissions: { allowActions: [] }, configuration: { coworkerType: 'tracker' } },
+      { id: 's', name: 'Scheduler', avatarUrl: CHOSEN, permissions: { knowledgeAccess: true }, configuration: { coworkerType: 'scheduler' } },
+      { id: 't', name: 'Tracker', avatarUrl: CHOSEN, permissions: { allowActions: [] }, configuration: { coworkerType: 'tracker' } },
       ...UPGRADED,
     ]);
     await service.initializeDefaultCoworkers('ws-1');
@@ -63,7 +66,7 @@ describe('AIEntitiesService.initializeDefaultCoworkers', () => {
   it('does not re-create a default someone renamed', async () => {
     const { service, aIAgent } = setup([
       ASSISTANT_ROW,
-      { id: 's', name: 'Launch Planner', permissions: { allowActions: [] }, configuration: { coworkerType: 'scheduler' } },
+      { id: 's', name: 'Launch Planner', avatarUrl: CHOSEN, permissions: { allowActions: [] }, configuration: { coworkerType: 'scheduler' } },
     ]);
     await service.initializeDefaultCoworkers('ws-1');
     expect(aIAgent.create.mock.calls.map(([arg]: [any]) => arg.data.name)).toEqual(['Tracker', 'Ledger', 'Shipper', 'Ada', 'Relay']);
@@ -72,9 +75,9 @@ describe('AIEntitiesService.initializeDefaultCoworkers', () => {
   it('adopts an existing Finance coworker as Ledger instead of creating a duplicate', async () => {
     const { service, aIAgent } = setup([
       ASSISTANT_ROW,
-      { id: 's', name: 'Scheduler', permissions: { allowActions: [] }, configuration: { coworkerType: 'scheduler' } },
-      { id: 't', name: 'Tracker', permissions: { allowActions: [] }, configuration: { coworkerType: 'tracker' } },
-      { id: 'f', name: 'Money Bot', permissions: { allowActions: ['notify_user'] }, configuration: { coworkerType: 'finance', capabilities: ['x'] } },
+      { id: 's', name: 'Scheduler', avatarUrl: CHOSEN, permissions: { allowActions: [] }, configuration: { coworkerType: 'scheduler' } },
+      { id: 't', name: 'Tracker', avatarUrl: CHOSEN, permissions: { allowActions: [] }, configuration: { coworkerType: 'tracker' } },
+      { id: 'f', name: 'Money Bot', avatarUrl: CHOSEN, permissions: { allowActions: ['notify_user'] }, configuration: { coworkerType: 'finance', capabilities: ['x'] } },
     ]);
     await service.initializeDefaultCoworkers('ws-1');
     expect(aIAgent.update).toHaveBeenCalledWith({
@@ -84,5 +87,27 @@ describe('AIEntitiesService.initializeDefaultCoworkers', () => {
     const created = aIAgent.create.mock.calls.map(([arg]: [any]) => arg.data.name);
     expect(created).not.toContain('Ledger');
     expect(created).toEqual(['Shipper', 'Ada', 'Relay']);
+  });
+
+  it('gives each new default its own identity', async () => {
+    const { service, aIAgent } = setup([]);
+    await service.initializeDefaultCoworkers('ws-1');
+    const avatars = aIAgent.create.mock.calls.map(([arg]: [any]) => arg.data.avatarUrl);
+    expect(avatars[0]).toBe('icon:sparkles:indigo');
+    expect(new Set(avatars).size).toBe(avatars.length);
+  });
+
+  it('moves defaults still on the old shared look to their identity, and leaves chosen ones alone', async () => {
+    const { service, aIAgent } = setup([
+      { ...ASSISTANT_ROW, avatarUrl: 'icon:bot' },
+      { id: 's', name: 'Scheduler', avatarUrl: null, permissions: { allowActions: [] }, configuration: { coworkerType: 'scheduler' } },
+      { id: 't', name: 'Tracker', avatarUrl: 'https://x.test/me.png', permissions: { allowActions: [] }, configuration: { coworkerType: 'tracker' } },
+      ...UPGRADED,
+    ]);
+    await service.initializeDefaultCoworkers('ws-1');
+    expect(aIAgent.update.mock.calls.map(([arg]: [any]) => arg)).toEqual([
+      { where: { id: 'a' }, data: { avatarUrl: 'icon:sparkles:indigo' } },
+      { where: { id: 's' }, data: { avatarUrl: 'icon:workflow:sky' } },
+    ]);
   });
 });

@@ -1,11 +1,12 @@
 import type { AIEntityType, CoworkerStatus } from '@org/types';
+import { AiEntityAvatar } from '@org/ui';
 import { cn } from '@org/utils';
-import { Bot, Sparkles } from 'lucide-react';
-import { useState, type FC } from 'react';
+import type { FC } from 'react';
 
 export interface AIEntityAvatarProps {
   name: string;
   type?: AIEntityType;
+  /** A photo URL or a built-in identity (`icon:<icon>[:<color>]`). */
   avatarUrl?: string | null;
   status?: CoworkerStatus;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -13,14 +14,9 @@ export interface AIEntityAvatarProps {
   className?: string;
 }
 
-const SIZE_MAP = {
-  xs: { container: 'h-6 w-6 text-[10px] rounded-md', icon: 'h-3.5 w-3.5', dot: 'size-1.5' },
-  sm: { container: 'h-8 w-8 text-xs rounded-lg', icon: 'h-4 w-4', dot: 'size-2' },
-  md: { container: 'h-10 w-10 text-sm rounded-xl', icon: 'h-5 w-5', dot: 'size-2.5' },
-  lg: { container: 'h-12 w-12 text-base rounded-xl', icon: 'h-6 w-6', dot: 'size-3' },
-  xl: { container: 'h-16 w-16 text-xl rounded-2xl', icon: 'h-8 w-8', dot: 'size-3.5' },
-};
+const DOT = { xs: 'size-1.5', sm: 'size-2', md: 'size-2.5', lg: 'size-3', xl: 'size-3.5' } as const;
 
+/** The shared `@org/ui` identity (photo or icon on its colour) plus a presence dot. */
 export const AIEntityAvatar: FC<AIEntityAvatarProps> = ({
   name,
   type = 'agent',
@@ -30,13 +26,6 @@ export const AIEntityAvatar: FC<AIEntityAvatarProps> = ({
   showStatusDot = true,
   className,
 }) => {
-  const sizeConfig = SIZE_MAP[size];
-  const src = avatarUrl?.trim() || null;
-  // Track which URL failed so a changed avatar gets a fresh attempt, while a
-  // broken/slow one always falls back to the default icon (never an empty box).
-  const [failedSrc, setFailedSrc] = useState<string | null>(null);
-  const showImage = Boolean(src) && failedSrc !== src;
-
   const statusColor =
     status === 'WORKING'
       ? 'bg-accent-amber animate-pulse'
@@ -47,39 +36,14 @@ export const AIEntityAvatar: FC<AIEntityAvatarProps> = ({
           : 'bg-success';
 
   return (
-    <div
-      className={cn(
-        'relative flex shrink-0 items-center justify-center font-semibold select-none',
-        sizeConfig.container,
-        type === 'coworker'
-          ? 'bg-gradient-to-br from-primary/20 via-primary/10 to-accent/20 text-primary border border-primary/20'
-          : 'bg-surface-raised text-foreground border border-border',
-        className,
-      )}
+    <span
+      className={cn('relative inline-flex shrink-0', className)}
       title={`${name} (${type === 'coworker' ? 'AI Coworker' : 'AI Agent'})`}
     >
-      {showImage ? (
-        <img
-          src={src as string}
-          alt={name}
-          className="h-full w-full object-cover rounded-[inherit]"
-          onError={() => setFailedSrc(src)}
-        />
-      ) : type === 'coworker' ? (
-        <Sparkles className={cn(sizeConfig.icon, 'text-primary')} />
-      ) : (
-        <Bot className={cn(sizeConfig.icon, 'text-primary')} />
-      )}
-
+      <AiEntityAvatar name={name} kind={type === 'coworker' ? 'coworker' : 'agent'} avatarUrl={avatarUrl} size={size} />
       {showStatusDot ? (
-        <span
-          className={cn(
-            'absolute -bottom-0.5 -right-0.5 rounded-full ring-2 ring-background',
-            sizeConfig.dot,
-            statusColor,
-          )}
-        />
+        <span className={cn('absolute -bottom-0.5 -right-0.5 rounded-full ring-2 ring-background', DOT[size], statusColor)} />
       ) : null}
-    </div>
+    </span>
   );
 };

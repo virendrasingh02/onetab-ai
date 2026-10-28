@@ -332,6 +332,10 @@ model Workspace {
   icon                      String?
   /// Hex tint for `icon`, and only meaningful when `icon` is a Lucide name.
   iconColor                 String?
+  /// Avatar palette slot (0..15, see `AVATAR_COLOR_COUNT`) for the workspace's
+  /// initial tile — the same colour for every member. Chosen at creation as the
+  /// slot least used among the creator's other workspaces; editable by admins.
+  avatarColor               Int?
   supportEmail              String?
   accentColor               String?
   defaultLandingView        String                      @default("home")
@@ -453,6 +457,10 @@ model WorkspaceMember {
   lastActiveAt DateTime?
   invitedAt    DateTime?
   invitedById  String?
+  /// Avatar palette slot (0..15, see `AVATAR_COLOR_COUNT`) — this person's
+  /// colour inside this workspace. Assigned least-used on first roster read so
+  /// teammates stay distinct; the member may pick another. Null = not yet assigned.
+  avatarColor  Int?
   user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspace    Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   invitedBy    User?            @relation("WorkspaceMemberInvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
@@ -1308,7 +1316,9 @@ model ChatSettings {
   userId                   String   @unique
   /// Compact hides avatars and tightens spacing.
   density                  String   @default("comfortable")
-  showReadReceipts         Boolean  @default(true)
+  /// Where the timeline lands when a conversation opens: `last-read` | `newest`.
+  openPosition             String   @default("last-read")
+  showReadReceipts        Boolean  @default(true)
   sendTypingNotice         Boolean  @default(true)
   /// Show other people's typing indicators. Independent of `sendTypingNotice`,
   /// which controls whether *this* user's own typing is broadcast.

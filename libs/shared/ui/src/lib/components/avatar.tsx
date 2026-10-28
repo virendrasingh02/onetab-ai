@@ -17,6 +17,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
+import { getAiEntityPresetIcon, getAiEntityTone } from './ai-entity-avatar.js';
 import { IconRenderer } from './icon-picker-popover.js';
 import { Skeleton, SkeletonAvatar } from './skeleton.js';
 import { Hint } from './tooltip.js';
@@ -253,6 +254,71 @@ export function useResolvedPresence(
 }
 
 /**
+ * Resolves a user id to their avatar colour in the active workspace — a slot
+ * of `AVATAR_PALETTE` stored on the membership (`WorkspaceMember.avatarColor`)
+ * — or `undefined` when the workspace roster has no entry for them.
+ *
+ * Same seam as {@link AvatarPresenceResolver}: `@org/ui` does no data-fetching,
+ * so the app hands it a lookup over the members query. Unprovided, or for
+ * anyone outside the roster, avatars fall back to a hash of their seed.
+ */
+export type AvatarColorResolver = (userId: string) => number | null | undefined;
+
+const AvatarColorContext = createContext<AvatarColorResolver>(() => undefined);
+
+export function AvatarColorProvider({
+  resolve,
+  children,
+}: {
+  resolve: AvatarColorResolver;
+  children: ReactNode;
+}) {
+  return (
+    <AvatarColorContext.Provider value={resolve}>
+      {children}
+    </AvatarColorContext.Provider>
+  );
+}
+
+/** The palette slot to paint for a user: an explicit `override` (e.g. a picker
+ *  preview), else their stored workspace colour, else `undefined` (hash). */
+export function useResolvedAvatarColor(
+  userId: string | undefined,
+  override?: number | null,
+): number | null | undefined {
+  const resolve = useContext(AvatarColorContext);
+  if (override != null) return override;
+  return userId ? resolve(userId) : undefined;
+}
+
+/**
+ * Resolves a workspace id to its stored tile colour (`Workspace.avatarColor`),
+ * so every `WorkspaceAvatar` — rail, switcher, notifications — paints the one
+ * colour all members see. The app feeds it from the workspaces list.
+ */
+export type WorkspaceColorResolver = (
+  workspaceId: string,
+) => number | null | undefined;
+
+const WorkspaceColorContext = createContext<WorkspaceColorResolver>(
+  () => undefined,
+);
+
+export function WorkspaceColorProvider({
+  resolve,
+  children,
+}: {
+  resolve: WorkspaceColorResolver;
+  children: ReactNode;
+}) {
+  return (
+    <WorkspaceColorContext.Provider value={resolve}>
+      {children}
+    </WorkspaceColorContext.Provider>
+  );
+}
+
+/**
  * How many of `userIds` are online right now, from the same live presence the
  * avatars draw. Ids may be platform or Matrix spellings.
  */
@@ -272,6 +338,9 @@ export interface UserAvatarProps extends Omit<AvatarProps, 'shape'> {
   src?: string | null;
   /** Stable tint seed. Defaults to `name`; pass a user id where available. */
   seed?: string;
+  /** Explicit avatar palette slot. Normally omitted — the person's workspace
+   *  colour is resolved from `AvatarColorProvider` by `seed`. */
+  avatarColor?: number | null;
   /** Lowercase or the API's uppercase spelling — both are normalized here. */
   presence?: PresenceInput | null;
   /**
@@ -434,6 +503,7 @@ export function UserAvatar({
   name,
   src,
   seed,
+  avatarColor: avatarColorProp,
   presence,
   indicator = true,
   notch = true,
@@ -454,6 +524,7 @@ export function UserAvatar({
   // otherwise change the number of hooks between renders and crash React.
   const presenceKey = seed?.trim() ? normalizeAvatarSeed(seed) : undefined;
   const resolvedPresence = useResolvedPresence(presenceKey, presence);
+  const avatarColor = useResolvedAvatarColor(presenceKey, avatarColorProp);
 
   if (isLoading) {
     return (
@@ -470,6 +541,7 @@ export function UserAvatar({
   // through — `'' ?? name` keeps `''`, which would paint every seedless avatar
   // the same colour. Fall back to the name only when there is genuinely no seed.
   const tintSeed = seed?.trim() ? seed : name;
+  const AiGlyph = src?.startsWith('icon:') ? getAiEntityPresetIcon(src) : undefined;
 
   const geometry = INDICATOR_SIZES[size ?? 'md'];
   const showEmoji = indicator && Boolean(statusEmoji);
@@ -495,19 +567,33 @@ export function UserAvatar({
           className="absolute inset-0 overflow-hidden rounded-full"
           style={scooped ? notchMaskStyle(size ?? 'md') : undefined}
         >
-          {src ? (
-            <AvatarImage src={src} alt={name} className="rounded-full" />
-          ) : null}
-          <AvatarFallback
-            className="rounded-full"
-            style={{
-              backgroundImage: avatarGradient(tintSeed),
-              // A flat fallback under the gradient for any renderer that drops it.
-              backgroundColor: avatarTint(tintSeed),
-            }}
-          >
-            {initials(name)}
-          </AvatarFallback>
+          {AiGlyph ? (
+            // An agent/coworker shown where people are (DMs, pickers, mentions):
+            // its built-in identity, not a broken `icon:` image.
+            <span
+              role="img"
+              aria-label={name}
+              className={cn('flex size-full items-center justify-center rounded-full border', getAiEntityTone('agent', tintSeed, src))}
+            >
+              <AiGlyph className="size-[55%]" aria-hidden />
+            </span>
+          ) : (
+            <>
+              {src ? (
+                <AvatarImage src={src} alt={name} className="rounded-full" />
+              ) : null}
+              <AvatarFallback
+                className="rounded-full"
+                style={{
+                  backgroundImage: avatarGradient(tintSeed, avatarColor),
+                  // A flat fallback under the gradient for any renderer that drops it.
+                  backgroundColor: avatarTint(tintSeed, avatarColor),
+                }}
+              >
+                {initials(name)}
+              </AvatarFallback>
+            </>
+          )}
         </span>
       </Avatar>
       {showDot ? (
@@ -550,6 +636,9 @@ export interface WorkspaceAvatarProps extends AvatarProps {
   icon?: string | null;
   /** Hex tint for `icon`, applied only to registry icons. */
   iconColor?: string | null;
+  /** Explicit palette slot (e.g. a settings preview). Omitted, the stored
+   *  workspace colour is resolved from `WorkspaceColorProvider` by `seed`. */
+  avatarColor?: number | null;
 }
 
 /** Icon glyphs scaled to comfortably fill the avatar box alongside image avatars. */
@@ -576,11 +665,16 @@ export function WorkspaceAvatar({
   seed,
   icon,
   iconColor,
+  avatarColor: avatarColorProp,
   size = 'md',
   shape = 'rounded',
   className,
   ...props
 }: WorkspaceAvatarProps) {
+  const resolveColor = useContext(WorkspaceColorContext);
+  const tintSeed = seed?.trim() ? seed : name;
+  const avatarColor =
+    avatarColorProp ?? (seed?.trim() ? resolveColor(seed) : undefined);
   const isImageIcon =
     !src &&
     Boolean(
@@ -609,7 +703,10 @@ export function WorkspaceAvatar({
           // An icon supplies its own colour; the tinted tile is for initials.
           glyph
             ? undefined
-            : { backgroundColor: avatarTint(seed?.trim() ? seed : name) }
+            : {
+                backgroundImage: avatarGradient(tintSeed, avatarColor),
+                backgroundColor: avatarTint(tintSeed, avatarColor),
+              }
         }
         className={
           glyph ? 'border border-border bg-surface-raised' : undefined
@@ -635,6 +732,8 @@ export interface UserCoverProps extends ComponentProps<'div'> {
   src?: string | null;
   /** Same seed the person's `UserAvatar` uses — a user id where available. */
   seed: string;
+  /** Explicit palette slot; omitted, the workspace colour for `seed` is used. */
+  avatarColor?: number | null;
 }
 
 /**
@@ -646,18 +745,23 @@ export interface UserCoverProps extends ComponentProps<'div'> {
 export function UserCover({
   src,
   seed,
+  avatarColor: avatarColorProp,
   className,
   style,
   children,
   ...props
 }: UserCoverProps) {
-  const gradient = avatarGradient(seed);
+  const avatarColor = useResolvedAvatarColor(
+    seed.trim() ? normalizeAvatarSeed(seed) : undefined,
+    avatarColorProp,
+  );
+  const gradient = avatarGradient(seed, avatarColor);
   return (
     <div
       className={cn('relative w-full bg-cover bg-center', className)}
       style={{
         backgroundImage: src ? `url("${src}"), ${gradient}` : gradient,
-        backgroundColor: avatarTint(seed),
+        backgroundColor: avatarTint(seed, avatarColor),
         ...style,
       }}
       {...props}

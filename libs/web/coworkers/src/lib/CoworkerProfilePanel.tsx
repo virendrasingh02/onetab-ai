@@ -22,6 +22,7 @@ import {
   AIModelIdentity,
   AIModelBadge,
   type RightPanelProfile,
+  getAiEntityCover,
 } from '@org/ui';
 import { cn, formatRelative } from '@org/utils';
 import {
@@ -48,7 +49,7 @@ import {
 import { type FC, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCanManageTrackerMonitor } from '@org/web-workspace';
-import { CoworkerAvatar, getGradientByName } from './CoworkerAvatar.js';
+import { CoworkerAvatar } from './CoworkerAvatar.js';
 import { CoworkerCreateDialog } from './CoworkerCreateDialog.js';
 import {
   useCoworker,
@@ -255,7 +256,7 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
             className="size-18 rounded-2xl shadow-md ring-4 ring-surface"
           />
         }
-        coverClassName={getGradientByName(coworker.name)}
+        coverClassName={getAiEntityCover(coworker.name, coworker.avatarUrl)}
         name={coworker.name}
         kind="AI Coworker"
         isActive={coworker.isActive}
@@ -562,7 +563,7 @@ export const CoworkerProfileDetails: FC<CoworkerProfileDetailsProps> = ({
         <div
           className={cn(
             'h-32 sm:h-44 w-full bg-gradient-to-br',
-            getGradientByName(coworker.name),
+            getAiEntityCover(coworker.name, coworker.avatarUrl),
           )}
         />
 

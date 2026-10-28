@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { integrationsApi, queryKeys } from '@org/api-client';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import type { Accent } from '@org/design-system';
 import type {
   MarketplaceListing,
   MarketplaceListingDetail,
@@ -40,38 +39,6 @@ import {
   AppDetailPage,
   AgentDetailPage,
 } from './marketplace';
-import {
-  Bot,
-  Brain,
-  Code2,
-  Globe,
-  Layers,
-  MessageSquare,
-  Rocket,
-  Search,
-  Shield,
-  Sparkles,
-} from 'lucide-react';
-
-/* ------------------------------------------------------------- icon presets ---- */
-
-export const PRESET_ICONS: {
-  id: string;
-  label: string;
-  icon: typeof Bot;
-  accent: Accent;
-}[] = [
-  { id: 'icon:bot', label: 'Bot', icon: Bot, accent: 'violet' },
-  { id: 'icon:brain', label: 'Brain', icon: Brain, accent: 'pink' },
-  { id: 'icon:code', label: 'Code', icon: Code2, accent: 'blue' },
-  { id: 'icon:spark', label: 'Spark', icon: Sparkles, accent: 'amber' },
-  { id: 'icon:shield', label: 'Shield', icon: Shield, accent: 'green' },
-  { id: 'icon:search', label: 'Search', icon: Search, accent: 'cyan' },
-  { id: 'icon:chat', label: 'Chat', icon: MessageSquare, accent: 'indigo' },
-  { id: 'icon:rocket', label: 'Rocket', icon: Rocket, accent: 'rose' },
-  { id: 'icon:globe', label: 'Globe', icon: Globe, accent: 'teal' },
-  { id: 'icon:layers', label: 'Layers', icon: Layers, accent: 'orange' },
-];
 
 /* --------------------------------------------------------------- avatar ---- */
 

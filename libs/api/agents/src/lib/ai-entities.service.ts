@@ -13,6 +13,7 @@ import {
   COWORKER_TEMPLATES,
   PLANS_CONFIG,
   canUpgradeAgent,
+  coworkerTemplateAvatar,
   coworkerTemplateKey,
   getCoworkerTemplate,
   deriveAgentFromGraph,
@@ -169,11 +170,26 @@ export class AIEntitiesService {
       orderBy: { updatedAt: 'desc' },
     });
 
+    const owners = await this.ownersById(rows.map((row) => row.creatorId));
     return rows.map((row) => ({
       ...row,
       avatarUrl: resolveAvatarUrl(row),
       permissions: parsePermissions(row.permissions),
+      owner: row.creatorId ? (owners.get(row.creatorId) ?? null) : null,
     }));
+  }
+
+  /** The people behind these entities, so cards show a real owner rather than free text. */
+  private async ownersById(ids: Array<string | null>) {
+    const unique = [...new Set(ids.filter((id): id is string => !!id))];
+    if (!unique.length) return new Map<string, { id: string; name: string; avatarUrl: string | null }>();
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: unique } },
+      select: { id: true, name: true, displayName: true, avatarUrl: true },
+    });
+    return new Map(
+      users.map((u) => [u.id, { id: u.id, name: u.displayName || u.name, avatarUrl: u.avatarUrl }]),
+    );
   }
 
   async getEntity(workspaceId: string, entityId: string) {
@@ -219,10 +235,12 @@ export class AIEntitiesService {
     });
 
     if (!row) throw new NotFoundException('AI Entity not found.');
+    const owners = await this.ownersById([row.creatorId]);
     return {
       ...row,
       avatarUrl: resolveAvatarUrl(row),
       permissions: parsePermissions(row.permissions),
+      owner: row.creatorId ? (owners.get(row.creatorId) ?? null) : null,
     };
   }
 
@@ -756,6 +774,9 @@ export class AIEntitiesService {
             },
           });
         }
+        for (const row of work.needIdentity) {
+          await tx.aIAgent.update({ where: { id: row.id }, data: { avatarUrl: row.avatarUrl } });
+        }
         for (const { row, template } of work.adopt) {
           // Same coworker, same name/prompt/grants — it now fills this default's
           // role, so it gets the default's connectors and collaborators.
@@ -785,6 +806,7 @@ export class AIEntitiesService {
               systemPrompt: template.systemPrompt,
               systemInstructions: template.systemInstructions,
               status: 'AVAILABLE',
+              avatarUrl: coworkerTemplateAvatar(template.key) ?? DEFAULT_COWORKER_AVATAR,
               // Same default a hand-made coworker gets — not the column's `ollama` placeholder.
               provider: process.env['AI_DEFAULT_PROVIDER'] || 'nvidia',
               model: process.env['AI_DEFAULT_MODEL'] || 'nvidia/nemotron-3-super-120b-a12b',
@@ -808,7 +830,7 @@ export class AIEntitiesService {
   private readCoworkers(db: Pick<PrismaService, 'aIAgent'>, workspaceId: string) {
     return db.aIAgent.findMany({
       where: { workspaceId, type: 'coworker' },
-      select: { id: true, name: true, permissions: true, configuration: true },
+      select: { id: true, name: true, avatarUrl: true, permissions: true, configuration: true },
       // Oldest first, so adoption picks the longest-standing coworker.
       orderBy: { createdAt: 'asc' },
     });
@@ -816,9 +838,12 @@ export class AIEntitiesService {
 
   /** What seeding still has to do, or null when the workspace is up to date. */
   private coworkerSeedWork(
-    existing: Array<{ id: string; name: string; permissions: unknown; configuration: unknown }>,
+    existing: Array<{ id: string; name: string; avatarUrl?: string | null; permissions: unknown; configuration: unknown }>,
   ) {
     const needGrants: Array<{ id: string; permissions: Record<string, unknown>; template: CoworkerTemplate }> = [];
+    // Defaults still on the old shared look (no avatar, or the untouched `icon:bot`)
+    // take their template's own identity; anything someone picked is left alone.
+    const needIdentity: Array<{ id: string; avatarUrl: string }> = [];
     for (const row of existing) {
       const template = getCoworkerTemplate(coworkerTemplateKey(row.configuration));
       const permissions =
@@ -826,6 +851,10 @@ export class AIEntitiesService {
           ? (row.permissions as Record<string, unknown>)
           : {};
       if (template && !('allowActions' in permissions)) needGrants.push({ id: row.id, permissions, template });
+      const identity = template ? coworkerTemplateAvatar(template.key) : undefined;
+      if (identity && (!row.avatarUrl || row.avatarUrl === DEFAULT_COWORKER_AVATAR)) {
+        needIdentity.push({ id: row.id, avatarUrl: identity });
+      }
     }
     // A renamed default is still that default — matched by template key first.
     const unfilled = COWORKER_TEMPLATES.filter(
@@ -849,7 +878,9 @@ export class AIEntitiesService {
         missing.push(template);
       }
     }
-    return needGrants.length || missing.length || adopt.length ? { needGrants, missing, adopt } : null;
+    return needGrants.length || needIdentity.length || missing.length || adopt.length
+      ? { needGrants, needIdentity, missing, adopt }
+      : null;
   }
 
   async seedInitialCoworkers(workspaceId: string, creatorId?: string): Promise<void> {

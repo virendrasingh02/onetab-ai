@@ -27,6 +27,8 @@ export interface AIEntity {
   id: string;
   workspaceId: string;
   creatorId: string | null;
+  /** The creator's profile, resolved by the API. Null for seeded or deleted-user entities. */
+  owner?: { id: string; name: string; avatarUrl: string | null } | null;
   type: AIEntityType;
   name: string;
   role: string;

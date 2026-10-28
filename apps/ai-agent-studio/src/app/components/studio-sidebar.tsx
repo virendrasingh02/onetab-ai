@@ -461,6 +461,7 @@ export function StudioSidebar({
       src={activeWorkspace.avatarUrl}
       icon={activeWorkspace.icon}
       iconColor={activeWorkspace.iconColor}
+      avatarColor={activeWorkspace.avatarColor}
       seed={activeWorkspace.id}
       size="md"
       className="shrink-0"
@@ -509,6 +510,7 @@ export function StudioSidebar({
                   src={ws.avatarUrl}
                   icon={ws.icon}
                   iconColor={ws.iconColor}
+                  avatarColor={ws.avatarColor}
                   seed={ws.id}
                   size="xs"
                 />
