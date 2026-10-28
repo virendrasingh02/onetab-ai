@@ -12,6 +12,7 @@ import {
   Blocks,
   Bookmark,
   Bot,
+  Globe,
   Hash,
   Headphones,
   Lock,
@@ -38,10 +39,20 @@ interface WelcomeAction {
   label: string;
   description: string;
   icon: ReactNode;
-  /** Tailwind text-colour class for the icon glyph. */
-  iconColor: string;
+  tone: WelcomeTone;
   onClick: () => void;
 }
+
+type WelcomeTone = 'primary' | 'info' | 'success' | 'warning' | 'neutral';
+
+/** Tinted icon tile per tone. */
+const TONE_TILE: Record<WelcomeTone, string> = {
+  primary: 'bg-primary/10 text-primary-text ring-primary/15',
+  info: 'bg-info/10 text-info-text ring-info/15',
+  success: 'bg-success/10 text-success-text ring-success/15',
+  warning: 'bg-warning/10 text-warning-text ring-warning/15',
+  neutral: 'bg-surface-muted text-foreground ring-border',
+};
 
 /** The other party in a `direct` / `self` conversation. */
 export interface ChannelWelcomePeer {
@@ -152,8 +163,15 @@ export function ChannelWelcome({
     ? (peer?.name ?? channelName)
     : channelName;
 
+  // The member strip carries its own "Add people" button, so the card would
+  // only duplicate it there.
+  const showMemberStrip =
+    (kind === 'channel' || kind === 'group') &&
+    (members.length > 0 || total > 0);
+
   const offered: (WelcomeAction | false | undefined)[] = [
     onAddPeople &&
+      !showMemberStrip &&
       (kind === 'channel' || kind === 'group') && {
         key: 'people',
         label: 'Add people',
@@ -162,16 +180,18 @@ export function ChannelWelcome({
             ? 'Bring more teammates into this conversation.'
             : 'Invite teammates who should be in this channel.',
         icon: <UserPlus className="size-4" />,
-        iconColor: 'text-primary-text',
+        tone: 'info',
         onClick: onAddPeople,
       },
+    // Once a description exists it is edited inline, beside the text.
     onEditDescription &&
-      kind === 'channel' && {
+      kind === 'channel' &&
+      !description && {
         key: 'description',
-        label: description ? 'Edit description' : 'Add a description',
+        label: 'Add a description',
         description: 'Say what this channel is for so newcomers can catch up.',
         icon: <PenLine className="size-4" />,
-        iconColor: 'text-info-text',
+        tone: 'neutral',
         onClick: onEditDescription,
       },
     onOpenCopilot &&
@@ -181,7 +201,7 @@ export function ChannelWelcome({
         description:
           'Summarise, draft, and search this channel without leaving it.',
         icon: <Sparkles className="size-4" />,
-        iconColor: 'text-success-text',
+        tone: 'primary',
         onClick: onOpenCopilot,
       },
     onAddBookmark &&
@@ -191,7 +211,7 @@ export function ChannelWelcome({
         description:
           'Keep the docs and links this channel needs one click away.',
         icon: <Bookmark className="size-4" />,
-        iconColor: 'text-warning-text',
+        tone: 'warning',
         onClick: onAddBookmark,
       },
     onViewProfile &&
@@ -200,7 +220,7 @@ export function ChannelWelcome({
         label: 'View profile',
         description: `See ${displayName}'s role, local time, and shared channels.`,
         icon: <UserRound className="size-4" />,
-        iconColor: 'text-info-text',
+        tone: 'info',
         onClick: onViewProfile,
       },
     onStartHuddle &&
@@ -212,7 +232,7 @@ export function ChannelWelcome({
             ? 'Jump on a quick call when typing is slower than talking.'
             : 'Talk it through when typing is taking too long.',
         icon: <Headphones className="size-4" />,
-        iconColor: 'text-foreground',
+        tone: 'success',
         onClick: onStartHuddle,
       },
   ];
@@ -275,45 +295,39 @@ export function ChannelWelcome({
         </>
       );
     }
+    // Who created it and when lives in the header's meta line.
     return (
       <>
-        {createdByName ? (
-          <>
-            {createdBy ? (
-              <UserProfileCard
-                userId={createdBy.userId}
-                name={createdByName}
-                avatarUrl={createdBy.avatarUrl ?? undefined}
-                email={createdBy.email}
-                title={createdBy.title ?? undefined}
-              >
-                <button
-                  type="button"
-                  className="rounded-sm font-semibold text-foreground underline-offset-2 transition-colors hover:text-primary-text hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-text"
-                >
-                  {createdByName}
-                </button>
-              </UserProfileCard>
-            ) : (
-              <span className="font-semibold text-foreground">
-                {createdByName}
-              </span>
-            )}{' '}
-            created this channel
-          </>
-        ) : (
-          'This channel was created'
-        )}
-        {createdAt ? ` on ${formatDate(createdAt)}` : ''}. This is the very
-        beginning of the{' '}
+        This is the very beginning of{' '}
         <span className="font-semibold text-foreground">
           {isPrivate ? '' : '#'}
           {channelName}
-        </span>{' '}
-        channel.
+        </span>
+        . Share updates, ask questions, and keep everyone in the loop.
       </>
     );
   })();
+
+  const creator: ReactNode = createdByName ? (
+    createdBy ? (
+      <UserProfileCard
+        userId={createdBy.userId}
+        name={createdByName}
+        avatarUrl={createdBy.avatarUrl ?? undefined}
+        email={createdBy.email}
+        title={createdBy.title ?? undefined}
+      >
+        <button
+          type="button"
+          className="rounded-sm font-medium text-foreground underline-offset-2 transition-colors hover:text-primary-text hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-text"
+        >
+          {createdByName}
+        </button>
+      </UserProfileCard>
+    ) : (
+      <span className="font-medium text-foreground">{createdByName}</span>
+    )
+  ) : null;
 
   const context: { icon: ReactNode; text: string } | null = (() => {
     if (kind === 'self') {
@@ -357,20 +371,41 @@ export function ChannelWelcome({
 
   const header =
     kind === 'channel' ? (
-      <div className="gap-3.5 flex items-center">
+      <div className="gap-4 flex items-center">
         <span
           aria-hidden
-          className="size-12 flex shrink-0 items-center justify-center rounded-2xl border border-border bg-surface-raised text-foreground"
+          className="size-14 flex shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary-text ring-1 ring-primary/15 ring-inset"
         >
           {isPrivate ? (
-            <Lock className="size-5" />
+            <Lock className="size-6" />
           ) : (
-            <Hash className="size-5" />
+            <Hash className="size-6" />
           )}
         </span>
-        <h2 className="min-w-0 text-lg font-semibold tracking-tight truncate text-foreground">
-          {channelName}
-        </h2>
+        <div className="min-w-0">
+          <div className="gap-2 flex items-center">
+            <h2 className="min-w-0 text-xl font-semibold tracking-tight truncate text-foreground">
+              {channelName}
+            </h2>
+            <span className="gap-1 px-2 py-0.5 font-medium inline-flex shrink-0 items-center rounded-full border border-border text-[11px] text-muted-foreground [&_svg]:size-3">
+              {isPrivate ? <Lock /> : <Globe />}
+              {isPrivate ? 'Private' : 'Public'}
+            </span>
+          </div>
+          {creator || createdAt ? (
+            <p className="mt-0.5 text-xs truncate text-muted-foreground">
+              {creator ? <>Created by {creator}</> : 'Created'}
+              {createdAt ? (
+                <>
+                  <span aria-hidden className="mx-1.5 text-muted-foreground/50">
+                    ·
+                  </span>
+                  {formatDate(createdAt)}
+                </>
+              ) : null}
+            </p>
+          ) : null}
+        </div>
       </div>
     ) : kind === 'group' ? (
       <div className="gap-3.5 flex items-center">
@@ -453,14 +488,27 @@ export function ChannelWelcome({
       <div className="max-w-4xl">
         {header}
 
-        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+        <p className="mt-4 max-w-prose text-sm leading-relaxed text-muted-foreground">
           {intro}
         </p>
 
         {description ? (
-          <p className="mt-2 max-w-prose text-sm leading-relaxed text-foreground">
-            {description}
-          </p>
+          <div className="group/desc mt-3 max-w-prose gap-2 py-0.5 pl-3 flex items-start border-l-2 border-primary/30">
+            <p className="min-w-0 text-sm leading-relaxed flex-1 text-foreground">
+              {description}
+            </p>
+            {onEditDescription && kind === 'channel' ? (
+              <button
+                type="button"
+                onClick={onEditDescription}
+                aria-label="Edit description"
+                title="Edit description"
+                className="size-6 group-hover/desc:opacity-100 flex shrink-0 items-center justify-center rounded-md text-muted-foreground transition-opacity sm:opacity-0 hover:bg-surface-muted hover:text-foreground focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                <PenLine className="size-3.5" />
+              </button>
+            ) : null}
+          </div>
         ) : null}
 
         {context ? (
@@ -470,9 +518,8 @@ export function ChannelWelcome({
           </p>
         ) : null}
 
-        {(kind === 'channel' || kind === 'group') &&
-        (members.length > 0 || total > 0) ? (
-          <div className="mt-4 gap-2 flex flex-wrap items-center">
+        {showMemberStrip ? (
+          <div className="mt-4 gap-3 flex flex-wrap items-center">
             {members.length > 0 ? (
               <div className="-space-x-2 flex">
                 {members.slice(0, 5).map((member) => (
@@ -488,59 +535,67 @@ export function ChannelWelcome({
                 ))}
               </div>
             ) : null}
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs font-medium text-muted-foreground">
               {total === 1 ? '1 member' : `${total} members`}
             </span>
             {onAddPeople ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onAddPeople}
-                leadingIcon={<UserPlus />}
-              >
-                Add people
-              </Button>
+              <>
+                <span aria-hidden className="h-4 w-px bg-border" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onAddPeople}
+                  leadingIcon={<UserPlus />}
+                >
+                  Add people
+                </Button>
+              </>
             ) : null}
           </div>
         ) : null}
 
         {actions.length > 0 ? (
-          <ul className="mt-5 max-w-2xl gap-2 sm:grid-cols-2 grid">
-            {actions.map((action) => (
-              <li key={action.key}>
-                <button
-                  type="button"
-                  onClick={action.onClick}
-                  className={cn(
-                    'group gap-3 px-3 py-2.5 flex h-full w-full items-start rounded-xl border border-border bg-surface text-left transition-colors',
-                    'hover:border-border-strong hover:bg-surface-raised focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none',
-                  )}
-                >
-                  <span
-                    aria-hidden
+          <div className="mt-6 max-w-2xl">
+            <h3 className="mb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+              Get started
+            </h3>
+            <ul className="gap-2 sm:grid-cols-2 grid">
+              {actions.map((action) => (
+                <li key={action.key}>
+                  <button
+                    type="button"
+                    onClick={action.onClick}
                     className={cn(
-                      'size-9 flex shrink-0 items-center justify-center rounded-lg border border-border bg-surface-raised',
-                      action.iconColor,
+                      'group gap-3 p-3 flex h-full w-full items-center rounded-xl border border-border bg-surface text-left transition-all',
+                      'hover:-translate-y-px hover:border-border-strong hover:bg-surface-raised hover:shadow-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none',
                     )}
                   >
-                    {action.icon}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="font-medium block text-[13px] text-foreground">
-                      {action.label}
+                    <span
+                      aria-hidden
+                      className={cn(
+                        'size-9 flex shrink-0 items-center justify-center rounded-lg ring-1 ring-inset',
+                        TONE_TILE[action.tone],
+                      )}
+                    >
+                      {action.icon}
                     </span>
-                    <span className="mt-0.5 text-xs leading-relaxed block text-muted-foreground">
-                      {action.description}
+                    <span className="min-w-0 flex-1">
+                      <span className="font-medium block text-[13px] text-foreground">
+                        {action.label}
+                      </span>
+                      <span className="mt-0.5 text-xs leading-snug line-clamp-2 block text-muted-foreground">
+                        {action.description}
+                      </span>
                     </span>
-                  </span>
-                  <ArrowRight
-                    aria-hidden
-                    className="mt-1 size-3.5 group-hover:translate-x-0.5 shrink-0 text-muted-foreground/40 transition-all group-hover:text-muted-foreground"
-                  />
-                </button>
-              </li>
-            ))}
-          </ul>
+                    <ArrowRight
+                      aria-hidden
+                      className="size-3.5 group-hover:translate-x-0.5 shrink-0 text-muted-foreground/30 transition-all group-hover:text-muted-foreground"
+                    />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : null}
       </div>
     </section>
