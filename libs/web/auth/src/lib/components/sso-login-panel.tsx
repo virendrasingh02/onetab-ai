@@ -12,11 +12,21 @@ import {
   toast,
 } from '@org/ui';
 import { enterpriseIdentityApi, setAccessToken } from '@org/api-client';
+import { cn } from '@org/utils';
 import { Building2, KeyRound, Loader2, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../auth.store.js';
 
-export function SSOLoginPanel() {
+export interface SSOLoginPanelProps {
+  /** Trigger text; the accessible name stays the full phrase. */
+  label?: string;
+  className?: string;
+}
+
+export function SSOLoginPanel({
+  label = 'Sign in with Enterprise SSO',
+  className,
+}: SSOLoginPanelProps = {}) {
   const navigate = useNavigate();
   const setSession = useAuthStore((s) => s.setSession);
 
@@ -97,17 +107,17 @@ export function SSOLoginPanel() {
 
   return (
     <>
-      <div className="w-full">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setIsOpen(true)}
-          className="w-full h-10 text-xs font-semibold border-border hover:bg-surface-muted/50 flex items-center justify-center gap-2"
-        >
-          <Building2 className="size-4 text-muted-foreground" />
-          Sign in with Enterprise SSO
-        </Button>
-      </div>
+      <Button
+        type="button"
+        variant="outline"
+        size="md"
+        onClick={() => setIsOpen(true)}
+        aria-label="Sign in with Enterprise SSO"
+        className={cn('w-full', className)}
+        leadingIcon={<Building2 className="size-3.5" />}
+      >
+        {label}
+      </Button>
 
       {/* Modal: SSO Lookup */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>

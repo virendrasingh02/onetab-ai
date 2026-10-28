@@ -42,9 +42,9 @@ export function AuthLayout({
   useForcesDarkWindowChrome();
 
   return (
-    <div className="dark min-h-full flex flex-col justify-between items-center bg-background text-foreground px-4 py-8 sm:py-10 selection:bg-primary/25">
+    <div className="dark min-h-full flex flex-col justify-between items-center bg-background text-foreground px-4 py-5 sm:py-6 selection:bg-primary/25">
       {/* Top Header Bar with centered Brand Emblem */}
-      <header className="pt-2 sm:pt-4 w-full max-w-4xl px-4 flex items-center justify-center">
+      <header className="w-full max-w-4xl px-4 flex items-center justify-center">
         <Link
           to="/"
           className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:opacity-90 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -60,22 +60,22 @@ export function AuthLayout({
       </header>
 
       {/* Main Content Area */}
-      <main className="w-full max-w-[380px] my-auto py-8 flex flex-col items-center">
+      <main className="w-full max-w-[360px] my-auto py-6 flex flex-col items-center">
         <div className={cn('w-full', className)}>
           <h1 className="text-2xl sm:text-[28px] font-bold tracking-tight text-foreground text-center leading-tight">
             {title}
           </h1>
 
           {subtitle ? (
-            <p className="mt-2 text-xs sm:text-sm text-muted-foreground text-center text-balance leading-relaxed">
+            <p className="mt-1.5 text-xs sm:text-sm text-muted-foreground text-center text-balance leading-relaxed">
               {subtitle}
             </p>
           ) : null}
 
-          <div className="mt-6 w-full">{children}</div>
+          <div className="mt-5 w-full">{children}</div>
 
           {footer ? (
-            <div className="mt-5 text-xs text-center text-muted-foreground leading-normal">
+            <div className="mt-4 text-xs text-center text-muted-foreground leading-normal">
               {footer}
             </div>
           ) : null}
@@ -83,7 +83,7 @@ export function AuthLayout({
       </main>
 
       {/* Bottom Legal Notice & Footer Links */}
-      <footer className="pt-6 pb-2 text-center max-w-md w-full px-2 space-y-2.5">
+      <footer className="pt-4 text-center max-w-md w-full px-2 space-y-2">
         {LEGAL_LINKS.terms ? (
           <p className="text-[11px] sm:text-xs text-subtle leading-relaxed">
             By proceeding, you acknowledge that you have read, understood, and agree to {brandName}&apos;s{' '}

@@ -20,6 +20,7 @@ import {
   Input,
   QRCode,
 } from '@org/ui';
+import { cn } from '@org/utils';
 import { isDesktop } from '@org/web-desktop';
 import {
   loginSchema,
@@ -133,6 +134,8 @@ export function LoginPage() {
   const magicLinkAvailable = !isDesktop && !isDesktopHandoff;
   const passkeyAvailable = !isDesktop && browserSupportsPasskeys();
   const passkeySignIn = useSignInWithPasskey();
+  // Passkey + magic link + SSO share one row under the password form.
+  const altMethodCount = 1 + Number(passkeyAvailable) + Number(magicLinkAvailable);
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
 
   const [authMode, setAuthMode] = useState<'magic-link' | 'password'>(() =>
@@ -703,37 +706,48 @@ export function LoginPage() {
               Sign in
             </Button>
 
-            {magicLinkAvailable || passkeyAvailable ? (
-              <>
-                {/* The label sits on the page background, not a card. */}
-                <div className="relative my-4 flex items-center justify-center">
-                  <div className="border-t border-border w-full absolute" />
-                  <span className="bg-background px-2.5 text-[11px] text-muted-foreground relative uppercase tracking-wider">
-                    or
-                  </span>
-                </div>
+            {/* The label sits on the page background, not a card. */}
+            <div className="relative py-1 flex items-center justify-center">
+              <div className="border-t border-border w-full absolute" />
+              <span className="bg-background px-2.5 text-[11px] text-muted-foreground relative uppercase tracking-wider">
+                or sign in with
+              </span>
+            </div>
 
-                {passkeyAvailable ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="md"
-                    className="w-full"
-                    loading={passkeySignIn.isPending}
-                    disabled={login.isPending}
-                    onClick={() => void handlePasskeyLogin()}
-                    leadingIcon={<Fingerprint className="size-3.5" />}
-                  >
-                    Sign in with a passkey
-                  </Button>
-                ) : null}
-
-                {magicLinkAvailable ? (
+            {/* One compact row instead of a stacked button per method. */}
+            <div
+              className={cn(
+                'gap-2 grid',
+                altMethodCount === 3
+                  ? 'grid-cols-3'
+                  : altMethodCount === 2
+                    ? 'grid-cols-2'
+                    : 'grid-cols-1',
+              )}
+            >
+              {passkeyAvailable ? (
                 <Button
                   type="button"
                   variant="outline"
                   size="md"
-                  className={passkeyAvailable ? 'w-full mt-2' : 'w-full'}
+                  className="w-full"
+                  aria-label="Sign in with a passkey"
+                  loading={passkeySignIn.isPending}
+                  disabled={login.isPending}
+                  onClick={() => void handlePasskeyLogin()}
+                  leadingIcon={<Fingerprint className="size-3.5" />}
+                >
+                  Passkey
+                </Button>
+              ) : null}
+
+              {magicLinkAvailable ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="md"
+                  className="w-full"
+                  aria-label="Email me a sign-in link"
                   onClick={() => {
                     setAuthMode('magic-link');
                     setMagicLinkSent(false);
@@ -743,18 +757,12 @@ export function LoginPage() {
                   }}
                   leadingIcon={<Sparkles className="size-3.5" />}
                 >
-                  Email me a sign-in link
+                  Email link
                 </Button>
-                ) : null}
-                <div className="mt-2">
-                  <SSOLoginPanel />
-                </div>
-              </>
-            ) : (
-              <div className="mt-3">
-                <SSOLoginPanel />
-              </div>
-            )}
+              ) : null}
+
+              <SSOLoginPanel label="SSO" />
+            </div>
           </form>
         </Form>
       )}

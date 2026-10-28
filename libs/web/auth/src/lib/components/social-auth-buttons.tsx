@@ -119,7 +119,7 @@ export function SocialAuthButtons({
             aria-label="Continue with Google"
             aria-busy={isGoogleLoading}
             className={cn(
-              'h-10 px-4 text-xs sm:text-sm font-medium w-full rounded-lg transition-all duration-150',
+              'h-9 px-4 text-xs sm:text-sm font-medium w-full rounded-lg transition-all duration-150',
               'gap-2.5 flex items-center justify-center',
               'border border-input bg-background text-foreground shadow-xs hover:bg-accent',
               'focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
@@ -173,7 +173,7 @@ export function SocialAuthButtons({
             aria-label="Continue with Apple"
             aria-busy={isAppleLoading}
             className={cn(
-              'h-10 px-4 text-xs sm:text-sm font-medium w-full rounded-lg transition-all duration-150',
+              'h-9 px-4 text-xs sm:text-sm font-medium w-full rounded-lg transition-all duration-150',
               'gap-2.5 flex items-center justify-center',
               'border border-input bg-background text-foreground shadow-xs hover:bg-accent',
               'focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
@@ -205,7 +205,7 @@ export function SocialAuthButtons({
       </div>
 
       {dividerLabel ? (
-        <div className="my-4 relative flex items-center justify-center">
+        <div className="my-3.5 relative flex items-center justify-center">
           <div className="absolute w-full border-t border-border" />
           <span className="px-2.5 tracking-wider relative bg-background text-[11px] text-muted-foreground uppercase">
             {dividerLabel}
