@@ -1728,7 +1728,7 @@ const TOOL_BUTTON_BASE =
   'size-7 flex shrink-0 items-center justify-center rounded-md transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/60 [&_svg]:size-4';
 const TOOL_BUTTON_ON = 'bg-primary/15 text-primary-text';
 const TOOL_BUTTON_OFF =
-  'text-muted-foreground hover:bg-accent hover:text-foreground';
+  'text-foreground hover:bg-accent hover:text-foreground';
 
 /**
  * One formatting control. `onMouseDown` swallows focus so the editor keeps its
