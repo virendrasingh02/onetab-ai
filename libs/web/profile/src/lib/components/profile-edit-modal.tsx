@@ -32,7 +32,6 @@ import { useMutation } from '@tanstack/react-query';
 import { Camera, Info, Lock, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { AvatarColorPicker } from './avatar-color-picker.js';
 import { ImageCropperDialog } from './image-cropper-dialog.js';
 import { useProfileCover } from '../use-profile-cover.js';
 
@@ -246,11 +245,6 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
                     ) : null}
                   </div>
                 </div>
-
-                <AvatarColorPicker
-                  userId={user.id}
-                  className="border-t border-border/60 px-6 py-4"
-                />
               </div>
             </div>
 

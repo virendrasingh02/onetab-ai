@@ -35,11 +35,6 @@ export {
 } from './lib/components/card.js';
 
 export {
-  AvatarColorSwatches,
-  type AvatarColorSwatchesProps,
-} from './lib/components/avatar-color-swatches.js';
-
-export {
   Avatar,
   AvatarFallback,
   AvatarColorProvider,

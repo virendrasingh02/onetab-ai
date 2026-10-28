@@ -30,13 +30,11 @@ import {
   declineInvitationSchema,
   inviteMembersSchema,
   updateInvitationLinkSchema,
-  updateAvatarColorSchema,
   updateMemberRoleSchema,
   type AcceptInvitationInput,
   type CreateInvitationLinkInput,
   type DeclineInvitationInput,
   type InviteMembersInput,
-  type UpdateAvatarColorInput,
   type UpdateInvitationLinkInput,
   type UpdateMemberRoleInput,
 } from '@org/validation';
@@ -50,16 +48,6 @@ export class MemberController {
   @Get()
   list(@WorkspaceId() workspaceId: string) {
     return this.members.list(workspaceId);
-  }
-
-  /** The caller's own avatar colour in this workspace — never anyone else's. */
-  @Patch('me/avatar-color')
-  updateAvatarColor(
-    @WorkspaceId() workspaceId: string,
-    @CurrentUser('id') userId: string,
-    @Body(zodBody(updateAvatarColorSchema)) body: UpdateAvatarColorInput,
-  ): Promise<{ avatarColor: number }> {
-    return this.members.updateAvatarColor(workspaceId, userId, body);
   }
 
   @Patch(':userId/role')

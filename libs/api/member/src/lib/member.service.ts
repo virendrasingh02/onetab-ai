@@ -40,7 +40,6 @@ import {
 import type {
   CreateInvitationLinkInput,
   InviteMembersInput,
-  UpdateAvatarColorInput,
   UpdateInvitationLinkInput,
   UpdateMemberRoleInput,
 } from '@org/validation';
@@ -155,47 +154,6 @@ export class MemberService {
       }
     }
     return assigned;
-  }
-
-  /**
-   * Sets the caller's own avatar colour in this workspace. `null` hands the
-   * choice back to the workspace: the least-used slot among everyone else.
-   * Broadcast as a member update so every open client recolours live.
-   */
-  async updateAvatarColor(
-    workspaceId: string,
-    userId: string,
-    input: UpdateAvatarColorInput,
-  ): Promise<{ avatarColor: number }> {
-    const self = await this.prisma.workspaceMember.findUnique({
-      where: { workspaceId_userId: { workspaceId, userId } },
-      select: { id: true },
-    });
-    if (!self) throw new NotFoundException('Member not found.');
-
-    let color = input.color;
-    if (color == null) {
-      const others = await this.prisma.workspaceMember.findMany({
-        where: { workspaceId, NOT: { id: self.id } },
-        select: { avatarColor: true },
-      });
-      color = pickAvatarColor(
-        others.map((o) => o.avatarColor),
-        userId,
-      );
-    }
-
-    await this.prisma.workspaceMember.update({
-      where: { id: self.id },
-      data: { avatarColor: color },
-    });
-
-    this.events.emit(AppEvent.WorkspaceMemberUpdated, {
-      workspaceId,
-      actorId: userId,
-      userId,
-    });
-    return { avatarColor: color };
   }
 
   /**

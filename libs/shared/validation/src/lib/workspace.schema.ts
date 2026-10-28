@@ -1,4 +1,4 @@
-import { AVATAR_COLOR_COUNT, WorkspaceRole } from '@org/types';
+import { WorkspaceRole } from '@org/types';
 import { z } from 'zod';
 import { iconPatchShape } from './icon.schema.js';
 
@@ -107,11 +107,6 @@ export const workspaceRoleSchema = z.enum([
   WorkspaceRole.GUEST,
 ]);
 
-/** `null` hands the choice back to the workspace (least-used colour). */
-export const updateAvatarColorSchema = z.object({
-  color: z.number().int().min(0).max(AVATAR_COLOR_COUNT - 1).nullable(),
-});
-
 export const updateMemberRoleSchema = z.object({
   role: workspaceRoleSchema.refine((role) => role !== WorkspaceRole.OWNER, {
     // Ownership moves through an explicit transfer, not a role edit.
@@ -161,7 +156,6 @@ export const declineInvitationSchema = z.object({
 export type CreateWorkspaceInput = z.infer<typeof createWorkspaceSchema>;
 export type UpdateWorkspaceInput = z.infer<typeof updateWorkspaceSchema>;
 export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleSchema>;
-export type UpdateAvatarColorInput = z.infer<typeof updateAvatarColorSchema>;
 export type InviteMembersInput = z.infer<typeof inviteMembersSchema>;
 export type CreateInvitationLinkInput = z.infer<typeof createInvitationLinkSchema>;
 export type UpdateInvitationLinkInput = z.infer<typeof updateInvitationLinkSchema>;
