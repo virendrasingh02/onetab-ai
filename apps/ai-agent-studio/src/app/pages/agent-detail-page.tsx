@@ -4356,7 +4356,7 @@ export function AgentDetailPage() {
         )}
 
         {/* TAB: MARKETPLACE */}
-        {activeTab === 'marketplace' && <AgentMarketplaceTab agent={agent} />}
+        {activeTab === 'marketplace' && <AgentMarketplaceTab agent={agent} readOnly={!canManage} />}
 
         {/* TAB 5: SETTINGS */}
         {activeTab === 'settings' && (

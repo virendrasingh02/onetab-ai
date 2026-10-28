@@ -1,6 +1,6 @@
-import { agentsApi, queryKeys } from '@org/api-client';
+import { agentsApi, marketplaceApi, queryKeys } from '@org/api-client';
 import type { AIAgentDetail, MarketplaceListing, MarketplaceVisibility } from '@org/types';
-import { Badge, Button, Card, confirm, ErrorState, Field, Input, LoadingState, SegmentedControl, Textarea, toast } from '@org/ui';
+import { AppSelect, Badge, Button, Card, confirm, ErrorState, Field, Input, LoadingState, SegmentedControl, Textarea, toast } from '@org/ui';
 import { cn } from '@org/utils';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, Globe, Lock, Rocket, ShieldAlert, ShieldCheck, Store } from 'lucide-react';
@@ -25,7 +25,7 @@ const publishedVersion = (agent: AIAgentDetail): number | null => {
  * reach a workspace's sidebar from outside, so "publish" in Studio ends here:
  * a listing carrying a snapshot of the agent's latest published version.
  */
-export function AgentMarketplaceTab({ agent }: { agent: AIAgentDetail }) {
+export function AgentMarketplaceTab({ agent, readOnly = false }: { agent: AIAgentDetail; readOnly?: boolean }) {
   const { activeWorkspace } = useStudioSession();
   const workspaceId = activeWorkspace.id;
   const queryClient = useQueryClient();
@@ -39,6 +39,15 @@ export function AgentMarketplaceTab({ agent }: { agent: AIAgentDetail }) {
   const listing: MarketplaceListing | null | undefined = listingQuery.data;
   const live = !!listing && listing.status === 'PUBLISHED';
 
+  // The storefront's own agent categories, so a listing lands under a real filter.
+  const storefrontsQuery = useQuery({
+    queryKey: queryKeys.marketplace.storefronts(),
+    queryFn: () => marketplaceApi.storefronts(),
+    staleTime: Infinity,
+  });
+  const agentCategories = storefrontsQuery.data?.categories.AGENT ?? [];
+  const defaultCategory = agentCategories.includes(agent.role) ? agent.role : 'Operations';
+
   const [visibility, setVisibility] = useState<MarketplaceVisibility>('WORKSPACE');
   const [tagline, setTagline] = useState('');
   const [category, setCategory] = useState('');
@@ -48,12 +57,25 @@ export function AgentMarketplaceTab({ agent }: { agent: AIAgentDetail }) {
   useEffect(() => {
     if (listingQuery.isLoading) return;
     setVisibility(listing?.visibility ?? 'WORKSPACE');
-    setTagline(listing?.tagline ?? agent.description ?? '');
-    setCategory(listing?.category ?? agent.role ?? '');
+    setTagline(listing?.tagline || agent.description || '');
+    setCategory(listing?.category ?? defaultCategory);
     setChangeNotes('');
-  }, [listingQuery.isLoading, listing?.id, listing?.version, listing?.visibility, agent.id]);
+  }, [listingQuery.isLoading, listing?.id, listing?.version, listing?.visibility, agent.id, defaultCategory]);
+
+  // A listing created before categories were enforced may carry one the picker doesn't know.
+  const categoryOptions = (category && !agentCategories.includes(category) ? [category, ...agentCategories] : agentCategories).map(
+    (value) => ({ value, label: value }),
+  );
 
   const version = publishedVersion(agent);
+  const behind = live && version !== null && Number(listing?.version.split('.')[0]) < version;
+  const dirty =
+    !live ||
+    behind ||
+    visibility !== listing?.visibility ||
+    tagline.trim() !== (listing?.tagline ?? '') ||
+    category !== listing?.category ||
+    changeNotes.trim() !== '';
 
   const publish = useMutation({
     mutationFn: () =>
@@ -65,7 +87,10 @@ export function AgentMarketplaceTab({ agent }: { agent: AIAgentDetail }) {
       }),
     onSuccess: (next) => {
       queryClient.setQueryData(key, next);
+      // Picks up install stats, which the publish response doesn't carry.
+      void queryClient.invalidateQueries({ queryKey: key });
       void queryClient.invalidateQueries({ queryKey: queryKeys.marketplace.all() });
+      validate.reset();
       toast.success(live ? 'Listing updated' : 'Published to the marketplace', {
         description: `${next.name} v${next.version} · ${next.visibility === 'PUBLIC' ? 'visible to everyone' : 'visible to this workspace'}`,
       });
@@ -107,6 +132,24 @@ export function AgentMarketplaceTab({ agent }: { agent: AIAgentDetail }) {
     if (ok) unpublish.mutate();
   };
 
+  // Going public is the one choice that reaches outside this workspace, so it's confirmed.
+  const onPublish = async () => {
+    if (visibility === 'PUBLIC' && listing?.visibility !== 'PUBLIC') {
+      const ok = await confirm({
+        title: `Share ${agent.name} with every workspace?`,
+        description: 'Any workspace on the platform will be able to find and install a copy of this version. Its prompt, tools and canvas are included; your connected credentials are not.',
+        confirmLabel: 'Publish to everyone',
+      });
+      if (!ok) return;
+    }
+    publish.mutate();
+  };
+
+  // A preview describes the form as it was checked; drop it once that changes.
+  const resetPreview = () => {
+    if (validate.data || validate.isError) validate.reset();
+  };
+
   if (listingQuery.isLoading) return <LoadingState label="Loading marketplace listing…" />;
   if (listingQuery.isError) {
     return (
@@ -117,7 +160,6 @@ export function AgentMarketplaceTab({ agent }: { agent: AIAgentDetail }) {
   const marketplaceHref = `${WEB_APP_URL.replace(/\/+$/, '')}/w/${activeWorkspace.slug}/marketplace?tab=${
     listing ? `agents&agent=${listing.slug}` : 'workspace&type=agent'
   }`;
-  const behind = live && version !== null && Number(listing?.version.split('.')[0]) < version;
 
   return (
     <AgentTabPage
@@ -133,7 +175,11 @@ export function AgentMarketplaceTab({ agent }: { agent: AIAgentDetail }) {
       }
     >
       <div className={cn('grid items-start gap-6', listing && 'lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]')}>
-        {version === null ? (
+        {readOnly ? (
+          <Card className="p-5 text-sm text-muted-foreground">
+            Only this agent’s creator or a workspace admin can publish it to the marketplace{listing ? ' or change its listing' : ''}.
+          </Card>
+        ) : version === null ? (
           <Card className="p-5 text-sm text-muted-foreground">
             Publish this agent first (the Draft chip in the header). Only a published version can be shared — the draft on your canvas never is.
           </Card>
@@ -145,30 +191,63 @@ export function AgentMarketplaceTab({ agent }: { agent: AIAgentDetail }) {
                 aria-label="Who can install it"
                 options={VISIBILITY_OPTIONS}
                 value={visibility}
-                onChange={(next) => setVisibility(next as MarketplaceVisibility)}
+                onChange={(next) => {
+                  setVisibility(next as MarketplaceVisibility);
+                  resetPreview();
+                }}
                 size="sm"
               />
               <p className="text-xs text-muted-foreground">{VISIBILITY_OPTIONS.find((o) => o.value === visibility)?.hint}</p>
             </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Tagline" hint="One line shown on the listing card.">
+            <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
+              <Field
+                label="Tagline"
+                hint={tagline.trim() ? `One line shown on the listing card · ${tagline.length}/160` : 'Recommended — the listing card is blank without one.'}
+              >
                 <Input value={tagline} maxLength={160} onChange={(e) => setTagline(e.target.value)} placeholder="What does it do for the team?" />
               </Field>
-              <Field label="Category">
-                <Input value={category} maxLength={60} onChange={(e) => setCategory(e.target.value)} placeholder="Productivity, Support, Engineering…" />
+              <Field label="Category" hint="Where it's filed in the marketplace.">
+                <AppSelect
+                  value={category}
+                  onValueChange={(next) => {
+                    setCategory(next);
+                    resetPreview();
+                  }}
+                  options={categoryOptions}
+                  loading={storefrontsQuery.isLoading}
+                  placeholder="Choose a category"
+                />
               </Field>
             </div>
             <Field label="What's new" optional>
-              <Textarea value={changeNotes} maxLength={500} rows={2} onChange={(e) => setChangeNotes(e.target.value)} placeholder="Shown in the listing's changelog" />
+              <Textarea
+                value={changeNotes}
+                maxLength={500}
+                rows={2}
+                onChange={(e) => setChangeNotes(e.target.value)}
+                placeholder={live ? `What changed since v${listing?.version}?` : "Shown in the listing's changelog"}
+              />
             </Field>
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4">
-              <p className="text-xs text-muted-foreground">Publishes v{version}. Tools that need credentials must be reconnected by whoever installs it.</p>
-              <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => validate.mutate()} loading={validate.isPending}>
-                <ShieldCheck className="size-3.5" /> Check &amp; preview
-              </Button>
-              <Button size="sm" className="gap-1.5 text-xs font-semibold" onClick={() => publish.mutate()} loading={publish.isPending}>
-                <Rocket className="size-3.5" /> {live ? 'Update listing' : 'Publish to marketplace'}
-              </Button>
+            <div className="flex flex-col gap-3 border-t border-border/60 pt-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-muted-foreground">
+                {live && !behind ? `Re-publishes v${version} with these details.` : `Publishes v${version}.`} Tools that need credentials must be
+                reconnected by whoever installs it.
+              </p>
+              <div className="flex shrink-0 items-center gap-2">
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => validate.mutate()} loading={validate.isPending}>
+                  <ShieldCheck className="size-3.5" /> Check &amp; preview
+                </Button>
+                <Button
+                  size="sm"
+                  className="gap-1.5 text-xs font-semibold"
+                  onClick={() => void onPublish()}
+                  loading={publish.isPending}
+                  disabled={!dirty || validate.data?.valid === false}
+                  title={!dirty ? 'The listing already matches — nothing to update.' : undefined}
+                >
+                  <Rocket className="size-3.5" /> {live ? 'Update listing' : 'Publish to marketplace'}
+                </Button>
+              </div>
             </div>
             {validate.data && (
               <div className="space-y-2 rounded-lg border border-border/60 bg-surface-raised/40 p-3" role="status">
@@ -233,7 +312,7 @@ export function AgentMarketplaceTab({ agent }: { agent: AIAgentDetail }) {
                 Studio is on v{version}; the listing still serves v{listing.version}. Update the listing to ship the newer version.
               </p>
             )}
-            {live && (
+            {live && !readOnly && (
               <div>
                 <Button variant="ghost" size="sm" className="text-xs text-destructive" onClick={() => void onUnpublish()} loading={unpublish.isPending}>
                   Remove from marketplace

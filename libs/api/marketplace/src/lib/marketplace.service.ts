@@ -11,6 +11,7 @@ import {
 import { PrismaService } from '@org/database';
 import { compareSemver, evaluateAgentPackage, parseAccess } from './agent-manifest.js';
 import {
+  CATEGORIES_BY_KIND,
   DEFAULT_PAGE_SIZE,
   LISTING_KINDS,
   LISTING_STATUSES,
@@ -975,7 +976,7 @@ export class MarketplaceService implements OnModuleInit {
     );
     const [agents, installs] = await Promise.all([
       studioRows.length
-        ? this.prisma.automationWorkflow.findMany({
+        ? this.prisma.aIAgent.findMany({
             where: {
               workspaceId,
               id: { in: studioRows.map((row) => row.sourceAgentId as string) },
@@ -1092,18 +1093,25 @@ export class MarketplaceService implements OnModuleInit {
       );
     }
 
-    const visibility = input.visibility === 'PUBLIC' ? 'PUBLIC' : 'WORKSPACE';
     const existing = await this.prisma.marketplaceListing.findUnique({
       where: {
         ownerWorkspaceId_sourceAgentId: { ownerWorkspaceId: workspaceId, sourceAgentId: agentId },
       },
     });
 
+    // Anything not sent keeps what the listing already says, so a re-publish
+    // ships a new version without silently resetting its storefront details.
+    const visibility = (input.visibility ?? existing?.visibility) === 'PUBLIC' ? 'PUBLIC' : 'WORKSPACE';
     const versionNumber = Number(latest.version) || Number(config.currentVersion) || 1;
     const version = `${versionNumber}.0.0`;
     const name = (input.name ?? agent.name).trim() || agent.name;
-    const tagline = (input.tagline ?? agent.description ?? '').slice(0, 160);
-    const category = input.category?.trim() || agent.role || 'Productivity';
+    const tagline = (input.tagline?.trim() || existing?.tagline || agent.description || '').slice(0, 160);
+    // An agent's role ("Assistant") is rarely a storefront category; one that
+    // isn't would never show up under the marketplace's category filters.
+    const category =
+      input.category?.trim() ||
+      existing?.category ||
+      (CATEGORIES_BY_KIND.AGENT.includes(agent.role) ? agent.role : 'Operations');
     const rawTools = latest.tools ?? agent.tools;
     const tools = parseTools(rawTools);
 

@@ -115,7 +115,7 @@ describe('listing owner', () => {
               ]
             : [{ listingId: 'installed' }],
       },
-      automationWorkflow: { findMany: async () => [{ id: 'agent-1', creatorId: 'u-builder' }] },
+      aIAgent: { findMany: async () => [{ id: 'agent-1', creatorId: 'u-builder' }] },
       user: { findMany: userFindMany },
     } as never);
 
