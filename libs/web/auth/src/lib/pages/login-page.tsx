@@ -166,7 +166,12 @@ export function LoginPage() {
 
   const form = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: '', password: '', rememberMe: true },
+    defaultValues: {
+      // Prefilled when arriving from an invitation addressed to this email.
+      email: (location.state as { email?: string } | null)?.email ?? '',
+      password: '',
+      rememberMe: true,
+    },
   });
 
   const authStatus = useAuthStore((s) => s.status);
@@ -543,6 +548,7 @@ export function LoginPage() {
           Don&apos;t have an account?{' '}
           <Link
             to={withDesktopHandoff('/register', searchParams)}
+            state={location.state}
             className="font-medium text-foreground hover:underline transition-colors"
           >
             Create one
@@ -581,7 +587,10 @@ export function LoginPage() {
             isDesktopHandoff={isDesktopHandoff}
             handoffState={handoffState}
             handoffChallenge={handoffChallenge}
-            returnTo={searchParams.get('returnTo')}
+            returnTo={
+              searchParams.get('returnTo') ??
+              (redirectPathFromAuthState(location.state, '') || null)
+            }
             invitationToken={searchParams.get('invitationToken')}
             dividerLabel="or continue with email"
           />

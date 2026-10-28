@@ -3,6 +3,7 @@ import { LoadingState } from '@org/ui';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from './auth.store.js';
 import { resolveSafeHandoff, withHandoffToken } from './safe-handoff-redirect.js';
+import { redirectPathFromAuthState } from './use-auth.js';
 
 /**
  * Gate for authenticated areas.
@@ -57,7 +58,9 @@ export function PublicOnlyRoute() {
         return null;
       }
     }
-    return <Navigate to="/" replace />;
+    // Honour `state.from` (an invitation link, a gated deep link): this guard
+    // re-renders the moment sign-in lands, before the page itself can redirect.
+    return <Navigate to={redirectPathFromAuthState(location.state)} replace />;
   }
 
   return <Outlet />;

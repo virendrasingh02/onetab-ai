@@ -97,6 +97,7 @@ export function RegisterPage() {
           Already have an account?{' '}
           <Link
             to={withDesktopHandoff('/login', searchParams)}
+            state={location.state}
             className="font-medium text-foreground hover:underline transition-colors"
           >
             Sign in
@@ -109,7 +110,10 @@ export function RegisterPage() {
         isDesktopHandoff={Boolean(readDesktopHandoff(searchParams))}
         handoffState={searchParams.get('state')}
         handoffChallenge={searchParams.get('code_challenge')}
-        returnTo={searchParams.get('returnTo')}
+        returnTo={
+          searchParams.get('returnTo') ??
+          (redirectPathFromAuthState(location.state, '') || null)
+        }
         invitationToken={searchParams.get('invitationToken')}
         mode="register"
         dividerLabel="or continue with email"

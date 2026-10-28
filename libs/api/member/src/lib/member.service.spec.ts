@@ -1,4 +1,8 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { hashToken } from '@org/api-common';
 import type { PrismaService } from '@org/database';
 import { InvitationStatus, WorkspaceRole } from '@org/types';
@@ -27,6 +31,8 @@ describe('MemberService - Complete Invitation System', () => {
       channelMember: {
         deleteMany: vi.fn(),
         upsert: vi.fn(),
+        findUnique: vi.fn(),
+        create: vi.fn(),
       },
       invitation: {
         findMany: vi.fn(),
@@ -341,6 +347,49 @@ describe('MemberService - Complete Invitation System', () => {
       expect(mockPrisma.workspaceMember.upsert).not.toHaveBeenCalled();
       expect(mockPrisma.$transaction).not.toHaveBeenCalled();
     });
+
+    it('an existing member accepting a channel invite still joins the channel', async () => {
+      const rawToken = 'member_channel_token';
+      mockPrisma.invitation.findUnique.mockResolvedValue({
+        id: 'inv_3',
+        tokenHash: hashToken(rawToken),
+        workspaceId,
+        email: 'invited@example.com',
+        role: WorkspaceRole.MEMBER,
+        channelId: 'ch_1',
+        status: InvitationStatus.PENDING,
+        expiresAt: new Date(Date.now() + 100000),
+        isLink: false,
+        useCount: 0,
+        maxUses: null,
+        workspace: { id: workspaceId, slug: 'acme' },
+        channel: { id: 'ch_1', slug: 'general', name: 'general' },
+        invitedBy: { id: actorId, name: 'Alice' },
+      });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: invitedUserId,
+        email: 'invited@example.com',
+      });
+      mockPrisma.workspaceMember.findUnique.mockResolvedValue({ id: 'wm_1' });
+      mockPrisma.channelMember.findUnique.mockResolvedValue(null);
+      mockPrisma.channelMember.create.mockResolvedValue({});
+      mockPrisma.invitation.update.mockResolvedValue({});
+
+      const res = await service.acceptInvitation(rawToken, invitedUserId);
+
+      expect(res).toEqual({
+        workspaceSlug: 'acme',
+        channelSlug: 'general',
+        alreadyMember: true,
+      });
+      expect(mockPrisma.channelMember.create).toHaveBeenCalledWith({
+        data: { channelId: 'ch_1', userId: invitedUserId, role: 'MEMBER' },
+      });
+      expect(mockPrisma.invitation.update).toHaveBeenCalledWith({
+        where: { id: 'inv_3' },
+        data: expect.objectContaining({ status: InvitationStatus.ACCEPTED }),
+      });
+    });
   });
 
   describe('Decline & Resend', () => {
@@ -358,6 +407,19 @@ describe('MemberService - Complete Invitation System', () => {
         where: { id: 'inv_1' },
         data: expect.objectContaining({ status: InvitationStatus.DECLINED }),
       });
+    });
+
+    it('refuses to decline a shareable link (it would revoke it for everyone)', async () => {
+      mockPrisma.invitation.findUnique.mockResolvedValue({
+        id: 'link_1',
+        status: InvitationStatus.PENDING,
+        isLink: true,
+      });
+
+      await expect(service.declineInvitation('link_token')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockPrisma.invitation.update).not.toHaveBeenCalled();
     });
 
     it('resends an invitation by refreshing token and expiration', async () => {

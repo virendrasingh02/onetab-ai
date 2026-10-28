@@ -1,4 +1,9 @@
-import { invitationApi, queryKeys, workspaceApi } from '@org/api-client';
+import {
+  ApiError,
+  invitationApi,
+  queryKeys,
+  workspaceApi,
+} from '@org/api-client';
 import type {
   CreateInvitationLinkInput,
   InviteMembersInput,
@@ -31,7 +36,9 @@ export function useInvitationPreview(token: string | undefined) {
     queryKey: queryKeys.invitations.preview(token ?? ''),
     queryFn: () => invitationApi.preview(token as string),
     enabled: !!token,
-    retry: 1,
+    // A 4xx (unknown / malformed token) is final; only retry transient failures.
+    retry: (count, error) =>
+      count < 2 && !(error instanceof ApiError && error.status < 500),
   });
 }
 

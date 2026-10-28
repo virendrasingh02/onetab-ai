@@ -624,6 +624,8 @@ export interface InvitationPublicPreview {
     avatarUrl: string | null;
     icon: string | null;
     iconColor: string | null;
+    /** Stored tile colour slot, so the logo-less tile matches the switcher. */
+    avatarColor: number | null;
   };
   inviter: {
     id: string;

@@ -973,6 +973,7 @@ export class MemberService {
         avatarUrl: invitation.workspace.avatarUrl,
         icon: invitation.workspace.icon,
         iconColor: invitation.workspace.iconColor,
+        avatarColor: invitation.workspace.avatarColor,
       },
       inviter: {
         id: invitation.invitedBy.id,
@@ -1035,6 +1036,36 @@ export class MemberService {
       select: { id: true },
     });
     if (existingMembership) {
+      // Already in the workspace, but a channel-scoped invite still means
+      // "join this channel" — honour that instead of dropping it.
+      if (invitation.channelId && invitation.status === InvitationStatus.PENDING) {
+        const channelMember = await this.prisma.channelMember.findUnique({
+          where: {
+            channelId_userId: { channelId: invitation.channelId, userId },
+          },
+          select: { id: true },
+        });
+        if (!channelMember) {
+          await this.prisma.channelMember.create({
+            data: { channelId: invitation.channelId, userId, role: 'MEMBER' },
+          });
+          this.events.emit(AppEvent.ChannelMembershipChanged, {
+            workspaceId: invitation.workspaceId,
+            actorId: userId,
+            channelId: invitation.channelId,
+            userId,
+            action: 'join',
+            role: 'MEMBER',
+          });
+        }
+      }
+      // A targeted invite is fulfilled either way — don't leave it pending.
+      if (!invitation.isLink && invitation.status === InvitationStatus.PENDING) {
+        await this.prisma.invitation.update({
+          where: { id: invitation.id },
+          data: { status: InvitationStatus.ACCEPTED, acceptedAt: new Date() },
+        });
+      }
       return {
         workspaceSlug: invitation.workspace.slug,
         channelSlug: invitation.channel?.slug,
@@ -1235,11 +1266,16 @@ export class MemberService {
   async declineInvitation(token: string): Promise<void> {
     const invitation = await this.prisma.invitation.findUnique({
       where: { tokenHash: hashToken(token) },
-      select: { id: true, status: true },
+      select: { id: true, status: true, isLink: true },
     });
 
     if (!invitation || invitation.status !== InvitationStatus.PENDING) {
       throw new NotFoundException('This invitation is no longer valid.');
+    }
+    // A shareable link is used by many people; one visitor declining must not
+    // kill it for everyone else. Only an admin can revoke a link.
+    if (invitation.isLink) {
+      throw new BadRequestException('Shareable invite links cannot be declined.');
     }
 
     await this.prisma.invitation.update({
