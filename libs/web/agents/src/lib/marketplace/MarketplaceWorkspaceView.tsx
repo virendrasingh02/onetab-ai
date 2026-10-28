@@ -23,7 +23,7 @@ import {
   UserRound,
   Users,
 } from 'lucide-react';
-import { ActiveBadge, SectionTabs } from './marketplace-ui';
+import { ActiveBadge, MARKETPLACE_GRID_CLASS, SectionTabs } from './marketplace-ui';
 import type { WorkspaceCoworker } from './use-workspace-catalog';
 
 type StatusFilter = 'all' | 'active' | 'paused';
@@ -309,7 +309,7 @@ export const MarketplaceWorkspaceView: React.FC<
           }
         />
       ) : (
-        <div className="md:grid-cols-2 lg:grid-cols-3 gap-4 grid grid-cols-1">
+        <div className={MARKETPLACE_GRID_CLASS}>
           {visible.map((cw) => (
             <CoworkerCard
               key={cw.id}

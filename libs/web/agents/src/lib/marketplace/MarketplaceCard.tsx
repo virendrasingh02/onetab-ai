@@ -2,14 +2,18 @@ import React from 'react';
 import type { MarketplaceListing } from '@org/types';
 import { Badge, Card } from '@org/ui';
 import { cn } from '@org/utils';
+import { Download, Star } from 'lucide-react';
 import {
   EntityIcon,
   KindBadge,
   ListingActionButton,
+  ListingOwnerLine,
   OriginBadge,
   VerifiedBadge,
   listingActionState,
 } from './marketplace-ui';
+
+const MAX_CAPABILITIES = 2;
 
 interface MarketplaceCardProps {
   listing: MarketplaceListing;
@@ -29,78 +33,86 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
   className,
 }) => {
   const capabilities = listing.capabilities ?? [];
+  const installs = listing.installCount ?? listing.installationCount ?? 0;
+  const rating = listing.rating || listing.ratingAverage || 0;
 
   return (
     <Card
       role="group"
       tabIndex={0}
+      aria-label={listing.name}
       onClick={() => onSelect(listing)}
       onKeyDown={(e) => {
         if (e.target === e.currentTarget && e.key === 'Enter') onSelect(listing);
       }}
       className={cn(
-        'group p-4 cursor-pointer justify-between text-left outline-none',
-        'hover:bg-surface-raised/40 focus-visible:ring-2 focus-visible:ring-ring/50',
+        'group h-full gap-0 p-4 cursor-pointer text-left outline-none transition-colors',
+        'hover:border-border-strong hover:bg-surface-raised/40 focus-visible:ring-2 focus-visible:ring-ring/50',
         className,
       )}
     >
-      <div>
-        <div className="mb-3 gap-3 flex items-start justify-between">
-          <div className="min-w-0 gap-3 flex items-center">
-            <EntityIcon iconUrl={listing.iconUrl} kind={listing.kind} />
-
-            <div className="min-w-0">
-              <div className="gap-1.5 flex items-center">
-                <h3 className="text-sm font-semibold truncate text-foreground">
-                  {listing.name}
-                </h3>
-                <VerifiedBadge badge={listing.badge} />
-              </div>
-              <p className="mt-0.5 text-xs truncate text-muted-foreground">
-                {listing.publisher?.name || listing.publisherName || 'Onetab AI'} · {listing.category}
-              </p>
-            </div>
+      <div className="gap-3 flex items-start">
+        <EntityIcon iconUrl={listing.iconUrl} kind={listing.kind} className="size-11" />
+        <div className="min-w-0 flex-1">
+          <div className="min-w-0 gap-1.5 flex items-center">
+            <h3 className="text-sm font-semibold truncate text-foreground" title={listing.name}>
+              {listing.name}
+            </h3>
+            <VerifiedBadge badge={listing.badge} />
           </div>
-
-          <div className="gap-1 flex shrink-0 flex-col items-end">
-            <KindBadge kind={listing.kind} />
-            <OriginBadge listing={listing} />
-          </div>
+          <p className="mt-0.5 text-xs truncate text-muted-foreground">
+            {listing.category}
+            {listing.version ? ` · v${listing.version}` : ''}
+          </p>
         </div>
+      </div>
 
-        <p className="mb-3 min-h-10 text-xs leading-relaxed line-clamp-2 text-muted-foreground">
-          {listing.tagline || listing.description}
-        </p>
+      <p className="mt-3 min-h-10 text-xs leading-relaxed line-clamp-2 text-muted-foreground">
+        {listing.tagline || listing.description}
+      </p>
 
-        {capabilities.length > 0 && (
-          <div className="mb-3 gap-1.5 flex flex-wrap items-center">
-            {capabilities.slice(0, 2).map((cap) => (
-              <Badge key={cap} variant="neutral" className="max-w-40">
-                <span className="truncate">{cap}</span>
-              </Badge>
-            ))}
-            {capabilities.length > 2 && (
-              <span className="text-[11px] text-muted-foreground">
-                +{capabilities.length - 2} more
-              </span>
-            )}
-          </div>
+      {/* One line of chips, so every card in a row keeps the same rhythm. */}
+      <div className="mt-3 gap-1.5 flex min-w-0 flex-nowrap items-center overflow-hidden">
+        <KindBadge kind={listing.kind} />
+        <OriginBadge listing={listing} />
+        {capabilities.slice(0, MAX_CAPABILITIES).map((cap) => (
+          <Badge key={cap} variant="neutral" className="min-w-0 shrink" title={cap}>
+            <span className="truncate">{cap}</span>
+          </Badge>
+        ))}
+        {capabilities.length > MAX_CAPABILITIES && (
+          <Badge
+            variant="neutral"
+            className="shrink-0"
+            title={capabilities.slice(MAX_CAPABILITIES).join(', ')}
+          >
+            +{capabilities.length - MAX_CAPABILITIES}
+          </Badge>
         )}
       </div>
 
-      <div className="mt-auto gap-2 pt-3 flex items-center justify-between border-t border-border/60">
-        <div className="gap-1.5 text-xs flex items-center text-muted-foreground">
-          <span className="font-medium text-foreground">
-            {listing.pricingModel === 'FREE' ? 'Free' : 'Subscription'}
+      <div className="mt-3 gap-3 text-xs flex items-center text-muted-foreground">
+        <span className="font-medium text-foreground">
+          {listing.pricingModel === 'FREE' ? 'Free' : 'Subscription'}
+        </span>
+        <span className="gap-1 flex items-center" title={`${installs} installs`}>
+          <Download className="size-3" aria-hidden />
+          {installs.toLocaleString()}
+        </span>
+        {listing.ratingCount ? (
+          <span className="gap-1 flex items-center" title={`${listing.ratingCount} reviews`}>
+            <Star className="size-3 fill-current text-accent-amber" aria-hidden />
+            {rating.toFixed(1)}
+            <span>({listing.ratingCount})</span>
           </span>
-          {listing.ratingCount ? (
-            <span>
-              ★ {listing.ratingAverage?.toFixed(1)} ({listing.ratingCount})
-            </span>
-          ) : null}
-        </div>
+        ) : null}
+      </div>
 
-        <div onClick={(e) => e.stopPropagation()}>
+      {/* Pushes the footer to the bottom so footers line up across a row. */}
+      <div className="min-h-4 flex-1" aria-hidden />
+      <div className="gap-3 pt-3 flex items-center justify-between border-t border-border/60">
+        <ListingOwnerLine listing={listing} />
+        <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
           <ListingActionButton
             {...listingActionState(listing)}
             onInstall={() => onInstall?.(listing)}

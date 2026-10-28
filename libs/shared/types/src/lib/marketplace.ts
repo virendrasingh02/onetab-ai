@@ -106,6 +106,14 @@ export interface MarketplacePublisher {
   supportEmail?: string | null;
 }
 
+/** The workspace member answerable for a listing: its Studio builder, else its installer. */
+export interface MarketplaceListingOwner {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+  relation: 'BUILT' | 'INSTALLED';
+}
+
 export interface MarketplaceListing {
   id: string;
   kind: MarketplaceKind;
@@ -155,6 +163,8 @@ export interface MarketplaceListing {
   ratingAverage?: number;
   /** Creator view of a Studio listing: live installs per version, and how many lag the listed version. */
   installStats?: { byVersion: Record<string, number>; behind: number };
+  /** Only present when the request named a workspace; null when nobody here owns it. */
+  owner?: MarketplaceListingOwner | null;
 }
 
 export interface AgentPackageValidation {

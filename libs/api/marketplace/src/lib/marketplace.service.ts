@@ -30,6 +30,7 @@ import type {
   InstallInput,
   InstallationView,
   ListingDetail,
+  ListingOwner,
   ListingSummary,
   PublishListingInput,
   ReviewView,
@@ -314,24 +315,28 @@ export class MarketplaceService implements OnModuleInit {
       this.prisma.marketplaceListing.count({ where }),
     ]);
 
-    const installedIds = workspaceId
-      ? await this.installedListingIds(
-          workspaceId,
-          rows.map((row) => row.id),
-        )
-      : new Set<string>();
+    const [installedIds, owners] = workspaceId
+      ? await Promise.all([
+          this.installedListingIds(
+            workspaceId,
+            rows.map((row) => row.id),
+          ),
+          this.listingOwners(workspaceId, rows),
+        ])
+      : [new Set<string>(), new Map<string, ListingOwner>()];
 
     const includePayload =
       query.includePayload === true || query.includePayload === 'true';
 
     return {
-      items: rows.map((row) =>
-        this.toSummary(
+      items: rows.map((row) => ({
+        ...this.toSummary(
           row,
           workspaceId ? installedIds.has(row.id) : undefined,
           includePayload,
         ),
-      ),
+        ...(workspaceId ? { owner: owners.get(row.id) ?? null } : {}),
+      })),
       total,
       page,
       pageSize,
@@ -385,12 +390,16 @@ export class MarketplaceService implements OnModuleInit {
       throw new NotFoundException(`Listing '${slug}' not found.`);
     }
 
-    const installed = workspaceId
-      ? (await this.installedListingIds(workspaceId, [listing.id])).has(listing.id)
-      : undefined;
+    const [installed, owners] = workspaceId
+      ? await Promise.all([
+          this.installedListingIds(workspaceId, [listing.id]).then((ids) => ids.has(listing.id)),
+          this.listingOwners(workspaceId, [listing]),
+        ])
+      : [undefined, undefined];
 
     return {
       ...this.toSummary(listing, installed),
+      ...(owners ? { owner: owners.get(listing.id) ?? null } : {}),
       description: listing.description,
       manifest: parseJson<Record<string, unknown>>(listing.manifestJson, {}),
       payload: parseJson<Record<string, unknown>>(listing.payloadJson, {}),
@@ -947,6 +956,71 @@ export class MarketplaceService implements OnModuleInit {
       select: { listingId: true },
     });
     return new Set(rows.map((row) => row.listingId));
+  }
+
+  /**
+   * Who answers for each listing in this workspace: the member who built it in
+   * Studio (only for listings this workspace published), else whoever installed
+   * it. Two bulk reads plus one user read, never one query per card.
+   */
+  private async listingOwners(
+    workspaceId: string,
+    rows: Array<{ id: string; ownerWorkspaceId?: string | null; sourceAgentId?: string | null }>,
+  ): Promise<Map<string, ListingOwner>> {
+    const owners = new Map<string, ListingOwner>();
+    if (rows.length === 0) return owners;
+
+    const studioRows = rows.filter(
+      (row) => row.sourceAgentId && row.ownerWorkspaceId === workspaceId,
+    );
+    const [agents, installs] = await Promise.all([
+      studioRows.length
+        ? this.prisma.automationWorkflow.findMany({
+            where: {
+              workspaceId,
+              id: { in: studioRows.map((row) => row.sourceAgentId as string) },
+            },
+            select: { id: true, creatorId: true },
+          })
+        : Promise.resolve([]),
+      this.prisma.marketplaceInstallation.findMany({
+        where: {
+          workspaceId,
+          listingId: { in: rows.map((row) => row.id) },
+          status: { not: 'UNINSTALLED' },
+          installedById: { not: null },
+        },
+        select: { listingId: true, installedById: true },
+      }),
+    ]);
+
+    const creatorByAgent = new Map(agents.map((a) => [a.id, a.creatorId]));
+    const pick = new Map<string, { userId: string; relation: ListingOwner['relation'] }>();
+    for (const install of installs) {
+      pick.set(install.listingId, { userId: install.installedById as string, relation: 'INSTALLED' });
+    }
+    for (const row of studioRows) {
+      const creatorId = creatorByAgent.get(row.sourceAgentId as string);
+      if (creatorId) pick.set(row.id, { userId: creatorId, relation: 'BUILT' });
+    }
+    if (pick.size === 0) return owners;
+
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: [...new Set([...pick.values()].map((p) => p.userId))] } },
+      select: { id: true, name: true, displayName: true, avatarUrl: true },
+    });
+    const userById = new Map(users.map((u) => [u.id, u]));
+    for (const [listingId, { userId, relation }] of pick) {
+      const user = userById.get(userId);
+      if (!user) continue;
+      owners.set(listingId, {
+        id: user.id,
+        name: user.displayName || user.name,
+        avatarUrl: user.avatarUrl ?? null,
+        relation,
+      });
+    }
+    return owners;
   }
 
   // -------------------------------------------------------------------------

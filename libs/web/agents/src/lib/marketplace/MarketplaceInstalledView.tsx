@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import type { MarketplaceInstallation } from '@org/types';
 import { Badge, Button, Card, EmptyState, Switch } from '@org/ui';
 import { Check, Settings, ShieldAlert, Trash2, XCircle } from 'lucide-react';
-import { EntityIcon, KindBadge, SectionTabs } from './marketplace-ui';
+import { EntityIcon, KindBadge, MARKETPLACE_GRID_CLASS, SectionTabs } from './marketplace-ui';
 
 type InstalledFilter = 'all' | 'active' | 'disabled';
 
@@ -175,7 +175,7 @@ export const MarketplaceInstalledView: React.FC<MarketplaceInstalledViewProps> =
           }
         />
       ) : (
-        <div className="md:grid-cols-2 gap-4 grid grid-cols-1">
+        <div className={MARKETPLACE_GRID_CLASS}>
           {filteredInstallations.map((item) => {
             const itemSlug = item.listingSlug || item.listing?.slug || item.listingId;
             const itemName = item.name || item.listing?.name || 'Integration';

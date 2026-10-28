@@ -50,6 +50,18 @@ export interface ListingSummary {
   compatibility?: Record<string, unknown>;
   screenshots?: string[];
   changelog?: Array<{ version: string; date: string; notes: string }>;
+  /**
+   * The workspace member answerable for this listing here: who built it in
+   * Studio, else who installed it. Present only on workspace-scoped reads.
+   */
+  owner?: ListingOwner | null;
+}
+
+export interface ListingOwner {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+  relation: 'BUILT' | 'INSTALLED';
 }
 
 export interface ListingDetail extends ListingSummary {

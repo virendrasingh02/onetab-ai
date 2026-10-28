@@ -13,6 +13,8 @@ import { MarketplaceCard } from './MarketplaceCard';
 import {
   EntityIcon,
   ListingActionButton,
+  ListingOwnerLine,
+  MarketplaceGrid,
   SectionTabs,
   VerifiedBadge,
   listingActionState,
@@ -238,7 +240,7 @@ export const MarketplaceCatalogView: React.FC<MarketplaceCatalogViewProps> = ({
           }
         />
       ) : !isCompactList ? (
-        <div className="md:grid-cols-2 lg:grid-cols-3 gap-4 grid grid-cols-1">
+        <MarketplaceGrid>
           {sorted.map((item) => (
             <MarketplaceCard
               key={item.id || item.slug}
@@ -249,7 +251,7 @@ export const MarketplaceCatalogView: React.FC<MarketplaceCatalogViewProps> = ({
               onConfigure={onConfigure}
             />
           ))}
-        </div>
+        </MarketplaceGrid>
       ) : (
         /* Compact list view */
         <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/60 bg-card">
@@ -283,6 +285,7 @@ export const MarketplaceCatalogView: React.FC<MarketplaceCatalogViewProps> = ({
                 className="gap-3 flex shrink-0 items-center"
                 onClick={(e) => e.stopPropagation()}
               >
+                <ListingOwnerLine listing={item} className="hidden md:flex max-w-48" />
                 <span className="text-xs text-muted-foreground">
                   {item.pricingModel === 'FREE' ? 'Free' : 'Subscription'}
                 </span>

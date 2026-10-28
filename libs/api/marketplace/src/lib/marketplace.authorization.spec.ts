@@ -85,3 +85,54 @@ describe('installation view', () => {
     expect(row(JSON.stringify(health)).health).toEqual(health);
   });
 });
+
+describe('listing owner', () => {
+  const listingRow = (id: string, extra: Record<string, unknown> = {}) => ({
+    id, kind: 'AGENT', slug: id, name: id, tagline: '', category: 'x', version: '1.0.0', iconUrl: null,
+    previewUrl: null, tags: '[]', pricingModel: 'FREE', priceCents: 0, status: 'PUBLISHED', isOfficial: false,
+    isFeatured: false, installCount: 0, ratingSum: 0, ratingCount: 0, manifestJson: '{}', publisher: null,
+    visibility: 'PUBLIC', ownerWorkspaceId: null, sourceAgentId: null, ...extra,
+  });
+
+  it('names the Studio builder over the installer, the installer otherwise, and nobody for unowned rows', async () => {
+    const rows = [
+      listingRow('built', { visibility: 'WORKSPACE', ownerWorkspaceId: 'w', sourceAgentId: 'agent-1' }),
+      listingRow('installed'),
+      listingRow('plain'),
+    ];
+    const userFindMany = vi.fn(async () => [
+      { id: 'u-builder', name: 'builder', displayName: 'Bea Builder', avatarUrl: null },
+      { id: 'u-installer', name: 'ian', displayName: null, avatarUrl: 'data:image/png;base64,x' },
+    ]);
+    const service = new MarketplaceService({
+      marketplaceListing: { findMany: async () => rows, count: async () => rows.length },
+      marketplaceInstallation: {
+        findMany: async (args: { select: Record<string, boolean> }) =>
+          args.select['installedById']
+            ? [
+                { listingId: 'built', installedById: 'u-installer' },
+                { listingId: 'installed', installedById: 'u-installer' },
+              ]
+            : [{ listingId: 'installed' }],
+      },
+      automationWorkflow: { findMany: async () => [{ id: 'agent-1', creatorId: 'u-builder' }] },
+      user: { findMany: userFindMany },
+    } as never);
+
+    const page = await service.browse({}, 'w');
+    const owners = Object.fromEntries(page.items.map((i) => [i.slug, i.owner]));
+
+    expect(owners['built']).toEqual({ id: 'u-builder', name: 'Bea Builder', avatarUrl: null, relation: 'BUILT' });
+    expect(owners['installed']).toMatchObject({ id: 'u-installer', name: 'ian', relation: 'INSTALLED' });
+    expect(owners['plain']).toBeNull();
+    expect(userFindMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves owner off anonymous browse calls', async () => {
+    const service = new MarketplaceService({
+      marketplaceListing: { findMany: async () => [listingRow('a')], count: async () => 1 },
+    } as never);
+    const page = await service.browse({});
+    expect(page.items[0]).not.toHaveProperty('owner');
+  });
+});

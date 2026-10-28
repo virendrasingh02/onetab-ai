@@ -9,12 +9,14 @@ import {
   Button,
   ResponsiveTabsList,
   Tabs,
+  UserAvatar,
   type TabItem,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   Bot,
   Brain,
+  Building2,
   Check,
   Clock,
   Code2,
@@ -30,7 +32,7 @@ import {
   Zap,
   type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import React, { useEffect, useState, type ReactNode } from 'react';
 
 /*
  * The marketplace's shared vocabulary. Every list, card and detail page draws
@@ -298,6 +300,75 @@ export function ListingActionButton({
     <Button variant="primary" size={size} onClick={onInstall}>
       {installLabel}
     </Button>
+  );
+}
+
+/* ------------------------------------------------------------------ grid ---- */
+
+export const MARKETPLACE_GRID_CLASS =
+  'gap-4 grid auto-rows-fr grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(19rem,1fr))]';
+
+/**
+ * The one card grid every marketplace tab lays out on: columns fill the width
+ * at a readable card size (one on phones, up to four on wide screens), and
+ * every card in a row stretches to the tallest so footers line up.
+ */
+export function MarketplaceGrid({
+  children,
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={cn(MARKETPLACE_GRID_CLASS, className)}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
+
+/* ----------------------------------------------------------------- owner ---- */
+
+/**
+ * Who answers for a listing: the workspace member who built or installed it,
+ * else its publisher. Cards and compact rows use the same line.
+ */
+export function ListingOwnerLine({
+  listing,
+  className,
+}: {
+  listing: Pick<MarketplaceListing, 'owner' | 'publisher' | 'publisherName' | 'badge'>;
+  className?: string;
+}) {
+  const owner = listing.owner;
+  if (owner) {
+    const verb = owner.relation === 'BUILT' ? 'Built by' : 'Added by';
+    return (
+      <span
+        className={cn('min-w-0 gap-1.5 text-xs flex items-center text-muted-foreground', className)}
+        title={`${verb} ${owner.name}`}
+      >
+        <UserAvatar name={owner.name} src={owner.avatarUrl ?? undefined} seed={owner.id} size="xs" indicator={false} />
+        <span className="truncate">
+          {verb} <span className="font-medium text-foreground">{owner.name}</span>
+        </span>
+      </span>
+    );
+  }
+  const publisher = listing.publisher?.name || listing.publisherName || 'Onetab AI';
+  return (
+    <span
+      className={cn('min-w-0 gap-1.5 text-xs flex items-center text-muted-foreground', className)}
+      title={`Published by ${publisher}`}
+    >
+      <span className="size-5 flex shrink-0 items-center justify-center rounded-full border border-border bg-surface-raised">
+        <Building2 className="size-3" aria-hidden />
+      </span>
+      <span className="truncate">
+        By <span className="font-medium text-foreground">{publisher}</span>
+      </span>
+    </span>
   );
 }
 

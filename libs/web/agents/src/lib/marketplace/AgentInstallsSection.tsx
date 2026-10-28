@@ -36,7 +36,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ErrorAlert } from './AgentInstallDialog';
-import { EntityIcon } from './marketplace-ui';
+import { EntityIcon, MARKETPLACE_GRID_CLASS } from './marketplace-ui';
 import {
   toAgentInstallError,
   useAgentInstallMutations,
@@ -113,7 +113,7 @@ export function AgentInstallsSection({ workspace, currentUserId, canManage, onOp
 
   if (installs.isLoading) {
     return (
-      <div className="gap-4 md:grid-cols-2 grid grid-cols-1" aria-label="Loading installed agents" role="status">
+      <div className={MARKETPLACE_GRID_CLASS} aria-label="Loading installed agents" role="status">
         {[0, 1].map((k) => (
           <Skeleton key={k} className="h-40 w-full rounded-xl" />
         ))}
@@ -152,7 +152,7 @@ export function AgentInstallsSection({ workspace, currentUserId, canManage, onOp
 
   return (
     <>
-      <div className="gap-4 md:grid-cols-2 grid grid-cols-1">
+      <div className={MARKETPLACE_GRID_CLASS}>
         {rows.map((i) => {
           const status = STATUS_BADGE[i.status] ?? { label: i.status, variant: 'neutral' as const };
           const busy = i.status === 'INSTALLING' || i.status === 'UPDATING';
