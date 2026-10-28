@@ -1,7 +1,9 @@
-import type {
-  Message,
-  SystemActivityEventContent,
-  SystemEventEntity,
+import {
+  getAppLogoUrl,
+  splitAppConnectionName,
+  type Message,
+  type SystemActivityEventContent,
+  type SystemEventEntity,
 } from '@org/types';
 import {
   ActionDropdownMenu,
@@ -12,6 +14,8 @@ import {
 import { cn } from '@org/utils';
 import { MessageTime } from '../message-time.js';
 import { EntityKindBadge } from '../entity-kind-badge.js';
+import { AppLogoAvatar } from '../app-logo-avatar.js';
+import { useAiEntity, useAppEntity } from './agent-avatar-context.js';
 import {
   Archive,
   ArchiveRestore,
@@ -231,6 +235,54 @@ function entityKindLabel(kind: SystemEventEntity['kind']): string {
   }
 }
 
+/**
+ * Normalize an app entity for display. Events posted before the API began
+ * snapshotting a clean app name carry the raw connection name
+ * (`"Asana · balram"`) and no logo, so the split + static-logo lookup happens
+ * here too — old and new rows render identically.
+ */
+export function normalizeSystemEventEntity(entity: SystemEventEntity): SystemEventEntity {
+  if (entity.kind !== 'app' || entity.isDeleted) return entity;
+  const { appName, accountLabel } = splitAppConnectionName(entity.name);
+  return {
+    ...entity,
+    name: appName || entity.name,
+    accountLabel: entity.accountLabel ?? accountLabel,
+    avatarUrl: entity.avatarUrl ?? getAppLogoUrl(entity.provider, appName),
+  };
+}
+
+/**
+ * The entity as it is *now*: a renamed app/agent/coworker shows its current
+ * name and logo from the API (via the host's live resolvers), falling back to
+ * the snapshot the event was posted with when the row is gone or unknown.
+ */
+export function useLiveSystemEventEntity(
+  entity: SystemEventEntity | null,
+): SystemEventEntity | null {
+  const isApp = entity?.kind === 'app' && !entity.isDeleted;
+  const isAi = (entity?.kind === 'agent' || entity?.kind === 'coworker') && !entity.isDeleted;
+  const liveApp = useAppEntity(isApp ? entity?.id ?? undefined : undefined);
+  const liveAi = useAiEntity(isAi ? entity?.id ?? undefined : undefined);
+  if (!entity) return null;
+  if (isApp) {
+    const base = normalizeSystemEventEntity(entity);
+    return liveApp
+      ? {
+          ...base,
+          name: liveApp.name,
+          avatarUrl: liveApp.logoUrl ?? base.avatarUrl,
+          accountLabel: liveApp.accountLabel,
+          provider: liveApp.provider,
+        }
+      : base;
+  }
+  if (isAi && liveAi) {
+    return { ...entity, name: liveAi.name, avatarUrl: liveAi.avatarUrl ?? entity.avatarUrl };
+  }
+  return entity;
+}
+
 /** Small avatar/icon for one entity — a photo for a user, a gradient tile for
  * an app/agent/coworker (via the existing avatar system's seeded gradient),
  * or a plain `#` glyph for a channel, which has no avatar of its own. */
@@ -242,6 +294,9 @@ export function SystemEventEntityAvatar({ entity }: { entity: SystemEventEntity 
       </span>
     );
   }
+  if (entity.kind === 'app') {
+    return <AppLogoAvatar logoUrl={entity.avatarUrl} />;
+  }
   return (
     <UserAvatar
       name={entity.name}
@@ -251,7 +306,6 @@ export function SystemEventEntityAvatar({ entity }: { entity: SystemEventEntity 
       className={cn(
         'size-10 rounded-full shadow-xs',
         entity.kind === 'agent' && 'ring-2 ring-primary/40',
-        entity.kind === 'app' && 'ring-2 ring-accent-violet/40',
       )}
       indicator={false}
     />
@@ -354,7 +408,7 @@ export function SystemEventAction({
   onViewEntity?: (entity: SystemEventEntity) => void;
 }) {
   const { lead, withActor } = getSentenceParts(event);
-  const actor = event.actor;
+  const actor = useLiveSystemEventEntity(event.actor);
 
   return (
     <p className="m-0 text-sm leading-5 text-muted-foreground">
@@ -473,7 +527,7 @@ export function SystemEventCard({
   onViewEntity,
   onDelete,
 }: SystemEventCardProps) {
-  const primaryEntity = event.target ?? event.actor;
+  const primaryEntity = useLiveSystemEventEntity(event.target ?? event.actor);
 
   const handleCopyEvent = () => {
     void navigator.clipboard
@@ -508,6 +562,11 @@ export function SystemEventCard({
               className="text-message text-foreground"
             />
             <SystemEventEntityBadge kind={primaryEntity.kind} />
+            {primaryEntity.accountLabel ? (
+              <span className="min-w-0 truncate text-xs text-muted-foreground">
+                {primaryEntity.accountLabel}
+              </span>
+            ) : null}
             <SystemEventTimestamp timestamp={event.occurredAt || message.timestamp} />
           </header>
         ) : null}

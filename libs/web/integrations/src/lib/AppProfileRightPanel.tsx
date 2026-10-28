@@ -15,7 +15,9 @@ import {
   type RightPanelProfile,
   ConnectionStatusBadge,
   toConnectionState,
+  usePromptDialog,
 } from '@org/ui';
+import { getAppDisplayName } from '@org/types';
 import { cn } from '@org/utils';
 import {
   AlertCircle,
@@ -24,6 +26,7 @@ import {
   CheckCircle2,
   Copy,
   MoreVertical,
+  Pencil,
   Play,
   Plug,
   RefreshCw,
@@ -58,7 +61,8 @@ export const AppProfileRightPanel: FC<AppProfileRightPanelProps> = ({
 }) => {
   const navigate = useNavigate();
   const integrationsQuery = useIntegrations(workspaceId);
-  const { connect, disconnect } = useIntegrationMutations(workspaceId);
+  const { connect, disconnect, rename } = useIntegrationMutations(workspaceId);
+  const prompts = usePromptDialog();
   const providersQuery = useIntegrationProviders(workspaceId);
 
   const [copied, setCopied] = useState(false);
@@ -81,7 +85,11 @@ export const AppProfileRightPanel: FC<AppProfileRightPanelProps> = ({
 
   const app: AppModelItem = (profile.raw as AppModelItem | undefined) || {
     id: appId,
-    name: connectedMatch?.displayName || defaultMatch?.name || profile.name || appId,
+    name:
+      (connectedMatch ? getAppDisplayName(connectedMatch) : undefined) ||
+      defaultMatch?.name ||
+      profile.name ||
+      appId,
     category: defaultMatch?.category || profile.role || 'Developer Tools',
     description:
       defaultMatch?.description ||
@@ -126,6 +134,27 @@ export const AppProfileRightPanel: FC<AppProfileRightPanelProps> = ({
     }
   };
 
+  // The connection's name is the one the app goes by in the sidebar, chat,
+  // replies, events and @-mentions — the API pushes it everywhere.
+  const handleRename = async () => {
+    if (!app.integrationId) return;
+    const next = await prompts.promptText({
+      title: `Rename ${app.name}`,
+      description: 'Everyone in the workspace sees this name in the sidebar, chat and mentions.',
+      label: 'App name',
+      defaultValue: app.name,
+      confirmLabel: 'Save',
+    });
+    const displayName = next?.trim();
+    if (!displayName || displayName === app.name) return;
+    try {
+      await rename.mutateAsync({ integrationId: app.integrationId, displayName });
+      toast.success(`Renamed to ${displayName}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : `Could not rename ${app.name}`);
+    }
+  };
+
   const handleDisconnect = async () => {
     if (!app.integrationId) return;
     if (!window.confirm(`Disconnect ${app.name}? Automated messages and commands will be suspended.`)) {
@@ -141,6 +170,7 @@ export const AppProfileRightPanel: FC<AppProfileRightPanelProps> = ({
 
   return (
     <aside className="flex h-full w-full flex-col bg-surface text-foreground overflow-hidden">
+      {prompts.dialog}
       {/* Drawer Top Bar */}
       <header className="flex items-center justify-between border-b border-border px-4 py-2.5 bg-muted/20 shrink-0">
         <h2 className="min-w-0 truncate text-base font-semibold tracking-tight">
@@ -166,6 +196,12 @@ export const AppProfileRightPanel: FC<AppProfileRightPanelProps> = ({
                 <Copy className="mr-2 h-3.5 w-3.5" />
                 Copy Link
               </DropdownMenuItem>
+              {isConnected && app.integrationId ? (
+                <DropdownMenuItem onClick={handleRename}>
+                  <Pencil className="mr-2 h-3.5 w-3.5" />
+                  Rename App
+                </DropdownMenuItem>
+              ) : null}
               {isConnected && (
                 <>
                   <DropdownMenuSeparator />

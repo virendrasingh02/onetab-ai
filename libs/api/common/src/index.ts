@@ -44,6 +44,7 @@ export {
   type ChannelAppEnabledChangedEvent,
   type IntegrationConnectedEvent,
   type IntegrationDisconnectedEvent,
+  type IntegrationUpdatedEvent,
   type SettingsUpdatedEvent,
   type AgentApprovalEntityType,
   type AgentApprovalDecidedEvent,

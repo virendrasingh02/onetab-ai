@@ -60,7 +60,7 @@ export function ProfileSummaryCard({
               src={user.avatarUrl}
               seed={user.id}
               size="lg"
-              className="size-18 rounded-full shadow-lg ring-4 ring-surface"
+              className="size-18 rounded-full shadow-lg ring-1 ring-foreground/10"
               presence={user.presence}
               statusEmoji={user.statusEmoji}
               statusText={user.statusText}

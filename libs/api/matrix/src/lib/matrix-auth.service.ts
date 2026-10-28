@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '@org/database';
-import { announcementPosterUserIds } from '@org/types';
+import { announcementPosterUserIds, getAppDisplayName } from '@org/types';
 import { MatrixAdminService } from './matrix-admin.service.js';
 
 /**
@@ -547,7 +547,7 @@ export class MatrixAuthService {
 
     const { matrixUserId } = await this.admin.provisionUser({
       userId: `app-${integration.id}`,
-      displayName: integration.displayName ?? integration.provider,
+      displayName: getAppDisplayName(integration),
     });
 
     await this.prisma.externalIntegration.update({

@@ -1,9 +1,11 @@
 import { generatedFileToMediaItem, useMediaPreview } from '@org/media-preview';
-import type {
-  AIAgentMessageContent,
-  Message,
-  RoomMember,
-  StructuredMessageAction,
+import {
+  getAppLogoUrl,
+  splitAppConnectionName,
+  type AIAgentMessageContent,
+  type Message,
+  type RoomMember,
+  type StructuredMessageAction,
 } from '@org/types';
 import {
   Badge,
@@ -22,6 +24,7 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { EntityKindBadge } from '../entity-kind-badge.js';
+import { AppLogoAvatar } from '../app-logo-avatar.js';
 import {
   AlertTriangle,
   ArrowRight,
@@ -64,7 +67,7 @@ import { MessageActionToolbar, ThreadRepliesButton, ReactionPicker } from '../ch
 import { ReactionBar, reactionAddButtonClass } from '../reaction-bar.js';
 import { SavedForLaterLabel } from '../saved-for-later-label.js';
 import { executeStructuredAction } from './action-handler.js';
-import { useAiEntity } from './agent-avatar-context.js';
+import { useAiEntity, useAppEntity } from './agent-avatar-context.js';
 import { useAICardPreferencesStore } from './card-preferences-store.js';
 import { CardSettingsDialog } from './card-settings-dialog.js';
 
@@ -182,10 +185,36 @@ export function AgentMessageCard({
   const [followUpSent, setFollowUpSent] = useState(false);
   const [expandedToolIds, setExpandedToolIds] = useState<Set<string>>(new Set());
 
-  const liveEntity = useAiEntity(event.agentId, event.agentName || message.senderName);
-  const avatarSrc =
-    liveEntity?.avatarUrl || event.agentAvatarUrl || message.senderAvatarUrl;
+  // Connected apps (Asana, GitHub…) answer through this same card. Replies
+  // posted before `agentKind` existed are recognised by their `App` role, and
+  // their "Asana · balram" connection name is split back to the app's name.
+  const isApp = event.agentKind === 'app' || event.agentRole === 'App';
+  const rawAgentName = event.agentName || message.senderName;
+  const appIdentity = isApp ? splitAppConnectionName(rawAgentName) : null;
+  // An app's current name/logo come from the API, so a rename reaches every
+  // reply — old ones included; the posted snapshot is only the fallback.
+  const liveApp = useAppEntity(isApp ? event.agentId : undefined);
+  const appAccountLabel = isApp
+    ? liveApp
+      ? liveApp.accountLabel
+      : event.appAccountLabel ?? appIdentity?.accountLabel
+    : undefined;
+  const liveEntity = useAiEntity(
+    isApp ? undefined : event.agentId,
+    isApp ? undefined : rawAgentName,
+  );
+  // The live name wins for agents/coworkers too, so a rename (in Studio or
+  // the app) reaches every reply, not just ones posted afterwards.
+  const agentName = isApp
+    ? liveApp?.name || appIdentity?.appName || rawAgentName
+    : liveEntity?.name || rawAgentName;
+  const avatarSrc = isApp
+    ? liveApp?.logoUrl ||
+      event.agentAvatarUrl ||
+      getAppLogoUrl(liveApp?.provider ?? event.appProvider, agentName)
+    : liveEntity?.avatarUrl || event.agentAvatarUrl || message.senderAvatarUrl;
   const entityKind = liveEntity?.kind ?? 'agent';
+  const badgeKind = isApp ? 'app' : 'agent';
   const density = prefs.density;
   const isRunning = event.status === 'running' || event.status === 'starting';
   const isPending = isRunning || event.status === 'queued';
@@ -317,18 +346,25 @@ export function AgentMessageCard({
   };
 
   // Clicking the agent's avatar or name opens the same right-rail profile a
-  // person gets, routed to the agent profile via `entityKind`.
-  const agentName = event.agentName || message.senderName;
+  // person gets, routed to the agent (or app) profile via `entityKind`.
   const profileCard = (children: ReactNode) => (
     <UserProfileCard
-      userId={`agent-${event.agentId}`}
-      entityKind="agent"
+      userId={`${badgeKind}-${event.agentId}`}
+      entityKind={badgeKind}
       entityId={event.agentId}
       name={agentName}
       avatarUrl={avatarSrc}
-      title={event.model ? `${event.model} · AI Agent` : 'AI Agent'}
-      role={event.agentRole || 'AI Agent'}
-      bio={event.agentDescription || 'AI agent on Onetab AI.'}
+      title={
+        isApp
+          ? appAccountLabel
+            ? `App · ${appAccountLabel}`
+            : 'App'
+          : event.model
+            ? `${event.model} · AI Agent`
+            : 'AI Agent'
+      }
+      role={isApp ? 'App' : event.agentRole || 'AI Agent'}
+      bio={event.agentDescription || (isApp ? `${agentName} app connected to Onetab AI.` : 'AI agent on Onetab AI.')}
     >
       {children}
     </UserProfileCard>
@@ -491,16 +527,20 @@ export function AgentMessageCard({
       >
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
-            <AiEntityAvatar
-              name={event.agentName || message.senderName}
-              kind={entityKind}
-              avatarUrl={avatarSrc}
-              size="sm"
-            />
+            {isApp ? (
+              <AppLogoAvatar logoUrl={avatarSrc} size="sm" />
+            ) : (
+              <AiEntityAvatar
+                name={agentName}
+                kind={entityKind}
+                avatarUrl={avatarSrc}
+                size="sm"
+              />
+            )}
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="text-xs font-bold text-foreground truncate">
-                  {event.agentName || message.senderName}
+                  {agentName}
                 </span>
                 <span className="text-2xs text-muted-foreground font-mono">
                   {event.model}
@@ -570,12 +610,16 @@ export function AgentMessageCard({
 
       <div className="relative w-10 shrink-0">
         {profileCard(
-          <AiEntityAvatar
-            name={event.agentName || message.senderName}
-            kind={entityKind}
-            avatarUrl={avatarSrc}
-            size="md"
-          />,
+          isApp ? (
+            <AppLogoAvatar logoUrl={avatarSrc} size="md" />
+          ) : (
+            <AiEntityAvatar
+              name={agentName}
+              kind={entityKind}
+              avatarUrl={avatarSrc}
+              size="md"
+            />
+          ),
         )}
       </div>
 
@@ -587,11 +631,14 @@ export function AgentMessageCard({
             <div className="flex items-baseline gap-2 flex-wrap">
               {profileCard(
                 <span className="text-message font-bold text-foreground hover:underline">
-                  {event.agentName || message.senderName}
+                  {agentName}
                 </span>,
               )}
 
-              <EntityKindBadge kind="agent" />
+              <EntityKindBadge kind={badgeKind} />
+              {appAccountLabel ? (
+                <span className="text-xs text-muted-foreground">{appAccountLabel}</span>
+              ) : null}
 
               <time
                 dateTime={new Date(message.timestamp).toISOString()}

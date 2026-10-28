@@ -159,6 +159,23 @@ export class IntegrationsController {
     });
   }
 
+  /** Rename a connection — the name every chat surface shows for the app. */
+  @Patch('workspaces/:workspaceId/integrations/:id')
+  @UseGuards(WorkspaceRoleGuard)
+  renameIntegration(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
+    @Param('id') integrationId: string,
+    @Body() body: { displayName?: unknown },
+  ) {
+    return this.integrationsService.renameIntegration(
+      integrationId,
+      userId,
+      workspaceId,
+      body?.displayName,
+    );
+  }
+
   @Post('workspaces/:workspaceId/integrations/:id/disconnect')
   @UseGuards(WorkspaceRoleGuard)
   disconnectIntegration(

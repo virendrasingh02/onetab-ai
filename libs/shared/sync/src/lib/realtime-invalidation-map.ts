@@ -164,6 +164,13 @@ export function applyRealtimeEvent(
       break;
     }
 
+    case RealtimeEventType.IntegrationUpdated: {
+      // Channel app lists embed the integration's name too.
+      invalidate(queryKeys.integrations.all(ws));
+      invalidate(queryKeys.channels.all(ws));
+      break;
+    }
+
     case RealtimeEventType.AIRunUpdated: {
       const run = event.payload as { workflowId?: string; status?: string } | undefined;
       scheduleRunCacheRefresh(queryClient, ws, { workflowId: run?.workflowId, status: run?.status });

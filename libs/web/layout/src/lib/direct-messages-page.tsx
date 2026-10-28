@@ -1,4 +1,5 @@
 import {
+  getAppDisplayName,
   MembershipStatus,
   PresenceStatus,
   WorkspaceRole,
@@ -76,8 +77,8 @@ export function DirectMessagesPage({
         joinedAt: integration.createdAt,
         user: {
           id: `app-${integration.id}`,
-          name: integration.displayName ?? integration.provider,
-          displayName: integration.displayName ?? integration.provider,
+          name: getAppDisplayName(integration),
+          displayName: getAppDisplayName(integration),
           avatarUrl: null,
           presence: PresenceStatus.ONLINE,
           statusText: integration.provider,

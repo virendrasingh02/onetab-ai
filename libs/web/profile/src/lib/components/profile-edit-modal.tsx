@@ -200,7 +200,7 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
                 {/* Avatar Preview Area */}
                 <div className="px-6 pb-4 pt-0 relative flex items-end justify-between">
                   <div className="-mt-14 relative group/edit inline-block">
-                    <div className="relative rounded-full ring-4 ring-card shadow-xl overflow-hidden bg-surface">
+                    <div className="relative rounded-full ring-1 ring-foreground/10 shadow-xl overflow-hidden bg-surface">
                       <UserAvatar
                         name={displayNameWatch}
                         src={avatarWatch}

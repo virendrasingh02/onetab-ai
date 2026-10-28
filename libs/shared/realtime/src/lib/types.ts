@@ -75,6 +75,9 @@ export const RealtimeEventType = {
   /** An agent / coworker / Studio agent was created, edited, published,
    *  switched on or off, or deleted — by anyone, in any tab. Ids only. */
   AgentUpdated: 'agent.updated',
+
+  /** A connected app was renamed. Ids only. */
+  IntegrationUpdated: 'integration.updated',
 } as const;
 
 export type RealtimeEventType =

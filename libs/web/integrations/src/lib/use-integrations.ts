@@ -226,6 +226,16 @@ export function useIntegrationMutations(workspaceId: string | undefined) {
     onSuccess: invalidate,
   });
 
+  const rename = useMutation({
+    mutationFn: ({ integrationId, displayName }: { integrationId: string; displayName: string }) =>
+      integrationsApi.rename(workspaceId as string, integrationId, displayName),
+    onSuccess: () => {
+      invalidate();
+      // Channel app lists embed the name too.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.channels.all(workspaceId ?? '') });
+    },
+  });
+
   const sync = useMutation({
     mutationFn: (integrationId: string) =>
       integrationsApi.sync(workspaceId as string, integrationId),
@@ -328,6 +338,7 @@ export function useIntegrationMutations(workspaceId: string | undefined) {
   return {
     connect,
     disconnect,
+    rename,
     sync,
     sendMessage,
     replyMessage,

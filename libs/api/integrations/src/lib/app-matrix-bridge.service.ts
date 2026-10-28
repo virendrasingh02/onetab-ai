@@ -4,6 +4,7 @@ import {
   AppEvent,
   type ChannelAppEnabledChangedEvent,
   type ChannelAppLinkedEvent,
+  type IntegrationUpdatedEvent,
 } from '@org/api-common';
 import {
   MatrixAdminService,
@@ -12,6 +13,7 @@ import {
   type MatrixTimelineEvent,
 } from '@org/api-matrix';
 import { PrismaService } from '@org/database';
+import { getAppDisplayName, splitAppConnectionName } from '@org/types';
 import { IntegrationsService } from './integrations.service.js';
 
 const REPLAY_WINDOW_MS = 10 * 60_000;
@@ -70,6 +72,44 @@ export class AppMatrixBridgeService implements OnModuleInit {
 
   onModuleInit(): void {
     this.router.register((event) => this.tryHandle(event));
+    // Bots provisioned before names were canonical still read
+    // "Asana · balram" in every room; bring them in line once at boot.
+    void this.syncAllBotProfiles();
+  }
+
+  /** A rename moves the app's Matrix bot name too, so the sender name, the
+   * member list and @-mention pills all match the rest of the UI. */
+  @OnEvent(AppEvent.IntegrationUpdated)
+  async onIntegrationUpdated(event: IntegrationUpdatedEvent): Promise<void> {
+    const integration = await this.prisma.externalIntegration.findUnique({
+      where: { id: event.integrationId },
+      select: { id: true, provider: true, displayName: true, matrixUserId: true },
+    });
+    if (integration?.matrixUserId) await this.pushBotProfile(integration);
+  }
+
+  private async syncAllBotProfiles(): Promise<void> {
+    try {
+      const bots = await this.prisma.externalIntegration.findMany({
+        where: { status: 'CONNECTED', matrixUserId: { not: null } },
+        select: { id: true, provider: true, displayName: true, matrixUserId: true },
+      });
+      for (const bot of bots) await this.pushBotProfile(bot);
+    } catch (error) {
+      this.logger.warn(`App bot profile sync skipped: ${String(error)}`);
+    }
+  }
+
+  private async pushBotProfile(integration: {
+    id: string;
+    provider: string;
+    displayName: string | null;
+  }): Promise<void> {
+    // Best-effort by contract (`pushUserProfile` swallows homeserver errors).
+    await this.admin.pushUserProfile({
+      userId: `app-${integration.id}`,
+      displayName: getAppDisplayName(integration),
+    });
   }
 
   /** Lets "create a task for the launch" run as real app actions. */
@@ -195,7 +235,12 @@ export class AppMatrixBridgeService implements OnModuleInit {
 
         for (const candidate of connected) {
           // Longest name first so "Asana · balram" wins over plain "Asana".
-          const names = [candidate.displayName, candidate.provider]
+          const names = [
+            candidate.displayName,
+            splitAppConnectionName(candidate.displayName ?? '').appName,
+            getAppDisplayName(candidate),
+            candidate.provider,
+          ]
             .filter((n): n is string => !!n?.trim())
             .sort((a, b) => b.length - a.length);
           for (const name of names) {

@@ -6,6 +6,7 @@ function makeService() {
     user: { findUnique: vi.fn() },
     aIAgent: { findUnique: vi.fn() },
     externalIntegration: { findUnique: vi.fn() },
+    marketplaceListing: { findFirst: vi.fn().mockResolvedValue(null) },
     channel: { findUnique: vi.fn() },
   };
   const admin: any = {
@@ -192,7 +193,7 @@ describe('SystemEventPublisherService', () => {
       });
     });
 
-    it('resolveApp uses the display name, falling back to the provider key', async () => {
+    it('resolveApp title-cases the provider key when there is no display name', async () => {
       const { service, prisma } = ctx;
       prisma.externalIntegration.findUnique.mockResolvedValue({
         id: 'int-1',
@@ -204,9 +205,50 @@ describe('SystemEventPublisherService', () => {
       await expect(service.resolveApp('int-1')).resolves.toEqual({
         kind: 'app',
         id: 'int-1',
-        name: 'google-calendar',
+        name: 'Google Calendar',
+        avatarUrl: undefined,
         provider: 'google-calendar',
+        accountLabel: undefined,
         isDeleted: false,
+      });
+    });
+
+    it('resolveApp splits the account label off a connection name and attaches the logo', async () => {
+      const { service, prisma } = ctx;
+      prisma.externalIntegration.findUnique.mockResolvedValue({
+        id: 'int-2',
+        displayName: 'Asana · balram',
+        provider: 'asana',
+        status: 'CONNECTED',
+      });
+
+      await expect(service.resolveApp('int-2')).resolves.toEqual({
+        kind: 'app',
+        id: 'int-2',
+        name: 'Asana',
+        avatarUrl: 'https://cdn.simpleicons.org/asana',
+        provider: 'asana',
+        accountLabel: 'balram',
+        isDeleted: false,
+      });
+    });
+
+    it('resolveApp keeps the connection name and takes only the icon from the marketplace', async () => {
+      const { service, prisma } = ctx;
+      prisma.externalIntegration.findUnique.mockResolvedValue({
+        id: 'int-3',
+        displayName: 'Team Asana',
+        provider: 'asana',
+        status: 'CONNECTED',
+      });
+      prisma.marketplaceListing.findFirst.mockResolvedValue({
+        iconUrl: 'https://cdn.example/asana.png',
+      });
+
+      await expect(service.resolveApp('int-3')).resolves.toMatchObject({
+        name: 'Team Asana',
+        avatarUrl: 'https://cdn.example/asana.png',
+        accountLabel: undefined,
       });
     });
   });

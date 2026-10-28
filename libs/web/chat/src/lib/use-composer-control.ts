@@ -20,6 +20,8 @@ import {
   canManageChannelMembers,
   canMentionGroups,
   evaluateMention,
+  getAppDisplayName,
+  splitAppConnectionName,
   WorkspaceRole,
   type ComposerContext,
   type ComposerReachability,
@@ -349,8 +351,10 @@ export function useComposerControl(
         .filter((app) => app.status === 'CONNECTED')
         .map((app) => ({
           id: app.id,
-          name: app.displayName ?? app.provider,
-          subtitle: `App · ${app.provider}`,
+          // The same name the app goes by everywhere; the account tells two
+          // connections of one app apart.
+          name: getAppDisplayName(app),
+          subtitle: `App · ${splitAppConnectionName(app.displayName ?? '').accountLabel ?? app.provider}`,
           kind: 'app' as const,
         })),
     [workspaceIntegrationsQuery.data],

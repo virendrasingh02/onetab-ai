@@ -578,7 +578,7 @@ export const CoworkerProfileDetails: FC<CoworkerProfileDetailsProps> = ({
                   avatarUrl={coworker.avatarUrl}
                   status={coworker.status}
                   size="xl"
-                  className="size-24 sm:size-28 rounded-full shadow-xl ring-4 ring-surface"
+                  className="size-24 sm:size-28 rounded-full shadow-xl ring-1 ring-foreground/10"
                 />
               </div>
 

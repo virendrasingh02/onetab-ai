@@ -65,6 +65,26 @@ describe('SystemEventCard', () => {
     expect(screen.queryByText(/ by /)).not.toBeInTheDocument();
   });
 
+  it('renders a legacy "App · account" app name as the app name with its logo', () => {
+    const { container } = renderWithProviders(
+      <SystemEventCard
+        message={createMessage()}
+        event={createEvent({
+          eventType: 'app_added',
+          conversationName: 'general',
+          target: { kind: 'app', id: 'int-1', name: 'Asana · balram', provider: 'asana' },
+        })}
+      />,
+    );
+
+    expect(screen.getByText('Asana')).toBeInTheDocument();
+    expect(screen.queryByText('Asana · balram')).not.toBeInTheDocument();
+    expect(screen.getByText('balram')).toBeInTheDocument();
+    expect(container.querySelector('img')?.getAttribute('src')).toBe(
+      'https://cdn.simpleicons.org/asana',
+    );
+  });
+
   it('shows the APP / AI AGENT / AI COWORKER badge for those entity kinds', () => {
     const { rerender } = renderWithProviders(
       <SystemEventCard

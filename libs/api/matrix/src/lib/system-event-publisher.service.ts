@@ -2,7 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@org/database';
 import {
   formatSystemEventFallbackText,
+  getAppDisplayName,
+  getAppLogoUrl,
   getSystemEventCapabilities,
+  splitAppConnectionName,
   type SystemEventConversationType,
   type SystemEventEntity,
   type SystemEventType,
@@ -125,11 +128,30 @@ export class SystemEventPublisherService {
     if (!integration) {
       return { kind: 'app', id: integrationId, name: 'Deleted app', isDeleted: true };
     }
+
+    // The name is the connection's own (what a rename writes), minus the
+    // connector's "· account" suffix — the same name every surface shows. The
+    // catalog listing only contributes the real logo.
+    const slugCandidates = [
+      integration.provider.toLowerCase(),
+      integration.provider.toLowerCase().replace(/_/g, '-'),
+    ];
+    const listing = await this.prisma.marketplaceListing
+      .findFirst({
+        where: { kind: 'INTEGRATION', slug: { in: slugCandidates } },
+        select: { iconUrl: true },
+      })
+      .catch(() => null);
+    const { accountLabel } = splitAppConnectionName(integration.displayName || '');
+    const name = getAppDisplayName(integration);
+
     return {
       kind: 'app',
       id: integration.id,
-      name: integration.displayName || integration.provider,
+      name,
+      avatarUrl: listing?.iconUrl || getAppLogoUrl(integration.provider, name),
       provider: integration.provider,
+      accountLabel,
       isDeleted: integration.status === 'DISCONNECTED',
     };
   }
@@ -282,3 +304,4 @@ export class SystemEventPublisherService {
     }
   }
 }
+

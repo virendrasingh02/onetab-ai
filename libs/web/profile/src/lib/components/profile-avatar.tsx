@@ -40,7 +40,7 @@ export function ProfileAvatar({
         presence={presence}
         statusEmoji={statusEmoji}
         statusText={statusText}
-        className={`${sizeClassName} rounded-full ring-4 ring-background shadow-2xl`}
+        className={`${sizeClassName} rounded-full ring-1 ring-foreground/10 shadow-xl`}
       />
 
       {/* Hover Camera Action Overlay */}

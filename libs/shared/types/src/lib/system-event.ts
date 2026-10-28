@@ -88,6 +88,9 @@ export interface SystemEventEntity {
   isDeleted?: boolean;
   /** `kind: 'app'` only — the integration's provider key, for icon lookup. */
   provider?: string;
+  /** `kind: 'app'` only — which connected account this is (e.g. `balram`),
+   * kept apart from `name` so the timeline reads "Asana", not "Asana · balram". */
+  accountLabel?: string;
 }
 
 /** Which of the existing message interactions make sense for one event type

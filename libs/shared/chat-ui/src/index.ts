@@ -262,7 +262,12 @@ export {
   type AgentAvatarResolver,
   type AiEntityIdentity,
   type AiEntityResolver,
+  AppEntityProvider,
+  useAppEntity,
+  type AppEntityIdentity,
+  type AppEntityResolver,
 } from './lib/cards/agent-avatar-context.js';
+export { AppLogoAvatar } from './lib/app-logo-avatar.js';
 export {
   AgentMessageCard,
   formatDuration,
@@ -313,6 +318,7 @@ export {
   SystemEventCard,
   SystemEventIcon,
   SystemEventEntityAvatar,
+  normalizeSystemEventEntity,
   SystemEventEntityBadge,
   SystemEventEntityName,
   SystemEventAction,

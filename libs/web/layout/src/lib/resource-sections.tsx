@@ -24,7 +24,8 @@ import {
   useIntegrationMutations,
   useIntegrations,
 } from '@org/web-integrations';
-import { useAppLogos } from '@org/web-integrations';
+import { getAppDisplayName } from '@org/types';
+import { APP_LOGOS, useAppLogos } from '@org/web-integrations';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Blocks,
@@ -108,38 +109,6 @@ export interface ResourceItemData {
   isActive?: boolean;
 }
 
-export const APP_LOGOS: Record<string, string> = {
-  gmail: 'https://cdn.simpleicons.org/gmail',
-  github: 'https://cdn.simpleicons.org/github',
-  gitlab: 'https://cdn.simpleicons.org/gitlab',
-  jira: 'https://cdn.simpleicons.org/jira',
-  linear: 'https://cdn.simpleicons.org/linear',
-  figma: 'https://cdn.simpleicons.org/figma',
-  trello: 'https://cdn.simpleicons.org/trello',
-  gdrive: 'https://cdn.simpleicons.org/googledrive',
-  google_drive: 'https://cdn.simpleicons.org/googledrive',
-  gcal: 'https://cdn.simpleicons.org/googlecalendar',
-  google_calendar: 'https://cdn.simpleicons.org/googlecalendar',
-  google_docs: 'https://cdn.simpleicons.org/googledocs',
-  google_sheets: 'https://cdn.simpleicons.org/googlesheets',
-  outlook: 'https://cdn.simpleicons.org/microsoftoutlook',
-  microsoft_outlook: 'https://cdn.simpleicons.org/microsoftoutlook',
-  zendesk: 'https://cdn.simpleicons.org/zendesk',
-  intercom: 'https://cdn.simpleicons.org/intercom',
-  mixpanel: 'https://cdn.simpleicons.org/mixpanel',
-  datadog: 'https://cdn.simpleicons.org/datadog',
-  stripe: 'https://cdn.simpleicons.org/stripe',
-  quickbooks: 'https://cdn.simpleicons.org/quickbooks',
-  bamboohr: 'https://cdn.simpleicons.org/bamboohr',
-  hubspot: 'https://cdn.simpleicons.org/hubspot',
-  discord: 'https://cdn.simpleicons.org/discord',
-  slack: 'https://cdn.simpleicons.org/slack',
-  notion: 'https://cdn.simpleicons.org/notion',
-  asana: 'https://cdn.simpleicons.org/asana',
-  todoist: 'https://cdn.simpleicons.org/todoist',
-  zoom: 'https://cdn.simpleicons.org/zoom',
-  webhooks: 'https://cdn.simpleicons.org/webhooks',
-};
 
 const PROVIDER_ICON: Record<string, string> = {
   GITHUB: 'Code',
@@ -156,14 +125,6 @@ const TRIGGER_ICON: Record<string, string> = {
   CRON: 'Clock',
   EVENT: 'Zap',
 };
-
-function titleCaseProvider(provider: string): string {
-  return provider
-    .toLowerCase()
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-}
 
 const TILE_SIZE = {
   /** Sidebar rows. */
@@ -1440,7 +1401,7 @@ export function AppsSection({
       activeIntegrations.map((integration) => ({
         id: integration.provider,
         resourceId: integration.id,
-        name: titleCaseProvider(integration.provider),
+        name: getAppDisplayName(integration),
         icon: PROVIDER_ICON[integration.provider] ?? 'Plug',
         detail: 'Connected',
       })),
@@ -1482,13 +1443,13 @@ export function AppsSection({
 
       return {
         id: integration.provider,
-        name: titleCaseProvider(integration.provider),
+        name: getAppDisplayName(integration),
         to: appPath,
         lastActiveAt: inactiveAppLastActive[integration.provider],
         icon: (
           <AppLogo
             providerId={integration.provider}
-            name={titleCaseProvider(integration.provider)}
+            name={getAppDisplayName(integration)}
             size="sm"
           />
         ),

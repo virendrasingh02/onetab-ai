@@ -7,8 +7,10 @@ import {
 } from '@org/api-integrations';
 import { MatrixAdminService, MatrixBotMessagingService } from '@org/api-matrix';
 import {
-  appLabel,
   connectorToolName,
+  getAppDisplayName,
+  getAppLogoUrl,
+  splitAppConnectionName,
   type AIAgentMessageContent,
   type AIChatMessage,
   type AIProvider,
@@ -63,7 +65,9 @@ export class AppChatAgentService implements OnModuleInit {
     const botId = integration.matrixUserId;
     const workspaceId = integration.workspaceId ?? undefined;
     if (!botId) return;
-    const appName = integration.displayName ?? appLabel(integration.provider);
+    // The connection name is "Asana · balram"; the reply is from "Asana".
+    const { accountLabel } = splitAppConnectionName(integration.displayName ?? '');
+    const appName = getAppDisplayName(integration);
 
     try {
       await this.admin.joinRoomAs(botId, roomId);
@@ -113,6 +117,10 @@ export class AppChatAgentService implements OnModuleInit {
       agentId: integration.id,
       agentName: appName,
       agentRole: 'App',
+      agentKind: 'app',
+      appProvider: integration.provider,
+      appAccountLabel: accountLabel,
+      agentAvatarUrl: getAppLogoUrl(integration.provider, appName),
       workspaceId,
       model: model ?? provider,
       startedAt,

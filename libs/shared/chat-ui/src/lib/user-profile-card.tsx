@@ -238,7 +238,7 @@ export function UserProfileCard({
               presence={status}
               statusEmoji={statusEmoji}
               statusText={statusText}
-              className="size-20 rounded-full shadow-lg ring-4 ring-popover"
+              className="size-20 rounded-full shadow-lg ring-1 ring-foreground/10"
             />
           </div>
 
@@ -392,7 +392,7 @@ export function UserProfileRightPanel({
             presence={status}
             statusEmoji={statusEmoji}
             statusText={statusText}
-            className="size-20 shadow-2xl rounded-full ring-4 ring-surface"
+            className="size-20 shadow-xl rounded-full ring-1 ring-foreground/10"
           />
         </div>
 

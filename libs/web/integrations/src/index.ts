@@ -35,6 +35,7 @@ export {
   AppChatView,
   DEFAULT_WORKSPACE_APPS,
   AppAvatar,
+  APP_LOGOS,
   type AppModelItem,
 } from './lib/AppChatView.js';
 export { AppProfileRightPanel } from './lib/AppProfileRightPanel.js';

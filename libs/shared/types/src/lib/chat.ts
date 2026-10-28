@@ -361,6 +361,14 @@ export interface AIAgentMessageContent {
   agentAvatarUrl?: string;
   agentRole?: string;
   agentDescription?: string;
+  /** Who is answering — a connected app (Asana, GitHub…) reuses this card for
+   * its replies but must render as an app (logo + APP badge), not an agent.
+   * Absent on agent/coworker runs. */
+  agentKind?: 'agent' | 'app';
+  /** `agentKind: 'app'` only — the provider key, for logo lookup. */
+  appProvider?: string;
+  /** `agentKind: 'app'` only — the connected account (e.g. `balram`). */
+  appAccountLabel?: string;
   workspaceId?: string;
   teamName?: string;
   model?: string;

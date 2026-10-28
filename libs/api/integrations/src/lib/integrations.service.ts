@@ -31,6 +31,8 @@ import { OAuthService } from './core/oauth.service.js';
 import type { MessageQuery } from './core/provider-adapter.interface.js';
 import { customApiConfigFromMetadata, customApiMetadataWithEncryptedSecrets } from './providers/custom-api.provider.js';
 
+const MAX_APP_NAME_LENGTH = 80;
+
 @Injectable()
 export class IntegrationsService {
   private readonly logger = new Logger(IntegrationsService.name);
@@ -389,6 +391,48 @@ export class IntegrationsService {
   /**
    * Disconnects an integration and revokes third-party credentials.
    */
+  /**
+   * Renames a connection. `displayName` is the one name the app goes by in
+   * the sidebar, chat headers, replies, system events and mentions
+   * (`getAppDisplayName`), so this also pushes it to the app's Matrix bot
+   * profile and tells every open client to re-read the app.
+   */
+  async renameIntegration(
+    integrationId: string,
+    userId: string,
+    workspaceId: string | undefined,
+    rawDisplayName: unknown,
+  ) {
+    await this.permissions.assertIntegrationAccess(integrationId, userId, workspaceId, 'manage');
+    const displayName = typeof rawDisplayName === 'string' ? rawDisplayName.trim() : '';
+    if (!displayName) throw new BadRequestException('App name is required.');
+    if (displayName.length > MAX_APP_NAME_LENGTH) {
+      throw new BadRequestException(`App name must be ${MAX_APP_NAME_LENGTH} characters or fewer.`);
+    }
+
+    const updated = await this.prisma.externalIntegration.update({
+      where: { id: integrationId },
+      data: { displayName },
+    });
+
+    await this.auditLogger.logAudit({
+      integrationId,
+      workspaceId,
+      userId,
+      action: 'INTEGRATION_RENAMED',
+      status: 'SUCCESS',
+      durationMs: 0,
+    });
+
+    this.events.emit(AppEvent.IntegrationUpdated, {
+      workspaceId: updated.workspaceId,
+      actorId: userId,
+      integrationId,
+    });
+
+    return this.formatSafeIntegration(updated);
+  }
+
   async disconnectIntegration(integrationId: string, userId: string, workspaceId?: string) {
     const startTime = Date.now();
     await this.permissions.assertIntegrationAccess(integrationId, userId, workspaceId, 'disconnect');

@@ -4112,6 +4112,14 @@ export const integrationsApi = {
       http.get(`/workspaces/${workspaceId}/integrations/${integrationId}`),
     ),
 
+  /** Rename a connection — the name the app shows under everywhere. */
+  rename: (workspaceId: string, integrationId: string, displayName: string) =>
+    request<ExternalIntegration>(
+      http.patch(`/workspaces/${workspaceId}/integrations/${integrationId}`, {
+        displayName,
+      }),
+    ),
+
   connect: (
     workspaceId: string,
     provider: string,

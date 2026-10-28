@@ -120,6 +120,9 @@ export const AppEvent = {
    */
   IntegrationConnected: 'integration.connected',
   IntegrationDisconnected: 'integration.disconnected',
+  /** A connection's identity changed (renamed) — every surface that names
+   * the app re-reads it, and its Matrix bot profile follows. */
+  IntegrationUpdated: 'integration.updated',
   /**
    * A settings/preference write landed — workspace policy, workspace or
    * member appearance, a user's chat/notification preferences, sidebar,
@@ -514,6 +517,7 @@ export interface IntegrationConnectedEvent {
 }
 
 export type IntegrationDisconnectedEvent = IntegrationConnectedEvent;
+export type IntegrationUpdatedEvent = IntegrationConnectedEvent;
 
 /**
  * `scope: 'workspace'` fans out to every connected member of `workspaceId`
@@ -768,6 +772,7 @@ export interface AppEventPayloads {
   [AppEvent.ChannelAppEnabledChanged]: ChannelAppEnabledChangedEvent;
   [AppEvent.IntegrationConnected]: IntegrationConnectedEvent;
   [AppEvent.IntegrationDisconnected]: IntegrationDisconnectedEvent;
+  [AppEvent.IntegrationUpdated]: IntegrationUpdatedEvent;
   [AppEvent.SettingsUpdated]: SettingsUpdatedEvent;
   [AppEvent.AgentApprovalDecided]: AgentApprovalDecidedEvent;
   [AppEvent.WorkflowApprovalDecided]: WorkflowApprovalDecidedEvent;

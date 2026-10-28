@@ -378,6 +378,21 @@ export class RealtimeDomainBridgeListener {
     });
   }
 
+  /** A connected app was renamed — every open client re-reads its name. */
+  @OnEvent(AppEvent.IntegrationUpdated)
+  async onIntegrationUpdated(e: {
+    workspaceId: string | null;
+    actorId: string | null;
+    integrationId: string;
+  }): Promise<void> {
+    if (!e.workspaceId) return;
+    await this.gateway.broadcastToWorkspace(e.workspaceId, {
+      type: 'integration.updated',
+      actorId: e.actorId,
+      payload: { integrationId: e.integrationId },
+    });
+  }
+
   @OnEvent(AppEvent.ChannelAppLinked)
   @OnEvent(AppEvent.ChannelAppUnlinked)
   @OnEvent(AppEvent.ChannelAppEnabledChanged)

@@ -225,4 +225,43 @@ describe('IntegrationsService', () => {
       );
     });
   });
+  describe('renameIntegration', () => {
+    it('saves the trimmed name and emits IntegrationUpdated', async () => {
+      vi.spyOn((service as any).permissions, 'assertIntegrationAccess').mockResolvedValue(undefined);
+      mockPrisma.externalIntegration.update.mockResolvedValue({
+        id: 'int-1',
+        workspaceId: 'ws-1',
+        provider: 'ASANA',
+        displayName: 'Team Asana',
+        status: 'CONNECTED',
+        scopes: '[]',
+        metadata: '{}',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await service.renameIntegration('int-1', 'admin-1', 'ws-1', '  Team Asana  ');
+
+      expect(mockPrisma.externalIntegration.update).toHaveBeenCalledWith({
+        where: { id: 'int-1' },
+        data: { displayName: 'Team Asana' },
+      });
+      expect(mockEvents.emit).toHaveBeenCalledWith(
+        'integration.updated',
+        expect.objectContaining({ integrationId: 'int-1', workspaceId: 'ws-1', actorId: 'admin-1' }),
+      );
+    });
+
+    it('rejects an empty or overlong name without writing', async () => {
+      vi.spyOn((service as any).permissions, 'assertIntegrationAccess').mockResolvedValue(undefined);
+
+      await expect(service.renameIntegration('int-1', 'admin-1', 'ws-1', '   ')).rejects.toThrow(
+        'App name is required.',
+      );
+      await expect(
+        service.renameIntegration('int-1', 'admin-1', 'ws-1', 'x'.repeat(81)),
+      ).rejects.toThrow(/80 characters/);
+      expect(mockPrisma.externalIntegration.update).not.toHaveBeenCalled();
+    });
+  });
 });

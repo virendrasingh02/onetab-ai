@@ -37,3 +37,32 @@ export function useAiEntity(id?: string, name?: string): AiEntityIdentity | unde
 export function useAgentAvatar(agentId?: string): string | undefined {
   return useAiEntity(agentId)?.avatarUrl;
 }
+
+/** What the live workspace knows about a connected app right now. */
+export interface AppEntityIdentity {
+  /** The `ExternalIntegration` row id. */
+  id: string;
+  name: string;
+  provider: string;
+  logoUrl?: string;
+  accountLabel?: string;
+}
+
+/**
+ * Resolves a connected app's *current* name and logo by integration id (or,
+ * for messages that only carry a name, by name). Timeline rows freeze a name
+ * at post time; this makes a rename show everywhere — old rows included.
+ */
+export type AppEntityResolver = (ref: {
+  id?: string;
+  name?: string;
+}) => AppEntityIdentity | undefined;
+
+const AppEntityContext = createContext<AppEntityResolver | null>(null);
+
+export const AppEntityProvider = AppEntityContext.Provider;
+
+export function useAppEntity(id?: string, name?: string): AppEntityIdentity | undefined {
+  const resolve = useContext(AppEntityContext);
+  return resolve && (id || name) ? resolve({ id, name }) : undefined;
+}

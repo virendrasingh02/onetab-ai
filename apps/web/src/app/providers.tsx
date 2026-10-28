@@ -4,6 +4,8 @@ import {
   coworkersApi,
   http,
   gifsApi,
+  integrationsApi,
+  marketplaceApi,
   memberApi,
   resolveMediaUrl,
   stickersApi,
@@ -42,11 +44,18 @@ import {
 } from '@org/web-chat';
 import {
   AgentAvatarProvider,
+  AppEntityProvider,
   type AiEntityResolver,
+  type AppEntityResolver,
   MemberProfileProvider,
   type MemberProfileResolver,
 } from '@org/chat-ui';
-import { toPlatformUserId } from '@org/types';
+import {
+  getAppDisplayName,
+  getAppLogoUrl,
+  splitAppConnectionName,
+  toPlatformUserId,
+} from '@org/types';
 import { SyncProvider } from '@org/sync';
 import { syncServerTime } from '@org/utils';
 import { DesktopChrome, DesktopProvider } from '@org/web-desktop';
@@ -213,7 +222,71 @@ function AgentAvatarBridge({
     },
     [agents, coworkers],
   );
-  return <AgentAvatarProvider value={resolve}>{children}</AgentAvatarProvider>;
+  return (
+    <AgentAvatarProvider value={resolve}>
+      <AppEntityBridge workspaceId={workspaceId}>{children}</AppEntityBridge>
+    </AgentAvatarProvider>
+  );
+}
+
+const normalizeKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+/**
+ * Gives every timeline row the *current* name + logo of a connected app, from
+ * the API: the workspace's integrations (the same cached list the sidebar and
+ * composer read, refreshed on `integration.updated`) plus marketplace logos.
+ * A rename therefore reaches system events, replies and bot messages at once.
+ */
+function AppEntityBridge({
+  workspaceId,
+  children,
+}: {
+  workspaceId: string | undefined;
+  children: ReactNode;
+}) {
+  const { data: integrations } = useQuery({
+    queryKey: queryKeys.integrations.list(workspaceId ?? ''),
+    queryFn: () => integrationsApi.list(workspaceId as string),
+    enabled: !!workspaceId,
+    staleTime: 30_000,
+  });
+  // Same params + key as `useAppLogos`, so the cache is shared.
+  const logoParams = { kind: 'INTEGRATION', pageSize: 100 } as const;
+  const { data: listings } = useQuery({
+    queryKey: queryKeys.marketplace.browse(workspaceId ?? '', JSON.stringify(logoParams)),
+    queryFn: () => marketplaceApi.browse(logoParams, workspaceId),
+    enabled: !!workspaceId,
+    staleTime: 5 * 60_000,
+  });
+
+  const resolve = useCallback<AppEntityResolver>(
+    ({ id, name }) => {
+      const wanted = name ? normalizeKey(name) : '';
+      const row = integrations?.find(
+        (i) =>
+          (id && i.id === id) ||
+          (!id &&
+            wanted &&
+            (normalizeKey(i.displayName ?? '') === wanted ||
+              normalizeKey(getAppDisplayName(i)) === wanted)),
+      );
+      if (!row) return undefined;
+      const appName = getAppDisplayName(row);
+      const keys = [row.provider, appName].map(normalizeKey);
+      const listingLogo = listings?.items.find((l) =>
+        keys.some((k) => k === normalizeKey(l.slug) || k === normalizeKey(l.name)),
+      )?.iconUrl;
+      return {
+        id: row.id,
+        name: appName,
+        provider: row.provider,
+        logoUrl: listingLogo || getAppLogoUrl(row.provider, appName),
+        accountLabel: splitAppConnectionName(row.displayName ?? '').accountLabel,
+      };
+    },
+    [integrations, listings],
+  );
+  return <AppEntityProvider value={resolve}>{children}</AppEntityProvider>;
 }
 
 /**

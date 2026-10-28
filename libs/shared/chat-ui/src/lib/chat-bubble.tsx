@@ -1,4 +1,11 @@
-import type { Message, RoomKind, RoomMember, WorkspacePolicy } from '@org/types';
+import {
+  getAppLogoUrl,
+  splitAppConnectionName,
+  type Message,
+  type RoomKind,
+  type RoomMember,
+  type WorkspacePolicy,
+} from '@org/types';
 import { SeenBy } from './seen-by.js';
 import {
   ActionDropdownMenu,
@@ -13,7 +20,8 @@ import {
   UserAvatar,
   type RightPanelProfile,
 } from '@org/ui';
-import { useAiEntity } from './cards/agent-avatar-context.js';
+import { useAiEntity, useAppEntity } from './cards/agent-avatar-context.js';
+import { AppLogoAvatar } from './app-logo-avatar.js';
 import { cn } from '@org/utils';
 import { MessageTime } from './message-time.js';
 import { countEmojiOnly } from './emoji-only.js';
@@ -669,6 +677,11 @@ export function ChatBubble({
     message.senderId.replace(/^(agent|coworker)-/, ''),
     message.senderName,
   );
+  // An app bot's current name/logo come from the API, so a rename shows on
+  // every message it ever sent (Matrix keeps the name it had at the time).
+  const liveApp = useAppEntity(
+    message.senderId.startsWith('app-') ? message.senderId.slice(4) : undefined,
+  );
 
   if (message.isRedacted) {
     return (
@@ -770,6 +783,17 @@ export function ChatBubble({
       /\b(github|linear|sentry|jira|figma|gdrive|webhook|app)\b/i.test(
         message.senderName,
       ));
+
+  // Live names win over the one Matrix stamped on the event, so renaming an
+  // app, agent or coworker shows on every message it ever sent.
+  const senderName = isApp
+    ? liveApp?.name || splitAppConnectionName(message.senderName).appName || message.senderName
+    : aiEntity?.name || message.senderName;
+  const senderAvatarUrl = isApp
+    ? liveApp?.logoUrl ||
+      getAppLogoUrl(liveApp?.provider, senderName) ||
+      message.senderAvatarUrl
+    : message.senderAvatarUrl;
 
   /* Non-person senders open their own agent/coworker/app panel, not a user card. */
   const profileEntityKind: 'agent' | 'coworker' | 'app' | undefined = isCoworker
@@ -1050,12 +1074,12 @@ export function ChatBubble({
       entityType="message"
       entity={message}
       scope={`message:${message.id}`}
-      label={`Message from ${message.senderName}`}
+      label={`Message from ${senderName}`}
       disabled={message.sendState === 'sending'}
     >
     <article
       data-message-id={message.id}
-      aria-label={`Message from ${message.senderName}, ${formatFullTimestamp(message.timestamp)}`}
+      aria-label={`Message from ${senderName}, ${formatFullTimestamp(message.timestamp)}`}
       ref={articleRef}
       className={cn(
         'group/message relative flex flex-wrap transition-[background-color,opacity] hover:bg-foreground/[0.035]',
@@ -1118,8 +1142,8 @@ export function ChatBubble({
         ) : (
           <UserProfileCard
             userId={message.senderId}
-            name={message.senderName}
-            avatarUrl={message.senderAvatarUrl}
+            name={senderName}
+            avatarUrl={senderAvatarUrl}
             entityKind={profileEntityKind}
             entityId={profileEntityId}
           >
@@ -1131,6 +1155,14 @@ export function ChatBubble({
                 size={isCompact ? 'sm' : 'md'}
                 className={cn(
                   isCompact ? 'size-8' : 'size-10',
+                  'cursor-pointer transition-transform hover:scale-105 hover:opacity-90',
+                )}
+              />
+            ) : isApp ? (
+              <AppLogoAvatar
+                logoUrl={senderAvatarUrl}
+                className={cn(
+                  isCompact ? 'size-8 p-1.5' : 'size-10',
                   'cursor-pointer transition-transform hover:scale-105 hover:opacity-90',
                 )}
               />
@@ -1160,13 +1192,13 @@ export function ChatBubble({
           <header className="gap-2 flex items-baseline">
             <UserProfileCard
               userId={message.senderId}
-              name={message.senderName}
-              avatarUrl={message.senderAvatarUrl}
+              name={senderName}
+              avatarUrl={senderAvatarUrl}
               entityKind={profileEntityKind}
               entityId={profileEntityId}
             >
               <span className="text-message font-bold cursor-pointer text-foreground hover:underline">
-                {message.senderName}
+                {senderName}
               </span>
             </UserProfileCard>
 
