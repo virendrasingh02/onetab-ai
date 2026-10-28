@@ -1,12 +1,12 @@
 import type { ConnectorCapability, ConnectorSummary } from '@org/types';
-import { AppSelect, Badge, Button, CodeBlock, Label, Switch, confirm, toast } from '@org/ui';
+import { AppSelect, Badge, Button, Checkbox, CodeBlock, Label, Switch, confirm, toast } from '@org/ui';
 import type { Node } from '@xyflow/react';
-import { Braces, ExternalLink, Play, ShieldCheck, Zap } from 'lucide-react';
+import { Braces, Play, Plug, ShieldCheck, Zap } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { useNavigate } from '../../router.js';
-import { errorMessage, runConnectorAction, usableConnection, useConnectors } from '../../services/connectors.js';
+import { errorMessage, runConnectorAction, usableConnection, useConnectors, useInvalidateConnectors } from '../../services/connectors.js';
 import { useStudioSession } from '../../session-guard.js';
 import { AppConnectorIcon } from '../common/app-connector-icon.jsx';
+import { ConnectDialog } from '../connectors/connect-dialog.js';
 import { SchemaFields, coerceSchemaInput, inputToFieldValues, missingRequired, schemaProperties } from '../connectors/schema-fields.js';
 
 /** Actions that send, publish, refund or delete ask a person first unless the card says otherwise. */
@@ -24,6 +24,10 @@ const providerOf = (config: Record<string, unknown>) =>
  * Configures an app action or app event card from the live connector
  * manifests: pick the app, the capability, and its inputs (any of which may
  * be a `{{variable}}`). An action can be run once for real from here.
+ *
+ * An app card (`actionIds` set — one card per app) also manages which of the
+ * app's actions an agent gets when the card is plugged into its Tools; as a
+ * step of its own it runs the one picked action.
  */
 export function ConnectorNodeConfig({
   node,
@@ -43,9 +47,10 @@ export function ConnectorNodeConfig({
   /** A card bound to one app (e.g. Attendance): no app picker. */
   lockedProvider?: string;
 }) {
-  const navigate = useNavigate();
   const { activeWorkspace } = useStudioSession();
   const connectors = useConnectors();
+  const invalidateConnectors = useInvalidateConnectors();
+  const [connectOpen, setConnectOpen] = useState(false);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string; data?: unknown } | null>(null);
 
@@ -62,6 +67,12 @@ export function ConnectorNodeConfig({
     kind === 'action'
       ? capability?.inputSchema
       : (trigger?.inputSchema ?? connector?.capabilities.find((c) => c.id === trigger?.pollActionId)?.inputSchema);
+  const actionIds = kind === 'action' && Array.isArray(config['actionIds'])
+    ? (config['actionIds'] as unknown[]).filter((a): a is string => typeof a === 'string')
+    : null;
+  /** Plugged into an agent's Tools: the agent picks among the switched-on actions and fills their inputs. */
+  const asTool = !!(node.data as { attachedTo?: unknown } | undefined)?.attachedTo;
+  const showStep = !(actionIds && asTool);
   const values = inputToFieldValues(config['input'] as Record<string, unknown> | undefined);
   const missing = schema ? missingRequired(schema, values) : [];
   const activeConnections = useMemo(
@@ -131,6 +142,8 @@ export function ConnectorNodeConfig({
               connectorId: next?.slug,
               [kind === 'action' ? 'actionId' : 'triggerId']: first,
               ...(kind === 'action' ? { requireApproval: needsApprovalByDefault(next?.capabilities[0]) } : {}),
+              // An app card brings the new app's actions, all switched on.
+              ...(actionIds ? { actionIds: next?.capabilities.map((c) => c.id) ?? [] } : {}),
               input: kind === 'trigger' ? { ...(next?.triggers[0]?.defaultInput ?? {}) } : {},
               // An account belongs to one app.
               integrationId: undefined,
@@ -174,8 +187,8 @@ export function ConnectorNodeConfig({
               {connection ? (
                 <Badge variant="success">Connected</Badge>
               ) : (
-                <Button size="xs" variant="outline" onClick={() => navigate(`/connectors/${connector.slug}`)}>
-                  Connect <ExternalLink className="ml-0.5 size-3" aria-hidden="true" />
+                <Button size="xs" variant="outline" disabled={readOnly} onClick={() => setConnectOpen(true)}>
+                  <Plug className="size-3" aria-hidden="true" /> Connect
                 </Button>
               )}
             </div>
@@ -183,9 +196,21 @@ export function ConnectorNodeConfig({
         </div>
       )}
 
-      {connector && (
+      {connector && actionIds && (
+        <AppActionsManager
+          connector={connector}
+          actionIds={actionIds}
+          asTool={asTool}
+          readOnly={readOnly}
+          onChange={(ids) => setConfig({ actionIds: ids })}
+        />
+      )}
+
+      {connector && showStep && (
         <div className="space-y-1.5">
-          <span className="text-xs font-semibold text-foreground">{kind === 'action' ? 'Action' : 'Event'}</span>
+          <span className="text-xs font-semibold text-foreground">
+            {kind === 'trigger' ? 'Event' : actionIds ? 'Runs as a step' : 'Action'}
+          </span>
           <AppSelect
             value={capabilityId}
             onValueChange={(id) =>
@@ -209,7 +234,7 @@ export function ConnectorNodeConfig({
         </div>
       )}
 
-      {kind === 'action' && capability && capability.kind === 'action' && (
+      {kind === 'action' && showStep && capability && capability.kind === 'action' && (
         <div className="space-y-1.5 rounded-lg border border-border bg-surface-raised/60 p-2.5">
           <Label htmlFor={`approval-${node.id}`} className="flex cursor-pointer items-start justify-between gap-3">
             <span className="flex min-w-0 flex-col gap-0.5">
@@ -255,7 +280,7 @@ export function ConnectorNodeConfig({
         </p>
       )}
 
-      {schema && schemaProperties(schema).length > 0 && (
+      {showStep && schema && schemaProperties(schema).length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-foreground">{kind === 'action' ? 'Inputs' : 'Only for'}</span>
@@ -294,7 +319,7 @@ export function ConnectorNodeConfig({
         </div>
       )}
 
-      {kind === 'action' && capability && (
+      {kind === 'action' && showStep && capability && (
         <div className="space-y-2">
           <Button
             size="sm"
@@ -323,6 +348,113 @@ export function ConnectorNodeConfig({
           )}
         </div>
       )}
+
+      <ConnectDialog
+        connector={connector ?? null}
+        open={connectOpen}
+        onOpenChange={setConnectOpen}
+        onConnected={() => void invalidateConnectors()}
+      />
+    </div>
+  );
+}
+
+/** Which of an app's actions the card brings: grouped into what changes things and what only reads. */
+function AppActionsManager({
+  connector,
+  actionIds,
+  asTool,
+  readOnly,
+  onChange,
+}: {
+  connector: ConnectorSummary;
+  actionIds: string[];
+  asTool: boolean;
+  readOnly?: boolean;
+  onChange: (ids: string[]) => void;
+}) {
+  const on = new Set(actionIds);
+  const groups: Array<[string, ConnectorCapability[]]> = [
+    ['Actions', connector.capabilities.filter((c) => c.kind === 'action')],
+    ['Reads', connector.capabilities.filter((c) => c.kind === 'query')],
+  ];
+  // Keep the manifest's order so the saved list reads the same way the panel does.
+  const set = (ids: Set<string>) => onChange(connector.capabilities.map((c) => c.id).filter((id) => ids.has(id)));
+  const toggle = (id: string, checked: boolean) => {
+    const next = new Set(on);
+    if (checked) next.add(id);
+    else next.delete(id);
+    set(next);
+  };
+  const setGroup = (caps: ConnectorCapability[], checked: boolean) => {
+    const next = new Set(on);
+    for (const c of caps) {
+      if (checked) next.add(c.id);
+      else next.delete(c.id);
+    }
+    set(next);
+  };
+  const total = connector.capabilities.length;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-semibold text-foreground">{connector.name} actions</span>
+        <Badge variant={on.size ? 'primary' : 'warning'} className="text-2xs">
+          {on.size} of {total} on
+        </Badge>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {asTool
+          ? `The agent can use every action switched on here, and fills in their inputs itself.`
+          : `Plug this card into an agent’s Tools to let it use the actions switched on here. On its own it runs as one step.`}
+      </p>
+      <fieldset disabled={readOnly} className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+        {groups.map(([title, caps]) =>
+          caps.length === 0 ? null : (
+            <div key={title} className="bg-surface-raised/40">
+              <div className="flex items-center justify-between px-2.5 py-1.5">
+                <span className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {title} · {caps.filter((c) => on.has(c.id)).length}/{caps.length}
+                </span>
+                <span className="flex gap-1">
+                  <Button type="button" variant="ghost" size="xs" className="h-5 px-1.5 text-2xs" onClick={() => setGroup(caps, true)}>
+                    All
+                  </Button>
+                  <Button type="button" variant="ghost" size="xs" className="h-5 px-1.5 text-2xs" onClick={() => setGroup(caps, false)}>
+                    None
+                  </Button>
+                </span>
+              </div>
+              {caps.map((c) => (
+                <Label
+                  key={c.id}
+                  htmlFor={`app-action-${connector.provider}-${c.id}`}
+                  className="flex cursor-pointer items-start gap-2.5 border-t border-border/60 bg-surface px-2.5 py-2 font-normal hover:bg-surface-raised/60"
+                >
+                  <Checkbox
+                    id={`app-action-${connector.provider}-${c.id}`}
+                    checked={on.has(c.id)}
+                    onCheckedChange={(checked) => toggle(c.id, checked === true)}
+                    className="mt-0.5"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+                      {c.label}
+                      {c.permissionLevel === 'destructive' && <Badge variant="destructive" className="py-0 text-2xs">Deletes</Badge>}
+                      {c.requiresConfirmation && c.permissionLevel !== 'destructive' && (
+                        <ShieldCheck className="size-3 text-warning" aria-label="Sensitive" />
+                      )}
+                    </span>
+                    {c.description && <span className="block truncate text-2xs text-muted-foreground">{c.description}</span>}
+                  </span>
+                </Label>
+              ))}
+            </div>
+          ),
+        )}
+      </fieldset>
+      {on.size === 0 && <p className="text-xs text-warning-text">Switch on at least one action, or the agent gets nothing from {connector.name}.</p>}
     </div>
   );
 }

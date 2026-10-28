@@ -481,7 +481,15 @@ export function compileStudioGraph(graph: {
       const toolCfg = configOf(toolNode);
       const connector = connectorRefOf(toolType, toolCfg);
       if (connector) {
-        if (connector.provider && connector.id) addTool(connectorActionRef(connector.provider, connector.id));
+        // An app card plugged in as a tool hands the agent every action it has switched on.
+        const actionIds = Array.isArray(toolCfg['actionIds'])
+          ? (toolCfg['actionIds'] as unknown[]).filter((a): a is string => typeof a === 'string' && !!a)
+          : null;
+        if (connector.provider && actionIds?.length) {
+          for (const actionId of actionIds) addTool(connectorActionRef(connector.provider, actionId));
+        } else if (connector.provider && actionIds) {
+          issues.push({ nodeId: toolNode.id, level: 'error', message: `${labelOf(toolNode) ?? 'App'}: switch on at least one action for ${name}.` });
+        } else if (connector.provider && connector.id) addTool(connectorActionRef(connector.provider, connector.id));
         else issues.push({ nodeId: toolNode.id, level: 'error', message: `${labelOf(toolNode) ?? 'App action'}: pick an app and an action.` });
         continue;
       }

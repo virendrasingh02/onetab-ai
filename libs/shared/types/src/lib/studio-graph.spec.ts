@@ -258,6 +258,25 @@ describe('connector cards', () => {
     // A tool attachment is not a step of its own.
     expect(result.nodes.map((n) => n.id)).toEqual(['t', 'a']);
   });
+
+  it('gives an agent every action switched on in one app card', () => {
+    const graph = (actionIds: string[]) =>
+      compileStudioGraph({
+        nodes: [
+          node('t', 'TRIGGER_MANUAL'),
+          node('a', 'AGENT', { instructions: 'Triage mail.' }),
+          node('g', 'APP_CONNECTOR_ACTION', { provider: 'GMAIL', actionId: 'send_message', actionIds }),
+        ],
+        edges: [edge('t', 'a'), edge('a', 'g', 'tools')],
+      });
+    expect(graph(['search_messages', 'send_message']).agents[0]).toMatchObject({
+      tools: ['gmail_search_messages', 'gmail_send_message'],
+      connectors: ['GMAIL'],
+    });
+    const none = graph([]);
+    expect(none.agents[0]!.tools).toEqual([]);
+    expect(none.issues).toContainEqual(expect.objectContaining({ nodeId: 'g', level: 'error' }));
+  });
 });
 
 describe('readRunLimits', () => {
@@ -345,3 +364,4 @@ describe('connector approvals', () => {
     expect(flow('false').nodes.some((n) => n.type === 'HUMAN_APPROVAL')).toBe(false);
   });
 });
+

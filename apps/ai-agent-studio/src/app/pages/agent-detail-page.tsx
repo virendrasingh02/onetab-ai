@@ -4830,6 +4830,8 @@ export function AgentDetailPage() {
           setDropContext(null);
         }}
         onSelectNode={handleSelectCatalogItem}
+        mode={edgeSplitContext || dropContext ? 'insert' : 'add'}
+        slot={isSlotHost(dropContext?.fromNode.type) ? getSlot(dropContext?.fromHandle) : undefined}
       />
 
       {/* Canvas Command Palette (Ctrl+K) */}

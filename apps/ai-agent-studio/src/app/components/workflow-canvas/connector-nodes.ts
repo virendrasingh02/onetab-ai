@@ -51,6 +51,79 @@ export function useConnectorCatalogNodes(): CatalogNodeItem[] {
   return useMemo(() => connectorCatalogNodes(connectors.data ?? []), [connectors.data]);
 }
 
+/** One app in the step picker, with its cards split by what they do. */
+export interface ConnectorAppGroup {
+  connector: ConnectorSummary;
+  connected: boolean;
+  triggers: CatalogNodeItem[];
+  reads: CatalogNodeItem[];
+  actions: CatalogNodeItem[];
+}
+
+/** The capability's own name — the card label minus the `App · ` prefix. */
+export function connectorItemTitle(item: CatalogNodeItem, appName: string): string {
+  const prefix = `${appName} · `;
+  return item.label.startsWith(prefix) ? item.label.slice(prefix.length) : item.label;
+}
+
+/** The connector cards grouped one entry per app: connected apps first, then by name. */
+export function connectorAppGroups(connectors: readonly ConnectorSummary[]): ConnectorAppGroup[] {
+  return connectors
+    .filter((c) => c.status !== 'unavailable')
+    .map((c) => {
+      const items = connectorCatalogNodes([c]);
+      const reads = new Set(c.capabilities.filter((cap) => cap.kind === 'query').map((cap) => cap.id));
+      return {
+        connector: c,
+        connected: c.status === 'connected',
+        triggers: items.filter((i) => i.type === 'APP_CONNECTOR_TRIGGER'),
+        reads: items.filter((i) => i.type === 'APP_CONNECTOR_ACTION' && reads.has(i.defaultConfig?.actionId)),
+        actions: items.filter((i) => i.type === 'APP_CONNECTOR_ACTION' && !reads.has(i.defaultConfig?.actionId)),
+      };
+    })
+    .filter((g) => g.triggers.length + g.reads.length + g.actions.length > 0)
+    .sort((a, b) => Number(b.connected) - Number(a.connected) || a.connector.name.localeCompare(b.connector.name));
+}
+
+/**
+ * The one card an app adds: every action and read switched on (an agent that
+ * gets it as a tool can use all of them), and the first action as what it
+ * runs when it is a step of its own. Both are managed in the card's settings.
+ */
+export function appCardItem(group: ConnectorAppGroup): CatalogNodeItem {
+  const c = group.connector;
+  const primary = c.capabilities.find((cap) => cap.kind === 'action') ?? c.capabilities[0];
+  return {
+    key: `app:${c.provider}`,
+    type: 'APP_CONNECTOR_ACTION',
+    category: 'connectors',
+    label: c.name,
+    subtitle: `${c.capabilities.length} action${c.capabilities.length === 1 ? '' : 's'}${group.connected ? '' : ` · connect ${c.name}`}`,
+    description: c.description || `${c.name} actions`,
+    icon: Boxes,
+    badge: c.name,
+    defaultConfig: {
+      provider: c.provider,
+      connectorId: c.slug,
+      actionId: primary?.id,
+      actionIds: c.capabilities.map((cap) => cap.id),
+      requireApproval: !!primary && (primary.requiresConfirmation || primary.permissionLevel === 'destructive'),
+      input: {},
+    },
+  };
+}
+
+export function useConnectorAppGroups() {
+  const connectors = useConnectors();
+  const groups = useMemo(() => connectorAppGroups(connectors.data ?? []), [connectors.data]);
+  return {
+    groups,
+    loading: connectors.isLoading,
+    error: connectors.isError,
+    retry: () => void connectors.refetch(),
+  };
+}
+
 /** Legacy cards named the app in their type or by slug (`microsoft-teams`). */
 const LEGACY_PROVIDER: Record<string, string> = {
   TEAMS_SEND_MESSAGE: 'MICROSOFT_TEAMS',

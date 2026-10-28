@@ -39,6 +39,7 @@ import {
   Zap,
 } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
+import { compileStudioGraph } from '@org/types';
 import { Input } from '@org/ui';
 import { AppConnectorIcon } from '../common/app-connector-icon.jsx';
 import { useConnectorCatalogNodes } from './connector-nodes.js';
@@ -115,9 +116,9 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
   {
     type: 'APP_CONNECTOR_TRIGGER',
     category: 'triggers',
-    label: 'App Event',
+    label: 'Connected App Event',
     subtitle: 'New email, issue, message…',
-    description: 'Starts the agent for each new item in a connected app — pick the app and the event in the inspector',
+    description: 'Starts when something new happens in a connected app, like a new email or issue — pick the app and event after adding',
     icon: Zap,
     badge: 'Connector',
     defaultConfig: { input: {} },
@@ -125,9 +126,9 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
   {
     type: 'TRIGGER_APP_EVENT',
     category: 'triggers',
-    label: 'App Event Trigger',
-    subtitle: 'Platform Event Stream',
-    description: 'Triggers on internal workspace events like record created or deal updated',
+    label: 'Workspace Event',
+    subtitle: 'Tasks, docs, projects, meetings',
+    description: 'Starts when something happens in this workspace, like a task is created or a meeting ends',
     icon: Zap,
     badge: 'Trigger',
     defaultConfig: { eventType: 'document.created' },
@@ -676,6 +677,24 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     defaultConfig: { fallbackMessage: 'Failed to load widget' },
   },
 ];
+
+const stepSupportCache = new Map<string, string | null>();
+
+/**
+ * Why a card of this type can't run yet, or undefined when it runs (or is a
+ * canvas-only note). Asks the run compiler itself, so the step picker never
+ * disagrees with what a run does.
+ */
+export function stepUnsupportedReason(type: string): string | undefined {
+  const t = type.toUpperCase();
+  if (!stepSupportCache.has(t)) {
+    const out = compileStudioGraph({ nodes: [{ id: 'probe', type: t, data: { config: {} } }], edges: [] }).nodes.find(
+      (n) => n.id === 'probe',
+    );
+    stepSupportCache.set(t, out?.type === 'UNSUPPORTED' ? String(out.config['reason'] ?? '') : null);
+  }
+  return stepSupportCache.get(t) ?? undefined;
+}
 
 export const CATEGORY_ITEMS: { id: NodeCategory; label: string; count: number }[] = [
   { id: 'all', label: 'All Nodes', count: CATALOG_NODES.length },

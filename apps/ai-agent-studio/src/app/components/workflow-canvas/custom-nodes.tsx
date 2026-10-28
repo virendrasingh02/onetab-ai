@@ -38,6 +38,7 @@ import {
   Pause,
   Pencil,
   Play,
+  Plug,
   Plus,
   Repeat,
   ScrollText,
@@ -48,6 +49,7 @@ import {
   UserCheck,
   Wrench,
   X,
+  Zap,
 } from 'lucide-react';
 import React, { memo, useCallback, useState, useRef, useEffect, useMemo } from 'react';
 import {
@@ -244,12 +246,16 @@ function QuickAddMenu({
         setView({ level: 'apps' });
       } else if (view.level === 'apps') {
         // One node per app: every action is available in the node's settings
-        const first = (appActions ?? []).find((n) => n.defaultConfig?.['provider'] === item.defaultConfig?.['provider']);
+        const own = (appActions ?? []).filter((n) => n.defaultConfig?.['provider'] === item.defaultConfig?.['provider']);
         onSelect({
           ...item,
           label: item.label,
-          subtitle: 'Choose an action in settings',
-          defaultConfig: { ...(first?.defaultConfig ?? item.defaultConfig) },
+          subtitle: 'Manage its actions in settings',
+          defaultConfig: {
+            ...(own[0]?.defaultConfig ?? item.defaultConfig),
+            // As an agent tool the card brings all of them; as a step it runs `actionId`
+            actionIds: own.map((n) => n.defaultConfig?.['actionId']).filter(Boolean),
+          },
         });
         return;
       } else {
@@ -259,7 +265,7 @@ function QuickAddMenu({
       setSearch('');
       setActiveIndex(0);
     },
-    [view.level, appEntries.length, onSelect],
+    [view.level, appEntries.length, appActions, onSelect],
   );
   const goBack = () => {
     setView(view.level === 'actions' ? { level: 'apps' } : { level: 'root' });
@@ -1554,22 +1560,34 @@ function AttachedChip({ data }: { data: WorkflowNodePayload }) {
 }
 
 /** Configure button for tool-style nodes: opens the node panel. */
-function ConfigureButton({ id, data }: { id: string; data: WorkflowNodePayload }) {
+function ConfigureButton({
+  id,
+  data,
+  label = 'Configure',
+  icon = <Settings2 />,
+  className,
+}: {
+  id: string;
+  data: WorkflowNodePayload;
+  label?: string;
+  icon?: React.ReactNode;
+  className?: string;
+}) {
   if (!data.onEdit) return null;
   return (
     <Button
       type="button"
       variant="outline"
       size="xs"
-      className="nodrag mt-2.5 h-7 w-full justify-between text-muted-foreground hover:text-foreground"
+      className={cn('nodrag mt-2.5 h-7 w-full justify-between text-muted-foreground hover:text-foreground', className)}
       onClick={(e) => {
         e.stopPropagation();
         data.onEdit?.(id);
       }}
     >
       <span className="inline-flex items-center gap-1.5">
-        <Settings2 />
-        Configure
+        {icon}
+        {label}
       </span>
       <ChevronRight className="opacity-60" />
     </Button>
@@ -1917,18 +1935,43 @@ export const AppConnectorNode = memo(({ id, type, data, selected }: NodeProps) =
   const input = (cfg.input && typeof cfg.input === 'object' ? cfg.input : {}) as Record<string, unknown>;
   const preview = Object.entries(input).filter(([, v]) => v !== '' && v !== undefined).slice(0, 2);
   const picked = Boolean(app.provider && app.label);
-  const status = nodeData.status || (picked && app.connected ? 'idle' : 'waiting');
-  const kindLabel = !app.capability ? null : app.capability.kind === 'query' ? 'Reads' : app.capability.permissionLevel === 'destructive' ? 'Deletes' : 'Writes';
+  const needsConnect = picked && !app.loading && !app.connected && !!app.connector;
+  // Run states win; an unconnected app gets a quiet amber edge (the issue badge + status line say why)
+  const status = nodeData.status || 'idle';
+  // An app card (one per app) carries every action it has switched on; as an agent tool it brings all of them
+  const actionIds = Array.isArray(cfg.actionIds) ? (cfg.actionIds as unknown[]).filter((a) => typeof a === 'string') : null;
+  const asTool = !!nodeData.attachedTo;
+  const totalActions = app.connector?.capabilities.length ?? actionIds?.length ?? 0;
+  const kind: { label: string; className: string } | null =
+    !app.capability || (actionIds && asTool)
+      ? null
+      : app.capability.kind === 'query'
+        ? { label: 'Reads', className: 'border-border bg-surface-raised text-muted-foreground' }
+        : app.capability.permissionLevel === 'destructive'
+          ? { label: 'Deletes', className: 'border-destructive/25 bg-destructive/10 text-destructive' }
+          : { label: 'Writes', className: 'border-primary/25 bg-primary/10 text-primary' };
+  const sensitive = Boolean(app.capability?.requiresConfirmation) && !(actionIds && asTool);
 
   const defaultTitle = app.connector?.name ?? (app.provider ? app.provider : 'App Connector');
   const defaultDesc = app.label || nodeData.subtitle || 'Execute app action';
+  const connection = !picked
+    ? { label: 'Pick an action', dot: 'bg-muted-foreground/50', text: 'text-muted-foreground' }
+    : app.loading
+      ? { label: 'Checking connection…', dot: 'bg-muted-foreground/50 animate-pulse', text: 'text-muted-foreground' }
+      : app.connected
+        ? { label: 'Connected', dot: 'bg-success', text: 'text-success-text' }
+        : app.connector
+          ? { label: 'Not connected', dot: 'bg-warning', text: 'text-warning-text' }
+          : { label: 'Unknown app', dot: 'bg-destructive', text: 'text-destructive' };
+  const actionText = asTool && actionIds ? `${actionIds.length} of ${totalActions} actions enabled` : app.label || 'Pick an action';
 
   return (
     <div
       className={cn(
-        'group relative min-w-[240px] max-w-[300px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
+        'group relative w-[280px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
         selected ? 'ring-2 ring-foreground/60 border-foreground/60 shadow-md' : 'hover:border-border-strong',
         statusBorderClasses[status],
+        status === 'idle' && needsConnect && !selected && 'border-warning/50',
       )}
     >
       <NodeActionToolbar id={id} data={nodeData} selected={selected} />
@@ -1944,41 +1987,68 @@ export const AppConnectorNode = memo(({ id, type, data, selected }: NodeProps) =
             <AppConnectorIcon connectorId={app.slug} name={app.connector?.name} category={app.connector?.category} size={24} />
           </div>
         }
-        badge={
-          picked && !app.loading ? (
-            <span
-              className={cn(
-                'shrink-0 rounded-md border px-1.5 py-0.5 text-2xs font-semibold',
-                app.connected
-                  ? 'border-success/25 bg-success/10 text-success-text'
-                  : 'border-warning/30 bg-warning/10 text-warning-text',
-              )}
-            >
-              {app.connected ? 'Connected' : app.connector ? 'Not connected' : 'Unknown app'}
-            </span>
-          ) : undefined
-        }
+        badge={undefined}
         locked={Boolean(nodeData.locked)}
         onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
         onUpdateMetadata={nodeData.onUpdateMetadata}
       />
+      <div className={cn('-mt-0.5 ml-[50px] flex items-center gap-1.5 text-2xs font-medium', connection.text)}>
+        <span className={cn('size-1.5 shrink-0 rounded-full', connection.dot)} aria-hidden="true" />
+        {connection.label}
+      </div>
 
-      {preview.map(([k, v]) => (
-        <div key={k} className="mt-1 truncate rounded-md bg-surface-raised/80 px-1.5 py-0.5 font-mono text-2xs text-muted-foreground/80">
-          {k}: {typeof v === 'object' ? JSON.stringify(v) : String(v)}
-        </div>
-      ))}
-
-      <AttachedChip data={nodeData} />
-      <div className="mt-2 flex items-center justify-between border-t border-border/60 pt-2">
-        <ConfigureButton id={id} data={nodeData} />
-        {kindLabel && <span className="ml-auto mr-2 shrink-0 text-2xs uppercase tracking-wide text-muted-foreground/80">{kindLabel}</span>}
-        {app.capability?.requiresConfirmation && (
-          <span className="inline-flex items-center gap-1 text-2xs font-semibold text-warning-text" title={`${app.connector?.name} marks this as needing confirmation`}>
-            <Shield className="size-2.5" /> Sensitive
+      <div className="mt-3 rounded-lg border border-border/60 bg-surface-raised/60 px-2.5 py-2">
+        <div className="flex items-center gap-2">
+          <Zap className="size-3.5 shrink-0 text-primary" aria-hidden="true" />
+          <span
+            className={cn('min-w-0 flex-1 truncate text-xs font-medium', picked || asTool ? 'text-foreground' : 'text-muted-foreground')}
+            title={actionText}
+          >
+            {actionText}
           </span>
+          {!asTool && totalActions > 0 && (
+            <span className="shrink-0 text-2xs text-muted-foreground tabular-nums">
+              {totalActions} action{totalActions === 1 ? '' : 's'}
+            </span>
+          )}
+        </div>
+        {(!actionIds || !asTool) && preview.length > 0 && (
+          <div className="mt-1.5 space-y-0.5 border-t border-border/50 pt-1.5">
+            {preview.map(([k, v]) => (
+              <div key={k} className="truncate font-mono text-2xs text-muted-foreground/90">
+                <span className="text-muted-foreground/60">{k}:</span> {typeof v === 'object' ? JSON.stringify(v) : String(v)}
+              </div>
+            ))}
+          </div>
         )}
       </div>
+
+      {(kind || sensitive) && (
+        <div className="mt-2 flex flex-wrap items-center gap-1">
+          {kind && (
+            <span className={cn('inline-flex h-5 items-center rounded-md border px-1.5 text-2xs font-medium', kind.className)}>
+              {kind.label}
+            </span>
+          )}
+          {sensitive && (
+            <span
+              className="inline-flex h-5 items-center gap-1 rounded-md border border-warning/30 bg-warning/10 px-1.5 text-2xs font-medium text-warning-text"
+              title={`${app.connector?.name ?? 'This app'} asks for confirmation before running this action`}
+            >
+              <Shield className="size-2.5" aria-hidden="true" /> Needs approval
+            </span>
+          )}
+        </div>
+      )}
+
+      <AttachedChip data={nodeData} />
+      <ConfigureButton
+        id={id}
+        data={nodeData}
+        label={needsConnect ? `Connect ${app.connector?.name ?? 'app'}` : 'Configure'}
+        icon={needsConnect ? <Plug /> : undefined}
+        className={cn('mt-3', needsConnect && 'border-warning/40 text-warning-text hover:text-warning-text hover:bg-warning/10')}
+      />
 
       <NodeRunFooter run={nodeData.run} />
       <SourceHandleWithQuickAdd
