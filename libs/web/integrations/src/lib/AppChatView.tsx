@@ -23,7 +23,11 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useCurrentUser } from '@org/auth';
-import { APP_LOGOS, type ComposerContext } from '@org/types';
+import {
+  APP_LOGOS,
+  getAppDisplayName,
+  type ComposerContext,
+} from '@org/types';
 import {
   ChatPanel,
   ConversationTabsShell,
@@ -427,11 +431,12 @@ function AppConversation({ appId }: { appId: string }) {
       );
       return {
         id: i.provider.toLowerCase(),
-        name: defaultMatch?.name || i.provider,
+        name: getAppDisplayName(i),
         category: defaultMatch?.category || 'Developer Tools',
         provider: i.provider.toLowerCase(),
         description:
-          defaultMatch?.description || `${i.provider} workspace integration.`,
+          defaultMatch?.description ||
+          `${getAppDisplayName(i)} workspace integration.`,
         isConnected: i.status === 'CONNECTED',
         statusText:
           i.status === 'CONNECTED' ? 'Connected · Active' : 'Disconnected',
@@ -949,11 +954,12 @@ function NewAppMessage() {
       );
       return {
         id: i.provider.toLowerCase(),
-        name: defaultMatch?.name || i.provider,
+        name: getAppDisplayName(i),
         category: defaultMatch?.category || 'Developer Tools',
         provider: i.provider.toLowerCase(),
         description:
-          defaultMatch?.description || `${i.provider} workspace integration.`,
+          defaultMatch?.description ||
+          `${getAppDisplayName(i)} workspace integration.`,
         isConnected: i.status === 'CONNECTED',
         integrationId: i.id,
       } as AppModelItem;
