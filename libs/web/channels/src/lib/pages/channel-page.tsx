@@ -2,22 +2,23 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   WorkspacePermission,
   canManageChannelTabs,
+  channelNotificationLevelInput,
   resolveChannelTabs,
   type ChannelTabId,
 } from '@org/types';
 import type { ChannelMember, ChannelSummary } from '@org/types';
 import {
+  ActionDropdownMenu,
   Badge,
   Button,
-  confirm,
+  ChatConversationSkeleton,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  ChatConversationSkeleton,
   DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuTrigger,
   EmptyState,
+  type EntityAction,
   ErrorState,
   Hint,
   ScrollArea,
@@ -31,7 +32,7 @@ import {
 } from '@org/ui';
 import { cn, formatRelative } from '@org/utils';
 import { AddBookmarkDialog, BookmarkFavicon } from '@org/chat-ui';
-import { useMarkChannelSeen } from '@org/notifications';
+import { useMarkChannelSeen, useMarkChannelUnread } from '@org/notifications';
 import { queryKeys, uploadApi } from '@org/api-client';
 import {
   ChannelChat,
@@ -45,30 +46,22 @@ import {
 } from '@org/validation';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
-  Archive,
-  ArchiveRestore,
-  Bell,
   BellOff,
   Blocks,
   Bookmark,
   Bot,
-  Check,
   Clock,
-  Copy,
   ExternalLink,
   Hash,
-  Info,
   LayoutTemplate,
   Lock,
   Megaphone,
   MessageSquare,
   MoreHorizontal,
   PanelsTopLeft,
-  Pencil,
   Pin,
   Plus,
   RefreshCw,
-  Settings,
   ShieldAlert,
   Star,
   Trash2,
@@ -95,7 +88,9 @@ import {
   CustomizeChannelTabsDialog,
 } from '../components/channel-tabs.js';
 import { AddAppDialog } from '../components/add-app-dialog.js';
+import { buildChannelActions } from '../channel-actions.js';
 import { channelComposerLocks } from '../channel-composer-locks.js';
+import { useCanManageChannel } from '../use-can-manage-channel.js';
 import { JoinChannelControl } from '../components/join-channel-control.js';
 import { TemporaryMembershipBanner } from '../components/temporary-membership-banner.js';
 import { AnonymousModerationDialog } from '../components/anonymous-moderation-dialog.js';
@@ -117,6 +112,7 @@ import {
   useChannelMembers,
   useChannelPreferences,
   useJoinChannel,
+  useLeaveChannel,
 } from '../use-channels.js';
 
 function ChannelHeader({
@@ -126,8 +122,8 @@ function ChannelHeader({
   onOpenDetails,
   onOpenMembers,
   onOpenPins,
-  onOpenSettings,
   onEditDetails,
+  onAddPeople,
   onOpenPosting,
   onOpenAnonModeration,
   chatActionsRef,
@@ -137,14 +133,14 @@ function ChannelHeader({
   channel: ChannelSummary;
   members?: ChannelMember[];
   onAddBookmark?: () => void;
-  /** Reveals the channel's details in the right rail. */
-  onOpenDetails: () => void;
-  /** Reveals the details panel on its Settings tab. */
-  onOpenSettings: () => void;
+  /** Reveals the channel's details in the right rail, on `tab`. */
+  onOpenDetails: (tab: ChannelDetailsTab) => void;
   /** Reveals the channel's members tab in the right rail. */
   onOpenMembers: () => void;
   /** Opens the edit-name/topic/description dialog. */
   onEditDetails: () => void;
+  /** Opens the add-people dialog. */
+  onAddPeople: () => void;
   /** Opens posting permissions; omitted when the viewer cannot manage the channel. */
   onOpenPosting?: () => void;
   /** Opens anonymous-message moderation; omitted when the viewer cannot moderate. */
@@ -167,34 +163,24 @@ function ChannelHeader({
   headerEnd?: ReactNode;
 }) {
   const { workspaceId, slug: workspaceSlug } = useCurrentWorkspace();
+  const currentUser = useCurrentUser();
+  const navigate = useNavigate();
+  const canManage = useCanManageChannel(channel);
   const preferences = useChannelPreferences(workspaceId);
   const archive = useArchiveChannel(workspaceId);
+  const leave = useLeaveChannel(workspaceId);
+  const markChannelUnread = useMarkChannelUnread(workspaceId);
   const join = useJoinChannel(workspaceId);
-
-  const [copied, setCopied] = useState(false);
   const queryClient = useQueryClient();
-  const [isSyncing, setIsSyncing] = useState(false);
 
   const Icon = channel.visibility === 'PRIVATE' ? Lock : Hash;
   const isFavorite = channel.membership?.isFavorite ?? false;
   const isMuted = channel.membership?.isMuted ?? false;
 
-  const handleCopyLink = useCallback(() => {
-    const slug = workspaceSlug || 'default';
-    const url = `${window.location.origin}/w/${slug}/c/${channel.slug}`;
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    toast.success('Link copied', {
-      description: 'Channel link copied to clipboard.',
-    });
-    setTimeout(() => setCopied(false), 2000);
-  }, [workspaceSlug, channel.slug]);
-
   // Refetch what this screen shows. It used to toast "synchronized" after a
   // fixed 800ms without fetching anything; the timeline itself streams live
   // from Matrix, so the data worth re-pulling is the React Query side.
   const handleSyncChannel = useCallback(async () => {
-    setIsSyncing(true);
     try {
       await queryClient.refetchQueries({ type: 'active' });
       toast.success('Channel synchronized', {
@@ -202,8 +188,6 @@ function ChannelHeader({
       });
     } catch {
       toast.error('Could not synchronize this channel');
-    } finally {
-      setIsSyncing(false);
     }
   }, [queryClient]);
 
@@ -223,6 +207,79 @@ function ChannelHeader({
     );
   }, [channel.id, isFavorite, preferences]);
 
+  const headerActions: (EntityAction | false | undefined)[] = [
+    ...buildChannelActions({
+      channel,
+      workspaceSlug: workspaceSlug ?? '',
+      canManage,
+      organizeActions: (
+        [
+          onAddBookmark && {
+            id: 'add-bookmark',
+            group: 'channel',
+            label: 'Add bookmark',
+            icon: Bookmark,
+            shortcut: 'B',
+            run: onAddBookmark,
+          },
+          {
+            id: 'pins',
+            group: 'channel',
+            label: 'Channel pins',
+            icon: Pin,
+            run: onOpenPins,
+          },
+          {
+            id: 'sync',
+            group: 'channel',
+            label: 'Sync channel',
+            icon: RefreshCw,
+            run: handleSyncChannel,
+          },
+        ] as (EntityAction | undefined)[]
+      ).filter((action): action is EntityAction => !!action),
+      onOpenDetails,
+      onToggleFavorite: handleToggleFavorite,
+      onMarkUnread: () => markChannelUnread(channel.id),
+      onSetNotificationLevel: (level) =>
+        preferences.mutate({
+          channelId: channel.id,
+          input: channelNotificationLevelInput(level),
+        }),
+      onEditDetails,
+      onAddPeople,
+      onSetArchived: (archived) =>
+        archive.mutateAsync({ channelId: channel.id, archived }),
+      onLeave: currentUser
+        ? async () => {
+            await leave.mutateAsync({
+              channelId: channel.id,
+              userId: currentUser.id,
+            });
+            navigate(`/w/${workspaceSlug}/home`);
+          }
+        : undefined,
+    }),
+    // Merged into the "Channel settings…" section by group.
+    onOpenPosting && {
+      id: 'posting',
+      group: 'manage',
+      label: 'Posting permissions…',
+      icon: Megaphone,
+      run: onOpenPosting,
+    },
+    onOpenAnonModeration && {
+      id: 'anon-moderation',
+      group: 'manage',
+      label: 'Anonymous moderation…',
+      icon: ShieldAlert,
+      run: onOpenAnonModeration,
+    },
+  ];
+  const actions = headerActions.filter(
+    (action): action is EntityAction => !!action,
+  );
+
   return (
     <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 bg-background/95">
       <div className="gap-2.5 px-3 sm:px-6 pt-2 pb-1 min-h-11 flex flex-wrap items-center justify-between">
@@ -230,7 +287,7 @@ function ChannelHeader({
           <div className="min-w-0 gap-1.5 flex items-center">
             <button
               type="button"
-              onClick={onOpenDetails}
+              onClick={() => onOpenDetails('about')}
               className="gap-1.5 p-1 -m-1 flex cursor-pointer items-center rounded-md text-left transition-colors hover:bg-accent/60 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
               aria-label={`View channel details for #${channel.name}`}
             >
@@ -307,10 +364,27 @@ function ChannelHeader({
               </Button>
             </Hint>
 
-            {/* 2. 3-dot dropdown menu */}
+            {/* 2. 3-dot dropdown menu — the same `buildChannelActions` list as
+                the sidebar row's "⋯" and right-click menus, plus the entries
+                only this page can serve (bookmarks, pins, moderation). */}
             {channel.membership ? (
-              <DropdownMenu modal={false}>
-                <DropdownMenuTrigger asChild>
+              <ActionDropdownMenu
+                modal={false}
+                actions={actions}
+                scope={`channel:${channel.id}`}
+                entityType="channel"
+                entity={channel}
+                align="start"
+                contentClassName="w-64"
+                header={
+                  // The conversation's own entries land here — see the note on
+                  // `chatMenuRef`. Empty (and hidden) on the non-chat tabs.
+                  <div
+                    ref={chatMenuRef}
+                    className="-mx-1 mb-1 px-1 pb-1 border-b border-border empty:hidden"
+                  />
+                }
+                trigger={
                   <Button
                     variant="ghost"
                     size="icon-sm"
@@ -319,187 +393,8 @@ function ChannelHeader({
                   >
                     <MoreHorizontal className="size-4" />
                   </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="start"
-                  side="bottom"
-                  className="w-64"
-                >
-                  <DropdownMenuItem
-                    onClick={handleCopyLink}
-                    className="justify-between"
-                  >
-                    <div className="gap-2.5 flex items-center">
-                      {copied ? (
-                        <Check className="size-4 text-success-text" />
-                      ) : (
-                        <Copy className="size-4" />
-                      )}
-                      <span>{copied ? 'Link copied!' : 'Copy link'}</span>
-                    </div>
-                    <DropdownMenuShortcut>C</DropdownMenuShortcut>
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem
-                    onClick={handleSyncChannel}
-                    className="justify-between"
-                  >
-                    <div className="gap-2.5 flex items-center">
-                      <RefreshCw
-                        className={cn('size-4', isSyncing && 'animate-spin')}
-                      />
-                      <span>Sync channel</span>
-                    </div>
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem onClick={onOpenDetails} className="gap-2.5">
-                    <Info className="size-4" />
-                    <span>Open channel details</span>
-                  </DropdownMenuItem>
-
-                  <DropdownMenuSeparator />
-
-                  <DropdownMenuItem onClick={onEditDetails} className="gap-2.5">
-                    <Pencil className="size-4" />
-                    <span>Rename &amp; edit details</span>
-                  </DropdownMenuItem>
-
-                  {onAddBookmark ? (
-                    <DropdownMenuItem
-                      onClick={onAddBookmark}
-                      className="justify-between"
-                    >
-                      <div className="gap-2.5 flex items-center">
-                        <Bookmark className="size-4" />
-                        <span>Add bookmark</span>
-                      </div>
-                      <DropdownMenuShortcut>B</DropdownMenuShortcut>
-                    </DropdownMenuItem>
-                  ) : null}
-
-                  <DropdownMenuItem onClick={onOpenPins} className="gap-2.5">
-                    <Pin className="size-4" />
-                    <span>Channel pins</span>
-                  </DropdownMenuItem>
-
-                  {/* The conversation's own entries land here — see the note on
-                      `chatMenuRef`. Empty on the non-chat tabs. */}
-                  <div ref={chatMenuRef} className="contents" />
-
-                  <DropdownMenuSeparator />
-
-                  <DropdownMenuItem
-                    onClick={handleToggleFavorite}
-                    className="justify-between"
-                  >
-                    <div className="gap-2.5 flex items-center">
-                      <Star
-                        className={cn(
-                          'size-4',
-                          isFavorite && 'fill-current text-accent-amber',
-                        )}
-                      />
-                      <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
-                    </div>
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem
-                    onClick={onOpenSettings}
-                    className="gap-2.5"
-                  >
-                    <Bell className="size-4" />
-                    <span>Notification settings</span>
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem
-                    onClick={() =>
-                      preferences.mutate({
-                        channelId: channel.id,
-                        input: { isMuted: !isMuted },
-                      })
-                    }
-                    description="Follow this Channel in the future to show it in your sidebar again."
-                  >
-                    <BellOff className="size-4" />
-                    <span>{isMuted ? 'Follow Channel' : 'Unfollow'}</span>
-                  </DropdownMenuItem>
-
-                  <DropdownMenuSeparator />
-
-                  <DropdownMenuItem
-                    onClick={onOpenSettings}
-                    className="gap-2.5"
-                  >
-                    <Settings className="size-4" />
-                    <span>Settings & permissions</span>
-                  </DropdownMenuItem>
-
-                  {onOpenPosting ? (
-                    <DropdownMenuItem
-                      onClick={onOpenPosting}
-                      className="gap-2.5"
-                    >
-                      <Megaphone className="size-4" />
-                      <span>Posting permissions</span>
-                    </DropdownMenuItem>
-                  ) : null}
-
-                  {onOpenAnonModeration ? (
-                    <DropdownMenuItem
-                      onClick={onOpenAnonModeration}
-                      className="gap-2.5"
-                    >
-                      <ShieldAlert className="size-4" />
-                      <span>Anonymous moderation</span>
-                    </DropdownMenuItem>
-                  ) : null}
-
-                  <DropdownMenuSeparator />
-
-                  {/* Archiving is not deleting, and this entry used to say
-                      “Delete Channel” while calling the archive mutation. */}
-                  {channel.membership?.role === 'ADMIN' ? (
-                    <DropdownMenuItem
-                      onClick={() => {
-                        if (channel.isArchived) {
-                          archive.mutate({
-                            channelId: channel.id,
-                            archived: false,
-                          });
-                          return;
-                        }
-                        void confirm({
-                          title: `Archive #${channel.name}?`,
-                          description:
-                            'The channel becomes read-only and leaves everyone’s sidebar. Its history is kept, and an admin can unarchive it later.',
-                          confirmLabel: 'Archive channel',
-                          destructive: true,
-                        }).then((ok) => {
-                          if (ok)
-                            archive.mutate({
-                              channelId: channel.id,
-                              archived: true,
-                            });
-                        });
-                      }}
-                      variant={channel.isArchived ? undefined : 'destructive'}
-                      className="gap-2.5"
-                    >
-                      {channel.isArchived ? (
-                        <>
-                          <ArchiveRestore className="size-4" />
-                          <span>Unarchive channel</span>
-                        </>
-                      ) : (
-                        <>
-                          <Archive className="size-4" />
-                          <span>Archive channel</span>
-                        </>
-                      )}
-                    </DropdownMenuItem>
-                  ) : null}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                }
+              />
             ) : null}
           </div>
 
@@ -508,7 +403,7 @@ function ChannelHeader({
           {(channel.topic ?? channel.description) ? (
             <button
               type="button"
-              onClick={onOpenDetails}
+              onClick={() => onOpenDetails('about')}
               title={channel.topic ?? channel.description ?? undefined}
               className="md:block min-w-0 max-w-md pl-2.5 text-xs hidden truncate rounded-sm border-l border-border text-left text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
             >
@@ -854,8 +749,8 @@ export function ChannelPage({
         channel={channel}
         members={members.data ?? []}
         onAddBookmark={() => setAddBookmarkOpen(true)}
-        onOpenDetails={() => {
-          setDetailsTab('about');
+        onOpenDetails={(tab) => {
+          setDetailsTab(tab);
           setDetailsPanelOpen(true);
         }}
         onOpenMembers={() => {
@@ -863,11 +758,8 @@ export function ChannelPage({
           setDetailsPanelOpen(true);
         }}
         onOpenPins={() => setActiveTab('pins')}
-        onOpenSettings={() => {
-          setDetailsTab('settings');
-          setDetailsPanelOpen(true);
-        }}
         onEditDetails={() => setDetailsOpen(true)}
+        onAddPeople={() => setAddPeopleOpen(true)}
         onOpenPosting={
           canManageChannel ? () => setPostingOpen(true) : undefined
         }
@@ -1110,15 +1002,15 @@ export function ChannelPage({
             <>
               {activeTab === 'files-media' &&
                 workspacePermissions?.includes(WorkspacePermission.CREATE) && (
-                <Button
-                  size="sm"
-                  className="h-7 text-xs gap-1.5"
-                  onClick={handleUploadFile}
-                >
-                  <Upload className="size-3.5" />
-                  <span>Upload File</span>
-                </Button>
-              )}
+                  <Button
+                    size="sm"
+                    className="h-7 text-xs gap-1.5"
+                    onClick={handleUploadFile}
+                  >
+                    <Upload className="size-3.5" />
+                    <span>Upload File</span>
+                  </Button>
+                )}
               {activeTab === 'bookmarks' && (
                 <Button
                   size="sm"
