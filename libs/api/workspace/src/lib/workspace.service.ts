@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   BadRequestException,
   ConflictException,
@@ -148,8 +149,9 @@ export class WorkspaceService {
       select: { email: true },
     });
 
-    // The tile colour least used among the creator's other workspaces, so the
-    // rail and switcher show distinct tiles from the start.
+    // The tile colour is fixed for the workspace's lifetime, so it is chosen
+    // once here: a random slot among those least used by the creator's other
+    // workspaces, keeping the rail and switcher distinct from the start.
     const siblings = await this.prisma.workspace.findMany({
       where: { members: { some: { userId } } },
       select: { avatarColor: true },
@@ -164,7 +166,7 @@ export class WorkspaceService {
         iconColor: input.iconColor ?? null,
         avatarColor: pickAvatarColor(
           siblings.map((w) => w.avatarColor),
-          input.slug,
+          randomUUID(),
         ),
         ownerId: userId,
         members: { create: { userId, role: WorkspaceRole.OWNER, email: user?.email ?? null } },
@@ -223,9 +225,6 @@ export class WorkspaceService {
         // the colour alone does not clear the icon and vice versa.
         ...(input.icon !== undefined ? { icon: input.icon } : {}),
         ...(input.iconColor !== undefined ? { iconColor: input.iconColor } : {}),
-        ...(input.avatarColor !== undefined
-          ? { avatarColor: input.avatarColor }
-          : {}),
         ...(input.supportEmail !== undefined
           ? { supportEmail: input.supportEmail || null }
           : {}),

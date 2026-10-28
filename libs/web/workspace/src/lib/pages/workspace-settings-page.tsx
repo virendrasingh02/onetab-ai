@@ -17,7 +17,7 @@ import {
   useAuthStore,
   useCurrentUser,
 } from '@org/auth';
-import { avatarColorIndex, useTheme } from '@org/design-system';
+import { useTheme } from '@org/design-system';
 import {
   Badge,
   Button,
@@ -49,7 +49,6 @@ import {
   Switch,
   Textarea,
   UserAvatar,
-  AvatarColorSwatches,
   WorkspaceAvatar,
   toast,
   useStatusModalStore,
@@ -793,14 +792,6 @@ export function WorkspaceSettingsPage({
   if (isLoading || !workspace) return <LoadingState fullPage />;
 
   const isAdmin = hasWorkspaceRole(workspace.role, WorkspaceRole.ADMIN);
-  // The slot being saved wins over the cached one, so the preview and the
-  // swatch move on click rather than after the refetch.
-  const tileColor = avatarColorIndex(
-    workspace.id,
-    updateWorkspace.isPending && updateWorkspace.variables?.avatarColor != null
-      ? updateWorkspace.variables.avatarColor
-      : workspace.avatarColor,
-  );
   const isOwner = workspace.role === WorkspaceRole.OWNER;
   const isArchived = workspace.status === WorkspaceStatus.ARCHIVED;
 
@@ -2306,7 +2297,7 @@ export function WorkspaceSettingsPage({
                     src={currentAvatarUrl}
                     icon={workspace.icon}
                     iconColor={workspace.iconColor}
-                    avatarColor={tileColor}
+                    avatarColor={workspace.avatarColor}
                     seed={workspace.id}
                     size="xl"
                   />
@@ -2319,33 +2310,6 @@ export function WorkspaceSettingsPage({
                       info.
                     </p>
                   </div>
-                </div>
-
-                {/* Workspace tile colour — the initial tile every member sees */}
-                <div className="space-y-2">
-                  <div>
-                    <span className="text-xs font-medium text-foreground">
-                      Tile colour
-                    </span>
-                    <p className="text-[11px] text-muted-foreground">
-                      Used for the workspace initial when there is no logo or
-                      icon — the same for every member.
-                    </p>
-                  </div>
-                  <AvatarColorSwatches
-                    label="Workspace tile colour"
-                    value={tileColor}
-                    disabled={!isAdmin || updateWorkspace.isPending}
-                    onChange={(slot) =>
-                      updateWorkspace.mutate(
-                        { avatarColor: slot },
-                        {
-                          onError: () =>
-                            toast.error('Could not update the tile colour'),
-                        },
-                      )
-                    }
-                  />
                 </div>
 
                 {/* Workspace Logo Upload */}

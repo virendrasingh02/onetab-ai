@@ -94,8 +94,6 @@ export const updateWorkspaceSchema = z.object({
   avatarUrl: z.string().url('Enter a valid URL').nullable().optional().or(z.literal('')),
   supportEmail: z.string().trim().email('Enter a valid email address').nullable().optional().or(z.literal('')),
   accentColor: z.string().nullable().optional(),
-  /** Avatar palette slot for the workspace tile; `null` = derive from the id. */
-  avatarColor: z.number().int().min(0).max(AVATAR_COLOR_COUNT - 1).nullable().optional(),
   defaultLandingView: z.enum(['home', 'projects', 'tasks', 'chat', 'docs', 'meetings', 'agents']).optional(),
   allowExternalSharing: z.boolean().optional(),
   aiProjectRecaps: z.boolean().optional(),
