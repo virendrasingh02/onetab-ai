@@ -28,6 +28,7 @@ import {
 } from '@org/types';
 import {
   workspaceLogoError,
+  workspaceSlugSchema,
   type CreateWorkspaceInput,
   type UpdateWorkspaceInput,
   type WorkspaceLogoMimeType,
@@ -463,6 +464,8 @@ export class WorkspaceService {
 
   /** Suggests an unused slug, for the create-workspace form. */
   async isSlugAvailable(slug: string): Promise<boolean> {
+    // A slug `create` would reject (reserved, too short/long) is never free.
+    if (!workspaceSlugSchema.safeParse(slug).success) return false;
     const existing = await this.prisma.workspace.findUnique({
       where: { slug },
       select: { id: true },
@@ -470,14 +473,20 @@ export class WorkspaceService {
     return !existing;
   }
 
-  async suggestSlug(base: string): Promise<string> {
-    const candidates = [base, ...Array.from({ length: 20 }, (_, i) => `${base}-${i + 2}`)];
+  async suggestSlug(rawBase: string): Promise<string> {
+    // Leave room for a `-NN` suffix inside the 40-char slug limit, and only
+    // offer candidates `create` will actually accept (length, reserved words).
+    const base = rawBase.slice(0, 36).replace(/-+$/, '') || 'workspace';
+    const candidates = [
+      base,
+      ...Array.from({ length: 20 }, (_, i) => `${base}-${i + 2}`),
+    ].filter((slug) => workspaceSlugSchema.safeParse(slug).success);
     const taken = await this.prisma.workspace.findMany({
       where: { slug: { in: candidates } },
       select: { slug: true },
     });
     const used = new Set(taken.map((row) => row.slug));
-    return candidates.find((slug) => !used.has(slug)) ?? `${base}-${Date.now()}`;
+    return candidates.find((slug) => !used.has(slug)) ?? `${base.slice(0, 26)}-${Date.now()}`;
   }
 
   /**

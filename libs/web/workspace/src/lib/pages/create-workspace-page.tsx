@@ -2,7 +2,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Avatar,
   AvatarFallback,
-  Badge,
   Button,
   Card,
   CardContent,
@@ -19,10 +18,14 @@ import {
   FormMessage,
   Input,
   ScrollArea,
+  SettingsCard,
+  SettingsGroup,
+  SettingsIconTile,
+  SettingsSectionHeader,
   WorkspaceAvatar,
 } from '@org/ui';
 import { formErrorMessage, useCurrentUser } from '@org/auth';
-import { initials, slugify } from '@org/utils';
+import { cn, initials, slugify } from '@org/utils';
 import {
   createWorkspaceSchema,
   workspaceLogoError,
@@ -32,19 +35,17 @@ import {
 import {
   AlertTriangle,
   ArrowLeft,
-  Building2,
+  Check,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   FileSpreadsheet,
+  Hash,
   ImagePlus,
   Loader2,
   Plus,
-  Sparkles,
   Trash2,
   Upload,
-  Users,
-  Wand2,
   X,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -60,14 +61,16 @@ const STEPS = [
   {
     id: 1,
     label: 'Workspace',
-    description: 'Name, URL and logo',
-    icon: Building2,
+    heading: 'Workspace details',
+    description:
+      'This is where your team chats, plans and gets work done. You can change all of this later.',
   },
   {
     id: 2,
     label: 'Invite your team',
-    description: 'Optional — you can do this later',
-    icon: Users,
+    heading: 'Invite your team',
+    description:
+      'Optional. Add teammates now, or skip and invite them later from settings.',
   },
 ] as const;
 
@@ -118,19 +121,43 @@ export function CreateWorkspacePage() {
   const suggestion = useSlugSuggestion(name);
   const availability = useSlugAvailability(slug);
   const slugChecking =
-    slug.length >= 2 && (!availability.settled || availability.isFetching);
+    slug.length >= 3 && (!availability.settled || availability.isFetching);
   const slugTaken =
+    slug.length >= 3 &&
     availability.settled &&
     !availability.isFetching &&
     availability.data?.available === false;
+  // Only claim "Available" on a real yes from the server — a failed or
+  // pending check is not a pass.
+  const slugAvailable =
+    slug.length >= 3 &&
+    availability.settled &&
+    !availability.isFetching &&
+    availability.data?.available === true;
+  const slugCheckFailed =
+    slug.length >= 3 &&
+    availability.settled &&
+    !availability.isFetching &&
+    availability.isError;
 
   // Keep the slug in step with the name until the user edits it manually
   const slugTouched = form.formState.dirtyFields.slug;
   useEffect(() => {
     if (slugTouched) return;
-    const suggested = suggestion.data?.slug ?? slugify(name);
+    const suggested = suggestion.data?.slug ?? slugify(name).slice(0, 40).replace(/-+$/, '');
     if (suggested) form.setValue('slug', suggested, { shouldValidate: true });
   }, [name, suggestion.data?.slug, slugTouched, form]);
+
+  // A URL the user never typed should never greet them as "taken": quietly
+  // move to the next free one the server offers. Once they've edited it, the
+  // choice is theirs and the inline "Use …" button takes over.
+  const freeSuggestion = slugTaken ? availability.data?.suggestion : null;
+  useEffect(() => {
+    if (slugTouched || !freeSuggestion) return;
+    form.setValue('slug', freeSuggestion, { shouldValidate: true });
+  }, [freeSuggestion, slugTouched, form]);
+
+  const [logoDragging, setLogoDragging] = useState(false);
 
   // Object URLs are a leak if they outlive the file they point at.
   useEffect(() => {
@@ -341,519 +368,589 @@ export function CreateWorkspacePage() {
   }
 
   const step = STEPS[currentStep - 1];
-  const StepIcon = step.icon;
+  const displayName = name.trim() || 'Your Workspace';
+  // Same host prefix the workspace settings URL field shows.
+  const host = window.location.host;
 
   return (
-    <div className="selection:text-primary-foreground flex min-h-full flex-col justify-between bg-background text-foreground selection:bg-primary">
-      <main className="max-w-6xl px-4 py-8 mx-auto flex w-full flex-1 flex-col justify-center">
-        {/* Top Back Navigation */}
-        <div className="mb-6">
+    <div className="selection:text-primary-foreground min-h-full bg-background text-foreground selection:bg-primary">
+      <div className="max-w-5xl px-4 py-8 sm:px-6 mx-auto w-full">
+        {/* Page header — same title block as the settings screens. */}
+        <div className="mb-6 gap-3 flex items-start">
           <Button
             type="button"
             variant="ghost"
-            size="sm"
-            onClick={() => {
-              if (currentStep === 2) {
-                setCurrentStep(1);
-              } else {
-                navigate(-1);
-              }
-            }}
-            className="gap-2 -ml-2 px-3 flex items-center text-muted-foreground hover:text-foreground"
+            size="icon"
+            aria-label={currentStep === 2 ? 'Back to workspace details' : 'Go back'}
+            onClick={() => (currentStep === 2 ? setCurrentStep(1) : navigate(-1))}
+            className="mt-0.5 shrink-0 text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span className="text-sm font-medium">Back</span>
           </Button>
+          <div className="min-w-0 flex-1">
+            <SettingsSectionHeader
+              title="Create a workspace"
+              description={`Step ${currentStep} of ${STEPS.length} · ${step.label}`}
+              actions={
+                <ol
+                  aria-label="Workspace setup progress"
+                  className="gap-2 hidden sm:flex items-center"
+                >
+                  {STEPS.map((s) => {
+                    const done = s.id < currentStep;
+                    const active = s.id === currentStep;
+                    return (
+                      <li
+                        key={s.id}
+                        aria-current={active ? 'step' : undefined}
+                        className="gap-2 flex items-center"
+                      >
+                        <span
+                          className={cn(
+                            'size-5 text-[11px] font-semibold flex shrink-0 items-center justify-center rounded-full border transition-colors',
+                            done && 'border-primary bg-primary text-primary-foreground',
+                            active && 'border-primary bg-primary/10 text-primary',
+                            !done && !active && 'border-border text-muted-foreground',
+                          )}
+                        >
+                          {done ? <Check className="h-3 w-3" /> : s.id}
+                        </span>
+                        <span
+                          className={cn(
+                            'text-xs whitespace-nowrap',
+                            active
+                              ? 'font-medium text-foreground'
+                              : 'text-muted-foreground',
+                          )}
+                        >
+                          {s.label}
+                        </span>
+                        {s.id < STEPS.length && (
+                          <span
+                            className={cn(
+                              'h-px w-8 transition-colors',
+                              done ? 'bg-primary' : 'bg-border',
+                            )}
+                          />
+                        )}
+                      </li>
+                    );
+                  })}
+                </ol>
+              }
+            />
+          </div>
         </div>
 
-        <div className="lg:grid-cols-12 gap-8 grid grid-cols-1 items-start">
-          {/* Form Side */}
+        <div className="lg:grid-cols-12 gap-6 grid grid-cols-1 items-start">
+          {/* Form */}
           <div className="lg:col-span-7">
-            <Card className="backdrop-blur shadow-2xl border-border bg-surface/80">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl gap-2 flex items-center text-foreground">
-                  <StepIcon className="h-5 w-5 text-primary" />
-                  {step.label}
-                </CardTitle>
-                <CardDescription className="text-sm text-muted-foreground">
+            <SettingsCard>
+              <div>
+                <h2 className="text-sm font-semibold text-foreground">
+                  {step.heading}
+                </h2>
+                <p className="text-xs mt-1 text-muted-foreground">
                   {step.description}
-                </CardDescription>
-              </CardHeader>
+                </p>
+              </div>
 
-              <CardContent>
-                <Form {...form}>
-                  <form
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      if (currentStep === 1) {
-                        void handleContinue();
-                        return;
-                      }
-                      void submit(true)(event);
-                    }}
-                    className="space-y-6"
-                    noValidate
-                  >
-                    <FormError
-                      error={formErrorMessage(createWorkspace.error)}
-                    />
+              <Form {...form}>
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    if (currentStep === 1) {
+                      void handleContinue();
+                      return;
+                    }
+                    void submit(true)(event);
+                  }}
+                  className="space-y-5"
+                  noValidate
+                >
+                  <FormError error={formErrorMessage(createWorkspace.error)} />
 
-                    {/* STEP 1: IDENTITY + LOGO */}
-                    {currentStep === 1 && (
-                      <div className="space-y-5">
-                        {/* Logo uploader */}
-                        <div>
-                          <label className="text-sm font-medium mb-2 block text-foreground">
-                            Workspace Logo{' '}
-                            <span className="font-normal text-subtle">
-                              (Optional)
-                            </span>
-                          </label>
-                          <div className="gap-4 p-4 flex items-center rounded-xl border border-border bg-background">
-                            <button
-                              type="button"
-                              onClick={() => logoInputRef.current?.click()}
-                              className="h-16 w-16 relative flex shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border-strong bg-surface-raised transition-transform hover:scale-105"
-                              aria-label="Upload workspace logo"
+                  {/* STEP 1: IDENTITY + LOGO */}
+                  {currentStep === 1 && (
+                    <div className="space-y-5">
+                      <FormField
+                        control={form.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium">
+                              Workspace name
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                maxLength={60}
+                                placeholder="e.g. Acme Corp, Design Team"
+                                className="h-9 text-xs"
+                                autoFocus
+                                onFocus={(event) => event.target.select()}
+                              />
+                            </FormControl>
+                            <FormDescription className="text-[11px] text-muted-foreground">
+                              Usually your company or team name.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="slug"
+                        render={({ field, fieldState }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium">
+                              Workspace URL
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                maxLength={40}
+                                spellCheck={false}
+                                autoCapitalize="off"
+                                autoComplete="off"
+                                placeholder="acme-corp"
+                                prefix={`${host}/w/`}
+                                suffix={
+                                  slugChecking ? (
+                                    <Loader2 className="animate-spin text-muted-foreground" />
+                                  ) : slugTaken ? (
+                                    <AlertTriangle className="text-destructive" />
+                                  ) : slugAvailable && !fieldState.error ? (
+                                    <CheckCircle2 className="text-success" />
+                                  ) : null
+                                }
+                                invalid={slugTaken || undefined}
+                                className="h-9 text-xs font-mono"
+                                // Same normalisation as the settings URL field.
+                                onChange={(event) =>
+                                  field.onChange(
+                                    event.target.value
+                                      .toLowerCase()
+                                      .replace(/[^a-z0-9-]/g, '-'),
+                                  )
+                                }
+                              />
+                            </FormControl>
+                            <FormDescription
+                              aria-live="polite"
+                              className="gap-1.5 flex flex-wrap items-center text-[11px] text-muted-foreground"
                             >
-                              {logoPreview ? (
-                                <img
-                                  src={logoPreview}
-                                  alt="Workspace logo preview"
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <ImagePlus className="h-6 w-6 text-muted-foreground" />
-                              )}
-                            </button>
-
-                            <div className="min-w-0 flex-1">
-                              <div className="gap-2 flex flex-wrap items-center">
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => logoInputRef.current?.click()}
-                                  className="border-border-strong bg-surface-raised text-foreground hover:bg-selected"
-                                >
-                                  <ImagePlus className="h-4 w-4 mr-1" />
-                                  {logoFile ? 'Replace' : 'Upload image'}
-                                </Button>
-                                {logoFile && (
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={handleRemoveLogo}
-                                    className="text-muted-foreground hover:text-destructive"
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-1" /> Remove
-                                  </Button>
-                                )}
-                              </div>
-                              <p className="text-xs mt-1.5 truncate text-muted-foreground">
-                                {logoFile
-                                  ? logoFile.name
-                                  : 'PNG, JPEG, WebP or GIF · 256×256 px · up to 2 MB'}
-                              </p>
-                              {logoError && (
-                                <p className="text-xs mt-1 text-destructive">
-                                  {logoError}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-
-                          <input
-                            ref={logoInputRef}
-                            type="file"
-                            accept={WORKSPACE_LOGO_MIME_TYPES.join(',')}
-                            className="hidden"
-                            onChange={(event) =>
-                              handleSelectLogo(event.target.files?.[0])
-                            }
-                          />
-                        </div>
-
-                        <FormField
-                          control={form.control}
-                          name="name"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-foreground">
-                                Workspace Name
-                              </FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  placeholder="e.g. Acme Corp, Design System Team"
-                                  className="border-border bg-background text-foreground focus:border-primary"
-                                  autoFocus
-                                  onFocus={(event) => event.target.select()}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="slug"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-foreground">
-                                Workspace URL Slug
-                              </FormLabel>
-                              <FormControl>
-                                <div className="relative">
-                                  <Input
-                                    {...field}
-                                    placeholder="acme-corp"
-                                    className="pl-3 pr-24 text-sm border-border bg-background font-mono text-foreground focus:border-primary"
-                                  />
-                                  <span className="right-3 text-xs px-2 py-0.5 rounded absolute top-1/2 -translate-y-1/2 border border-border-strong bg-surface-raised font-mono text-muted-foreground">
-                                    .onetab.ai
+                              {fieldState.error ? null : slugChecking ? (
+                                'Checking availability…'
+                              ) : slugTaken ? (
+                                <>
+                                  <span className="text-destructive">
+                                    This URL is already taken.
                                   </span>
-                                </div>
-                              </FormControl>
-                              <FormDescription className="text-xs gap-1.5 pt-1 flex flex-wrap items-center text-muted-foreground">
-                                {slugChecking ? (
-                                  <>
-                                    <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
-                                    Checking availability…
-                                  </>
-                                ) : slugTaken ? (
-                                  <>
-                                    <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-destructive" />
-                                    <span className="text-destructive">
-                                      onetab.ai/w/{field.value} is taken.
-                                    </span>
-                                    {availability.data?.suggestion && (
-                                      <button
-                                        type="button"
-                                        className="font-mono text-primary underline-offset-2 hover:underline"
-                                        onClick={() =>
-                                          form.setValue(
-                                            'slug',
-                                            availability.data?.suggestion ?? '',
-                                            {
-                                              shouldValidate: true,
-                                              shouldDirty: true,
-                                            },
-                                          )
-                                        }
-                                      >
-                                        Use {availability.data.suggestion}
-                                      </button>
-                                    )}
-                                  </>
-                                ) : (
-                                  <>
-                                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" />
-                                    Available — hosted at:{' '}
-                                    <code className="font-mono text-primary">
-                                      onetab.ai/w/{field.value || 'your-slug'}
-                                    </code>
-                                  </>
-                                )}
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    )}
+                                  {availability.data?.suggestion && (
+                                    <button
+                                      type="button"
+                                      className="font-medium text-primary underline-offset-2 hover:underline"
+                                      onClick={() =>
+                                        form.setValue(
+                                          'slug',
+                                          availability.data?.suggestion ?? '',
+                                          {
+                                            shouldValidate: true,
+                                            shouldDirty: true,
+                                          },
+                                        )
+                                      }
+                                    >
+                                      Use{' '}
+                                      <span className="font-mono">
+                                        {availability.data.suggestion}
+                                      </span>
+                                    </button>
+                                  )}
+                                </>
+                              ) : slugCheckFailed ? (
+                                <span className="text-warning">
+                                  Couldn&apos;t check availability right now —
+                                  we&apos;ll confirm when you create it.
+                                </span>
+                              ) : slugAvailable ? (
+                                <span>
+                                  <span className="text-success">Available.</span>{' '}
+                                  Lowercase letters, numbers and dashes.
+                                </span>
+                              ) : (
+                                'Lowercase letters, numbers and dashes.'
+                              )}
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                    {/* STEP 2: INVITES */}
-                    {currentStep === 2 && (
-                      <div className="space-y-6">
-                        {/* Quick Import Sources */}
-                        <div>
-                          <label className="text-xs font-semibold tracking-wider mb-2.5 block text-muted-foreground uppercase">
-                            Quick Import
-                          </label>
-                          <div className="gap-3 grid grid-cols-1">
-                            {/* CSV / Excel / File Import */}
-                            <div className="p-3.5 flex flex-col justify-between rounded-xl border border-border bg-background transition-colors hover:border-border-strong">
-                              <div className="gap-2.5 mb-3 flex items-start">
-                                <div className="p-2 shrink-0 rounded-lg border border-border-strong bg-surface-raised">
-                                  <FileSpreadsheet className="h-4 w-4 text-primary" />
-                                </div>
-                                <div>
-                                  <h4 className="text-xs font-semibold text-foreground">
-                                    CSV or Excel File
-                                  </h4>
-                                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                                    .csv, .xlsx, .xls, .tsv, or .txt
-                                  </p>
-                                </div>
-                              </div>
+                      {/* Logo — same block as workspace settings, plus drop. */}
+                      <div>
+                        <p className="text-xs font-medium mb-2 text-foreground">
+                          Workspace logo{' '}
+                          <span className="font-normal text-muted-foreground">
+                            (optional)
+                          </span>
+                        </p>
+                        <div
+                          onDragOver={(event) => {
+                            event.preventDefault();
+                            setLogoDragging(true);
+                          }}
+                          onDragLeave={() => setLogoDragging(false)}
+                          onDrop={(event) => {
+                            event.preventDefault();
+                            setLogoDragging(false);
+                            handleSelectLogo(event.dataTransfer.files?.[0]);
+                          }}
+                          className={cn(
+                            'gap-4 p-4 flex items-center rounded-xl border transition-colors',
+                            logoDragging
+                              ? 'border-dashed border-primary bg-primary/5'
+                              : 'border-border bg-background',
+                          )}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => logoInputRef.current?.click()}
+                            className="group relative shrink-0 rounded-2xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                            aria-label={
+                              logoFile
+                                ? 'Replace workspace logo'
+                                : 'Upload workspace logo'
+                            }
+                          >
+                            <WorkspaceAvatar
+                              name={displayName}
+                              src={logoPreview}
+                              seed={slug || name}
+                              size="xl"
+                            />
+                            <span className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/45 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                              <ImagePlus className="h-5 w-5" />
+                            </span>
+                          </button>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="gap-2 flex flex-wrap items-center">
                               <Button
                                 type="button"
                                 size="sm"
                                 variant="outline"
-                                onClick={() => fileInputRef.current?.click()}
-                                className="text-xs font-medium h-8 w-full border-border-strong bg-surface-raised hover:bg-selected"
+                                onClick={() => logoInputRef.current?.click()}
+                                className="h-8 text-xs border-border-strong bg-surface-raised text-foreground hover:bg-selected"
                               >
-                                <Upload className="h-3.5 w-3.5 mr-1.5" />
-                                Import File
+                                <ImagePlus className="h-3.5 w-3.5 mr-1.5" />
+                                {logoFile ? 'Replace' : 'Upload image'}
+                              </Button>
+                              {logoFile && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={handleRemoveLogo}
+                                  className="h-8 text-xs text-muted-foreground hover:text-destructive"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Remove
+                                </Button>
+                              )}
+                            </div>
+                            <p className="text-xs mt-1.5 truncate text-muted-foreground">
+                              {logoFile
+                                ? logoFile.name
+                                : 'PNG, JPEG, WebP or GIF · 256×256 px · up to 2 MB · or drop it here'}
+                            </p>
+                            {logoError && (
+                              <p role="alert" className="text-xs mt-1 text-destructive">
+                                {logoError}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <input
+                          ref={logoInputRef}
+                          type="file"
+                          accept={WORKSPACE_LOGO_MIME_TYPES.join(',')}
+                          className="hidden"
+                          onChange={(event) =>
+                            handleSelectLogo(event.target.files?.[0])
+                          }
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* STEP 2: INVITES */}
+                  {currentStep === 2 && (
+                    <div className="space-y-5">
+                      <SettingsGroup title="Import from a file">
+                        <div className="gap-3.5 p-4 flex flex-wrap items-center justify-between rounded-xl border border-border bg-background">
+                          <div className="gap-3.5 min-w-0 flex items-center">
+                            <SettingsIconTile>
+                              <FileSpreadsheet />
+                            </SettingsIconTile>
+                            <div className="min-w-0">
+                              <h4 className="text-sm font-semibold text-foreground">
+                                CSV or Excel file
+                              </h4>
+                              <p className="text-xs mt-0.5 text-muted-foreground">
+                                .csv, .xlsx, .xls, .tsv or .txt — we pick out
+                                the email addresses.
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="h-8 text-xs"
+                          >
+                            <Upload className="h-3.5 w-3.5 mr-1.5" />
+                            Import file
+                          </Button>
+                        </div>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept=".csv,.xlsx,.xls,.tsv,.txt,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                          className="hidden"
+                          onChange={(e) => handleFileUpload(e.target.files?.[0])}
+                        />
+                      </SettingsGroup>
+
+                      <SettingsGroup
+                        title="Add by email"
+                        description="Paste one address or many, separated by commas or spaces."
+                      >
+                        <div className="gap-2 flex items-center">
+                          <Input
+                            type="text"
+                            value={inviteEmailInput}
+                            onChange={(e) => {
+                              setInviteEmailInput(e.target.value);
+                              setInviteError(null);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddInvite();
+                              }
+                            }}
+                            placeholder="colleague@company.com, team@company.com"
+                            className="h-9 text-xs"
+                          />
+                          <Button
+                            type="button"
+                            onClick={handleAddInvite}
+                            variant="outline"
+                            className="h-9 text-xs shrink-0"
+                          >
+                            <Plus className="h-3.5 w-3.5 mr-1" /> Add
+                          </Button>
+                        </div>
+
+                        {inviteError && (
+                          <p className="text-xs gap-1.5 flex items-center text-destructive">
+                            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                            {inviteError}
+                          </p>
+                        )}
+
+                        {importStatus && (
+                          <p className="text-xs gap-1.5 flex items-center text-success">
+                            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                            {importStatus}
+                          </p>
+                        )}
+
+                        {invitedEmails.length > 0 && (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs font-medium text-muted-foreground">
+                                {invitedEmails.length} to invite
+                              </p>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="xs"
+                                onClick={handleClearAllInvites}
+                                className="text-muted-foreground hover:text-destructive"
+                              >
+                                Clear all
                               </Button>
                             </div>
-                          </div>
-
-                          <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept=".csv,.xlsx,.xls,.tsv,.txt,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                            className="hidden"
-                            onChange={(e) =>
-                              handleFileUpload(e.target.files?.[0])
-                            }
-                          />
-                        </div>
-
-                        {/* Direct Email / Bulk Paste */}
-                        <div className="space-y-3 pt-1">
-                          <label className="text-xs font-semibold tracking-wider block text-muted-foreground uppercase">
-                            Or Add Manually (Single or Bulk Paste)
-                          </label>
-                          <div className="gap-2 flex items-center">
-                            <Input
-                              type="text"
-                              value={inviteEmailInput}
-                              onChange={(e) => {
-                                setInviteEmailInput(e.target.value);
-                                setInviteError(null);
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  handleAddInvite();
-                                }
-                              }}
-                              placeholder="colleague@company.com, team@company.com..."
-                              className="text-xs border-border bg-background text-foreground focus:border-primary"
-                            />
-                            <Button
-                              type="button"
-                              onClick={handleAddInvite}
-                              size="sm"
-                              className="shrink-0"
+                            <ScrollArea
+                              className="max-h-36 rounded-xl border border-border bg-background"
+                              contentClassName="flex flex-wrap gap-2 p-2"
                             >
-                              <Plus className="h-4 w-4 mr-1" /> Add
-                            </Button>
-                          </div>
-
-                          {inviteError && (
-                            <p className="text-xs gap-1.5 flex items-center text-destructive">
-                              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                              {inviteError}
-                            </p>
-                          )}
-
-                          {importStatus && (
-                            <p className="text-xs gap-1.5 flex items-center text-success">
-                              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                              {importStatus}
-                            </p>
-                          )}
-
-                          {invitedEmails.length > 0 && (
-                            <div className="space-y-2 pt-2">
-                              <div className="flex items-center justify-between">
-                                <p className="text-xs font-medium text-muted-foreground">
-                                  Invites to be sent ({invitedEmails.length}):
-                                </p>
-                                <button
-                                  type="button"
-                                  onClick={handleClearAllInvites}
-                                  className="text-[11px] text-muted-foreground transition-colors hover:text-destructive"
+                              {invitedEmails.map((email) => (
+                                <span
+                                  key={email}
+                                  className="gap-1.5 px-2.5 py-1 text-xs inline-flex items-center rounded-md border border-border bg-surface text-foreground"
                                 >
-                                  Clear all
-                                </button>
-                              </div>
-                              <ScrollArea
-                                className="max-h-36 rounded-lg border border-border bg-background"
-                                contentClassName="flex flex-wrap gap-2 p-2"
-                              >
-                                {invitedEmails.map((email) => (
-                                  <span
-                                    key={email}
-                                    className="gap-1.5 px-2.5 py-1 text-xs inline-flex items-center rounded-md border border-border bg-surface text-foreground"
+                                  {email}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveInvite(email)}
+                                    className="ml-0.5 text-subtle hover:text-destructive"
+                                    aria-label={`Remove ${email}`}
                                   >
-                                    {email}
-                                    <button
-                                      type="button"
-                                      onClick={() => handleRemoveInvite(email)}
-                                      className="ml-0.5 text-subtle hover:text-destructive"
-                                      aria-label={`Remove ${email}`}
-                                    >
-                                      <X className="h-3 w-3" />
-                                    </button>
-                                  </span>
-                                ))}
-                              </ScrollArea>
-                            </div>
-                          )}
-                        </div>
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </span>
+                              ))}
+                            </ScrollArea>
+                          </div>
+                        )}
+                      </SettingsGroup>
 
-                        <p className="text-xs text-muted-foreground">
-                          Everyone invited joins as a <strong>member</strong>.
-                          You can invite more people, or change roles, from
-                          workspace settings at any time.
-                        </p>
-                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Everyone invited joins as a member. You can invite more
+                        people, or change roles, from workspace settings at any
+                        time.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="pt-4 gap-3 flex items-center justify-between border-t border-border/60">
+                    {currentStep > 1 ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setCurrentStep(1)}
+                        disabled={isBusy}
+                        className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        <ChevronLeft className="h-3.5 w-3.5 mr-1" /> Back
+                      </Button>
+                    ) : (
+                      <Button
+                        asChild
+                        variant="ghost"
+                        className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        <Link to="/">Cancel</Link>
+                      </Button>
                     )}
 
-                    {/* Step Navigation Bar */}
-                    <div className="pt-4 gap-3 flex items-center justify-between border-t border-border">
-                      {currentStep > 1 ? (
+                    {currentStep === 1 ? (
+                      <Button
+                        type="submit"
+                        disabled={slugChecking || slugTaken}
+                        className="h-8 text-xs"
+                      >
+                        Continue <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                      </Button>
+                    ) : (
+                      <div className="gap-2 flex items-center">
                         <Button
                           type="button"
                           variant="ghost"
-                          onClick={() => setCurrentStep(1)}
                           disabled={isBusy}
-                          className="text-secondary-foreground hover:text-foreground"
+                          onClick={() => void submit(false)()}
+                          className="h-8 text-xs text-muted-foreground hover:text-foreground"
                         >
-                          <ChevronLeft className="h-4 w-4 mr-1" /> Back
+                          Skip for now
                         </Button>
-                      ) : (
-                        <Button
-                          asChild
-                          variant="ghost"
-                          className="text-muted-foreground hover:text-foreground"
-                        >
-                          <Link to="/">Cancel</Link>
-                        </Button>
-                      )}
-
-                      {currentStep === 1 ? (
                         <Button
                           type="submit"
-                          disabled={slugChecking || slugTaken}
-                          className="font-medium shadow-lg shadow-primary/30"
+                          loading={isBusy}
+                          className="h-8 text-xs"
                         >
-                          Continue <ChevronRight className="h-4 w-4 ml-1" />
+                          {invitedEmails.length > 0
+                            ? `Invite ${invitedEmails.length} & create`
+                            : 'Create workspace'}
                         </Button>
-                      ) : (
-                        <div className="gap-2 flex items-center">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            disabled={isBusy}
-                            onClick={() => void submit(false)()}
-                            className="text-muted-foreground hover:text-foreground"
-                          >
-                            Skip &amp; create
-                          </Button>
-                          <Button
-                            type="submit"
-                            loading={isBusy}
-                            className="text-primary-foreground font-semibold shadow-xl px-6 bg-gradient-to-r from-primary to-primary-hover shadow-primary/25 hover:from-primary hover:to-primary-hover"
-                          >
-                            <Sparkles className="h-4 w-4 mr-2" />
-                            {invitedEmails.length > 0
-                              ? `Invite ${invitedEmails.length} & launch`
-                              : 'Launch workspace'}
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </form>
-                </Form>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Live Preview Side Panel */}
-          <div className="lg:col-span-5 lg:block top-24 sticky hidden">
-            <Card className="backdrop-blur shadow-xl overflow-hidden border-border bg-surface/60">
-              <div className="px-4 py-3 flex items-center justify-between border-b border-border bg-background/80">
-                <div className="gap-2 flex items-center">
-                  <div className="h-2.5 w-2.5 rounded-full bg-destructive/80" />
-                  <div className="h-2.5 w-2.5 rounded-full bg-warning/80" />
-                  <div className="h-2.5 w-2.5 rounded-full bg-success/80" />
-                </div>
-                <span className="gap-1 flex items-center font-mono text-[11px] text-muted-foreground">
-                  <Wand2 className="h-3 w-3 text-primary" /> Live Preview
-                </span>
-              </div>
-
-              <CardContent className="p-4 space-y-4">
-                {/* Preview: workspace header, drawn from the form state above. */}
-                <div className="p-3 flex items-center justify-between rounded-xl border border-border bg-background">
-                  <div className="gap-3 min-w-0 flex items-center">
-                    <WorkspaceAvatar
-                      name={name || 'Your Workspace'}
-                      src={logoPreview}
-                      seed={slug || name}
-                      size="lg"
-                    />
-                    <div className="min-w-0">
-                      <h4 className="font-semibold text-sm max-w-[140px] truncate text-foreground">
-                        {name || 'Your Workspace'}
-                      </h4>
-                      <p className="max-w-[140px] truncate font-mono text-[10px] text-muted-foreground">
-                        {slug ? `onetab.ai/w/${slug}` : 'onetab.ai/w/...'}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge
-                    variant="outline"
-                    className="border-primary/40 bg-primary/10 text-[10px] text-primary"
-                  >
-                    Active
-                  </Badge>
-                </div>
-
-                {/* Preview: the people this workspace will start with. */}
-                <div className="space-y-2 p-3 rounded-xl border border-border/60 bg-background/40">
-                  <div className="font-medium flex items-center justify-between text-[11px] text-muted-foreground">
-                    <span>TEAM MEMBERS ({invitedEmails.length + 1})</span>
-                  </div>
-                  <div className="gap-2 flex flex-wrap items-center">
-                    <Avatar className="h-7 w-7 border border-primary">
-                      <AvatarFallback className="text-primary-foreground text-xs font-bold bg-primary">
-                        {initials(
-                          currentUser?.displayName ||
-                            currentUser?.name ||
-                            'You',
-                        )}
-                      </AvatarFallback>
-                    </Avatar>
-                    {invitedEmails.slice(0, 4).map((email) => (
-                      <Avatar
-                        key={email}
-                        className="h-7 w-7 border border-border-strong"
-                      >
-                        <AvatarFallback className="font-bold bg-surface-raised text-[10px] text-secondary-foreground">
-                          {initials(email)}
-                        </AvatarFallback>
-                      </Avatar>
-                    ))}
-                    {invitedEmails.length > 4 && (
-                      <span className="h-7 w-7 font-bold flex items-center justify-center rounded-full border border-border-strong bg-surface-raised text-[10px] text-muted-foreground">
-                        +{invitedEmails.length - 4}
-                      </span>
+                      </div>
                     )}
                   </div>
-                  <p className="text-[10px] text-subtle">
-                    Your workspace starts with a{' '}
-                    <span className="font-mono">#general</span> channel.
-                  </p>
+                </form>
+              </Form>
+            </SettingsCard>
+          </div>
+
+          {/* Live preview: a miniature of the sidebar this form is building. */}
+          <div className="lg:col-span-5 lg:block top-8 sticky hidden">
+            <SettingsGroup title="Preview">
+              <SettingsCard divided>
+                <div className="gap-3 p-4 flex items-center">
+                  <WorkspaceAvatar
+                    name={displayName}
+                    src={logoPreview}
+                    seed={slug || name}
+                    size="lg"
+                  />
+                  <div className="min-w-0">
+                    <h4 className="text-sm font-semibold truncate text-foreground">
+                      {displayName}
+                    </h4>
+                    <p className="truncate font-mono text-[11px] text-muted-foreground">
+                      {host}/w/{slug || '…'}
+                    </p>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
+
+                <div className="p-4 space-y-4">
+                  <div>
+                    <p className="mb-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                      Channels
+                    </p>
+                    <div className="gap-2 px-2 py-1.5 text-xs flex items-center rounded-md bg-selected font-medium text-foreground">
+                      <Hash className="h-3.5 w-3.5 text-muted-foreground" />
+                      general
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="mb-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                      Members · {invitedEmails.length + 1}
+                    </p>
+                    <div className="gap-2 flex flex-wrap items-center">
+                      <Avatar className="h-7 w-7 border border-primary">
+                        <AvatarFallback className="text-primary-foreground text-xs font-bold bg-primary">
+                          {initials(
+                            currentUser?.displayName ||
+                              currentUser?.name ||
+                              'You',
+                          )}
+                        </AvatarFallback>
+                      </Avatar>
+                      {invitedEmails.slice(0, 6).map((email) => (
+                        <Avatar
+                          key={email}
+                          className="h-7 w-7 border border-border-strong"
+                        >
+                          <AvatarFallback className="font-bold bg-surface-raised text-[10px] text-secondary-foreground">
+                            {initials(email)}
+                          </AvatarFallback>
+                        </Avatar>
+                      ))}
+                      {invitedEmails.length > 6 && (
+                        <span className="h-7 w-7 font-bold flex items-center justify-center rounded-full border border-border-strong bg-surface-raised text-[10px] text-muted-foreground">
+                          +{invitedEmails.length - 6}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      {invitedEmails.length > 0
+                        ? 'You join as owner; invitees join as members.'
+                        : 'You join as the owner.'}
+                    </p>
+                  </div>
+                </div>
+              </SettingsCard>
+            </SettingsGroup>
           </div>
         </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="py-4 px-6 text-xs border-t border-border/60 bg-background text-center text-subtle">
-        Onetab AI Workspace Onboarding &bull; Crafting collaboration spaces in
-        seconds
-      </footer>
+      </div>
     </div>
   );
 }
