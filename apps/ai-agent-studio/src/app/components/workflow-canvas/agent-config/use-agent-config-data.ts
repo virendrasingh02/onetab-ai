@@ -1,7 +1,9 @@
 import { agentsApi, aiApi, knowledgeApi, promptTemplateApi } from '@org/api-client';
 import type { AIModelCapabilities, AIModelMetadata, AIProviderMetadata, AgentVersion, KnowledgeBase, PromptTemplate } from '@org/types';
+import { normalizeModel } from '@org/ui';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { DEFAULT_AGENT_MODEL } from '../../../services/agentService.js';
 import { useStudioSession } from '../../../session-guard.js';
 
 /**
@@ -135,6 +137,20 @@ export function useMediaQuery(query: string): boolean {
   return matches;
 }
 
+/** A model id as people read it: the workspace catalog's name, else the shared normalizer's. */
+export const modelDisplayName = (model: unknown, catalog?: readonly AIModelMetadata[]): string => {
+  const id = String(model ?? '');
+  const hit = catalog?.find((m) => m.model === id || m.id === id);
+  if (hit) return (hit.name || hit.model).replace(/\s*\(NVIDIA\)$/, '');
+  return normalizeModel(id).displayName || id.replace(':latest', '');
+};
+
+/** {@link modelDisplayName} bound to the live model catalog. */
+export function useModelLabel(): (model: unknown) => string {
+  const models = useAiModels();
+  return useCallback((model: unknown) => modelDisplayName(model, models.data), [models.data]);
+}
+
 /** Model picker options, grouped by provider, with connection state. */
 export function useModelOptions(current: string | undefined) {
   const models = useAiModels();
@@ -156,7 +172,7 @@ export function useModelOptions(current: string | undefined) {
             .sort((a, b) => Number(Boolean(b.default)) - Number(Boolean(a.default)))
             .map((m) => ({
               value: m.model,
-              label: (m.name || m.model).replace(/\s*\(NVIDIA\)$/, ''),
+              label: modelDisplayName(m.model, [m]),
               description: [
                 m.default ? 'Platform default' : '',
                 m.contextWindow ? `${Math.round(m.contextWindow / 1000)}k context` : '',
@@ -172,11 +188,11 @@ export function useModelOptions(current: string | undefined) {
     if (out.length === 0) {
       out.push({
         label: 'NVIDIA',
-        options: [{ value: 'nvidia/nemotron-3-super-120b-a12b', label: 'Nemotron 3 Super', description: 'Platform default' }],
+        options: [{ value: DEFAULT_AGENT_MODEL, label: 'Nemotron 3 Super', description: 'Platform default' }],
       });
     }
     const known = (id: string) => list.some((m) => m.model === id || m.id === id || m.id.endsWith(`/${id}`));
-    const alias = current === 'nemotron' ? 'nvidia/nemotron-3-super-120b-a12b' : current;
+    const alias = current === 'nemotron' ? DEFAULT_AGENT_MODEL : current;
     if (alias && !known(alias) && !out.some((g) => g.options.some((o) => o.value === alias))) {
       out.unshift({ label: 'Current', options: [{ value: alias, label: alias, description: 'Not in this workspace’s model list' }] });
     }

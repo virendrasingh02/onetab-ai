@@ -8,7 +8,6 @@ import {
   TooltipContent,
   TooltipTrigger,
   AIModelIcon,
-  normalizeModel,
   type AppSelectOption,
   Label,
 } from '@org/ui';
@@ -19,6 +18,7 @@ import {
   AlertTriangle,
   BookOpen,
   Bot,
+  Check,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -60,7 +60,7 @@ import {
   type AgentSlotDef,
   type AgentSlotId,
 } from './agent-slots.js';
-import { useModelOptions } from './agent-config/use-agent-config-data.js';
+import { useModelLabel, useModelOptions } from './agent-config/use-agent-config-data.js';
 import { CATALOG_NODES,type CatalogNodeItem, type NodeCategory } from './node-library.js';
 import { AppConnectorIcon } from '../common/app-connector-icon.jsx';
 import { useConnectorCatalogNodes, useConnectorNode } from './connector-nodes.js';
@@ -989,6 +989,84 @@ export function NodeActionToolbar({
   );
 }
 
+/** Accent per node family: selection ring, hover border and handle dot. */
+const NODE_TONES = {
+  neutral: { selected: 'ring-2 ring-foreground/60 border-foreground/60', hover: 'hover:border-border-strong', dot: 'bg-primary' },
+  success: { selected: 'ring-2 ring-success border-success', hover: 'hover:border-success/50', dot: 'bg-success' },
+  warning: { selected: 'ring-2 ring-warning/70 border-warning', hover: 'hover:border-warning/50', dot: 'bg-warning' },
+  indigo: { selected: 'ring-2 ring-accent-indigo border-accent-indigo', hover: 'hover:border-accent-indigo/50', dot: 'bg-accent-indigo' },
+  blue: { selected: 'ring-2 ring-accent-blue border-accent-blue', hover: 'hover:border-accent-blue/50', dot: 'bg-accent-blue' },
+  violet: { selected: 'ring-2 ring-accent-violet border-accent-violet', hover: 'hover:border-accent-violet/50', dot: 'bg-accent-violet' },
+} as const;
+type NodeTone = keyof typeof NODE_TONES;
+
+type NodeShellHeader = Omit<React.ComponentProps<typeof EditableNodeHeader>, 'id' | 'title' | 'description' | 'locked' | 'onEdit' | 'onUpdateMetadata'> & {
+  /** Overrides the saved title / description shown in the header. */
+  title?: string;
+  description?: string;
+};
+
+/**
+ * The one card every workflow step renders in: frame + run-status border,
+ * quick-action toolbar, input / output handles, editable header, "attached to"
+ * chip and the run footer. Steps supply only their body.
+ */
+function NodeShell({
+  id,
+  data,
+  selected,
+  tone = 'neutral',
+  className,
+  header,
+  target = true,
+  source = true,
+  toolbar,
+  children,
+}: {
+  id: string;
+  data: WorkflowNodePayload;
+  selected?: boolean;
+  tone?: NodeTone;
+  /** Width and any extra state classes. */
+  className?: string;
+  header: NodeShellHeader;
+  /** Input handle. */
+  target?: boolean;
+  /** Default output handle with quick-add; false when the body draws its own outputs. */
+  source?: boolean;
+  toolbar?: { addHandleId?: string; canAddNext?: boolean };
+  children?: React.ReactNode;
+}) {
+  const accent = NODE_TONES[tone];
+  const { title, description, ...headerProps } = header;
+  return (
+    <div
+      className={cn(
+        'group relative rounded-xl border bg-surface p-3.5 shadow-sm transition-all motion-reduce:transition-none',
+        selected ? cn(accent.selected, 'shadow-md') : accent.hover,
+        statusBorderClasses[data.status || 'idle'],
+        className,
+      )}
+    >
+      <NodeActionToolbar id={id} data={data} selected={selected} addHandleId={toolbar?.addHandleId} canAddNext={toolbar?.canAddNext ?? source} />
+      {target && <WorkflowHandle type="target" colorClass={accent.dot} />}
+      <EditableNodeHeader
+        id={id}
+        title={title ?? (data.title || data.label)}
+        description={description ?? (data.description || data.subtitle)}
+        locked={Boolean(data.locked)}
+        onEdit={data.onEdit ? () => data.onEdit?.(id) : undefined}
+        onUpdateMetadata={data.onUpdateMetadata}
+        {...headerProps}
+      />
+      <AttachedChip data={data} />
+      {children}
+      <NodeRunFooter run={data.run} />
+      {source && <SourceHandleWithQuickAdd colorClass={accent.dot} onConnectNext={data.onConnectNext} />}
+    </div>
+  );
+}
+
 /** What starts the agent, in words, for a start card that isn't an app connector. */
 function startBlurb(type: string, cfg: Record<string, unknown>): string {
   switch (type) {
@@ -1026,27 +1104,19 @@ export const StartNode = memo(({ id, type, data, selected }: NodeProps) => {
     : 'User prompt';
 
   return (
-    <div
-      className={cn(
-        'group relative min-w-[220px] max-w-[290px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-success border-success shadow-md' : 'hover:border-success/50',
-        statusBorderClasses[nodeData.status || 'idle'],
-      )}
-    >
-      <NodeActionToolbar id={id} data={nodeData} selected={selected} />
-
-      <EditableNodeHeader
-        id={id}
-        title={nodeData.title || nodeData.label}
-        description={nodeData.description || nodeData.subtitle}
-        defaultTitle={defaultTitle}
-        defaultDescription={defaultDesc}
-        icon={Play}
-        iconBg="bg-success/15 text-success"
-        locked={Boolean(nodeData.locked)}
-        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
-        onUpdateMetadata={nodeData.onUpdateMetadata}
-        customIcon={
+    <NodeShell
+      id={id}
+      data={nodeData}
+      selected={selected}
+      tone="success"
+      target={false}
+      className="min-w-[220px] max-w-[290px]"
+      header={{
+        defaultTitle,
+        defaultDescription: defaultDesc,
+        icon: Play,
+        iconBg: 'bg-success/15 text-success',
+        customIcon:
           isConnectorTrigger && meta ? (
             <div
               className="flex size-10 items-center justify-center rounded-xl shrink-0 p-1.5 shadow-2xs border border-border/60 bg-surface-raised"
@@ -1060,10 +1130,9 @@ export const StartNode = memo(({ id, type, data, selected }: NodeProps) => {
                 size={24}
               />
             </div>
-          ) : undefined
-        }
-      />
-
+          ) : undefined,
+      }}
+    >
       {!nodeData.run?.output && !isConnectorTrigger && (
         <p className="mt-2 text-xs leading-snug text-muted-foreground">{startBlurb(String(type), cfg)}</p>
       )}
@@ -1072,12 +1141,7 @@ export const StartNode = memo(({ id, type, data, selected }: NodeProps) => {
           {nodeData.run.output}
         </div>
       )}
-      <NodeRunFooter run={nodeData.run} />
-      <SourceHandleWithQuickAdd
-        colorClass="bg-success"
-        onConnectNext={nodeData.onConnectNext}
-      />
-    </div>
+    </NodeShell>
   );
 });
 StartNode.displayName = 'StartNode';
@@ -1180,22 +1244,6 @@ function SlotAddButton({
   );
 }
 
-export const MODEL_OPTIONS: AppSelectOption[] = [
-  { value: 'gpt-4o', label: 'OpenAI GPT-4o' },
-  { value: 'gpt-4o-mini', label: 'OpenAI GPT-4o mini' },
-  { value: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5' },
-  { value: 'claude-3-5-sonnet', label: 'Claude 3.5 Sonnet' },
-  { value: 'gemini-1.5-pro', label: 'Google Gemini 1.5 Pro' },
-  { value: 'gemini-2-5-pro', label: 'Google Gemini 2.5 Pro' },
-  { value: 'deepseek-chat', label: 'DeepSeek V3' },
-  { value: 'deepseek-reasoner', label: 'DeepSeek R1' },
-  { value: 'llama3:latest', label: 'Meta Llama 3' },
-  { value: 'mistral-large', label: 'Mistral Large' },
-  { value: 'nvidia/nemotron-3-super-120b-a12b', label: 'Nemotron 3 Super' },
-];
-export const modelLabel = (model: unknown) =>
-  MODEL_OPTIONS.find((m) => m.value === model)?.label ?? (normalizeModel(String(model)).displayName || String(model).replace(':latest', ''));
-
 const DELEGATION_OPTIONS: AppSelectOption[] = DELEGATION_MODES.map((m) => ({
   value: m.value,
   label: m.label,
@@ -1220,7 +1268,7 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
   const isCoordinator = (type || '').toUpperCase() === 'AGENT_COORDINATOR';
   const subAgents = slots.agents || [];
   const roleBadge = team ? ROLE_BADGE[team.role] : null;
-  const issues = team?.issues ?? [];
+  const modelLabel = useModelLabel();
 
   const moduleOf = (id: AgentModuleId) => nodeData.moduleSummaries?.find((m) => m.id === id);
   const open = (id: AgentModuleId, target?: { section?: string; field?: string }) => nodeData.onOpenModule?.(id, target);
@@ -1229,7 +1277,7 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
     return canAdd && slot ? <SlotAddButton slot={slot} onSelect={(item) => nodeData.onConnectNext?.(item, slot.id)} /> : null;
   };
   const modelId = team?.model?.model ?? (cfg.model ? String(cfg.model) : undefined);
-  const modelName = modelId ? String(modelLabel(modelId)) : undefined;
+  const modelName = modelId ? modelLabel(modelId) : undefined;
   const promptPreview = String(nodeData.promptPreview ?? cfg.instructions ?? '').trim();
   const toolApps = [...new Set([...(slots.tools ?? []).map((t) => t.connectorId), ...(nodeData.toolApps ?? [])].filter((c): c is string => !!c))];
   const builtinTools = nodeData.builtinTools ?? ((cfg.tools as string[] | undefined) ?? []).filter((t) => !t.includes('.'));
@@ -1237,28 +1285,27 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
   const hiddenToolCount = Math.max(0, toolCount - toolApps.length - Math.min(builtinTools.length, toolApps.length ? 1 : 2));
 
   return (
-    <div
-      className={cn(
-        'group relative w-[290px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-foreground/60 border-foreground/60 shadow-md' : 'hover:border-border-strong',
-        statusBorderClasses[nodeData.status || 'idle'],
-        isCoordinator && !selected && 'border-primary/40',
-      )}
+    <NodeShell
+      id={id}
+      data={nodeData}
+      selected={selected}
+      source={false}
+      toolbar={{ canAddNext: true }}
+      className={cn('w-[290px]', isCoordinator && !selected && 'border-primary/40')}
+      header={{
+        defaultTitle: 'AI Agent',
+        defaultDescription: 'AI-powered workflow agent',
+        icon: isCoordinator || subAgents.length > 0 ? Network : Bot,
+        iconBg: 'bg-primary/15 text-primary',
+        badge: roleBadge ? (
+          <Badge variant={roleBadge.variant} className="h-4 shrink-0 px-1.5 text-2xs">
+            {roleBadge.label}
+          </Badge>
+        ) : undefined,
+      }}
     >
-      <NodeActionToolbar id={id} data={nodeData} selected={selected} />
-
-      {/* Target handle: Left (50%) in horizontal, Top (50%) in vertical */}
-      <WorkflowHandle
-        type="target"
-        colorClass="bg-primary"
-      />
-
       {/* Main output dot: Right (50%) in horizontal, Bottom (50%) in vertical */}
-      <WorkflowHandle
-        type="source"
-        colorClass="bg-primary"
-        style={{ zIndex: 2 }}
-      />
+      <WorkflowHandle type="source" colorClass="bg-primary" style={{ zIndex: 2 }} />
 
       {/* Slot handles share the dot's spot (invisible) so every attachment wire leaves from that one dot */}
       {AGENT_SLOTS.map((slot) => (
@@ -1271,50 +1318,6 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
           className="!pointer-events-none !size-7 !border-0 !opacity-0"
         />
       ))}
-
-      <EditableNodeHeader
-        id={id}
-        title={nodeData.title || nodeData.label}
-        description={nodeData.description || nodeData.subtitle}
-        defaultTitle="AI Agent"
-        defaultDescription="AI-powered workflow agent"
-        icon={isCoordinator || subAgents.length > 0 ? Network : Bot}
-        iconBg="bg-primary/15 text-primary"
-        locked={locked}
-        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
-        onUpdateMetadata={nodeData.onUpdateMetadata}
-        badge={
-          roleBadge ? (
-            <Badge variant={roleBadge.variant} className="h-4 shrink-0 px-1.5 text-2xs">
-              {roleBadge.label}
-            </Badge>
-          ) : undefined
-        }
-        actions={
-          <div className="flex items-center gap-1 shrink-0">
-            {issues.length > 0 && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span
-                    className="nodrag flex size-6 shrink-0 items-center justify-center rounded-md text-warning hover:bg-warning/10"
-                    aria-label={`${issues.length} setup issue${issues.length === 1 ? '' : 's'}`}
-                    tabIndex={0}
-                  >
-                    <AlertTriangle className="size-3.5" />
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="max-w-60">
-                  <ul className="space-y-1 text-xs">
-                    {issues.map((issue) => (
-                      <li key={issue}>{issue}</li>
-                    ))}
-                  </ul>
-                </TooltipContent>
-              </Tooltip>
-            )}
-          </div>
-        }
-      />
 
       <div className="mt-3 space-y-3">
           {/* Model */}
@@ -1332,6 +1335,7 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
               {modelId ? <AIModelIcon modelId={modelId} size={14} /> : <Cpu className="size-3.5 text-muted-foreground" />}
               <span className="min-w-0 flex-1 truncate">{modelName ?? 'Choose a model'}</span>
               {team?.model?.inherited && <Badge variant="neutral" className="h-4 shrink-0 px-1 text-2xs">Inherited</Badge>}
+              <ChevronRight className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
             </button>
           </AgentSection>
 
@@ -1371,40 +1375,25 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
           {/* Tools */}
           <AgentSection label="Tools" summary={moduleOf('tools')} onOpen={open} addButton={addFor('tools')}>
             {toolCount > 0 ? (
-              <div className="flex h-8 items-center gap-1.5">
-                <button
-                  type="button"
-                  disabled={!nodeData.onOpenModule}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    open('tools', { section: 'builtin' });
-                  }}
-                  className="nodrag flex size-6 shrink-0 items-center justify-center rounded-full border border-dashed border-border text-muted-foreground hover:border-border-strong hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-                  aria-label="Add or change tools"
-                  title="Add or change tools"
-                >
-                  <Plus className="size-3" />
-                </button>
-                <button
-                  type="button"
-                  disabled={!nodeData.onOpenModule}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    open('tools');
-                  }}
-                  className="nodrag flex h-full min-w-0 flex-1 items-center gap-1.5 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-                  aria-label={`${toolCount} tools. Open Tools settings`}
-                >
-                  <AppLogoStack apps={toolApps} />
-                  {builtinTools.slice(0, toolApps.length ? 1 : 2).map((t) => (
-                    <span key={t} className="inline-flex h-6 max-w-[96px] items-center gap-1 truncate rounded-full border border-border bg-surface-raised px-1.5 text-2xs leading-none text-foreground">
-                      <Wrench className="size-2.5 shrink-0 text-muted-foreground" />
-                      <span className="truncate">{t.replace(/_/g, ' ')}</span>
-                    </span>
-                  ))}
-                  {hiddenToolCount > 0 && <span className="text-2xs leading-none text-muted-foreground">+{hiddenToolCount}</span>}
-                </button>
-              </div>
+              <button
+                type="button"
+                disabled={!nodeData.onOpenModule}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  open('tools');
+                }}
+                className="nodrag flex h-8 w-full min-w-0 items-center gap-1.5 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                aria-label={`${toolCount} tool${toolCount === 1 ? '' : 's'}. Open Tools settings`}
+              >
+                <AppLogoStack apps={toolApps} />
+                {builtinTools.slice(0, toolApps.length ? 1 : 2).map((t) => (
+                  <span key={t} title={t.replace(/_/g, ' ')} className="inline-flex h-6 max-w-[110px] items-center gap-1 truncate rounded-full border border-border bg-surface-raised px-1.5 text-2xs leading-none text-foreground">
+                    <Wrench className="size-2.5 shrink-0 text-muted-foreground" />
+                    <span className="truncate">{t.replace(/_/g, ' ')}</span>
+                  </span>
+                ))}
+                {hiddenToolCount > 0 && <span className="text-2xs leading-none text-muted-foreground">+{hiddenToolCount}</span>}
+              </button>
             ) : (
               <OutlineAction icon={<Wrench className="size-3.5" />} label="Add Tools" onClick={() => open('tools', { section: 'builtin' })} disabled={!nodeData.onOpenModule} />
             )}
@@ -1437,9 +1426,7 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
             )}
           </AgentSection>
         </div>
-      <AttachedChip data={nodeData} />
-      <NodeRunFooter run={nodeData.run} />
-    </div>
+    </NodeShell>
   );
 }
 
@@ -1633,27 +1620,13 @@ export const PromptNode = memo(({ id, data, selected }: NodeProps) => {
     nodeData.onUpdateConfig?.({ prompt }),
   );
   return (
-    <div
-      className={cn(
-        'group relative w-[270px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-foreground/60 border-foreground/60 shadow-md' : 'hover:border-border-strong',
-        statusBorderClasses[nodeData.status || 'idle'],
-      )}
+    <NodeShell
+      id={id}
+      data={nodeData}
+      selected={selected}
+      className="w-[270px]"
+      header={{ defaultTitle: 'Prompt', defaultDescription: 'System prompt', icon: ScrollText, iconBg: 'bg-primary/15 text-primary' }}
     >
-      <NodeActionToolbar id={id} data={nodeData} selected={selected} />
-      <WorkflowHandle type="target" colorClass="bg-primary" />
-      <EditableNodeHeader
-        id={id}
-        title={nodeData.title || nodeData.label}
-        description={nodeData.description || nodeData.subtitle}
-        defaultTitle="Prompt"
-        defaultDescription="System prompt"
-        icon={ScrollText}
-        iconBg="bg-primary/15 text-primary"
-        locked={Boolean(nodeData.locked)}
-        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
-        onUpdateMetadata={nodeData.onUpdateMetadata}
-      />
       <Label className={cn(fieldLabelClass, 'mt-3 block')} htmlFor={`${id}-prompt`}>
         Prompt <span className="text-destructive">*</span>
       </Label>
@@ -1669,13 +1642,7 @@ export const PromptNode = memo(({ id, data, selected }: NodeProps) => {
         placeholder={'## Role\nYou are…\n\n## Scope\n…'}
         className="nodrag nopan nowheel mt-1 font-mono text-xs leading-relaxed"
       />
-      <AttachedChip data={nodeData} />
-      <NodeRunFooter run={nodeData.run} />
-      <SourceHandleWithQuickAdd
-        colorClass="bg-primary"
-        onConnectNext={nodeData.onConnectNext}
-      />
-    </div>
+    </NodeShell>
   );
 });
 PromptNode.displayName = 'PromptNode';
@@ -1690,31 +1657,21 @@ export const LlmNode = memo(({ id, data, selected }: NodeProps) => {
   const model = cfg.model ? String(cfg.model) : '';
   const { groups: options, isLoading: modelsLoading } = useModelOptions(model || undefined);
   return (
-    <div
-      className={cn(
-        'group relative w-[250px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-foreground/60 border-foreground/60 shadow-md' : 'hover:border-border-strong',
-        statusBorderClasses[nodeData.status || 'idle'],
-      )}
-    >
-      <NodeActionToolbar id={id} data={nodeData} selected={selected} />
-      <WorkflowHandle type="target" colorClass="bg-primary" />
-      <EditableNodeHeader
-        id={id}
-        title={nodeData.title || nodeData.label}
-        description={nodeData.description || nodeData.subtitle}
-        defaultTitle="LLM"
-        defaultDescription="Chat model"
-        customIcon={
+    <NodeShell
+      id={id}
+      data={nodeData}
+      selected={selected}
+      className="w-[250px]"
+      header={{
+        defaultTitle: 'LLM',
+        defaultDescription: 'Chat model',
+        customIcon: (
           <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-raised border border-border/80">
             {model ? <AIModelIcon modelId={model} size={18} /> : <Cpu className="size-[18px] text-muted-foreground" />}
           </div>
-        }
-        locked={Boolean(nodeData.locked)}
-        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
-        onUpdateMetadata={nodeData.onUpdateMetadata}
-      />
-
+        ),
+      }}
+    >
       <div className="nodrag nopan mt-3 space-y-2">
         <div className="space-y-1">
           <span className={fieldLabelClass}>Model</span>
@@ -1773,13 +1730,7 @@ export const LlmNode = memo(({ id, data, selected }: NodeProps) => {
           </div>
         </div>
       </div>
-      <AttachedChip data={nodeData} />
-      <NodeRunFooter run={nodeData.run} />
-      <SourceHandleWithQuickAdd
-        colorClass="bg-success"
-        onConnectNext={nodeData.onConnectNext}
-      />
-    </div>
+    </NodeShell>
   );
 });
 LlmNode.displayName = 'LlmNode';
@@ -1791,30 +1742,13 @@ export const AgentNode = memo((props: NodeProps) => {
   const nodeData = data as WorkflowNodePayload;
   const cfg = nodeData.config || {};
   return (
-    <div
-      className={cn(
-        'group relative min-w-[240px] max-w-[280px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-foreground/60 border-foreground/60 shadow-md' : 'hover:border-border-strong',
-        statusBorderClasses[nodeData.status || 'idle'],
-      )}
+    <NodeShell
+      id={id}
+      data={nodeData}
+      selected={selected}
+      className="min-w-[240px] max-w-[280px]"
+      header={{ defaultTitle: 'AI Agent', defaultDescription: 'AI-powered workflow agent', icon: Bot, iconBg: 'bg-primary/15 text-primary' }}
     >
-      <NodeActionToolbar id={id} data={nodeData} selected={selected} />
-
-      <WorkflowHandle type="target" colorClass="bg-primary" />
-
-      <EditableNodeHeader
-        id={id}
-        title={nodeData.title || nodeData.label}
-        description={nodeData.description || nodeData.subtitle}
-        defaultTitle="AI Agent"
-        defaultDescription="AI-powered workflow agent"
-        icon={Bot}
-        iconBg="bg-primary/15 text-primary"
-        locked={Boolean(nodeData.locked)}
-        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
-        onUpdateMetadata={nodeData.onUpdateMetadata}
-      />
-
       {cfg.instructions && (
         <div className="mt-2.5 rounded-md bg-surface-raised/70 p-1.5 text-2xs text-muted-foreground line-clamp-2">
           {String(cfg.instructions)}
@@ -1825,13 +1759,7 @@ export const AgentNode = memo((props: NodeProps) => {
         <span>Tools: {(cfg.tools as string[])?.length || 0} attached</span>
         <span>Temp: {cfg.temperature ?? 0.7}</span>
       </div>
-
-      <NodeRunFooter run={nodeData.run} />
-      <SourceHandleWithQuickAdd
-        colorClass="bg-primary"
-        onConnectNext={nodeData.onConnectNext}
-      />
-    </div>
+    </NodeShell>
   );
 });
 AgentNode.displayName = 'AgentNode';
@@ -1841,46 +1769,27 @@ export const FirecrawlNode = memo(({ id, data, selected }: NodeProps) => {
   const nodeData = data as WorkflowNodePayload;
   const cfg = nodeData.config || {};
   return (
-    <div
-      className={cn(
-        'group relative min-w-[230px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-warning border-warning shadow-md' : 'hover:border-warning/50',
-        statusBorderClasses[nodeData.status || 'idle'],
-      )}
+    <NodeShell
+      id={id}
+      data={nodeData}
+      selected={selected}
+      tone="warning"
+      className="min-w-[230px]"
+      header={{
+        defaultTitle: 'Firecrawl',
+        defaultDescription: 'Web Extraction',
+        icon: Flame,
+        iconBg: 'bg-warning/15 text-warning',
+        badge: <span className="rounded-full bg-warning/10 px-1.5 py-0.5 text-2xs font-semibold text-warning">Firecrawl</span>,
+      }}
     >
-      <NodeActionToolbar id={id} data={nodeData} selected={selected} />
-      <WorkflowHandle type="target" colorClass="bg-warning" />
-      <EditableNodeHeader
-        id={id}
-        title={nodeData.title || nodeData.label}
-        description={nodeData.description || nodeData.subtitle}
-        defaultTitle="Firecrawl"
-        defaultDescription="Web Extraction"
-        icon={Flame}
-        iconBg="bg-warning/15 text-warning"
-        badge={<span className="rounded-full bg-warning/10 px-1.5 py-0.5 text-2xs font-semibold text-warning">Firecrawl</span>}
-        locked={Boolean(nodeData.locked)}
-        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
-        onUpdateMetadata={nodeData.onUpdateMetadata}
-      />
-
       {(cfg.query || cfg.url) && (
         <div className="mt-2 rounded-md bg-surface-raised px-2 py-1 font-mono text-2xs text-muted-foreground truncate">
           {String(cfg.query || cfg.url)}
         </div>
       )}
-
-      <AttachedChip data={nodeData} />
-      <div>
-        <ConfigureButton id={id} data={nodeData} />
-      </div>
-
-      <NodeRunFooter run={nodeData.run} />
-      <SourceHandleWithQuickAdd
-        colorClass="bg-warning"
-        onConnectNext={nodeData.onConnectNext}
-      />
-    </div>
+      <ConfigureButton id={id} data={nodeData} />
+    </NodeShell>
   );
 });
 FirecrawlNode.displayName = 'FirecrawlNode';
@@ -1890,39 +1799,22 @@ export const MCPToolNode = memo(({ id, data, selected }: NodeProps) => {
   const nodeData = data as WorkflowNodePayload;
   const cfg = nodeData.config || {};
   return (
-    <div
-      className={cn(
-        'group relative min-w-[220px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-accent-indigo border-accent-indigo shadow-md' : 'hover:border-accent-indigo/50',
-        statusBorderClasses[nodeData.status || 'idle'],
-      )}
+    <NodeShell
+      id={id}
+      data={nodeData}
+      selected={selected}
+      tone="indigo"
+      className="min-w-[220px]"
+      header={{
+        description: nodeData.description || cfg.toolName || nodeData.subtitle,
+        defaultTitle: 'Custom External API',
+        defaultDescription: 'Execute external API operation',
+        icon: Wrench,
+        iconBg: 'bg-accent-indigo/15 text-accent-indigo',
+      }}
     >
-      <NodeActionToolbar id={id} data={nodeData} selected={selected} />
-      <WorkflowHandle type="target" colorClass="bg-accent-indigo" />
-      <EditableNodeHeader
-        id={id}
-        title={nodeData.title || nodeData.label}
-        description={nodeData.description || cfg.toolName || nodeData.subtitle}
-        defaultTitle="Custom External API"
-        defaultDescription="Execute external API operation"
-        icon={Wrench}
-        iconBg="bg-accent-indigo/15 text-accent-indigo"
-        locked={Boolean(nodeData.locked)}
-        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
-        onUpdateMetadata={nodeData.onUpdateMetadata}
-      />
-
-      <AttachedChip data={nodeData} />
-      <div>
-        <ConfigureButton id={id} data={nodeData} />
-      </div>
-
-      <NodeRunFooter run={nodeData.run} />
-      <SourceHandleWithQuickAdd
-        colorClass="bg-accent-indigo"
-        onConnectNext={nodeData.onConnectNext}
-      />
-    </div>
+      <ConfigureButton id={id} data={nodeData} />
+    </NodeShell>
   );
 });
 MCPToolNode.displayName = 'MCPToolNode';
@@ -1966,32 +1858,21 @@ export const AppConnectorNode = memo(({ id, type, data, selected }: NodeProps) =
   const actionText = asTool && actionIds ? `${actionIds.length} of ${totalActions} actions enabled` : app.label || 'Pick an action';
 
   return (
-    <div
-      className={cn(
-        'group relative w-[280px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-foreground/60 border-foreground/60 shadow-md' : 'hover:border-border-strong',
-        statusBorderClasses[status],
-        status === 'idle' && needsConnect && !selected && 'border-warning/50',
-      )}
-    >
-      <NodeActionToolbar id={id} data={nodeData} selected={selected} />
-      <WorkflowHandle type="target" colorClass="bg-primary" />
-      <EditableNodeHeader
-        id={id}
-        title={nodeData.title || nodeData.label}
-        description={nodeData.description || nodeData.subtitle}
-        defaultTitle={defaultTitle}
-        defaultDescription={defaultDesc}
-        customIcon={
+    <NodeShell
+      id={id}
+      data={nodeData}
+      selected={selected}
+      className={cn('w-[280px]', status === 'idle' && needsConnect && !selected && 'border-warning/50')}
+      header={{
+        defaultTitle,
+        defaultDescription: defaultDesc,
+        customIcon: (
           <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-surface-raised p-1.5 shadow-2xs">
             <AppConnectorIcon connectorId={app.slug} name={app.connector?.name} category={app.connector?.category} size={24} />
           </div>
-        }
-        badge={undefined}
-        locked={Boolean(nodeData.locked)}
-        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
-        onUpdateMetadata={nodeData.onUpdateMetadata}
-      />
+        ),
+      }}
+    >
       <div className={cn('-mt-0.5 ml-[50px] flex items-center gap-1.5 text-2xs font-medium', connection.text)}>
         <span className={cn('size-1.5 shrink-0 rounded-full', connection.dot)} aria-hidden="true" />
         {connection.label}
@@ -2041,7 +1922,6 @@ export const AppConnectorNode = memo(({ id, type, data, selected }: NodeProps) =
         </div>
       )}
 
-      <AttachedChip data={nodeData} />
       <ConfigureButton
         id={id}
         data={nodeData}
@@ -2049,13 +1929,7 @@ export const AppConnectorNode = memo(({ id, type, data, selected }: NodeProps) =
         icon={needsConnect ? <Plug /> : undefined}
         className={cn('mt-3', needsConnect && 'border-warning/40 text-warning-text hover:text-warning-text hover:bg-warning/10')}
       />
-
-      <NodeRunFooter run={nodeData.run} />
-      <SourceHandleWithQuickAdd
-        colorClass="bg-primary"
-        onConnectNext={nodeData.onConnectNext}
-      />
-    </div>
+    </NodeShell>
   );
 });
 AppConnectorNode.displayName = 'AppConnectorNode';
@@ -2064,76 +1938,97 @@ AppConnectorNode.displayName = 'AppConnectorNode';
 export const TransformNode = memo(({ id, data, selected }: NodeProps) => {
   const nodeData = data as WorkflowNodePayload;
   return (
-    <div
-      className={cn(
-        'group relative min-w-[210px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-accent-blue border-accent-blue shadow-md' : 'hover:border-accent-blue/50',
-        statusBorderClasses[nodeData.status || 'idle'],
-      )}
+    <NodeShell
+      id={id}
+      data={nodeData}
+      selected={selected}
+      tone="blue"
+      className="min-w-[210px]"
+      header={{ defaultTitle: 'Transform', defaultDescription: 'Map / Template', icon: Code2, iconBg: 'bg-accent-blue/15 text-accent-blue' }}
     >
-      <NodeActionToolbar id={id} data={nodeData} selected={selected} />
-      <WorkflowHandle type="target" colorClass="bg-accent-blue" />
-      <EditableNodeHeader
-        id={id}
-        title={nodeData.title || nodeData.label}
-        description={nodeData.description || nodeData.subtitle}
-        defaultTitle="Transform"
-        defaultDescription="Map / Template"
-        icon={Code2}
-        iconBg="bg-accent-blue/15 text-accent-blue"
-        locked={Boolean(nodeData.locked)}
-        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
-        onUpdateMetadata={nodeData.onUpdateMetadata}
-      />
-      <AttachedChip data={nodeData} />
       <ConfigureButton id={id} data={nodeData} />
-      <NodeRunFooter run={nodeData.run} />
-      <SourceHandleWithQuickAdd
-        colorClass="bg-accent-blue"
-        onConnectNext={nodeData.onConnectNext}
-      />
-    </div>
+    </NodeShell>
   );
 });
 TransformNode.displayName = 'TransformNode';
+
+/** Whether this card lays out top-to-bottom (its own setting, else the canvas's). */
+function useVerticalLayout(nodeData: WorkflowNodePayload): boolean {
+  const { direction } = useWorkflowLayout();
+  return (nodeData.direction || direction || 'horizontal') === 'vertical';
+}
+
+/** One labelled output of a branching step (If / Else, Loop). */
+interface BranchOutput {
+  id?: string;
+  label: string;
+  /** Label text colour. */
+  text: string;
+  /** Handle dot colour. */
+  dot: string;
+  /** Where along the card edge the handle sits: `top` when horizontal, `left` when vertical. */
+  at: { horizontal: string; vertical: string };
+}
+
+/** The labelled output handles of a branching step, laid out for the canvas direction. */
+function BranchOutputs({
+  outputs,
+  vertical,
+  reverse,
+  onConnectNext,
+}: {
+  outputs: BranchOutput[];
+  vertical: boolean;
+  /** Horizontal only: stack the rows bottom-up. */
+  reverse?: boolean;
+  onConnectNext?: WorkflowNodePayload['onConnectNext'];
+}) {
+  return (
+    <div
+      className={cn(
+        'mt-3 text-2xs font-semibold',
+        vertical ? 'flex items-center justify-between border-t border-border/50 pt-2' : cn('flex gap-1.5', reverse ? 'flex-col-reverse' : 'flex-col'),
+      )}
+    >
+      {outputs.map((o) => (
+        <div key={o.label} className={cn('relative flex items-center gap-1', !vertical && 'justify-end pr-2', o.text)}>
+          <span>{o.label}</span>
+          <SourceHandleWithQuickAdd
+            id={o.id}
+            position={vertical ? Position.Bottom : Position.Right}
+            style={vertical ? { left: o.at.vertical } : { top: o.at.horizontal }}
+            colorClass={o.dot}
+            onConnectNext={onConnectNext}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // 6. If / Else Condition Node
 export const ConditionNode = memo(({ id, data, selected }: NodeProps) => {
   const nodeData = data as WorkflowNodePayload;
   const cfg = nodeData.config || {};
-  const { direction } = useWorkflowLayout();
-  const dir = nodeData.direction || direction || 'horizontal';
-  const isVertical = dir === 'vertical';
+  const vertical = useVerticalLayout(nodeData);
 
   return (
-    <div
-      className={cn(
-        'group relative min-w-[220px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-accent-violet border-accent-violet shadow-md' : 'hover:border-accent-violet/50',
-        statusBorderClasses[nodeData.status || 'idle'],
-      )}
+    <NodeShell
+      id={id}
+      data={nodeData}
+      selected={selected}
+      tone="violet"
+      source={false}
+      toolbar={{ addHandleId: 'true', canAddNext: true }}
+      className="min-w-[220px]"
+      header={{
+        description: nodeData.description || (cfg.variable ? `${cfg.variable} ${cfg.operator || '=='} ${cfg.value || ''}` : nodeData.subtitle),
+        defaultTitle: 'If / Else',
+        defaultDescription: 'Branching Logic',
+        icon: GitBranch,
+        iconBg: 'bg-accent-violet/15 text-accent-violet',
+      }}
     >
-      <NodeActionToolbar id={id} data={nodeData} selected={selected} addHandleId="true" />
-
-      {/* Target handle: Left (50%) in horizontal, Top (50%) in vertical */}
-      <WorkflowHandle
-        type="target"
-        colorClass="bg-accent-violet"
-      />
-
-      <EditableNodeHeader
-        id={id}
-        title={nodeData.title || nodeData.label}
-        description={nodeData.description || (cfg.variable ? `${cfg.variable} ${cfg.operator || '=='} ${cfg.value || ''}` : nodeData.subtitle)}
-        defaultTitle="If / Else"
-        defaultDescription="Branching Logic"
-        icon={GitBranch}
-        iconBg="bg-accent-violet/15 text-accent-violet"
-        locked={Boolean(nodeData.locked)}
-        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
-        onUpdateMetadata={nodeData.onUpdateMetadata}
-      />
-
       {cfg.variable ? (
         <div className="mt-2.5 truncate rounded-md bg-surface-raised px-2 py-1 font-mono text-2xs text-foreground" title={`${cfg.variable} ${cfg.operator || '=='} ${cfg.value ?? ''}`}>
           {String(cfg.variable)} <span className="text-accent-violet">{String(cfg.operator || '==')}</span> {String(cfg.value ?? '')}
@@ -2152,57 +2047,15 @@ export const ConditionNode = memo(({ id, data, selected }: NodeProps) => {
         </button>
       )}
 
-      {isVertical ? (
-        <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-2 text-2xs font-semibold">
-          <div className="flex items-center gap-1 text-success">
-            <span>True</span>
-            <SourceHandleWithQuickAdd
-              id="true"
-              position={Position.Bottom}
-              style={{ left: '30%' }}
-              colorClass="bg-success"
-              onConnectNext={nodeData.onConnectNext}
-            />
-          </div>
-          <div className="flex items-center gap-1 text-destructive">
-            <span>False</span>
-            <SourceHandleWithQuickAdd
-              id="false"
-              position={Position.Bottom}
-              style={{ left: '70%' }}
-              colorClass="bg-destructive"
-              onConnectNext={nodeData.onConnectNext}
-            />
-          </div>
-        </div>
-      ) : (
-        <div className="mt-3 space-y-2">
-          {/* True Handle (Top Right) */}
-          <div className="flex items-center justify-between text-2xs font-semibold text-success">
-            <span>True</span>
-            <SourceHandleWithQuickAdd
-              id="true"
-              position={Position.Right}
-              style={{ top: '38%' }}
-              colorClass="bg-success"
-              onConnectNext={nodeData.onConnectNext}
-            />
-          </div>
-
-          {/* False Handle (Bottom Right) */}
-          <div className="flex items-center justify-between text-2xs font-semibold text-destructive">
-            <span>False</span>
-            <SourceHandleWithQuickAdd
-              id="false"
-              position={Position.Right}
-              style={{ top: '78%' }}
-              colorClass="bg-destructive"
-              onConnectNext={nodeData.onConnectNext}
-            />
-          </div>
-        </div>
-      )}
-    </div>
+      <BranchOutputs
+        vertical={vertical}
+        onConnectNext={nodeData.onConnectNext}
+        outputs={[
+          { id: 'true', label: 'True', text: 'text-success', dot: 'bg-success', at: { horizontal: '38%', vertical: '30%' } },
+          { id: 'false', label: 'False', text: 'text-destructive', dot: 'bg-destructive', at: { horizontal: '78%', vertical: '70%' } },
+        ]}
+      />
+    </NodeShell>
   );
 });
 ConditionNode.displayName = 'ConditionNode';
@@ -2213,33 +2066,14 @@ export const WhileLoopNode = memo(({ id, type, data, selected }: NodeProps) => {
   const isLoop = ['LOOP', 'WHILE_LOOP'].includes(String(type).toUpperCase());
   if (isLoop) return <LoopNode id={id} nodeData={nodeData} selected={!!selected} />;
   return (
-    <div
-      className={cn(
-        'group relative min-w-[210px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-accent-violet border-accent-violet shadow-md' : 'hover:border-accent-violet/50',
-        statusBorderClasses[nodeData.status || 'idle'],
-      )}
-    >
-      <NodeActionToolbar id={id} data={nodeData} selected={selected} />
-      <WorkflowHandle type="target" colorClass="bg-accent-violet" />
-      <EditableNodeHeader
-        id={id}
-        title={nodeData.title || nodeData.label}
-        description={nodeData.description || nodeData.subtitle}
-        defaultTitle="While Loop"
-        defaultDescription="Iterative batching"
-        icon={Repeat}
-        iconBg="bg-accent-violet/15 text-accent-violet"
-        locked={Boolean(nodeData.locked)}
-        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
-        onUpdateMetadata={nodeData.onUpdateMetadata}
-      />
-      <NodeRunFooter run={nodeData.run} />
-      <SourceHandleWithQuickAdd
-        colorClass="bg-accent-violet"
-        onConnectNext={nodeData.onConnectNext}
-      />
-    </div>
+    <NodeShell
+      id={id}
+      data={nodeData}
+      selected={selected}
+      tone="violet"
+      className="min-w-[210px]"
+      header={{ defaultTitle: 'While Loop', defaultDescription: 'Iterative batching', icon: Repeat, iconBg: 'bg-accent-violet/15 text-accent-violet' }}
+    />
   );
 });
 WhileLoopNode.displayName = 'WhileLoopNode';
@@ -2251,80 +2085,35 @@ WhileLoopNode.displayName = 'WhileLoopNode';
  */
 function LoopNode({ id, nodeData, selected }: { id: string; nodeData: WorkflowNodePayload; selected: boolean }) {
   const itemsKey = String((nodeData.config as { itemsKey?: string } | undefined)?.itemsKey || 'items');
-  const { direction } = useWorkflowLayout();
-  const dir = nodeData.direction || direction || 'horizontal';
-  const isVertical = dir === 'vertical';
+  const vertical = useVerticalLayout(nodeData);
 
   return (
-    <div
-      className={cn(
-        'group relative min-w-[220px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-accent-violet border-accent-violet shadow-md' : 'hover:border-accent-violet/50',
-        statusBorderClasses[nodeData.status || 'idle'],
-      )}
+    <NodeShell
+      id={id}
+      data={nodeData}
+      selected={selected}
+      tone="violet"
+      source={false}
+      toolbar={{ canAddNext: true }}
+      className="min-w-[220px]"
+      header={{
+        description: nodeData.description || nodeData.subtitle || `For each in {{${itemsKey}}}`,
+        defaultTitle: 'Loop',
+        defaultDescription: `For each in {{${itemsKey}}}`,
+        icon: Repeat,
+        iconBg: 'bg-accent-violet/15 text-accent-violet',
+      }}
     >
-      <NodeActionToolbar id={id} data={nodeData} selected={selected} />
-      <WorkflowHandle type="target" colorClass="bg-accent-violet" />
-
-      <EditableNodeHeader
-        id={id}
-        title={nodeData.title || nodeData.label}
-        description={nodeData.description || nodeData.subtitle || `For each in {{${itemsKey}}}`}
-        defaultTitle="Loop"
-        defaultDescription={`For each in {{${itemsKey}}}`}
-        icon={Repeat}
-        iconBg="bg-accent-violet/15 text-accent-violet"
-        locked={Boolean(nodeData.locked)}
-        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
-        onUpdateMetadata={nodeData.onUpdateMetadata}
+      <BranchOutputs
+        vertical={vertical}
+        reverse
+        onConnectNext={nodeData.onConnectNext}
+        outputs={[
+          { label: 'When done', text: 'text-muted-foreground', dot: 'bg-accent-violet', at: { horizontal: '42%', vertical: '30%' } },
+          { id: 'each', label: 'Each item', text: 'text-accent-violet', dot: 'bg-accent-violet', at: { horizontal: '78%', vertical: '70%' } },
+        ]}
       />
-
-      {isVertical ? (
-        <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-2 text-2xs font-semibold">
-          <div className="flex items-center gap-1 text-muted-foreground">
-            <span>When done</span>
-            <SourceHandleWithQuickAdd
-              position={Position.Bottom}
-              style={{ left: '30%' }}
-              colorClass="bg-accent-violet"
-              onConnectNext={nodeData.onConnectNext}
-            />
-          </div>
-          <div className="flex items-center gap-1 text-accent-violet">
-            <span>Each item</span>
-            <SourceHandleWithQuickAdd
-              id="each"
-              position={Position.Bottom}
-              style={{ left: '70%' }}
-              colorClass="bg-accent-violet"
-              onConnectNext={nodeData.onConnectNext}
-            />
-          </div>
-        </div>
-      ) : (
-        <div className="mt-3 flex flex-col-reverse gap-1.5 text-2xs font-semibold">
-          <div className="relative flex items-center justify-end pr-2 text-muted-foreground">
-            <span>When done</span>
-            <SourceHandleWithQuickAdd
-              position={Position.Right}
-              style={{ top: '42%' }}
-              colorClass="bg-accent-violet"
-              onConnectNext={nodeData.onConnectNext}
-            />
-          </div>
-          <div className="relative flex items-center justify-end pr-2 text-accent-violet">
-            <span>Each item</span>
-            <SourceHandleWithQuickAdd
-              id="each"
-              position={Position.Right}
-              style={{ top: '78%' }}
-              colorClass="bg-accent-violet"
-              onConnectNext={nodeData.onConnectNext}
-            />
-          </div>
-        </div>
-      )}
-    </div>
+    </NodeShell>
   );
 }
 
@@ -2333,28 +2122,14 @@ export const UserApprovalNode = memo(({ id, data, selected }: NodeProps) => {
   const nodeData = data as WorkflowNodePayload;
   const cfg = nodeData.config || {};
   return (
-    <div
-      className={cn(
-        'group relative min-w-[230px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-warning/70 border-warning shadow-md' : 'hover:border-warning/50',
-        statusBorderClasses[nodeData.status || 'idle'],
-      )}
+    <NodeShell
+      id={id}
+      data={nodeData}
+      selected={selected}
+      tone="warning"
+      className="min-w-[230px]"
+      header={{ defaultTitle: 'User Approval', defaultDescription: 'Human signoff gate', icon: UserCheck, iconBg: 'bg-warning/15 text-warning' }}
     >
-      <NodeActionToolbar id={id} data={nodeData} selected={selected} />
-      <WorkflowHandle type="target" colorClass="bg-warning" />
-      <EditableNodeHeader
-        id={id}
-        title={nodeData.title || nodeData.label}
-        description={nodeData.description || nodeData.subtitle}
-        defaultTitle="User Approval"
-        defaultDescription="Human signoff gate"
-        icon={UserCheck}
-        iconBg="bg-warning/15 text-warning"
-        locked={Boolean(nodeData.locked)}
-        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
-        onUpdateMetadata={nodeData.onUpdateMetadata}
-      />
-
       <div className="mt-2.5 flex items-center gap-1.5 rounded-lg border border-warning/25 bg-warning/10 px-2 py-1.5 text-xs text-warning-text">
         <Pause className="size-3 shrink-0" />
         <span className="font-medium">Waits for a person to approve</span>
@@ -2364,26 +2139,44 @@ export const UserApprovalNode = memo(({ id, data, selected }: NodeProps) => {
           {String(cfg.action)}
         </p>
       )}
-
-      <NodeRunFooter run={nodeData.run} />
-      <SourceHandleWithQuickAdd
-        colorClass="bg-warning"
-        onConnectNext={nodeData.onConnectNext}
-      />
-    </div>
+    </NodeShell>
   );
 });
 UserApprovalNode.displayName = 'UserApprovalNode';
+
+/** Small icon button in a card's own action row (Output card: copy / download / clear). */
+function CardIconButton({ label, onClick, disabled, children }: { label: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      className="flex h-6 items-center gap-1 rounded-md border border-border bg-surface px-1.5 text-2xs text-muted-foreground hover:bg-surface-raised hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-40"
+      disabled={disabled}
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+    >
+      {children}
+    </button>
+  );
+}
 
 // 9. End Node
 export const EndNode = memo(({ id, data, selected }: NodeProps) => {
   const nodeData = data as WorkflowNodePayload;
   const run = nodeData.run;
   const [view, setView] = useState<'text' | 'formatted'>('formatted');
+  const [copied, setCopied] = useState(false);
   const text = run?.error || run?.output || '';
+  const running = run?.status === 'running';
+  useEffect(() => {
+    if (!copied) return;
+    const t = setTimeout(() => setCopied(false), 1500);
+    return () => clearTimeout(t);
+  }, [copied]);
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(text);
+      setCopied(true);
     } catch {
       // Clipboard blocked: nothing to do, the text is still selectable.
     }
@@ -2396,30 +2189,16 @@ export const EndNode = memo(({ id, data, selected }: NodeProps) => {
     a.click();
     URL.revokeObjectURL(url);
   };
-  const toolButton = 'flex h-6 items-center gap-1 rounded-md border border-border bg-surface px-1.5 text-2xs text-muted-foreground hover:bg-surface-raised hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-40';
   return (
-    <div
-      className={cn(
-        'group relative w-[300px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-success border-success shadow-md' : 'hover:border-success/50',
-        statusBorderClasses[nodeData.status || 'idle'],
-      )}
+    <NodeShell
+      id={id}
+      data={nodeData}
+      selected={selected}
+      tone="success"
+      source={false}
+      className="w-[300px]"
+      header={{ defaultTitle: 'Output', defaultDescription: 'The agent’s final answer', icon: CheckCircle2, iconBg: 'bg-success/15 text-success' }}
     >
-      <NodeActionToolbar id={id} data={nodeData} selected={selected} canAddNext={false} />
-      <WorkflowHandle type="target" colorClass="bg-success" />
-      <EditableNodeHeader
-        id={id}
-        title={nodeData.title || nodeData.label}
-        description={nodeData.description || nodeData.subtitle}
-        defaultTitle="Output"
-        defaultDescription="The agent’s final answer"
-        icon={CheckCircle2}
-        iconBg="bg-success/15 text-success"
-        locked={Boolean(nodeData.locked)}
-        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
-        onUpdateMetadata={nodeData.onUpdateMetadata}
-      />
-
       <div className="nodrag nopan mt-3 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
         <div role="radiogroup" aria-label="Output view" className="flex rounded-md border border-border bg-surface-raised p-0.5">
           {(['text', 'formatted'] as const).map((v) => (
@@ -2428,39 +2207,54 @@ export const EndNode = memo(({ id, data, selected }: NodeProps) => {
               type="button"
               role="radio"
               aria-checked={view === v}
+              disabled={!text}
               onClick={() => setView(v)}
-              className={cn('rounded-md px-1.5 py-0.5 text-2xs font-medium capitalize', view === v ? 'bg-surface text-foreground shadow-2xs' : 'text-muted-foreground hover:text-foreground')}
+              className={cn('rounded-md px-1.5 py-0.5 text-2xs font-medium capitalize disabled:opacity-50', view === v ? 'bg-surface text-foreground shadow-2xs' : 'text-muted-foreground hover:text-foreground')}
             >
               {v}
             </button>
           ))}
         </div>
         <span className="ml-auto flex items-center gap-1">
-          <button type="button" className={toolButton} disabled={!text} onClick={() => void copy()} aria-label="Copy output" title="Copy">
-            <Copy className="size-3" />
-          </button>
-          <button type="button" className={toolButton} disabled={!text} onClick={download} aria-label="Download output" title="Download">
+          <CardIconButton label={copied ? 'Copied' : 'Copy output'} disabled={!text} onClick={() => void copy()}>
+            {copied ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
+          </CardIconButton>
+          <CardIconButton label="Download output" disabled={!text} onClick={download}>
             <Download className="size-3" />
-          </button>
-          <button type="button" className={toolButton} disabled={!run || !nodeData.onClearRun} onClick={() => nodeData.onClearRun?.()} aria-label="Clear output" title="Clear">
+          </CardIconButton>
+          <CardIconButton label="Clear output" disabled={!text || running || !nodeData.onClearRun} onClick={() => nodeData.onClearRun?.()}>
             <Trash2 className="size-3" />
-          </button>
+          </CardIconButton>
         </span>
       </div>
       <div
         tabIndex={0}
         aria-label="Output"
+        aria-live="polite"
         className={cn(
           'nodrag nowheel mt-2 max-h-56 min-h-16 overflow-auto rounded-lg border px-3 py-2',
           run?.error ? 'border-destructive/30 bg-destructive/5' : 'border-border bg-surface',
         )}
       >
         {!text ? (
-          <div className="flex flex-col items-center gap-1 py-3 text-center text-muted-foreground">
-            <CheckCircle2 className={cn('size-4', run?.status === 'running' && 'animate-pulse text-primary')} />
-            <p className="text-xs">
-              {run?.status === 'running' ? 'Waiting for the agent…' : 'Run a test to see the final answer here.'}
-            </p>
+          <div className="flex flex-col items-center gap-1.5 py-3 text-center text-muted-foreground">
+            <CheckCircle2 className={cn('size-4', running && 'animate-pulse text-primary')} />
+            <p className="text-xs">{running ? 'Waiting for the agent…' : 'Run a test to see the final answer here.'}</p>
+            {!running && nodeData.onTest && (
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                className="nodrag mt-0.5 h-7 gap-1.5 text-xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  nodeData.onTest?.(id);
+                }}
+              >
+                <Play className="size-3" />
+                Run a test
+              </Button>
+            )}
           </div>
         ) : run?.error ? (
           <p className="whitespace-pre-wrap text-xs text-destructive">{run.error}</p>
@@ -2470,8 +2264,7 @@ export const EndNode = memo(({ id, data, selected }: NodeProps) => {
           <pre className="whitespace-pre-wrap [overflow-wrap:anywhere] font-mono text-xs leading-relaxed text-foreground">{text}</pre>
         )}
       </div>
-      <NodeRunFooter run={run} />
-    </div>
+    </NodeShell>
   );
 });
 EndNode.displayName = 'EndNode';
@@ -2481,47 +2274,23 @@ export const GenericStudioNode = memo(({ id, data, selected }: NodeProps) => {
   const nodeData = data as WorkflowNodePayload;
   const cfg = nodeData.config || {};
   return (
-    <div
-      className={cn(
-        'group relative min-w-[220px] max-w-[280px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-foreground/60 border-foreground/60 shadow-md' : 'hover:border-border-strong',
-        statusBorderClasses[nodeData.status || 'idle'],
-      )}
+    <NodeShell
+      id={id}
+      data={nodeData}
+      selected={selected}
+      className="min-w-[220px] max-w-[280px]"
+      header={{
+        defaultTitle: 'Studio Node',
+        defaultDescription: 'Step Execution',
+        icon: Cpu,
+        iconBg: 'bg-primary/10 text-primary',
+        badge: nodeData.badge ? (
+          <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-2xs font-semibold text-primary">{nodeData.badge}</span>
+        ) : undefined,
+      }}
     >
-      <NodeActionToolbar id={id} data={nodeData} selected={selected} />
-      <WorkflowHandle type="target" colorClass="bg-primary" />
-      <EditableNodeHeader
-        id={id}
-        title={nodeData.title || nodeData.label}
-        description={nodeData.description || nodeData.subtitle}
-        defaultTitle="Studio Node"
-        defaultDescription="Step Execution"
-        icon={Cpu}
-        iconBg="bg-primary/10 text-primary"
-        badge={
-          nodeData.badge ? (
-            <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-2xs font-semibold text-primary">
-              {nodeData.badge}
-            </span>
-          ) : undefined
-        }
-        locked={Boolean(nodeData.locked)}
-        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
-        onUpdateMetadata={nodeData.onUpdateMetadata}
-      />
-
-      {cfg.action && (
-        <div className="mt-2 text-2xs text-muted-foreground font-mono truncate">
-          {String(cfg.action)}
-        </div>
-      )}
-
-      <NodeRunFooter run={nodeData.run} />
-      <SourceHandleWithQuickAdd
-        colorClass="bg-primary"
-        onConnectNext={nodeData.onConnectNext}
-      />
-    </div>
+      {cfg.action && <div className="mt-2 text-2xs text-muted-foreground font-mono truncate">{String(cfg.action)}</div>}
+    </NodeShell>
   );
 });
 GenericStudioNode.displayName = 'GenericStudioNode';
@@ -2609,38 +2378,22 @@ export const WidgetNode = memo(({ id, type, data, selected }: NodeProps) => {
   const isApproval = type === 'WIDGET_APPROVAL';
 
   const componentType = String(cfg.componentType || 'metric_card');
-  const widgetTitle = String(nodeData.title || nodeData.label || 'UI Widget');
-
   return (
-    <div
-      className={cn(
-        'group relative min-w-[240px] max-w-[280px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-foreground/60 border-foreground/60 shadow-md' : 'hover:border-border-strong',
-        statusBorderClasses[nodeData.status || 'idle'],
-      )}
+    <NodeShell
+      id={id}
+      data={nodeData}
+      selected={selected}
+      target={!isTrigger}
+      source={!isOutput}
+      className="min-w-[240px] max-w-[280px]"
+      header={{
+        defaultTitle: 'UI Widget',
+        defaultDescription: 'Interactive UI Component',
+        icon: LayoutDashboard,
+        iconBg: 'bg-primary/15 text-primary',
+        badge: <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-2xs font-semibold text-primary">{type.replace('WIDGET_', '')}</span>,
+      }}
     >
-      <NodeActionToolbar id={id} data={nodeData} selected={selected} />
-
-      {!isTrigger && <WorkflowHandle type="target" colorClass="bg-primary" />}
-
-      <EditableNodeHeader
-        id={id}
-        title={widgetTitle}
-        description={nodeData.description || nodeData.subtitle}
-        defaultTitle="UI Widget"
-        defaultDescription="Interactive UI Component"
-        icon={LayoutDashboard}
-        iconBg="bg-primary/15 text-primary"
-        badge={
-          <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-2xs font-semibold text-primary">
-            {type.replace('WIDGET_', '')}
-          </span>
-        }
-        locked={Boolean(nodeData.locked)}
-        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
-        onUpdateMetadata={nodeData.onUpdateMetadata}
-      />
-
       {/* Mini preview tile */}
       <div className="mt-2.5 rounded-lg border border-border/80 bg-surface-raised p-2 text-xs">
         {componentType === 'metric_card' && (
@@ -2656,7 +2409,7 @@ export const WidgetNode = memo(({ id, type, data, selected }: NodeProps) => {
           <div className="space-y-1">
             <div className="flex items-center justify-between text-2xs text-muted-foreground">
               <span>{componentType.replace('_', ' ')}</span>
-              <span className="text-primary font-mono text-2xs">Live Data</span>
+              <span className="font-mono text-2xs text-muted-foreground">Sample</span>
             </div>
             <div className="flex items-end gap-1.5 h-6 pt-1">
               <div className="w-1/5 bg-primary/40 rounded-t h-3/6" />
@@ -2688,15 +2441,7 @@ export const WidgetNode = memo(({ id, type, data, selected }: NodeProps) => {
         )}
       </div>
 
-      <NodeRunFooter run={nodeData.run} />
-
-      {!isOutput && (
-        <SourceHandleWithQuickAdd
-          colorClass="bg-primary"
-          onConnectNext={nodeData.onConnectNext}
-        />
-      )}
-    </div>
+    </NodeShell>
   );
 });
 WidgetNode.displayName = 'WidgetNode';
@@ -2898,13 +2643,24 @@ function IssueBadge({ issues, label }: { issues: Array<{ level: string; message:
   );
 }
 
+/** Compiler issues plus an agent's team setup issues, without repeating a message. */
+function mergeIssues(
+  compiled: Array<{ level: string; message: string }> | undefined,
+  team: string[] | undefined,
+): Array<{ level: string; message: string }> {
+  const out = [...(compiled ?? [])];
+  for (const message of team ?? []) if (!out.some((i) => i.message === message)) out.push({ level: 'warning', message });
+  return out;
+}
+
 const withIssues = (Component: any) => {
   const Wrapped = memo((props: NodeProps) => {
-    const issues = (props.data as WorkflowNodePayload)?.issues as Array<{ level: string; message: string }> | undefined;
+    const data = props.data as WorkflowNodePayload | undefined;
+    const issues = mergeIssues(data?.issues, data?.team?.issues);
     return (
       <>
         <Component {...props} />
-        {issues && issues.length > 0 && <IssueBadge issues={issues} label={String((props.data as WorkflowNodePayload)?.label ?? 'Step')} />}
+        {issues.length > 0 && <IssueBadge issues={issues} label={String(data?.label ?? 'Step')} />}
       </>
     );
   });

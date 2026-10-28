@@ -1,5 +1,5 @@
 import { agentsApi } from '@org/api-client';
-import { agentService } from '../services/agentService.js';
+import { agentService, DEFAULT_AGENT_MODEL } from '../services/agentService.js';
 import {
   Button,
   Dialog,
@@ -51,8 +51,6 @@ import { useStudioSession } from '../session-guard.js';
 import { AIEntityFacts, AIEntityHeader, AIEntityOwner, plural } from '../components/common/ai-entity-summary.js';
 import { useAiModels, useModelOptions } from '../components/workflow-canvas/agent-config/use-agent-config-data.js';
 
-/** Platform default (NVIDIA Nemotron 3 Super) — matches AI_DEFAULT_MODEL. */
-const DEFAULT_AGENT_MODEL = 'nvidia/nemotron-3-super-120b-a12b';
 
 type AgentStatus = 'draft' | 'testing' | 'published' | 'paused' | 'archived';
 type AgentEnvironment = 'development' | 'staging' | 'production';

@@ -11,6 +11,11 @@ import { aiEntityAvatarFromLegacy, type AIAgent, type AIAgentDetail } from '@org
 
 type Config = Record<string, unknown>;
 
+/** Platform default model (NVIDIA Nemotron 3 Super) — matches the API's AI_DEFAULT_MODEL. */
+export const DEFAULT_AGENT_MODEL = 'nvidia/nemotron-3-super-120b-a12b';
+/** Provider of {@link DEFAULT_AGENT_MODEL}. */
+export const DEFAULT_AGENT_PROVIDER = 'nvidia';
+
 export interface StudioAgent extends Omit<AIAgentDetail, 'configuration' | 'tools' | 'status'> {
   tools: unknown[];
   configuration: Config;
@@ -70,8 +75,8 @@ export function normalizeAgent(raw: AIAgent | AIAgentDetail): StudioAgent {
     role: raw.role || 'Assistant Specialist',
     description: raw.description || '',
     status: String(config['status'] || (raw.isActive ? 'published' : 'draft')),
-    model: raw.model || 'nvidia/nemotron-3-super-120b-a12b',
-    provider: raw.provider || 'OpenAI',
+    model: raw.model || DEFAULT_AGENT_MODEL,
+    provider: raw.provider || (raw.model ? 'OpenAI' : DEFAULT_AGENT_PROVIDER),
     systemPrompt: raw.systemPrompt || '',
     tools: parseTools(record['tools']),
     configuration: config,
@@ -139,7 +144,7 @@ export const agentService = {
 
   async createAgent(workspaceId: string, data: AgentDraft): Promise<StudioAgent> {
     const name = data.name || 'Untitled Agent';
-    const model = data.model || 'nvidia/nemotron-3-super-120b-a12b';
+    const model = data.model || DEFAULT_AGENT_MODEL;
     const configuration: Config = {
       status: 'draft',
       theme: data.configuration?.['theme'] || data.theme || 'emerald',
@@ -157,7 +162,7 @@ export const agentService = {
       role: data.role || 'Assistant Specialist',
       description: data.description || 'Configured via AI Agent Studio',
       systemPrompt: data.systemPrompt || 'You are an intelligent AI agent.',
-      provider: data.provider || 'OpenAI',
+      provider: data.provider || (data.model ? 'OpenAI' : DEFAULT_AGENT_PROVIDER),
       model,
       tools: (data.tools as string[] | undefined) || ['search_docs'],
       // One identity everywhere: a photo, or the icon + colour as `icon:<icon>:<color>`.

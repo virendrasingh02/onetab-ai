@@ -133,7 +133,8 @@ import { AgentAvatar, DEFAULT_CATEGORIES } from '../data/agent-metadata.js';
 import { useMemberPreference } from '../hooks/use-member-preference.js';
 import { useStudioSession } from '../session-guard.js';
 import { AgentRuntimeSettings, type AgentRuntimeDraft } from '../components/agent-detail/agent-runtime-settings.js';
-import { modelLabel, STUDIO_NODE_TYPES } from '../components/workflow-canvas/custom-nodes.js';
+import { STUDIO_NODE_TYPES } from '../components/workflow-canvas/custom-nodes.js';
+import { useModelLabel } from '../components/workflow-canvas/agent-config/use-agent-config-data.js';
 import { STUDIO_EDGE_TYPES, WorkflowConnectionLine } from '../components/workflow-canvas/custom-edges.jsx';
 import { CanvasContextMenu } from '../components/workflow-canvas/canvas-context-menu.jsx';
 import { NodeCatalogModal } from '../components/workflow-canvas/node-catalog-modal.js';
@@ -2453,6 +2454,7 @@ export function AgentDetailPage() {
   // What's plugged into each agent slot: agents get per-slot summaries for their
   // rows, attached nodes get an "LLM · Agent 1" chip.
   const hostModel = (agent as { model?: string | null } | undefined)?.model || undefined;
+  const modelLabel = useModelLabel();
   const slotDecorations = useMemo(() => {
     const out = new Map<string, Record<string, unknown>>();
     for (const host of nodes) {
@@ -2482,7 +2484,7 @@ export function AgentDetailPage() {
       out.set(host.id, {
         ...out.get(host.id),
         slots,
-        moduleSummaries: summarizeAgentModules(modules, { issuesByNode, stepIds, modelLabel: (m) => String(modelLabel(m)) }),
+        moduleSummaries: summarizeAgentModules(modules, { issuesByNode, stepIds, modelLabel }),
         promptPreview: modules.prompt.text.slice(0, 240),
         builtinTools: modules.tools.entries.filter((t) => t.kind === 'builtin').map((t) => t.toolName),
         // Apps given as tool-list entries (no card on the canvas) still show their logo.
@@ -2496,7 +2498,7 @@ export function AgentDetailPage() {
       });
     }
     return out;
-  }, [nodes, edges, graphSettings, issuesByNode, stepIds, hostModel]);
+  }, [nodes, edges, graphSettings, issuesByNode, stepIds, hostModel, modelLabel]);
 
   // Connection labels and the "flowing" animation are saved on the edge's data
   const [editingEdgeLabelId, setEditingEdgeLabelId] = useState<string | null>(null);
