@@ -1,3 +1,17 @@
+/** Domains that hand out subdomains to anyone (e.g. `npm run share` tunnels). */
+const SHARED_HOST_DOMAINS = new Set(['trycloudflare.com']);
+
+function configuredStudioOrigin(): string | null {
+  try {
+    const env = (import.meta as unknown as { env?: Record<string, unknown> })
+      .env;
+    const value = env?.['VITE_STUDIO_APP_URL'];
+    return typeof value === 'string' && value ? new URL(value).origin : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Resolves a `returnTo` redirect target for the post-login handoff, and
  * decides whether the current access token may ride along to it.
@@ -18,6 +32,7 @@ export function resolveSafeHandoff(
   returnTo: string,
   currentOrigin: string,
   currentHostname: string,
+  studioOrigin: string | null = configuredStudioOrigin(),
 ): { url: URL; crossOrigin: boolean } | null {
   let targetUrl: URL;
   try {
@@ -26,12 +41,19 @@ export function resolveSafeHandoff(
     return null;
   }
 
-  const baseDomain = currentHostname.includes('.')
+  const lastTwoLabels = currentHostname.includes('.')
     ? currentHostname.split('.').slice(-2).join('.')
     : null;
+  // On a shared tunnel domain every sibling subdomain belongs to a stranger,
+  // so only the Studio origin this build was configured with is trusted.
+  const baseDomain =
+    lastTwoLabels && SHARED_HOST_DOMAINS.has(lastTwoLabels)
+      ? null
+      : lastTwoLabels;
 
   const isAllowed =
     targetUrl.origin === currentOrigin ||
+    targetUrl.origin === studioOrigin ||
     targetUrl.hostname === 'localhost' ||
     targetUrl.hostname === '127.0.0.1' ||
     (baseDomain !== null &&

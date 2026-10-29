@@ -58,10 +58,17 @@ function workspaceLiveSourcePlugin() {
           if (
             normId.includes(normalized) ||
             normModFile.includes(normalized) ||
-            (normalized.includes('api-client') && (normId.includes('api-client') || normModFile.includes('api-client'))) ||
-            (normalized.includes('types') && (normId.includes('@org/types') || normModFile.includes('@org/types'))) ||
-            (normalized.includes('validation') && (normId.includes('@org/validation') || normModFile.includes('@org/validation'))) ||
-            (normalized.includes('ui') && (normId.includes('@org/ui') || normModFile.includes('@org/ui')))
+            (normalized.includes('api-client') &&
+              (normId.includes('api-client') ||
+                normModFile.includes('api-client'))) ||
+            (normalized.includes('types') &&
+              (normId.includes('@org/types') ||
+                normModFile.includes('@org/types'))) ||
+            (normalized.includes('validation') &&
+              (normId.includes('@org/validation') ||
+                normModFile.includes('@org/validation'))) ||
+            (normalized.includes('ui') &&
+              (normId.includes('@org/ui') || normModFile.includes('@org/ui')))
           ) {
             server.moduleGraph.invalidateModule(mod);
           }
@@ -97,25 +104,33 @@ export default defineConfig(() => ({
       // needs the uninstalled `antd` peer, so specs get an empty-icon stub. A regex, because a
       // string alias would swap only the package prefix and leave a dead deep path.
       ...(process.env['VITEST']
-        ? [{ find: /^@lobehub\/icons(\/.*)?$/, replacement: path.resolve(import.meta.dirname, 'src/test-lobehub-icons-stub.js') }]
+        ? [
+            {
+              find: /^@lobehub\/icons(\/.*)?$/,
+              replacement: path.resolve(
+                import.meta.dirname,
+                'src/test-lobehub-icons-stub.js',
+              ),
+            },
+          ]
         : []),
       ...Object.entries({
-      '@lobehub/ui/base-ui': path.resolve(
-        import.meta.dirname,
-        '../../libs/shared/ui/src/lib/ai/lobe-ui-shim.js',
-      ),
-      '@lobehub/ui/icons': path.resolve(
-        import.meta.dirname,
-        '../../libs/shared/ui/src/lib/ai/lobe-ui-shim.js',
-      ),
-      '@lobehub/ui': path.resolve(
-        import.meta.dirname,
-        '../../libs/shared/ui/src/lib/ai/lobe-ui-shim.js',
-      ),
-      antd: path.resolve(
-        import.meta.dirname,
-        '../../libs/shared/ui/src/lib/ai/lobe-ui-shim.js',
-      ),
+        '@lobehub/ui/base-ui': path.resolve(
+          import.meta.dirname,
+          '../../libs/shared/ui/src/lib/ai/lobe-ui-shim.js',
+        ),
+        '@lobehub/ui/icons': path.resolve(
+          import.meta.dirname,
+          '../../libs/shared/ui/src/lib/ai/lobe-ui-shim.js',
+        ),
+        '@lobehub/ui': path.resolve(
+          import.meta.dirname,
+          '../../libs/shared/ui/src/lib/ai/lobe-ui-shim.js',
+        ),
+        antd: path.resolve(
+          import.meta.dirname,
+          '../../libs/shared/ui/src/lib/ai/lobe-ui-shim.js',
+        ),
       }).map(([find, replacement]) => ({ find, replacement })),
     ],
   },
@@ -155,6 +170,16 @@ export default defineConfig(() => ({
     reportCompressedSize: true,
     commonjsOptions: {
       transformMixedEsModules: true,
+    },
+    rolldownOptions: {
+      output: {
+        // Lexical's code highlighter and the media preview share Prism's
+        // grammar files, which are side-effect scripts needing a `Prism`
+        // global. Without this, Rolldown hoists them into shared chunks that
+        // run before Prism core initialises and the whole app fails to boot
+        // ("Prism is not defined").
+        strictExecutionOrder: true,
+      },
     },
   },
   test: {

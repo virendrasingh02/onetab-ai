@@ -13,11 +13,20 @@ function item(overrides: Partial<MediaItem>): MediaItem {
 }
 
 describe('TextViewer', () => {
-  it('renders inlineText immediately, without fetching', () => {
+  it('renders inlineText immediately, without fetching', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
-    render(<TextViewer item={item({ inlineText: 'export const x = 1;', language: 'typescript' })} />);
+    render(
+      <TextViewer
+        item={item({
+          inlineText: 'export const x = 1;',
+          language: 'typescript',
+        })}
+      />,
+    );
 
-    expect(screen.getByText('export')).toBeInTheDocument();
+    // Plain text right away; tokens once the grammars have loaded.
+    expect(screen.getByText('export const x = 1;')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('export')).toBeInTheDocument());
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
   });
@@ -30,11 +39,16 @@ describe('TextViewer', () => {
 
     render(<TextViewer item={item()} url="https://example.test/notes.txt" />);
 
-    await waitFor(() => expect(screen.getByText('hello world')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('hello world')).toBeInTheDocument(),
+    );
   });
 
   it('shows an error state when the fetch fails', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: false, text: () => Promise.resolve('') } as Response);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: false,
+      text: () => Promise.resolve(''),
+    } as Response);
 
     render(<TextViewer item={item()} url="https://example.test/missing.txt" />);
 
@@ -44,10 +58,23 @@ describe('TextViewer', () => {
   });
 
   it('styles diff lines by +/- prefix', () => {
-    const content = ['+++ b/file', '+added line', '-removed line', ' context'].join('\n');
-    render(<TextViewer item={item({ inlineText: content, isDiff: true, language: 'diff' })} />);
+    const content = [
+      '+++ b/file',
+      '+added line',
+      '-removed line',
+      ' context',
+    ].join('\n');
+    render(
+      <TextViewer
+        item={item({ inlineText: content, isDiff: true, language: 'diff' })}
+      />,
+    );
 
-    expect(screen.getByText(/added line/).closest('div')).toHaveClass('bg-success/10');
-    expect(screen.getByText(/removed line/).closest('div')).toHaveClass('bg-red-500/10');
+    expect(screen.getByText(/added line/).closest('div')).toHaveClass(
+      'bg-success/10',
+    );
+    expect(screen.getByText(/removed line/).closest('div')).toHaveClass(
+      'bg-red-500/10',
+    );
   });
 });

@@ -12,6 +12,7 @@
     "dev:admin": "node scripts/dev.mjs admin",
     "dev:studio": "node scripts/dev.mjs studio",
     "dev:desktop": "node scripts/dev.mjs api web desktop",
+    "share": "node scripts/share.mjs",
     "mobile": "node scripts/mobile.mjs",
     "mobile:web": "node scripts/mobile.mjs web",
     "mobile:android": "node scripts/mobile.mjs android",

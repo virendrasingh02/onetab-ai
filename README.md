@@ -34,7 +34,7 @@ npm run dev
 ```
 
 `matrix:setup` is required, not a convenience: minting the browser's Matrix
-session goes through Synapse's admin API, which checks *server admin* rights
+session goes through Synapse's admin API, which checks _server admin_ rights
 rather than appservice rights, so without it `POST /matrix/session` returns 502.
 See [docker/matrix/README.md](docker/matrix/README.md).
 
@@ -55,6 +55,22 @@ functional and reports chat as unavailable.
 | API    | `http://localhost:3000/api/v1` | `npm run dev:api`    |
 
 `GET /api/v1/health` reports process and database health.
+
+### Use it from another computer or phone
+
+```sh
+npm run share
+```
+
+One command, on Windows, macOS or Linux: it installs dependencies and creates
+`.env` on a fresh clone, fetches `cloudflared` if it is not installed, starts the
+API, web and Studio, and prints two public `https://….trycloudflare.com` links
+(web and Studio) that work from any device — no Cloudflare account or port
+forwarding. Postgres/Redis still have to be running (`npm run infra:start`).
+The links change every run and anyone holding one can reach the app; Ctrl+C
+stops everything. `npm run share -- web` shares only the web app, and
+`--public-links` also points emailed/magic links at the tunnel. See
+[scripts/share.mjs](scripts/share.mjs).
 
 ---
 
@@ -144,7 +160,7 @@ resolves the caller's membership and enforces `@WorkspaceRoles(...)`. Non-member
 receive **404, not 403** — confirming that a workspace or private channel exists
 is itself a disclosure.
 
-**Admin console.** Anything that is *not* scoped to a workspace lives in
+**Admin console.** Anything that is _not_ scoped to a workspace lives in
 `apps/admin`, not behind a role check in the web app: platform operations
 (health, performance, error tracking), enterprise governance (SSO, audit log)
 and marketplace catalogue administration. The split is enforced by the
