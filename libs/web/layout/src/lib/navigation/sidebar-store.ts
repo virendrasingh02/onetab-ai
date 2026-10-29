@@ -71,6 +71,16 @@ export function toSidebarActivityConfig(
   };
 }
 
+/**
+ * How the conversation part of the sidebar is laid out. `sections` is the
+ * classic Starred / Channels / DMs groups; `activity` is one list of every
+ * channel and conversation, newest message first, with a preview line.
+ */
+export type SidebarLayoutMode = 'sections' | 'activity';
+
+/** The filter chips above the activity list. */
+export type ActivityListFilter = 'all' | 'unreads' | 'dms' | 'channels';
+
 export type SidebarSectionId =
   | 'starred'
   | 'channels'
@@ -94,7 +104,8 @@ export const DEFAULT_SIDEBAR_SECTIONS: readonly SidebarSectionConfig[] = [
   {
     id: 'starred',
     label: 'Starred',
-    description: 'Favorited channels, docs, projects, coworkers, agents & workflows',
+    description:
+      'Favorited channels, docs, projects, coworkers, agents & workflows',
     visible: true,
     order: 0,
   },
@@ -171,6 +182,10 @@ export interface SidebarState {
   sidebarCollapsed: boolean;
   /** Activity-indicator (dot/badge) preferences — brief §2. */
   activityIndicators: SidebarActivityPreferences;
+  /** Sections (default) or the single newest-first activity list. */
+  layoutMode: SidebarLayoutMode;
+  /** The activity list's selected filter chip. */
+  activityFilter: ActivityListFilter;
 
   /* --- Smart sidebar & channel sorting (brief §1.1 / §1.2) -------------
    * All three maps are keyed by workspaceId so a user's organisation of one
@@ -235,6 +250,8 @@ export interface SidebarState {
     value: SidebarActivityPreferences[K],
   ) => void;
   resetActivityIndicators: () => void;
+  setLayoutMode: (mode: SidebarLayoutMode) => void;
+  setActivityFilter: (filter: ActivityListFilter) => void;
   resetToDefaultOrder: () => void;
   resetAllVisibility: () => void;
   resetAllPreferences: () => void;
@@ -308,7 +325,9 @@ function pruneVisits(
   const ids = Object.keys(entries);
   if (ids.length <= MAX_TRACKED_VISITS) return entries;
   const kept = ids
-    .sort((a, b) => Date.parse(entries[b].lastAt) - Date.parse(entries[a].lastAt))
+    .sort(
+      (a, b) => Date.parse(entries[b].lastAt) - Date.parse(entries[a].lastAt),
+    )
     .slice(0, MAX_TRACKED_VISITS);
   const next: Record<string, { count: number; lastAt: string }> = {};
   for (const id of kept) next[id] = entries[id];
@@ -352,6 +371,8 @@ export const useSidebarStore = create<SidebarState>()(
       collapsedGroups: {},
       sidebarCollapsed: false,
       activityIndicators: { ...DEFAULT_ACTIVITY_INDICATORS },
+      layoutMode: 'sections',
+      activityFilter: 'all',
       channelSort: {},
       sectionDefs: {},
       channelMeta: {},
@@ -624,6 +645,10 @@ export const useSidebarStore = create<SidebarState>()(
           activityIndicators: { ...DEFAULT_ACTIVITY_INDICATORS },
         })),
 
+      setLayoutMode: (mode) => set(() => ({ layoutMode: mode })),
+
+      setActivityFilter: (filter) => set(() => ({ activityFilter: filter })),
+
       // --- Smart sidebar & channel sorting --------------------------------
 
       setChannelSort: (workspaceId, mode, direction) =>
@@ -643,10 +668,7 @@ export const useSidebarStore = create<SidebarState>()(
           return {
             sectionDefs: {
               ...state.sectionDefs,
-              [workspaceId]: [
-                ...existing,
-                { ...def, order: existing.length },
-              ],
+              [workspaceId]: [...existing, { ...def, order: existing.length }],
             },
           };
         }),
@@ -656,7 +678,9 @@ export const useSidebarStore = create<SidebarState>()(
           sectionDefs: {
             ...state.sectionDefs,
             [workspaceId]: (state.sectionDefs[workspaceId] ?? []).map((s) =>
-              s.id === id ? ({ ...s, ...patch, id: s.id } as SidebarSectionDef) : s,
+              s.id === id
+                ? ({ ...s, ...patch, id: s.id } as SidebarSectionDef)
+                : s,
             ),
           },
         })),
@@ -824,6 +848,8 @@ export const useSidebarStore = create<SidebarState>()(
           collapsedGroups: {},
           sidebarCollapsed: false,
           activityIndicators: { ...DEFAULT_ACTIVITY_INDICATORS },
+          layoutMode: 'sections',
+          activityFilter: 'all',
           channelSort: {},
           sectionDefs: {},
           channelMeta: {},
@@ -840,6 +866,8 @@ export const useSidebarStore = create<SidebarState>()(
         collapsedGroups: state.collapsedGroups,
         sidebarCollapsed: state.sidebarCollapsed,
         activityIndicators: state.activityIndicators,
+        layoutMode: state.layoutMode,
+        activityFilter: state.activityFilter,
         channelSort: state.channelSort,
         sectionDefs: state.sectionDefs,
         channelMeta: state.channelMeta,

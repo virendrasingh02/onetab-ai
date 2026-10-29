@@ -53,6 +53,7 @@ import {
   toast,
   useStatusModalStore,
   useSidebarCustomizerStore,
+  type SidebarViewMode,
   SettingsBadge,
   SettingsCard,
   SettingsRow,
@@ -390,6 +391,11 @@ export function WorkspaceSettingsPage({
     workspaceId,
     'fontSize',
     'default',
+  );
+  // Mirrors the sidebar store's layoutMode, which saves to the server.
+  const sidebarLayoutMode = useSidebarCustomizerStore((s) => s.layoutMode);
+  const setSidebarLayoutMode = useSidebarCustomizerStore(
+    (s) => s.setLayoutMode,
   );
 
   const [docAutoSave, setDocAutoSave] = useWorkspacePreference(
@@ -1069,6 +1075,38 @@ export function WorkspaceSettingsPage({
                 >
                   Customize
                 </Button>
+              </SettingsRow>
+
+              <SettingsRow
+                title={<>Sidebar view</>}
+                description={
+                  <>
+                    Sections groups channels and DMs separately. Activity lists
+                    every conversation newest first, with a message preview
+                  </>
+                }
+              >
+                <Select
+                  value={sidebarLayoutMode}
+                  onValueChange={(value) =>
+                    setSidebarLayoutMode(value as SidebarViewMode)
+                  }
+                >
+                  <SelectTrigger
+                    aria-label="Sidebar view"
+                    className="w-32 h-8 text-xs border-border bg-surface"
+                  >
+                    <SelectValue placeholder="Sections" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sections" className="text-xs">
+                      Sections
+                    </SelectItem>
+                    <SelectItem value="activity" className="text-xs">
+                      Activity
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </SettingsRow>
 
               <SettingsRow

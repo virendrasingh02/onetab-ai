@@ -110,6 +110,16 @@ import {
   type InactiveDropdownItem,
 } from './inactive-items-dropdown.js';
 import { partitionChannelsByInactivity } from './inactivity-utils.js';
+import {
+  ActivityConversationList,
+  SidebarLayoutMenu,
+} from './activity-conversation-list.js';
+import {
+  ACTIVITY_ROW_ACTIONS_CLASS,
+  ActivityRowLink,
+  type ActivityRowContent,
+} from './activity-row-link.js';
+import type { LiveRoomActivity } from '@org/web-chat';
 import { ChannelOrganizationMenu } from './navigation/channel-organization-menu.js';
 import { resolveNavigation } from './navigation/navigation-resolver.js';
 import {
@@ -193,6 +203,7 @@ function ChannelRow({
   onSetNotificationLevel,
   prompts,
   sectionOptions = [],
+  activityContent,
 }: {
   channel: ChannelSummary;
   workspaceId: string;
@@ -206,6 +217,8 @@ function ChannelRow({
   prompts: PromptDialog;
   /** Manual sections this channel can be filed under (brief §1.1). */
   sectionOptions?: { id: string; label: string; hasChannel: boolean }[];
+  /** Draw the two-line activity-list layout instead of the compact row. */
+  activityContent?: ActivityRowContent;
 }) {
   const navigate = useNavigate();
   const currentUser = useCurrentUser();
@@ -353,53 +366,73 @@ function ChannelRow({
       })
     : [];
 
+  const indicator = (
+    <SidebarActivityIndicator
+      surface="channels"
+      itemLabel={`#${channel.name}`}
+      state={{
+        activityType: activity?.level,
+        unreadCount:
+          activity?.level === 'mention'
+            ? activity?.mentionCount
+            : activity?.count,
+        isMuted,
+      }}
+      className={activityContent ? undefined : 'mr-1'}
+    />
+  );
+
   const row = (
     <li className="group/row relative">
-      <NavLink
-        to={channelPath}
-        className={({ isActive }) =>
-          navRowClass(isActive, {
-            depth: 1,
-            extra: cn(
-              channel.membership ? NAV_ROW_ACTIONS_PADDING : 'pr-8',
-              channel.isArchived && 'opacity-65',
-              isMuted && 'text-muted-foreground',
-              // Unread rows read as bold in every chat client; without it the
-              // dot is the only cue and it is four pixels wide.
-              hasUnread && 'font-semibold text-foreground',
-            ),
-          })
-        }
-      >
-        <Icon className={navIconClass(1)} aria-hidden />
-        <span className="flex-1 truncate">{channel.name}</span>
-        <SidebarActivityIndicator
-          surface="channels"
-          itemLabel={`#${channel.name}`}
-          state={{
-            activityType: activity?.level,
-            unreadCount:
-              activity?.level === 'mention'
-                ? activity?.mentionCount
-                : activity?.count,
-            isMuted,
-          }}
-          className="mr-1"
+      {activityContent ? (
+        <ActivityRowLink
+          to={channelPath}
+          name={channel.name}
+          content={activityContent}
+          hasUnread={hasUnread}
+          isMuted={isMuted}
+          isPinned={!!channel.membership && isFavorite}
+          dimmed={channel.isArchived}
+          indicator={indicator}
         />
-        {channel.membership?.membershipType === 'TEMPORARY' && (
-          <Hint label="Temporary membership">
-            <Clock className="mr-1 size-3 shrink-0 text-muted-foreground/70" />
-          </Hint>
-        )}
-        {isMuted && (
-          <Hint label="Notifications muted">
-            <BellOff className="mr-1 size-3 shrink-0 text-muted-foreground/70" />
-          </Hint>
-        )}
-      </NavLink>
+      ) : (
+        <NavLink
+          to={channelPath}
+          className={({ isActive }) =>
+            navRowClass(isActive, {
+              depth: 1,
+              extra: cn(
+                channel.membership ? NAV_ROW_ACTIONS_PADDING : 'pr-8',
+                channel.isArchived && 'opacity-65',
+                isMuted && 'text-muted-foreground',
+                // Unread rows read as bold in every chat client; without it the
+                // dot is the only cue and it is four pixels wide.
+                hasUnread && 'font-semibold text-foreground',
+              ),
+            })
+          }
+        >
+          <Icon className={navIconClass(1)} aria-hidden />
+          <span className="flex-1 truncate">{channel.name}</span>
+          {indicator}
+          {channel.membership?.membershipType === 'TEMPORARY' && (
+            <Hint label="Temporary membership">
+              <Clock className="mr-1 size-3 shrink-0 text-muted-foreground/70" />
+            </Hint>
+          )}
+          {isMuted && (
+            <Hint label="Notifications muted">
+              <BellOff className="mr-1 size-3 shrink-0 text-muted-foreground/70" />
+            </Hint>
+          )}
+        </NavLink>
+      )}
 
       {channel.membership ? (
-        <NavRowActions isPinned={isFavorite}>
+        <NavRowActions
+          isPinned={isFavorite}
+          className={activityContent ? ACTIVITY_ROW_ACTIONS_CLASS : undefined}
+        >
           <FavoriteToggle
             isFavorite={isFavorite}
             onToggle={() => onToggleFavorite(channel)}
@@ -584,6 +617,8 @@ export interface ChannelNavProps {
     string,
     { unreadCount: number; mentionCount: number }
   >;
+  /** Live Matrix room index — previews and timestamps for the activity list. */
+  liveRoomActivity?: LiveRoomActivity;
   /**
    * Whether live room activity has loaded. Until then no conversation is
    * folded into "Inactive", so rows don't jump around on start-up.
@@ -605,6 +640,7 @@ export function ChannelNav({
   channelLastActivity,
   directMessageLastActivity,
   directMessageLiveCounts,
+  liveRoomActivity,
   activityReady = false,
   onCreateChannel,
   onBrowseChannels,
@@ -731,6 +767,8 @@ export function ChannelNav({
     });
   }, []);
 
+  const layoutMode = useSidebarStore((s) => s.layoutMode);
+
   const activeSections = useMemo(() => {
     return [...DEFAULT_SIDEBAR_SECTIONS]
       .sort((a, b) => {
@@ -738,8 +776,14 @@ export function ChannelNav({
         const orderB = sectionsPrefs[b.id]?.order ?? b.order;
         return orderA - orderB;
       })
-      .filter((sec) => sectionsPrefs[sec.id]?.visible ?? true);
-  }, [sectionsPrefs]);
+      .filter((sec) => sectionsPrefs[sec.id]?.visible ?? true)
+      .filter(
+        // The activity list stands in for the conversation sections.
+        (sec) =>
+          layoutMode !== 'activity' ||
+          (sec.id !== 'starred' && sec.id !== 'channels' && sec.id !== 'dms'),
+      );
+  }, [sectionsPrefs, layoutMode]);
 
   const channelOrders = useSidebarStore((s) => s.channelOrders);
   const moveChannel = useSidebarStore((s) => s.moveChannel);
@@ -1566,6 +1610,26 @@ export function ChannelNav({
             })()}
           </nav>
 
+          {layoutMode === 'activity' ? (
+            <ActivityConversationList
+              workspaceId={workspaceId}
+              workspaceSlug={workspaceSlug}
+              channels={groups.joined}
+              channelActivity={channelActivity}
+              liveRoomActivity={liveRoomActivity}
+              isLoading={showChannelsSkeleton}
+              renderChannelRow={(channel, content) => (
+                <ChannelRow
+                  channel={channel}
+                  activity={channelActivity?.[channel.id]}
+                  sectionOptions={sectionOptionsFor(channel.id)}
+                  {...rowProps}
+                  activityContent={content}
+                />
+              )}
+            />
+          ) : null}
+
           {/* Dynamic Resource Sections (Channels, DMs, Projects, Docs, AI Agents, Apps, Workflows, Starred) */}
           <div className="space-y-4">
             {activeSections.map((sec) => {
@@ -1666,6 +1730,7 @@ export function ChannelNav({
                         }
                         action={
                           <div className="gap-0.5 flex items-center">
+                            <SidebarLayoutMenu className="size-5 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100" />
                             <ChannelOrganizationMenu
                               workspaceId={workspaceId}
                               onManageSections={() =>

@@ -5,6 +5,8 @@ import { useMatrix } from './matrix-provider.js';
 export interface MessagePreview {
   body: string;
   senderName: string;
+  /** The sender's workspace user id (normalized from their Matrix id). */
+  senderUserId?: string;
   timestamp: number;
   isEdited?: boolean;
 }
@@ -104,6 +106,7 @@ export function useLiveRoomActivity(): LiveRoomActivity {
                   latest.body ||
                   (latest.attachment ? latest.attachment.name : ''),
                 senderName: latest.senderName,
+                senderUserId: normalizeAvatarSeed(latest.senderId),
                 timestamp: latest.timestamp,
                 isEdited: latest.isEdited,
               };
@@ -133,7 +136,12 @@ export function useLiveRoomActivity(): LiveRoomActivity {
           }
         }
 
-        setActivity({ byChannelName, byDirectUserId, byDirectPeerId, byRoomId });
+        setActivity({
+          byChannelName,
+          byDirectUserId,
+          byDirectPeerId,
+          byRoomId,
+        });
       } catch {
         // Client present but not synced yet — reading rooms throws through
         // `require()`. Keep the last good snapshot until the next event.

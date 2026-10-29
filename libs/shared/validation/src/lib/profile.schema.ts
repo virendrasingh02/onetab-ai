@@ -16,7 +16,8 @@ export const SUPPORTED_LANGUAGE_CODES = [
 export type SupportedLanguageCode = (typeof SUPPORTED_LANGUAGE_CODES)[number];
 
 export const languageCodeSchema = z.enum(SUPPORTED_LANGUAGE_CODES, {
-  message: 'Unsupported language code. Supported: en, hi, es, fr, de, pt, ja, ko, zh, ar',
+  message:
+    'Unsupported language code. Supported: en, hi, es, fr, de, pt, ja, ko, zh, ar',
 });
 
 export const updateLanguageSchema = z.object({
@@ -38,7 +39,8 @@ export function normalizeProfileWebsite(value: string): string | null {
   try {
     const url = new URL(withScheme);
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
-    if (!url.hostname.includes('.') && url.hostname !== 'localhost') return null;
+    if (!url.hostname.includes('.') && url.hostname !== 'localhost')
+      return null;
     return url.toString();
   } catch {
     return null;
@@ -67,7 +69,10 @@ export const updateProfileSchema = z.object({
   coverUrl: z
     .string()
     .trim()
-    .refine((v) => v === '' || COVER_URL_PATTERN.test(v), 'Cover must be an image upload or an http(s) URL')
+    .refine(
+      (v) => v === '' || COVER_URL_PATTERN.test(v),
+      'Cover must be an image upload or an http(s) URL',
+    )
     .nullable()
     .optional(),
   title: z.string().trim().max(80).nullable().optional(),
@@ -77,7 +82,10 @@ export const updateProfileSchema = z.object({
     .string()
     .trim()
     .max(255)
-    .refine((v) => v === '' || normalizeProfileWebsite(v) !== null, 'Enter a valid website URL')
+    .refine(
+      (v) => v === '' || normalizeProfileWebsite(v) !== null,
+      'Enter a valid website URL',
+    )
     .nullable()
     .optional(),
   github: z
@@ -85,7 +93,10 @@ export const updateProfileSchema = z.object({
     .trim()
     .max(80)
     // GitHub handle, optionally with a leading `@`.
-    .regex(/^(?:@?[A-Za-z0-9](?:[A-Za-z0-9-]{0,38}))?$/, 'Enter a GitHub username')
+    .regex(
+      /^(?:@?[A-Za-z0-9](?:[A-Za-z0-9-]{0,38}))?$/,
+      'Enter a GitHub username',
+    )
     .nullable()
     .optional(),
   statusText: z.string().trim().max(100).nullable().optional(),
@@ -99,7 +110,10 @@ export const updateProfileSchema = z.object({
     .transform((days) => [...new Set(days)].sort((a, b) => a - b))
     .optional(),
   timeFormat: z.enum(['12h', '24h']).nullable().optional(),
-  dateFormat: z.enum(['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD']).nullable().optional(),
+  dateFormat: z
+    .enum(['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD'])
+    .nullable()
+    .optional(),
 });
 
 export const updateStatusSchema = z.object({
@@ -177,7 +191,9 @@ export const chatPreferencesSchema = z.object({
   /** Show *other* people's typing indicators. Independent of `sendTypingNotice`. */
   showTypingIndicators: z.boolean().default(true),
   mentionWarningsEnabled: z.boolean().default(true),
-  allowDirectMessagesFrom: z.enum(['everyone', 'members', 'admins']).default('everyone'),
+  allowDirectMessagesFrom: z
+    .enum(['everyone', 'members', 'admins'])
+    .default('everyone'),
 });
 
 export const notificationSoundEventsSchema = z.object({
@@ -312,9 +328,22 @@ export const themeTypographyConfigSchema = z.object({
 });
 
 export const themeShapeConfigSchema = z.object({
-  radiusBase: z.enum(['0px', '4px', '6px', '8px', '10px', '12px', '16px', '9999px']),
-  radiusButton: z.enum(['0px', '4px', '6px', '8px', '10px', '12px', '9999px']).optional(),
-  radiusCard: z.enum(['0px', '6px', '8px', '10px', '12px', '16px', '20px']).optional(),
+  radiusBase: z.enum([
+    '0px',
+    '4px',
+    '6px',
+    '8px',
+    '10px',
+    '12px',
+    '16px',
+    '9999px',
+  ]),
+  radiusButton: z
+    .enum(['0px', '4px', '6px', '8px', '10px', '12px', '9999px'])
+    .optional(),
+  radiusCard: z
+    .enum(['0px', '6px', '8px', '10px', '12px', '16px', '20px'])
+    .optional(),
   radiusInput: z.enum(['0px', '4px', '6px', '8px', '10px', '12px']).optional(),
   radiusDialog: z.enum(['0px', '8px', '12px', '16px', '24px']).optional(),
 });
@@ -412,6 +441,9 @@ export const sidebarPreferencesSchema = z
     collapsedGroups: z.record(z.string(), z.boolean()).optional(),
     sidebarCollapsed: z.boolean().optional(),
     activityIndicators: z.record(z.string(), z.unknown()).optional(),
+    /** Sections (default) or the newest-first activity list. */
+    layoutMode: z.enum(['sections', 'activity']).optional(),
+    activityFilter: z.enum(['all', 'unreads', 'dms', 'channels']).optional(),
     /** workspaceId → { mode, direction }. */
     channelSort: z.record(z.string(), z.unknown()).optional(),
     /** workspaceId → SidebarSectionDef[]. */

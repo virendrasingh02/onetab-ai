@@ -74,6 +74,7 @@ export {
 } from './lib/navigation/sidebar-store.js';
 
 export { SidebarCustomizerDialog } from './lib/navigation/sidebar-customizer-dialog.js';
+export { SidebarPreferencesHost } from './lib/navigation/sidebar-preferences-host.js';
 
 export {
   InactiveItemsDropdown,
@@ -107,4 +108,3 @@ export {
   type SplitViewTarget,
   type SplitViewState,
 } from './lib/split-view/split-view-store.js';
-

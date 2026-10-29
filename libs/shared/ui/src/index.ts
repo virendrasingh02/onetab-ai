@@ -583,6 +583,7 @@ export {
   useSidebarCustomizerStore,
   type SidebarCustomizerStore,
   type SidebarCustomizerTab,
+  type SidebarViewMode,
 } from './lib/components/use-sidebar-customizer-store.js';
 
 export {

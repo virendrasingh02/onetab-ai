@@ -26,6 +26,7 @@ import {
   DialogTitle,
   Hint,
   ScrollArea,
+  SegmentedControl,
   Switch,
   useSidebarCustomizerStore,
   ResponsiveTabs,
@@ -63,6 +64,7 @@ import {
   DEFAULT_SIDEBAR_SECTIONS,
   useSidebarStore,
   type SidebarActivityPreferences,
+  type SidebarLayoutMode,
   type SidebarSectionConfig,
   type SidebarSectionId,
 } from './sidebar-store.js';
@@ -112,53 +114,53 @@ function SortableNavItemRow({
       ref={setNodeRef}
       style={style}
       className={cn(
-        'group/custom-row relative flex items-center justify-between rounded-xl border border-border bg-surface px-3 py-2 text-xs transition-all duration-150',
+        'group/custom-row px-3 py-2 text-xs relative flex items-center justify-between rounded-xl border border-border bg-surface transition-all duration-150',
         isDragging &&
-          'z-50 shadow-elevated opacity-80 border-primary ring-1 ring-primary/40 bg-surface-raised',
-        !isVisible && 'opacity-55 bg-surface-muted',
+          'z-50 border-primary bg-surface-raised opacity-80 shadow-elevated ring-1 ring-primary/40',
+        !isVisible && 'bg-surface-muted opacity-55',
       )}
     >
-      <div className="gap-2.5 flex items-center min-w-0 flex-1">
+      <div className="gap-2.5 min-w-0 flex flex-1 items-center">
         {/* Drag handle */}
         <button
           type="button"
           aria-label={`Drag to reorder ${item.label}`}
-          className="size-6 flex cursor-grab active:cursor-grabbing items-center justify-center rounded text-muted-foreground/60 hover:text-foreground hover:bg-accent focus-visible:ring-1 focus-visible:ring-ring"
+          className="size-6 rounded flex cursor-grab items-center justify-center text-muted-foreground/60 hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring active:cursor-grabbing"
           {...attributes}
           {...listeners}
         >
           <GripVertical className="size-4" />
         </button>
 
-        <div className="size-6 rounded-lg bg-surface-raised border border-border/70 flex items-center justify-center shrink-0">
+        <div className="size-6 flex shrink-0 items-center justify-center rounded-lg border border-border/70 bg-surface-raised">
           <Icon className="size-3.5 text-foreground" />
         </div>
 
-        <div className="flex flex-col min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <span className="font-semibold text-foreground truncate">
+        <div className="min-w-0 flex flex-1 flex-col">
+          <div className="gap-1.5 flex items-center">
+            <span className="font-semibold truncate text-foreground">
               {item.label}
             </span>
             {isCore && (
               <Badge
                 variant="neutral"
-                className="h-4 px-1 text-[9px] font-medium uppercase"
+                className="h-4 px-1 font-medium text-[9px] uppercase"
               >
                 Core
               </Badge>
             )}
           </div>
           {item.description && (
-            <span className="text-[11px] text-muted-foreground truncate">
+            <span className="truncate text-[11px] text-muted-foreground">
               {item.description}
             </span>
           )}
         </div>
       </div>
 
-      <div className="flex items-center gap-3 shrink-0 ml-2">
+      <div className="gap-3 ml-2 flex shrink-0 items-center">
         <Hint label={isVisible ? 'Hide from sidebar' : 'Show in sidebar'}>
-          <div className="flex items-center gap-1.5">
+          <div className="gap-1.5 flex items-center">
             <button
               type="button"
               onClick={() => onToggleVisible(item.id, !isVisible)}
@@ -222,45 +224,45 @@ function SortableSectionRow({
       ref={setNodeRef}
       style={style}
       className={cn(
-        'group/custom-section relative flex items-center justify-between rounded-xl border border-border bg-surface px-3 py-2.5 text-xs transition-all duration-150',
+        'group/custom-section px-3 py-2.5 text-xs relative flex items-center justify-between rounded-xl border border-border bg-surface transition-all duration-150',
         isDragging &&
-          'z-50 shadow-elevated opacity-80 border-primary ring-1 ring-primary/40 bg-surface-raised',
-        !isVisible && 'opacity-55 bg-surface-muted',
+          'z-50 border-primary bg-surface-raised opacity-80 shadow-elevated ring-1 ring-primary/40',
+        !isVisible && 'bg-surface-muted opacity-55',
       )}
     >
-      <div className="gap-2.5 flex items-center min-w-0 flex-1">
+      <div className="gap-2.5 min-w-0 flex flex-1 items-center">
         {/* Drag handle */}
         <button
           type="button"
           aria-label={`Drag to reorder section ${section.label}`}
-          className="size-6 flex cursor-grab active:cursor-grabbing items-center justify-center rounded text-muted-foreground/60 hover:text-foreground hover:bg-accent focus-visible:ring-1 focus-visible:ring-ring"
+          className="size-6 rounded flex cursor-grab items-center justify-center text-muted-foreground/60 hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring active:cursor-grabbing"
           {...attributes}
           {...listeners}
         >
           <GripVertical className="size-4" />
         </button>
 
-        <div className="size-7 rounded-lg bg-surface-raised border border-border/70 flex items-center justify-center shrink-0">
+        <div className="size-7 flex shrink-0 items-center justify-center rounded-lg border border-border/70 bg-surface-raised">
           <Icon className="size-4 text-foreground" />
         </div>
 
-        <div className="flex flex-col min-w-0 flex-1">
-          <span className="font-semibold text-foreground truncate">
+        <div className="min-w-0 flex flex-1 flex-col">
+          <span className="font-semibold truncate text-foreground">
             {section.label}
           </span>
-          <span className="text-[11px] text-muted-foreground truncate">
+          <span className="truncate text-[11px] text-muted-foreground">
             {section.description}
           </span>
         </div>
       </div>
 
-      <div className="flex items-center gap-3 shrink-0 ml-2">
+      <div className="gap-3 ml-2 flex shrink-0 items-center">
         <Hint
           label={
             isVisible ? 'Hide section from sidebar' : 'Show section in sidebar'
           }
         >
-          <div className="flex items-center gap-1.5">
+          <div className="gap-1.5 flex items-center">
             <button
               type="button"
               onClick={() => onToggleVisible(section.id, !isVisible)}
@@ -357,12 +359,12 @@ function IndicatorsPanel() {
   return (
     <div className="space-y-4">
       {/* Master switch */}
-      <div className="flex items-center justify-between rounded-xl border border-border bg-surface px-3 py-2.5 text-xs">
-        <div className="gap-2.5 flex items-center min-w-0 flex-1">
-          <div className="size-7 rounded-lg bg-surface-raised border border-border/70 flex items-center justify-center shrink-0">
+      <div className="px-3 py-2.5 text-xs flex items-center justify-between rounded-xl border border-border bg-surface">
+        <div className="gap-2.5 min-w-0 flex flex-1 items-center">
+          <div className="size-7 flex shrink-0 items-center justify-center rounded-lg border border-border/70 bg-surface-raised">
             <Bell className="size-4 text-foreground" />
           </div>
-          <div className="flex flex-col min-w-0 flex-1">
+          <div className="min-w-0 flex flex-1 flex-col">
             <span className="font-semibold text-foreground">
               Show activity indicators
             </span>
@@ -383,7 +385,7 @@ function IndicatorsPanel() {
       {/* Style */}
       <div
         className={cn(
-          'rounded-xl border border-border bg-surface px-3 py-2.5 space-y-2 transition-opacity',
+          'px-3 py-2.5 space-y-2 rounded-xl border border-border bg-surface transition-opacity',
           disabled && 'pointer-events-none opacity-55',
         )}
       >
@@ -395,7 +397,7 @@ function IndicatorsPanel() {
             {INDICATOR_STYLES.find((s) => s.value === prefs.style)?.hint}
           </span>
         </div>
-        <div className="flex items-center gap-1 p-1 rounded-lg bg-surface-raised border border-border">
+        <div className="gap-1 p-1 flex items-center rounded-lg border border-border bg-surface-raised">
           {INDICATOR_STYLES.map((option) => (
             <button
               key={option.value}
@@ -403,9 +405,9 @@ function IndicatorsPanel() {
               onClick={() => setActivityIndicator('style', option.value)}
               aria-pressed={prefs.style === option.value}
               className={cn(
-                'flex-1 rounded-md px-2 py-1 text-[11px] font-medium transition-all',
+                'px-2 py-1 font-medium flex-1 rounded-md text-[11px] transition-all',
                 prefs.style === option.value
-                  ? 'bg-background text-foreground shadow-2xs font-semibold'
+                  ? 'shadow-2xs font-semibold bg-background text-foreground'
                   : 'text-muted-foreground hover:text-foreground',
               )}
             >
@@ -418,7 +420,7 @@ function IndicatorsPanel() {
       {/* Per-surface toggles */}
       <div
         className={cn(
-          'rounded-xl border border-border bg-surface divide-y divide-border/50 overflow-hidden transition-opacity',
+          'divide-y divide-border/50 overflow-hidden rounded-xl border border-border bg-surface transition-opacity',
           disabled && 'pointer-events-none opacity-55',
         )}
       >
@@ -428,15 +430,15 @@ function IndicatorsPanel() {
           return (
             <div
               key={row.key}
-              className="gap-3 px-3 py-2.5 text-xs flex items-center justify-between hover:bg-accent/40 transition-colors"
+              className="gap-3 px-3 py-2.5 text-xs flex items-center justify-between transition-colors hover:bg-accent/40"
             >
-              <div className="gap-2.5 flex items-center min-w-0 flex-1">
+              <div className="gap-2.5 min-w-0 flex flex-1 items-center">
                 <RowIcon className="size-3.5 shrink-0 text-muted-foreground" />
-                <div className="flex flex-col min-w-0 flex-1">
+                <div className="min-w-0 flex flex-1 flex-col">
                   <span className="font-medium text-foreground">
                     {row.label}
                   </span>
-                  <span className="text-[11px] text-muted-foreground truncate">
+                  <span className="truncate text-[11px] text-muted-foreground">
                     {row.description}
                   </span>
                 </div>
@@ -510,6 +512,8 @@ export function SidebarCustomizerDialog({
     (s) => s.resetActivityIndicators,
   );
   const resetAllPreferences = useSidebarStore((s) => s.resetAllPreferences);
+  const layoutMode = useSidebarStore((s) => s.layoutMode);
+  const setLayoutMode = useSidebarStore((s) => s.setLayoutMode);
 
   // --- Ordered Sections ---
   const sortedSections = useMemo(() => {
@@ -584,9 +588,9 @@ export function SidebarCustomizerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl p-0 overflow-hidden flex flex-col max-h-[85vh] bg-surface rounded-2xl border border-border shadow-2xl">
+      <DialogContent className="max-w-xl p-0 shadow-2xl flex max-h-[85vh] flex-col overflow-hidden rounded-2xl border border-border bg-surface">
         <DialogHeader className="px-6 pt-5 pb-3 border-b border-border/80">
-          <div className="flex items-center gap-2 text-primary">
+          <div className="gap-2 flex items-center text-primary">
             <SlidersHorizontal className="size-5" />
             <DialogTitle className="text-base font-semibold text-foreground">
               Customize Sidebar
@@ -630,30 +634,30 @@ export function SidebarCustomizerDialog({
 
           {/* Search bar — not used by the Indicators tab */}
           {activeTab !== 'indicators' && (
-          <div className="relative mt-2">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={
-                activeTab === 'sections'
-                  ? 'Search sections (e.g. Channels, DMs, Projects, Docs, AI Agents)...'
-                  : 'Search navigation (e.g. Tasks, Docs, AI Chat)...'
-              }
-              className="w-full rounded-lg border border-border bg-surface-muted pl-8.5 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/40 transition-all"
-            />
-          </div>
+            <div className="mt-2 relative">
+              <Search className="left-3 size-3.5 absolute top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={
+                  activeTab === 'sections'
+                    ? 'Search sections (e.g. Channels, DMs, Projects, Docs, AI Agents)...'
+                    : 'Search navigation (e.g. Tasks, Docs, AI Chat)...'
+                }
+                className="pl-8.5 pr-3 py-1.5 text-xs w-full rounded-lg border border-border bg-surface-muted text-foreground transition-all outline-none placeholder:text-muted-foreground focus:border-primary/80 focus:ring-1 focus:ring-primary/40"
+              />
+            </div>
           )}
 
           {/* Filter Pills for Items Tab */}
           {activeTab === 'items' && !search && (
-            <div className="flex items-center gap-1.5 pt-2 overflow-x-auto scrollbar-none">
+            <div className="gap-1.5 pt-2 flex scrollbar-none items-center overflow-x-auto">
               <button
                 type="button"
                 onClick={() => setActiveGroup('all')}
                 className={cn(
-                  'rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors',
+                  'px-2.5 py-0.5 font-medium rounded-full text-[11px] transition-colors',
                   activeGroup === 'all'
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-surface-raised text-muted-foreground hover:text-foreground',
@@ -667,7 +671,7 @@ export function SidebarCustomizerDialog({
                   type="button"
                   onClick={() => setActiveGroup(group.id)}
                   className={cn(
-                    'rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors whitespace-nowrap',
+                    'px-2.5 py-0.5 font-medium rounded-full text-[11px] whitespace-nowrap transition-colors',
                     activeGroup === group.id
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-surface-raised text-muted-foreground hover:text-foreground',
@@ -681,7 +685,7 @@ export function SidebarCustomizerDialog({
         </DialogHeader>
 
         {/* Content list */}
-        <ScrollArea className="flex-1 min-h-[260px] max-h-[380px] p-4">
+        <ScrollArea className="p-4 max-h-[380px] min-h-[260px] flex-1">
           {activeTab === 'indicators' ? (
             <IndicatorsPanel />
           ) : activeTab === 'sections' ? (
@@ -696,6 +700,30 @@ export function SidebarCustomizerDialog({
                 strategy={verticalListSortingStrategy}
               >
                 <div className="space-y-2">
+                  {!search ? (
+                    <div className="gap-3 mb-3 p-3 flex flex-wrap items-center justify-between rounded-xl border border-border bg-surface-muted/50">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-foreground">
+                          Sidebar view
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          Activity replaces Starred, Channels and DMs with one
+                          newest-first list.
+                        </p>
+                      </div>
+                      <SegmentedControl
+                        aria-label="Sidebar view"
+                        value={layoutMode}
+                        onChange={(value) =>
+                          setLayoutMode(value as SidebarLayoutMode)
+                        }
+                        options={[
+                          { value: 'sections', label: 'Sections' },
+                          { value: 'activity', label: 'Activity' },
+                        ]}
+                      />
+                    </div>
+                  ) : null}
                   {filteredSections.map((section) => (
                     <SortableSectionRow
                       key={section.id}
@@ -734,8 +762,8 @@ export function SidebarCustomizerDialog({
         </ScrollArea>
 
         {/* Footer Actions */}
-        <DialogFooter className="px-6 py-3 border-t border-border bg-surface-muted flex items-center justify-between sm:justify-between">
-          <div className="flex items-center gap-2">
+        <DialogFooter className="px-6 py-3 sm:justify-between flex items-center justify-between border-t border-border bg-surface-muted">
+          <div className="gap-2 flex items-center">
             <Button
               variant="outline"
               size="sm"

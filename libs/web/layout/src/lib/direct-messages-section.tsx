@@ -69,12 +69,7 @@ import {
   Star,
   UserRound,
 } from 'lucide-react';
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useMemo,
-} from 'react';
+import { useCallback, useEffect, useId, useMemo } from 'react';
 import { NavLink, useLocation, useMatch, useNavigate } from 'react-router-dom';
 import {
   FavoriteToggle,
@@ -95,13 +90,18 @@ import {
   partitionMembersByInactivity,
   partitionGroupDMsByInactivity,
 } from './inactivity-utils.js';
+import {
+  ACTIVITY_ROW_ACTIONS_CLASS,
+  ActivityRowLink,
+  type ActivityRowContent,
+} from './activity-row-link.js';
 import { useSidebarStore } from './navigation/sidebar-store.js';
 import { useSplitViewStore } from './split-view/split-view-store.js';
 
 /**
  * One person's row.
  */
-function DirectMessageRow({
+export function DirectMessageRow({
   member,
   workspaceId,
   workspaceSlug,
@@ -110,6 +110,7 @@ function DirectMessageRow({
   activity,
   onToggleFavorite,
   onToggleMuted,
+  activityContent,
 }: {
   member: WorkspaceMember;
   workspaceId: string | undefined;
@@ -119,6 +120,8 @@ function DirectMessageRow({
   activity?: ActivityIndicator;
   onToggleFavorite: () => void;
   onToggleMuted: () => void;
+  /** Draw the two-line activity-list layout instead of the compact row. */
+  activityContent?: ActivityRowContent;
 }) {
   const navigate = useNavigate();
   const presenceMap = useUserPresenceMap();
@@ -222,56 +225,75 @@ function DirectMessageRow({
     },
   ];
 
+  const indicator = (
+    <SidebarActivityIndicator
+      surface="dms"
+      itemLabel={name}
+      state={{
+        activityType: activity?.level,
+        unreadCount:
+          activity?.level === 'mention'
+            ? activity?.mentionCount
+            : activity?.count,
+        isMuted,
+      }}
+      className={activityContent ? undefined : 'mr-1'}
+    />
+  );
+
   const row = (
     <li className="group/row relative">
-      <NavLink
-        to={to}
-        className={({ isActive }) =>
-          navRowClass(isActive, {
-            depth: 1,
-            extra: cn(
-              NAV_ROW_ACTIONS_PADDING,
-              isMuted && 'text-muted-foreground',
-              hasUnread && 'font-semibold text-foreground',
-            ),
-          })
-        }
-      >
-        <UserAvatar
+      {activityContent ? (
+        <ActivityRowLink
+          to={to}
           name={name}
-          src={member.user.avatarUrl}
-          seed={member.user.id}
-          size="xs"
-          presence={presence}
-          statusEmoji={member.user.statusEmoji}
-          statusText={member.user.statusText}
-          className="shrink-0"
+          content={activityContent}
+          hasUnread={hasUnread}
+          isMuted={isMuted}
+          isPinned={isFavorite}
+          indicator={indicator}
         />
+      ) : (
+        <NavLink
+          to={to}
+          className={({ isActive }) =>
+            navRowClass(isActive, {
+              depth: 1,
+              extra: cn(
+                NAV_ROW_ACTIONS_PADDING,
+                isMuted && 'text-muted-foreground',
+                hasUnread && 'font-semibold text-foreground',
+              ),
+            })
+          }
+        >
+          <UserAvatar
+            name={name}
+            src={member.user.avatarUrl}
+            seed={member.user.id}
+            size="xs"
+            presence={presence}
+            statusEmoji={member.user.statusEmoji}
+            statusText={member.user.statusText}
+            className="shrink-0"
+          />
 
-        <span className="flex-1 truncate">{name}</span>
+          <span className="flex-1 truncate">{name}</span>
 
-        <SidebarActivityIndicator
-          surface="dms"
-          itemLabel={name}
-          state={{
-            activityType: activity?.level,
-            unreadCount:
-              activity?.level === 'mention'
-                ? activity?.mentionCount
-                : activity?.count,
-            isMuted,
-          }}
-          className="mr-1"
-        />
+          {indicator}
 
-        {isMuted && (
-          <Hint label="Notifications muted">
-            <BellOff className="mr-1 size-3 shrink-0 text-muted-foreground/70" />
-          </Hint>
-        )}
-      </NavLink>
+          {isMuted && (
+            <Hint label="Notifications muted">
+              <BellOff className="mr-1 size-3 shrink-0 text-muted-foreground/70" />
+            </Hint>
+          )}
+        </NavLink>
+      )}
 
-      <NavRowActions isPinned={isFavorite}>
+      <NavRowActions
+        isPinned={isFavorite}
+        className={activityContent ? ACTIVITY_ROW_ACTIONS_CLASS : undefined}
+      >
         <FavoriteToggle isFavorite={isFavorite} onToggle={onToggleFavorite} />
 
         <ActionDropdownMenu
@@ -282,14 +304,14 @@ function DirectMessageRow({
           entity={member}
           trigger={<NavRowMenuButton label={`Options for ${name}`} />}
           header={
-            <DropdownMenuLabel className="normal-case tracking-normal border-b border-border/60 mb-1 pb-1.5">
+            <DropdownMenuLabel className="tracking-normal mb-1 pb-1.5 border-b border-border/60 normal-case">
               <span className="gap-2 flex items-center">
                 <PresenceDot presence={presence} hint={false} />
                 <span className="text-xs font-semibold truncate text-foreground">
                   {name}
                 </span>
               </span>
-              <span className="block text-[11px] font-normal text-muted-foreground">
+              <span className="font-normal block text-[11px] text-muted-foreground">
                 {PRESENCE_LABELS[presence]} · @{member.user.name}
               </span>
             </DropdownMenuLabel>
@@ -401,13 +423,14 @@ function SelfDmRow({
  * A group direct message's row — an avatar stack, its name, and the same
  * favorite / mute controls a 1:1 has, keyed on the room id.
  */
-function GroupDmRow({
+export function GroupDmRow({
   group,
   workspaceSlug,
   isFavorite,
   isMuted,
   onToggleFavorite,
   onToggleMuted,
+  activityContent,
 }: {
   group: GroupDirectMessageSummary;
   workspaceSlug: string;
@@ -415,6 +438,8 @@ function GroupDmRow({
   isMuted: boolean;
   onToggleFavorite: () => void;
   onToggleMuted: () => void;
+  /** Draw the two-line activity-list layout instead of the compact row. */
+  activityContent?: ActivityRowContent;
 }) {
   const navigate = useNavigate();
   const { workspaceId } = useCurrentWorkspace();
@@ -469,45 +494,64 @@ function GroupDmRow({
     },
   ];
 
+  const indicator = (
+    <SidebarActivityIndicator
+      surface="dms"
+      itemLabel={group.name}
+      state={{ unreadCount: group.unreadCount, isMuted }}
+      className={activityContent ? undefined : 'mr-1'}
+    />
+  );
+
   const row = (
     <li className="group/row relative">
-      <NavLink
-        to={to}
-        className={({ isActive }) =>
-          navRowClass(isActive, {
-            depth: 1,
-            extra: cn(
-              NAV_ROW_ACTIONS_PADDING,
-              isMuted && 'text-muted-foreground',
-              hasUnread && 'font-semibold text-foreground',
-            ),
-          })
-        }
-      >
-        <GroupAvatar
+      {activityContent ? (
+        <ActivityRowLink
+          to={to}
           name={group.name}
-          avatarUrl={group.avatarUrl}
-          members={group.avatarMembers}
-          size="xs"
-          className="shrink-0"
+          content={activityContent}
+          hasUnread={hasUnread}
+          isMuted={isMuted}
+          isPinned={isFavorite}
+          indicator={indicator}
         />
+      ) : (
+        <NavLink
+          to={to}
+          className={({ isActive }) =>
+            navRowClass(isActive, {
+              depth: 1,
+              extra: cn(
+                NAV_ROW_ACTIONS_PADDING,
+                isMuted && 'text-muted-foreground',
+                hasUnread && 'font-semibold text-foreground',
+              ),
+            })
+          }
+        >
+          <GroupAvatar
+            name={group.name}
+            avatarUrl={group.avatarUrl}
+            members={group.avatarMembers}
+            size="xs"
+            className="shrink-0"
+          />
 
-        <span className="flex-1 truncate">{group.name}</span>
+          <span className="flex-1 truncate">{group.name}</span>
 
-        <SidebarActivityIndicator
-          surface="dms"
-          itemLabel={group.name}
-          state={{ unreadCount: group.unreadCount, isMuted }}
-          className="mr-1"
-        />
-        {isMuted ? (
-          <Hint label="Notifications muted">
-            <BellOff className="mr-1 size-3 shrink-0 text-muted-foreground/70" />
-          </Hint>
-        ) : null}
-      </NavLink>
+          {indicator}
+          {isMuted ? (
+            <Hint label="Notifications muted">
+              <BellOff className="mr-1 size-3 shrink-0 text-muted-foreground/70" />
+            </Hint>
+          ) : null}
+        </NavLink>
+      )}
 
-      <NavRowActions isPinned={isFavorite}>
+      <NavRowActions
+        isPinned={isFavorite}
+        className={activityContent ? ACTIVITY_ROW_ACTIONS_CLASS : undefined}
+      >
         <FavoriteToggle isFavorite={isFavorite} onToggle={onToggleFavorite} />
 
         <ActionDropdownMenu
@@ -688,7 +732,14 @@ export function DirectMessagesSection({
         ready: activityReady,
         keepActive: (id) => keepDmActive(id, `/w/${workspaceSlug}/dms/${id}`),
       }),
-    [people, dmActivity, lastMessageAt, activityReady, keepDmActive, workspaceSlug],
+    [
+      people,
+      dmActivity,
+      lastMessageAt,
+      activityReady,
+      keepDmActive,
+      workspaceSlug,
+    ],
   );
 
   const {

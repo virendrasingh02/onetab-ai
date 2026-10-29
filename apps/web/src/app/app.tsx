@@ -80,6 +80,11 @@ const AcceptInvitationPage = lazy(() =>
     default: m.AcceptInvitationPage,
   })),
 );
+const SidebarPreferencesHost = lazy(() =>
+  import('@org/web-layout').then((m) => ({
+    default: m.SidebarPreferencesHost,
+  })),
+);
 const GlobalInviteMembersDialog = lazy(() =>
   import('@org/web-invitations').then((m) => ({
     default: m.GlobalInviteMembersDialog,
@@ -148,6 +153,11 @@ function WorkspaceSettings() {
           mount of the app-wide invite dialog for the Members "Invite" buttons. */}
       <Suspense fallback={null}>
         <GlobalInviteMembersDialog />
+      </Suspense>
+      {/* Likewise for sidebar preferences: the "Sidebar view" row and the
+          "App sidebar → Customize" dialog. */}
+      <Suspense fallback={null}>
+        <SidebarPreferencesHost />
       </Suspense>
     </>
   );

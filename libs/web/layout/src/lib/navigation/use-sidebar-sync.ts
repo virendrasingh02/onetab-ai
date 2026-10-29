@@ -1,4 +1,5 @@
 import { userApi } from '@org/api-client';
+import { useSidebarCustomizerStore } from '@org/ui';
 import { useEffect, useRef } from 'react';
 import { useSidebarStore, type SidebarState } from './sidebar-store.js';
 
@@ -12,6 +13,8 @@ type PersistedSidebar = Pick<
   | 'collapsedGroups'
   | 'sidebarCollapsed'
   | 'activityIndicators'
+  | 'layoutMode'
+  | 'activityFilter'
   | 'channelSort'
   | 'sectionDefs'
   | 'channelMeta'
@@ -27,6 +30,8 @@ function snapshot(state: SidebarState): PersistedSidebar {
     collapsedGroups: state.collapsedGroups,
     sidebarCollapsed: state.sidebarCollapsed,
     activityIndicators: state.activityIndicators,
+    layoutMode: state.layoutMode,
+    activityFilter: state.activityFilter,
     channelSort: state.channelSort,
     sectionDefs: state.sectionDefs,
     channelMeta: state.channelMeta,
@@ -110,4 +115,33 @@ export function useSidebarSync(enabled: boolean): void {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [enabled]);
+}
+
+/**
+ * Keeps `layoutMode` in step with its mirror in `@org/ui`'s customizer store,
+ * both ways, so the settings page (which cannot import this lib) can show and
+ * change the sidebar view. Mount once, next to {@link useSidebarSync}.
+ */
+export function useSidebarLayoutBridge(): void {
+  useEffect(() => {
+    useSidebarCustomizerStore.setState({
+      layoutMode: useSidebarStore.getState().layoutMode,
+    });
+    const offSidebar = useSidebarStore.subscribe((state) => {
+      if (
+        useSidebarCustomizerStore.getState().layoutMode !== state.layoutMode
+      ) {
+        useSidebarCustomizerStore.setState({ layoutMode: state.layoutMode });
+      }
+    });
+    const offMirror = useSidebarCustomizerStore.subscribe((mirror) => {
+      if (useSidebarStore.getState().layoutMode !== mirror.layoutMode) {
+        useSidebarStore.getState().setLayoutMode(mirror.layoutMode);
+      }
+    });
+    return () => {
+      offSidebar();
+      offMirror();
+    };
+  }, []);
 }

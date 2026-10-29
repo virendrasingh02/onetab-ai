@@ -43,8 +43,6 @@ import {
   NotificationSoundBridge,
   useDirectMessageMuteSync,
   useLiveRoomActivity,
-  type LiveRoomActivity,
-  type RoomActivityEntry,
 } from '@org/web-chat';
 import { useChatNotificationSoundGate } from './notifications/chat-sound-gate.js';
 import {
@@ -102,6 +100,7 @@ import {
 } from 'react-router-dom';
 import { AddAccountDialog } from './add-account-dialog.js';
 import { AppHeader } from './app-header.js';
+import { liveRoomForChannel } from './activity-conversation-list.js';
 import { ChannelNav } from './channel-nav.js';
 import { MobileBottomNav } from './mobile-bottom-nav.js';
 import { OfflineSyncBanner } from './offline/offline-sync-banner.js';
@@ -109,7 +108,10 @@ import { OfflineConflictToastBridge } from './sync/offline-conflict-toast-bridge
 import { SyncStatusIndicator } from './sync/sync-status-indicator.js';
 import { useNavigationSync } from './navigation/use-navigation-sync.js';
 import { useRememberWorkspacePath } from './navigation/use-remember-workspace-path.js';
-import { useSidebarSync } from './navigation/use-sidebar-sync.js';
+import {
+  useSidebarLayoutBridge,
+  useSidebarSync,
+} from './navigation/use-sidebar-sync.js';
 import {
   toSidebarActivityConfig,
   useSidebarStore,
@@ -123,16 +125,6 @@ import { WorkspaceMenu } from './workspace-switcher.js';
  * The live Matrix room behind a channel — matched by name, the way rooms are
  * provisioned, with the room id as a fallback when the API supplies one.
  */
-function liveRoomForChannel(
-  live: LiveRoomActivity,
-  channel: { name: string },
-): RoomActivityEntry | undefined {
-  const byName = live.byChannelName.get(channel.name.toLowerCase().trim());
-  if (byName) return byName;
-  const roomId = (channel as { matrixRoomId?: unknown }).matrixRoomId;
-  return typeof roomId === 'string' ? live.byRoomId.get(roomId) : undefined;
-}
-
 export interface AppShellProps {
   /**
    * The app's page table as a `<Routes>` with absolute paths. The split pane
@@ -151,6 +143,7 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
   // changes back — so a reordered sidebar survives logout and moves between
   // devices rather than living only in this browser's localStorage.
   useSidebarSync(!!user);
+  useSidebarLayoutBridge();
   // Same, for the per-workspace "resume where I left off" navigation memory.
   useNavigationSync(!!user);
   // Keep the notification-sound engine configured from user preferences and
@@ -258,7 +251,9 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
   // Muting a DM also silences its push notifications on every device.
   useDirectMessageMuteSync(workspaceId);
   const channelActivity = useMemo(() => {
-    const merged: Record<string, ActivityIndicator> = { ...feedChannelActivity };
+    const merged: Record<string, ActivityIndicator> = {
+      ...feedChannelActivity,
+    };
     for (const channel of channelsQuery.data ?? []) {
       const live = liveRoomForChannel(liveRoomActivity, channel);
       if (!live) continue;
@@ -295,7 +290,10 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
      * never mentioned in still sorts as active and never reads as "inactive".
      */
     for (const channel of channelsQuery.data ?? []) {
-      const liveAt = liveRoomForChannel(liveRoomActivity, channel)?.lastActivityAt;
+      const liveAt = liveRoomForChannel(
+        liveRoomActivity,
+        channel,
+      )?.lastActivityAt;
       if (!liveAt) continue;
       const feedAt = latest[channel.id] ? Date.parse(latest[channel.id]) : 0;
       if (liveAt > feedAt) latest[channel.id] = new Date(liveAt).toISOString();
@@ -318,7 +316,10 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
    * over their feed-derived dots so a new message lights the row instantly.
    */
   const directMessageLiveCounts = useMemo(() => {
-    const counts: Record<string, { unreadCount: number; mentionCount: number }> = {};
+    const counts: Record<
+      string,
+      { unreadCount: number; mentionCount: number }
+    > = {};
     for (const [peerId, entry] of liveRoomActivity.byDirectPeerId) {
       counts[peerId] = {
         unreadCount: entry.unreadCount,
@@ -345,9 +346,12 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
   );
   // Mirror unread state to the native OS icon as a dot (Windows taskbar
   // overlay, macOS dock, Linux launcher) — red for a mention, blue otherwise.
-  useDesktopBadge(hasPendingMention ? Math.max(totalUnreadBadge, 1) : totalUnreadBadge, {
-    mention: hasPendingMention,
-  });
+  useDesktopBadge(
+    hasPendingMention ? Math.max(totalUnreadBadge, 1) : totalUnreadBadge,
+    {
+      mention: hasPendingMention,
+    },
+  );
 
   /*
    * Every workspace's feed, not just this one's — the switcher has to say
@@ -457,16 +461,84 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
     };
     const icon = 'size-4 text-muted-foreground';
     const pages: CommandItem[] = [
-      { id: 'p-dashboard', category: 'Go to', label: 'Dashboard', icon: <LayoutDashboard className={icon} />, action: go('dashboard') },
-      { id: 'p-tasks', category: 'Go to', label: 'Tasks & projects', icon: <CheckSquare className={icon} />, shortcut: 'G T', action: go('tasks') },
-      { id: 'p-docs', category: 'Go to', label: 'Docs & notes', icon: <FileText className={icon} />, shortcut: 'G D', action: go('docs') },
-      { id: 'p-meetings', category: 'Go to', label: 'Meetings', icon: <Calendar className={icon} />, shortcut: 'G M', action: go('meetings') },
-      { id: 'p-schedule', category: 'Go to', label: 'Schedule', icon: <Calendar className={icon} />, shortcut: 'G C', action: go('schedule') },
-      { id: 'p-ai', category: 'Go to', label: 'AI assistant', icon: <Sparkles className={icon} />, shortcut: 'G A', action: go('ai-chat') },
-      { id: 'p-automations', category: 'Go to', label: 'Automations', icon: <Zap className={icon} />, shortcut: 'G W', action: go('automations') },
-      { id: 'p-marketplace', category: 'Go to', label: 'Apps & integrations', keywords: 'marketplace agents integrations', icon: <Sparkles className={icon} />, action: go('marketplace') },
-      { id: 'p-members', category: 'Go to', label: 'Team directory', keywords: 'members people', icon: <Users className={icon} />, action: go('members') },
-      { id: 'p-settings', category: 'Go to', label: 'Workspace settings', icon: <Settings className={icon} />, action: go('settings') },
+      {
+        id: 'p-dashboard',
+        category: 'Go to',
+        label: 'Dashboard',
+        icon: <LayoutDashboard className={icon} />,
+        action: go('dashboard'),
+      },
+      {
+        id: 'p-tasks',
+        category: 'Go to',
+        label: 'Tasks & projects',
+        icon: <CheckSquare className={icon} />,
+        shortcut: 'G T',
+        action: go('tasks'),
+      },
+      {
+        id: 'p-docs',
+        category: 'Go to',
+        label: 'Docs & notes',
+        icon: <FileText className={icon} />,
+        shortcut: 'G D',
+        action: go('docs'),
+      },
+      {
+        id: 'p-meetings',
+        category: 'Go to',
+        label: 'Meetings',
+        icon: <Calendar className={icon} />,
+        shortcut: 'G M',
+        action: go('meetings'),
+      },
+      {
+        id: 'p-schedule',
+        category: 'Go to',
+        label: 'Schedule',
+        icon: <Calendar className={icon} />,
+        shortcut: 'G C',
+        action: go('schedule'),
+      },
+      {
+        id: 'p-ai',
+        category: 'Go to',
+        label: 'AI assistant',
+        icon: <Sparkles className={icon} />,
+        shortcut: 'G A',
+        action: go('ai-chat'),
+      },
+      {
+        id: 'p-automations',
+        category: 'Go to',
+        label: 'Automations',
+        icon: <Zap className={icon} />,
+        shortcut: 'G W',
+        action: go('automations'),
+      },
+      {
+        id: 'p-marketplace',
+        category: 'Go to',
+        label: 'Apps & integrations',
+        keywords: 'marketplace agents integrations',
+        icon: <Sparkles className={icon} />,
+        action: go('marketplace'),
+      },
+      {
+        id: 'p-members',
+        category: 'Go to',
+        label: 'Team directory',
+        keywords: 'members people',
+        icon: <Users className={icon} />,
+        action: go('members'),
+      },
+      {
+        id: 'p-settings',
+        category: 'Go to',
+        label: 'Workspace settings',
+        icon: <Settings className={icon} />,
+        action: go('settings'),
+      },
     ];
     const create: CommandItem[] = [
       {
@@ -492,13 +564,15 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
         },
       },
     ];
-    const channels: CommandItem[] = (channelsQuery.data ?? []).map((channel) => ({
-      id: `ch-${channel.id}`,
-      category: 'Channels',
-      label: channel.name,
-      icon: <Hash className={icon} />,
-      action: go(`c/${channel.slug}`),
-    }));
+    const channels: CommandItem[] = (channelsQuery.data ?? []).map(
+      (channel) => ({
+        id: `ch-${channel.id}`,
+        category: 'Channels',
+        label: channel.name,
+        icon: <Hash className={icon} />,
+        action: go(`c/${channel.slug}`),
+      }),
+    );
     const people: CommandItem[] = (membersQuery.data ?? [])
       .filter((member) => member.user.id !== user?.id)
       .map((member) => ({
@@ -600,6 +674,7 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
       channelLastActivity={channelLastActivity}
       directMessageLastActivity={directMessageLastActivity}
       directMessageLiveCounts={directMessageLiveCounts}
+      liveRoomActivity={liveRoomActivity}
       activityReady={liveRoomActivity.ready}
       onCreateChannel={() => setCreateChannelOpen(true)}
       onBrowseChannels={() => navigate(`/w/${slug}/channels`)}
@@ -610,54 +685,58 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
   return (
     <TooltipProvider>
       <SidebarActivityConfigProvider value={activityConfig}>
-      {/*
+        {/*
         Delivers live `notification.created` events as a toast + native desktop
         notification. Mounted here so it only runs while signed in and in a
         workspace, and unmounts cleanly on the way out.
       */}
-      <RealtimeNotificationsBridge currentUserId={user?.id} workspaceSlug={slug} />
-      {/*
+        <RealtimeNotificationsBridge
+          currentUserId={user?.id}
+          workspaceSlug={slug}
+        />
+        {/*
         Calm audio cues for Matrix chat traffic (new messages, DMs) — the
         counterpart to RealtimeNotificationsBridge, which covers mentions,
         tasks, invites and calls from the server notification stream.
       */}
-      <NotificationSoundBridge
-        suppressed={chatSoundGate.suppressed}
-        mentionsOnly={chatSoundGate.mentionsOnly}
-        mutedChannelNames={chatSoundGate.mutedChannelNames}
-        mutedPeerNames={chatSoundGate.mutedPeerNames}
-        mentionsOnlyChannelNames={chatSoundGate.mentionsOnlyChannelNames}
-      />
-      <div className="flex h-full flex-col overflow-hidden bg-background bg-app-gradient font-sans text-foreground">
-        {/* Top Header Bar spanning full width */}
-        <OfflineSyncBanner />
-        <AppHeader
-          user={user}
-          workspaceSlug={slug}
-          workspaceId={workspaceId}
-          title={workspace.name}
-          subtitle={`${workspace.memberCount} members · ${workspace.channelCount} channels`}
-          workspaces={workspaces}
-          currentWorkspace={workspace}
-          onOpenSearch={() => palette.setOpen(true)}
-          onToggleSidebar={toggleSidebar}
-          sidebarOpen={sidebarOpen}
-          unreadNotifications={totalUnreadBadge}
-          workspaceActivity={workspaceActivity}
+        <NotificationSoundBridge
+          suppressed={chatSoundGate.suppressed}
+          mentionsOnly={chatSoundGate.mentionsOnly}
+          mutedChannelNames={chatSoundGate.mutedChannelNames}
+          mutedPeerNames={chatSoundGate.mutedPeerNames}
+          mentionsOnlyChannelNames={chatSoundGate.mentionsOnlyChannelNames}
         />
+        <div className="flex h-full flex-col overflow-hidden bg-background bg-app-gradient font-sans text-foreground">
+          {/* Top Header Bar spanning full width */}
+          <OfflineSyncBanner />
+          <AppHeader
+            user={user}
+            workspaceSlug={slug}
+            workspaceId={workspaceId}
+            title={workspace.name}
+            subtitle={`${workspace.memberCount} members · ${workspace.channelCount} channels`}
+            workspaces={workspaces}
+            currentWorkspace={workspace}
+            onOpenSearch={() => palette.setOpen(true)}
+            onToggleSidebar={toggleSidebar}
+            sidebarOpen={sidebarOpen}
+            unreadNotifications={totalUnreadBadge}
+            workspaceActivity={workspaceActivity}
+          />
 
-        {/* Notification setup prompt — directly below the header, above the
+          {/* Notification setup prompt — directly below the header, above the
             three boxes. `m-1.5` lines it up with the content gutter and leaves
             the same 6px gap above the panes (whose row has `pt-0`). */}
-        <NotificationEnableBar workspaceId={workspaceId} className="m-1.5" />
+          <NotificationEnableBar workspaceId={workspaceId} className="m-1.5" />
 
-        <div
-          className={cn(
-            'min-h-0 gap-1.5 p-1.5 pt-0 relative flex flex-1 overflow-hidden',
-            (isResizing || split.isResizing) && 'cursor-col-resize select-none',
-          )}
-        >
-          {/*
+          <div
+            className={cn(
+              'min-h-0 gap-1.5 p-1.5 pt-0 relative flex flex-1 overflow-hidden',
+              (isResizing || split.isResizing) &&
+                'cursor-col-resize select-none',
+            )}
+          >
+            {/*
             Column 1 / Box 1: navigation rail.
             Both rails sit one step *below* the editor panel — `surface-muted`
             against the panel's `card` — which is the only tonal difference in
@@ -665,180 +744,182 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
             gutter, so the three panes read as one flat surface set rather than
             three floating cards.
           */}
-          {sidebarOpen && !isMobile ? (
-            <>
-              <aside
-                className="group/sidebar flex h-full shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-surface-muted text-sidebar-foreground transition-[width] duration-150"
-                style={{ width: `${effectiveLeftWidth}px` }}
-                aria-label="Sidebar navigation"
-              >
-                <div className="min-h-0 flex flex-1 flex-col">{channelNav}</div>
-                {/* Desktop app prompt lives at the foot of the sidebar so it
+            {sidebarOpen && !isMobile ? (
+              <>
+                <aside
+                  className="group/sidebar flex h-full shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-surface-muted text-sidebar-foreground transition-[width] duration-150"
+                  style={{ width: `${effectiveLeftWidth}px` }}
+                  aria-label="Sidebar navigation"
+                >
+                  <div className="min-h-0 flex flex-1 flex-col">
+                    {channelNav}
+                  </div>
+                  {/* Desktop app prompt lives at the foot of the sidebar so it
                     never takes a full-width row from the page. */}
-                {!isSidebarCollapsed ? (
-                  <AppDownloadBanner workspaceId={workspaceId} />
-                ) : null}
-              </aside>
+                  {!isSidebarCollapsed ? (
+                    <AppDownloadBanner workspaceId={workspaceId} />
+                  ) : null}
+                </aside>
 
-              {!isSidebarCollapsed && (
-                <ResizeHandle
-                  side="left"
-                  isResizing={isResizing === 'left'}
-                  currentWidth={leftWidth}
-                  minWidth={bounds.leftMin}
-                  maxWidth={bounds.leftMax}
-                  onPointerDown={startLeftResize}
-                  onDoubleClick={resetLeftWidth}
-                  onStepWidth={stepLeftWidth}
-                  onResetWidth={resetLeftWidth}
-                />
-              )}
-            </>
-          ) : null}
+                {!isSidebarCollapsed && (
+                  <ResizeHandle
+                    side="left"
+                    isResizing={isResizing === 'left'}
+                    currentWidth={leftWidth}
+                    minWidth={bounds.leftMin}
+                    maxWidth={bounds.leftMax}
+                    onPointerDown={startLeftResize}
+                    onDoubleClick={resetLeftWidth}
+                    onStepWidth={stepLeftWidth}
+                    onResetWidth={resetLeftWidth}
+                  />
+                )}
+              </>
+            ) : null}
 
-          {/* Column 2 / Box 2: the editor panel — the one lifted surface.
+            {/* Column 2 / Box 2: the editor panel — the one lifted surface.
               `app-content-panel` pins its `--background` to pure white in light
               mode so every routed view reads as one clean white sheet; dark
               mode is unaffected (see theme.css). */}
-          <div className="app-content-panel min-w-0 bg-card shadow-2xs flex h-full flex-1 flex-col overflow-hidden rounded-xl border border-border text-card-foreground">
-            {/*
+            <div className="app-content-panel min-w-0 shadow-2xs flex h-full flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground">
+              {/*
               The page scroller. `min-h-full` on the content keeps the column
               full-height for pages that fill it (chat) without capping the ones
               that outgrow it, so those pages size themselves with `flex-1
               min-h-0` rather than `h-full` — a percentage height has nothing
               definite to resolve against inside a scrolled content box.
             */}
-            <main className="min-w-0 flex flex-1 flex-col overflow-hidden">
-              <div className="min-h-0 flex min-h-full flex-1 flex-col overflow-y-auto">
-                <ErrorBoundary resetKeys={[location.pathname]}>
-                  <Suspense fallback={<LoadingState fullPage />}>
-                    <Outlet />
-                  </Suspense>
-                </ErrorBoundary>
-              </div>
-            </main>
-          </div>
+              <main className="min-w-0 flex flex-1 flex-col overflow-hidden">
+                <div className="min-h-0 flex min-h-full flex-1 flex-col overflow-y-auto">
+                  <ErrorBoundary resetKeys={[location.pathname]}>
+                    <Suspense fallback={<LoadingState fullPage />}>
+                      <Outlet />
+                    </Suspense>
+                  </ErrorBoundary>
+                </div>
+              </main>
+            </div>
 
-          {/* Split view: a second channel conversation in its own panel beside
+            {/* Split view: a second channel conversation in its own panel beside
               the page ("Open in split view"). Desktop only — a phone has no
               room for two conversations side by side. */}
-          {splitChannel && workspaceId && !isMobile ? (
-            <>
-              <ResizeHandle
-                side="right"
-                isResizing={split.isResizing}
-                currentWidth={
-                  split.width ??
-                  splitPaneRef.current?.offsetWidth ??
-                  SPLIT_MIN_WIDTH
-                }
-                minWidth={SPLIT_MIN_WIDTH}
-                maxWidth={splitMaxWidth()}
-                onPointerDown={split.startResize}
-                onDoubleClick={split.reset}
-                onStepWidth={(delta) =>
-                  split.step(
-                    delta,
-                    splitPaneRef.current?.offsetWidth ?? SPLIT_MIN_WIDTH,
-                  )
-                }
-                onResetWidth={split.reset}
-                label="Resize split view"
-              />
-              <div
-                ref={splitPaneRef}
-                className={cn(
-                  'app-content-panel min-w-80 bg-card shadow-2xs flex h-full flex-col overflow-hidden rounded-xl border border-border text-card-foreground',
-                  // Default: an even 50 / 50 with the page; a dragged width is pinned.
-                  split.width === null ? 'flex-1' : 'shrink-0',
-                )}
-                style={
-                  split.width === null
-                    ? undefined
-                    : { width: `${split.width}px` }
-                }
-              >
-                {splitChannel.kind === 'route' ? (
-                  <SplitRoutePane
-                    key={splitChannel.id}
-                    initialPath={splitChannel.id}
-                    title={splitChannel.name}
-                    pages={splitPages}
-                    onClose={() => closeSplit(workspaceId)}
-                  />
-                ) : (
-                  <ChannelSplitView
-                    workspaceId={workspaceId}
-                    workspaceSlug={slug}
-                    channel={splitChannel}
-                  />
-                )}
-              </div>
-            </>
-          ) : null}
-
-          {/* Column 3 / Box 3: the switchable side rail — assistant, a
-              person, the page's details, or an open Kanban card. */}
-          {rightPanelOpen && !isMobile ? (
-            <>
-              <ResizeHandle
-                side="right"
-                isResizing={isResizing === 'right'}
-                currentWidth={rightWidth}
-                minWidth={bounds.rightMin}
-                maxWidth={bounds.rightMax}
-                onPointerDown={startRightResize}
-                onDoubleClick={resetRightWidth}
-                onStepWidth={stepRightWidth}
-                onResetWidth={resetRightWidth}
-              />
-
-              <aside
-                className="flex h-full shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-surface-muted text-foreground"
-                style={{ width: `${rightWidth}px` }}
-                aria-label="Side panel"
-              >
-                <RightPanel
-                  currentUser={user}
-                  workspaceSlug={slug}
-                  onClose={closeAssistant}
+            {splitChannel && workspaceId && !isMobile ? (
+              <>
+                <ResizeHandle
+                  side="right"
+                  isResizing={split.isResizing}
+                  currentWidth={
+                    split.width ??
+                    splitPaneRef.current?.offsetWidth ??
+                    SPLIT_MIN_WIDTH
+                  }
+                  minWidth={SPLIT_MIN_WIDTH}
+                  maxWidth={splitMaxWidth()}
+                  onPointerDown={split.startResize}
+                  onDoubleClick={split.reset}
+                  onStepWidth={(delta) =>
+                    split.step(
+                      delta,
+                      splitPaneRef.current?.offsetWidth ?? SPLIT_MIN_WIDTH,
+                    )
+                  }
+                  onResetWidth={split.reset}
+                  label="Resize split view"
                 />
-              </aside>
-            </>
-          ) : null}
-        </div>
+                <div
+                  ref={splitPaneRef}
+                  className={cn(
+                    'app-content-panel min-w-80 shadow-2xs flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground',
+                    // Default: an even 50 / 50 with the page; a dragged width is pinned.
+                    split.width === null ? 'flex-1' : 'shrink-0',
+                  )}
+                  style={
+                    split.width === null
+                      ? undefined
+                      : { width: `${split.width}px` }
+                  }
+                >
+                  {splitChannel.kind === 'route' ? (
+                    <SplitRoutePane
+                      key={splitChannel.id}
+                      initialPath={splitChannel.id}
+                      title={splitChannel.name}
+                      pages={splitPages}
+                      onClose={() => closeSplit(workspaceId)}
+                    />
+                  ) : (
+                    <ChannelSplitView
+                      workspaceId={workspaceId}
+                      workspaceSlug={slug}
+                      channel={splitChannel}
+                    />
+                  )}
+                </div>
+              </>
+            ) : null}
 
-        {/* A running huddle opens full-width here, below all three boxes —
+            {/* Column 3 / Box 3: the switchable side rail — assistant, a
+              person, the page's details, or an open Kanban card. */}
+            {rightPanelOpen && !isMobile ? (
+              <>
+                <ResizeHandle
+                  side="right"
+                  isResizing={isResizing === 'right'}
+                  currentWidth={rightWidth}
+                  minWidth={bounds.rightMin}
+                  maxWidth={bounds.rightMax}
+                  onPointerDown={startRightResize}
+                  onDoubleClick={resetRightWidth}
+                  onStepWidth={stepRightWidth}
+                  onResetWidth={resetRightWidth}
+                />
+
+                <aside
+                  className="flex h-full shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-surface-muted text-foreground"
+                  style={{ width: `${rightWidth}px` }}
+                  aria-label="Side panel"
+                >
+                  <RightPanel
+                    currentUser={user}
+                    workspaceSlug={slug}
+                    onClose={closeAssistant}
+                  />
+                </aside>
+              </>
+            ) : null}
+          </div>
+
+          {/* A running huddle opens full-width here, below all three boxes —
             the conversation portals its bar into this row. Empty otherwise. */}
-        <HuddleDock />
+          <HuddleDock />
 
-        {/*
+          {/*
           Phone-only bottom tab bar. In normal flow as the last column child, so
           the content area shrinks by its height and nothing is covered. Above
           it: Home, Chat, Search, Inbox — plus "Menu", which opens the same
           navigation drawer as the header hamburger, keeping the full IA
           reachable. Hidden from `md` up, where the real sidebar is present.
         */}
-        {isMobile ? (
-          <MobileBottomNav
-            workspaceSlug={slug}
-            inboxUnread={totalUnreadBadge}
-            onOpenSearch={() => palette.setOpen(true)}
-            onOpenMenu={toggleSidebar}
-            menuOpen={sidebarOpen}
-          />
-        ) : null}
+          {isMobile ? (
+            <MobileBottomNav
+              workspaceSlug={slug}
+              inboxUnread={totalUnreadBadge}
+              onOpenSearch={() => palette.setOpen(true)}
+              onOpenMenu={toggleSidebar}
+              menuOpen={sidebarOpen}
+            />
+          ) : null}
 
-        {/* Quiet floating pill — appears only while background sync is degraded
+          {/* Quiet floating pill — appears only while background sync is degraded
             (reconnecting / offline). Takes no layout height. */}
-        <SyncStatusIndicator variant="pill" />
-        <OfflineConflictToastBridge />
+          <SyncStatusIndicator variant="pill" />
+          <OfflineConflictToastBridge />
 
-        {/* Phones get the app prompt as a slim row above the tab bar; on
+          {/* Phones get the app prompt as a slim row above the tab bar; on
             desktop it sits in the sidebar (above). */}
-        {isMobile ? <AppDownloadBanner workspaceId={workspaceId} /> : null}
+          {isMobile ? <AppDownloadBanner workspaceId={workspaceId} /> : null}
 
-        {/*
+          {/*
           Below `md` both panels become Radix sheets instead of hand-rolled
           `fixed` divs with a manual backdrop. That is what gives them focus
           trapping, Escape-to-close, body scroll locking, focus restoration to
@@ -846,90 +927,90 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
           none of those, and its `transition-all` never even ran because the
           closed state was `display: none`.
         */}
-        <Sheet open={isMobile && sidebarOpen} onOpenChange={setSidebarOpen}>
-          <SheetContent
-            side="left"
-            hideCloseButton
-            className="w-75 gap-0 p-0 max-w-[85vw] pt-safe pb-safe pl-safe bg-surface-muted"
+          <Sheet open={isMobile && sidebarOpen} onOpenChange={setSidebarOpen}>
+            <SheetContent
+              side="left"
+              hideCloseButton
+              className="w-75 gap-0 p-0 max-w-[85vw] bg-surface-muted pt-safe pb-safe pl-safe"
+            >
+              <SheetTitle className="sr-only">Workspace navigation</SheetTitle>
+              <div className="h-12 px-2 flex shrink-0 items-center border-b border-border">
+                <WorkspaceMenu
+                  workspaces={workspaces}
+                  current={workspace}
+                  userEmail={user.email}
+                  onToggleSidebar={closeSidebar}
+                />
+              </div>
+              <div className="min-h-0 flex flex-1 flex-col">{channelNav}</div>
+            </SheetContent>
+          </Sheet>
+
+          <Sheet
+            open={isMobile && rightPanelOpen}
+            onOpenChange={setRightPanelOpen}
           >
-            <SheetTitle className="sr-only">Workspace navigation</SheetTitle>
-            <div className="h-12 px-2 flex shrink-0 items-center border-b border-border">
-              <WorkspaceMenu
-                workspaces={workspaces}
-                current={workspace}
-                userEmail={user.email}
-                onToggleSidebar={closeSidebar}
+            <SheetContent
+              side="right"
+              hideCloseButton
+              className="w-85 gap-0 p-0 max-w-[90vw] bg-surface-muted pt-safe pr-safe pb-safe"
+            >
+              <SheetTitle className="sr-only">Side panel</SheetTitle>
+              <RightPanel
+                currentUser={user}
+                workspaceSlug={slug}
+                onClose={closeAssistant}
               />
-            </div>
-            <div className="min-h-0 flex flex-1 flex-col">{channelNav}</div>
-          </SheetContent>
-        </Sheet>
+            </SheetContent>
+          </Sheet>
 
-        <Sheet
-          open={isMobile && rightPanelOpen}
-          onOpenChange={setRightPanelOpen}
-        >
-          <SheetContent
-            side="right"
-            hideCloseButton
-            className="w-85 gap-0 p-0 max-w-[90vw] pt-safe pb-safe pr-safe bg-surface-muted"
-          >
-            <SheetTitle className="sr-only">Side panel</SheetTitle>
-            <RightPanel
-              currentUser={user}
-              workspaceSlug={slug}
-              onClose={closeAssistant}
-            />
-          </SheetContent>
-        </Sheet>
+          <CommandPalette
+            open={palette.open}
+            onOpenChange={palette.setOpen}
+            placeholder="Search channels, people, docs…"
+            commands={paletteCommands}
+            renderResults={(query) => (
+              <WorkspaceSearchPanel
+                workspaceId={workspaceId}
+                workspaceSlug={slug}
+                query={query}
+                onNavigate={() => palette.setOpen(false)}
+              />
+            )}
+          />
 
-        <CommandPalette
-          open={palette.open}
-          onOpenChange={palette.setOpen}
-          placeholder="Search channels, people, docs…"
-          commands={paletteCommands}
-          renderResults={(query) => (
-            <WorkspaceSearchPanel
-              workspaceId={workspaceId}
-              workspaceSlug={slug}
-              query={query}
-              onNavigate={() => palette.setOpen(false)}
-            />
-          )}
-        />
+          <CreateChannelDialog
+            open={createChannelOpen}
+            onOpenChange={setCreateChannelOpen}
+          />
 
-        <CreateChannelDialog
-          open={createChannelOpen}
-          onOpenChange={setCreateChannelOpen}
-        />
+          <AddAccountDialog
+            open={isAddAccountOpen}
+            onOpenChange={setAddAccountOpen}
+          />
 
-        <AddAccountDialog
-          open={isAddAccountOpen}
-          onOpenChange={setAddAccountOpen}
-        />
+          <GlobalInviteMembersDialog />
 
-        <GlobalInviteMembersDialog />
-
-        {/*
+          {/*
           `@org/ui` is presentational and cannot call the API itself, so the
           shell supplies the two status operations both surfaces share.
         */}
-        <StatusModal
-          currentUser={user}
-          onUserUpdated={setUser}
-          onSaveStatus={userApi.updateStatus}
-          onClearStatus={userApi.clearStatus}
-          onManageSchedules={() => setScheduledStatusOpen(true)}
-        />
-        <ScheduledStatusDialog
-          open={scheduledStatusOpen}
-          onOpenChange={setScheduledStatusOpen}
-        />
-        <TeamWorldClockModal
-          currentUser={user}
-          members={membersQuery.data ?? []}
-        />
-      </div>
+          <StatusModal
+            currentUser={user}
+            onUserUpdated={setUser}
+            onSaveStatus={userApi.updateStatus}
+            onClearStatus={userApi.clearStatus}
+            onManageSchedules={() => setScheduledStatusOpen(true)}
+          />
+          <ScheduledStatusDialog
+            open={scheduledStatusOpen}
+            onOpenChange={setScheduledStatusOpen}
+          />
+          <TeamWorldClockModal
+            currentUser={user}
+            members={membersQuery.data ?? []}
+          />
+        </div>
       </SidebarActivityConfigProvider>
     </TooltipProvider>
   );
