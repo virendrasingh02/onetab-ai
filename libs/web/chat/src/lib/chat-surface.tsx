@@ -1625,7 +1625,22 @@ export function ChatSurface({
                   void onAction(message, action)
               : undefined
           }
-          onFollowUp={(text) => void onSend(text, message.threadRootId)}
+          onFollowUp={(text) => {
+            // A follow-up goes back to the agent that suggested it. Outside its
+            // own 1:1 room the agent only answers when addressed by `@Name`.
+            const event = message.structuredEvent;
+            const agentName =
+              event?.type === 'mie.ai.agent'
+                ? (event.agentName || message.senderName)?.trim()
+                : undefined;
+            const inOwnRoom =
+              composerContext?.surfaceKind === 'agent' ||
+              composerContext?.surfaceKind === 'coworker' ||
+              composerContext?.surfaceKind === 'app';
+            const body =
+              agentName && !inOwnRoom ? `@${agentName} ${text}` : text;
+            void onSend(body, message.threadRootId);
+          }}
           showFollowUps={
             message.id ===
             (inThread && message.threadRootId
