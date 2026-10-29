@@ -46,6 +46,40 @@ describe('routeForDeepLink', () => {
     });
   });
 
+  it('maps tasks, documents, meetings, timesheet and coworkers', () => {
+    expect(routeForDeepLink('tasks?taskId=t1')).toEqual({
+      pathname: '/tasks/[taskId]',
+      params: { taskId: 't1' },
+    });
+    expect(routeForDeepLink('tasks')).toEqual({
+      pathname: '/tasks',
+    });
+    expect(routeForDeepLink('documents?docId=doc_1')).toEqual({
+      pathname: '/documents/[docId]',
+      params: { docId: 'doc_1' },
+    });
+    expect(routeForDeepLink('docs')).toEqual({
+      pathname: '/documents',
+    });
+    expect(routeForDeepLink('meetings?meetingId=m1')).toEqual({
+      pathname: '/meetings/[meetingId]',
+      params: { meetingId: 'm1' },
+    });
+    expect(routeForDeepLink('meetings')).toEqual({
+      pathname: '/meetings',
+    });
+    expect(routeForDeepLink('timesheet')).toEqual({
+      pathname: '/timesheet',
+    });
+    expect(routeForDeepLink('attendance')).toEqual({
+      pathname: '/timesheet',
+    });
+    expect(routeForDeepLink('coworkers?coworkerId=cw_42')).toEqual({
+      pathname: '/coworker/[coworkerId]',
+      params: { coworkerId: 'cw_42' },
+    });
+  });
+
   it('strips the workspace prefix from absolute and scheme links', () => {
     expect(
       routeForDeepLink('https://app.onetab.ai/w/acme/c/launch'),
@@ -60,11 +94,8 @@ describe('routeForDeepLink', () => {
     });
   });
 
-  it('falls back to the notification list for areas mobile does not have', () => {
-    expect(routeForDeepLink('tasks?taskId=t1')).toEqual({
-      pathname: '/notifications',
-    });
-    expect(routeForDeepLink('meetings?meetingId=m1')).toEqual({
+  it('falls back to the notification list for unhandled routes or empty input', () => {
+    expect(routeForDeepLink('calls?callId=c1')).toEqual({
       pathname: '/notifications',
     });
     expect(routeForDeepLink(null)).toEqual({ pathname: '/notifications' });

@@ -9,6 +9,7 @@ import {
   deriveAgentFromGraph,
   isStudioGraph,
   nextAgentVersionTag,
+  studioGraphApps,
   type AgentConnectionStatus,
   type AgentReadinessCheck,
   type AgentToolExecution,
@@ -45,10 +46,8 @@ export class AgentsService {
       select: { id: true, graphJson: true },
     });
     if (!agent) throw new NotFoundException('Agent not found.');
-    let providers: string[] = [];
-    if (isStudioGraph(agent.graphJson)) {
-      providers = connectorsOf(compileStudioGraph(JSON.parse(agent.graphJson as string)).agents);
-    }
+    // Apps drawn as a step after the agent count too — chat offers their actions.
+    const { providers } = studioGraphApps(agent.graphJson);
     return this.integrationTools.getConnectionStatus(workspaceId, agent.id, userId, providers);
   }
 

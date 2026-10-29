@@ -1,4 +1,4 @@
-import { integrationsApi, queryKeys } from '@org/api-client';
+import { connectorsApi, integrationsApi, queryKeys } from '@org/api-client';
 import type {
   AppActionResult,
   IntegrationExecuteRequestInput,
@@ -16,6 +16,20 @@ export function useIntegrations(workspaceId: string | undefined) {
     queryFn: () => integrationsApi.list(workspaceId as string),
     enabled: !!workspaceId,
     staleTime: 15_000,
+  });
+}
+
+/**
+ * One connector's manifest — the actions, queries and triggers it offers —
+ * with the caller's connections to it.
+ */
+export function useConnectorDetail(workspaceId: string | undefined, provider: string | undefined) {
+  return useQuery({
+    queryKey: ['connectors', workspaceId ?? '', (provider ?? '').toUpperCase()],
+    queryFn: () => connectorsApi.detail(workspaceId as string, (provider as string).toUpperCase()),
+    enabled: !!workspaceId && !!provider,
+    staleTime: 60_000,
+    retry: false,
   });
 }
 

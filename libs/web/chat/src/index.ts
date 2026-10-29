@@ -90,6 +90,7 @@ export {
   ChatSurface,
   type ChatSurfaceProps,
   type ChatSurfaceWelcome,
+  type ChatSurfaceTimelineRows,
   type ConversationMentions,
 } from './lib/chat-surface.js';
 export { ChannelChat, type ChannelChatProps } from './lib/channel-chat.js';

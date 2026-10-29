@@ -62,6 +62,10 @@ export default function TabsLayout() {
       minimizeBehavior="onScrollDown"
       screenListeners={{ tabPress: () => haptics.selection() }}
     >
+      <NativeTabs.Trigger name="(home)">
+        <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
+        <TabIcon sf="house" sfSelected="house.fill" ionicon="home-outline" />
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="chat">
         <NativeTabs.Trigger.Label>Chats</NativeTabs.Trigger.Label>
         <TabIcon
@@ -71,26 +75,26 @@ export default function TabsLayout() {
         />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="agents">
-        <NativeTabs.Trigger.Label>Agents</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>Coworkers</NativeTabs.Trigger.Label>
         <TabIcon sf="sparkles" sfSelected="sparkles" ionicon="sparkles-outline" />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="updates">
-        <NativeTabs.Trigger.Label>Updates</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>Activity</NativeTabs.Trigger.Label>
         <TabIcon
-          sf="flame"
-          sfSelected="flame.fill"
-          ionicon="newspaper-outline"
+          sf="bell"
+          sfSelected="bell.fill"
+          ionicon="notifications-outline"
         />
         <NativeTabs.Trigger.Badge hidden={pendingApprovals === 0}>
           {pendingApprovals > 99 ? '99+' : String(pendingApprovals)}
         </NativeTabs.Trigger.Badge>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="settings">
-        <NativeTabs.Trigger.Label>Settings</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>You</NativeTabs.Trigger.Label>
         <TabIcon
-          sf="gearshape"
-          sfSelected="gearshape.fill"
-          ionicon="settings-outline"
+          sf="person.crop.circle"
+          sfSelected="person.crop.circle.fill"
+          ionicon="person-circle-outline"
         />
       </NativeTabs.Trigger>
     </NativeTabs>

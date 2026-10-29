@@ -1,14 +1,18 @@
 import type { AICoworkerDetail, TrackerMonitor, AgentSchedule } from '@org/types';
-import { coworkerTemplateKey, getCoworkerTemplate } from '@org/types';
+import { appLabel, coworkerTemplateKey, getCoworkerTemplate } from '@org/types';
 import {
+  AIEntityProfileCapabilityList,
   AIEntityProfileEmpty,
   AIEntityProfileFact,
   AIEntityProfileFacts,
   AIEntityProfileHero,
+  AIEntityProfileNotice,
   AIEntityProfilePanel,
-  AIEntityProfileQuote,
+  AIEntityProfilePrompt,
   AIEntityProfileRunList,
   AIEntityProfileSection,
+  AIEntityProfileToolGroups,
+  type AIEntityProfileCapability,
   Badge,
   Button,
   confirm,
@@ -41,12 +45,15 @@ import {
   Plug,
   RefreshCw,
   Shield,
+  Sparkles,
   Trash2,
   Unlink,
   UserCheck,
+  Wrench,
   Zap,
 } from 'lucide-react';
-import { type FC, useState } from 'react';
+import { type FC, useMemo, useState } from 'react';
+import { parseEntityTools, useEntityToolProfile, type EntityAppConnection } from '@org/web-agents';
 import { useNavigate } from 'react-router-dom';
 import { useCanManageTrackerMonitor } from '@org/web-workspace';
 import { CoworkerAvatar } from './CoworkerAvatar.js';
@@ -124,6 +131,29 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
     isScheduler ? effectiveId : undefined,
   );
 
+  // The apps it is linked to carry their own status; its tools say what it does in them.
+  const tools = useMemo(() => parseEntityTools(coworker?.tools), [coworker?.tools]);
+  const appConnections = useMemo<EntityAppConnection[]>(
+    () =>
+      (coworker?.appLinks ?? []).map((link) => {
+        const status = link.integration.status?.toUpperCase();
+        return {
+          provider: link.integration.provider.toUpperCase(),
+          label: link.integration.displayName || appLabel(link.integration.provider),
+          connected: status === 'CONNECTED',
+          needsReconnect: status === 'ERROR' || status === 'EXPIRED' || status === 'REVOKED',
+          shared: true,
+        };
+      }),
+    [coworker?.appLinks],
+  );
+  const linkedProviders = useMemo(() => appConnections.map((c) => c.provider), [appConnections]);
+  const toolProfile = useEntityToolProfile({
+    tools,
+    providers: linkedProviders,
+    connections: appConnections,
+  });
+
   if (coworkerLoading && !coworker) {
     return (
       <aside
@@ -166,9 +196,37 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
 
   const configuredCapabilities = (coworker.configuration as { capabilities?: unknown } | null)
     ?.capabilities;
-  const capabilities: string[] = Array.isArray(configuredCapabilities)
+  const describedCapabilities: string[] = Array.isArray(configuredCapabilities)
     ? configuredCapabilities.filter((c): c is string => typeof c === 'string')
     : [...(getCoworkerTemplate(templateKey)?.capabilities ?? [])];
+  const capabilities: AIEntityProfileCapability[] = [
+    ...describedCapabilities.map((label, i) => ({ id: `described-${i}`, label })),
+    // Described capabilities already say what its built-in tools do; the app
+    // lines stay because they carry whether the app is connected.
+    ...(describedCapabilities.length > 0
+      ? toolProfile.capabilities.filter((c) => c.id.startsWith('app:'))
+      : toolProfile.capabilities),
+    ...(coworker.permissions?.knowledgeAccess
+      ? [
+          {
+            id: 'knowledge',
+            label: 'Answer from workspace knowledge',
+            description: 'Searches the workspace knowledge base before answering',
+          },
+        ]
+      : []),
+    ...((coworker.agentLinks?.length ?? 0) > 0
+      ? [
+          {
+            id: 'sub-agents',
+            label: 'Delegate to sub-agents',
+            description: coworker.agentLinks.map((l) => l.agent.name).join(', '),
+          },
+        ]
+      : []),
+  ];
+  const missingApps = toolProfile.missing;
+  const connectedApps = appConnections.filter((c) => c.connected).length;
 
   const handleDelete = async () => {
     const confirmed = await confirm({
@@ -314,9 +372,34 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
           {coworker.agentLinks?.length ?? 0} delegated
         </AIEntityProfileFact>
         <AIEntityProfileFact icon={Plug} label="Connected Apps">
-          {coworker.appLinks?.length ?? 0} active
+          <span className="flex flex-wrap items-center justify-end gap-x-1.5">
+            {connectedApps} active
+            {missingApps.length > 0 && (
+              <span className="text-warning-text">· {missingApps.length} need setup</span>
+            )}
+          </span>
+        </AIEntityProfileFact>
+        <AIEntityProfileFact icon={Wrench} label="Tools">
+          {tools.length} enabled
         </AIEntityProfileFact>
       </AIEntityProfileFacts>
+
+      {missingApps.length > 0 && (
+        <AIEntityProfileNotice
+          title={`${missingApps.map((m) => m.label).join(', ')} ${missingApps.length === 1 ? 'needs' : 'need'} attention`}
+          action={
+            missingApps.length === 1 ? (
+              <Button size="xs" onClick={() => toolProfile.connect(missingApps[0]!)} className="shrink-0">
+                {missingApps[0]!.reason === 'reconnect' ? <RefreshCw className="size-3" /> : <Plug className="size-3" />}
+                {missingApps[0]!.reason === 'reconnect' ? 'Reconnect' : 'Connect'}
+              </Button>
+            ) : undefined
+          }
+        >
+          {coworker.name} can’t work in {missingApps.length === 1 ? 'this app' : 'these apps'} until the
+          connection is fixed.
+        </AIEntityProfileNotice>
+      )}
 
       {coworker.description && (
         <AIEntityProfileSection icon={UserCheck} title="About">
@@ -326,32 +409,24 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
         </AIEntityProfileSection>
       )}
 
-      {coworker.personality && (
-        <AIEntityProfileSection icon={Brain} title="Persona & Tone">
-          <AIEntityProfileQuote>
-            <span className="italic">“{coworker.personality}”</span>
-          </AIEntityProfileQuote>
-        </AIEntityProfileSection>
-      )}
+      <AIEntityProfileSection
+        icon={Sparkles}
+        title="Capabilities"
+        count={capabilities.length || undefined}
+      >
+        {capabilities.length > 0 ? (
+          <AIEntityProfileCapabilityList items={capabilities} />
+        ) : (
+          <AIEntityProfileEmpty>No capabilities configured yet.</AIEntityProfileEmpty>
+        )}
+      </AIEntityProfileSection>
 
-      {coworker.systemInstructions && (
-        <AIEntityProfileSection icon={Brain} title="System Instructions">
-          <AIEntityProfileQuote mono>{coworker.systemInstructions}</AIEntityProfileQuote>
-        </AIEntityProfileSection>
-      )}
-
-      {capabilities.length > 0 && (
-        <AIEntityProfileSection icon={Check} title="Capabilities" count={capabilities.length}>
-          <ul className="space-y-1.5">
-            {capabilities.map((cap, i) => (
-              <li key={i} className="flex items-start gap-2 text-xs text-foreground/90">
-                <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary/70" />
-                <span>{cap}</span>
-              </li>
-            ))}
-          </ul>
-        </AIEntityProfileSection>
-      )}
+      <AIEntityProfileSection icon={Brain} title="Prompt">
+        <AIEntityProfilePrompt
+          instructions={coworker.systemInstructions || coworker.systemPrompt}
+          fields={[{ label: 'Persona & tone', value: coworker.personality ?? '' }]}
+        />
+      </AIEntityProfileSection>
 
       {(coworker.agentLinks?.length ?? 0) > 0 && (
         <AIEntityProfileSection icon={Bot} title="Sub-Agents" count={coworker.agentLinks?.length}>
@@ -374,18 +449,13 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
         </AIEntityProfileSection>
       )}
 
-      {(coworker.appLinks?.length ?? 0) > 0 && (
-        <AIEntityProfileSection icon={Plug} title="Connected Apps" count={coworker.appLinks?.length}>
-          <div className="flex flex-wrap gap-1.5">
-            {coworker.appLinks?.map((link) => (
-              <Badge key={link.id} variant="neutral" className="gap-1 text-[11px] capitalize">
-                <Layers className="size-3" />
-                {link.integration.displayName || link.integration.provider}
-              </Badge>
-            ))}
-          </div>
-        </AIEntityProfileSection>
-      )}
+      <AIEntityProfileSection icon={Wrench} title="Tools & Apps" count={tools.length || undefined}>
+        {toolProfile.groups.length > 0 ? (
+          <AIEntityProfileToolGroups groups={toolProfile.groups} />
+        ) : (
+          <AIEntityProfileEmpty>No apps connected. It uses built-in workspace tools.</AIEntityProfileEmpty>
+        )}
+      </AIEntityProfileSection>
 
       {isTracker && (
         <AIEntityProfileSection icon={Activity} title="Active Monitors" count={monitors?.length ?? 0}>

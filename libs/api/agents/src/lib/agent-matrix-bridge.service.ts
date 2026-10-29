@@ -414,6 +414,7 @@ export class AgentMatrixBridgeService implements OnModuleInit {
         status: 'completed',
         responseText: result.result,
         tools: result.tools,
+        ...(result.connectionsNeeded ? { connectionsNeeded: result.connectionsNeeded } : {}),
         durationMs: Date.now() - startedAt,
         completedAt: Date.now(),
       };

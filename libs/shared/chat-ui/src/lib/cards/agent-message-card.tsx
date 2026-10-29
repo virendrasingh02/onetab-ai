@@ -68,6 +68,7 @@ import { ReactionBar, reactionAddButtonClass } from '../reaction-bar.js';
 import { SavedForLaterLabel } from '../saved-for-later-label.js';
 import { executeStructuredAction } from './action-handler.js';
 import { useAiEntity, useAppEntity } from './agent-avatar-context.js';
+import { ConnectAppsBlock } from './connect-apps-block.js';
 import { useAICardPreferencesStore } from './card-preferences-store.js';
 import { CardSettingsDialog } from './card-settings-dialog.js';
 
@@ -845,6 +846,15 @@ export function AgentMessageCard({
             className="text-message"
           />
         </div>
+      )}
+
+      {/* 7b. APPS TO CONNECT — the agent can't act in these for this person yet */}
+      {!isPending && event.connectionsNeeded && event.connectionsNeeded.length > 0 && (
+        <ConnectAppsBlock
+          needs={event.connectionsNeeded}
+          agentName={agentName}
+          onAskAgain={onRetry}
+        />
       )}
 
       {/* 8. KEY FINDINGS / ACTIONS TAKEN (Bullet cards) */}

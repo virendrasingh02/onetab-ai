@@ -4,8 +4,7 @@
  * Notifications store links relative to `/w/:slug/` (`c/general`,
  * `ai/runs?run=…`, `settings/billing`) because that is what the web bell opens.
  * The push payload carries the same string, so a tap here has to translate it.
- * Areas the mobile app does not have (tasks, meetings, calls) land on the
- * notification list rather than nowhere.
+ * Unknown or unhandled links land on the notification list rather than nowhere.
  */
 export interface MobileRoute {
   pathname: string;
@@ -75,6 +74,35 @@ export function routeForDeepLink(link: string | null | undefined): MobileRoute {
       }
       return { pathname: '/agents' };
     }
+    case 'coworkers': {
+      const coworkerId = query.get('coworkerId') ?? second;
+      return coworkerId
+        ? { pathname: '/coworker/[coworkerId]', params: { coworkerId } }
+        : { pathname: '/agents' };
+    }
+    case 'tasks': {
+      const taskId = query.get('taskId') ?? second;
+      return taskId
+        ? { pathname: '/tasks/[taskId]', params: { taskId } }
+        : { pathname: '/tasks' };
+    }
+    case 'documents':
+    case 'docs': {
+      const docId = query.get('docId') ?? second;
+      return docId
+        ? { pathname: '/documents/[docId]', params: { docId } }
+        : { pathname: '/documents' };
+    }
+    case 'meetings':
+    case 'calendar': {
+      const meetingId = query.get('meetingId') ?? second;
+      return meetingId
+        ? { pathname: '/meetings/[meetingId]', params: { meetingId } }
+        : { pathname: '/meetings' };
+    }
+    case 'timesheet':
+    case 'attendance':
+      return { pathname: '/timesheet' };
     case 'automations':
     case 'workflows': {
       // The web builder lives at `automations/builder/:id`.

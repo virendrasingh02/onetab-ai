@@ -1,15 +1,20 @@
 import type { FC } from 'react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  AIEntityProfileCapabilityList,
   AIEntityProfileEmpty,
   AIEntityProfileFact,
   AIEntityProfileFacts,
   AIEntityProfileHero,
+  AIEntityProfileNotice,
   AIEntityProfilePanel,
-  AIEntityProfileQuote,
+  AIEntityProfilePrompt,
   AIEntityProfileRunList,
   AIEntityProfileSection,
+  AIEntityProfileToolGroups,
+  type AIEntityProfileCapability,
+  type AIEntityProfilePromptField,
   AIModelIdentity,
   Badge,
   Button,
@@ -34,15 +39,27 @@ import {
   Cpu,
   MoreVertical,
   Play,
+  Plug,
   Shield,
+  Sparkles,
   Trash2,
   Wrench,
   Zap,
 } from 'lucide-react';
 import { AgentAvatar } from './AgentMarketplaceView.js';
-import type { AIAgentDetail } from '@org/types';
+import {
+  compileStudioGraph,
+  isStudioGraph,
+  PROMPT_TONES,
+  readPromptSettings,
+  studioGraphApps,
+  type AIAgentDetail,
+  type InlineAgentSpec,
+} from '@org/types';
+import { parseEntityTools, useEntityToolProfile } from './shared/entity-tool-profile.js';
 import {
   useAgent,
+  useAgentConnections,
   useAgentLogs,
   useAgentMutations,
   useAgents,
@@ -57,18 +74,27 @@ export interface AgentProfileRightPanelProps {
   onClose: () => void;
 }
 
-/** `tools` is stored either as a JSON array or a comma-separated list. */
-function parseTools(raw: string | null | undefined): string[] {
-  if (!raw) return [];
+/**
+ * The agent as its Builder canvas defines it — the main agent's composed
+ * spec, its structured prompt settings and the apps the canvas acts in.
+ * Null for agents without a canvas graph.
+ */
+function readAgentCanvas(graphJson: string | null | undefined) {
+  if (!graphJson || !isStudioGraph(graphJson)) return null;
   try {
-    const parsed: unknown = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      return parsed.filter((t): t is string => typeof t === 'string' && t.trim() !== '');
-    }
+    const graph = JSON.parse(graphJson) as {
+      nodes?: Array<{ id?: string; data?: { config?: Record<string, unknown> } }>;
+    };
+    const spec: InlineAgentSpec | undefined = compileStudioGraph(graph).agents[0];
+    const node = spec ? graph.nodes?.find((n) => n?.id === spec.key) : undefined;
+    return {
+      spec,
+      promptSettings: readPromptSettings(node?.data?.config?.['promptSettings']),
+      providers: studioGraphApps(graphJson).providers,
+    };
   } catch {
-    // not JSON — fall through to the comma-separated form
+    return null;
   }
-  return raw.split(',').map((t) => t.trim()).filter(Boolean);
 }
 
 export const AgentProfileRightPanel: FC<AgentProfileRightPanelProps> = ({
@@ -102,7 +128,74 @@ export const AgentProfileRightPanel: FC<AgentProfileRightPanelProps> = ({
   const totalRuns = agent?._count?.logs ?? logs?.length ?? 0;
   const activeSchedules = agent?.schedules?.filter((s) => s.isActive).length ?? 0;
   const memoryPrefix = `[agent:${agentId}]`;
-  const tools = parseTools(agent?.tools);
+  const canvas = useMemo(() => readAgentCanvas(agent?.graphJson), [agent?.graphJson]);
+  const tools = useMemo(() => {
+    const own = parseEntityTools(agent?.tools);
+    return own.length > 0 ? own : (canvas?.spec?.tools ?? []);
+  }, [agent?.tools, canvas]);
+  const { data: connections } = useAgentConnections(workspaceId, agentId);
+  const toolProfile = useEntityToolProfile({
+    tools,
+    providers: canvas?.providers,
+    connections,
+  });
+  const knowledgeBases = canvas?.spec?.knowledge.length ?? 0;
+  const subAgents = canvas?.spec?.members ?? [];
+  const rules = canvas?.spec?.rules;
+  const prompt = canvas?.promptSettings;
+  const tone =
+    prompt && prompt.tone !== 'neutral'
+      ? PROMPT_TONES.find((t) => t.value === prompt.tone)?.label
+      : undefined;
+  const promptFields: AIEntityProfilePromptField[] = [
+    { label: 'Objective', value: prompt?.objective ?? '' },
+    { label: 'Persona', value: prompt?.persona || agent?.personality || '' },
+    { label: 'Tone', value: tone ?? '' },
+    { label: 'Goals', value: prompt?.goals ?? [] },
+    { label: 'Constraints', value: prompt?.constraints ?? [] },
+    { label: 'Success criteria', value: prompt?.successCriteria ?? [] },
+    { label: 'Always', value: rules?.always ?? [] },
+    { label: 'Asks before', value: rules?.askBefore ?? [] },
+    { label: 'Never', value: rules?.never ?? [] },
+    {
+      label: 'Reply format',
+      value: prompt && prompt.output.format !== 'auto' ? prompt.output.format.toUpperCase() : '',
+    },
+  ];
+  const capabilities: AIEntityProfileCapability[] = [
+    ...toolProfile.capabilities,
+    ...(knowledgeBases > 0 || agent?.permissions?.knowledgeAccess
+      ? [
+          {
+            id: 'knowledge',
+            label: 'Answer from workspace knowledge',
+            description:
+              knowledgeBases > 0
+                ? `Grounds answers in ${knowledgeBases} knowledge base${knowledgeBases === 1 ? '' : 's'}`
+                : 'Searches the workspace knowledge base before answering',
+          },
+        ]
+      : []),
+    ...(subAgents.length > 0
+      ? [
+          {
+            id: 'sub-agents',
+            label: 'Delegate to sub-agents',
+            description: subAgents.map((m) => m.name).join(', '),
+          },
+        ]
+      : []),
+    ...(activeSchedules > 0
+      ? [
+          {
+            id: 'schedules',
+            label: 'Run on a schedule',
+            description: `${activeSchedules} active schedule${activeSchedules === 1 ? '' : 's'}`,
+          },
+        ]
+      : []),
+  ];
+  const missingApps = toolProfile.missing;
   const createdOn = agent?.createdAt
     ? new Date(agent.createdAt).toLocaleDateString('en-US', {
         month: 'short',
@@ -274,12 +367,41 @@ export const AgentProfileRightPanel: FC<AgentProfileRightPanelProps> = ({
           </Badge>
         </AIEntityProfileFact>
         <AIEntityProfileFact icon={Wrench} label="Tools">
-          {tools.length} enabled
+          <span className="flex flex-wrap items-center justify-end gap-x-1.5">
+            {tools.length} enabled
+            {toolProfile.blockedTools > 0 ? (
+              <span className="text-warning-text">· {toolProfile.blockedTools} need setup</span>
+            ) : (
+              missingApps.length > 0 && (
+                <span className="text-warning-text">
+                  · {missingApps.length} app{missingApps.length === 1 ? '' : 's'} to connect
+                </span>
+              )
+            )}
+          </span>
         </AIEntityProfileFact>
         <AIEntityProfileFact icon={CalendarClock} label="Schedules">
           {activeSchedules} active
         </AIEntityProfileFact>
       </AIEntityProfileFacts>
+
+      {missingApps.length > 0 && (
+        <AIEntityProfileNotice
+          title={`Connect ${missingApps.map((m) => m.label).join(', ')} to use every tool`}
+          action={
+            missingApps.length === 1 ? (
+              <Button size="xs" onClick={() => toolProfile.connect(missingApps[0]!)} className="shrink-0">
+                <Plug className="size-3" />
+                {missingApps[0]!.reason === 'reconnect' ? 'Reconnect' : 'Connect'}
+              </Button>
+            ) : undefined
+          }
+        >
+          {name} works in {missingApps.length === 1 ? 'this app' : 'these apps'} through your own
+          account. Until then it can’t use{' '}
+          {toolProfile.blockedTools > 0 ? `${toolProfile.blockedTools} of its tools` : 'it'}.
+        </AIEntityProfileNotice>
+      )}
 
       {description && (
         <AIEntityProfileSection icon={Bot} title="About">
@@ -287,29 +409,27 @@ export const AgentProfileRightPanel: FC<AgentProfileRightPanelProps> = ({
         </AIEntityProfileSection>
       )}
 
-      {agent.personality && (
-        <AIEntityProfileSection icon={Brain} title="Persona & Tone">
-          <AIEntityProfileQuote>
-            <span className="italic">“{agent.personality}”</span>
-          </AIEntityProfileQuote>
-        </AIEntityProfileSection>
-      )}
+      <AIEntityProfileSection
+        icon={Sparkles}
+        title="Capabilities"
+        count={capabilities.length || undefined}
+      >
+        {capabilities.length > 0 ? (
+          <AIEntityProfileCapabilityList items={capabilities} />
+        ) : (
+          <AIEntityProfileEmpty>
+            It can only chat for now. Add tools, knowledge or apps in the Builder.
+          </AIEntityProfileEmpty>
+        )}
+      </AIEntityProfileSection>
 
-      {systemPrompt && (
-        <AIEntityProfileSection icon={Brain} title="System Instructions">
-          <AIEntityProfileQuote mono>{systemPrompt}</AIEntityProfileQuote>
-        </AIEntityProfileSection>
-      )}
+      <AIEntityProfileSection icon={Brain} title="Prompt">
+        <AIEntityProfilePrompt instructions={systemPrompt} fields={promptFields} />
+      </AIEntityProfileSection>
 
       <AIEntityProfileSection icon={Wrench} title="Tools" count={tools.length}>
-        {tools.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5">
-            {tools.map((tool) => (
-              <Badge key={tool} variant="neutral" className="text-[11px]">
-                {tool.replace(/_/g, ' ')}
-              </Badge>
-            ))}
-          </div>
+        {toolProfile.groups.length > 0 ? (
+          <AIEntityProfileToolGroups groups={toolProfile.groups} />
         ) : (
           <AIEntityProfileEmpty>No tools configured. Add them in the Builder.</AIEntityProfileEmpty>
         )}

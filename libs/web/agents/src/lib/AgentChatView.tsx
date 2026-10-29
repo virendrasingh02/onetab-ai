@@ -48,7 +48,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { AgentConnectionsBanner } from './AgentConnectionsBanner.js';
+import { useAgentConnectTimelineRow } from './AgentConnectionsBanner.js';
 import { AgentAvatar } from './AgentMarketplaceView.js';
 import { useAgents } from './use-agents.js';
 
@@ -496,6 +496,7 @@ function AgentConversationPanel({ agent }: { agent: AgentModelItem }) {
   const { configStatus } = useMatrix();
   const currentUser = useCurrentUser();
   const { roomId, error } = useDirectRoom(`agent-${agent.id}`);
+  const connectRow = useAgentConnectTimelineRow(agent);
 
   const composerContext = useMemo<ComposerContext>(
     () => ({
@@ -530,7 +531,6 @@ function AgentConversationPanel({ agent }: { agent: AgentModelItem }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <AgentConnectionsBanner agentId={agent.id} />
       <div className="min-h-0 flex flex-1 flex-col">
     <ConversationTabsShell
       filesContext={{ type: 'AGENT', id: agent.id }}
@@ -547,6 +547,7 @@ function AgentConversationPanel({ agent }: { agent: AgentModelItem }) {
         showMembers={false}
         showEncryptedBadge={false}
         composerContext={composerContext}
+        extraTimelineRows={connectRow}
         welcome={{
           kind: 'direct',
           welcomeMessage: agent.welcomeMessage,

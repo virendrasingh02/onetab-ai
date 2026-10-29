@@ -101,6 +101,7 @@ function WorkspaceGate() {
         name="agent/[agentId]/edit"
         options={modal('Configure agent')}
       />
+      <Stack.Screen name="coworker/[coworkerId]" options={{ title: 'AI Coworker' }} />
       <Stack.Screen
         name="automation/new"
         options={modal('New automation')}
@@ -111,6 +112,13 @@ function WorkspaceGate() {
       />
       <Stack.Screen name="executions" options={{ title: 'Executions' }} />
       <Stack.Screen name="approvals" options={{ title: 'Approvals' }} />
+      <Stack.Screen name="tasks/index" options={{ title: 'Tasks & Kanban' }} />
+      <Stack.Screen name="tasks/[taskId]" options={{ title: 'Task' }} />
+      <Stack.Screen name="documents/index" options={{ title: 'Documents' }} />
+      <Stack.Screen name="documents/[docId]" options={{ title: 'Document' }} />
+      <Stack.Screen name="meetings/index" options={{ title: 'Meetings & Reminders' }} />
+      <Stack.Screen name="meetings/[meetingId]" options={{ title: 'Meeting' }} />
+      <Stack.Screen name="timesheet/index" options={{ title: 'Timesheet & Attendance' }} />
       <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
       <Stack.Screen name="integrations" options={{ title: 'Integrations' }} />
       <Stack.Screen name="analytics" options={{ title: 'Analytics' }} />

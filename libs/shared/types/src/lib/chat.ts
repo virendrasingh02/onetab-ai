@@ -389,8 +389,20 @@ export interface AIAgentMessageContent {
   files?: GeneratedFile[];
   suggestedActions?: StructuredMessageAction[];
   actions?: StructuredMessageAction[];
+  /** Apps this agent works in that the person asking can't use yet — the
+   * card offers Connect / Reconnect right in the reply. */
+  connectionsNeeded?: AgentAppConnectionNeed[];
   errorMessage?: string;
   metadata?: Record<string, unknown>;
+}
+
+/** One app an agent reply needs the asker to connect (or reconnect). */
+export interface AgentAppConnectionNeed {
+  /** Upper-case provider key (`GMAIL`). */
+  provider: string;
+  label: string;
+  /** `reconnect`: a link exists but expired, was revoked or is failing. */
+  reason: 'not_connected' | 'reconnect';
 }
 
 export interface AppResponseMessageContent {

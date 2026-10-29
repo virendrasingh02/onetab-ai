@@ -138,6 +138,8 @@ export interface AgentConnectionStatus {
   connected: boolean;
   /** Connected through a workspace-shared account rather than the person's own. */
   shared: boolean;
+  /** Not connected, but a link exists that expired, was revoked or is failing. */
+  needsReconnect?: boolean;
 }
 
 /** One thing the live environment lacks for an agent's step to run (checked on Validate). */
@@ -234,6 +236,58 @@ export function scopeForTool(tool: string, access?: 'read' | 'write' | 'destruct
     return `app:${provider}:${access === 'read' ? 'read' : 'write'}` as AgentScope;
   }
   return null;
+}
+
+/** One entry of an agent's or coworker's `tools`, in words for a profile. */
+export interface EntityToolInfo {
+  /** The tool as stored. */
+  key: string;
+  label: string;
+  /** Upper-case provider (`SLACK`) for a connected-app action; unset for built-in tools. */
+  provider?: string;
+  access: 'read' | 'write';
+  scope: AgentScope | null;
+}
+
+/** Older ids the canvas stored for built-in tools. */
+const ENTITY_TOOL_ALIASES: Record<string, string> = { kb_search: 'search_docs' };
+
+const humanizeAction = (id: string) => {
+  const text = id.replace(/[_.-]+/g, ' ').trim();
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : id;
+};
+
+/**
+ * Describes a stored tool — a built-in (`search_docs`), a connected-app
+ * reference (`SLACK.send_message`) or a runtime app tool (`slack_send_message`),
+ * so a profile can say what it does and which app it needs.
+ */
+export function describeEntityTool(tool: string): EntityToolInfo {
+  const name = ENTITY_TOOL_ALIASES[tool] ?? tool;
+  const builtin = PLATFORM_TOOLS[name];
+  if (builtin) {
+    const access = describeAgentScope(builtin.scope).access;
+    return { key: tool, label: builtin.label, access, scope: builtin.scope };
+  }
+  const dot = tool.indexOf('.');
+  if (dot > 0 && dot < tool.length - 1) {
+    const provider = tool.slice(0, dot).toUpperCase();
+    const action = tool.slice(dot + 1);
+    const access = /^(get|list|search|find|read|fetch|query)/i.test(action) ? 'read' : 'write';
+    return { key: tool, label: humanizeAction(action), provider, access, scope: scopeForTool(tool, access) };
+  }
+  // `google_calendar_create_event` → the longest known app prefix.
+  const lower = tool.toLowerCase();
+  const prefix = Object.keys(APP_LABELS)
+    .filter((p) => lower.startsWith(`${p}_`))
+    .sort((a, b) => b.length - a.length)[0];
+  if (prefix) {
+    const action = tool.slice(prefix.length + 1);
+    const access = /^(get|list|search|find|read|fetch|query)/i.test(action) ? 'read' : 'write';
+    return { key: tool, label: humanizeAction(action), provider: prefix.toUpperCase(), access, scope: `app:${prefix}:${access}` };
+  }
+  const access = /^(get|list|search|find|read|fetch|query)/i.test(tool) ? 'read' : 'write';
+  return { key: tool, label: humanizeAction(tool), access, scope: null };
 }
 
 /* --------------------------------------------------------------- trigger -- */

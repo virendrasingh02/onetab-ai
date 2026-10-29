@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -37,6 +37,7 @@ import {
 } from '../lib/matrix';
 import { useAuthedImageSource } from '../lib/use-authed-uri';
 import { useRoomTimeline } from '../lib/use-room-timeline';
+import { secureStore } from '../lib/secure-store';
 import { useTheme } from '../theme/theme';
 import { showActionSheet } from './action-sheet';
 import { useKeyboardAvoidingProps } from './navigation';
@@ -56,6 +57,8 @@ import {
 
 /** The quick set offered on long-press; WhatsApp style. */
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+const DRAFT_SAVE_DELAY_MS = 400;
+const MAX_DRAFT_CHARS = 2000;
 
 interface PendingItem extends TimelineItem {
   /** Set once the homeserver accepted it; hidden when sync delivers it. */
@@ -94,6 +97,74 @@ export function Conversation({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
   const [detailsOpen, setDetailsOpen] = useState(false);
+
+  const draftStorageKey = useMemo(
+    () =>
+      `draft_${[roomId, threadRootId].filter(Boolean).join('_').replace(/[^a-zA-Z0-9_.-]/g, '_')}`,
+    [roomId, threadRootId],
+  );
+
+  // Unsent drafts live in the device store. Writes are debounced (a Keychain/
+  // Keystore write per keystroke is slow) and flushed on unmount/room change.
+  const draftWrite = useRef<{
+    timer: ReturnType<typeof setTimeout>;
+    flush: () => void;
+  } | null>(null);
+  const flushDraftWrite = useCallback(() => {
+    const pending = draftWrite.current;
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    draftWrite.current = null;
+    pending.flush();
+  }, []);
+  const persistDraft = useCallback(
+    (text: string, immediate = false) => {
+      if (draftWrite.current) clearTimeout(draftWrite.current.timer);
+      const flush = () => {
+        // SecureStore values are capped around 2 KB; keep the head of long drafts.
+        void (text.trim()
+          ? secureStore.set(draftStorageKey, text.slice(0, MAX_DRAFT_CHARS))
+          : secureStore.remove(draftStorageKey)
+        ).catch(() => undefined);
+      };
+      if (immediate) {
+        draftWrite.current = null;
+        flush();
+        return;
+      }
+      draftWrite.current = {
+        timer: setTimeout(() => {
+          draftWrite.current = null;
+          flush();
+        }, DRAFT_SAVE_DELAY_MS),
+        flush,
+      };
+    },
+    [draftStorageKey],
+  );
+
+  // Restore the saved draft without clobbering anything typed meanwhile.
+  useEffect(() => {
+    let active = true;
+    void secureStore
+      .get(draftStorageKey)
+      .then((saved) => {
+        if (active && saved) setDraft((current) => current || saved);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+      flushDraftWrite();
+    };
+  }, [draftStorageKey, flushDraftWrite]);
+
+  const handleDraftChange = useCallback(
+    (text: string) => {
+      setDraft(text);
+      persistDraft(text);
+    },
+    [persistDraft],
+  );
 
   const handleMatrixError = useCallback(
     async (error: unknown) => {
@@ -170,6 +241,7 @@ export function Conversation({
     const text = draft.trim();
     if (!text) return;
     setDraft('');
+    persistDraft('', true);
     const id = `pending:${newTxnId()}`;
     const replyTargetId = replyingTo?.id;
     setReplyingTo(null);
@@ -198,6 +270,7 @@ export function Conversation({
     } catch (error) {
       setPending((prev) => prev.filter((p) => p.id !== id));
       setDraft((current) => current || text);
+      persistDraft(text, true);
       await handleMatrixError(error);
       Alert.alert(
         'Message not sent',
@@ -525,7 +598,7 @@ export function Conversation({
 
             <TextInput
               value={draft}
-              onChangeText={setDraft}
+              onChangeText={handleDraftChange}
               placeholder={
                 threadRootId
                   ? 'Reply in thread…'

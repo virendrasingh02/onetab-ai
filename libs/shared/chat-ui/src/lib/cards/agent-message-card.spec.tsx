@@ -1,8 +1,9 @@
 import type { AIAgentMessageContent, Message } from '@org/types';
 import { TooltipProvider } from '@org/ui';
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import { AgentAvatarProvider, AppEntityProvider } from './agent-avatar-context.js';
+import { AppConnectProvider, type AppConnector } from './app-connect-context.js';
 import { AgentMessageCard } from './agent-message-card.js';
 
 function createMessage(overrides: Partial<Message> = {}): Message {
@@ -101,5 +102,47 @@ describe('AgentMessageCard — connected app replies', () => {
 
     expect(screen.getByText('Team Asana')).toBeInTheDocument();
     expect(container.querySelector('img')?.getAttribute('src')).toBe('https://cdn.example/asana.png');
+  });
+});
+
+describe('AgentMessageCard — apps to connect', () => {
+  const needs: AIAgentMessageContent['connectionsNeeded'] = [
+    { provider: 'GMAIL', label: 'Gmail', reason: 'not_connected' },
+    { provider: 'SLACK', label: 'Slack', reason: 'reconnect' },
+  ];
+
+  function renderWith(connector: AppConnector, onRetry?: () => void) {
+    return render(
+      <TooltipProvider>
+        <AppConnectProvider value={connector}>
+          <AgentMessageCard
+            message={createMessage({ senderName: 'Gmail PA' })}
+            event={createEvent({ agentId: 'agent-1', agentName: 'Gmail PA', connectionsNeeded: needs })}
+            onRetry={onRetry}
+          />
+        </AppConnectProvider>
+      </TooltipProvider>,
+    );
+  }
+
+  it('offers Connect and Reconnect in the reply, running the host connect flow', async () => {
+    const connect = vi.fn();
+    renderWith({ connect, isConnected: () => false });
+
+    expect(screen.getByText('Connect Gmail')).toBeInTheDocument();
+    expect(screen.getByText('Reconnect Slack')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^connect$/i }));
+    await waitFor(() => expect(connect).toHaveBeenCalledWith('GMAIL', 'Gmail'));
+    expect(screen.getByRole('button', { name: /^reconnect$/i })).toBeInTheDocument();
+  });
+
+  it('turns into "connected" with Ask again once every app is connected', () => {
+    const onRetry = vi.fn();
+    renderWith({ connect: vi.fn(), isConnected: () => true }, onRetry);
+
+    expect(screen.getByText('Gmail connected')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^connect$/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /ask again/i }));
+    expect(onRetry).toHaveBeenCalled();
   });
 });

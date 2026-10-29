@@ -44,7 +44,9 @@ import {
 } from '@org/web-chat';
 import {
   AgentAvatarProvider,
+  AppConnectProvider,
   AppEntityProvider,
+  type AppConnector,
   type AiEntityResolver,
   type AppEntityResolver,
   MemberProfileProvider,
@@ -67,8 +69,9 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { useI18nStore } from '@org/i18n';
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Provider } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { useActiveWorkspaceId } from './use-active-workspace-id';
 import { usePreferencesSync } from './preferences-sync';
 import { useWorkspaceAppearanceSync } from './workspace-appearance-sync';
@@ -286,7 +289,121 @@ function AppEntityBridge({
     },
     [integrations, listings],
   );
-  return <AppEntityProvider value={resolve}>{children}</AppEntityProvider>;
+  return (
+    <AppEntityProvider value={resolve}>
+      <AppConnectBridge workspaceId={workspaceId}>{children}</AppConnectBridge>
+    </AppEntityProvider>
+  );
+}
+
+/**
+ * Lets a chat card connect one of the viewer's apps in place — "Connect
+ * Gmail" under an agent reply. OAuth apps open their consent popup right from
+ * the click (opened blank first so the browser doesn't block it), as the
+ * viewer's *own* connection: an agent works through each person's account,
+ * and a personal connection needs no install policy. Apps that ask for API
+ * keys, or whose OAuth app isn't set up yet, open the Integration Hub on that
+ * app instead, where those forms live.
+ */
+function AppConnectBridge({
+  workspaceId,
+  children,
+}: {
+  workspaceId: string | undefined;
+  children: ReactNode;
+}) {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const { data: integrations } = useQuery({
+    queryKey: queryKeys.integrations.list(workspaceId ?? ''),
+    queryFn: () => integrationsApi.list(workspaceId as string),
+    enabled: !!workspaceId,
+    staleTime: 30_000,
+  });
+  const { data: providers } = useQuery({
+    queryKey: queryKeys.integrations.providers(workspaceId ?? ''),
+    queryFn: () => integrationsApi.getProviders(workspaceId as string),
+    enabled: !!workspaceId,
+    staleTime: 60_000,
+  });
+  const { data: workspaces } = useQuery({
+    queryKey: queryKeys.workspaces.list(),
+    queryFn: () => workspaceApi.list(),
+    enabled: !!workspaceId,
+    staleTime: 60_000,
+  });
+  const slug = workspaces?.find((w) => w.id === workspaceId)?.slug;
+
+  // The OAuth callback page tells its opener when it's done; coming back to
+  // this window covers a popup closed by hand. Either way, re-read state —
+  // on focus only while a connect started here is still open.
+  const connectPending = useRef(false);
+  useEffect(() => {
+    if (!workspaceId) return;
+    const refresh = () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.integrations.all(workspaceId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.agents.all(workspaceId) });
+    };
+    const onMessage = (event: MessageEvent) => {
+      if ((event.data as { type?: unknown } | null)?.type !== 'INTEGRATION_CONNECTED') return;
+      connectPending.current = false;
+      refresh();
+    };
+    const onFocus = () => {
+      if (connectPending.current) refresh();
+    };
+    window.addEventListener('message', onMessage);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      window.removeEventListener('message', onMessage);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [queryClient, workspaceId]);
+
+  const value = useMemo<AppConnector>(() => {
+    const openHub = (provider: string) => {
+      // `/integrations` redirects (dropping the query), so go to the hub's tab directly.
+      if (slug) navigate(`/w/${slug}/marketplace?tab=apps&connect=${encodeURIComponent(provider)}`);
+    };
+    return {
+      isConnected: (provider) => {
+        if (!integrations) return undefined;
+        const key = provider.toUpperCase();
+        return integrations.some(
+          (i) => i.provider.toUpperCase() === key && i.status?.toUpperCase() === 'CONNECTED',
+        );
+      },
+      connect: async (provider, label) => {
+        if (!workspaceId) return;
+        const key = provider.toUpperCase();
+        const capabilities = providers?.find((p) => p.provider.toUpperCase() === key);
+        if (!capabilities || capabilities.credentialFields?.length || capabilities.authType !== 'OAUTH2') {
+          openHub(key);
+          return;
+        }
+        const popup = window.open('', `connect-${key}`, 'width=600,height=700');
+        try {
+          const result = await integrationsApi.connect(workspaceId, key, { scopeType: 'USER' });
+          if (result.authUrl) {
+            connectPending.current = true;
+            if (popup) popup.location.href = result.authUrl;
+            else window.open(result.authUrl, `connect-${key}`, 'width=600,height=700');
+            return;
+          }
+          popup?.close();
+          toast.success(`${label} connected`);
+          void queryClient.invalidateQueries({ queryKey: queryKeys.integrations.all(workspaceId) });
+        } catch {
+          // Most often: no OAuth app is set up for it yet — the hub walks through that.
+          popup?.close();
+          toast.info(`Finish connecting ${label} in Integrations`);
+          openHub(key);
+        }
+      },
+    };
+  }, [integrations, providers, slug, workspaceId, navigate, queryClient]);
+
+  return <AppConnectProvider value={value}>{children}</AppConnectProvider>;
 }
 
 /**

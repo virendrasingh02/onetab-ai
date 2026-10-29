@@ -49,7 +49,11 @@ import {
   useNavigate,
   useSearchParams,
 } from 'react-router-dom';
-import { ChatSurface, type ChatSurfaceWelcome } from './chat-surface.js';
+import {
+  ChatSurface,
+  type ChatSurfaceTimelineRows,
+  type ChatSurfaceWelcome,
+} from './chat-surface.js';
 import { useSavedIds, useToggleSaved } from './use-saved-messages.js';
 import { useMatrix } from './matrix-provider.js';
 import { useUnreadMentions } from './use-unread-mentions.js';
@@ -125,6 +129,8 @@ export interface ChatPanelProps {
   showEncryptedBadge?: boolean;
   /** Channel metadata for the welcome block. See `ChatSurface`. */
   welcome?: ChatSurfaceWelcome;
+  /** The host's own client-only timeline rows. See `ChatSurface`. */
+  extraTimelineRows?: ChatSurfaceTimelineRows;
   /** Starts a huddle when it changes. See `ChatSurface`. */
   huddleRequest?: number;
   /** Off hides every "start a huddle" affordance. See `ChatSurface`. */
@@ -170,6 +176,7 @@ export function ChatPanel({
   showMembers = true,
   showEncryptedBadge = true,
   welcome,
+  extraTimelineRows,
   huddleRequest,
   huddlesEnabled,
   huddleLink,
@@ -892,6 +899,7 @@ export function ChatPanel({
       headerMenuSlot={headerMenuSlot}
       showMembers={showMembers}
       welcome={welcome}
+      extraTimelineRows={extraTimelineRows}
       huddleRequest={huddleRequest}
       huddlesEnabled={huddlesEnabled}
       huddleLink={huddleLink}

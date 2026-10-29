@@ -23,6 +23,7 @@ import { IntegrationsService } from '@org/api-integrations';
 import { CreditService } from '@org/api-workspace';
 import { RealtimeGatewayService } from '@org/api-realtime';
 import type {
+  AgentAppConnectionNeed,
   AgentDeploymentRunChannel,
   AgentRuntimeConfig,
   AgentRulePolicy,
@@ -36,6 +37,7 @@ import type {
 import {
   agentToolGate,
   agentToolNeedsApproval,
+  appLabel,
   applyWorkspaceToolPolicy,
   resolveWorkspacePolicy,
   isAIEntityType,
@@ -47,6 +49,7 @@ import {
   READ_ONLY_AGENT_TOOLS,
   resolveCoworkerCollaborators,
   selectAgentTools,
+  studioGraphApps,
 } from '@org/types';
 import { applyPiiGuardrail } from './agent-guardrails.js';
 import {
@@ -304,6 +307,8 @@ export interface AIEntityRunResult {
   executionId?: string | null;
   /** Guardrail and policy notes for the run trace. */
   notices?: string[];
+  /** Apps the asker must connect (or reconnect) for this agent to act in them. */
+  connectionsNeeded?: AgentAppConnectionNeed[];
 }
 
 /** Everything a turn decides before the first model call. */
@@ -323,6 +328,8 @@ interface TurnPlan {
   members?: Map<string, InlineAgentSpec>;
   /** Model ↔ tool rounds; defaults to {@link AIRuntimeService.MAX_TOOL_ROUNDS}. */
   maxRounds?: number;
+  /** App actions whose canvas step asks for approval before running. */
+  approvalTools?: Set<string>;
 }
 
 /** Mutable bookkeeping one turn carries through its tool calls. */
@@ -333,7 +340,12 @@ interface TurnState {
   memberTokens?: number;
   /** Measured model/tool usage for the run, persisted for analytics. */
   metrics?: RunMetrics;
+  /** Apps whose call was refused for an expired/revoked sign-in this turn. */
+  reconnectApps?: Set<string>;
 }
+
+/** An app action failing on the sign-in itself, not on the request. */
+const APP_AUTH_FAILURE = /\b(401|unauthori[sz]ed|invalid[_ ]grant|token (has )?(expired|been revoked)|expired token|reauthori[sz]e|reconnect)\b/i;
 
 /** What a run really cost, measured at the call sites (not derived later). */
 interface RunMetrics {
@@ -873,21 +885,42 @@ export class AIRuntimeService {
    * Raises an approval instead of running a tool, and returns the message the
    * model sees. The run is marked as waiting on it (`finishExecution`).
    */
-  private async missingConnectionsNote(
+  private async missingConnections(
     workspaceId: string,
     entityId: string,
     requesterId: string | undefined,
     providers: readonly string[],
-  ): Promise<string> {
-    if (!requesterId) return '';
+  ): Promise<{ note: string; needs: AgentAppConnectionNeed[] }> {
+    if (!requesterId) return { note: '', needs: [] };
     try {
       const status = await this.integrationTools.getConnectionStatus(workspaceId, entityId, requesterId, providers);
-      const missing = status.filter((s) => !s.connected).map((s) => s.label);
-      if (missing.length === 0) return '';
-      return `\n\nThe person you are helping has not connected: ${missing.join(', ')}. You cannot use those apps for them yet. If their request needs one, say so and ask them to connect it in Integrations; never pretend you did it.`;
+      const needs: AgentAppConnectionNeed[] = status
+        .filter((s) => !s.connected)
+        .map((s) => ({ provider: s.provider, label: s.label, reason: s.needsReconnect ? 'reconnect' : 'not_connected' }));
+      if (needs.length === 0) return { note: '', needs };
+      const describe = (n: AgentAppConnectionNeed) =>
+        n.reason === 'reconnect' ? `${n.label} (their connection expired — they need to reconnect it)` : n.label;
+      return {
+        needs,
+        note: `\n\nYou work in these apps, but the person you are helping has not connected them yet: ${needs.map(describe).join(', ')}. You cannot use them for this person until they do. If their request needs one, say in one short sentence that it isn't connected yet and that a Connect button is shown right under your reply — don't give generic instructions for doing it themselves elsewhere, don't claim you have no access to such apps at all, and never pretend you did it.`,
+      };
     } catch {
-      return '';
+      return { note: '', needs: [] };
     }
+  }
+
+  /** Needs found before the run, plus apps whose sign-in was refused during it. */
+  private connectionsNeededAfterRun(
+    before: readonly AgentAppConnectionNeed[],
+    state: TurnState,
+  ): AgentAppConnectionNeed[] | undefined {
+    const needs = [...before];
+    for (const provider of state.reconnectApps ?? []) {
+      if (!needs.some((n) => n.provider === provider)) {
+        needs.push({ provider, label: appLabel(provider), reason: 'reconnect' });
+      }
+    }
+    return needs.length > 0 ? needs : undefined;
   }
 
   private async queueApproval(
@@ -1039,6 +1072,7 @@ export class AIRuntimeService {
         const needsApproval =
           definition.permissionLevel === 'destructive' ||
           !!definition.requiresConfirmation ||
+          !!plan.approvalTools?.has(name) ||
           agentToolGate(runtime, name, definition.permissionLevel === 'read') === 'approval';
         if (needsApproval) {
           return this.queueApproval(entry, entity, workspaceId, context, state, name, definition.label, {
@@ -1090,6 +1124,12 @@ export class AIRuntimeService {
       entry.status = 'failed';
       entry.error = message;
       entry.durationMs = Date.now() - startedAt;
+      // A rejected sign-in means the asker's link to that app needs renewing:
+      // the reply offers Reconnect instead of only reporting the failure.
+      const failedApp = plan.integrationTools.get(name);
+      if (failedApp && APP_AUTH_FAILURE.test(message)) {
+        (state.reconnectApps ??= new Set()).add(failedApp.provider);
+      }
       return JSON.stringify({ error: message });
     }
   }
@@ -1214,11 +1254,15 @@ export class AIRuntimeService {
     this.logger.log(`Executing Agent '${entity.name}' (${entity.id})`);
 
     const baseRuntime = readAgentRuntime(entity.configuration);
-    const allowedToolNames = parseToolNames(entity.tools);
     const readOnly = context.readOnly === true;
     // A canvas agent has exactly the tools drawn on it — none means none,
     // where an agent row with an empty list gets the default set.
     const inline = entity.__inline as InlineAgentSpec | undefined;
+    // A chat reply runs the agent alone, never the steps after it, so the apps
+    // its canvas names — as a tool or as the next step — are its apps here.
+    const canvasApps = inline ? null : studioGraphApps(entity.graphJson as string | null);
+    const appProviders = inline?.connectors ?? canvasApps?.providers ?? [];
+    const allowedToolNames = [...new Set([...parseToolNames(entity.tools), ...(canvasApps?.tools ?? [])])];
     // Connector actions in the list narrow that app's tools; they never take
     // the agent's built-in tools away (see `selectAgentTools`).
     const toolSelection = selectAgentTools(
@@ -1227,20 +1271,22 @@ export class AIRuntimeService {
         workspaceId,
         entity.id,
         entity.creatorId,
-        inline?.connectors ?? [],
+        appProviders,
         context.requesterId,
       ),
       (name) => this.mcpRegistry.hasTool(name),
       { inline: !!inline },
     );
     // Apps the agent needs that the person asking hasn't connected: tell the
-    // model so it asks them to connect instead of guessing or failing mid-task.
-    const connectionNote = await this.missingConnectionsNote(
+    // model so it asks them to connect instead of guessing or failing mid-task,
+    // and hand them back so the reply can offer a Connect button.
+    const connections = await this.missingConnections(
       workspaceId,
       entity.id,
       context.requesterId,
-      inline?.connectors ?? [],
+      appProviders,
     );
+    const connectionNote = connections.note;
     const allIntegrationSchemas = toolSelection.integrationTools.filter(
       (t) => !readOnly || t.definition.permissionLevel === 'read',
     );
@@ -1315,6 +1361,7 @@ export class AIRuntimeService {
       sampling: this.samplingFor(runtime),
       ...(memberTools.size ? { members: memberTools } : {}),
       ...(inline?.maxSteps ? { maxRounds: Math.min(inline.maxSteps, MAX_AGENT_TOOL_ROUNDS) } : {}),
+      ...(canvasApps?.approvalTools.length ? { approvalTools: new Set(canvasApps.approvalTools) } : {}),
     };
 
     const toolTrace: AgentToolExecution[] = [];
@@ -1354,6 +1401,7 @@ export class AIRuntimeService {
       await emitProgress('completed');
 
       const notices = [...((entity.__notices as string[] | undefined) ?? []), ...(guarded.notice ? [guarded.notice] : [])];
+      const connectionsNeeded = this.connectionsNeededAfterRun(connections.needs, state);
       return {
         entityId: entity.id,
         entityName: entity.name,
@@ -1363,6 +1411,7 @@ export class AIRuntimeService {
         tools: toolTrace,
         tokensUsed: tokensUsed + (state.memberTokens ?? 0),
         ...(notices.length ? { notices } : {}),
+        ...(connectionsNeeded ? { connectionsNeeded } : {}),
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

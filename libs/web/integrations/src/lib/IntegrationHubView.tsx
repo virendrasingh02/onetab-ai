@@ -33,7 +33,8 @@ import {
   Share2,
   Webhook,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   OAuthAppsDialog,
   oauthAppFor,
@@ -530,6 +531,39 @@ export function IntegrationHubView({
       },
     );
   };
+
+  /*
+   * `?connect=GMAIL` — sent here by a "Connect" button elsewhere (an agent's
+   * reply in chat). Shows that app and opens its form when it has one (API
+   * keys, OAuth app setup); a plain OAuth popup still waits for a click on
+   * the card, since browsers block popups that no click opened.
+   */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const connectParam = searchParams.get('connect');
+  useEffect(() => {
+    if (!connectParam || !providersQuery.data || oauthApps.isLoading) return;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('connect');
+        return next;
+      },
+      { replace: true },
+    );
+    const card = catalogue.find((c) => c.id.toUpperCase() === connectParam.toUpperCase());
+    if (!card) return;
+    if (externalSearchQuery === undefined) setSearchQuery(card.name);
+    const capabilities = card.capabilities;
+    const needsForm =
+      card.id === 'custom_api' ||
+      card.id === 'trello' ||
+      !!capabilities?.credentialFields?.length ||
+      (capabilities?.authType === 'OAUTH2' &&
+        oauthAppFor(oauthApps.data, card.id.toUpperCase())?.configured === false);
+    if (needsForm) void startConnect(card);
+    // Runs once per deep link; `startConnect` reads the same loaded data.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connectParam, providersQuery.data, oauthApps.isLoading]);
 
   const confirmDisconnect = (
     card: IntegrationCard,

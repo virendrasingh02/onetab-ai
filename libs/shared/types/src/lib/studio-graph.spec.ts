@@ -7,6 +7,7 @@ import {
   LAST_OUTPUT_KEY,
   MAX_AGENT_RUN_LIMITS,
   readRunLimits,
+  studioGraphApps,
 } from './studio-graph.js';
 
 const node = (id: string, type: string, config: Record<string, unknown> = {}, label?: string) => ({
@@ -276,6 +277,35 @@ describe('connector cards', () => {
     const none = graph([]);
     expect(none.agents[0]!.tools).toEqual([]);
     expect(none.issues).toContainEqual(expect.objectContaining({ nodeId: 'g', level: 'error' }));
+  });
+});
+
+describe('studioGraphApps', () => {
+  it('counts an app drawn as the step after the agent, not only as its tool', () => {
+    const graphJson = JSON.stringify({
+      nodes: [
+        node('t', 'START'),
+        node('a', 'AGENT', { instructions: 'Read my mail.', tools: ['firecrawl_search'] }),
+        node('g', 'APP_CONNECTOR_ACTION', {
+          provider: 'GMAIL',
+          actionId: 'send_message',
+          actionIds: ['search_messages', 'send_message'],
+          requireApproval: true,
+        }),
+        node('s', 'APP_CONNECTOR_ACTION', { provider: 'slack', actionId: 'send_message' }),
+      ],
+      edges: [edge('t', 'a'), edge('a', 'g'), edge('a', 's', 'tools')],
+    });
+    expect(studioGraphApps(graphJson)).toEqual({
+      providers: ['SLACK', 'GMAIL'],
+      tools: ['slack_send_message', 'gmail_search_messages', 'gmail_send_message'],
+      approvalTools: ['gmail_search_messages', 'gmail_send_message'],
+    });
+  });
+
+  it('is empty for anything that is not a canvas', () => {
+    expect(studioGraphApps(null)).toEqual({ providers: [], tools: [], approvalTools: [] });
+    expect(studioGraphApps('not json')).toEqual({ providers: [], tools: [], approvalTools: [] });
   });
 });
 

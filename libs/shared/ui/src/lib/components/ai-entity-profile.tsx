@@ -1,5 +1,5 @@
 import { cn } from '@org/utils';
-import { Check, ChevronDown, X } from 'lucide-react';
+import { AlertTriangle, Check, CheckCircle2, ChevronDown, Copy, PencilLine, Plug, RefreshCw, X } from 'lucide-react';
 import { useState, type ComponentType, type ReactNode } from 'react';
 import { Badge } from './badge.js';
 import { Button } from './button.js';
@@ -309,6 +309,281 @@ export function AIEntityProfileRunList({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------ capabilities -- */
+
+/** Warning strip for something the viewer has to fix (an app to connect…). */
+export function AIEntityProfileNotice({
+  title,
+  children,
+  action,
+}: {
+  title: ReactNode;
+  children?: ReactNode;
+  action?: ReactNode;
+}) {
+  return (
+    <div
+      role="status"
+      className="mx-5 mb-5 flex items-start gap-2.5 rounded-xl border border-warning/30 bg-warning/8 p-3 text-xs"
+    >
+      <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <p className="font-semibold text-foreground">{title}</p>
+        {children && <p className="mt-0.5 leading-relaxed text-muted-foreground">{children}</p>}
+      </div>
+      {action}
+    </div>
+  );
+}
+
+export interface AIEntityProfileCapability {
+  id: string;
+  label: string;
+  description?: string;
+  /** Why it can't be used right now ("Connect Slack"); unset when it can. */
+  blockedBy?: string;
+}
+
+/** What the entity can do, in plain words — a tick when ready, a warning when blocked. */
+export function AIEntityProfileCapabilityList({ items }: { items: AIEntityProfileCapability[] }) {
+  return (
+    <ul className="space-y-2">
+      {items.map((item) => (
+        <li key={item.id} className="flex items-start gap-2 text-xs">
+          {item.blockedBy ? (
+            <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning" aria-label="Not available yet" />
+          ) : (
+            <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-success" aria-label="Available" />
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="flex flex-wrap items-center gap-x-1.5 font-medium text-foreground">
+              {item.label}
+              {item.blockedBy && (
+                <span className="text-[10px] font-normal text-warning-text">· {item.blockedBy}</span>
+              )}
+            </p>
+            {item.description && (
+              <p className="text-[11px] leading-relaxed text-muted-foreground">{item.description}</p>
+            )}
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/* ------------------------------------------------------------------ tools -- */
+
+export type AIEntityProfileToolGroupStatus = 'builtin' | 'connected' | 'not_connected' | 'reconnect' | 'unknown';
+
+export interface AIEntityProfileToolGroup {
+  /** `builtin` or the provider key. */
+  id: string;
+  name: string;
+  /** App logo; built-in groups fall back to a plug icon. */
+  logo?: ReactNode;
+  status: AIEntityProfileToolGroupStatus;
+  /** Extra line under the name ("Through the workspace account"). */
+  note?: string;
+  tools: Array<{ key: string; label: string; access: 'read' | 'write' }>;
+  onConnect?: () => void;
+  connecting?: boolean;
+}
+
+const TOOL_GROUP_STATUS: Record<
+  AIEntityProfileToolGroupStatus,
+  { label: string; variant: 'success' | 'warning' | 'neutral' | 'destructive' }
+> = {
+  builtin: { label: 'Built-in', variant: 'neutral' },
+  connected: { label: 'Connected', variant: 'success' },
+  not_connected: { label: 'Not connected', variant: 'warning' },
+  reconnect: { label: 'Reconnect needed', variant: 'destructive' },
+  unknown: { label: 'Checking…', variant: 'neutral' },
+};
+
+/**
+ * Tools grouped by the app they act in, each app with its connection state
+ * and a Connect button when the viewer still has to link it.
+ */
+export function AIEntityProfileToolGroups({ groups }: { groups: AIEntityProfileToolGroup[] }) {
+  return (
+    <div className="space-y-2">
+      {groups.map((group) => {
+        const status = TOOL_GROUP_STATUS[group.status];
+        const blocked = group.status === 'not_connected' || group.status === 'reconnect';
+        return (
+          <div
+            key={group.id}
+            className={cn(
+              'rounded-lg border bg-surface p-2.5 text-xs',
+              blocked ? 'border-warning/40' : 'border-border',
+            )}
+          >
+            <div className="flex items-center gap-2">
+              <span className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-md bg-surface-inset text-muted-foreground">
+                {group.logo ?? <Plug className="size-3.5" />}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium text-foreground">{group.name}</p>
+                {blocked ? (
+                  <p className="truncate text-[10px] font-medium text-warning-text">
+                    {status.label}
+                    {group.note ? ` · ${group.note}` : ''}
+                  </p>
+                ) : (
+                  group.note && <p className="truncate text-[10px] text-muted-foreground">{group.note}</p>
+                )}
+              </div>
+              {blocked && group.onConnect ? (
+                <Button
+                  size="xs"
+                  variant={group.status === 'reconnect' ? 'outline' : 'primary'}
+                  onClick={group.onConnect}
+                  disabled={group.connecting}
+                  className="shrink-0"
+                >
+                  {group.connecting ? (
+                    <Spinner className="size-3" />
+                  ) : group.status === 'reconnect' ? (
+                    <RefreshCw className="size-3" />
+                  ) : (
+                    <Plug className="size-3" />
+                  )}
+                  {group.status === 'reconnect' ? 'Reconnect' : 'Connect'}
+                </Button>
+              ) : (
+                <Badge variant={status.variant} className="shrink-0 text-[10px]">
+                  {status.label}
+                </Badge>
+              )}
+            </div>
+            {group.tools.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {group.tools.map((tool) => (
+                  <Badge
+                    key={tool.key}
+                    variant="neutral"
+                    className={cn('gap-1 text-[11px]', blocked && 'opacity-60')}
+                    title={tool.access === 'write' ? 'Can make changes' : 'Read only'}
+                  >
+                    {tool.access === 'write' && <PencilLine className="size-2.5" aria-hidden />}
+                    {tool.label}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ----------------------------------------------------------------- prompt -- */
+
+export interface AIEntityProfilePromptField {
+  label: string;
+  value: string | string[];
+}
+
+/**
+ * The prompt an entity runs with: its structured settings (objective, goals,
+ * constraints…) as short rows, then the instructions — clamped, expandable
+ * and copyable.
+ */
+export function AIEntityProfilePrompt({
+  instructions,
+  fields = [],
+}: {
+  instructions?: string;
+  fields?: AIEntityProfilePromptField[];
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const text = instructions?.trim() ?? '';
+  const long = text.length > 280 || text.split('\n').length > 6;
+  const shown = fields.filter((f) => (Array.isArray(f.value) ? f.value.length > 0 : f.value.trim()));
+
+  const copy = () => {
+    void navigator.clipboard?.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="space-y-2.5">
+      {shown.length > 0 && (
+        <dl className="space-y-2 text-xs">
+          {shown.map((field) => (
+            <div key={field.label}>
+              <dt className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {field.label}
+              </dt>
+              {Array.isArray(field.value) ? (
+                <dd>
+                  <ul className="mt-0.5 space-y-0.5">
+                    {field.value.map((v, i) => (
+                      <li key={i} className="flex items-start gap-1.5 text-foreground/90">
+                        <span className="mt-1.5 size-1 shrink-0 rounded-full bg-muted-foreground/60" />
+                        <span>{v}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </dd>
+              ) : (
+                <dd className="mt-0.5 whitespace-pre-wrap text-foreground/90">{field.value}</dd>
+              )}
+            </div>
+          ))}
+        </dl>
+      )}
+
+      {text ? (
+        <div className="overflow-hidden rounded-lg border border-border/70 bg-surface-inset/60">
+          <div className="flex items-center justify-between gap-2 border-b border-border/60 py-1 pl-2.5 pr-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Instructions
+            </span>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={copy}
+              title="Copy prompt"
+              aria-label="Copy prompt"
+              className="size-5"
+            >
+              {copied ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
+            </Button>
+          </div>
+          <p
+            className={cn(
+              'whitespace-pre-wrap p-2.5 font-mono text-[11px] leading-relaxed text-muted-foreground',
+              long && !expanded && 'line-clamp-6',
+            )}
+          >
+            {text}
+          </p>
+          {long && (
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              aria-expanded={expanded}
+              className="flex w-full items-center justify-center gap-1 border-t border-border/60 py-1 text-[11px] font-medium text-primary-text hover:bg-muted/40"
+            >
+              {expanded ? 'Show less' : 'Show full prompt'}
+              <ChevronDown className={cn('size-3 transition-transform', expanded && 'rotate-180')} />
+            </button>
+          )}
+        </div>
+      ) : (
+        shown.length === 0 && (
+          <AIEntityProfileEmpty>No prompt yet — it follows only its name and role.</AIEntityProfileEmpty>
+        )
+      )}
     </div>
   );
 }

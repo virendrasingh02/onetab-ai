@@ -3,6 +3,9 @@ import { IntegrationsService } from '@org/api-integrations';
 import { PrismaService } from '@org/database';
 import { appLabel, connectorToolName, type AppActionDefinition, type AgentConnectionStatus } from '@org/types';
 
+/** Link states the owner fixes by signing in again, not by connecting anew. */
+const RECONNECT_STATUSES = new Set(['EXPIRED', 'REVOKED', 'ERROR', 'FAILED', 'NEEDS_REAUTH']);
+
 export interface IntegrationToolSchema {
   /** `<provider>_<actionId>`, namespaced so it can sit in the same OpenAI
    *  `tools` array as the built-in MCP tools without colliding. */
@@ -150,21 +153,27 @@ export class IntegrationToolBridgeService {
     const required = [...new Set([...links.map((l) => l.integration.provider), ...providers].map((p) => p.toUpperCase()))];
     if (required.length === 0) return [];
 
+    // Not just `CONNECTED` rows: an expired or failing link means "reconnect",
+    // not "connect", so the person isn't sent to set up an app they already have.
     const rows = await this.prisma.externalIntegration.findMany({
       where: {
         provider: { in: required },
-        status: 'CONNECTED',
+        status: { not: 'DISCONNECTED' },
         OR: [{ workspaceId, scopeType: { not: 'USER' } }, { scopeType: 'USER', userId }],
       },
-      select: { provider: true, scopeType: true },
+      select: { provider: true, scopeType: true, status: true },
     });
     return required.map((provider) => {
-      const row = rows.find((r) => r.provider.toUpperCase() === provider);
+      const mine = rows.filter((r) => r.provider.toUpperCase() === provider);
+      const row = mine.find((r) => r.status === 'CONNECTED');
       return {
         provider,
         label: appLabel(provider),
         connected: !!row,
         shared: !!row && row.scopeType !== 'USER',
+        ...(!row && mine.some((r) => RECONNECT_STATUSES.has(r.status.toUpperCase()))
+          ? { needsReconnect: true }
+          : {}),
       };
     });
   }

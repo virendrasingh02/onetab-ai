@@ -33,6 +33,7 @@ import {
   insertIntoComposer,
   quoteMarkdown,
   toReplyPreview,
+  type TimelineEphemeralItem,
 } from '@org/chat-ui';
 import type {
   ConnectionState,
@@ -122,6 +123,11 @@ const ForwardMessageDialog = lazy(() =>
   })),
 );
 
+/** Client-only rows a host adds to the main timeline. See `extraTimelineRows`. */
+export interface ChatSurfaceTimelineRows {
+  items: readonly TimelineEphemeralItem[];
+  render: (id: string) => ReactNode;
+}
 
 /**
  * Everything the welcome block at the top of the timeline needs that the
@@ -245,6 +251,13 @@ export interface ChatSurfaceProps {
 
   /** Set to introduce the channel above the first message. See {@link ChatSurfaceWelcome}. */
   welcome?: ChatSurfaceWelcome;
+
+  /**
+   * The host's own client-only rows for the main timeline — an agent's
+   * "connect your Gmail" prompt, say — woven in by time like the
+   * "Only visible to you" notices.
+   */
+  extraTimelineRows?: ChatSurfaceTimelineRows;
 
   /**
    * Bumped by the host to ask for a huddle — the channel's details panel does
@@ -454,6 +467,7 @@ export function ChatSurface({
   headerMenuSlot,
   showMembers = true,
   welcome,
+  extraTimelineRows,
   huddleRequest = 0,
   huddlesEnabled = true,
   huddleLink,
@@ -1036,22 +1050,26 @@ export function ChatSurface({
     [client, me, myUserId, messageDensity],
   );
   const timelineEphemeral = useMemo(() => {
-    if (mainUploads.length === 0) return noticeTimeline;
+    const extra = extraTimelineRows?.items ?? [];
+    if (mainUploads.length === 0 && extra.length === 0) return noticeTimeline;
     const byId = new Map(mainUploads.map((upload) => [`upload:${upload.id}`, upload]));
+    const extraIds = new Set(extra.map((item) => item.id));
     return {
       ephemeralItems: [
         ...noticeTimeline.ephemeralItems,
+        ...extra,
         ...mainUploads.map((upload) => ({
           id: `upload:${upload.id}`,
           timestamp: upload.createdAt,
         })),
       ],
       renderEphemeral: (id: string) => {
+        if (extraIds.has(id)) return extraTimelineRows?.render(id) ?? null;
         const upload = byId.get(id);
         return upload ? renderPendingUpload(upload) : noticeTimeline.renderEphemeral(id);
       },
     };
-  }, [mainUploads, noticeTimeline, renderPendingUpload]);
+  }, [mainUploads, noticeTimeline, renderPendingUpload, extraTimelineRows]);
 
   const scheduledMessagesQuery = useScheduledMessages(effectiveWorkspaceId);
   const scheduledMessageMutations = useScheduledMessageMutations(effectiveWorkspaceId);

@@ -21,12 +21,14 @@ import { getAppDisplayName } from '@org/types';
 import { cn } from '@org/utils';
 import {
   AlertCircle,
+  Bell,
   Blocks,
   Check,
   CheckCircle2,
   Copy,
   MoreVertical,
   Pencil,
+  PencilLine,
   Play,
   Plug,
   RefreshCw,
@@ -41,6 +43,7 @@ import {
   type AppModelItem,
 } from './AppChatView.js';
 import {
+  useConnectorDetail,
   useIntegrationMutations,
   useIntegrationProviders,
   useIntegrations,
@@ -101,6 +104,16 @@ export const AppProfileRightPanel: FC<AppProfileRightPanelProps> = ({
   };
 
   const isConnected = app.isConnected;
+  const connectionStatus = connectedMatch?.status?.toUpperCase();
+  const needsReconnect =
+    !isConnected && (connectionStatus === 'ERROR' || connectionStatus === 'EXPIRED' || connectionStatus === 'REVOKED');
+
+  // What the app really offers, from its connector manifest.
+  const connectorQuery = useConnectorDetail(workspaceId, app.provider);
+  const connectorActions = connectorQuery.data?.capabilities ?? [];
+  const connectorTriggers = connectorQuery.data?.triggers ?? [];
+  const [showAllActions, setShowAllActions] = useState(false);
+  const visibleActions = showAllActions ? connectorActions : connectorActions.slice(0, 6);
 
   const handleCopyLink = () => {
     const url = `${window.location.origin}/w/${workspaceSlug}/apps/chat?app=${app.id}`;
@@ -280,8 +293,16 @@ export const AppProfileRightPanel: FC<AppProfileRightPanelProps> = ({
                 disabled={connect.isPending}
                 className="text-xs font-semibold gap-1.5 flex-1 shadow-xs"
               >
-                {connect.isPending ? <Spinner className="size-3.5" /> : <Plug className="size-3.5" />}
-                <span>Connect {app.name}</span>
+                {connect.isPending ? (
+                  <Spinner className="size-3.5" />
+                ) : needsReconnect ? (
+                  <RefreshCw className="size-3.5" />
+                ) : (
+                  <Plug className="size-3.5" />
+                )}
+                <span>
+                  {needsReconnect ? 'Reconnect' : 'Connect'} {app.name}
+                </span>
               </Button>
             )}
 
@@ -318,10 +339,15 @@ export const AppProfileRightPanel: FC<AppProfileRightPanelProps> = ({
                   <CheckCircle2 className="size-3.5" />
                   Active Webhook
                 </span>
-              ) : (
-                <span className="flex items-center gap-1 text-muted-foreground">
+              ) : needsReconnect ? (
+                <span className="flex items-center gap-1 text-destructive-text">
                   <AlertCircle className="size-3.5" />
-                  Setup Required
+                  Reconnect required
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-warning-text">
+                  <AlertCircle className="size-3.5" />
+                  Not connected
                 </span>
               )}
             </div>
@@ -363,27 +389,97 @@ export const AppProfileRightPanel: FC<AppProfileRightPanelProps> = ({
               </div>
             </div>
 
-            {/* Box 3: Permissions & Capabilities */}
+            {/* Box 3: What the app can do, from its connector manifest */}
             <div className="rounded-xl border border-border bg-surface-inset/40 p-4 space-y-2">
-              <h3 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <Zap className="size-3.5 text-accent-amber" />
-                <span>App Capabilities</span>
+              <h3 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center justify-between gap-1.5">
+                <span className="flex items-center gap-1.5">
+                  <Zap className="size-3.5 text-accent-amber" />
+                  <span>Capabilities</span>
+                </span>
+                {connectorActions.length > 0 && (
+                  <span className="font-mono text-[10px] font-normal normal-case">{connectorActions.length}</span>
+                )}
               </h3>
-              <div className="space-y-1.5 pt-1 text-xs text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <Check className="size-3.5 text-success shrink-0" />
-                  <span>Interactive chat commands &amp; slash actions</span>
+              {!isConnected && (connectorActions.length > 0 || connectorTriggers.length > 0) && (
+                <p className="text-[11px] text-warning-text">
+                  {needsReconnect ? 'Reconnect' : 'Connect'} {app.name} so agents and workflows can use these.
+                </p>
+              )}
+              {connectorQuery.data?.unavailableReason && (
+                <p className="text-[11px] text-muted-foreground">{connectorQuery.data.unavailableReason}</p>
+              )}
+              {connectorQuery.isLoading ? (
+                <div className="flex justify-center py-3">
+                  <Spinner className="size-4" />
                 </div>
-                <div className="flex items-center gap-2">
-                  <Check className="size-3.5 text-success shrink-0" />
-                  <span>Real-time event notifications in workspace channels</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="size-3.5 text-success shrink-0" />
-                  <span>Threaded workflow triggers and automated responses</span>
-                </div>
-              </div>
+              ) : connectorActions.length > 0 ? (
+                <ul className="space-y-1.5 pt-1 text-xs">
+                  {visibleActions.map((action) => {
+                    const writes = action.permissionLevel !== 'read';
+                    return (
+                      <li key={action.id} className="flex items-start gap-2">
+                        {isConnected ? (
+                          <Check className="mt-0.5 size-3.5 shrink-0 text-success" />
+                        ) : (
+                          <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="flex items-center gap-1.5 font-medium text-foreground">
+                            {action.label}
+                            {writes && (
+                              <span
+                                className="inline-flex items-center gap-0.5 text-[10px] font-normal text-muted-foreground"
+                                title="Makes changes in the app"
+                              >
+                                <PencilLine className="size-2.5" />
+                                {action.requiresConfirmation ? 'asks first' : 'writes'}
+                              </span>
+                            )}
+                          </p>
+                          {action.description && (
+                            <p className="line-clamp-2 text-[11px] text-muted-foreground">{action.description}</p>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                  {connectorActions.length > 6 && (
+                    <li>
+                      <button
+                        type="button"
+                        onClick={() => setShowAllActions((v) => !v)}
+                        className="text-[11px] font-medium text-primary-text hover:underline"
+                      >
+                        {showAllActions ? 'Show less' : `Show all ${connectorActions.length}`}
+                      </button>
+                    </li>
+                  )}
+                </ul>
+              ) : (
+                <p className="pt-1 text-xs text-muted-foreground">
+                  Chat messages and event notifications from {app.name}.
+                </p>
+              )}
             </div>
+
+            {connectorTriggers.length > 0 && (
+              <div className="rounded-xl border border-border bg-surface-inset/40 p-4 space-y-2">
+                <h3 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <Bell className="size-3.5 text-primary" />
+                  <span>Events agents can react to</span>
+                </h3>
+                <ul className="space-y-1.5 pt-1 text-xs">
+                  {connectorTriggers.map((trigger) => (
+                    <li key={trigger.id}>
+                      <p className="font-medium text-foreground">{trigger.label}</p>
+                      {trigger.description && (
+                        <p className="line-clamp-2 text-[11px] text-muted-foreground">{trigger.description}</p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </div>
       </ScrollArea>

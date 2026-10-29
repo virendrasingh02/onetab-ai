@@ -267,6 +267,16 @@ export {
   type AppEntityIdentity,
   type AppEntityResolver,
 } from './lib/cards/agent-avatar-context.js';
+export {
+  AppConnectProvider,
+  useAppConnector,
+  type AppConnector,
+} from './lib/cards/app-connect-context.js';
+export {
+  AgentConnectNotice,
+  ConnectAppsBlock,
+  type AgentConnectNoticeProps,
+} from './lib/cards/connect-apps-block.js';
 export { AppLogoAvatar } from './lib/app-logo-avatar.js';
 export {
   AgentMessageCard,

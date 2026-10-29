@@ -128,11 +128,28 @@ function validateAIAgentEvent(obj: Record<string, unknown>): ValidationResult<AI
     files: Array.isArray(obj['files']) ? (obj['files'] as any) : undefined,
     suggestedActions: Array.isArray(obj['suggestedActions']) ? (obj['suggestedActions'] as any) : undefined,
     actions: Array.isArray(obj['actions']) ? (obj['actions'] as any) : undefined,
+    connectionsNeeded: readConnectionsNeeded(obj['connectionsNeeded']),
     errorMessage: typeof obj['errorMessage'] === 'string' ? obj['errorMessage'] : undefined,
     metadata: obj['metadata'] && typeof obj['metadata'] === 'object' ? (obj['metadata'] as Record<string, unknown>) : undefined,
   };
 
   return { valid: true, event };
+}
+
+/** Keeps only well-formed entries: each one becomes a Connect button. */
+function readConnectionsNeeded(raw: unknown): AIAgentMessageContent['connectionsNeeded'] {
+  if (!Array.isArray(raw)) return undefined;
+  const needs = raw.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const { provider, label, reason } = item as Record<string, unknown>;
+    if (typeof provider !== 'string' || !/^[A-Za-z0-9_]{1,64}$/.test(provider)) return [];
+    return [{
+      provider: provider.toUpperCase(),
+      label: typeof label === 'string' && label.trim() ? label.trim().slice(0, 64) : provider,
+      reason: reason === 'reconnect' ? ('reconnect' as const) : ('not_connected' as const),
+    }];
+  });
+  return needs.length > 0 ? needs : undefined;
 }
 
 function validateAppResponseEvent(obj: Record<string, unknown>): ValidationResult<AppResponseMessageContent> {

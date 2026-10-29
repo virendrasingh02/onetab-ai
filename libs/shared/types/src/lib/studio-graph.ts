@@ -361,6 +361,67 @@ export function isStudioGraph(graphJson: string | null | undefined): boolean {
   }
 }
 
+/** The apps a canvas works in, as a chat turn with its agent needs them. */
+export interface StudioGraphApps {
+  /** Upper-case provider keys (`GMAIL`), agent cards and app steps alike. */
+  providers: string[];
+  /** Runtime tool names (`gmail_search_messages`) the canvas switched on. */
+  tools: string[];
+  /** Tools whose app step asks for approval before it runs. */
+  approvalTools: string[];
+}
+
+/**
+ * Every app a stored canvas names — on an agent (tool attachment) or as an
+ * app step anywhere on the canvas. A chat reply runs the agent alone, never
+ * the steps after it, so this is how chat learns the agent works in Gmail
+ * (and which Gmail actions) when Gmail is only drawn as the next step.
+ */
+export function studioGraphApps(graphJson: string | null | undefined): StudioGraphApps {
+  const out: StudioGraphApps = { providers: [], tools: [], approvalTools: [] };
+  if (!isStudioGraph(graphJson)) return out;
+  let graph: { nodes?: unknown; edges?: unknown; settings?: unknown };
+  try {
+    graph = JSON.parse(graphJson as string) as typeof graph;
+  } catch {
+    return out;
+  }
+  const add = (list: string[], value: string) => {
+    if (!list.includes(value)) list.push(value);
+  };
+  const walk = (specs: readonly InlineAgentSpec[]) => {
+    for (const spec of specs) {
+      for (const provider of spec.connectors ?? []) {
+        add(out.providers, provider);
+        const prefix = `${provider.toLowerCase()}_`;
+        for (const tool of spec.tools) if (tool.startsWith(prefix)) add(out.tools, tool);
+      }
+      walk(spec.members ?? []);
+    }
+  };
+  walk(compileStudioGraph(graph).agents);
+
+  for (const node of (Array.isArray(graph.nodes) ? graph.nodes : []) as CanvasGraphNode[]) {
+    const type = typeOf(node);
+    if (!CONNECTOR_ACTION_TYPES.has(type)) continue;
+    const cfg = configOf(node);
+    const ref = connectorRefOf(type, cfg);
+    if (!ref?.provider) continue;
+    add(out.providers, ref.provider);
+    const actionIds = Array.isArray(cfg['actionIds'])
+      ? (cfg['actionIds'] as unknown[]).filter((a): a is string => typeof a === 'string' && !!a)
+      : ref.id
+        ? [ref.id]
+        : [];
+    for (const actionId of actionIds) {
+      const tool = connectorToolName(ref.provider, actionId);
+      add(out.tools, tool);
+      if (isTruthy(cfg['requireApproval'])) add(out.approvalTools, tool);
+    }
+  }
+  return out;
+}
+
 /** Graph-level limits a canvas stored under `settings.limits`, clamped to the maxima. */
 export function readRunLimits(settings: unknown): AgentRunLimits {
   const raw = (settings && typeof settings === 'object' ? (settings as Record<string, unknown>)['limits'] : undefined) as

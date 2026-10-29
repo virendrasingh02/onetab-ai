@@ -19,5 +19,11 @@ export { AgentProfileRightPanel } from './lib/AgentProfileRightPanel.js';
 export { AIEntityAvatar, type AIEntityAvatarProps } from './lib/shared/ai-entity-avatar.js';
 export { AIEntityStatus, type AIEntityStatusProps } from './lib/shared/ai-entity-status.js';
 export { AIEntityRow, type AIEntityRowProps } from './lib/shared/ai-entity-row.js';
+export {
+  useEntityToolProfile,
+  parseEntityTools,
+  type EntityAppConnection,
+  type EntityToolProfile,
+} from './lib/shared/entity-tool-profile.js';
 
 export * from './lib/marketplace/index.js';
