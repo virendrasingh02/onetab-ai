@@ -70,7 +70,7 @@ export const DEFAULT_NAV_GROUPS: readonly NavGroupConfig[] = [
   },
   {
     id: 'more',
-    label: 'More Destinations',
+    label: 'More',
     order: 4,
     collapsible: true,
     defaultCollapsed: true,
@@ -147,15 +147,15 @@ export const DEFAULT_NAV_ITEMS: readonly NavItemConfig[] = [
     ],
   },
 
-  // --- Work Group ---
+  // --- More menu (folded behind the sidebar's "More" row) ---
   {
     id: 'meetings',
     label: 'Meetings',
     icon: Video,
     href: 'meetings',
     visible: true,
-    order: 3,
-    group: 'work',
+    order: 0,
+    group: 'more',
     description: 'Video calls, huddles and recorded meetings',
     keywords: ['meetings', 'calls', 'video', 'huddles'],
   },
@@ -165,11 +165,12 @@ export const DEFAULT_NAV_ITEMS: readonly NavItemConfig[] = [
     icon: Calendar,
     href: 'schedule',
     visible: true,
-    order: 4,
-    group: 'work',
+    order: 1,
+    group: 'more',
     description: 'Scheduled messages, events, and timeline',
     keywords: ['schedule', 'calendar', 'events', 'timeline', 'messages'],
   },
+  // --- Work Group ---
   {
     id: 'files',
     label: 'Files',
@@ -182,7 +183,6 @@ export const DEFAULT_NAV_ITEMS: readonly NavItemConfig[] = [
     keywords: ['files', 'drive', 'storage', 'attachments', 'media'],
   },
 
-  // --- AI Group ---
   {
     id: 'automations',
     label: 'Automation Center',
@@ -190,7 +190,7 @@ export const DEFAULT_NAV_ITEMS: readonly NavItemConfig[] = [
     href: 'automations',
     visible: true,
     order: 2,
-    group: 'ai',
+    group: 'more',
     description:
       'Unified automation center for event-driven, AI-powered and scheduled workflows',
     keywords: [

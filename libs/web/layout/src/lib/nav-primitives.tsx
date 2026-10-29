@@ -5,6 +5,10 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
   EntityContextMenu,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
   Hint,
   SidebarActivityIndicator,
@@ -16,6 +20,7 @@ import {
   ChevronDown,
   MoreHorizontal,
   PinOff,
+  SlidersHorizontal,
   Star,
   type LucideIcon,
 } from 'lucide-react';
@@ -27,7 +32,7 @@ import {
   type ComponentProps,
   type ReactNode,
 } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useSplitViewAction } from './split-view/use-split-view-action.js';
 
 export interface NavEntry {
@@ -101,7 +106,7 @@ export function navRowClass(
       ? // Selected row: primary-tinted fill + primary text — clearly distinct
         // from the neutral hover state.
         // `nav-row-active` is a hook for the sidebar's scroll-to-active effect.
-        'nav-row-active font-semibold text-primary-text bg-primary/12 shadow-2xs ring-1 ring-inset ring-primary/20'
+        'nav-row-active font-semibold shadow-2xs bg-primary/12 text-primary-text ring-1 ring-primary/20 ring-inset'
       : 'font-medium text-foreground/90 hover:bg-accent/70 hover:text-foreground',
     extra,
   );
@@ -191,55 +196,55 @@ export function NavRow({
       scope={`nav:${entry.path}`}
       label={entry.label}
     >
-    <div className="group/nav-row relative flex items-center">
-      <NavLink
-        to={to}
-        end={entry.end}
-        className={({ isActive }) =>
-          navRowClass(Boolean(isActiveOverride) || isActive, {
-            depth,
-            extra: onTogglePin ? 'pr-7 flex-1' : 'flex-1',
-          })
-        }
-      >
-        <Icon className={navIconClass(depth)} aria-hidden />
-        <span className="font-medium flex-1 truncate">{entry.label}</span>
-        {activity ? (
-          <SidebarActivityIndicator
-            state={activity}
-            surface={surface}
-            itemLabel={entry.label}
-            className="ml-auto"
-          />
-        ) : entry.badge !== undefined ? (
-          <Badge
-            variant="neutral"
-            className="px-1.5 py-0 h-4 font-semibold ml-auto font-mono text-[10px]"
-          >
-            {entry.badge}
-          </Badge>
-        ) : null}
-      </NavLink>
-
-      {onTogglePin && entry.path !== '' ? (
-        <div className="right-1 absolute top-1/2 -translate-y-1/2 opacity-0 transition-opacity group-focus-within/nav-row:opacity-100 group-hover/nav-row:opacity-100 pointer-coarse:opacity-100">
-          <Hint label="Unpin from sidebar">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onTogglePin();
-              }}
-              aria-label={`Unpin ${entry.label} from sidebar`}
-              className="size-5 flex cursor-pointer items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-accent/60 hover:text-foreground"
+      <div className="group/nav-row relative flex items-center">
+        <NavLink
+          to={to}
+          end={entry.end}
+          className={({ isActive }) =>
+            navRowClass(Boolean(isActiveOverride) || isActive, {
+              depth,
+              extra: onTogglePin ? 'pr-7 flex-1' : 'flex-1',
+            })
+          }
+        >
+          <Icon className={navIconClass(depth)} aria-hidden />
+          <span className="font-medium flex-1 truncate">{entry.label}</span>
+          {activity ? (
+            <SidebarActivityIndicator
+              state={activity}
+              surface={surface}
+              itemLabel={entry.label}
+              className="ml-auto"
+            />
+          ) : entry.badge !== undefined ? (
+            <Badge
+              variant="neutral"
+              className="px-1.5 py-0 h-4 font-semibold ml-auto font-mono text-[10px]"
             >
-              <PinOff className="size-3" />
-            </button>
-          </Hint>
-        </div>
-      ) : null}
-    </div>
+              {entry.badge}
+            </Badge>
+          ) : null}
+        </NavLink>
+
+        {onTogglePin && entry.path !== '' ? (
+          <div className="right-1 absolute top-1/2 -translate-y-1/2 opacity-0 transition-opacity group-focus-within/nav-row:opacity-100 group-hover/nav-row:opacity-100 pointer-coarse:opacity-100">
+            <Hint label="Unpin from sidebar">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onTogglePin();
+                }}
+                aria-label={`Unpin ${entry.label} from sidebar`}
+                className="size-5 flex cursor-pointer items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-accent/60 hover:text-foreground"
+              >
+                <PinOff className="size-3" />
+              </button>
+            </Hint>
+          </div>
+        ) : null}
+      </div>
     </EntityContextMenu>
   );
 }
@@ -279,31 +284,31 @@ export function IconOnlyNavRow({
       scope={`nav:${entry.path}`}
       label={entry.label}
     >
-    <Hint side="right" label={tooltipText}>
-      <NavLink
-        to={to}
-        end={entry.end}
-        onClick={onClick}
-        className={({ isActive: linkActive }) => {
-          const active = isActive ?? linkActive;
-          return cn(
-            'relative size-9 flex items-center justify-center rounded-xl transition-all duration-150',
-            'outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer',
-            active
-              ? 'bg-primary/12 text-primary-text shadow-2xs font-semibold ring-1 ring-inset ring-primary/20'
-              : 'text-muted-foreground hover:bg-accent/70 hover:text-foreground',
-          );
-        }}
-      >
-        <Icon className="size-4 shrink-0" aria-hidden />
-        <SidebarActivityIndicator
-          state={activity}
-          surface={surface}
-          itemLabel={entry.label}
-          collapsed
-        />
-      </NavLink>
-    </Hint>
+      <Hint side="right" label={tooltipText}>
+        <NavLink
+          to={to}
+          end={entry.end}
+          onClick={onClick}
+          className={({ isActive: linkActive }) => {
+            const active = isActive ?? linkActive;
+            return cn(
+              'size-9 relative flex items-center justify-center rounded-xl transition-all duration-150',
+              'cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring',
+              active
+                ? 'shadow-2xs font-semibold bg-primary/12 text-primary-text ring-1 ring-primary/20 ring-inset'
+                : 'text-muted-foreground hover:bg-accent/70 hover:text-foreground',
+            );
+          }}
+        >
+          <Icon className="size-4 shrink-0" aria-hidden />
+          <SidebarActivityIndicator
+            state={activity}
+            surface={surface}
+            itemLabel={entry.label}
+            collapsed
+          />
+        </NavLink>
+      </Hint>
     </EntityContextMenu>
   );
 }
@@ -316,6 +321,151 @@ export function IconOnlyNavRow({
 export function isOnPath(pathname: string, path: string): boolean {
   const base = path.split('?')[0];
   return pathname === base || pathname.startsWith(`${base}/`);
+}
+
+/** One destination inside the sidebar's "More" menu. */
+export interface NavMoreItem {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  /** Full route path (`/w/:slug/...`). */
+  to: string;
+  activity?: SidebarActivityState;
+}
+
+/**
+ * The "More" row: secondary destinations (Meetings, Schedule, Automations…)
+ * folded into a menu so the primary list stays short. The row itself takes
+ * the active style while the current page is one of its items, so you never
+ * lose track of where you are, and it carries a dot for unread activity inside.
+ */
+export function NavMoreMenu({
+  items,
+  onCustomize,
+  collapsed = false,
+}: {
+  items: NavMoreItem[];
+  onCustomize?: () => void;
+  /** Render as an icon-only button for the collapsed rail. */
+  collapsed?: boolean;
+}) {
+  const { pathname } = useLocation();
+  const [open, setOpen] = useState(false);
+  const activeItem = items.find((item) => isOnPath(pathname, item.to));
+  const hasActivity = items.some(
+    (item) => (item.activity?.unreadCount ?? 0) > 0,
+  );
+
+  const dot =
+    hasActivity && !open ? (
+      <span
+        className={cn(
+          'size-1.5 shrink-0 rounded-full bg-primary',
+          collapsed ? 'top-1.5 right-1.5 absolute' : 'mr-1 ml-auto',
+        )}
+        aria-label="Unread activity"
+      />
+    ) : null;
+
+  const trigger = collapsed ? (
+    <button
+      type="button"
+      aria-label="More"
+      className={cn(
+        'size-9 relative flex cursor-pointer items-center justify-center rounded-xl transition-all duration-150',
+        'outline-none focus-visible:ring-1 focus-visible:ring-ring',
+        activeItem || open
+          ? activeItem
+            ? 'shadow-2xs bg-primary/12 text-primary-text ring-1 ring-primary/20 ring-inset'
+            : 'bg-accent/70 text-foreground'
+          : 'text-muted-foreground hover:bg-accent/70 hover:text-foreground',
+      )}
+    >
+      <MoreHorizontal className="size-4 shrink-0" aria-hidden />
+      {dot}
+    </button>
+  ) : (
+    <button
+      type="button"
+      className={navRowClass(Boolean(activeItem), {
+        extra: cn('w-full text-left', open && !activeItem && 'bg-accent/70'),
+      })}
+    >
+      <MoreHorizontal className={navIconClass(0)} aria-hidden />
+      <span className="flex-1 truncate">More</span>
+      {dot}
+    </button>
+  );
+
+  return (
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      {collapsed ? (
+        <Hint side="right" label="More">
+          <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
+        </Hint>
+      ) : (
+        <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
+      )}
+      <DropdownMenuContent
+        align="start"
+        side={collapsed ? 'right' : 'bottom'}
+        sideOffset={collapsed ? 8 : 4}
+        className="w-56 p-1.5"
+      >
+        {items.map((item) => {
+          const Icon = item.icon;
+          const isActive = item === activeItem;
+          return (
+            <DropdownMenuItem
+              key={item.id}
+              asChild
+              className={cn(
+                'gap-2.5 px-2.5 py-1.5 text-sm flex cursor-pointer items-center rounded-lg',
+                isActive && 'font-semibold bg-primary/10 text-primary-text',
+              )}
+            >
+              <NavLink
+                to={item.to}
+                aria-current={isActive ? 'page' : undefined}
+              >
+                <Icon
+                  className={cn(
+                    'size-4 shrink-0',
+                    isActive ? 'text-primary-text' : 'text-muted-foreground',
+                  )}
+                  aria-hidden
+                />
+                <span className="flex-1 truncate">{item.label}</span>
+                {item.activity ? (
+                  <SidebarActivityIndicator
+                    state={item.activity}
+                    surface="main"
+                    itemLabel={item.label}
+                    className="ml-auto"
+                  />
+                ) : null}
+              </NavLink>
+            </DropdownMenuItem>
+          );
+        })}
+        {onCustomize ? (
+          <>
+            <DropdownMenuSeparator className="my-1" />
+            <DropdownMenuItem
+              onSelect={onCustomize}
+              className="gap-2.5 px-2.5 py-1.5 text-sm flex cursor-pointer items-center rounded-lg"
+            >
+              <SlidersHorizontal
+                className="size-4 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+              <span className="flex-1 truncate">Customize sidebar</span>
+            </DropdownMenuItem>
+          </>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 /**
@@ -342,7 +492,7 @@ export function NavGroup({
       <div role="group" aria-label={label}>
         <CollapsibleTrigger
           className={navActionClass({
-            extra: 'text-muted-foreground font-semibold text-[13px]',
+            extra: 'font-semibold text-[13px] text-muted-foreground',
           })}
         >
           <ChevronDown
@@ -417,7 +567,7 @@ export function Section({
     >
       <section aria-label={title}>
         <div className="group/section gap-1.5 px-2.5 py-1 flex items-center justify-between select-none">
-          <div className="flex items-center gap-1.5 min-w-0">
+          <div className="gap-1.5 min-w-0 flex items-center">
             <CollapsibleTrigger
               aria-label={`Toggle ${title} section`}
               className={cn(

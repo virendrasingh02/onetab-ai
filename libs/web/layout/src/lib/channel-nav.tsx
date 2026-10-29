@@ -101,6 +101,8 @@ import {
   NavRowActions,
   NavRowMenuButton,
   NavGroup,
+  NavMoreMenu,
+  type NavMoreItem,
   Section,
 } from './nav-primitives.js';
 import {
@@ -697,6 +699,21 @@ export function ChannelNav({
   );
   const navSurfaceFor = (id: string) =>
     id === 'inbox' ? ('notifications' as const) : ('main' as const);
+
+  /* Secondary destinations live behind the "More" row instead of the list. */
+  const moreNavItems = useMemo<NavMoreItem[]>(
+    () =>
+      resolvedNav.visibleItems
+        .filter((item) => item.group === 'more')
+        .map((item) => ({
+          id: item.id,
+          label: item.label,
+          icon: item.icon,
+          to: item.fullPath,
+          activity: navActivity[item.id],
+        })),
+    [resolvedNav.visibleItems, navActivity],
+  );
 
   /*
    * The primary nav used to render all ~16 destinations as one flat list, which
@@ -1432,21 +1449,30 @@ export function ChannelNav({
         {/* TODO: restore <ScrollArea> (SimpleBar) here later */}
         <div className="min-h-0 px-1 w-full flex-1 scrollbar-on-hover overflow-y-auto">
           <div className="gap-1.5 py-1 flex flex-col items-center">
-            {resolvedNav.visibleItems.map((item) => (
-              <IconOnlyNavRow
-                key={item.id}
-                entry={{
-                  path: item.href,
-                  label: item.label,
-                  icon: item.icon,
-                  badge: item.badge ?? undefined,
-                  end: item.href === '',
-                }}
-                workspaceSlug={workspaceSlug}
-                activity={navActivity[item.id]}
-                surface={navSurfaceFor(item.id)}
+            {resolvedNav.visibleItems
+              .filter((item) => item.group !== 'more')
+              .map((item) => (
+                <IconOnlyNavRow
+                  key={item.id}
+                  entry={{
+                    path: item.href,
+                    label: item.label,
+                    icon: item.icon,
+                    badge: item.badge ?? undefined,
+                    end: item.href === '',
+                  }}
+                  workspaceSlug={workspaceSlug}
+                  activity={navActivity[item.id]}
+                  surface={navSurfaceFor(item.id)}
+                />
+              ))}
+            {moreNavItems.length > 0 ? (
+              <NavMoreMenu
+                items={moreNavItems}
+                onCustomize={() => setCustomizerOpen(true)}
+                collapsed
               />
-            ))}
+            ) : null}
           </div>
         </div>
 
@@ -1501,6 +1527,15 @@ export function ChannelNav({
                 />
               );
               return resolvedNav.groups.map((group) => {
+                if (group.id === 'more') {
+                  return (
+                    <NavMoreMenu
+                      key={group.id}
+                      items={moreNavItems}
+                      onCustomize={() => setCustomizerOpen(true)}
+                    />
+                  );
+                }
                 if (!group.collapsible) {
                   return (
                     <div key={group.id} className="space-y-0.5">
