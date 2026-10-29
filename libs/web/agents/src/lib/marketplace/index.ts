@@ -17,4 +17,5 @@ export * from './IntegrationConfigModal';
 export * from './AppDetailPage';
 export * from './AgentDetailPage';
 export * from './MarketplaceWorkspaceView';
+export * from './MarketplaceWorkspaceAgentsView';
 export * from './use-workspace-catalog';

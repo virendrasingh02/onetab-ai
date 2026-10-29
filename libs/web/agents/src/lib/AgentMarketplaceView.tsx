@@ -9,7 +9,10 @@ import type {
 } from '@org/types';
 import { AiEntityAvatar, confirm, toast } from '@org/ui';
 import { studioWorkspacePath } from '@org/platform';
-import { useCurrentWorkspace, useWorkspacePermission } from '@org/web-workspace';
+import {
+  useCurrentWorkspace,
+  useWorkspacePermission,
+} from '@org/web-workspace';
 import { useCurrentUser } from '@org/auth';
 import { WorkspacePermission } from '@org/types';
 import {
@@ -19,6 +22,7 @@ import {
   useMarketplaceMutations,
 } from './marketplace/use-marketplace';
 import { useAgentApprovals } from './marketplace/use-agent-install';
+import { useAgents } from './use-agents';
 import {
   MarketplaceHeader,
   MarketplaceTabs,
@@ -27,6 +31,7 @@ import {
   MarketplaceCatalogView,
   MarketplaceInstalledView,
   MarketplaceWorkspaceView,
+  MarketplaceWorkspaceAgentsView,
   openStudioTab,
   useWorkspaceCoworkers,
   MarketplaceDeveloperView,
@@ -54,7 +59,15 @@ export function AgentAvatar({
   size?: 'sm' | 'md' | 'lg';
 }) {
   // Same tile as the sidebar and chat: one round, primary-toned agent identity.
-  return <AiEntityAvatar kind="agent" name={name} avatarUrl={avatarUrl} size={size} className={className} />;
+  return (
+    <AiEntityAvatar
+      kind="agent"
+      name={name}
+      avatarUrl={avatarUrl}
+      size={size}
+      className={className}
+    />
+  );
 }
 
 /* ------------------------------------------------------------- main view ---- */
@@ -172,9 +185,7 @@ export function AgentMarketplaceView({
   });
   const connectorIds = useMemo(
     () =>
-      new Set(
-        (providersQuery.data ?? []).map((p) => p.provider.toLowerCase()),
-      ),
+      new Set((providersQuery.data ?? []).map((p) => p.provider.toLowerCase())),
     [providersQuery.data],
   );
   const allListings = browseQuery.data?.items || [];
@@ -196,6 +207,9 @@ export function AgentMarketplaceView({
   const installations = installationsQuery.data || [];
   const approvals = approvalsQuery.data || [];
   const workspaceCoworkers = useWorkspaceCoworkers(activeWorkspaceId);
+  // The same published-agent list the sidebar's "AI Agents" section reads.
+  const workspaceAgents = useAgents(activeWorkspaceId || undefined);
+  const workspaceAgentList = workspaceAgents.data ?? [];
 
   // Active detail page selection
   const selectedAppListing = useMemo(() => {
@@ -210,8 +224,9 @@ export function AgentMarketplaceView({
 
   const agentApprovals = useAgentApprovals(activeWorkspaceId, canManage);
   const pendingApprovalsCount =
-    approvals.filter((a) => a.approvalStatus === 'PENDING' && a.kind !== 'AGENT').length +
-    (agentApprovals.data?.length ?? 0);
+    approvals.filter(
+      (a) => a.approvalStatus === 'PENDING' && a.kind !== 'AGENT',
+    ).length + (agentApprovals.data?.length ?? 0);
 
   // Handlers
   const handleSelectListing = (listing: MarketplaceListing) => {
@@ -340,6 +355,7 @@ export function AgentMarketplaceView({
             onTabChange={handleTabChange}
             installedCount={installations.length}
             workspaceCount={workspaceCoworkers.coworkers.length}
+            agentsCount={workspaceAgentList.length}
           />
         </>
       )}
@@ -408,7 +424,10 @@ export function AgentMarketplaceView({
               )}
 
               {activeTab === 'apps' && renderIntegrations && (
-                <section aria-labelledby="mkt-connect-heading" className="space-y-1">
+                <section
+                  aria-labelledby="mkt-connect-heading"
+                  className="space-y-1"
+                >
                   <h2
                     id="mkt-connect-heading"
                     className="text-sm font-semibold text-foreground"
@@ -416,18 +435,21 @@ export function AgentMarketplaceView({
                     Connect your tools
                   </h2>
                   <p className="text-xs text-muted-foreground">
-                    Sign in once and agents, search and chat can work with
-                    them.
+                    Sign in once and agents, search and chat can work with them.
                   </p>
-                  <div className="pt-3">{renderIntegrations({ searchQuery })}</div>
+                  <div className="pt-3">
+                    {renderIntegrations({ searchQuery })}
+                  </div>
                 </section>
               )}
 
-              {activeTab === 'apps' && renderIntegrations && showMarketplaceApps && (
-                <h2 className="pt-4 text-sm font-semibold border-t border-border/60 text-foreground">
-                  More apps from the Marketplace
-                </h2>
-              )}
+              {activeTab === 'apps' &&
+                renderIntegrations &&
+                showMarketplaceApps && (
+                  <h2 className="pt-4 text-sm font-semibold border-t border-border/60 text-foreground">
+                    More apps from the Marketplace
+                  </h2>
+                )}
 
               {activeTab === 'apps' && showMarketplaceApps && (
                 <MarketplaceCatalogView
@@ -444,6 +466,41 @@ export function AgentMarketplaceView({
                     if (inst) setConfigModalItem(inst);
                   }}
                 />
+              )}
+
+              {activeTab === 'agents' && (
+                <section
+                  aria-labelledby="mkt-ws-agents-heading"
+                  className="space-y-1"
+                >
+                  <h2
+                    id="mkt-ws-agents-heading"
+                    className="text-sm font-semibold text-foreground"
+                  >
+                    In this workspace
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    Every agent your team has installed or built in the AI Agent
+                    Studio, as listed in the sidebar.
+                  </p>
+                  <div className="pt-3">
+                    <MarketplaceWorkspaceAgentsView
+                      agents={workspaceAgentList}
+                      isLoading={workspaceAgents.isLoading}
+                      isError={workspaceAgents.isError}
+                      onRetry={() => void workspaceAgents.refetch()}
+                      workspaceSlug={activeWorkspaceSlug}
+                      searchQuery={searchQuery}
+                      onOpenStudio={handleOpenStudio}
+                    />
+                  </div>
+                </section>
+              )}
+
+              {activeTab === 'agents' && (
+                <h2 className="pt-4 text-sm font-semibold border-t border-border/60 text-foreground">
+                  More agents from the Marketplace
+                </h2>
               )}
 
               {activeTab === 'agents' && (
@@ -465,12 +522,21 @@ export function AgentMarketplaceView({
 
               {activeTab === 'installed' && (
                 <div className="space-y-8 py-3">
-                  <section aria-labelledby="installed-agents-heading" className="space-y-3">
-                    <h2 id="installed-agents-heading" className="text-sm font-semibold text-foreground">
+                  <section
+                    aria-labelledby="installed-agents-heading"
+                    className="space-y-3"
+                  >
+                    <h2
+                      id="installed-agents-heading"
+                      className="text-sm font-semibold text-foreground"
+                    >
                       AI agents
                     </h2>
                     <AgentInstallsSection
-                      workspace={{ id: activeWorkspaceId, slug: activeWorkspaceSlug }}
+                      workspace={{
+                        id: activeWorkspaceId,
+                        slug: activeWorkspaceSlug,
+                      }}
                       currentUserId={currentUser?.id}
                       canManage={canManage}
                       onOpenChat={(agentId) => handleOpenChat(agentId)}
@@ -479,14 +545,24 @@ export function AgentMarketplaceView({
                     />
                   </section>
 
-                  {canManage && <AgentAdminPanel workspaceId={activeWorkspaceId} />}
+                  {canManage && (
+                    <AgentAdminPanel workspaceId={activeWorkspaceId} />
+                  )}
 
-                  <section aria-labelledby="installed-apps-heading" className="space-y-1">
-                    <h2 id="installed-apps-heading" className="text-sm font-semibold text-foreground">
+                  <section
+                    aria-labelledby="installed-apps-heading"
+                    className="space-y-1"
+                  >
+                    <h2
+                      id="installed-apps-heading"
+                      className="text-sm font-semibold text-foreground"
+                    >
                       Apps &amp; integrations
                     </h2>
                     <MarketplaceInstalledView
-                      installations={installations.filter((i) => i.kind !== 'AGENT')}
+                      installations={installations.filter(
+                        (i) => i.kind !== 'AGENT',
+                      )}
                       approvals={approvals.filter((a) => a.kind !== 'AGENT')}
                       isAdmin={canManage}
                       onConfigure={(inst) => setConfigModalItem(inst)}

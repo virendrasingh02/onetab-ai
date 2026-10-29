@@ -10,6 +10,7 @@ interface MarketplaceTabsProps {
   onTabChange: (tab: MarketplaceActiveTab) => void;
   installedCount?: number;
   workspaceCount?: number;
+  agentsCount?: number;
 }
 
 /** The edge-to-edge underline tab strip under the header, as on the other top-level views. */
@@ -18,6 +19,7 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({
   onTabChange,
   installedCount,
   workspaceCount,
+  agentsCount,
 }) => {
   const tabs: {
     id: MarketplaceActiveTab;
@@ -27,7 +29,7 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({
   }[] = [
     { id: 'discover', label: 'Discover', icon: Compass },
     { id: 'apps', label: 'Apps & Integrations', icon: Boxes },
-    { id: 'agents', label: 'AI Agents', icon: Bot },
+    { id: 'agents', label: 'AI Agents', icon: Bot, count: agentsCount },
     {
       id: 'installed',
       label: 'Installed',
