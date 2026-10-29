@@ -63,6 +63,7 @@ export {
 export {
   Composer,
   buildGroupMentions,
+  roomMembersToMentionCandidates,
   type ComposerProps,
 } from './lib/composer.js';
 export type {

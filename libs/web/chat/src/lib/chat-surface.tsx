@@ -16,6 +16,7 @@ import {
   HuddleBar,
   InlineMessageEditor,
   type MentionCandidate,
+  roomMembersToMentionCandidates,
   MemberList,
   MessageList,
   type MessageListHandle,
@@ -665,17 +666,10 @@ export function ChatSurface({
     [members],
   );
 
-  const editorMentionCandidates = useMemo<MentionCandidate[]>(
-    () =>
-      members.map((member) => ({
-        id: member.userId,
-        name: member.displayName,
-        avatarUrl: member.avatarUrl,
-        kind: 'user' as const,
-        isSelf: !!myUserId && member.userId === myUserId,
-      })),
-    [members, myUserId],
-  );
+  const editorMentionCandidates = useMemo<MentionCandidate[]>(() => {
+    const { people, bots } = roomMembersToMentionCandidates(members, myUserId);
+    return [...people, ...bots];
+  }, [members, myUserId]);
 
   const repliesByRoot = useMemo(() => groupReplies(messages), [messages]);
 

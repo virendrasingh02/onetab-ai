@@ -21,6 +21,7 @@ import {
   canMentionGroups,
   evaluateMention,
   getAppDisplayName,
+  getAppLogoUrl,
   splitAppConnectionName,
   WorkspaceRole,
   type ComposerContext,
@@ -340,6 +341,7 @@ export function useComposerControl(
           id: c.id,
           name: c.name,
           avatarUrl: c.avatarUrl ?? undefined,
+          subtitle: c.description ?? c.role ?? undefined,
           kind: 'coworker' as const,
         })),
     [workspaceCoworkersQuery.data],
@@ -354,6 +356,7 @@ export function useComposerControl(
           // The same name the app goes by everywhere; the account tells two
           // connections of one app apart.
           name: getAppDisplayName(app),
+          avatarUrl: getAppLogoUrl(app.provider),
           subtitle: `App · ${splitAppConnectionName(app.displayName ?? '').accountLabel ?? app.provider}`,
           kind: 'app' as const,
         })),

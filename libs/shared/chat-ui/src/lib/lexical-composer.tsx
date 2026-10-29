@@ -113,9 +113,10 @@ import {
   X,
 } from 'lucide-react';
 import { cn } from '@org/utils';
-import { Hint, UserAvatar } from '@org/ui';
+import { AiEntityAvatar, Hint, UserAvatar } from '@org/ui';
 import { EntityKindBadge } from './entity-kind-badge.js';
 import {
+  Fragment,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -1062,7 +1063,7 @@ function MentionsPlugin({
     );
   }, [editor]);
 
-  const options = useMemo(() => {
+  const { options, totals } = useMemo(() => {
     const needle = (query ?? '').toLowerCase().trim();
     const matches = (candidate: MentionCandidate) =>
       !needle ||
@@ -1091,13 +1092,23 @@ function MentionsPlugin({
      * widest berth and the bots stay a short list.
      */
     const [peopleCap, botCap] = needle ? [20, 8] : [8, 4];
-    return [
-      ...groups,
-      ...people.slice(0, peopleCap),
-      ...agents.slice(0, botCap),
-      ...coworkers.slice(0, botCap),
-      ...apps.slice(0, botCap),
-    ].map((candidate) => new MentionMenuOption(candidate));
+    return {
+      options: [
+        ...groups,
+        ...people.slice(0, peopleCap),
+        ...agents.slice(0, botCap),
+        ...coworkers.slice(0, botCap),
+        ...apps.slice(0, botCap),
+      ].map((candidate) => new MentionMenuOption(candidate)),
+      // Section headers count every match, not just the visible slice, so
+      // "People — 12" agrees with "@everyone · 12 people".
+      totals: {
+        user: people.length,
+        agent: agents.length,
+        coworker: coworkers.length,
+        app: apps.length,
+      },
+    };
   }, [candidates, query]);
 
   const onSelectOption = useCallback(
@@ -1174,17 +1185,26 @@ function MentionsPlugin({
                 <span className="size-6 font-bold flex shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary-text">
                   @
                 </span>
-              ) : isAgent ? (
-                <span className="size-6 flex shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary">
-                  <Bot className="size-3.5" />
-                </span>
-              ) : isCoworker ? (
-                <span className="size-6 border-purple-500/20 bg-purple-500/10 text-purple-600 dark:text-purple-400 flex shrink-0 items-center justify-center rounded-full border">
-                  <Sparkles className="size-3.5" />
-                </span>
+              ) : isAgent || isCoworker ? (
+                // The entity's own icon/colour/photo — the same identity its
+                // DM, profile and messages show.
+                <AiEntityAvatar
+                  name={option.candidate.name}
+                  kind={isAgent ? 'agent' : 'coworker'}
+                  avatarUrl={option.candidate.avatarUrl}
+                  size="xs"
+                />
               ) : isApp ? (
-                <span className="size-6 flex shrink-0 items-center justify-center rounded-full border border-accent-violet/20 bg-accent-violet-soft text-accent-violet">
-                  <Blocks className="size-3.5" />
+                <span className="size-6 flex shrink-0 items-center justify-center overflow-hidden rounded-lg border border-accent-violet/20 bg-accent-violet-soft text-accent-violet">
+                  {option.candidate.avatarUrl ? (
+                    <img
+                      src={option.candidate.avatarUrl}
+                      alt=""
+                      className="size-4 object-contain"
+                    />
+                  ) : (
+                    <Blocks className="size-3.5" />
+                  )}
                 </span>
               ) : (
                 <UserAvatar
@@ -1221,6 +1241,27 @@ function MentionsPlugin({
           );
         };
 
+        // One header style for every section — the avatars and kind badges
+        // already tell agents, coworkers and apps apart.
+        const renderSection = (
+          title: string,
+          shown: MentionMenuOption[],
+          total: number,
+        ) =>
+          shown.length > 0 ? (
+            <Fragment key={title}>
+              <li className="mt-1 px-2.5 py-1.5 text-2xs font-semibold tracking-wider text-muted-foreground uppercase select-none">
+                {title} — {total}
+              </li>
+              {shown.map(renderOption)}
+              {total > shown.length ? (
+                <li className="px-2.5 pb-1 text-2xs text-muted-foreground/80 select-none">
+                  {total - shown.length} more — keep typing to narrow
+                </li>
+              ) : null}
+            </Fragment>
+          ) : null;
+
         return createPortal(
           <MenuShell
             label="Mention"
@@ -1240,33 +1281,10 @@ function MentionsPlugin({
                 ) : null}
                 {groups.map(renderOption)}
 
-                {people.length > 0 ? (
-                  <li className="mt-1 px-2.5 py-1.5 text-2xs font-semibold tracking-wider text-muted-foreground uppercase select-none">
-                    People — {people.length}
-                  </li>
-                ) : null}
-                {people.map(renderOption)}
-
-                {agents.length > 0 ? (
-                  <li className="mt-1 px-2.5 py-1.5 text-2xs font-semibold tracking-wider text-primary uppercase select-none">
-                    AI Agents — {agents.length}
-                  </li>
-                ) : null}
-                {agents.map(renderOption)}
-
-                {coworkers.length > 0 ? (
-                  <li className="mt-1 px-2.5 py-1.5 text-2xs font-semibold tracking-wider text-purple-600 dark:text-purple-400 uppercase select-none">
-                    AI Coworkers — {coworkers.length}
-                  </li>
-                ) : null}
-                {coworkers.map(renderOption)}
-
-                {apps.length > 0 ? (
-                  <li className="mt-1 px-2.5 py-1.5 text-2xs font-semibold tracking-wider text-accent-violet uppercase select-none">
-                    Connected Apps — {apps.length}
-                  </li>
-                ) : null}
-                {apps.map(renderOption)}
+                {renderSection('People', people, totals.user)}
+                {renderSection('AI Agents', agents, totals.agent)}
+                {renderSection('AI Coworkers', coworkers, totals.coworker)}
+                {renderSection('Connected Apps', apps, totals.app)}
               </>
             )}
           </MenuShell>,

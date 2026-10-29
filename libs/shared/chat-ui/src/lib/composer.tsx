@@ -1,6 +1,7 @@
 import {
   canMentionGroups as canMentionGroupsHelper,
   getComposerPlaceholder,
+  toBotIdentity,
   toPlatformUserId,
   WorkspaceRole,
   type RoomMember,
@@ -139,6 +140,41 @@ export function buildGroupMentions(counts: {
         'Notify everyone in this workspace',
     },
   ];
+}
+
+/**
+ * Splits a room roster into mention candidates. Agents, coworkers and apps sit
+ * in the roster as bridged Matrix users, so they come out under their own kind
+ * — keyed by their row id, the one the agent/app mention lists use — instead of
+ * passing for people and inflating the people counts.
+ */
+export function roomMembersToMentionCandidates(
+  members: readonly RoomMember[],
+  currentUserId?: string | null,
+): { people: MentionCandidate[]; bots: MentionCandidate[] } {
+  const people: MentionCandidate[] = [];
+  const bots: MentionCandidate[] = [];
+  for (const member of members) {
+    const bot = toBotIdentity(member.userId);
+    if (bot) {
+      bots.push({
+        id: bot.id,
+        name: member.displayName,
+        avatarUrl: member.avatarUrl,
+        kind: bot.kind,
+      });
+    } else {
+      people.push({
+        id: member.userId,
+        name: member.displayName,
+        avatarUrl: member.avatarUrl,
+        kind: 'user',
+        isSelf: !!currentUserId && member.userId === currentUserId,
+      });
+    }
+  }
+  people.sort((a, b) => Number(b.isSelf ?? false) - Number(a.isSelf ?? false));
+  return { people, bots };
 }
 
 /** An upload staged in the composer, not sent yet. */
@@ -980,7 +1016,11 @@ export function Composer({
     });
   }, [slashCommands, surfaceKind, viewerCanManage, isGuest]);
 
-  const onlineInRoom = useOnlineCount(members.map((m) => m.userId));
+  const roomRoster = useMemo(
+    () => roomMembersToMentionCandidates(members, currentUserId),
+    [members, currentUserId],
+  );
+  const onlineInRoom = useOnlineCount(roomRoster.people.map((p) => p.id));
 
   const mentionCandidates = useMemo<MentionCandidate[]>(() => {
     const allowGroups =
@@ -993,27 +1033,27 @@ export function Composer({
             )
           : true;
 
+    const { people, bots } = roomRoster;
+    const humanWorkspaceMembers = (workspaceMembers ?? []).filter(
+      (wm) => !toBotIdentity(wm.userId),
+    );
+
+    // Counted over people only, so `@channel` and `@everyone` say exactly how
+    // many humans get pinged and agree with the People list below them.
     const groups = allowGroups
       ? buildGroupMentions({
           online: onlineInRoom,
-          channel: members.length,
-          workspace: Math.max(workspaceMembers?.length ?? 0, members.length),
+          channel: people.length,
+          workspace: Math.max(humanWorkspaceMembers.length, people.length),
         })
       : [];
 
     // Room rosters carry Matrix ids, the workspace list platform ids — compare
     // on one spelling or everyone already here is listed twice, the second
     // time as "Not in this channel".
-    const roomUserIds = new Set(members.map((m) => toPlatformUserId(m.userId)));
-    const people: MentionCandidate[] = members.map((member) => ({
-      id: member.userId,
-      name: member.displayName,
-      avatarUrl: member.avatarUrl,
-      kind: 'user' as const,
-      isSelf: !!currentUserId && member.userId === currentUserId,
-    }));
+    const roomUserIds = new Set(people.map((p) => toPlatformUserId(p.id)));
 
-    const otherWorkspacePeople: MentionCandidate[] = (workspaceMembers ?? [])
+    const otherWorkspacePeople: MentionCandidate[] = humanWorkspaceMembers
       .filter((wm) => !roomUserIds.has(toPlatformUserId(wm.userId)))
       .map((wm) => ({
         id: wm.userId,
@@ -1027,20 +1067,34 @@ export function Composer({
         isSelf: !!currentUserId && wm.userId === currentUserId,
       }));
 
-    people.sort(
-      (a, b) => Number(b.isSelf ?? false) - Number(a.isSelf ?? false),
-    );
+    // The workspace's agent/coworker/app lists are the source of truth (live
+    // name, avatar, description); the ones already in this room lead their
+    // section, and a room bot the lists don't carry still gets offered.
+    const inRoom = new Set(bots.map((b) => `${b.kind}:${b.id.toLowerCase()}`));
+    const key = (c: MentionCandidate) => `${c.kind}:${c.id.toLowerCase()}`;
+    const ofKind = (
+      kind: 'agent' | 'coworker' | 'app',
+      listed: readonly MentionCandidate[] | undefined,
+    ) => {
+      const list = listed ?? [];
+      const known = new Set(list.map(key));
+      return [
+        ...list.filter((c) => inRoom.has(key(c))),
+        ...bots.filter((b) => b.kind === kind && !known.has(key(b))),
+        ...list.filter((c) => !inRoom.has(key(c))),
+      ];
+    };
 
     return [
       ...groups,
       ...people,
       ...otherWorkspacePeople,
-      ...(agentMentions ?? []),
-      ...(coworkerMentions ?? []),
-      ...(appMentions ?? []),
+      ...ofKind('agent', agentMentions),
+      ...ofKind('coworker', coworkerMentions),
+      ...ofKind('app', appMentions),
     ];
   }, [
-    members,
+    roomRoster,
     onlineInRoom,
     workspaceMembers,
     currentUserId,

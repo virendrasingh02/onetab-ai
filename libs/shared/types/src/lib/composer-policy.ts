@@ -42,6 +42,22 @@ export function toPlatformUserId(id: string): string {
   return match ? match[1] : id;
 }
 
+/**
+ * Agents, coworkers and apps join rooms as bridged Matrix users of their own
+ * (`@onetab_agent-<id>:server`, see `MatrixAuthService.resolvePeerIdentity`),
+ * so a room roster mixes them in with the people. Returns which kind of bot an
+ * id (either spelling) belongs to and the bare row id behind it, or `null` for
+ * a human.
+ */
+export function toBotIdentity(
+  id: string,
+): { kind: 'agent' | 'coworker' | 'app'; id: string } | null {
+  const match = /^(agent|coworker|app)-(.+)$/.exec(toPlatformUserId(id));
+  return match
+    ? { kind: match[1] as 'agent' | 'coworker' | 'app', id: match[2] }
+    : null;
+}
+
 /** Whether `userId` (either spelling) is in `reachable` (either spelling). */
 function hasUser(reachable: ReadonlySet<string>, userId: string): boolean {
   if (reachable.has(userId)) return true;
