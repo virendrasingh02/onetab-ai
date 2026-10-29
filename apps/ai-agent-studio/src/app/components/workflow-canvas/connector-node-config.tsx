@@ -1,5 +1,5 @@
 import type { ConnectorCapability, ConnectorSummary } from '@org/types';
-import { AppSelect, Badge, Button, Checkbox, CodeBlock, Label, Switch, confirm, toast } from '@org/ui';
+import { AppSelect, Badge, Button, CodeBlock, Label, SearchInput, Switch, confirm, toast } from '@org/ui';
 import type { Node } from '@xyflow/react';
 import { Braces, Play, Plug, ShieldCheck, Zap } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -177,17 +177,28 @@ export function ConnectorNodeConfig({
               }))}
             />
           ) : (
-            <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-surface-raised/60 p-2.5">
-              <div className="flex min-w-0 items-center gap-2">
+            <div
+              className={
+                connection
+                  ? 'flex items-center gap-2.5 rounded-lg border border-border bg-surface-raised/60 p-2.5'
+                  : 'flex items-center gap-2.5 rounded-lg border border-warning/40 bg-warning/5 p-2.5'
+              }
+            >
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-surface">
                 <AppConnectorIcon connectorId={connector.slug} name={connector.name} category={connector.category} size={18} />
-                <span className="truncate text-xs text-foreground">
-                  {connection ? `As ${connection.accountEmail ?? connection.accountName ?? connection.displayName ?? connector.name}` : `${connector.name} isn’t connected`}
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-xs font-medium text-foreground">
+                  {connection ? (connection.accountEmail ?? connection.accountName ?? connection.displayName ?? connector.name) : `Connect ${connector.name}`}
                 </span>
-              </div>
+                <span className={connection ? 'truncate text-2xs text-muted-foreground' : 'text-2xs text-warning-text'}>
+                  {connection ? `${connector.name} account` : 'Needed before this card can run'}
+                </span>
+              </span>
               {connection ? (
-                <Badge variant="success">Connected</Badge>
+                <Badge variant="success" className="shrink-0">Connected</Badge>
               ) : (
-                <Button size="xs" variant="outline" disabled={readOnly} onClick={() => setConnectOpen(true)}>
+                <Button size="xs" className="shrink-0" disabled={readOnly} onClick={() => setConnectOpen(true)}>
                   <Plug className="size-3" aria-hidden="true" /> Connect
                 </Button>
               )}
@@ -359,6 +370,7 @@ export function ConnectorNodeConfig({
   );
 }
 
+
 /** Which of an app's actions the card brings: grouped into what changes things and what only reads. */
 function AppActionsManager({
   connector,
@@ -373,10 +385,13 @@ function AppActionsManager({
   readOnly?: boolean;
   onChange: (ids: string[]) => void;
 }) {
+  const [filter, setFilter] = useState('');
   const on = new Set(actionIds);
-  const groups: Array<[string, ConnectorCapability[]]> = [
-    ['Actions', connector.capabilities.filter((c) => c.kind === 'action')],
-    ['Reads', connector.capabilities.filter((c) => c.kind === 'query')],
+  const q = filter.trim().toLowerCase();
+  const matches = (c: ConnectorCapability) => !q || `${c.label} ${c.description ?? ''}`.toLowerCase().includes(q);
+  const groups: Array<{ title: string; hint: string; caps: ConnectorCapability[] }> = [
+    { title: 'Makes changes', hint: 'Sends, creates or updates things', caps: connector.capabilities.filter((c) => c.kind === 'action' && matches(c)) },
+    { title: 'Reads only', hint: 'Looks things up, changes nothing', caps: connector.capabilities.filter((c) => c.kind === 'query' && matches(c)) },
   ];
   // Keep the manifest's order so the saved list reads the same way the panel does.
   const set = (ids: Set<string>) => onChange(connector.capabilities.map((c) => c.id).filter((id) => ids.has(id)));
@@ -395,64 +410,89 @@ function AppActionsManager({
     set(next);
   };
   const total = connector.capabilities.length;
+  const shown = groups.reduce((n, g) => n + g.caps.length, 0);
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-semibold text-foreground">{connector.name} actions</span>
-        <Badge variant={on.size ? 'primary' : 'warning'} className="text-2xs">
-          {on.size} of {total} on
+      <div className="flex items-start justify-between gap-2">
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span className="text-xs font-semibold text-foreground">What the agent can do in {connector.name}</span>
+          <span className="text-2xs text-muted-foreground">
+            {asTool
+              ? 'The agent picks from the actions switched on and fills in their inputs.'
+              : 'Used when this card is plugged into an agent’s Tools.'}
+          </span>
+        </span>
+        <Badge variant={on.size ? 'primary' : 'warning'} className="shrink-0 text-2xs">
+          {on.size}/{total} on
         </Badge>
       </div>
-      <p className="text-xs text-muted-foreground">
-        {asTool
-          ? `The agent can use every action switched on here, and fills in their inputs itself.`
-          : `Plug this card into an agent’s Tools to let it use the actions switched on here. On its own it runs as one step.`}
-      </p>
-      <fieldset disabled={readOnly} className="divide-y divide-border overflow-hidden rounded-lg border border-border">
-        {groups.map(([title, caps]) =>
-          caps.length === 0 ? null : (
-            <div key={title} className="bg-surface-raised/40">
-              <div className="flex items-center justify-between px-2.5 py-1.5">
-                <span className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {title} · {caps.filter((c) => on.has(c.id)).length}/{caps.length}
-                </span>
-                <span className="flex gap-1">
-                  <Button type="button" variant="ghost" size="xs" className="h-5 px-1.5 text-2xs" onClick={() => setGroup(caps, true)}>
-                    All
-                  </Button>
-                  <Button type="button" variant="ghost" size="xs" className="h-5 px-1.5 text-2xs" onClick={() => setGroup(caps, false)}>
-                    None
-                  </Button>
-                </span>
-              </div>
-              {caps.map((c) => (
-                <Label
-                  key={c.id}
-                  htmlFor={`app-action-${connector.provider}-${c.id}`}
-                  className="flex cursor-pointer items-start gap-2.5 border-t border-border/60 bg-surface px-2.5 py-2 font-normal hover:bg-surface-raised/60"
-                >
-                  <Checkbox
-                    id={`app-action-${connector.provider}-${c.id}`}
-                    checked={on.has(c.id)}
-                    onCheckedChange={(checked) => toggle(c.id, checked === true)}
-                    className="mt-0.5"
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-1.5 text-xs font-medium text-foreground">
-                      {c.label}
-                      {c.permissionLevel === 'destructive' && <Badge variant="destructive" className="py-0 text-2xs">Deletes</Badge>}
-                      {c.requiresConfirmation && c.permissionLevel !== 'destructive' && (
-                        <ShieldCheck className="size-3 text-warning" aria-label="Sensitive" />
-                      )}
-                    </span>
-                    {c.description && <span className="block truncate text-2xs text-muted-foreground">{c.description}</span>}
+      {total > 6 && (
+        <SearchInput value={filter} onValueChange={setFilter} placeholder="Filter actions" label={`Filter ${connector.name} actions`} className="h-8 text-xs" />
+      )}
+      <fieldset disabled={readOnly} className="min-w-0 space-y-2">
+        {groups.map(({ title, hint, caps }) => {
+          if (caps.length === 0) return null;
+          const onCount = caps.filter((c) => on.has(c.id)).length;
+          const allOn = onCount === caps.length;
+          return (
+            <section key={title} aria-label={title} className="overflow-hidden rounded-lg border border-border">
+              <div className="flex items-center justify-between gap-2 bg-surface-raised/60 px-2.5 py-1.5">
+                <span className="flex min-w-0 items-baseline gap-1.5">
+                  <span className="shrink-0 whitespace-nowrap text-xs font-semibold text-foreground">{title}</span>
+                  <span className="truncate text-2xs text-muted-foreground">
+                    {onCount}/{caps.length} · {hint}
                   </span>
-                </Label>
-              ))}
-            </div>
-          ),
-        )}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  className="h-5 shrink-0 px-1.5 text-2xs"
+                  onClick={() => setGroup(caps, !allOn)}
+                >
+                  {allOn ? 'Turn all off' : 'Turn all on'}
+                </Button>
+              </div>
+              <ul className="divide-y divide-border/60">
+                {caps.map((c) => {
+                  const id = `app-action-${connector.provider}-${c.id}`;
+                  const enabled = on.has(c.id);
+                  return (
+                    <li key={c.id}>
+                      <Label
+                        htmlFor={id}
+                        className="flex cursor-pointer items-start gap-3 bg-surface px-2.5 py-2 font-normal hover:bg-surface-raised/60"
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-foreground">
+                            <span className={enabled ? undefined : 'text-muted-foreground'}>{c.label}</span>
+                            {c.permissionLevel === 'destructive' ? (
+                              <Badge variant="destructive" className="py-0 text-2xs">Can’t be undone</Badge>
+                            ) : (
+                              c.requiresConfirmation && (
+                                <Badge variant="warning" className="gap-1 py-0 text-2xs font-normal">
+                                  <ShieldCheck className="size-3" aria-hidden="true" /> Sensitive
+                                </Badge>
+                              )
+                            )}
+                          </span>
+                          {c.description && (
+                            <span className="mt-0.5 line-clamp-2 block text-2xs text-muted-foreground" title={c.description}>
+                              {c.description}
+                            </span>
+                          )}
+                        </span>
+                        <Switch id={id} checked={enabled} onCheckedChange={(checked) => toggle(c.id, checked)} className="mt-0.5 shrink-0" />
+                      </Label>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          );
+        })}
+        {shown === 0 && <p className="px-1 text-xs text-muted-foreground">No {connector.name} action matches “{filter}”.</p>}
       </fieldset>
       {on.size === 0 && <p className="text-xs text-warning-text">Switch on at least one action, or the agent gets nothing from {connector.name}.</p>}
     </div>

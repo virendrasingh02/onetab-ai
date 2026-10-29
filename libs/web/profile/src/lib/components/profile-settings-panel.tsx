@@ -244,9 +244,9 @@ export function ProfileSettingsPanel() {
               </UserCover>
 
               {/* Avatar Preview Area */}
-              <div className="px-6 pb-5 pt-0 relative flex items-end justify-between flex-wrap gap-4">
-                <div className="-mt-14 relative group/edit inline-block">
-                  <div className="relative rounded-full ring-1 ring-foreground/10 shadow-xl overflow-hidden bg-surface">
+              <div className="px-6 pb-4 pt-0 relative flex flex-wrap items-end gap-x-4 gap-y-3">
+                <div className="-mt-12 relative group/edit inline-block shrink-0">
+                  <div className="relative rounded-full ring-4 ring-surface shadow-lg overflow-hidden bg-surface">
                     <UserAvatar
                       name={displayNameWatch}
                       src={avatarWatch}
@@ -266,7 +266,12 @@ export function ProfileSettingsPanel() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 pt-2">
+                <div className="min-w-0 flex-1 pb-1">
+                  <p className="truncate text-base font-semibold tracking-tight text-foreground">{displayNameWatch}</p>
+                  <p className="truncate text-xs font-mono text-muted-foreground">{usernameHandle}</p>
+                </div>
+
+                <div className="flex items-center gap-2 pb-1">
                   <Button
                     type="button"
                     variant="outline"

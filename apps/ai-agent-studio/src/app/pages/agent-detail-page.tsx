@@ -24,6 +24,7 @@ import {
   DropdownMenuTrigger,
   EmptyState,
   Field,
+  KbdShortcut,
   Input,
   Label,
   ErrorState,
@@ -100,7 +101,6 @@ import {
   Play,
   Plus,
   Plug,
-  Radio,
   Redo2,
   RotateCcw,
   Save,
@@ -1802,6 +1802,7 @@ export function AgentDetailPage() {
   const [diffModalTarget, setDiffModalTarget] = useState<AgentVersion | null>(null);
   const [settingsDraft, setSettingsDraft] = useState<AgentSettingsDraft | null>(null);
   const [isPublishPopoverOpen, setIsPublishPopoverOpen] = useState(false);
+  const [publishSummary, setPublishSummary] = useState('');
   /** Which header tab menu is open — only one at a time. */
   const [openTabMenu, setOpenTabMenu] = useState<string | null>(null);
 
@@ -2258,14 +2259,14 @@ export function AgentDetailPage() {
   };
 
   const publishMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (summary: string | void) => {
       if (!agentId) return;
       // Publishing validates and snapshots the stored graph — save first.
       await saveIfNeeded();
       return agentsApi.publish(
         activeWorkspace.id,
         agentId,
-        `Published version ${targetPublishVersion}`,
+        (typeof summary === 'string' && summary.trim()) || `Published version ${targetPublishVersion}`,
       );
     },
     onSuccess: (result) => {
@@ -3376,9 +3377,8 @@ export function AgentDetailPage() {
       if (isDirty && !saveMutation.isPending) saveMutation.mutate();
       else if (!isDirty) toast('Everything is already saved');
     },
-    publish: () => {
-      if (!publishMutation.isPending) publishMutation.mutate();
-    },
+    // Opens the publish confirmation; Ctrl/⌘+Enter inside it publishes
+    publish: () => setIsPublishPopoverOpen(true),
     duplicate: () => {
       if (selectedNode) handleDuplicateNode(selectedNode);
     },
@@ -3809,156 +3809,189 @@ export function AgentDetailPage() {
             )}
           </Button>
 
-          {/* Publish Dropdown Popover matching reference design */}
-          <Popover open={isPublishPopoverOpen} onOpenChange={setIsPublishPopoverOpen}>
+          {/* Publish confirmation — what goes live, what happens first, then one clear action */}
+          <Popover
+            open={isPublishPopoverOpen}
+            onOpenChange={(open) => {
+              setIsPublishPopoverOpen(open);
+              if (!open && !publishMutation.isPending) setPublishSummary('');
+            }}
+          >
             <PopoverTrigger asChild>
               <Button
                 type="button"
                 size="sm"
                 className={cn('h-8 gap-1.5 rounded-md font-semibold', isPublishPopoverOpen && 'ring-2 ring-primary/40')}
               >
+                <Rocket className="size-3.5" />
                 <span>Publish</span>
-                <ChevronDown className={cn("size-3.5 transition-transform duration-200", isPublishPopoverOpen && "rotate-180")} />
+                <ChevronDown className={cn('size-3.5 transition-transform duration-200', isPublishPopoverOpen && 'rotate-180')} />
               </Button>
             </PopoverTrigger>
             <PopoverContent
               align="end"
               sideOffset={8}
-              className="w-80 rounded-xl border border-border bg-surface p-3.5 shadow-lg text-foreground"
+              className="w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-border bg-surface p-0 text-foreground shadow-lg"
             >
-              {/* Status & Timeline Section */}
-              <div className="relative pl-6 py-1">
-                {/* Vertical Track Line */}
-                <div className="absolute left-[7px] top-2 bottom-2 w-0.5 bg-border/80" />
-
-                {/* Top: Publish Status */}
-                <div className="relative flex items-center gap-2 mb-3">
-                  <div
-                    className={cn(
-                      "absolute -left-6 size-3.5 rounded-full border-2 bg-surface flex items-center justify-center",
-                      isPublished ? "border-success bg-success/20" : "border-muted-foreground/60"
-                    )}
-                  >
-                    {isPublished && <div className="size-1.5 rounded-full bg-success" />}
-                  </div>
-                  <span className="text-xs text-muted-foreground font-medium">
-                    {isPublished
-                      ? liveVersionTag
-                        ? `Published · ${liveVersionTag} live`
-                        : 'Published'
-                      : 'Not published yet'}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (publishMutation.isPending) return;
+                  publishMutation.mutate(publishSummary, {
+                    onSuccess: () => {
+                      setIsPublishPopoverOpen(false);
+                      setPublishSummary('');
+                    },
+                  });
+                }}
+              >
+                {/* Header */}
+                <div className="flex items-start gap-3 border-b border-border/70 p-4">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Rocket className="size-4.5" />
                   </span>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold leading-tight">
+                      {isPublished ? 'Publish an update' : 'Publish this agent'}
+                    </h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {isPublished
+                        ? 'Every embed, API call and webhook switches to the new version straight away.'
+                        : 'Makes the agent available to embeds, the API and webhooks.'}
+                    </p>
+                  </div>
                 </div>
 
-                {/* Center: Big Publish Action Button */}
-                <div className="my-2.5 -ml-3">
-                  <Button
-                    type="button"
-                    size="lg"
-                    onClick={async () => {
-                      await publishMutation.mutateAsync();
-                      setIsPublishPopoverOpen(false);
-                    }}
-                    loading={publishMutation.isPending}
-                    className="w-full rounded-xl font-semibold"
-                  >
-                    <span>{isPublished ? 'Publish update' : 'Publish'}</span>
-                    <span className="rounded-md bg-primary-foreground/20 px-1.5 py-0.5 text-2xs font-mono font-bold text-primary-foreground">
+                <div className="space-y-3.5 p-4">
+                  {/* Version transition: live → next */}
+                  <div className="flex items-center justify-between gap-2 rounded-lg border border-border/70 bg-surface-raised px-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">Live now</p>
+                      <p className={cn('mt-0.5 truncate font-mono text-xs font-semibold', liveVersionTag ? 'text-foreground' : 'text-muted-foreground')}>
+                        {isPublished && liveVersionTag ? liveVersionTag : 'Nothing yet'}
+                      </p>
+                    </div>
+                    <CornerDownRight className="size-4 shrink-0 -rotate-90 text-muted-foreground/70" aria-hidden />
+                    <div className="min-w-0 text-right">
+                      <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">After publishing</p>
+                      <p className="mt-0.5 font-mono text-xs font-semibold text-primary">{targetPublishVersion}</p>
+                    </div>
+                  </div>
+
+                  {/* What happens first */}
+                  {saveFailed ? (
+                    <p className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                      <AlertCircle className="mt-px size-3.5 shrink-0" />
+                      Your last changes didn’t save. Publishing tries to save them again first.
+                    </p>
+                  ) : isDirty ? (
+                    <p className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+                      <Save className="mt-px size-3.5 shrink-0" />
+                      Your unsaved edits are saved first, so they’re included.
+                    </p>
+                  ) : (
+                    <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Check className="size-3.5 shrink-0 text-success" />
+                      All changes saved
+                    </p>
+                  )}
+
+                  {/* Change summary — becomes the version's note */}
+                  <Field label="What changed?" hint="Optional. Shown in the version history.">
+                    <Textarea
+                      autoFocus
+                      rows={2}
+                      value={publishSummary}
+                      onChange={(e) => setPublishSummary(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                          e.preventDefault();
+                          e.currentTarget.form?.requestSubmit();
+                        }
+                      }}
+                      placeholder="e.g. Added the refund approval step"
+                      className="min-h-0 resize-none text-xs"
+                      maxLength={280}
+                    />
+                  </Field>
+
+                  <Button type="submit" size="lg" loading={publishMutation.isPending} className="w-full gap-2 rounded-lg font-semibold">
+                    {isPublished ? 'Publish update' : 'Publish'}
+                    <span className="rounded bg-primary-foreground/20 px-1.5 py-0.5 font-mono text-2xs font-bold">
                       {targetPublishVersion}
                     </span>
-                    <div className="flex items-center gap-1 ml-1">
-                      <kbd className="rounded-md bg-primary-foreground/20 px-1.5 py-0.5 text-2xs font-medium font-sans text-primary-foreground leading-none">
-                        Ctrl Shift
-                      </kbd>
-                      <kbd className="rounded-md bg-primary-foreground/20 px-1.5 py-0.5 text-2xs font-medium font-sans text-primary-foreground leading-none">
-                        P
-                      </kbd>
-                    </div>
                   </Button>
+                  <p className="flex items-center justify-center gap-1.5 text-2xs text-muted-foreground">
+                    <KbdShortcut keys={['mod', 'Enter']} size="xs" /> to publish
+                    <span aria-hidden>·</span>
+                    <KbdShortcut keys={['mod', 'shift', 'P']} size="xs" /> opens this
+                  </p>
                 </div>
 
-                {/* Bottom: Auto-save status */}
-                <div className="relative flex items-center gap-2 mt-3">
-                  <div
-                    className={cn(
-                      "absolute -left-6 size-3.5 rounded-full border-2 bg-surface flex items-center justify-center",
-                      isDirty ? "border-warning bg-warning/20" : "border-success/80 bg-success/20"
-                    )}
-                  >
-                    <div className={cn("size-1.5 rounded-full", isDirty ? "bg-warning animate-pulse" : "bg-success")} />
-                  </div>
-                  <span className="text-xs text-muted-foreground font-medium">
-                    {saveStatusText}
-                  </span>
-                </div>
-              </div>
-
-              {/* Divider */}
-              <div className="border-t border-border my-3" />
-
-              {/* Links & Endpoints */}
-              <div className="space-y-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    setIsPublishPopoverOpen(false);
-                    // The Studio's own end-user chat page for this agent
-                    window.open(`${window.location.origin}${scopeStudioPath(activeWorkspace.slug, `/chat/${agent.id}`)}`, '_blank', 'noopener');
-                  }}
-                  className="group h-auto w-full justify-between rounded-xl p-2 text-foreground"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="size-8 rounded-lg bg-surface-raised border border-border/60 flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors">
-                      <Globe className="size-4" />
-                    </div>
-                    <span>Open web app</span>
-                  </div>
-                  <ArrowUpRight className="size-4 text-muted-foreground/70 group-hover:text-foreground transition-colors" />
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    setIsPublishPopoverOpen(false);
-                    navigator.clipboard
-                      .writeText(apiCurlSnippet('Execute task'))
-                      .then(() => toast.success('API request copied as cURL'))
-                      .catch(() => toast.error('Could not copy to the clipboard'));
-                  }}
-                  className="group h-auto w-full justify-between rounded-xl p-2 text-foreground"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="size-8 rounded-lg bg-surface-raised border border-border/60 flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors">
-                      <Radio className="size-4" />
-                    </div>
-                    <span>Copy API request</span>
-                  </div>
-                  <ArrowUpRight className="size-4 text-muted-foreground/70 group-hover:text-foreground transition-colors" />
-                </Button>
-
-                {isPublished && (
+                {/* Links & endpoints */}
+                <div className="space-y-0.5 border-t border-border/70 bg-surface-raised/50 p-2">
                   <Button
                     type="button"
                     variant="ghost"
                     onClick={() => {
                       setIsPublishPopoverOpen(false);
-                      unpublishMutation.mutate();
+                      // The Studio's own end-user chat page for this agent
+                      window.open(`${window.location.origin}${scopeStudioPath(activeWorkspace.slug, `/chat/${agent.id}`)}`, '_blank', 'noopener');
                     }}
-                    disabled={unpublishMutation.isPending}
-                    className="group mt-1 h-auto w-full justify-between rounded-xl p-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    className="group h-9 w-full justify-between rounded-lg px-2.5 text-xs font-medium text-foreground"
                   >
-                    <div className="flex items-center gap-2.5">
-                      <div className="size-8 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center justify-center text-destructive">
-                        <RotateCcw className="size-4" />
-                      </div>
-                      <span>Unpublish Agent</span>
-                    </div>
-                    <span className="text-2xs text-destructive/80 font-normal">Revert to Draft</span>
+                    <span className="flex items-center gap-2.5">
+                      <Globe className="size-4 text-muted-foreground group-hover:text-primary" />
+                      Open web app
+                    </span>
+                    <ArrowUpRight className="size-3.5 text-muted-foreground/70 group-hover:text-foreground" />
                   </Button>
-                )}
-              </div>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setIsPublishPopoverOpen(false);
+                      navigator.clipboard
+                        .writeText(apiCurlSnippet('Execute task'))
+                        .then(() => toast.success('API request copied as cURL'))
+                        .catch(() => toast.error('Could not copy to the clipboard'));
+                    }}
+                    className="group h-9 w-full justify-between rounded-lg px-2.5 text-xs font-medium text-foreground"
+                  >
+                    <span className="flex items-center gap-2.5">
+                      <Copy className="size-4 text-muted-foreground group-hover:text-primary" />
+                      Copy API request
+                    </span>
+                    <span className="text-2xs font-normal text-muted-foreground">cURL</span>
+                  </Button>
+
+                  {isPublished && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={async () => {
+                        setIsPublishPopoverOpen(false);
+                        const ok = await confirm({
+                          title: 'Unpublish this agent?',
+                          description: 'It goes back to Draft. Embeds, API calls and webhooks stop answering until you publish again. Your versions are kept.',
+                          confirmLabel: 'Unpublish',
+                          destructive: true,
+                        });
+                        if (ok) unpublishMutation.mutate();
+                      }}
+                      disabled={unpublishMutation.isPending}
+                      className="group h-9 w-full justify-between rounded-lg px-2.5 text-xs font-medium text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <RotateCcw className="size-4" />
+                        Unpublish
+                      </span>
+                      <span className="text-2xs font-normal text-destructive/80">Back to Draft</span>
+                    </Button>
+                  )}
+                </div>
+              </form>
             </PopoverContent>
           </Popover>
 
