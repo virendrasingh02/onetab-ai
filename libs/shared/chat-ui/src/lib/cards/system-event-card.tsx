@@ -62,7 +62,9 @@ export interface SystemEventCardProps {
 
 // --- icon + badge -----------------------------------------------------------
 
-const EVENT_TYPE_ICONS: Partial<Record<SystemActivityEventContent['eventType'], LucideIcon>> = {
+const EVENT_TYPE_ICONS: Partial<
+  Record<SystemActivityEventContent['eventType'], LucideIcon>
+> = {
   member_joined: UserRoundCheck,
   member_added: UserPlus,
   member_left: UserRoundX,
@@ -105,7 +107,9 @@ const TONE_CLASSES: Record<EventTone, string> = {
 
 /** Semantic colour for an event: arrivals read green, departures red, state
  * changes blue/amber — so a long run of activity rows is scannable at a glance. */
-function getEventTone(eventType: SystemActivityEventContent['eventType']): EventTone {
+function getEventTone(
+  eventType: SystemActivityEventContent['eventType'],
+): EventTone {
   switch (eventType) {
     case 'member_joined':
     case 'member_added':
@@ -158,7 +162,7 @@ export function SystemEventIcon({
     <span
       aria-hidden
       className={cn(
-        'flex size-5 shrink-0 items-center justify-center rounded-full',
+        'size-5 flex shrink-0 items-center justify-center rounded-full',
         TONE_CLASSES[getEventTone(eventType)],
       )}
     >
@@ -170,7 +174,11 @@ export function SystemEventIcon({
 /** The `APP` / `AI AGENT` / `AI COWORKER` type indicator (brief §10) — the
  * exact badges `ChatBubble` shows next to a sender. Absent for a plain user or
  * channel — those need no disambiguating badge. */
-export function SystemEventEntityBadge({ kind }: { kind: SystemEventEntity['kind'] }) {
+export function SystemEventEntityBadge({
+  kind,
+}: {
+  kind: SystemEventEntity['kind'];
+}) {
   if (kind === 'coworker' || kind === 'agent' || kind === 'app') {
     return <EntityKindBadge kind={kind} />;
   }
@@ -180,11 +188,12 @@ export function SystemEventEntityBadge({ kind }: { kind: SystemEventEntity['kind
 /** One named entity (a user, app, agent, coworker or channel), clickable when
  * the host can open something for it and not a deleted/unknown row (brief
  * §10, §20). Shared by the actor and the target — an "entity" either way. */
-const ENTITY_NAME_WEIGHT_CLASS: Record<'medium' | 'semibold' | 'bold', string> = {
-  medium: 'font-medium',
-  semibold: 'font-semibold',
-  bold: 'font-bold',
-};
+const ENTITY_NAME_WEIGHT_CLASS: Record<'medium' | 'semibold' | 'bold', string> =
+  {
+    medium: 'font-medium',
+    semibold: 'font-semibold',
+    bold: 'font-bold',
+  };
 
 export function SystemEventEntityName({
   entity,
@@ -198,11 +207,15 @@ export function SystemEventEntityName({
   weight?: 'medium' | 'semibold' | 'bold';
 }) {
   const clickable = !!onClick && !entity.isDeleted && entity.id;
-  const label = entity.isDeleted ? `Deleted ${entityKindLabel(entity.kind)}` : entity.name;
+  const label = entity.isDeleted
+    ? `Deleted ${entityKindLabel(entity.kind)}`
+    : entity.name;
   const weightClass = ENTITY_NAME_WEIGHT_CLASS[weight];
 
   if (!clickable) {
-    return <span className={cn('leading-5', weightClass, className)}>{label}</span>;
+    return (
+      <span className={cn('leading-5', weightClass, className)}>{label}</span>
+    );
   }
 
   return (
@@ -210,7 +223,7 @@ export function SystemEventEntityName({
       type="button"
       onClick={() => onClick(entity)}
       className={cn(
-        'rounded-sm text-left leading-5 hover:underline focus-visible:underline focus-visible:outline-none',
+        'leading-5 rounded-sm text-left hover:underline focus-visible:underline focus-visible:outline-none',
         weightClass,
         className,
       )}
@@ -241,7 +254,9 @@ function entityKindLabel(kind: SystemEventEntity['kind']): string {
  * (`"Asana · balram"`) and no logo, so the split + static-logo lookup happens
  * here too — old and new rows render identically.
  */
-export function normalizeSystemEventEntity(entity: SystemEventEntity): SystemEventEntity {
+export function normalizeSystemEventEntity(
+  entity: SystemEventEntity,
+): SystemEventEntity {
   if (entity.kind !== 'app' || entity.isDeleted) return entity;
   const { appName, accountLabel } = splitAppConnectionName(entity.name);
   return {
@@ -261,9 +276,11 @@ export function useLiveSystemEventEntity(
   entity: SystemEventEntity | null,
 ): SystemEventEntity | null {
   const isApp = entity?.kind === 'app' && !entity.isDeleted;
-  const isAi = (entity?.kind === 'agent' || entity?.kind === 'coworker') && !entity.isDeleted;
-  const liveApp = useAppEntity(isApp ? entity?.id ?? undefined : undefined);
-  const liveAi = useAiEntity(isAi ? entity?.id ?? undefined : undefined);
+  const isAi =
+    (entity?.kind === 'agent' || entity?.kind === 'coworker') &&
+    !entity.isDeleted;
+  const liveApp = useAppEntity(isApp ? (entity?.id ?? undefined) : undefined);
+  const liveAi = useAiEntity(isAi ? (entity?.id ?? undefined) : undefined);
   if (!entity) return null;
   if (isApp) {
     const base = normalizeSystemEventEntity(entity);
@@ -278,7 +295,11 @@ export function useLiveSystemEventEntity(
       : base;
   }
   if (isAi && liveAi) {
-    return { ...entity, name: liveAi.name, avatarUrl: liveAi.avatarUrl ?? entity.avatarUrl };
+    return {
+      ...entity,
+      name: liveAi.name,
+      avatarUrl: liveAi.avatarUrl ?? entity.avatarUrl,
+    };
   }
   return entity;
 }
@@ -286,10 +307,14 @@ export function useLiveSystemEventEntity(
 /** Small avatar/icon for one entity — a photo for a user, a gradient tile for
  * an app/agent/coworker (via the existing avatar system's seeded gradient),
  * or a plain `#` glyph for a channel, which has no avatar of its own. */
-export function SystemEventEntityAvatar({ entity }: { entity: SystemEventEntity }) {
+export function SystemEventEntityAvatar({
+  entity,
+}: {
+  entity: SystemEventEntity;
+}) {
   if (entity.kind === 'channel') {
     return (
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+      <span className="size-10 flex shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
         <Hash className="size-4" />
       </span>
     );
@@ -342,7 +367,10 @@ function getSentenceParts(event: SystemActivityEventContent): SentenceParts {
     case 'member_role_changed':
     case 'member_promoted':
     case 'member_demoted':
-      return { lead: `had their role changed in ${inConversation}`, withActor: true };
+      return {
+        lead: `had their role changed in ${inConversation}`,
+        withActor: true,
+      };
     case 'app_added':
       return { lead: `was added to ${inConversation}`, withActor: true };
     case 'app_removed':
@@ -415,7 +443,10 @@ export function SystemEventAction({
       {event.eventType === 'channel_renamed' && event.target ? (
         <>
           renamed this channel to{' '}
-          <SystemEventEntityName entity={{ ...event.target, kind: 'channel' }} className="text-foreground" />
+          <SystemEventEntityName
+            entity={{ ...event.target, kind: 'channel' }}
+            className="text-foreground"
+          />
         </>
       ) : (
         lead
@@ -423,7 +454,11 @@ export function SystemEventAction({
       {withActor && actor ? (
         <>
           {' by '}
-          <SystemEventEntityName entity={actor} onClick={onViewEntity} className="text-foreground" />
+          <SystemEventEntityName
+            entity={actor}
+            onClick={onViewEntity}
+            className="text-foreground"
+          />
         </>
       ) : null}
     </p>
@@ -437,7 +472,7 @@ export function SystemEventTimestamp({ timestamp }: { timestamp: number }) {
   return (
     <MessageTime
       timestamp={timestamp}
-      className="shrink-0 cursor-default text-xs font-medium text-muted-foreground"
+      className="text-xs font-medium shrink-0 cursor-default text-muted-foreground"
     />
   );
 }
@@ -466,7 +501,13 @@ function SystemEventActions({
   const showReact = event.capabilities.reactions && onReact;
 
   const buildActions = (): EntityAction[] => [
-    { id: 'copy-text', group: 'share', label: 'Copy event', icon: Copy, run: onCopy },
+    {
+      id: 'copy-text',
+      group: 'share',
+      label: 'Copy event',
+      icon: Copy,
+      run: onCopy,
+    },
     {
       id: 'delete',
       group: 'danger',
@@ -481,7 +522,11 @@ function SystemEventActions({
   return (
     <MessageToolbarShell visible={isReactionOpen || isMenuOpen}>
       {showReact ? (
-        <ReactionPicker onSelect={onReact} open={isReactionOpen} onOpenChange={setIsReactionOpen}>
+        <ReactionPicker
+          onSelect={onReact}
+          open={isReactionOpen}
+          onOpenChange={setIsReactionOpen}
+        >
           <button aria-label="Add a reaction" className={TOOLBAR_BTN}>
             <Smile className={cn(TOOLBAR_ICON, 'group-hover/btn:rotate-12')} />
           </button>
@@ -498,7 +543,10 @@ function SystemEventActions({
         trigger={
           <button
             aria-label="More actions"
-            className={cn(TOOLBAR_BTN, isMenuOpen && 'bg-foreground/[0.06] text-foreground')}
+            className={cn(
+              TOOLBAR_BTN,
+              isMenuOpen && 'bg-foreground/[0.06] text-foreground',
+            )}
           >
             <MoreHorizontal className={TOOLBAR_ICON} />
           </button>
@@ -540,11 +588,11 @@ export function SystemEventCard({
       data-message-id={message.id}
       aria-label={message.body}
       className={cn(
-        'group/message relative flex min-h-11 items-center gap-4 px-4 py-1.5 text-sm transition-colors hover:bg-accent/60',
+        'group/message min-h-11 gap-4 px-4 py-1.5 text-sm relative flex items-center transition-colors hover:bg-accent/60',
         isHighlighted && 'border-l-2 border-l-primary',
       )}
     >
-      <div className="flex w-10 shrink-0 justify-center self-start">
+      <div className="w-10 flex shrink-0 justify-center self-start">
         {primaryEntity ? (
           <SystemEventEntityAvatar entity={primaryEntity} />
         ) : (
@@ -554,27 +602,36 @@ export function SystemEventCard({
 
       <div className="min-w-0 flex-1">
         {primaryEntity ? (
-          <header className="flex items-baseline gap-2">
+          <header className="gap-2 flex items-baseline">
             <SystemEventEntityName
               entity={primaryEntity}
               onClick={onViewEntity}
               weight="bold"
               className="text-message text-foreground"
             />
-            <SystemEventEntityBadge kind={primaryEntity.kind} />
-            {primaryEntity.accountLabel ? (
-              <span className="min-w-0 truncate text-xs text-muted-foreground">
-                {primaryEntity.accountLabel}
-              </span>
-            ) : null}
-            <SystemEventTimestamp timestamp={event.occurredAt || message.timestamp} />
+            <span
+              title={
+                primaryEntity.accountLabel
+                  ? `Connected as ${primaryEntity.accountLabel}`
+                  : undefined
+              }
+            >
+              <SystemEventEntityBadge kind={primaryEntity.kind} />
+            </span>
+            <SystemEventTimestamp
+              timestamp={event.occurredAt || message.timestamp}
+            />
           </header>
         ) : null}
-        <div className="flex items-center gap-1.5">
-          {primaryEntity ? <SystemEventIcon eventType={event.eventType} /> : null}
+        <div className="gap-1.5 flex items-center">
+          {primaryEntity ? (
+            <SystemEventIcon eventType={event.eventType} />
+          ) : null}
           <SystemEventAction event={event} onViewEntity={onViewEntity} />
           {primaryEntity ? null : (
-            <SystemEventTimestamp timestamp={event.occurredAt || message.timestamp} />
+            <SystemEventTimestamp
+              timestamp={event.occurredAt || message.timestamp}
+            />
           )}
         </div>
         {message.reactions.length > 0 ? (

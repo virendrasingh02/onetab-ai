@@ -98,7 +98,10 @@ import { ForwardedMessageCard } from './forwarded-message-card.js';
 import { ReplyQuote, ReplySnippet, type ReplyPreview } from './reply-quote.js';
 import { reminderPresets } from './reminder-presets.js';
 import { SavedForLaterLabel } from './saved-for-later-label.js';
-import { resolvePreviewVisibility, useLinkPreviewStore } from './use-link-preview.js';
+import {
+  resolvePreviewVisibility,
+  useLinkPreviewStore,
+} from './use-link-preview.js';
 import { UserProfileCard } from './user-profile-card.js';
 
 export interface ChatBubbleProps {
@@ -172,7 +175,8 @@ export interface ChatBubbleProps {
   mentionNames?: string[];
   onMentionClick?: (mention: string) => void;
   mentionProfiles?: Record<string, RightPanelProfile>;
-  entityKind?: 'app' | 'doc' | 'task' | 'kanban' | 'agent' | 'thread' | 'coworker';
+  entityKind?:
+    'app' | 'doc' | 'task' | 'kanban' | 'agent' | 'thread' | 'coworker';
   onRetry?: () => void;
   linkPreviewsEnabled?: boolean;
   workspacePolicy?: WorkspacePolicy;
@@ -259,13 +263,15 @@ function GifMessage({
 
   if (error) {
     return (
-      <div className="mt-1.5 flex max-w-sm items-center gap-2 rounded-xl border border-border bg-surface-inset p-3 text-xs text-muted-foreground">
-        <AlertTriangle className="size-4 text-destructive shrink-0" />
-        <span className="truncate">Failed to load GIF ({title || 'media'})</span>
+      <div className="mt-1.5 max-w-sm gap-2 p-3 text-xs flex items-center rounded-xl border border-border bg-surface-inset text-muted-foreground">
+        <AlertTriangle className="size-4 shrink-0 text-destructive" />
+        <span className="truncate">
+          Failed to load GIF ({title || 'media'})
+        </span>
         <button
           type="button"
           onClick={() => setError(false)}
-          className="ml-auto shrink-0 font-semibold underline hover:text-foreground"
+          className="font-semibold ml-auto shrink-0 underline hover:text-foreground"
         >
           Retry
         </button>
@@ -276,7 +282,7 @@ function GifMessage({
   return (
     <div
       onClick={handleExpand}
-      className="group/gif relative mt-1.5 max-w-sm cursor-pointer overflow-hidden rounded-xl border border-border bg-surface-inset shadow-md transition-transform hover:scale-[1.01]"
+      className="group/gif mt-1.5 max-w-sm relative cursor-pointer overflow-hidden rounded-xl border border-border bg-surface-inset shadow-md transition-transform hover:scale-[1.01]"
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -288,7 +294,7 @@ function GifMessage({
       aria-label={`GIF: ${title || 'animated image'}. Click to expand.`}
     >
       {!loaded && (
-        <div className="h-48 w-72 max-w-full animate-pulse bg-muted/60" />
+        <div className="h-48 w-72 animate-pulse max-w-full bg-muted/60" />
       )}
       <img
         src={url}
@@ -300,12 +306,16 @@ function GifMessage({
           'max-h-72 w-full object-cover transition-opacity duration-200',
           // Never `display:none` a lazy image — the browser then never loads it
           // and the skeleton spins forever.
-          !loaded ? 'absolute inset-0 opacity-0' : 'block opacity-100',
+          !loaded ? 'inset-0 absolute opacity-0' : 'block opacity-100',
         )}
       />
-      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 transition-opacity group-hover/gif:opacity-100">
-        <span className="truncate text-xs font-medium text-white">{title || 'GIF'}</span>
-        <span className="text-2xs text-white/80 uppercase tracking-wider font-semibold">Click to expand</span>
+      <div className="inset-x-0 bottom-0 from-black/70 p-2 absolute flex items-center justify-between bg-gradient-to-t to-transparent opacity-0 transition-opacity group-hover/gif:opacity-100">
+        <span className="text-xs font-medium text-white truncate">
+          {title || 'GIF'}
+        </span>
+        <span className="text-white/80 tracking-wider font-semibold text-2xs uppercase">
+          Click to expand
+        </span>
       </div>
     </div>
   );
@@ -317,13 +327,13 @@ function StickerMessage({ url, alt }: { url: string; alt: string }) {
 
   if (error) {
     return (
-      <div className="mt-1.5 flex max-w-xs items-center gap-2 rounded-lg border border-border/60 bg-surface/50 p-2 text-xs text-muted-foreground">
-        <AlertTriangle className="size-3.5 text-warning-text shrink-0" />
+      <div className="mt-1.5 max-w-xs gap-2 p-2 text-xs flex items-center rounded-lg border border-border/60 bg-surface/50 text-muted-foreground">
+        <AlertTriangle className="size-3.5 shrink-0 text-warning-text" />
         <span className="truncate">Failed to load sticker</span>
         <button
           type="button"
           onClick={() => setError(false)}
-          className="ml-auto shrink-0 font-semibold underline hover:text-foreground"
+          className="font-semibold ml-auto shrink-0 underline hover:text-foreground"
         >
           Retry
         </button>
@@ -333,12 +343,12 @@ function StickerMessage({ url, alt }: { url: string; alt: string }) {
 
   return (
     <div
-      className="group/sticker relative mt-1 inline-block select-none"
+      className="group/sticker mt-1 relative inline-block select-none"
       title={alt}
       aria-label={`Sticker: ${alt}`}
     >
       {!loaded && (
-        <div className="size-32 rounded-xl animate-pulse bg-muted/40" />
+        <div className="size-32 animate-pulse rounded-xl bg-muted/40" />
       )}
       <img
         src={url}
@@ -347,8 +357,8 @@ function StickerMessage({ url, alt }: { url: string; alt: string }) {
         onLoad={() => setLoaded(true)}
         onError={() => setError(true)}
         className={cn(
-          'max-h-40 max-w-40 object-contain drop-shadow-sm transition-transform hover:scale-105',
-          !loaded ? 'absolute inset-0 opacity-0' : 'block opacity-100',
+          'max-h-40 max-w-40 drop-shadow-sm object-contain transition-transform hover:scale-105',
+          !loaded ? 'inset-0 absolute opacity-0' : 'block opacity-100',
         )}
       />
     </div>
@@ -429,7 +439,7 @@ export function ThreadRepliesButton({
       type="button"
       onClick={onOpen}
       className={cn(
-        'mt-1.5 gap-2 px-2.5 py-1 text-[13px] font-medium flex items-center rounded-md bg-surface text-info-text no-underline transition-colors hover:bg-accent hover:no-underline',
+        'mt-1.5 gap-2 px-2.5 py-1 font-medium flex items-center rounded-md bg-surface text-[13px] text-info-text no-underline transition-colors hover:bg-accent hover:no-underline',
         hasUnread && 'ring-1 ring-info-text/30',
       )}
     >
@@ -456,7 +466,7 @@ export function ThreadRepliesButton({
           ))}
           {participants.length > 3 ? (
             <span
-              className="size-5 relative flex shrink-0 items-center justify-center rounded-full bg-muted text-2xs font-semibold text-muted-foreground ring-2 ring-surface tabular-nums"
+              className="size-5 font-semibold relative flex shrink-0 items-center justify-center rounded-full bg-muted text-2xs text-muted-foreground tabular-nums ring-2 ring-surface"
               aria-label={`${participants.length - 3} more`}
             >
               +{participants.length - 3}
@@ -483,7 +493,7 @@ function SendingIndicator({ className }: { className?: string }) {
     <Hint label="Sending…">
       <span
         className={cn(
-          'inline-flex items-center text-muted-foreground animate-in fade-in-0 duration-300',
+          'animate-in fade-in-0 inline-flex items-center text-muted-foreground duration-300',
           className,
         )}
       >
@@ -554,8 +564,12 @@ export function ChatBubble({
   const [isReactionOpen, setIsReactionOpen] = useState(false);
 
   const messageOverrides = useLinkPreviewStore((s) => s.messageOverrides);
-  const toggleMessageOverride = useLinkPreviewStore((s) => s.toggleMessageOverride);
-  const fetchMessageVisibility = useLinkPreviewStore((s) => s.fetchMessageVisibility);
+  const toggleMessageOverride = useLinkPreviewStore(
+    (s) => s.toggleMessageOverride,
+  );
+  const fetchMessageVisibility = useLinkPreviewStore(
+    (s) => s.fetchMessageVisibility,
+  );
   const previewsMap = useLinkPreviewStore((s) => s.previews);
   const loadingUrls = useLinkPreviewStore((s) => s.loadingUrls);
   const fetchPreview = useLinkPreviewStore((s) => s.fetchPreview);
@@ -567,7 +581,7 @@ export function ChatBubble({
 
   const hasLinkPreviews = Boolean(
     (message.linkPreviews && message.linkPreviews.length > 0) ||
-      detectedLinks.length > 0,
+    detectedLinks.length > 0,
   );
 
   useEffect(() => {
@@ -581,9 +595,7 @@ export function ChatBubble({
     messagePreviews: message.linkPreviews,
     messageOverrides,
     userChatPreferences:
-      linkPreviewsEnabled !== undefined
-        ? { linkPreviewsEnabled }
-        : undefined,
+      linkPreviewsEnabled !== undefined ? { linkPreviewsEnabled } : undefined,
     workspacePolicy,
   });
 
@@ -596,7 +608,14 @@ export function ChatBubble({
         void fetchPreview(link.url);
       }
     }
-  }, [isPreviewsVisible, message.linkPreviews, detectedLinks, previewsMap, loadingUrls, fetchPreview]);
+  }, [
+    isPreviewsVisible,
+    message.linkPreviews,
+    detectedLinks,
+    previewsMap,
+    loadingUrls,
+    fetchPreview,
+  ]);
 
   const previewsToRender = useMemo(() => {
     if (message.linkPreviews && message.linkPreviews.length > 0) {
@@ -720,9 +739,10 @@ export function ChatBubble({
   // A message that is a single emoji renders jumbo (Slack-style); two or
   // more emoji, or emoji mixed with text, stay at normal message size.
   const jumboEmojiCount = message.body ? countEmojiOnly(message.body) : 0;
-  const stickerAlt = isSticker && mediaMatch
-    ? mediaMatch[1].replace(/^sticker:/i, '').trim()
-    : '';
+  const stickerAlt =
+    isSticker && mediaMatch
+      ? mediaMatch[1].replace(/^sticker:/i, '').trim()
+      : '';
 
   const isCoworker =
     entityKind === 'coworker' ||
@@ -732,16 +752,16 @@ export function ChatBubble({
   const isAgent =
     !isCoworker &&
     (entityKind === 'agent' ||
-    message.senderId.startsWith('agent-') ||
-    message.senderId.includes('copilot') ||
-    message.senderId.includes('codereview') ||
-    message.senderId.includes('triage') ||
-    message.senderId.includes('standup') ||
-    message.senderId.includes('docs') ||
-    message.senderId.includes('data') ||
-    /\b(copilot|assistant|reviewer|standup|triage|bot|agent)\b/i.test(
-      message.senderName,
-    ));
+      message.senderId.startsWith('agent-') ||
+      message.senderId.includes('copilot') ||
+      message.senderId.includes('codereview') ||
+      message.senderId.includes('triage') ||
+      message.senderId.includes('standup') ||
+      message.senderId.includes('docs') ||
+      message.senderId.includes('data') ||
+      /\b(copilot|assistant|reviewer|standup|triage|bot|agent)\b/i.test(
+        message.senderName,
+      ));
 
   // Coworkers/agents render as the same tile as the sidebar, never a person's initial gradient.
   const aiEntity =
@@ -787,7 +807,9 @@ export function ChatBubble({
   // Live names win over the one Matrix stamped on the event, so renaming an
   // app, agent or coworker shows on every message it ever sent.
   const senderName = isApp
-    ? liveApp?.name || splitAppConnectionName(message.senderName).appName || message.senderName
+    ? liveApp?.name ||
+      splitAppConnectionName(message.senderName).appName ||
+      message.senderName
     : aiEntity?.name || message.senderName;
   const senderAvatarUrl = isApp
     ? liveApp?.logoUrl ||
@@ -821,7 +843,8 @@ export function ChatBubble({
               ? 'app'
               : null;
   const effectiveBadge =
-    senderBadge || (entityBadgeKind ? <EntityKindBadge kind={entityBadgeKind} /> : null);
+    senderBadge ||
+    (entityBadgeKind ? <EntityKindBadge kind={entityBadgeKind} /> : null);
 
   const canEdit =
     isOwn &&
@@ -842,7 +865,9 @@ export function ChatBubble({
    * already shows one click away (react, thread, forward, save); the
    * right-click menu and the sheet have no toolbar beside them and show all.
    */
-  const buildActions = (surface: 'menu' | 'dropdown' = 'menu'): EntityAction[] => {
+  const buildActions = (
+    surface: 'menu' | 'dropdown' = 'menu',
+  ): EntityAction[] => {
     const onToolbar = surface === 'dropdown';
     return [
       {
@@ -853,6 +878,15 @@ export function ChatBubble({
         shortcut: 'T',
         hidden: onToolbar || !onOpenThread,
         run: onOpenThread,
+      },
+      {
+        id: 'reply',
+        group: 'reply',
+        label: 'Reply',
+        icon: Reply,
+        shortcut: 'R',
+        hidden: !onReply,
+        run: onReply,
       },
       {
         id: 'quote',
@@ -870,15 +904,15 @@ export function ChatBubble({
         icon: SmilePlus,
         hidden: onToolbar || !onReact,
         children: [
-          ...QUICK_REACTIONS.map(
-            (emoji): EntityAction => ({
-              id: `react-${emoji}`,
-              group: 'quick',
-              label: emoji,
-              checked: message.reactions.some((r) => r.key === emoji && r.reactedByMe),
-              run: () => onReact?.(emoji),
-            }),
-          ),
+          ...QUICK_REACTIONS.map((emoji): EntityAction => ({
+            id: `react-${emoji}`,
+            group: 'quick',
+            label: emoji,
+            checked: message.reactions.some(
+              (r) => r.key === emoji && r.reactedByMe,
+            ),
+            run: () => onReact?.(emoji),
+          })),
           {
             id: 'react-more',
             group: 'more',
@@ -936,14 +970,12 @@ export function ChatBubble({
         icon: Clock,
         hidden: !onRemind,
         children: onRemind
-          ? reminderPresets().map(
-              (preset): EntityAction => ({
-                id: `remind-${preset.id}`,
-                label: preset.label,
-                hint: preset.hint,
-                run: () => onRemind(preset.at),
-              }),
-            )
+          ? reminderPresets().map((preset): EntityAction => ({
+              id: `remind-${preset.id}`,
+              label: preset.label,
+              hint: preset.hint,
+              run: () => onRemind(preset.at),
+            }))
           : [],
       },
       {
@@ -1077,119 +1109,72 @@ export function ChatBubble({
       label={`Message from ${senderName}`}
       disabled={message.sendState === 'sending'}
     >
-    <article
-      data-message-id={message.id}
-      aria-label={`Message from ${senderName}, ${formatFullTimestamp(message.timestamp)}`}
-      ref={articleRef}
-      className={cn(
-        'group/message relative flex flex-wrap transition-[background-color,opacity] hover:bg-foreground/[0.035]',
-        actionsPinned && 'bg-foreground/[0.035]',
-        isCompact
-          ? cn(
-              'chat-density-compact gap-x-2.5 px-3',
-              isGrouped && !isSaved ? 'py-0' : 'pt-1 pb-0.5',
-            )
-          : cn(
-              'chat-density-comfy gap-x-4 px-4',
-              isGrouped && !isSaved ? 'py-0.5' : 'pt-2.5 pb-0.5',
-            ),
-        // Keep the tint on hover — the neutral hover wash used to wipe it.
-        isSaved && 'bg-primary/[0.05] hover:bg-primary/[0.08]',
-        isPinned && 'bg-warning/[0.05] hover:bg-warning/[0.08]',
-        isHighlighted && 'message-flash',
-        showSending && 'opacity-70',
-        message.sendState === 'failed' && 'bg-destructive/5',
-      )}
-    >
-      {/* Avatar / Left Column with Profile Popover & Modal */}
-      {threadConnector ? (
-        <span
-          aria-hidden
-          style={threadConnector}
-          className="pointer-events-none absolute rounded-bl-lg border-b-2 border-l-2 border-border"
-        />
-      ) : null}
-
-      {/* Shown for grouped messages too — saving is per message. */}
-      {isSaved ? <SavedForLaterLabel density={density} /> : null}
-
-      <div
-        ref={avatarRef}
-        className={cn(isCompact ? 'w-8' : 'w-10', 'shrink-0')}
-      >
-        {isGrouped && showSending ? (
-          <SendingIndicator
-            className={cn('w-full justify-center', isCompact ? 'mt-0.5' : 'mt-1')}
-          />
-        ) : isGrouped ? (
-          <Hint label={formatFullTimestamp(message.timestamp)}>
-            <time
-              dateTime={new Date(message.timestamp).toISOString()}
-              className={cn(
-                'hidden cursor-pointer whitespace-nowrap text-muted-foreground tabular-nums group-hover/message:block hover:underline',
-                isCompact ? 'mt-0.5 text-2xs' : 'mt-1 text-2xs',
-              )}
-            >
-              {new Date(message.timestamp).toLocaleTimeString(undefined, {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true,
-              })}
-            </time>
-          </Hint>
-        ) : avatarSlot ? (
-          avatarSlot
-        ) : (
-          <UserProfileCard
-            userId={message.senderId}
-            name={senderName}
-            avatarUrl={senderAvatarUrl}
-            entityKind={profileEntityKind}
-            entityId={profileEntityId}
-          >
-            {aiEntity ? (
-              <AiEntityAvatar
-                name={aiEntity.name}
-                kind={aiEntity.kind}
-                avatarUrl={aiEntity.avatarUrl ?? message.senderAvatarUrl}
-                size={isCompact ? 'sm' : 'md'}
-                className={cn(
-                  isCompact ? 'size-8' : 'size-10',
-                  'cursor-pointer transition-transform hover:scale-105 hover:opacity-90',
-                )}
-              />
-            ) : isApp ? (
-              <AppLogoAvatar
-                logoUrl={senderAvatarUrl}
-                className={cn(
-                  isCompact ? 'size-8 p-1.5' : 'size-10',
-                  'cursor-pointer transition-transform hover:scale-105 hover:opacity-90',
-                )}
-              />
-            ) : (
-              <UserAvatar
-                name={message.senderName}
-                src={message.senderAvatarUrl}
-                seed={message.senderId}
-                size={isCompact ? 'sm' : 'md'}
-                className={cn(
-                  isCompact ? 'size-8' : 'size-10',
-                  'cursor-pointer rounded-full shadow-xs transition-transform hover:scale-105 hover:opacity-90',
-                  isAgent && 'ring-2 ring-primary/40',
-                  isApp && 'ring-2 ring-accent-violet/40',
-                  isDoc && 'ring-2 ring-info-text/40',
-                  (isTask || isKanban) && 'ring-2 ring-success/40',
-                )}
-              />
-            )}
-          </UserProfileCard>
+      <article
+        data-message-id={message.id}
+        aria-label={`Message from ${senderName}, ${formatFullTimestamp(message.timestamp)}`}
+        ref={articleRef}
+        className={cn(
+          'group/message relative flex flex-wrap transition-[background-color,opacity] hover:bg-foreground/[0.035]',
+          actionsPinned && 'bg-foreground/[0.035]',
+          isCompact
+            ? cn(
+                'chat-density-compact gap-x-2.5 px-3',
+                isGrouped && !isSaved ? 'py-0' : 'pt-1 pb-0.5',
+              )
+            : cn(
+                'chat-density-comfy gap-x-4 px-4',
+                isGrouped && !isSaved ? 'py-0.5' : 'pt-2.5 pb-0.5',
+              ),
+          // Keep the tint on hover — the neutral hover wash used to wipe it.
+          isSaved && 'bg-primary/[0.05] hover:bg-primary/[0.08]',
+          isPinned && 'bg-warning/[0.05] hover:bg-warning/[0.08]',
+          isHighlighted && 'message-flash',
+          showSending && 'opacity-70',
+          message.sendState === 'failed' && 'bg-destructive/5',
         )}
-      </div>
+      >
+        {/* Avatar / Left Column with Profile Popover & Modal */}
+        {threadConnector ? (
+          <span
+            aria-hidden
+            style={threadConnector}
+            className="pointer-events-none absolute rounded-bl-lg border-b-2 border-l-2 border-border"
+          />
+        ) : null}
 
-      {/* Main Content Area */}
-      <div className="min-w-0 flex-1">
-        {!isGrouped ? (
-          <header className="gap-2 flex items-baseline">
+        {/* Shown for grouped messages too — saving is per message. */}
+        {isSaved ? <SavedForLaterLabel density={density} /> : null}
+
+        <div
+          ref={avatarRef}
+          className={cn(isCompact ? 'w-8' : 'w-10', 'shrink-0')}
+        >
+          {isGrouped && showSending ? (
+            <SendingIndicator
+              className={cn(
+                'w-full justify-center',
+                isCompact ? 'mt-0.5' : 'mt-1',
+              )}
+            />
+          ) : isGrouped ? (
+            <Hint label={formatFullTimestamp(message.timestamp)}>
+              <time
+                dateTime={new Date(message.timestamp).toISOString()}
+                className={cn(
+                  'hidden cursor-pointer whitespace-nowrap text-muted-foreground tabular-nums group-hover/message:block hover:underline',
+                  isCompact ? 'mt-0.5 text-2xs' : 'mt-1 text-2xs',
+                )}
+              >
+                {new Date(message.timestamp).toLocaleTimeString(undefined, {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: true,
+                })}
+              </time>
+            </Hint>
+          ) : avatarSlot ? (
+            avatarSlot
+          ) : (
             <UserProfileCard
               userId={message.senderId}
               name={senderName}
@@ -1197,322 +1182,386 @@ export function ChatBubble({
               entityKind={profileEntityKind}
               entityId={profileEntityId}
             >
-              <span className="text-message font-bold cursor-pointer text-foreground hover:underline">
-                {senderName}
-              </span>
-            </UserProfileCard>
-
-            {effectiveBadge ? (
-              <span className="inline-flex items-center">{effectiveBadge}</span>
-            ) : null}
-
-            <MessageTime
-              timestamp={message.timestamp}
-              className="font-medium cursor-pointer text-xs text-muted-foreground hover:underline"
-            />
-
-            {showSending ? <SendingIndicator className="self-center" /> : null}
-
-            {message.isEncrypted ? (
-              <Hint label="End-to-end encrypted">
-                <Lock className="size-3 text-muted-foreground" aria-hidden />
-              </Hint>
-            ) : null}
-            {isPinned ? (
-              <Hint label="Pinned">
-                <Pin
-                  className="size-3 fill-current text-warning-text"
-                  aria-label="Pinned"
+              {aiEntity ? (
+                <AiEntityAvatar
+                  name={aiEntity.name}
+                  kind={aiEntity.kind}
+                  avatarUrl={aiEntity.avatarUrl ?? message.senderAvatarUrl}
+                  size={isCompact ? 'sm' : 'md'}
+                  className={cn(
+                    isCompact ? 'size-8' : 'size-10',
+                    'cursor-pointer transition-transform hover:scale-105 hover:opacity-90',
+                  )}
                 />
-              </Hint>
-            ) : null}
-          </header>
-        ) : null}
-
-        {replyTo !== undefined ? (
-          <ReplyQuote preview={replyTo} onJump={onJumpToReply} />
-        ) : null}
-
-        {message.alsoSentToChannel && showThreadConnector && onOpenThread ? (
-          <button
-            type="button"
-            onClick={onOpenThread}
-            className="gap-1 mb-0.5 -ml-1 px-1 py-0.5 flex w-fit max-w-full min-w-0 items-center rounded-md text-left text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          >
-            <MessageSquare className="size-3 shrink-0" aria-hidden />
-            <span className="shrink-0">
-              Replied to a thread{threadRoot ? ':' : ''}
-            </span>
-            {threadRoot ? (
-              <>
-                <span className="shrink-0 font-semibold text-foreground">
-                  {threadRoot.senderName}
-                </span>
-                <span className="min-w-0 truncate">
-                  <ReplySnippet preview={threadRoot} />
-                </span>
-              </>
-            ) : null}
-          </button>
-        ) : null}
-
-        {message.decryptionError ? (
-          <p className="gap-1.5 py-0.5 text-message flex items-center text-warning-text italic">
-            <AlertTriangle className="size-3.5 shrink-0 text-warning-text" />
-            {message.decryptionError}
-          </p>
-        ) : (
-          <>
-            {mediaMatch ? (
-              isSticker ? (
-                <StickerMessage url={mediaMatch[2]} alt={stickerAlt || 'Sticker'} />
+              ) : isApp ? (
+                <AppLogoAvatar
+                  logoUrl={senderAvatarUrl}
+                  className={cn(
+                    isCompact ? 'size-8 p-1.5' : 'size-10',
+                    'cursor-pointer transition-transform hover:scale-105 hover:opacity-90',
+                  )}
+                />
               ) : (
-                <GifMessage
-                  url={mediaMatch[2]}
-                  title={mediaMatch[1] || 'GIF'}
-                  sender={{
-                    senderId: message.senderId,
-                    senderName: message.senderName,
-                    senderAvatarUrl: message.senderAvatarUrl,
-                    timestamp: message.timestamp,
-                    isEncrypted: message.isEncrypted,
-                  }}
+                <UserAvatar
+                  name={message.senderName}
+                  src={message.senderAvatarUrl}
+                  seed={message.senderId}
+                  size={isCompact ? 'sm' : 'md'}
+                  className={cn(
+                    isCompact ? 'size-8' : 'size-10',
+                    'cursor-pointer rounded-full shadow-xs transition-transform hover:scale-105 hover:opacity-90',
+                    isAgent && 'ring-2 ring-primary/40',
+                    isApp && 'ring-2 ring-accent-violet/40',
+                    isDoc && 'ring-2 ring-info-text/40',
+                    (isTask || isKanban) && 'ring-2 ring-success/40',
+                  )}
                 />
-              )
-            ) : editSlot ? (
-              editSlot
-            ) : message.body && jumboEmojiCount === 1 ? (
-              <p
-                className="py-0.5 text-[2.75rem] leading-[1.15] select-text"
-                aria-label={message.body.trim()}
+              )}
+            </UserProfileCard>
+          )}
+        </div>
+
+        {/* Main Content Area */}
+        <div className="min-w-0 flex-1">
+          {!isGrouped ? (
+            <header className="gap-2 flex items-baseline">
+              <UserProfileCard
+                userId={message.senderId}
+                name={senderName}
+                avatarUrl={senderAvatarUrl}
+                entityKind={profileEntityKind}
+                entityId={profileEntityId}
               >
-                {message.body.trim()}
-              </p>
-            ) : message.body ? (
-              <MarkdownMessage
-                text={message.body}
-                mentionNames={mentionNames}
-                onMentionClick={onMentionClick}
-                mentionProfiles={mentionProfiles}
-                mentionRefs={message.mentions}
-                enrichLinks={isPreviewsVisible}
+                <span className="font-bold cursor-pointer text-message text-foreground hover:underline">
+                  {senderName}
+                </span>
+              </UserProfileCard>
+
+              {effectiveBadge ? (
+                <span className="inline-flex items-center">
+                  {effectiveBadge}
+                </span>
+              ) : null}
+
+              <MessageTime
+                timestamp={message.timestamp}
+                className="font-medium text-xs cursor-pointer text-muted-foreground hover:underline"
               />
-            ) : null}
-            {message.isEdited && !editSlot ? (
-              <span className="ml-1 text-xs text-muted-foreground select-none">
-                (edited)
-              </span>
-            ) : null}
-            {message.sendState === 'failed' ? (
-              <span className="mt-1 flex items-center gap-1.5 text-xs text-destructive">
-                <AlertTriangle className="size-3.5" />
-                <span>Failed to send.</span>
-                {onRetry ? (
-                  <button
-                    onClick={onRetry}
-                    className="font-semibold underline hover:text-destructive/80 cursor-pointer"
-                  >
-                    Retry
-                  </button>
-                ) : null}
-              </span>
-            ) : null}
 
-            {/* Link Previews */}
-            {isPreviewsVisible && hasLinkPreviews ? (
-              <div className="mt-2 space-y-2">
-                {previewsToRender.map((preview, idx) => {
-                  if (!preview) {
-                    return <LinkPreviewSkeleton key={detectedLinks[idx]?.url || idx} />;
-                  }
-                  if (preview.status === 'error') return null;
-                  return (
-                    <LinkPreviewCard
-                      key={preview.url || idx}
-                      preview={preview}
-                      onRemove={() => {
-                        void toggleMessageOverride(message.id, true);
-                      }}
-                    />
-                  );
-                })}
-              </div>
-            ) : null}
+              {showSending ? (
+                <SendingIndicator className="self-center" />
+              ) : null}
 
-            {message.forwarded ? (
-              <ForwardedMessageCard
-                forwarded={message.forwarded}
-                onOpen={onOpenForwarded}
-                attachmentSlot={forwardedAttachmentSlot}
-                mentionNames={mentionNames}
+              {message.isEncrypted ? (
+                <Hint label="End-to-end encrypted">
+                  <Lock className="size-3 text-muted-foreground" aria-hidden />
+                </Hint>
+              ) : null}
+              {isPinned ? (
+                <Hint label="Pinned">
+                  <Pin
+                    className="size-3 fill-current text-warning-text"
+                    aria-label="Pinned"
+                  />
+                </Hint>
+              ) : null}
+            </header>
+          ) : null}
+
+          {replyTo !== undefined ? (
+            <ReplyQuote preview={replyTo} onJump={onJumpToReply} />
+          ) : null}
+
+          {message.alsoSentToChannel && showThreadConnector && onOpenThread ? (
+            <button
+              type="button"
+              onClick={onOpenThread}
+              className="gap-1 mb-0.5 -ml-1 px-1 py-0.5 min-w-0 text-xs flex w-fit max-w-full items-center rounded-md text-left text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <MessageSquare className="size-3 shrink-0" aria-hidden />
+              <span className="shrink-0">
+                Replied to a thread{threadRoot ? ':' : ''}
+              </span>
+              {threadRoot ? (
+                <>
+                  <span className="font-semibold shrink-0 text-foreground">
+                    {threadRoot.senderName}
+                  </span>
+                  <span className="min-w-0 truncate">
+                    <ReplySnippet preview={threadRoot} />
+                  </span>
+                </>
+              ) : null}
+            </button>
+          ) : null}
+
+          {message.decryptionError ? (
+            <p className="gap-1.5 py-0.5 flex items-center text-message text-warning-text italic">
+              <AlertTriangle className="size-3.5 shrink-0 text-warning-text" />
+              {message.decryptionError}
+            </p>
+          ) : (
+            <>
+              {mediaMatch ? (
+                isSticker ? (
+                  <StickerMessage
+                    url={mediaMatch[2]}
+                    alt={stickerAlt || 'Sticker'}
+                  />
+                ) : (
+                  <GifMessage
+                    url={mediaMatch[2]}
+                    title={mediaMatch[1] || 'GIF'}
+                    sender={{
+                      senderId: message.senderId,
+                      senderName: message.senderName,
+                      senderAvatarUrl: message.senderAvatarUrl,
+                      timestamp: message.timestamp,
+                      isEncrypted: message.isEncrypted,
+                    }}
+                  />
+                )
+              ) : editSlot ? (
+                editSlot
+              ) : message.body && jumboEmojiCount === 1 ? (
+                <p
+                  className="py-0.5 text-[2.75rem] leading-[1.15] select-text"
+                  aria-label={message.body.trim()}
+                >
+                  {message.body.trim()}
+                </p>
+              ) : message.body ? (
+                <MarkdownMessage
+                  text={message.body}
+                  mentionNames={mentionNames}
+                  onMentionClick={onMentionClick}
+                  mentionProfiles={mentionProfiles}
+                  mentionRefs={message.mentions}
+                  enrichLinks={isPreviewsVisible}
+                />
+              ) : null}
+              {message.isEdited && !editSlot ? (
+                <span className="ml-1 text-xs text-muted-foreground select-none">
+                  (edited)
+                </span>
+              ) : null}
+              {message.sendState === 'failed' ? (
+                <span className="mt-1 gap-1.5 text-xs flex items-center text-destructive">
+                  <AlertTriangle className="size-3.5" />
+                  <span>Failed to send.</span>
+                  {onRetry ? (
+                    <button
+                      onClick={onRetry}
+                      className="font-semibold cursor-pointer underline hover:text-destructive/80"
+                    >
+                      Retry
+                    </button>
+                  ) : null}
+                </span>
+              ) : null}
+
+              {/* Link Previews */}
+              {isPreviewsVisible && hasLinkPreviews ? (
+                <div className="mt-2 space-y-2">
+                  {previewsToRender.map((preview, idx) => {
+                    if (!preview) {
+                      return (
+                        <LinkPreviewSkeleton
+                          key={detectedLinks[idx]?.url || idx}
+                        />
+                      );
+                    }
+                    if (preview.status === 'error') return null;
+                    return (
+                      <LinkPreviewCard
+                        key={preview.url || idx}
+                        preview={preview}
+                        onRemove={() => {
+                          void toggleMessageOverride(message.id, true);
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              ) : null}
+
+              {message.forwarded ? (
+                <ForwardedMessageCard
+                  forwarded={message.forwarded}
+                  onOpen={onOpenForwarded}
+                  attachmentSlot={forwardedAttachmentSlot}
+                  mentionNames={mentionNames}
+                />
+              ) : null}
+
+              {attachmentSlot}
+            </>
+          )}
+
+          {/* In-Chat Action Bar for App, Doc, Task, Kanban, AI Agent */}
+          {isAgent || isApp || isDoc || isTask || isKanban ? (
+            <div className="mt-2 gap-1.5 pt-0.5 flex flex-wrap items-center">
+              {isTask || isKanban ? (
+                <>
+                  {onAssignToMe ? (
+                    <button
+                      onClick={onAssignToMe}
+                      className="gap-1 px-2 py-0.5 text-xs font-semibold flex cursor-pointer items-center rounded-md border border-border bg-surface text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    >
+                      <UserCheck className="size-3 text-primary" />
+                      <span>Assign to me</span>
+                    </button>
+                  ) : null}
+                  {onCreateTask ? (
+                    <button
+                      onClick={onCreateTask}
+                      className="gap-1 px-2 py-0.5 text-xs font-semibold flex cursor-pointer items-center rounded-md border border-border bg-surface text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    >
+                      <CheckSquare className="size-3 text-success" />
+                      <span>Manage Task</span>
+                    </button>
+                  ) : null}
+                </>
+              ) : null}
+
+              {isDoc ? (
+                <>
+                  {onCreateDoc ? (
+                    <button
+                      onClick={onCreateDoc}
+                      className="gap-1 px-2 py-0.5 text-xs font-semibold flex cursor-pointer items-center rounded-md border border-info/30 bg-info/10 text-info-text transition-colors hover:bg-info/20"
+                    >
+                      <FileText className="size-3 text-info-text" />
+                      <span>Open Document</span>
+                    </button>
+                  ) : null}
+                </>
+              ) : null}
+
+              {isAgent ? (
+                <>
+                  {onAskAI ? (
+                    <button
+                      onClick={onAskAI}
+                      className="gap-1 px-2 py-0.5 text-xs font-semibold flex cursor-pointer items-center rounded-md border border-primary/30 bg-primary/10 text-primary-text transition-colors hover:bg-primary/20"
+                    >
+                      <Bot className="size-3 text-primary" />
+                      <span>Ask AI</span>
+                    </button>
+                  ) : null}
+                  {onCreateTask ? (
+                    <button
+                      onClick={onCreateTask}
+                      className="gap-1 px-2 py-0.5 text-xs font-semibold flex cursor-pointer items-center rounded-md border border-border bg-surface text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    >
+                      <CheckSquare className="size-3 text-success" />
+                      <span>Create Task</span>
+                    </button>
+                  ) : null}
+                  {onCreateDoc ? (
+                    <button
+                      onClick={onCreateDoc}
+                      className="gap-1 px-2 py-0.5 text-xs font-semibold flex cursor-pointer items-center rounded-md border border-border bg-surface text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    >
+                      <FileText className="size-3 text-info-text" />
+                      <span>Create Doc</span>
+                    </button>
+                  ) : null}
+                </>
+              ) : null}
+
+              {isApp ? (
+                <>
+                  {onOpenThread ? (
+                    <button
+                      onClick={onOpenThread}
+                      className="gap-1 px-2 py-0.5 text-xs font-semibold flex cursor-pointer items-center rounded-md border border-accent-violet/30 bg-accent-violet/10 text-accent-violet transition-colors hover:bg-accent-violet/20"
+                    >
+                      <Reply className="size-3 text-accent-violet" />
+                      <span>Reply in Thread</span>
+                    </button>
+                  ) : null}
+                  {onCreateTask ? (
+                    <button
+                      onClick={onCreateTask}
+                      className="gap-1 px-2 py-0.5 text-xs font-semibold flex cursor-pointer items-center rounded-md border border-border bg-surface text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    >
+                      <CheckSquare className="size-3 text-success" />
+                      <span>Create Task</span>
+                    </button>
+                  ) : null}
+                </>
+              ) : null}
+            </div>
+          ) : null}
+
+          {/* Discord Reactions Row */}
+          {message.reactions.length > 0 ? (
+            <ReactionBar
+              reactions={message.reactions}
+              onToggle={onReact ? (key) => onReact(key) : undefined}
+              addButton={
+                onReact ? (
+                  <ReactionPicker onSelect={onReact}>
+                    <button
+                      type="button"
+                      aria-label="Add a reaction"
+                      className={reactionAddButtonClass}
+                    >
+                      <SmilePlus className="size-4" aria-hidden="true" />
+                    </button>
+                  </ReactionPicker>
+                ) : null
+              }
+            />
+          ) : null}
+
+          {/* Thread replies summary */}
+          {threadReplyCount && threadReplyCount > 0 ? (
+            <div ref={threadSummaryRef} className="w-fit">
+              <ThreadRepliesButton
+                count={threadReplyCount}
+                hasUnread={threadHasUnread}
+                participants={threadParticipants}
+                lastReplyAt={lastReplyAt}
+                onOpen={onOpenThread}
               />
-            ) : null}
+            </div>
+          ) : null}
 
-            {attachmentSlot}
-          </>
-        )}
+          {/* Seen By / Read Receipts */}
+          {!isAgent &&
+          isOwn &&
+          showReadReceipt &&
+          message.readers &&
+          message.readers.length > 0 ? (
+            <div className="mt-1 flex items-center">
+              <SeenBy
+                readers={message.readers}
+                roomKind={roomKind}
+                isOwn={isOwn}
+              />
+            </div>
+          ) : null}
+        </div>
 
-        {/* In-Chat Action Bar for App, Doc, Task, Kanban, AI Agent */}
-        {isAgent || isApp || isDoc || isTask || isKanban ? (
-          <div className="mt-2 gap-1.5 pt-0.5 flex flex-wrap items-center">
-            {isTask || isKanban ? (
-              <>
-                {onAssignToMe ? (
-                  <button
-                    onClick={onAssignToMe}
-                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex cursor-pointer items-center rounded-md border border-border bg-surface text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  >
-                    <UserCheck className="size-3 text-primary" />
-                    <span>Assign to me</span>
-                  </button>
-                ) : null}
-                {onCreateTask ? (
-                  <button
-                    onClick={onCreateTask}
-                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex cursor-pointer items-center rounded-md border border-border bg-surface text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  >
-                    <CheckSquare className="size-3 text-success" />
-                    <span>Manage Task</span>
-                  </button>
-                ) : null}
-              </>
-            ) : null}
-
-            {isDoc ? (
-              <>
-                {onCreateDoc ? (
-                  <button
-                    onClick={onCreateDoc}
-                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex cursor-pointer items-center rounded-md border border-info/30 bg-info/10 text-info-text transition-colors hover:bg-info/20"
-                  >
-                    <FileText className="size-3 text-info-text" />
-                    <span>Open Document</span>
-                  </button>
-                ) : null}
-              </>
-            ) : null}
-
-            {isAgent ? (
-              <>
-                {onAskAI ? (
-                  <button
-                    onClick={onAskAI}
-                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex cursor-pointer items-center rounded-md border border-primary/30 bg-primary/10 text-primary-text transition-colors hover:bg-primary/20"
-                  >
-                    <Bot className="size-3 text-primary" />
-                    <span>Ask AI</span>
-                  </button>
-                ) : null}
-                {onCreateTask ? (
-                  <button
-                    onClick={onCreateTask}
-                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex cursor-pointer items-center rounded-md border border-border bg-surface text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  >
-                    <CheckSquare className="size-3 text-success" />
-                    <span>Create Task</span>
-                  </button>
-                ) : null}
-                {onCreateDoc ? (
-                  <button
-                    onClick={onCreateDoc}
-                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex cursor-pointer items-center rounded-md border border-border bg-surface text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  >
-                    <FileText className="size-3 text-info-text" />
-                    <span>Create Doc</span>
-                  </button>
-                ) : null}
-              </>
-            ) : null}
-
-            {isApp ? (
-              <>
-                {onOpenThread ? (
-                  <button
-                    onClick={onOpenThread}
-                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex cursor-pointer items-center rounded-md border border-accent-violet/30 bg-accent-violet/10 text-accent-violet transition-colors hover:bg-accent-violet/20"
-                  >
-                    <Reply className="size-3 text-accent-violet" />
-                    <span>Reply in Thread</span>
-                  </button>
-                ) : null}
-                {onCreateTask ? (
-                  <button
-                    onClick={onCreateTask}
-                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex cursor-pointer items-center rounded-md border border-border bg-surface text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  >
-                    <CheckSquare className="size-3 text-success" />
-                    <span>Create Task</span>
-                  </button>
-                ) : null}
-              </>
-            ) : null}
-          </div>
-        ) : null}
-
-        {/* Discord Reactions Row */}
-        {message.reactions.length > 0 ? (
-          <ReactionBar
-            reactions={message.reactions}
-            onToggle={onReact ? (key) => onReact(key) : undefined}
-            addButton={
-              onReact ? (
-                <ReactionPicker onSelect={onReact}>
-                  <button
-                    type="button"
-                    aria-label="Add a reaction"
-                    className={reactionAddButtonClass}
-                  >
-                    <SmilePlus className="size-4" aria-hidden="true" />
-                  </button>
-                </ReactionPicker>
-              ) : null
-            }
-          />
-        ) : null}
-
-        {/* Thread replies summary */}
-        {threadReplyCount && threadReplyCount > 0 ? (
-          <div ref={threadSummaryRef} className="w-fit">
-            <ThreadRepliesButton
-              count={threadReplyCount}
-              hasUnread={threadHasUnread}
-              participants={threadParticipants}
-              lastReplyAt={lastReplyAt}
-              onOpen={onOpenThread}
-            />
-          </div>
-        ) : null}
-
-        {/* Seen By / Read Receipts */}
-        {!isAgent && isOwn && showReadReceipt && message.readers && message.readers.length > 0 ? (
-          <div className="mt-1 flex items-center">
-            <SeenBy
-              readers={message.readers}
-              roomKind={roomKind}
-              isOwn={isOwn}
-            />
-          </div>
-        ) : null}
-      </div>
-
-      <MessageActionToolbar
-        isMenuOpen={isMenuOpen}
-        onMenuOpenChange={setIsMenuOpen}
-        isReactionOpen={isReactionOpen}
-        onReactionOpenChange={setIsReactionOpen}
-        actionsPinned={actionsPinned}
-        onPinnedChange={setActionsPinned}
-        onReact={onReact}
-        onOpenThread={onOpenThread}
-        onReply={onReply}
-        onForward={onForward}
-        onCopyLink={onCopyLink}
-        onToggleSave={onToggleSave}
-        isSaved={isSaved}
-        buildActions={() => buildActions('dropdown')}
-        entity={message}
-      />
-    </article>
+        <MessageActionToolbar
+          isMenuOpen={isMenuOpen}
+          onMenuOpenChange={setIsMenuOpen}
+          isReactionOpen={isReactionOpen}
+          onReactionOpenChange={setIsReactionOpen}
+          actionsPinned={actionsPinned}
+          onPinnedChange={setActionsPinned}
+          onReact={onReact}
+          onOpenThread={onOpenThread}
+          onForward={onForward}
+          onCopyLink={onCopyLink}
+          onToggleSave={onToggleSave}
+          isSaved={isSaved}
+          buildActions={() => buildActions('dropdown')}
+          entity={message}
+        />
+      </article>
     </EntityContextMenu>
   );
 }
@@ -1738,7 +1787,7 @@ export function DateSeparator({ timestamp, onJumpToDate }: DateSeparatorProps) {
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="gap-1.5 px-4 py-1.5 text-[13px] font-semibold flex cursor-pointer items-center rounded-full border border-border bg-surface text-foreground shadow-xs transition-colors hover:bg-accent hover:text-foreground"
+            className="gap-1.5 px-4 py-1.5 font-semibold flex cursor-pointer items-center rounded-full border border-border bg-surface text-[13px] text-foreground shadow-xs transition-colors hover:bg-accent hover:text-foreground"
           >
             <span>{label}</span>
             <ChevronDown className="size-3 text-muted-foreground" />
@@ -1793,8 +1842,10 @@ export function MessageToolbarShell({
       role="toolbar"
       aria-label="Message actions"
       className={cn(
-        '-top-4.5 right-4 p-1 gap-1 absolute z-20 items-center rounded-xl border border-border/80 bg-white dark:bg-surface-raised shadow-md transition-all duration-200 ease-out hover:shadow-lg animate-in fade-in-0 zoom-in-95',
-        visible ? 'flex' : 'hidden group-focus-within/message:flex group-hover/message:flex',
+        '-top-4.5 right-4 p-1 gap-1 bg-white ease-out animate-in fade-in-0 zoom-in-95 absolute z-20 items-center rounded-xl border border-border/80 shadow-md transition-all duration-200 hover:shadow-lg dark:bg-surface-raised',
+        visible
+          ? 'flex'
+          : 'hidden group-focus-within/message:flex group-hover/message:flex',
         className,
       )}
     >
@@ -1818,7 +1869,6 @@ export function MessageActionToolbar({
   onPinnedChange,
   onReact,
   onOpenThread,
-  onReply,
   onForward,
   onCopyLink,
   onToggleSave,
@@ -1834,7 +1884,6 @@ export function MessageActionToolbar({
   onPinnedChange: (pinned: boolean) => void;
   onReact?: (key: string) => void;
   onOpenThread?: () => void;
-  onReply?: () => void;
   onForward?: () => void;
   onCopyLink?: () => void;
   onToggleSave?: () => void;
@@ -1843,7 +1892,9 @@ export function MessageActionToolbar({
   entity: Message;
 }) {
   return (
-    <MessageToolbarShell visible={isMenuOpen || isReactionOpen || actionsPinned}>
+    <MessageToolbarShell
+      visible={isMenuOpen || isReactionOpen || actionsPinned}
+    >
       {onReact ? (
         <ReactionPicker
           onSelect={onReact}
@@ -1854,7 +1905,7 @@ export function MessageActionToolbar({
           }}
         >
           <button aria-label="Add a reaction" className={TOOLBAR_BTN}>
-            <Smile className="size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110 group-hover/btn:rotate-12" />
+            <Smile className="size-4.5 ease-out transition-transform duration-200 group-hover/btn:scale-110 group-hover/btn:rotate-12" />
           </button>
         </ReactionPicker>
       ) : null}
@@ -1869,26 +1920,13 @@ export function MessageActionToolbar({
             }}
             className={TOOLBAR_BTN}
           >
-            <MessageSquare className="size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110 group-hover/btn:-rotate-6" />
+            <MessageSquare className="size-4.5 ease-out transition-transform duration-200 group-hover/btn:scale-110 group-hover/btn:-rotate-6" />
           </button>
         </Hint>
       ) : null}
 
-      {onReply || onOpenThread ? (
-        <Hint label="Reply">
-          <button
-            aria-label="Reply"
-            onClick={() => {
-              (onReply ?? onOpenThread)?.();
-              onPinnedChange(false);
-            }}
-            className={TOOLBAR_BTN}
-          >
-            <Reply className="size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110 group-hover/btn:-translate-x-0.5" />
-          </button>
-        </Hint>
-      ) : null}
-
+      {/* Reply lives in the "⋯" menu: next to "Reply in thread", a second
+        reply arrow read as the same action twice. */}
       {onForward || onCopyLink ? (
         <Hint label="Forward message">
           <button
@@ -1899,7 +1937,7 @@ export function MessageActionToolbar({
             }}
             className={TOOLBAR_BTN}
           >
-            <Forward className="size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110 group-hover/btn:translate-x-0.5" />
+            <Forward className="size-4.5 ease-out group-hover/btn:translate-x-0.5 transition-transform duration-200 group-hover/btn:scale-110" />
           </button>
         </Hint>
       ) : null}
@@ -1914,7 +1952,7 @@ export function MessageActionToolbar({
           >
             <Bookmark
               className={cn(
-                'size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110',
+                'size-4.5 ease-out transition-transform duration-200 group-hover/btn:scale-110',
                 isSaved && 'fill-current',
               )}
             />
@@ -1936,9 +1974,12 @@ export function MessageActionToolbar({
         trigger={
           <button
             aria-label="More actions"
-            className={cn(TOOLBAR_BTN, isMenuOpen && 'bg-foreground/[0.06] text-foreground')}
+            className={cn(
+              TOOLBAR_BTN,
+              isMenuOpen && 'bg-foreground/[0.06] text-foreground',
+            )}
           >
-            <MoreHorizontal className="size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110" />
+            <MoreHorizontal className="size-4.5 ease-out transition-transform duration-200 group-hover/btn:scale-110" />
           </button>
         }
       />

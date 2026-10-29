@@ -2,8 +2,14 @@ import type { AIAgentMessageContent, Message } from '@org/types';
 import { TooltipProvider } from '@org/ui';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { AgentAvatarProvider, AppEntityProvider } from './agent-avatar-context.js';
-import { AppConnectProvider, type AppConnector } from './app-connect-context.js';
+import {
+  AgentAvatarProvider,
+  AppEntityProvider,
+} from './agent-avatar-context.js';
+import {
+  AppConnectProvider,
+  type AppConnector,
+} from './app-connect-context.js';
 import { AgentMessageCard } from './agent-message-card.js';
 
 function createMessage(overrides: Partial<Message> = {}): Message {
@@ -23,7 +29,9 @@ function createMessage(overrides: Partial<Message> = {}): Message {
   };
 }
 
-function createEvent(overrides: Partial<AIAgentMessageContent> = {}): AIAgentMessageContent {
+function createEvent(
+  overrides: Partial<AIAgentMessageContent> = {},
+): AIAgentMessageContent {
   return {
     type: 'mie.ai.agent',
     agentId: 'int-1',
@@ -49,7 +57,10 @@ describe('AgentMessageCard — connected app replies', () => {
 
     expect(screen.getByText('Asana')).toBeInTheDocument();
     expect(screen.queryByText('Asana · balram')).not.toBeInTheDocument();
-    expect(screen.getByText('balram')).toBeInTheDocument();
+    expect(screen.queryByText('balram')).not.toBeInTheDocument();
+    expect(
+      container.querySelector('[title="Connected as balram"]'),
+    ).toBeInTheDocument();
     expect(screen.getByText(/^app$/i)).toBeInTheDocument();
     expect(screen.queryByText(/^ai agent$/i)).not.toBeInTheDocument();
     expect(container.querySelector('img')?.getAttribute('src')).toBe(
@@ -68,11 +79,18 @@ describe('AgentMessageCard — connected app replies', () => {
     render(
       <TooltipProvider>
         <AgentAvatarProvider
-          value={({ id }) => (id === 'agent-1' ? { kind: 'agent', name: 'Release Captain' } : undefined)}
+          value={({ id }) =>
+            id === 'agent-1'
+              ? { kind: 'agent', name: 'Release Captain' }
+              : undefined
+          }
         >
           <AgentMessageCard
             message={createMessage({ senderName: 'Research Bot' })}
-            event={createEvent({ agentId: 'agent-1', agentName: 'Research Bot' })}
+            event={createEvent({
+              agentId: 'agent-1',
+              agentName: 'Research Bot',
+            })}
           />
         </AgentAvatarProvider>
       </TooltipProvider>,
@@ -88,20 +106,30 @@ describe('AgentMessageCard — connected app replies', () => {
         <AppEntityProvider
           value={({ id }) =>
             id === 'int-1'
-              ? { id: 'int-1', name: 'Team Asana', provider: 'asana', logoUrl: 'https://cdn.example/asana.png' }
+              ? {
+                  id: 'int-1',
+                  name: 'Team Asana',
+                  provider: 'asana',
+                  logoUrl: 'https://cdn.example/asana.png',
+                }
               : undefined
           }
         >
           <AgentMessageCard
             message={createMessage()}
-            event={createEvent({ agentName: 'Asana · balram', agentRole: 'App' })}
+            event={createEvent({
+              agentName: 'Asana · balram',
+              agentRole: 'App',
+            })}
           />
         </AppEntityProvider>
       </TooltipProvider>,
     );
 
     expect(screen.getByText('Team Asana')).toBeInTheDocument();
-    expect(container.querySelector('img')?.getAttribute('src')).toBe('https://cdn.example/asana.png');
+    expect(container.querySelector('img')?.getAttribute('src')).toBe(
+      'https://cdn.example/asana.png',
+    );
   });
 });
 
@@ -117,7 +145,11 @@ describe('AgentMessageCard — apps to connect', () => {
         <AppConnectProvider value={connector}>
           <AgentMessageCard
             message={createMessage({ senderName: 'Gmail PA' })}
-            event={createEvent({ agentId: 'agent-1', agentName: 'Gmail PA', connectionsNeeded: needs })}
+            event={createEvent({
+              agentId: 'agent-1',
+              agentName: 'Gmail PA',
+              connectionsNeeded: needs,
+            })}
             onRetry={onRetry}
           />
         </AppConnectProvider>
@@ -133,7 +165,9 @@ describe('AgentMessageCard — apps to connect', () => {
     expect(screen.getByText('Reconnect Slack')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^connect$/i }));
     await waitFor(() => expect(connect).toHaveBeenCalledWith('GMAIL', 'Gmail'));
-    expect(screen.getByRole('button', { name: /^reconnect$/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /^reconnect$/i }),
+    ).toBeInTheDocument();
   });
 
   it('turns into "connected" with Ask again once every app is connected', () => {
@@ -141,7 +175,9 @@ describe('AgentMessageCard — apps to connect', () => {
     renderWith({ connect: vi.fn(), isConnected: () => true }, onRetry);
 
     expect(screen.getByText('Gmail connected')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^connect$/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /^connect$/i }),
+    ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /ask again/i }));
     expect(onRetry).toHaveBeenCalled();
   });

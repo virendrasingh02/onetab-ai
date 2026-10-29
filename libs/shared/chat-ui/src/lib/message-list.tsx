@@ -133,7 +133,11 @@ export function buildRows(
   const pushEphemeral = (items: TimelineEphemeralItem[] | undefined) => {
     if (!items) return;
     for (const item of items) {
-      rows.push({ kind: 'ephemeral', key: `ephemeral-${item.id}`, id: item.id });
+      rows.push({
+        kind: 'ephemeral',
+        key: `ephemeral-${item.id}`,
+        id: item.id,
+      });
       breakGroup = true;
     }
   };
@@ -468,7 +472,9 @@ export function MessageList({
    * restore, StrictMode re-running mount effects) lands here instead of the
    * saved position or the bottom. Cleared once the reader scrolls themselves.
    */
-  const jumpTarget = useRef<{ conversationId: string; key: string } | null>(null);
+  const jumpTarget = useRef<{ conversationId: string; key: string } | null>(
+    null,
+  );
   /** True while we move the scrollbar ourselves — makes `onScroll` stand down. */
   const adjusting = useRef(false);
   const settleRaf = useRef<number | null>(null);
@@ -699,8 +705,7 @@ export function MessageList({
         }
         adjusting.current = true;
         const height = element.scrollHeight;
-        const atBottom =
-          height - element.scrollTop - element.clientHeight < 1;
+        const atBottom = height - element.scrollTop - element.clientHeight < 1;
         stable = atBottom && height === lastHeight ? stable + 1 : 0;
         lastHeight = height;
         element.scrollTop = height;
@@ -788,7 +793,8 @@ export function MessageList({
       setNewMessagesCount(0);
       if (settleRaf.current != null) cancelAnimationFrame(settleRaf.current);
       virtualizer.scrollToIndex(index, { align: 'center' });
-      if (conversationId) jumpTarget.current = { conversationId, key: messageId };
+      if (conversationId)
+        jumpTarget.current = { conversationId, key: messageId };
       pendingAnchor.current = {
         key: rowsRef.current[index].key,
         offset: Math.round(element.clientHeight / 3),
@@ -944,10 +950,7 @@ export function MessageList({
       reportFollowing(atBottom);
       if (atBottom) setNewMessagesCount(0);
 
-      if (
-        conversationId &&
-        restorePendingFor.current !== conversationId
-      ) {
+      if (conversationId && restorePendingFor.current !== conversationId) {
         const anchor = captureAnchor();
         const next: ScrollAnchor = { ...anchor, atBottom };
         setScrollAnchor(conversationId, next);
@@ -964,11 +967,20 @@ export function MessageList({
       }
 
       // Viewport-based read detection: find the highest visible message row
-      if (onVisibleMessageRead && typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        if (readTimeoutRef.current != null) clearTimeout(readTimeoutRef.current);
+      if (
+        onVisibleMessageRead &&
+        typeof document !== 'undefined' &&
+        document.visibilityState === 'visible'
+      ) {
+        if (readTimeoutRef.current != null)
+          clearTimeout(readTimeoutRef.current);
         readTimeoutRef.current = setTimeout(() => {
           readTimeoutRef.current = null;
-          if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+          if (
+            typeof document !== 'undefined' &&
+            document.visibilityState !== 'visible'
+          )
+            return;
           const vItems = virtualizer.getVirtualItems();
           if (!vItems.length) return;
           const currentRows = rowsRef.current;
@@ -1097,11 +1109,7 @@ export function MessageList({
 
     const saved =
       openPosition === 'newest' ? undefined : getScrollAnchor(conversationId);
-    if (
-      saved &&
-      !saved.atBottom &&
-      rows.some((row) => row.key === saved.key)
-    ) {
+    if (saved && !saved.atBottom && rows.some((row) => row.key === saved.key)) {
       stickToBottom.current = false;
       reportFollowing(false);
       pendingAnchor.current = {
@@ -1258,7 +1266,7 @@ export function MessageList({
   if (!isLoading && messages.length === 0) {
     return introSlot ? (
       <ScrollArea
-        className={cn('h-full min-h-0 flex-1', className)}
+        className={cn('min-h-0 h-full flex-1', className)}
         contentClassName="flex flex-col justify-end"
       >
         {introSlot}
@@ -1274,13 +1282,13 @@ export function MessageList({
   }
 
   return (
-    <div className="relative min-h-0 flex flex-1 flex-col overflow-hidden">
+    <div className="min-h-0 relative flex flex-1 flex-col overflow-hidden">
       <ScrollArea
         className={cn(
           // `h-full`, not just `flex-1`: SimpleBar's wrapper inherits the
           // root's *specified* height, so without it the viewport shrinks to
           // its content and a short conversation can't sit at the bottom.
-          'h-full min-h-0 flex-1',
+          'min-h-0 h-full flex-1',
           density === 'compact' ? 'chat-density-compact' : 'chat-density-comfy',
           className,
         )}
@@ -1312,7 +1320,7 @@ export function MessageList({
         )}
 
         {hasMore || isLoadingOlder ? (
-          <div className="h-11 shrink-0 flex items-center justify-center">
+          <div className="h-11 flex shrink-0 items-center justify-center">
             {isLoadingOlder ? (
               <Spinner label="Loading earlier messages" />
             ) : null}
@@ -1328,7 +1336,7 @@ export function MessageList({
           a full-page spinner (see `ChatPanel`).
         */}
         {isLoading && rows.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center py-16">
+          <div className="py-16 flex flex-1 items-center justify-center">
             <Spinner label="Loading messages…" />
           </div>
         ) : null}
@@ -1383,7 +1391,7 @@ export function MessageList({
       */}
       {newMessagesCount > 0 ? (
         <div
-          className="top-2 inset-x-3 absolute z-50 pointer-events-none animate-in fade-in slide-in-from-top-1 duration-200"
+          className="top-2 inset-x-3 animate-in fade-in slide-in-from-top-1 pointer-events-none absolute z-50 duration-200"
           role="status"
         >
           {/* Opaque card (not a translucent strip) so message content and the
@@ -1392,7 +1400,7 @@ export function MessageList({
             <button
               type="button"
               onClick={scrollToBottom}
-              className="gap-2 h-full min-w-0 flex-1 flex items-center text-left"
+              className="gap-2 min-w-0 flex h-full flex-1 items-center text-left"
             >
               <span
                 className="size-1.5 shrink-0 rounded-full bg-primary"
@@ -1409,7 +1417,7 @@ export function MessageList({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 shrink-0 px-2 text-xs text-primary-text hover:bg-primary/10"
+                className="h-6 px-2 text-xs shrink-0 text-primary-text hover:bg-primary/10"
                 onClick={() => {
                   onMarkRead();
                   setNewMessagesCount(0);
@@ -1426,11 +1434,12 @@ export function MessageList({
         The current day's divider, floating at the top of the viewport. The
         inline `DateSeparator` rows still scroll past normally underneath — this
         is the one that stays put, and `shift` lifts it out of the way as the
-        next day's inline divider arrives at the top.
+        next day's inline divider arrives at the top. A fade sits behind it so
+        text slides out underneath instead of the chip cutting a line in half.
       */}
       {floatingDay ? (
         <div
-          className="top-0 inset-x-0 absolute z-20 flex justify-center overflow-hidden pointer-events-none pb-2"
+          className="top-0 inset-x-0 pb-3 pointer-events-none absolute z-20 flex justify-center overflow-hidden bg-gradient-to-b from-background via-background/85 to-transparent"
           style={
             newMessagesCount > 0
               ? { transform: `translateY(${NEW_MESSAGES_BAR_HEIGHT}px)` }
@@ -1480,7 +1489,7 @@ export function MessageList({
       */}
       {connectionState ? (
         <div
-          className="top-0 inset-x-0 absolute z-30 flex justify-center pt-2 pointer-events-none"
+          className="top-0 inset-x-0 pt-2 pointer-events-none absolute z-30 flex justify-center"
           style={
             newMessagesCount > 0
               ? { transform: `translateY(${NEW_MESSAGES_BAR_HEIGHT}px)` }
@@ -1493,12 +1502,12 @@ export function MessageList({
 
       {/* Floating jump-to-latest pill, with the faces of who you missed. */}
       {newMessagesCount > 0 ? (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 pointer-events-auto animate-in fade-in slide-in-from-bottom-2 duration-200">
+        <div className="bottom-3 animate-in fade-in slide-in-from-bottom-2 pointer-events-auto absolute left-1/2 z-30 -translate-x-1/2 duration-200">
           <Button
             variant="primary"
             size="sm"
             onClick={scrollToBottom}
-            className="rounded-full shadow-lg gap-2 py-1 pl-2 pr-3.5 h-8 text-xs font-semibold"
+            className="gap-2 py-1 pl-2 pr-3.5 h-8 text-xs font-semibold rounded-full shadow-lg"
             aria-label={`Jump to ${newMessagesCount} new messages`}
           >
             {newSenders.length > 0 ? (
@@ -1524,7 +1533,7 @@ export function MessageList({
       <div
         aria-live="polite"
         className={cn(
-          'absolute left-1/2 -translate-x-1/2 z-30 pointer-events-auto',
+          'pointer-events-auto absolute left-1/2 z-30 -translate-x-1/2',
           newMessagesCount > 0 ? 'bottom-14' : 'bottom-3',
         )}
       >

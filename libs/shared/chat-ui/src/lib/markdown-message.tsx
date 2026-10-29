@@ -2,8 +2,21 @@ import { useAuthenticatedMediaSrc } from '@org/hooks';
 import { CodeBlock, useRightPanelStore, type RightPanelProfile } from '@org/ui';
 import { toPlatformUserId } from '@org/types';
 import { cn } from '@org/utils';
-import { CheckSquare, ChevronDown, ChevronUp, ChevronsUpDown, Link2, Square } from 'lucide-react';
-import { Fragment, useCallback, useMemo, useState, type ReactNode } from 'react';
+import {
+  CheckSquare,
+  ChevronDown,
+  ChevronUp,
+  ChevronsUpDown,
+  Link2,
+  Square,
+} from 'lucide-react';
+import {
+  Fragment,
+  useCallback,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 
 import { compactBlankLineCount } from './blank-lines.js';
 import { LinkHoverCard } from './link-hover-card.js';
@@ -43,27 +56,27 @@ function MarkdownImage({ src, alt }: { src: string; alt: string }) {
       src={resolvedSrc ?? undefined}
       alt={alt}
       loading="lazy"
-      className="my-1 block max-h-72 max-w-full rounded-lg border border-border"
+      className="my-1 max-h-72 block max-w-full rounded-lg border border-border"
     />
   );
 }
 
 const INLINE_PATTERN_SOURCE = [
-    // A backslash-escaped punctuation mark is that mark, literally. Text pasted
-    // from other markdown tools arrives like `ERR\_CONNECTION\_REFUSED`.
-    '(?<escape>\\\\[\\\\`*_{}\\[\\]()#+\\-.!|~=<>@])',
-    '(?<code>`[^`\\n]+`)',
-    '(?<image>!\\[[^\\]]*\\]\\([^\\s)]+\\))',
-    // The target may be empty (`[label]()`) — pastes carry those too.
-    '(?<link>\\[[^\\]]*\\]\\([^\\s)]*\\))',
-    '(?<bolditalic>\\*\\*\\*[^*\\n]+\\*\\*\\*)',
-    '(?<bold>\\*\\*[^*\\n]+\\*\\*|__[^_\\n]+__)',
-    '(?<italic>\\*[^*\\n]+\\*|_[^_\\n]+_)',
-    '(?<strike>~~[^~\\n]+~~)',
-    '(?<highlight>==[^=\\n]+==)',
-    '(?<url>(?:https?://|www\\.|meet\\.google\\.com/)[^\\s<>()]+)',
-    '(?<mention>@[A-Za-z0-9][A-Za-z0-9._-]*)',
-    '(?<hashtag>#[A-Za-z][A-Za-z0-9_-]*)',
+  // A backslash-escaped punctuation mark is that mark, literally. Text pasted
+  // from other markdown tools arrives like `ERR\_CONNECTION\_REFUSED`.
+  '(?<escape>\\\\[\\\\`*_{}\\[\\]()#+\\-.!|~=<>@])',
+  '(?<code>`[^`\\n]+`)',
+  '(?<image>!\\[[^\\]]*\\]\\([^\\s)]+\\))',
+  // The target may be empty (`[label]()`) — pastes carry those too.
+  '(?<link>\\[[^\\]]*\\]\\([^\\s)]*\\))',
+  '(?<bolditalic>\\*\\*\\*[^*\\n]+\\*\\*\\*)',
+  '(?<bold>\\*\\*[^*\\n]+\\*\\*|__[^_\\n]+__)',
+  '(?<italic>\\*[^*\\n]+\\*|_[^_\\n]+_)',
+  '(?<strike>~~[^~\\n]+~~)',
+  '(?<highlight>==[^=\\n]+==)',
+  '(?<url>(?:https?://|www\\.|meet\\.google\\.com/)[^\\s<>()]+)',
+  '(?<mention>@[A-Za-z0-9][A-Za-z0-9._-]*)',
+  '(?<hashtag>#[A-Za-z][A-Za-z0-9_-]*)',
 ].join('|');
 
 const GROUP_MENTIONS = new Set(['@here', '@channel', '@everyone']);
@@ -112,6 +125,8 @@ type InlineOptions = {
    * right profile. Undefined when the handle matches nobody on the roster.
    */
   resolveMention?: (handle: string) => string | undefined;
+  /** Lower-cased names of connected apps, which may carry an account suffix. */
+  appNames?: Set<string>;
   /** Link hover cards also fetch the page's title/description/thumbnail. */
   enrichLinks?: boolean;
   /** Rendering a link's label: nested links/mentions/tags stay plain text. */
@@ -134,22 +149,26 @@ const CHIP_BASE_CLASS =
 
 const LINK_CHIP_CLASS = cn(
   CHIP_BASE_CLASS,
-  'bg-info/10 text-info-text no-underline [overflow-wrap:anywhere] [&_strong]:text-inherit [&_span]:text-inherit',
+  'bg-info/10 [overflow-wrap:anywhere] text-info-text no-underline [&_span]:text-inherit [&_strong]:text-inherit',
   'hover:bg-info/20 hover:no-underline',
-  'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-info',
+  'focus-visible:ring-1 focus-visible:ring-info focus-visible:outline-none',
 );
 
 /** Sized in `em` so it scales with the message text instead of a fixed px. */
-const CHIP_ICON_CLASS = 'mr-[0.25em] inline-block size-[0.95em] -translate-y-px align-middle';
+const CHIP_ICON_CLASS =
+  'mr-[0.25em] inline-block size-[0.95em] -translate-y-px align-middle';
 
 const MENTION_CHIP_CLASS = cn(
   CHIP_BASE_CLASS,
   'cursor-pointer bg-primary/15 text-primary-text',
   'hover:bg-primary/25',
-  'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary',
+  'focus-visible:ring-1 focus-visible:ring-primary focus-visible:outline-none',
 );
 
-const GROUP_MENTION_CHIP_CLASS = cn(CHIP_BASE_CLASS, 'bg-warning/20 text-foreground');
+const GROUP_MENTION_CHIP_CLASS = cn(
+  CHIP_BASE_CLASS,
+  'bg-warning/20 text-foreground',
+);
 
 const HASHTAG_CHIP_CLASS = cn(CHIP_BASE_CLASS, 'bg-info/10 text-info-text');
 
@@ -177,15 +196,26 @@ function renderInline(
     const token = match[0];
     const key = `${keyPrefix}-${match.index}`;
 
-    // Emphasis marked with underscores only counts between word boundaries,
-    // so identifiers like `user_id_field` stay intact.
-    if (
-      (groups['italic'] || groups['bold']) &&
-      token.startsWith('_') &&
-      (isWordCharacter(text[match.index - 1]) ||
-        isWordCharacter(text[match.index + token.length]))
-    ) {
-      continue;
+    // Emphasis only counts on word boundaries (Slack-style), with no space just
+    // inside the markers — so `user_id_field`, `a*b` and a stray `*` pasted
+    // mid-word stay literal instead of styling the rest of the line. A
+    // rejected match retries one character on, so a valid span inside it can
+    // still be found.
+    if (groups['bolditalic'] || groups['bold'] || groups['italic']) {
+      const marker = token[0];
+      const before = text[match.index - 1];
+      const after = text[match.index + token.length];
+      const inner = token.replace(/^[*_]+|[*_]+$/g, '');
+      if (
+        isWordCharacter(before) ||
+        before === marker ||
+        isWordCharacter(after) ||
+        after === marker ||
+        /^\s|\s$/.test(inner)
+      ) {
+        pattern.lastIndex = match.index + 1;
+        continue;
+      }
     }
 
     if (match.index > lastIndex) {
@@ -195,7 +225,10 @@ function renderInline(
 
     if (
       options.inLink &&
-      (groups['link'] || groups['url'] || groups['mention'] || groups['hashtag'])
+      (groups['link'] ||
+        groups['url'] ||
+        groups['mention'] ||
+        groups['hashtag'])
     ) {
       // An anchor can't hold another anchor or a clickable chip.
       nodes.push(token);
@@ -203,11 +236,7 @@ function renderInline(
       nodes.push(token.slice(1));
     } else if (groups['code']) {
       nodes.push(
-        <CodeBlock
-          key={key}
-          variant="inline"
-          code={token.slice(1, -1)}
-        />,
+        <CodeBlock key={key} variant="inline" code={token.slice(1, -1)} />,
       );
     } else if (groups['image']) {
       const parsed = /^!\[([^\]]*)\]\(([^\s)]+)\)$/.exec(token);
@@ -237,7 +266,9 @@ function renderInline(
             enrich={options.enrichLinks}
           >
             <Link2 className={CHIP_ICON_CLASS} aria-hidden="true" />
-            {label ? renderInline(label, key, linkLabelOptions(options), depth + 1) : display}
+            {label
+              ? renderInline(label, key, linkLabelOptions(options), depth + 1)
+              : display}
           </LinkHoverCard>
         ) : (
           // Nowhere safe to go (empty, relative, `javascript:`…): keep the
@@ -249,7 +280,7 @@ function renderInline(
       );
     } else if (groups['bolditalic']) {
       nodes.push(
-        <strong key={key} className="font-bold italic text-foreground">
+        <strong key={key} className="font-bold text-foreground italic">
           {renderInline(token.slice(3, -3), key, options, depth + 1)}
         </strong>,
       );
@@ -273,7 +304,10 @@ function renderInline(
       );
     } else if (groups['highlight']) {
       nodes.push(
-        <mark key={key} className="rounded-md bg-warning/25 px-0.5 text-foreground">
+        <mark
+          key={key}
+          className="px-0.5 rounded-md bg-warning/25 text-foreground"
+        >
           {renderInline(token.slice(2, -2), key, options, depth + 1)}
         </mark>,
       );
@@ -290,7 +324,11 @@ function renderInline(
       nodes.push(
         href ? (
           <Fragment key={key}>
-            <LinkHoverCard href={href} className={LINK_CHIP_CLASS} enrich={options.enrichLinks}>
+            <LinkHoverCard
+              href={href}
+              className={LINK_CHIP_CLASS}
+              enrich={options.enrichLinks}
+            >
               <Link2 className={CHIP_ICON_CLASS} aria-hidden="true" />
               {display}
             </LinkHoverCard>
@@ -317,6 +355,19 @@ function renderInline(
       }
       const resolved = options.resolveMention?.(typed.slice(1));
       const mention = resolved ? `@${resolved}` : typed;
+
+      // Older app mentions were sent with the connection's account appended
+      // (`@Asana · balram`). Keep the chip as the app and move the account to
+      // its tooltip, so the label doesn't read as part of the sentence.
+      let accountLabel: string | undefined;
+      if (options.appNames?.has(mention.slice(1).toLowerCase())) {
+        const suffix = /^ · ([^\s·]+)/.exec(text.slice(lastIndex));
+        if (suffix) {
+          accountLabel = suffix[1];
+          lastIndex += suffix[0].length;
+          pattern.lastIndex = lastIndex;
+        }
+      }
 
       const isGroupMention = GROUP_MENTIONS.has(mention.toLowerCase());
       nodes.push(
@@ -345,7 +396,11 @@ function renderInline(
                 options.onMentionClick?.(mention);
               }
             }}
-            title={`View profile for ${mention}`}
+            title={
+              accountLabel
+                ? `${mention} · connected as ${accountLabel}`
+                : `View profile for ${mention}`
+            }
             className={MENTION_CHIP_CLASS}
           >
             {mention}
@@ -434,7 +489,10 @@ function renderBlocks(markdown: string, options: InlineOptions): ReactNode[] {
     }
 
     // Fenced code block — handles optional language, filename metadata, and unclosed streaming blocks.
-    const fence = /^```([A-Za-z0-9_#+.-]+)?(?:\s+(?:filename=|title=)?["']?([^"'\n]+)["']?)?\s*$/.exec(trimmed);
+    const fence =
+      /^```([A-Za-z0-9_#+.-]+)?(?:\s+(?:filename=|title=)?["']?([^"'\n]+)["']?)?\s*$/.exec(
+        trimmed,
+      );
     if (fence) {
       let rawLang = fence[1] || '';
       let filename = fence[2] || undefined;
@@ -496,7 +554,10 @@ function renderBlocks(markdown: string, options: InlineOptions): ReactNode[] {
       const header = splitTableRow(trimmed);
       const rows: string[][] = [];
       index += 2;
-      while (index < lines.length && TABLE_ROW_PATTERN.test(lines[index].trim())) {
+      while (
+        index < lines.length &&
+        TABLE_ROW_PATTERN.test(lines[index].trim())
+      ) {
         rows.push(splitTableRow(lines[index].trim()));
         index += 1;
       }
@@ -505,7 +566,9 @@ function renderBlocks(markdown: string, options: InlineOptions): ReactNode[] {
           key={`table-${index}`}
           header={header}
           rows={rows}
-          renderCell={(cell, id) => renderInline(cell, `${id}-${index}`, options)}
+          renderCell={(cell, id) =>
+            renderInline(cell, `${id}-${index}`, options)
+          }
         />,
       );
       continue;
@@ -523,14 +586,16 @@ function renderBlocks(markdown: string, options: InlineOptions): ReactNode[] {
       blocks.push(
         <ul key={`tasks-${index}`} className="my-1 space-y-0.5">
           {items.map((item, itemIndex) => (
-            <li key={itemIndex} className="flex items-start gap-2">
+            <li key={itemIndex} className="gap-2 flex items-start">
               {item.checked ? (
                 <CheckSquare className="mt-1 size-3.5 shrink-0 text-success-text" />
               ) : (
                 <Square className="mt-1 size-3.5 shrink-0 text-muted-foreground" />
               )}
               <span
-                className={cn(item.checked && 'text-muted-foreground line-through')}
+                className={cn(
+                  item.checked && 'text-muted-foreground line-through',
+                )}
               >
                 {renderInline(item.text, `task-${index}-${itemIndex}`, options)}
               </span>
@@ -550,9 +615,11 @@ function renderBlocks(markdown: string, options: InlineOptions): ReactNode[] {
         index += 1;
       }
       blocks.push(
-        <ul key={`ul-${index}`} className="my-1 list-disc space-y-0.5 pl-5">
+        <ul key={`ul-${index}`} className="my-1 space-y-0.5 pl-5 list-disc">
           {items.map((item, itemIndex) => (
-            <li key={itemIndex}>{renderInline(item, `ul-${index}-${itemIndex}`, options)}</li>
+            <li key={itemIndex}>
+              {renderInline(item, `ul-${index}-${itemIndex}`, options)}
+            </li>
           ))}
         </ul>,
       );
@@ -572,10 +639,12 @@ function renderBlocks(markdown: string, options: InlineOptions): ReactNode[] {
         <ol
           key={`ol-${index}`}
           start={start}
-          className="my-1 list-decimal space-y-0.5 pl-5"
+          className="my-1 space-y-0.5 pl-5 list-decimal"
         >
           {items.map((item, itemIndex) => (
-            <li key={itemIndex}>{renderInline(item, `ol-${index}-${itemIndex}`, options)}</li>
+            <li key={itemIndex}>
+              {renderInline(item, `ol-${index}-${itemIndex}`, options)}
+            </li>
           ))}
         </ol>,
       );
@@ -593,10 +662,12 @@ function renderBlocks(markdown: string, options: InlineOptions): ReactNode[] {
       blocks.push(
         <blockquote
           key={`quote-${index}`}
-          className="my-1 rounded-r border-l-4 border-primary bg-surface-inset/60 py-1 pl-3 italic"
+          className="my-1 rounded-r py-1 pl-3 border-l-4 border-primary bg-surface-inset/60 italic"
         >
           {quoted.map((quotedLine, lineIndex) => (
-            <p key={lineIndex}>{renderInline(quotedLine, `q-${index}-${lineIndex}`, options)}</p>
+            <p key={lineIndex}>
+              {renderInline(quotedLine, `q-${index}-${lineIndex}`, options)}
+            </p>
           ))}
         </blockquote>,
       );
@@ -624,7 +695,7 @@ function renderBlocks(markdown: string, options: InlineOptions): ReactNode[] {
     }
 
     blocks.push(
-      <p key={`p-${index}`} className="whitespace-pre-wrap break-words">
+      <p key={`p-${index}`} className="break-words whitespace-pre-wrap">
         {paragraph.map((paragraphLine, lineIndex) => (
           <Fragment key={lineIndex}>
             {lineIndex > 0 ? <br /> : null}
@@ -735,7 +806,10 @@ export function MarkdownMessage({
     }
     const refByLabel = new Map<string, string>();
     for (const ref of mentionRefs ?? []) {
-      refByLabel.set(ref.label.trim().toLowerCase(), toPlatformUserId(ref.userId));
+      refByLabel.set(
+        ref.label.trim().toLowerCase(),
+        toPlatformUserId(ref.userId),
+      );
     }
     const aliasToId = new Map<string, string>();
     for (const a of aliases) {
@@ -763,18 +837,32 @@ export function MarkdownMessage({
         }
       : undefined;
 
+    const appNames = new Set(
+      Object.values(mentionProfiles ?? {})
+        .filter((p) => p.entityKind === 'app' && p.name)
+        .map((p) => p.name.trim().toLowerCase()),
+    );
+
     return {
       mentionNames: cleaned,
       onMentionClick: handleMentionClick,
       resolveMention,
+      appNames,
       enrichLinks,
     };
-  }, [mentionNames, mentionProfiles, mentionRefs, aliases, handleMentionClick, enrichLinks]);
+  }, [
+    mentionNames,
+    mentionProfiles,
+    mentionRefs,
+    aliases,
+    handleMentionClick,
+    enrichLinks,
+  ]);
 
   return (
     <div
       className={cn(
-        'space-y-1 text-message text-foreground break-words',
+        'space-y-1 text-message break-words text-foreground',
         className,
       )}
     >
@@ -789,7 +877,12 @@ const TABLE_COLLAPSED_ROWS = 10;
 function compareCells(a: string, b: string): number {
   const na = Number(a.replace(/[,$%\s]/g, ''));
   const nb = Number(b.replace(/[,$%\s]/g, ''));
-  if (a.trim() !== '' && b.trim() !== '' && !Number.isNaN(na) && !Number.isNaN(nb)) {
+  if (
+    a.trim() !== '' &&
+    b.trim() !== '' &&
+    !Number.isNaN(na) &&
+    !Number.isNaN(nb)
+  ) {
     return na - nb;
   }
   return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
@@ -809,17 +902,22 @@ function MarkdownTable({
   rows: string[][];
   renderCell: (cell: string, id: string) => ReactNode;
 }) {
-  const [sort, setSort] = useState<{ col: number; dir: 'asc' | 'desc' } | null>(null);
+  const [sort, setSort] = useState<{ col: number; dir: 'asc' | 'desc' } | null>(
+    null,
+  );
   const [expanded, setExpanded] = useState(false);
 
   const sorted = useMemo(() => {
     if (!sort) return rows;
     const factor = sort.dir === 'asc' ? 1 : -1;
-    return [...rows].sort((a, b) => factor * compareCells(a[sort.col] ?? '', b[sort.col] ?? ''));
+    return [...rows].sort(
+      (a, b) => factor * compareCells(a[sort.col] ?? '', b[sort.col] ?? ''),
+    );
   }, [rows, sort]);
 
   const collapsible = sorted.length > TABLE_COLLAPSED_ROWS;
-  const visible = collapsible && !expanded ? sorted.slice(0, TABLE_COLLAPSED_ROWS) : sorted;
+  const visible =
+    collapsible && !expanded ? sorted.slice(0, TABLE_COLLAPSED_ROWS) : sorted;
 
   const toggleSort = (col: number) =>
     setSort((prev) =>
@@ -833,29 +931,41 @@ function MarkdownTable({
   return (
     <div className="my-2 overflow-hidden rounded-xl border border-border bg-surface">
       <div className={cn('overflow-auto', expanded && 'max-h-[28rem]')}>
-        <table className="w-full min-w-max border-collapse text-sm">
-          <thead className="sticky top-0 z-10">
+        <table className="text-sm w-full min-w-max border-collapse">
+          <thead className="top-0 sticky z-10">
             <tr className="bg-surface-inset">
               {header.map((cell, col) => {
                 const active = sort?.col === col;
-                const Icon = !active ? ChevronsUpDown : sort.dir === 'asc' ? ChevronUp : ChevronDown;
+                const Icon = !active
+                  ? ChevronsUpDown
+                  : sort.dir === 'asc'
+                    ? ChevronUp
+                    : ChevronDown;
                 return (
                   <th
                     key={col}
                     scope="col"
-                    aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
-                    className="border-b border-border p-0 text-left"
+                    aria-sort={
+                      active
+                        ? sort.dir === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : 'none'
+                    }
+                    className="p-0 border-b border-border text-left"
                   >
                     <button
                       type="button"
                       onClick={() => toggleSort(col)}
-                      className="group/th flex w-full items-center gap-1 whitespace-nowrap px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
+                      className="group/th gap-1 px-3 py-2 text-xs font-semibold tracking-wide flex w-full items-center text-left whitespace-nowrap text-muted-foreground uppercase transition-colors hover:text-foreground"
                     >
                       {renderCell(cell, `th-${col}`)}
                       <Icon
                         className={cn(
                           'size-3 shrink-0',
-                          active ? 'text-primary' : 'opacity-0 group-hover/th:opacity-60',
+                          active
+                            ? 'text-primary'
+                            : 'opacity-0 group-hover/th:opacity-60',
                         )}
                         aria-hidden
                       />
@@ -874,7 +984,7 @@ function MarkdownTable({
                 {header.map((_, col) => (
                   <td
                     key={col}
-                    className="max-w-[28rem] px-3 py-2 align-top text-foreground [overflow-wrap:anywhere]"
+                    className="px-3 py-2 max-w-[28rem] align-top [overflow-wrap:anywhere] text-foreground"
                   >
                     {renderCell(row[col] ?? '', `td-${rowIndex}-${col}`)}
                   </td>
@@ -885,9 +995,11 @@ function MarkdownTable({
         </table>
       </div>
       {collapsible && (
-        <div className="flex items-center justify-between border-t border-border bg-surface-inset px-3 py-1.5 text-xs text-muted-foreground">
+        <div className="px-3 py-1.5 text-xs flex items-center justify-between border-t border-border bg-surface-inset text-muted-foreground">
           <span>
-            {expanded ? `${sorted.length} rows` : `Showing ${visible.length} of ${sorted.length} rows`}
+            {expanded
+              ? `${sorted.length} rows`
+              : `Showing ${visible.length} of ${sorted.length} rows`}
           </span>
           <button
             type="button"

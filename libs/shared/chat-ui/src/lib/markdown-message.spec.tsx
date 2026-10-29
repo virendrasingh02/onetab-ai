@@ -7,7 +7,9 @@ import { MentionAliasesProvider } from './mention-aliases.js';
 describe('MarkdownMessage', () => {
   it('renders every heading level at the message size', () => {
     const { container } = render(
-      <MarkdownMessage text={'# This site can’t be reached\n###### Small print'} />,
+      <MarkdownMessage
+        text={'# This site can’t be reached\n###### Small print'}
+      />,
     );
 
     expect(container.firstElementChild).toHaveClass('text-message');
@@ -18,7 +20,9 @@ describe('MarkdownMessage', () => {
   });
 
   it('shows backslash-escaped punctuation as the literal character', () => {
-    render(<MarkdownMessage text={'ERR\\_CONNECTION\\_REFUSED and \\*stars\\*'} />);
+    render(
+      <MarkdownMessage text={'ERR\\_CONNECTION\\_REFUSED and \\*stars\\*'} />,
+    );
 
     expect(
       screen.getByText('ERR_CONNECTION_REFUSED and *stars*', {
@@ -52,7 +56,9 @@ describe('MarkdownMessage', () => {
     const user = userEvent.setup();
     render(
       <MarkdownMessage
-        text={'[url](https://files.example.com/clip.mp4) and https://example.com/page'}
+        text={
+          '[url](https://files.example.com/clip.mp4) and https://example.com/page'
+        }
       />,
     );
 
@@ -62,13 +68,17 @@ describe('MarkdownMessage', () => {
     await user.unhover(screen.getByRole('link', { name: 'url' }));
 
     await user.hover(screen.getByRole('link', { name: 'example.com/page' }));
-    expect(await screen.findByRole('button', { name: 'Copy link' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: 'Copy link' }),
+    ).toBeInTheDocument();
   });
 
   it('renders fenced code blocks with unified CodeBlock and language header', () => {
     render(
       <MarkdownMessage
-        text={'```typescript filename="config.ts"\nconst port: number = 8080;\n```'}
+        text={
+          '```typescript filename="config.ts"\nconst port: number = 8080;\n```'
+        }
       />,
     );
 
@@ -104,7 +114,9 @@ describe('MarkdownMessage', () => {
 
     const mentionChip = container.querySelector('span[data-mention]');
     expect(mentionChip).toBeInTheDocument();
-    expect(mentionChip?.getAttribute('data-mention')).toBe('Code Reviewer & Security Sentinel');
+    expect(mentionChip?.getAttribute('data-mention')).toBe(
+      'Code Reviewer & Security Sentinel',
+    );
     expect(mentionChip?.textContent).toBe('@Code Reviewer & Security Sentinel');
     expect(container.textContent).toContain('hi');
     expect(container.textContent).toContain('give me list');
@@ -112,28 +124,42 @@ describe('MarkdownMessage', () => {
 
   it('automatically recognizes default AI agent names even if mentionNames is omitted', () => {
     const { container } = render(
-      <MarkdownMessage text={'Hey @Code Reviewer & Security Sentinel please check this PR'} />,
+      <MarkdownMessage
+        text={'Hey @Code Reviewer & Security Sentinel please check this PR'}
+      />,
     );
 
     const mentionChip = container.querySelector('span[data-mention]');
     expect(mentionChip).toBeInTheDocument();
-    expect(mentionChip?.getAttribute('data-mention')).toBe('Code Reviewer & Security Sentinel');
+    expect(mentionChip?.getAttribute('data-mention')).toBe(
+      'Code Reviewer & Security Sentinel',
+    );
     expect(mentionChip?.textContent).toBe('@Code Reviewer & Security Sentinel');
   });
 
   it('renders link pills with badge styling and link icon', () => {
     const { container } = render(
-      <MarkdownMessage text={'Join call at meet.google.com/ogd-tbmv-yxp or [Google Meet](https://meet.google.com/ogd-tbmv-yxp)'} />,
+      <MarkdownMessage
+        text={
+          'Join call at meet.google.com/ogd-tbmv-yxp or [Google Meet](https://meet.google.com/ogd-tbmv-yxp)'
+        }
+      />,
     );
 
     const links = container.querySelectorAll('a');
     expect(links).toHaveLength(2);
 
-    expect(links[0]).toHaveAttribute('href', 'https://meet.google.com/ogd-tbmv-yxp');
+    expect(links[0]).toHaveAttribute(
+      'href',
+      'https://meet.google.com/ogd-tbmv-yxp',
+    );
     expect(links[0].className).toContain('text-info-text');
     expect(links[0].querySelector('svg')).toBeInTheDocument();
 
-    expect(links[1]).toHaveAttribute('href', 'https://meet.google.com/ogd-tbmv-yxp');
+    expect(links[1]).toHaveAttribute(
+      'href',
+      'https://meet.google.com/ogd-tbmv-yxp',
+    );
     expect(links[1].textContent).toContain('Google Meet');
     expect(links[1].querySelector('svg')).toBeInTheDocument();
   });
@@ -141,7 +167,9 @@ describe('MarkdownMessage', () => {
   it('renders markdown inside a link label instead of the raw syntax', () => {
     const { container } = render(
       <MarkdownMessage
-        text={'See [**~~identifies~~**](https://example.com) and [`Link`](https://example.com/b)'}
+        text={
+          'See [**~~identifies~~**](https://example.com) and [`Link`](https://example.com/b)'
+        }
       />,
     );
 
@@ -156,7 +184,7 @@ describe('MarkdownMessage', () => {
 
   it('draws blank lines as compacted half-line breaks', () => {
     const { container } = render(
-      <MarkdownMessage text={'\n\na' + '\n'.repeat(21) + 'b\n\nc\n\n'} />
+      <MarkdownMessage text={'\n\na' + '\n'.repeat(21) + 'b\n\nc\n\n'} />,
     );
 
     const spacers = container.querySelectorAll<HTMLElement>('.msg-blank-line');
@@ -164,6 +192,41 @@ describe('MarkdownMessage', () => {
     // 20 blanks cap at 3, of which one is the normal paragraph gap.
     expect(spacers).toHaveLength(1);
     expect(spacers[0].style.height).toBe('1lh');
+  });
+
+  it('only treats asterisks on word boundaries as emphasis', () => {
+    const { container } = render(
+      <MarkdownMessage
+        text={
+          'autom***atically. Your job is a*b and 2 * 3 * 4, but *this* and **that** count.'
+        }
+      />,
+    );
+
+    expect(container.textContent).toContain(
+      'autom***atically. Your job is a*b and 2 * 3 * 4',
+    );
+    expect(container.querySelectorAll('em')).toHaveLength(1);
+    expect(container.querySelector('em')).toHaveTextContent('this');
+    expect(container.querySelectorAll('strong')).toHaveLength(1);
+    expect(container.querySelector('strong')).toHaveTextContent('that');
+  });
+
+  it('folds a legacy "@App · account" mention into one app chip', () => {
+    const { container } = render(
+      <MarkdownMessage
+        text={'@Asana · balram give me list of tickets'}
+        mentionNames={['Asana']}
+        mentionProfiles={{
+          asana: { userId: 'app-1', name: 'Asana', entityKind: 'app' },
+        }}
+      />,
+    );
+
+    const chip = container.querySelector('span[data-mention]');
+    expect(chip).toHaveTextContent(/^@Asana$/);
+    expect(chip).toHaveAttribute('title', '@Asana · connected as balram');
+    expect(container.textContent).toBe('@Asana give me list of tickets');
   });
 
   it('opens profile in rightbar when mention is clicked', () => {
@@ -182,13 +245,17 @@ describe('MarkdownMessage', () => {
     expect(onMentionClick).toHaveBeenCalledWith('@Virendra Singh');
   });
 
-  it('renders a short handle as the member\'s current full name', () => {
+  it("renders a short handle as the member's current full name", () => {
     const onMentionClick = vi.fn();
     const { container } = render(
       <MarkdownMessage
         text={'@Virendra Hi'}
         mentionProfiles={{
-          'virendra singh': { userId: 'u1', name: 'Virendra Singh', entityKind: 'user' },
+          'virendra singh': {
+            userId: 'u1',
+            name: 'Virendra Singh',
+            entityKind: 'user',
+          },
         }}
         onMentionClick={onMentionClick}
       />,
@@ -211,7 +278,9 @@ describe('MarkdownMessage', () => {
         }}
       />,
     );
-    expect(container.querySelector('span[data-mention]')).toHaveTextContent('@New Name');
+    expect(container.querySelector('span[data-mention]')).toHaveTextContent(
+      '@New Name',
+    );
   });
 
   it('resolves a former name from the alias history (old messages, no ids)', () => {
@@ -220,12 +289,18 @@ describe('MarkdownMessage', () => {
         <MarkdownMessage
           text={'@Old Name Hi'}
           mentionProfiles={{
-            'new name': { userId: '@onetab_u1:hs', name: 'New Name', entityKind: 'user' },
+            'new name': {
+              userId: '@onetab_u1:hs',
+              name: 'New Name',
+              entityKind: 'user',
+            },
           }}
         />
       </MentionAliasesProvider>,
     );
-    expect(container.querySelector('span[data-mention]')).toHaveTextContent('@New Name');
+    expect(container.querySelector('span[data-mention]')).toHaveTextContent(
+      '@New Name',
+    );
   });
 
   it('leaves an ambiguous handle as typed', () => {
@@ -238,6 +313,8 @@ describe('MarkdownMessage', () => {
         }}
       />,
     );
-    expect(container.querySelector('span[data-mention]')).toHaveTextContent('@Ana');
+    expect(container.querySelector('span[data-mention]')).toHaveTextContent(
+      '@Ana',
+    );
   });
 });

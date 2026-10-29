@@ -125,10 +125,7 @@ import {
 } from './navigation/sidebar-store.js';
 import { SmartSectionsDialog } from './navigation/smart-sections-dialog.js';
 import { ProjectNavRow, ProjectsTreeSection } from './projects-section.js';
-import {
-  useCoworkerMutations,
-  useCoworkers,
-} from '@org/web-coworkers';
+import { useCoworkerMutations, useCoworkers } from '@org/web-coworkers';
 import {
   AgentNavRow,
   AgentsSection,
@@ -303,17 +300,19 @@ function ChannelRow({
             label: 'Move to section',
             icon: FolderTree,
             hidden: sectionOptions.length === 0,
-            children: sectionOptions.map(
-              (section): EntityAction => ({
-                id: `section-${section.id}`,
-                label: section.label,
-                checked: section.hasChannel,
-                run: () =>
-                  section.hasChannel
-                    ? removeChannelFromSection(workspaceId, section.id, channel.id)
-                    : assignChannelToSection(workspaceId, section.id, channel.id),
-              }),
-            ),
+            children: sectionOptions.map((section): EntityAction => ({
+              id: `section-${section.id}`,
+              label: section.label,
+              checked: section.hasChannel,
+              run: () =>
+                section.hasChannel
+                  ? removeChannelFromSection(
+                      workspaceId,
+                      section.id,
+                      channel.id,
+                    )
+                  : assignChannelToSection(workspaceId, section.id, channel.id),
+            })),
           },
         ],
         onOpen: () => {
@@ -699,16 +698,14 @@ export function ChannelNav({
   const navSurfaceFor = (id: string) =>
     id === 'inbox' ? ('notifications' as const) : ('main' as const);
 
-
   /*
    * The primary nav used to render all ~16 destinations as one flat list, which
    * pushed Channels and DMs below the fold. Groups marked `collapsible: false`
    * stay flat (no header); the others fold away. A group nobody has toggled opens on its own while the
    * current page lives inside it, so the active row is never hidden.
    */
-  const [navGroupOpen, setNavGroupOpen] = useState<Record<string, boolean>>(
-    readNavGroupOpen,
-  );
+  const [navGroupOpen, setNavGroupOpen] =
+    useState<Record<string, boolean>>(readNavGroupOpen);
   const toggleNavGroup = useCallback((groupId: string, open: boolean) => {
     setNavGroupOpen((prev) => {
       const next = { ...prev, [groupId]: open };
@@ -863,7 +860,7 @@ export function ChannelNav({
         to: `/w/${workspaceSlug}/c/${channel.slug}`,
         lastActiveAt: inactiveChannelLastActive[channel.id],
         icon: (
-          <Icon className="size-4 text-muted-foreground shrink-0" aria-hidden />
+          <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
         ),
         actions: channel.membership
           ? buildChannelActions({
@@ -951,7 +948,9 @@ export function ChannelNav({
     };
     container.addEventListener('wheel', markUserScroll, { passive: true });
     container.addEventListener('touchmove', markUserScroll, { passive: true });
-    container.addEventListener('pointerdown', markUserScroll, { passive: true });
+    container.addEventListener('pointerdown', markUserScroll, {
+      passive: true,
+    });
     if (reveal()) {
       return () => {
         container.removeEventListener('wheel', markUserScroll);
@@ -1308,7 +1307,9 @@ export function ChannelNav({
     });
 
     starredWorkflows.forEach((workflow) => {
-      const isSelected = location.pathname.endsWith(`/ai/workflows/${workflow.id}`);
+      const isSelected = location.pathname.endsWith(
+        `/ai/workflows/${workflow.id}`,
+      );
       list.push({
         id: `workflow-${workflow.id}`,
         render: () => (
@@ -1421,7 +1422,8 @@ export function ChannelNav({
 
   const totalStarredCount = orderedStarredItems.length;
 
-  const showChannelsSkeleton = isLoading && (!channels || channels.length === 0);
+  const showChannelsSkeleton =
+    isLoading && (!channels || channels.length === 0);
 
   // --- Collapsed Sidebar View (Icon rail with tooltips) ---
   if (isCollapsed) {
@@ -1481,7 +1483,9 @@ export function ChannelNav({
             className="space-y-0.5 pb-3 border-b border-border/60"
           >
             {(() => {
-              const renderRow = (item: (typeof resolvedNav.visibleItems)[number]) => (
+              const renderRow = (
+                item: (typeof resolvedNav.visibleItems)[number],
+              ) => (
                 <NavRow
                   key={item.id}
                   entry={{
@@ -1532,12 +1536,14 @@ export function ChannelNav({
             {activeSections.map((sec) => {
               switch (sec.id) {
                 case 'starred':
+                  // Appears with the first star (the ☆ on any row), instead of
+                  // spending sidebar room on help text while it's empty.
+                  if (totalStarredCount === 0) return null;
                   return (
                     <Section
                       key="starred"
                       title="Starred"
                       count={totalStarredCount}
-                      emptyLabel="Drop an important item here to keep it handy."
                     >
                       <DndContext
                         id={starredDndId}

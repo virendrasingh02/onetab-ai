@@ -46,22 +46,25 @@ describe('MessageRenderer', () => {
         model: 'GPT-5',
         durationMs: 18400,
         summary: 'Analyzed 12 sources on quantum computing',
-        tools: [
-          { name: 'web_search', status: 'success', durationMs: 1200 },
-        ],
+        tools: [{ name: 'web_search', status: 'success', durationMs: 1200 }],
         sources: [
-          { title: 'Quantum Computing Overview', url: 'https://example.org/quantum' },
+          {
+            title: 'Quantum Computing Overview',
+            url: 'https://example.org/quantum',
+          },
         ],
-        suggestedActions: [
-          { id: 'act-1', label: 'Create Task' },
-        ],
+        suggestedActions: [{ id: 'act-1', label: 'Create Task' }],
       },
     });
 
-    const { unmount } = renderWithProviders(<MessageRenderer message={msg} isOwn={false} />);
+    const { unmount } = renderWithProviders(
+      <MessageRenderer message={msg} isOwn={false} />,
+    );
 
     expect(screen.getByText('Research Agent')).toBeInTheDocument();
-    expect(screen.getByText('Analyzed 12 sources on quantum computing')).toBeInTheDocument();
+    expect(
+      screen.getByText('Analyzed 12 sources on quantum computing'),
+    ).toBeInTheDocument();
     expect(screen.getByText('Create Task')).toBeInTheDocument();
     unmount();
 
@@ -85,9 +88,7 @@ describe('MessageRenderer', () => {
         agentName: 'Research Agent',
         status: 'running',
         model: 'GPT-5',
-        tools: [
-          { name: 'Collect Sources', status: 'running' },
-        ],
+        tools: [{ name: 'Collect Sources', status: 'running' }],
       },
     });
 
@@ -143,15 +144,15 @@ describe('MessageRenderer', () => {
           { label: 'Company', value: 'Acme Corporation', inline: true },
           { label: 'Status', value: 'New', inline: true },
         ],
-        actions: [
-          { id: 'open-lead', label: 'Open Lead' },
-        ],
+        actions: [{ id: 'open-lead', label: 'Open Lead' }],
       },
     });
 
     renderWithProviders(<MessageRenderer message={msg} isOwn={false} />);
 
-    expect(screen.getByText('New Lead Created: John Smith')).toBeInTheDocument();
+    expect(
+      screen.getByText('New Lead Created: John Smith'),
+    ).toBeInTheDocument();
     expect(screen.getByText('Acme Corporation')).toBeInTheDocument();
     expect(screen.getByText('Open Lead')).toBeInTheDocument();
   });
@@ -170,7 +171,9 @@ describe('MessageRenderer', () => {
       },
     });
 
-    renderWithProviders(<MessageRenderer message={msg} isOwn={false} onAction={onAction} />);
+    renderWithProviders(
+      <MessageRenderer message={msg} isOwn={false} onAction={onAction} />,
+    );
 
     expect(screen.getByText('Deploy to Production')).toBeInTheDocument();
     expect(screen.getByText('External side effect')).toBeInTheDocument();
@@ -191,12 +194,20 @@ describe('MessageRenderer', () => {
         formId: 'form-1',
         title: 'Create Customer',
         fields: [
-          { id: 'name', name: 'name', label: 'Full Name', type: 'text', required: true },
+          {
+            id: 'name',
+            name: 'name',
+            label: 'Full Name',
+            type: 'text',
+            required: true,
+          },
         ],
       },
     });
 
-    renderWithProviders(<MessageRenderer message={msg} isOwn={false} onAction={onAction} />);
+    renderWithProviders(
+      <MessageRenderer message={msg} isOwn={false} onAction={onAction} />,
+    );
 
     expect(screen.getByText('Create Customer')).toBeInTheDocument();
     const submitBtn = screen.getByRole('button', { name: /Submit Form/i });
@@ -237,7 +248,9 @@ describe('MessageRenderer', () => {
 
     renderWithProviders(<MessageRenderer message={msg} isOwn={false} />);
 
-    expect(screen.getByText('Marketing Automation Workflow')).toBeInTheDocument();
+    expect(
+      screen.getByText('Marketing Automation Workflow'),
+    ).toBeInTheDocument();
     expect(screen.getByText('Generate Copy')).toBeInTheDocument();
     expect(screen.getByText('Review Compliance')).toBeInTheDocument();
     expect(screen.getByText('Publish Campaign')).toBeInTheDocument();
@@ -249,14 +262,21 @@ describe('MessageRenderer', () => {
         type: 'mie.file',
         title: 'Generated Analysis Artifacts',
         files: [
-          { name: 'Q3_Report.pdf', url: 'https://example.com/report.pdf', mimeType: 'application/pdf', size: 102400 },
+          {
+            name: 'Q3_Report.pdf',
+            url: 'https://example.com/report.pdf',
+            mimeType: 'application/pdf',
+            size: 102400,
+          },
         ],
       },
     });
 
     renderWithProviders(<MessageRenderer message={msg} isOwn={false} />);
 
-    expect(screen.getByText('Generated Analysis Artifacts')).toBeInTheDocument();
+    expect(
+      screen.getByText('Generated Analysis Artifacts'),
+    ).toBeInTheDocument();
     expect(screen.getByText('Q3_Report.pdf')).toBeInTheDocument();
   });
 
@@ -273,7 +293,12 @@ describe('MessageRenderer', () => {
         target: { kind: 'app', id: 'int-1', name: 'Outlook Calendar' },
         occurredAt: 1_700_000_000_000,
         idempotencyKey: 'k1',
-        capabilities: { reactions: true, threading: true, sharing: true, reply: false },
+        capabilities: {
+          reactions: true,
+          threading: true,
+          sharing: true,
+          reply: false,
+        },
       },
     });
 
@@ -329,7 +354,7 @@ describe('MessageRenderer', () => {
     expect(img).toHaveAttribute('src', 'https://example.com/party.svg');
   });
 
-  it('renders Thread, Reply, and Forward buttons without quick emojis in action toolbar', async () => {
+  it('keeps Thread and Forward on the toolbar and moves Reply into the "⋯" menu', async () => {
     const user = userEvent.setup();
     const onOpenThread = vi.fn();
     const onReply = vi.fn();
@@ -347,26 +372,33 @@ describe('MessageRenderer', () => {
     );
 
     // Quick emoji buttons should be removed
-    expect(screen.queryByRole('button', { name: /React with 👍/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /React with ❤️/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /React with 🔥/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /React with 👍/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /React with ❤️/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /React with 🔥/i }),
+    ).not.toBeInTheDocument();
 
     const threadBtn = screen.getByRole('button', { name: 'Reply in thread' });
     expect(threadBtn).toBeInTheDocument();
     await user.click(threadBtn);
     expect(onOpenThread).toHaveBeenCalledTimes(1);
 
-    const replyBtn = screen.getByRole('button', { name: 'Reply' });
-    expect(replyBtn).toBeInTheDocument();
-    await user.click(replyBtn);
-    expect(onReply).toHaveBeenCalledTimes(1);
-
-    const forwardBtn = screen.getByRole('button', { name: 'Forward message' });
-    expect(forwardBtn).toBeInTheDocument();
-    await user.click(forwardBtn);
+    await user.click(screen.getByRole('button', { name: 'Forward message' }));
     expect(onForward).toHaveBeenCalledTimes(1);
-  });
 
+    expect(
+      screen.queryByRole('button', { name: 'Reply' }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'More actions' }));
+    await user.click(
+      await screen.findByRole('menuitem', { name: /^ReplyR?$/ }),
+    );
+    expect(onReply).toHaveBeenCalledTimes(1);
+  });
 
   describe('More actions menu', () => {
     const openMenu = async (user: ReturnType<typeof userEvent.setup>) => {
@@ -377,7 +409,10 @@ describe('MessageRenderer', () => {
       const user = userEvent.setup();
       renderWithProviders(
         <MessageRenderer
-          message={createMockMessage({ body: 'Menu layout', timestamp: Date.now() })}
+          message={createMockMessage({
+            body: 'Menu layout',
+            timestamp: Date.now(),
+          })}
           isOwn
           onEdit={vi.fn()}
           onDelete={vi.fn()}
@@ -396,41 +431,77 @@ describe('MessageRenderer', () => {
       await openMenu(user);
 
       // Already one click away on the hover toolbar.
-      expect(screen.queryByRole('menuitem', { name: /Reply in thread/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('menuitem', { name: /^Reply$/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('menuitem', { name: /Forward message/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('menuitem', { name: /Save for later/i })).not.toBeInTheDocument();
-
-      expect(screen.getByRole('menuitem', { name: /Edit message/i })).toBeInTheDocument();
-      expect(screen.getByRole('menuitem', { name: /Mark unread/i })).toBeInTheDocument();
-      expect(screen.getByRole('menuitem', { name: /Remind me about this/i })).toBeInTheDocument();
       expect(
-        screen.getByRole('menuitem', { name: /Turn off notifications for replies/i }),
+        screen.queryByRole('menuitem', { name: /Reply in thread/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('menuitem', { name: /Forward message/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('menuitem', { name: /Save for later/i }),
+      ).not.toBeInTheDocument();
+      // Not on the toolbar, so the menu carries it.
+      expect(
+        screen.getByRole('menuitem', { name: /^ReplyR?$/ }),
       ).toBeInTheDocument();
-      expect(screen.getByRole('menuitem', { name: /Copy link/i })).toBeInTheDocument();
-      expect(screen.getByRole('menuitem', { name: /Organize/i })).toBeInTheDocument();
-      expect(screen.getByRole('menuitem', { name: /Connect to apps/i })).toBeInTheDocument();
-      expect(screen.getByRole('menuitem', { name: /Delete message…/i })).toBeInTheDocument();
+
+      expect(
+        screen.getByRole('menuitem', { name: /Edit message/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('menuitem', { name: /Mark unread/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('menuitem', { name: /Remind me about this/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('menuitem', {
+          name: /Turn off notifications for replies/i,
+        }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('menuitem', { name: /Copy link/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('menuitem', { name: /Organize/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('menuitem', { name: /Connect to apps/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('menuitem', { name: /Delete message…/i }),
+      ).toBeInTheDocument();
     });
 
     it('offers no stand-in items for actions the host has not wired', async () => {
       const user = userEvent.setup();
       renderWithProviders(
         <MessageRenderer
-          message={createMockMessage({ body: 'Read-only host', timestamp: Date.now() })}
+          message={createMockMessage({
+            body: 'Read-only host',
+            timestamp: Date.now(),
+          })}
           isOwn={false}
           onCopyLink={vi.fn()}
         />,
       );
       await openMenu(user);
 
-      expect(screen.queryByRole('menuitem', { name: /Mark unread/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('menuitem', { name: /Remind me/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('menuitem', { name: /Mark unread/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('menuitem', { name: /Remind me/i }),
+      ).not.toBeInTheDocument();
       expect(
         screen.queryByRole('menuitem', { name: /notifications for replies/i }),
       ).not.toBeInTheDocument();
-      expect(screen.queryByRole('menuitem', { name: /Delete message/i })).not.toBeInTheDocument();
-      expect(screen.getByRole('menuitem', { name: /Copy link/i })).toBeInTheDocument();
+      expect(
+        screen.queryByRole('menuitem', { name: /Delete message/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole('menuitem', { name: /Copy link/i }),
+      ).toBeInTheDocument();
     });
 
     it('runs the real handlers for mark unread and reply notifications', async () => {
@@ -454,7 +525,9 @@ describe('MessageRenderer', () => {
       await openMenu(user);
       // Already muted, so the entry offers to turn them back on.
       await user.click(
-        screen.getByRole('menuitem', { name: /Turn on notifications for replies/i }),
+        screen.getByRole('menuitem', {
+          name: /Turn on notifications for replies/i,
+        }),
       );
       expect(onToggleReplyNotifications).toHaveBeenCalledTimes(1);
       unmount();
@@ -518,13 +591,19 @@ describe('MessageRenderer', () => {
   });
   describe('Right-click menu', () => {
     const rightClick = () =>
-      fireEvent.contextMenu(screen.getByRole('article'), { clientX: 40, clientY: 40 });
+      fireEvent.contextMenu(screen.getByRole('article'), {
+        clientX: 40,
+        clientY: 40,
+      });
 
     it('offers every action, including the ones the hover toolbar shows', async () => {
       const onOpenThread = vi.fn();
       renderWithProviders(
         <MessageRenderer
-          message={createMockMessage({ body: 'Right click me', timestamp: Date.now() })}
+          message={createMockMessage({
+            body: 'Right click me',
+            timestamp: Date.now(),
+          })}
           isOwn
           onEdit={vi.fn()}
           onDelete={vi.fn()}
@@ -538,22 +617,41 @@ describe('MessageRenderer', () => {
       );
       rightClick();
 
-      expect(await screen.findByRole('menuitem', { name: /Reply in thread/i })).toBeInTheDocument();
-      expect(screen.getByRole('menuitem', { name: /Quote message/i })).toBeInTheDocument();
-      expect(screen.getByRole('menuitem', { name: /Add reaction/i })).toBeInTheDocument();
-      expect(screen.getByRole('menuitem', { name: /Save for later/i })).toBeInTheDocument();
-      expect(screen.getByRole('menuitem', { name: /Forward message/i })).toBeInTheDocument();
-      expect(screen.getByRole('menuitem', { name: /Edit message/i })).toBeInTheDocument();
-      expect(screen.getByRole('menuitem', { name: /Delete message/i })).toBeInTheDocument();
+      expect(
+        await screen.findByRole('menuitem', { name: /Reply in thread/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('menuitem', { name: /Quote message/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('menuitem', { name: /Add reaction/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('menuitem', { name: /Save for later/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('menuitem', { name: /Forward message/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('menuitem', { name: /Edit message/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('menuitem', { name: /Delete message/i }),
+      ).toBeInTheDocument();
 
-      fireEvent.click(screen.getByRole('menuitem', { name: /Reply in thread/i }));
+      fireEvent.click(
+        screen.getByRole('menuitem', { name: /Reply in thread/i }),
+      );
       await vi.waitFor(() => expect(onOpenThread).toHaveBeenCalledTimes(1));
     });
 
     it('never offers edit or delete on someone else’s message to a non-moderator', async () => {
       renderWithProviders(
         <MessageRenderer
-          message={createMockMessage({ body: 'Not mine', timestamp: Date.now() })}
+          message={createMockMessage({
+            body: 'Not mine',
+            timestamp: Date.now(),
+          })}
           isOwn={false}
           onEdit={vi.fn()}
           onDelete={vi.fn()}
@@ -561,9 +659,15 @@ describe('MessageRenderer', () => {
         />,
       );
       rightClick();
-      expect(await screen.findByRole('menuitem', { name: /Copy link/i })).toBeInTheDocument();
-      expect(screen.queryByRole('menuitem', { name: /Edit message/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('menuitem', { name: /Delete message/i })).not.toBeInTheDocument();
+      expect(
+        await screen.findByRole('menuitem', { name: /Copy link/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('menuitem', { name: /Edit message/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('menuitem', { name: /Delete message/i }),
+      ).not.toBeInTheDocument();
     });
 
     it('lets a moderator delete someone else’s message', async () => {
@@ -576,14 +680,19 @@ describe('MessageRenderer', () => {
         />,
       );
       rightClick();
-      expect(await screen.findByRole('menuitem', { name: /Delete message/i })).toBeInTheDocument();
+      expect(
+        await screen.findByRole('menuitem', { name: /Delete message/i }),
+      ).toBeInTheDocument();
       expect(screen.getByText('Moderator')).toBeInTheDocument();
     });
 
     it('keeps the browser menu over a text selection so Copy still works', () => {
       renderWithProviders(
         <MessageRenderer
-          message={createMockMessage({ body: 'Select this text', timestamp: Date.now() })}
+          message={createMockMessage({
+            body: 'Select this text',
+            timestamp: Date.now(),
+          })}
           isOwn={false}
           onCopyLink={vi.fn()}
         />,
@@ -594,7 +703,10 @@ describe('MessageRenderer', () => {
       window.getSelection()?.removeAllRanges();
       window.getSelection()?.addRange(range);
 
-      const notPrevented = fireEvent.contextMenu(text, { clientX: 5, clientY: 5 });
+      const notPrevented = fireEvent.contextMenu(text, {
+        clientX: 5,
+        clientY: 5,
+      });
       expect(notPrevented).toBe(true);
       expect(screen.queryByRole('menu')).not.toBeInTheDocument();
       window.getSelection()?.removeAllRanges();

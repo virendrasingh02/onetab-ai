@@ -39,17 +39,26 @@ function createEvent(
     target: { kind: 'user', id: 'user-1', name: 'John Smith' },
     occurredAt: 1_700_000_000_000,
     idempotencyKey: 'k1',
-    capabilities: { reactions: true, threading: true, sharing: true, reply: false },
+    capabilities: {
+      reactions: true,
+      threading: true,
+      sharing: true,
+      reply: false,
+    },
     ...overrides,
   };
 }
 
 describe('SystemEventCard', () => {
   it('renders "was added to #channel by" for a member_added event', () => {
-    renderWithProviders(<SystemEventCard message={createMessage()} event={createEvent()} />);
+    renderWithProviders(
+      <SystemEventCard message={createMessage()} event={createEvent()} />,
+    );
 
     expect(screen.getByText('John Smith')).toBeInTheDocument();
-    expect(screen.getByText(/was added to #engineering by/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/was added to #engineering by/),
+    ).toBeInTheDocument();
     expect(screen.getByText('VR')).toBeInTheDocument();
   });
 
@@ -72,14 +81,22 @@ describe('SystemEventCard', () => {
         event={createEvent({
           eventType: 'app_added',
           conversationName: 'general',
-          target: { kind: 'app', id: 'int-1', name: 'Asana · balram', provider: 'asana' },
+          target: {
+            kind: 'app',
+            id: 'int-1',
+            name: 'Asana · balram',
+            provider: 'asana',
+          },
         })}
       />,
     );
 
     expect(screen.getByText('Asana')).toBeInTheDocument();
     expect(screen.queryByText('Asana · balram')).not.toBeInTheDocument();
-    expect(screen.getByText('balram')).toBeInTheDocument();
+    expect(screen.queryByText('balram')).not.toBeInTheDocument();
+    expect(
+      container.querySelector('[title="Connected as balram"]'),
+    ).toBeInTheDocument();
     expect(container.querySelector('img')?.getAttribute('src')).toBe(
       'https://cdn.simpleicons.org/asana',
     );
@@ -113,7 +130,9 @@ describe('SystemEventCard', () => {
   });
 
   it('never shows a type badge for a plain member', () => {
-    renderWithProviders(<SystemEventCard message={createMessage()} event={createEvent()} />);
+    renderWithProviders(
+      <SystemEventCard message={createMessage()} event={createEvent()} />,
+    );
     expect(screen.queryByText(/^app$/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/^ai agent$/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/^ai coworker$/i)).not.toBeInTheDocument();
@@ -125,7 +144,12 @@ describe('SystemEventCard', () => {
       <SystemEventCard
         message={createMessage()}
         event={createEvent({
-          target: { kind: 'app', id: 'gone', name: 'Deleted app', isDeleted: true },
+          target: {
+            kind: 'app',
+            id: 'gone',
+            name: 'Deleted app',
+            isDeleted: true,
+          },
         })}
         onViewEntity={onViewEntity}
       />,
@@ -140,7 +164,11 @@ describe('SystemEventCard', () => {
   it('calls onViewEntity when a live entity name is clicked', async () => {
     const onViewEntity = vi.fn();
     renderWithProviders(
-      <SystemEventCard message={createMessage()} event={createEvent()} onViewEntity={onViewEntity} />,
+      <SystemEventCard
+        message={createMessage()}
+        event={createEvent()}
+        onViewEntity={onViewEntity}
+      />,
     );
 
     await userEvent.click(screen.getByRole('button', { name: 'John Smith' }));
@@ -149,19 +177,25 @@ describe('SystemEventCard', () => {
     );
 
     await userEvent.click(screen.getByRole('button', { name: 'VR' }));
-    expect(onViewEntity).toHaveBeenCalledWith(expect.objectContaining({ id: 'admin-1', name: 'VR' }));
+    expect(onViewEntity).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'admin-1', name: 'VR' }),
+    );
   });
 
   it('has an accessible label describing the whole event as one sentence (brief §28)', () => {
     renderWithProviders(
       <SystemEventCard
-        message={createMessage({ body: 'Outlook Calendar app was added to #agent45 by VR' })}
+        message={createMessage({
+          body: 'Outlook Calendar app was added to #agent45 by VR',
+        })}
         event={createEvent()}
       />,
     );
 
     expect(
-      screen.getByRole('article', { name: 'Outlook Calendar app was added to #agent45 by VR' }),
+      screen.getByRole('article', {
+        name: 'Outlook Calendar app was added to #agent45 by VR',
+      }),
     ).toBeInTheDocument();
   });
 
@@ -169,7 +203,14 @@ describe('SystemEventCard', () => {
     renderWithProviders(
       <SystemEventCard
         message={createMessage({
-          reactions: [{ key: '👍', count: 3, reactedByMe: false, userIds: ['@a:hs', '@b:hs', '@c:hs'] }],
+          reactions: [
+            {
+              key: '👍',
+              count: 3,
+              reactedByMe: false,
+              userIds: ['@a:hs', '@b:hs', '@c:hs'],
+            },
+          ],
         })}
         event={createEvent()}
       />,
