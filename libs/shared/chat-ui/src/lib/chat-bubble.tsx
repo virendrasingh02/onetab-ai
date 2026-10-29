@@ -439,7 +439,7 @@ export function ThreadRepliesButton({
       type="button"
       onClick={onOpen}
       className={cn(
-        'mt-1.5 gap-2 px-2.5 py-1 font-medium flex items-center rounded-md bg-surface text-[13px] text-info-text no-underline transition-colors hover:bg-accent hover:no-underline',
+        'group mt-1.5 gap-2 px-2.5 py-1 font-medium flex items-center rounded-md bg-surface text-[13px] text-info-text no-underline transition-colors hover:bg-accent hover:no-underline',
         hasUnread && 'ring-1 ring-info-text/30',
       )}
     >
@@ -452,7 +452,7 @@ export function ThreadRepliesButton({
       {participants && participants.length > 0 ? (
         // Who replied, not who is online: no presence dots in this stack
         // (same as the channel thread list and Threads tab).
-        <span className="-space-x-1.5 flex items-center">
+        <span className="-space-x-1 flex items-center">
           {participants.slice(0, 3).map((participant) => (
             <UserAvatar
               key={participant.userId}
@@ -461,12 +461,12 @@ export function ThreadRepliesButton({
               seed={participant.userId}
               size="xs"
               indicator={false}
-              className="ring-2 ring-surface"
+              className="ring-[1.5px] ring-surface transition-shadow group-hover:ring-accent"
             />
           ))}
           {participants.length > 3 ? (
             <span
-              className="size-5 font-semibold relative flex shrink-0 items-center justify-center rounded-full bg-muted text-2xs text-muted-foreground tabular-nums ring-2 ring-surface"
+              className="size-5 font-semibold relative flex shrink-0 items-center justify-center rounded-full bg-muted text-2xs text-muted-foreground tabular-nums ring-[1.5px] ring-surface transition-shadow group-hover:ring-accent"
               aria-label={`${participants.length - 3} more`}
             >
               +{participants.length - 3}
