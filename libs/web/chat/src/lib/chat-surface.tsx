@@ -688,6 +688,26 @@ export function ChatSurface({
     return placeBroadcastReplies(visible);
   }, [messages, repliesByRoot]);
 
+  /*
+   * Only the bottom-most message of a list offers an agent's follow-up chips.
+   * `MessageList` orders by timestamp, while `messages` is in arrival order —
+   * a late-landing agent answer would otherwise keep its chips under newer
+   * messages.
+   */
+  const latestMessageId = useCallback(
+    (list: Message[] | undefined) =>
+      list?.reduce<Message | undefined>(
+        (latest, message) =>
+          !latest || message.timestamp >= latest.timestamp ? message : latest,
+        undefined,
+      )?.id,
+    [],
+  );
+  const latestRootMessageId = useMemo(
+    () => latestMessageId(rootMessages),
+    [latestMessageId, rootMessages],
+  );
+
   /**
    * Multi-file uploads still arrive as one Matrix event per file — this
    * regroups the caption-less runs so the timeline renders one grid per
@@ -1638,8 +1658,8 @@ export function ChatSurface({
           showFollowUps={
             message.id ===
             (inThread && message.threadRootId
-              ? repliesByRoot.get(message.threadRootId)?.at(-1)?.id
-              : messages[messages.length - 1]?.id)
+              ? latestMessageId(repliesByRoot.get(message.threadRootId))
+              : latestRootMessageId)
           }
           onRetry={
             message.structuredEvent?.type === 'mie.ai.agent'
@@ -1787,7 +1807,8 @@ export function ChatSurface({
       conversationId,
       handleForward,
       openForwardedOriginal,
-      messages,
+      latestMessageId,
+      latestRootMessageId,
       onSend,
     ],
   );
