@@ -1,4 +1,11 @@
-import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@org/database';
 import {
@@ -17,8 +24,16 @@ import {
   ModelResolverService,
   ProviderRegistryService,
 } from '@org/api-ai';
-import { AIRuntimeService, MCPToolRegistryService, newAgentTeamRun, type AgentTeamRun } from '@org/api-agents';
-import { IntegrationsService } from '@org/api-integrations';
+import {
+  AIRuntimeService,
+  MCPToolRegistryService,
+  newAgentTeamRun,
+  type AgentTeamRun,
+} from '@org/api-agents';
+import {
+  ConnectorRegistryService,
+  IntegrationsService,
+} from '@org/api-integrations';
 import { RealtimeGatewayService } from '@org/api-realtime';
 import {
   DEFAULT_AGENT_RUN_LIMITS,
@@ -28,6 +43,7 @@ import {
   PLANS_CONFIG,
   normalizePlanTier,
   connectorToolName,
+  parseConnectorActionRef,
   resolvePromptVariables,
   resolveWorkspacePolicy,
   workspaceToolMode,
@@ -138,8 +154,11 @@ const CONTROL_STEP_TYPES = new Set([
  * A node's config as recorded on its run step — without a trigger's webhook
  * secret, since anyone who can see the run can read its steps.
  */
-export function stepInputConfig(config: Record<string, unknown> | undefined): Record<string, unknown> {
-  if (!config || !('webhookSecret' in config || 'secret' in config)) return config ?? {};
+export function stepInputConfig(
+  config: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+  if (!config || !('webhookSecret' in config || 'secret' in config))
+    return config ?? {};
   const { webhookSecret: _w, secret: _s, ...rest } = config;
   return rest;
 }
@@ -153,10 +172,28 @@ export function lastOutputText(output: unknown): string | undefined {
   if (typeof output === 'string') return output;
   if (typeof output !== 'object') return String(output);
   const o = output as Record<string, unknown>;
-  for (const key of ['aiOutput', 'entityResponse', 'output', 'result', 'merged', 'toolResult', 'extracted', 'searchResult', 'scrapeResult', 'crawlResult', 'extractedResult', 'retrievedDocuments', 'loopResults', 'body', 'classification']) {
+  for (const key of [
+    'aiOutput',
+    'entityResponse',
+    'output',
+    'result',
+    'merged',
+    'toolResult',
+    'extracted',
+    'searchResult',
+    'scrapeResult',
+    'crawlResult',
+    'extractedResult',
+    'retrievedDocuments',
+    'loopResults',
+    'body',
+    'classification',
+  ]) {
     const value = o[key];
     if (value === undefined || value === null || value === '') continue;
-    return typeof value === 'string' ? value : JSON.stringify(value, null, 2).slice(0, 20_000);
+    return typeof value === 'string'
+      ? value
+      : JSON.stringify(value, null, 2).slice(0, 20_000);
   }
   return undefined;
 }
@@ -167,7 +204,9 @@ function inputText(payload: Record<string, unknown>): string {
     const value = payload[key];
     if (typeof value === 'string' && value.trim()) return value;
   }
-  const visible = Object.fromEntries(Object.entries(payload).filter(([k]) => !k.startsWith('__')));
+  const visible = Object.fromEntries(
+    Object.entries(payload).filter(([k]) => !k.startsWith('__')),
+  );
   return Object.keys(visible).length ? JSON.stringify(visible, null, 2) : '';
 }
 
@@ -188,15 +227,22 @@ function ancestorsOf(nodeId: string, edges: WorkflowEdge[]): Set<string> {
 }
 
 /** Runs `fn` over `items`, at most `limit` at a time, keeping order. */
-async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+async function mapLimit<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
   const out: R[] = new Array(items.length);
   let next = 0;
-  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (next < items.length) {
-      const index = next++;
-      out[index] = await fn(items[index]!);
-    }
-  });
+  const workers = Array.from(
+    { length: Math.min(limit, items.length) },
+    async () => {
+      while (next < items.length) {
+        const index = next++;
+        out[index] = await fn(items[index]!);
+      }
+    },
+  );
   await Promise.all(workers);
   return out;
 }
@@ -208,7 +254,16 @@ interface RunBudget {
   tokens: number;
   deadline: number;
 }
-const MODEL_NODE_TYPES = new Set(['LLM', 'AI_ACTION', 'AGENT', 'AI_COWORKER', 'CLASSIFIER', 'STRUCTURED_OUTPUT', 'EXTRACT_DATA']);
+const MODEL_NODE_TYPES = new Set([
+  'LLM',
+  'AI_ACTION',
+  'AGENT',
+  'AI_COWORKER',
+  'CLASSIFIER',
+  'STRUCTURED_OUTPUT',
+  'EXTRACT_DATA',
+  'TOOL_INPUT',
+]);
 
 function num(value: unknown, fallback: number): number {
   const n = Number(value);
@@ -234,16 +289,29 @@ function interpolateVariables(
  * filled from the run, then from the agent's declared defaults. References
  * with neither are left as written, so literal braces survive.
  */
-function withResolvedInstructions(spec: InlineAgentSpec, context: Record<string, unknown>): InlineAgentSpec {
+function withResolvedInstructions(
+  spec: InlineAgentSpec,
+  context: Record<string, unknown>,
+): InlineAgentSpec {
   return {
     ...spec,
-    instructions: resolvePromptVariables(spec.instructions, context, spec.variableDefaults ?? {}).text,
-    members: spec.members.map((member) => withResolvedInstructions(member, context)),
+    instructions: resolvePromptVariables(
+      spec.instructions,
+      context,
+      spec.variableDefaults ?? {},
+    ).text,
+    members: spec.members.map((member) =>
+      withResolvedInstructions(member, context),
+    ),
   };
 }
 
 /** Sets `a.b.c` in an object, creating parents — for an approver's edit. */
-function writePath(target: Record<string, unknown>, path: string, value: unknown): void {
+function writePath(
+  target: Record<string, unknown>,
+  path: string,
+  value: unknown,
+): void {
   const keys = path.split('.').filter(Boolean);
   let cursor: Record<string, unknown> = target;
   keys.forEach((key, index) => {
@@ -257,7 +325,8 @@ function writePath(target: Record<string, unknown>, path: string, value: unknown
 }
 
 export type RunMode = 'live' | 'test';
-export type RunStartedBy = 'person' | 'schedule' | 'event' | 'retry' | 'webhook';
+export type RunStartedBy =
+  'person' | 'schedule' | 'event' | 'retry' | 'webhook';
 
 export interface RunOptions {
   mode?: RunMode;
@@ -276,7 +345,12 @@ export interface RunOptions {
 
 /** Everything about one run that its steps need to know. */
 interface RunEnv {
-  workflow: { id: string; workspaceId: string; creatorId: string | null; name: string };
+  workflow: {
+    id: string;
+    workspaceId: string;
+    creatorId: string | null;
+    name: string;
+  };
   profile: AgentProfile | null;
   /** The granted scopes when the workflow carries a Studio profile; null = unrestricted (canvas workflows). */
   scopes: Set<AgentScope> | null;
@@ -293,7 +367,8 @@ interface RunEnv {
   team?: AgentTeamRun;
 }
 
-type RunOutcome = 'SUCCESS' | 'FAILED' | 'WAITING_APPROVAL' | 'CANCELLED' | 'PAUSED';
+type RunOutcome =
+  'SUCCESS' | 'FAILED' | 'WAITING_APPROVAL' | 'CANCELLED' | 'PAUSED';
 
 /** The live-update event the Studio listens for (`ai.run.updated`). */
 export interface AIRunUpdate {
@@ -321,6 +396,7 @@ export class WorkflowEngineService {
     @Optional() private readonly realtime?: RealtimeGatewayService,
     @Optional() private readonly events?: EventEmitter2,
     @Optional() private readonly providers?: ProviderRegistryService,
+    @Optional() private readonly connectors?: ConnectorRegistryService,
   ) {}
 
   /**
@@ -335,14 +411,21 @@ export class WorkflowEngineService {
     messages: AIChatMessage[],
   ) {
     const result = await chatWithFailover(
-      { ai: this.aiService, modelResolver: this.modelResolver, credentials: this.credentials, providers: this.providers },
+      {
+        ai: this.aiService,
+        modelResolver: this.modelResolver,
+        credentials: this.credentials,
+        providers: this.providers,
+      },
       workspaceId,
       cfg,
       messages,
       { temperature: Number(cfg['temperature']) },
     );
     if (result.failedOver) {
-      this.logger.warn(`Model step moved to ${result.provider}/${result.model} after: ${result.failedOver.join('; ')}`);
+      this.logger.warn(
+        `Model step moved to ${result.provider}/${result.model} after: ${result.failedOver.join('; ')}`,
+      );
     }
     return {
       ...result.response,
@@ -365,7 +448,12 @@ export class WorkflowEngineService {
     const prepared = await this.prepareRun(workflowId, initialPayload, options);
     const outcome = await this.driveRun(prepared);
     // `runId` is the unified run record the AI Workspace's Runs view shows.
-    return { executionId: prepared.env.legacyRunId, runId: prepared.env.runId, status: outcome.status, results: outcome.results };
+    return {
+      executionId: prepared.env.legacyRunId,
+      runId: prepared.env.runId,
+      status: outcome.status,
+      results: outcome.results,
+    };
   }
 
   /**
@@ -380,13 +468,23 @@ export class WorkflowEngineService {
   ): Promise<{ runId: string; executionId: string | null; status: 'RUNNING' }> {
     const prepared = await this.prepareRun(workflowId, initialPayload, options);
     void this.driveRun(prepared).catch((error) =>
-      this.logger.error(`Run ${prepared.env.runId} of '${prepared.env.workflow.name}' crashed: ${String(error)}`),
+      this.logger.error(
+        `Run ${prepared.env.runId} of '${prepared.env.workflow.name}' crashed: ${String(error)}`,
+      ),
     );
-    return { runId: prepared.env.runId, executionId: prepared.env.legacyRunId, status: 'RUNNING' };
+    return {
+      runId: prepared.env.runId,
+      executionId: prepared.env.legacyRunId,
+      status: 'RUNNING',
+    };
   }
 
   /** Checks limits, opens both run records and builds the starting context. */
-  private async prepareRun(workflowId: string, initialPayload: Record<string, unknown>, options: RunOptions) {
+  private async prepareRun(
+    workflowId: string,
+    initialPayload: Record<string, unknown>,
+    options: RunOptions,
+  ) {
     const workflow = await this.prisma.automationWorkflow.findUniqueOrThrow({
       where: { id: workflowId },
     });
@@ -395,8 +493,12 @@ export class WorkflowEngineService {
     );
     await this.assertMayRun(workflow.workspaceId);
 
-    const profile = readAgentProfile((workflow as { agentProfile?: unknown }).agentProfile);
-    const nodes = normalizeWorkflowNodes(this.parse<unknown>(workflow.nodesJson, []));
+    const profile = readAgentProfile(
+      (workflow as { agentProfile?: unknown }).agentProfile,
+    );
+    const nodes = normalizeWorkflowNodes(
+      this.parse<unknown>(workflow.nodesJson, []),
+    );
     const edges = this.parse<WorkflowEdge[]>(workflow.edgesJson, []);
     const mode: RunMode = options.mode === 'test' ? 'test' : 'live';
 
@@ -429,7 +531,12 @@ export class WorkflowEngineService {
 
     const timezone = await this.runTimezone(workflow, profile);
     const env: RunEnv = {
-      workflow: { id: workflow.id, workspaceId: workflow.workspaceId, creatorId: workflow.creatorId, name: workflow.name },
+      workflow: {
+        id: workflow.id,
+        workspaceId: workflow.workspaceId,
+        creatorId: workflow.creatorId,
+        name: workflow.name,
+      },
       profile,
       scopes: profile ? new Set(profile.scopes) : null,
       runId: aiExecution.id,
@@ -446,12 +553,25 @@ export class WorkflowEngineService {
       ...initialPayload,
       ...this.engineContext(env, new Date()),
     };
-    if (context[LAST_OUTPUT_KEY] === undefined) context[LAST_OUTPUT_KEY] = inputText(initialPayload);
+    if (context[LAST_OUTPUT_KEY] === undefined)
+      context[LAST_OUTPUT_KEY] = inputText(initialPayload);
 
-    let starts = options.startAt?.length ? options.startAt : this.startNodes(nodes, edges);
+    let starts = options.startAt?.length
+      ? options.startAt
+      : this.startNodes(nodes, edges);
     if (starts.length === 0 && nodes.length > 0) starts = [nodes[0]!.id];
     await this.emitRunUpdate(env, { status: 'RUNNING' });
-    return { env, nodes, edges, context, starts, startedAt: Date.now(), previous: [] as WorkflowStepResult[], priorTokens: 0, priorLatency: 0 };
+    return {
+      env,
+      nodes,
+      edges,
+      context,
+      starts,
+      startedAt: Date.now(),
+      previous: [] as WorkflowStepResult[],
+      priorTokens: 0,
+      priorLatency: 0,
+    };
   }
 
   /** Runs the graph from the prepared starting point and closes the run. */
@@ -467,7 +587,13 @@ export class WorkflowEngineService {
     priorLatency: number;
   }) {
     const { env } = prepared;
-    const outcome = await this.runGraph(env, prepared.nodes, prepared.edges, prepared.starts, prepared.context);
+    const outcome = await this.runGraph(
+      env,
+      prepared.nodes,
+      prepared.edges,
+      prepared.starts,
+      prepared.context,
+    );
     const results = [...prepared.previous, ...outcome.results];
     await this.finishRun(
       env,
@@ -484,10 +610,19 @@ export class WorkflowEngineService {
   private async assertMayRun(workspaceId: string): Promise<void> {
     const sub = await this.prisma.workspaceSubscription.findUnique({
       where: { workspaceId },
-      select: { planTier: true, status: true, trialStatus: true, trialEnd: true },
+      select: {
+        planTier: true,
+        status: true,
+        trialStatus: true,
+        trialEnd: true,
+      },
     });
 
-    if (sub?.trialStatus === 'ACTIVE' && sub.trialEnd && sub.trialEnd < new Date()) {
+    if (
+      sub?.trialStatus === 'ACTIVE' &&
+      sub.trialEnd &&
+      sub.trialEnd < new Date()
+    ) {
       throw new BadRequestException({
         code: 'TRIAL_EXPIRED',
         message:
@@ -573,8 +708,15 @@ export class WorkflowEngineService {
       ...(env.mode === 'test' ? { [MODE_KEY]: 'test' } : {}),
       now: nowContext(at, env.timezone),
       params: paramsContext(env.profile),
-      run: { id: env.runId, link: `ai/runs?run=${env.runId}`, test: env.mode === 'test' },
-      agent: { name: env.workflow.name, objective: env.profile?.objective ?? '' },
+      run: {
+        id: env.runId,
+        link: `ai/runs?run=${env.runId}`,
+        test: env.mode === 'test',
+      },
+      agent: {
+        name: env.workflow.name,
+        objective: env.profile?.objective ?? '',
+      },
     };
   }
 
@@ -595,26 +737,44 @@ export class WorkflowEngineService {
     proposedPayload: Record<string, unknown>;
   }) {
     if (!event.executionId || !event.stepId) return null;
-    const aiExecution = await this.prisma.aIExecution.findUnique({ where: { id: event.executionId } });
+    const aiExecution = await this.prisma.aIExecution.findUnique({
+      where: { id: event.executionId },
+    });
     if (!aiExecution || aiExecution.status !== 'WAITING_APPROVAL') return null;
-    const workflow = await this.prisma.automationWorkflow.findUnique({ where: { id: event.workflowId } });
+    const workflow = await this.prisma.automationWorkflow.findUnique({
+      where: { id: event.workflowId },
+    });
     if (!workflow || workflow.id !== aiExecution.workflowId) return null;
 
     const context: Record<string, unknown> = { ...event.proposedPayload };
     // An approver who edited the draft: their text replaces it before anything uses it.
-    const review = context['__review'] as { path?: string; value?: unknown } | undefined;
-    if (review?.path && typeof review.value === 'string') writePath(context, review.path, review.value);
+    const review = context['__review'] as
+      { path?: string; value?: unknown } | undefined;
+    if (review?.path && typeof review.value === 'string')
+      writePath(context, review.path, review.value);
     delete context['__review'];
 
-    const legacyRunId = typeof context[RUN_ID_KEY] === 'string' ? (context[RUN_ID_KEY] as string) : null;
+    const legacyRunId =
+      typeof context[RUN_ID_KEY] === 'string'
+        ? (context[RUN_ID_KEY] as string)
+        : null;
     const legacy = legacyRunId
-      ? await this.prisma.workflowExecution.findUnique({ where: { id: legacyRunId } })
+      ? await this.prisma.workflowExecution.findUnique({
+          where: { id: legacyRunId },
+        })
       : null;
     const previous = this.parse<WorkflowStepResult[]>(legacy?.stepResults, []);
-    const profile = readAgentProfile((workflow as { agentProfile?: unknown }).agentProfile);
+    const profile = readAgentProfile(
+      (workflow as { agentProfile?: unknown }).agentProfile,
+    );
     const state = (aiExecution.stateJson ?? {}) as Record<string, unknown>;
     const env: RunEnv = {
-      workflow: { id: workflow.id, workspaceId: workflow.workspaceId, creatorId: workflow.creatorId, name: workflow.name },
+      workflow: {
+        id: workflow.id,
+        workspaceId: workflow.workspaceId,
+        creatorId: workflow.creatorId,
+        name: workflow.name,
+      },
       profile,
       scopes: profile ? new Set(profile.scopes) : null,
       runId: aiExecution.id,
@@ -639,8 +799,16 @@ export class WorkflowEngineService {
     // Settle the approval step that has been waiting, so the trace shows one
     // row per step with its outcome rather than a waiting row and a second one.
     const settled = await this.prisma.aIExecutionStep.updateMany({
-      where: { executionId: aiExecution.id, stepId: event.stepId, status: 'WAITING' },
-      data: { status: decisionStep.status, outputJson: decisionStep.output as any, finishedAt: new Date() },
+      where: {
+        executionId: aiExecution.id,
+        stepId: event.stepId,
+        status: 'WAITING',
+      },
+      data: {
+        status: decisionStep.status,
+        outputJson: decisionStep.output as any,
+        finishedAt: new Date(),
+      },
     });
     if (settled.count === 0) {
       await this.prisma.aIExecutionStep.create({
@@ -656,23 +824,45 @@ export class WorkflowEngineService {
     }
 
     if (event.decision === 'REJECTED') {
-      await this.finishRun(env, 'FAILED', [...previous, decisionStep], aiExecution.tokensUsed, aiExecution.latencyMs, 'Rejected by the approver — nothing after the approval ran.');
+      await this.finishRun(
+        env,
+        'FAILED',
+        [...previous, decisionStep],
+        aiExecution.tokensUsed,
+        aiExecution.latencyMs,
+        'Rejected by the approver — nothing after the approval ran.',
+      );
       return { status: 'FAILED' as const };
     }
 
-    const nodes = normalizeWorkflowNodes(this.parse<unknown>(workflow.nodesJson, []));
+    const nodes = normalizeWorkflowNodes(
+      this.parse<unknown>(workflow.nodesJson, []),
+    );
     const edges = this.parse<WorkflowEdge[]>(workflow.edgesJson, []);
-    context['approval'] = { approverId: event.approverId, comment: event.comment };
+    context['approval'] = {
+      approverId: event.approverId,
+      comment: event.comment,
+    };
     // Steps that were ready beside the approval when it paused the run.
-    const pending = Array.isArray(context['__pending']) ? (context['__pending'] as string[]) : [];
+    const pending = Array.isArray(context['__pending'])
+      ? (context['__pending'] as string[])
+      : [];
     delete context['__pending'];
     const next = [
-      ...edges.filter((e) => e.source === event.stepId && e.sourceHandle !== 'error').map((e) => e.target),
+      ...edges
+        .filter((e) => e.source === event.stepId && e.sourceHandle !== 'error')
+        .map((e) => e.target),
       ...pending,
     ];
 
-    await this.prisma.aIExecution.update({ where: { id: aiExecution.id }, data: { status: 'RUNNING' } });
-    await this.emitRunUpdate(env, { status: 'RUNNING', step: { stepId: event.stepId, status: decisionStep.status } });
+    await this.prisma.aIExecution.update({
+      where: { id: aiExecution.id },
+      data: { status: 'RUNNING' },
+    });
+    await this.emitRunUpdate(env, {
+      status: 'RUNNING',
+      step: { stepId: event.stepId, status: decisionStep.status },
+    });
     const outcome = await this.driveRun({
       env,
       nodes,
@@ -696,41 +886,68 @@ export class WorkflowEngineService {
   async pauseRun(workspaceId: string, runId: string) {
     const run = await this.findWorkflowRun(workspaceId, runId);
     if (run.status !== 'RUNNING') {
-      throw new ConflictException(`Only a running run can be paused; this one is ${run.status.toLowerCase().replace('_', ' ')}.`);
+      throw new ConflictException(
+        `Only a running run can be paused; this one is ${run.status.toLowerCase().replace('_', ' ')}.`,
+      );
     }
-    await this.prisma.aIExecution.updateMany({ where: { id: runId, status: 'RUNNING' }, data: { status: 'PAUSED' } });
+    await this.prisma.aIExecution.updateMany({
+      where: { id: runId, status: 'RUNNING' },
+      data: { status: 'PAUSED' },
+    });
     return { runId, status: 'PAUSED' as const };
   }
 
   /** Continues a paused run from the step after the one it stopped on. */
   async resumeRun(workspaceId: string, runId: string) {
     const run = await this.findWorkflowRun(workspaceId, runId);
-    if (run.status !== 'PAUSED') throw new ConflictException('Only a paused run can be resumed.');
+    if (run.status !== 'PAUSED')
+      throw new ConflictException('Only a paused run can be resumed.');
     const state = (run.stateJson ?? {}) as Record<string, unknown>;
-    const resume = state['__resume'] as { next?: string[]; context?: Record<string, unknown> } | undefined;
-    const workflow = await this.prisma.automationWorkflow.findUniqueOrThrow({ where: { id: run.entityId } });
+    const resume = state['__resume'] as
+      { next?: string[]; context?: Record<string, unknown> } | undefined;
+    const workflow = await this.prisma.automationWorkflow.findUniqueOrThrow({
+      where: { id: run.entityId },
+    });
 
     if (!resume?.next || !resume.context) {
       // Paused as the last step finished: there is nothing left to run.
-      await this.prisma.aIExecution.update({ where: { id: runId }, data: { status: 'COMPLETED', finishedAt: new Date() } });
+      await this.prisma.aIExecution.update({
+        where: { id: runId },
+        data: { status: 'COMPLETED', finishedAt: new Date() },
+      });
       return { runId, status: 'COMPLETED' as const };
     }
     await this.assertMayRun(workspaceId);
-    const profile = readAgentProfile((workflow as { agentProfile?: unknown }).agentProfile);
+    const profile = readAgentProfile(
+      (workflow as { agentProfile?: unknown }).agentProfile,
+    );
     const env: RunEnv = {
-      workflow: { id: workflow.id, workspaceId: workflow.workspaceId, creatorId: workflow.creatorId, name: workflow.name },
+      workflow: {
+        id: workflow.id,
+        workspaceId: workflow.workspaceId,
+        creatorId: workflow.creatorId,
+        name: workflow.name,
+      },
       profile,
       scopes: profile ? new Set(profile.scopes) : null,
       runId,
-      legacyRunId: typeof resume.context[RUN_ID_KEY] === 'string' ? (resume.context[RUN_ID_KEY] as string) : null,
+      legacyRunId:
+        typeof resume.context[RUN_ID_KEY] === 'string'
+          ? (resume.context[RUN_ID_KEY] as string)
+          : null,
       mode: state[MODE_KEY] === 'test' ? 'test' : 'live',
       startedBy: (state['__startedBy'] as RunStartedBy) ?? 'person',
       depth: 0,
       timezone: await this.runTimezone(workflow, profile),
     };
     const { __resume: _drop, ...rest } = state;
-    await this.prisma.aIExecution.update({ where: { id: runId }, data: { status: 'RUNNING', stateJson: rest as any } });
-    const nodes = normalizeWorkflowNodes(this.parse<unknown>(workflow.nodesJson, []));
+    await this.prisma.aIExecution.update({
+      where: { id: runId },
+      data: { status: 'RUNNING', stateJson: rest as any },
+    });
+    const nodes = normalizeWorkflowNodes(
+      this.parse<unknown>(workflow.nodesJson, []),
+    );
     const edges = this.parse<WorkflowEdge[]>(workflow.edgesJson, []);
     await this.emitRunUpdate(env, { status: 'RUNNING' });
     void this.driveRun({
@@ -743,7 +960,9 @@ export class WorkflowEngineService {
       previous: [],
       priorTokens: run.tokensUsed,
       priorLatency: run.latencyMs,
-    }).catch((error) => this.logger.error(`Resumed run ${runId} crashed: ${String(error)}`));
+    }).catch((error) =>
+      this.logger.error(`Resumed run ${runId} crashed: ${String(error)}`),
+    );
     return { runId, status: 'RUNNING' as const };
   }
 
@@ -755,7 +974,9 @@ export class WorkflowEngineService {
   async cancelRun(workspaceId: string, runId: string) {
     const run = await this.findWorkflowRun(workspaceId, runId);
     if (!['RUNNING', 'WAITING_APPROVAL', 'PAUSED'].includes(run.status)) {
-      throw new ConflictException(`This run already ${run.status === 'CANCELLED' ? 'was cancelled' : 'finished'}.`);
+      throw new ConflictException(
+        `This run already ${run.status === 'CANCELLED' ? 'was cancelled' : 'finished'}.`,
+      );
     }
     await this.prisma.$transaction([
       this.prisma.aIExecution.update({
@@ -772,7 +993,9 @@ export class WorkflowEngineService {
       }),
     ]);
     if (run.status !== 'RUNNING') {
-      const workflow = await this.prisma.automationWorkflow.findUnique({ where: { id: run.entityId } });
+      const workflow = await this.prisma.automationWorkflow.findUnique({
+        where: { id: run.entityId },
+      });
       if (workflow) {
         const env = this.lightEnv(workflow, runId);
         await this.emitRunUpdate(env, { status: 'CANCELLED' });
@@ -786,10 +1009,19 @@ export class WorkflowEngineService {
    * earlier run's steps before it produced — for "fix the cause, then continue
    * from where it failed" without redoing the work that succeeded.
    */
-  async restartFromStep(workspaceId: string, runId: string, stepId: string, userId: string | null) {
+  async restartFromStep(
+    workspaceId: string,
+    runId: string,
+    stepId: string,
+    userId: string | null,
+  ) {
     const run = await this.findWorkflowRun(workspaceId, runId);
-    const workflow = await this.prisma.automationWorkflow.findUniqueOrThrow({ where: { id: run.entityId } });
-    const nodes = normalizeWorkflowNodes(this.parse<unknown>(workflow.nodesJson, []));
+    const workflow = await this.prisma.automationWorkflow.findUniqueOrThrow({
+      where: { id: run.entityId },
+    });
+    const nodes = normalizeWorkflowNodes(
+      this.parse<unknown>(workflow.nodesJson, []),
+    );
     if (!nodes.some((n) => n.id === stepId)) {
       throw new NotFoundException('That step is no longer in this workflow.');
     }
@@ -809,28 +1041,53 @@ export class WorkflowEngineService {
       }
     }
     const state = (run.stateJson ?? {}) as Record<string, unknown>;
-    const input = Object.fromEntries(Object.entries(state).filter(([key]) => !ENGINE_CONTEXT_KEYS.includes(key)));
-    return this.startWorkflow(workflow.id, { ...input, restartOf: run.id, restartFrom: stepId }, {
-      mode: state[MODE_KEY] === 'test' ? 'test' : 'live',
-      startedBy: 'retry',
-      userId,
-      startAt: [stepId],
-      carriedContext: carried,
-    });
+    const input = Object.fromEntries(
+      Object.entries(state).filter(
+        ([key]) => !ENGINE_CONTEXT_KEYS.includes(key),
+      ),
+    );
+    return this.startWorkflow(
+      workflow.id,
+      { ...input, restartOf: run.id, restartFrom: stepId },
+      {
+        mode: state[MODE_KEY] === 'test' ? 'test' : 'live',
+        startedBy: 'retry',
+        userId,
+        startAt: [stepId],
+        carriedContext: carried,
+      },
+    );
   }
 
   private async findWorkflowRun(workspaceId: string, runId: string) {
-    const run = await this.prisma.aIExecution.findFirst({ where: { id: runId, workspaceId } });
+    const run = await this.prisma.aIExecution.findFirst({
+      where: { id: runId, workspaceId },
+    });
     if (!run) throw new NotFoundException('Run not found.');
     if (run.entityType !== 'WORKFLOW') {
-      throw new BadRequestException('Only agent and workflow runs can be paused, resumed or restarted.');
+      throw new BadRequestException(
+        'Only agent and workflow runs can be paused, resumed or restarted.',
+      );
     }
     return run;
   }
 
-  private lightEnv(workflow: { id: string; workspaceId: string; creatorId: string | null; name: string }, runId: string): RunEnv {
+  private lightEnv(
+    workflow: {
+      id: string;
+      workspaceId: string;
+      creatorId: string | null;
+      name: string;
+    },
+    runId: string,
+  ): RunEnv {
     return {
-      workflow: { id: workflow.id, workspaceId: workflow.workspaceId, creatorId: workflow.creatorId, name: workflow.name },
+      workflow: {
+        id: workflow.id,
+        workspaceId: workflow.workspaceId,
+        creatorId: workflow.creatorId,
+        name: workflow.name,
+      },
       profile: null,
       scopes: null,
       runId,
@@ -868,7 +1125,12 @@ export class WorkflowEngineService {
     startIds: string[],
     executionContext: Record<string, unknown>,
     scope?: { only: Set<string>; iteration: number },
-  ): Promise<{ status: RunOutcome; results: WorkflowStepResult[]; tokens: number; error?: string }> {
+  ): Promise<{
+    status: RunOutcome;
+    results: WorkflowStepResult[];
+    tokens: number;
+    error?: string;
+  }> {
     const nodeById = new Map(nodes.map((n) => [n.id, n]));
     const results: WorkflowStepResult[] = [];
     const budget = this.budgetFor(env);
@@ -890,12 +1152,20 @@ export class WorkflowEngineService {
         const later: string[] = [];
         for (const nodeId of queue.splice(0)) {
           const node = nodeById.get(nodeId);
-          if (!node || done.has(nodeId) || ready.includes(node) || (scope && !scope.only.has(nodeId))) continue;
+          if (
+            !node ||
+            done.has(nodeId) ||
+            ready.includes(node) ||
+            (scope && !scope.only.has(nodeId))
+          )
+            continue;
           if (node.type === 'MERGE') {
             // A join waits while any started step can still lead into it —
             // not just its direct inputs, which may not have been reached yet.
             const upstream = ancestorsOf(nodeId, edges);
-            const pending = [...activated].some((id) => id !== nodeId && !done.has(id) && upstream.has(id));
+            const pending = [...activated].some(
+              (id) => id !== nodeId && !done.has(id) && upstream.has(id),
+            );
             const waited = (deferrals.get(nodeId) ?? 0) + 1;
             if (pending && waited <= MAX_NODE_VISITS * 10) {
               deferrals.set(nodeId, waited);
@@ -908,7 +1178,10 @@ export class WorkflowEngineService {
         const work = ready.filter((n) => !HUMAN_STEP_TYPES.has(n.type));
         const humans = ready.filter((n) => HUMAN_STEP_TYPES.has(n.type));
         const batch = work.length ? work : humans.slice(0, 1);
-        queue.push(...(work.length ? humans : humans.slice(1)).map((n) => n.id), ...later);
+        queue.push(
+          ...(work.length ? humans : humans.slice(1)).map((n) => n.id),
+          ...later,
+        );
         if (batch.length === 0) continue;
 
         // Someone paused or cancelled the run while the previous steps ran.
@@ -916,7 +1189,11 @@ export class WorkflowEngineService {
         if (interrupted) {
           status = interrupted;
           if (interrupted === 'PAUSED' && !scope) {
-            await this.rememberResumePoint(env.runId, [...batch.map((n) => n.id), ...queue], executionContext);
+            await this.rememberResumePoint(
+              env.runId,
+              [...batch.map((n) => n.id), ...queue],
+              executionContext,
+            );
           }
           break;
         }
@@ -947,9 +1224,12 @@ export class WorkflowEngineService {
             return;
           }
           if (step.status === 'FAILED') {
-            const fallbacks = edges.filter((e) => e.source === node.id && e.sourceHandle === 'error');
+            const fallbacks = edges.filter(
+              (e) => e.source === node.id && e.sourceHandle === 'error',
+            );
             if (fallbacks.length === 0) {
-              if (!failed) error = `${node.label || node.id}: ${String((step.output as any)?.error ?? 'failed')}`;
+              if (!failed)
+                error = `${node.label || node.id}: ${String((step.output as any)?.error ?? 'failed')}`;
               failed = true;
               return;
             }
@@ -973,10 +1253,17 @@ export class WorkflowEngineService {
           }
 
           for (const edge of edges) {
-            if (edge.source !== node.id || edge.sourceHandle === 'error') continue;
+            if (edge.source !== node.id || edge.sourceHandle === 'error')
+              continue;
             // A loop's per-item branch already ran inside the loop step.
-            if (node.type === 'LOOP' && edge.sourceHandle === LOOP_EACH_HANDLE) continue;
-            if (step.branch && edge.sourceHandle && edge.sourceHandle !== step.branch) continue;
+            if (node.type === 'LOOP' && edge.sourceHandle === LOOP_EACH_HANDLE)
+              continue;
+            if (
+              step.branch &&
+              edge.sourceHandle &&
+              edge.sourceHandle !== step.branch
+            )
+              continue;
             activated.add(edge.target);
             queue.push(edge.target);
           }
@@ -990,7 +1277,8 @@ export class WorkflowEngineService {
           status = 'WAITING_APPROVAL';
           // Other branches ready beside the approval continue after it.
           const pending = [...new Set(queue)].filter((id) => !done.has(id));
-          if (pending.length) await this.rememberPendingBranches(env.runId, waitingAt, pending);
+          if (pending.length)
+            await this.rememberPendingBranches(env.runId, waitingAt, pending);
           break;
         }
       }
@@ -1017,24 +1305,51 @@ export class WorkflowEngineService {
     context: Record<string, unknown>,
     scope?: { only: Set<string>; iteration: number },
   ): Promise<WorkflowStepResult> {
-    const shown = scope ? { ...node, label: `${node.label || node.id} · item ${scope.iteration + 1}` } : node;
+    const shown = scope
+      ? {
+          ...node,
+          label: `${node.label || node.id} · item ${scope.iteration + 1}`,
+        }
+      : node;
     const stepRowId = await this.openStep(env, shown);
     const started = Date.now();
     const step = await runInAgentScope(
-      { workflowId: env.workflow.id, runId: env.runId, agentName: env.workflow.name, depth: env.depth, test: env.mode === 'test' },
+      {
+        workflowId: env.workflow.id,
+        runId: env.runId,
+        agentName: env.workflow.name,
+        depth: env.depth,
+        test: env.mode === 'test',
+      },
       () =>
         node.type === 'MERGE'
           ? Promise.resolve(this.mergeStep(node, edges, nodes, context))
-          : node.type === 'LOOP' && edges.some((e) => e.source === node.id && e.sourceHandle === LOOP_EACH_HANDLE)
+          : node.type === 'LOOP' &&
+              edges.some(
+                (e) =>
+                  e.source === node.id && e.sourceHandle === LOOP_EACH_HANDLE,
+              )
             ? this.runLoop(env, node, nodes, edges, context)
             : this.runNode(node, context, env),
     );
-    await this.closeStep(env, shown, stepRowId, step, Date.now() - started, Number((step.output as any)?.tokensUsed ?? 0) || 0);
+    await this.closeStep(
+      env,
+      shown,
+      stepRowId,
+      step,
+      Date.now() - started,
+      Number((step.output as any)?.tokensUsed ?? 0) || 0,
+    );
     return step;
   }
 
   /** A join: what each incoming branch produced, by step name. */
-  private mergeStep(node: WorkflowNode, edges: WorkflowEdge[], nodes: WorkflowNode[], context: Record<string, unknown>): WorkflowStepResult {
+  private mergeStep(
+    node: WorkflowNode,
+    edges: WorkflowEdge[],
+    nodes: WorkflowNode[],
+    context: Record<string, unknown>,
+  ): WorkflowStepResult {
     const merged: Record<string, unknown> = {};
     const parts: string[] = [];
     for (const edge of edges.filter((e) => e.target === node.id)) {
@@ -1050,7 +1365,10 @@ export class WorkflowEngineService {
       stepId: node.id,
       type: node.type,
       status: 'SUCCESS',
-      output: { merged, ...(parts.length ? { output: parts.join('\n\n') } : {}) },
+      output: {
+        merged,
+        ...(parts.length ? { output: parts.join('\n\n') } : {}),
+      },
     };
   }
 
@@ -1067,7 +1385,12 @@ export class WorkflowEngineService {
     edges: WorkflowEdge[],
     context: Record<string, unknown>,
   ): Promise<WorkflowStepResult> {
-    const fail = (message: string): WorkflowStepResult => ({ stepId: node.id, type: node.type, status: 'FAILED', output: { error: message } });
+    const fail = (message: string): WorkflowStepResult => ({
+      stepId: node.id,
+      type: node.type,
+      status: 'FAILED',
+      output: { error: message },
+    });
     const itemsKey = String(node.config['itemsKey'] || 'items');
     let items: unknown = readPath(context, itemsKey);
     if (typeof items === 'string') {
@@ -1076,12 +1399,22 @@ export class WorkflowEngineService {
         items = JSON.parse(text);
       } catch {
         // A plain list: one item per line.
-        items = text.split('\n').map((line) => line.trim()).filter(Boolean);
+        items = text
+          .split('\n')
+          .map((line) => line.trim())
+          .filter(Boolean);
       }
     }
-    if (!Array.isArray(items)) return fail(`The loop needs a list at {{${itemsKey}}}, but found ${items === undefined ? 'nothing' : typeof items}.`);
+    if (!Array.isArray(items))
+      return fail(
+        `The loop needs a list at {{${itemsKey}}}, but found ${items === undefined ? 'nothing' : typeof items}.`,
+      );
 
-    const bodyStarts = edges.filter((e) => e.source === node.id && e.sourceHandle === LOOP_EACH_HANDLE).map((e) => e.target);
+    const bodyStarts = edges
+      .filter(
+        (e) => e.source === node.id && e.sourceHandle === LOOP_EACH_HANDLE,
+      )
+      .map((e) => e.target);
     const body = new Set<string>();
     const stack = [...bodyStarts];
     while (stack.length) {
@@ -1091,10 +1424,15 @@ export class WorkflowEngineService {
       stack.push(...edges.filter((e) => e.source === id).map((e) => e.target));
     }
     if (nodes.some((n) => body.has(n.id) && HUMAN_STEP_TYPES.has(n.type))) {
-      return fail('Approvals inside a loop aren’t supported yet. Put the approval before or after the loop.');
+      return fail(
+        'Approvals inside a loop aren’t supported yet. Put the approval before or after the loop.',
+      );
     }
 
-    const cap = Math.min(Math.max(num(node.config['maxIterations'], MAX_LOOP_ITERATIONS), 1), MAX_LOOP_ITERATIONS);
+    const cap = Math.min(
+      Math.max(num(node.config['maxIterations'], MAX_LOOP_ITERATIONS), 1),
+      MAX_LOOP_ITERATIONS,
+    );
     const loopResults: unknown[] = [];
     let tokens = 0;
     for (const [index, item] of items.slice(0, cap).entries()) {
@@ -1103,16 +1441,28 @@ export class WorkflowEngineService {
         item,
         index,
         loop: { item, index, count: Math.min(items.length, cap) },
-        [LAST_OUTPUT_KEY]: typeof item === 'string' ? item : JSON.stringify(item),
+        [LAST_OUTPUT_KEY]:
+          typeof item === 'string' ? item : JSON.stringify(item),
       };
-      const outcome = await this.runGraph(env, nodes, edges, bodyStarts, iteration, { only: body, iteration: index });
+      const outcome = await this.runGraph(
+        env,
+        nodes,
+        edges,
+        bodyStarts,
+        iteration,
+        { only: body, iteration: index },
+      );
       tokens += outcome.tokens;
       if (outcome.status !== 'SUCCESS') {
         return {
           stepId: node.id,
           type: node.type,
           status: 'FAILED',
-          output: { error: `Item ${index + 1}: ${outcome.error ?? outcome.status.toLowerCase()}`, loopResults, tokensUsed: tokens },
+          output: {
+            error: `Item ${index + 1}: ${outcome.error ?? outcome.status.toLowerCase()}`,
+            loopResults,
+            tokensUsed: tokens,
+          },
         };
       }
       loopResults.push(iteration[LAST_OUTPUT_KEY]);
@@ -1124,7 +1474,9 @@ export class WorkflowEngineService {
       output: {
         loopResults,
         iterations: loopResults.length,
-        ...(items.length > cap ? { truncated: `Only the first ${cap} of ${items.length} items ran.` } : {}),
+        ...(items.length > cap
+          ? { truncated: `Only the first ${cap} of ${items.length} items ran.` }
+          : {}),
         tokensUsed: tokens,
       },
     };
@@ -1134,7 +1486,12 @@ export class WorkflowEngineService {
   private budgetFor(env: RunEnv): RunBudget {
     if (!env.budget) {
       const limits = env.limits ?? DEFAULT_AGENT_RUN_LIMITS;
-      env.budget = { limits, steps: 0, tokens: 0, deadline: Date.now() + limits.maxDurationMs };
+      env.budget = {
+        limits,
+        steps: 0,
+        tokens: 0,
+        deadline: Date.now() + limits.maxDurationMs,
+      };
     }
     return env.budget;
   }
@@ -1145,7 +1502,9 @@ export class WorkflowEngineService {
       const budget = this.budgetFor(env);
       env.team = newAgentTeamRun(env.runId, {
         maxDelegations: budget.limits.maxDelegations,
-        ...(budget.limits.maxTokens ? { maxTokens: budget.limits.maxTokens } : {}),
+        ...(budget.limits.maxTokens
+          ? { maxTokens: budget.limits.maxTokens }
+          : {}),
         maxDurationMs: Math.max(budget.deadline - Date.now(), 0),
       });
     }
@@ -1167,7 +1526,11 @@ export class WorkflowEngineService {
   }
 
   /** Records the branches that were ready beside an approval, so deciding it continues them too. */
-  private async rememberPendingBranches(runId: string, stepId: string, pending: string[]) {
+  private async rememberPendingBranches(
+    runId: string,
+    stepId: string,
+    pending: string[],
+  ) {
     try {
       const approval = await this.prisma.approvalRequest.findFirst({
         where: { executionId: runId, stepId, state: 'PENDING' },
@@ -1176,21 +1539,42 @@ export class WorkflowEngineService {
       if (!approval) return;
       await this.prisma.approvalRequest.update({
         where: { id: approval.id },
-        data: { proposedPayload: { ...((approval.proposedPayload as Record<string, unknown>) ?? {}), __pending: pending } as any },
+        data: {
+          proposedPayload: {
+            ...((approval.proposedPayload as Record<string, unknown>) ?? {}),
+            __pending: pending,
+          } as any,
+        },
       });
     } catch (error) {
-      this.logger.warn(`Could not record the branches waiting on ${stepId}: ${String(error)}`);
+      this.logger.warn(
+        `Could not record the branches waiting on ${stepId}: ${String(error)}`,
+      );
     }
   }
 
   /** PAUSED or CANCELLED when someone stopped the run since the last step. */
-  private async interruption(runId: string): Promise<'PAUSED' | 'CANCELLED' | null> {
-    const row = await this.prisma.aIExecution.findUnique({ where: { id: runId }, select: { status: true } });
-    return row?.status === 'PAUSED' || row?.status === 'CANCELLED' ? row.status : null;
+  private async interruption(
+    runId: string,
+  ): Promise<'PAUSED' | 'CANCELLED' | null> {
+    const row = await this.prisma.aIExecution.findUnique({
+      where: { id: runId },
+      select: { status: true },
+    });
+    return row?.status === 'PAUSED' || row?.status === 'CANCELLED'
+      ? row.status
+      : null;
   }
 
-  private async rememberResumePoint(runId: string, next: string[], context: Record<string, unknown>) {
-    const row = await this.prisma.aIExecution.findUnique({ where: { id: runId }, select: { stateJson: true } });
+  private async rememberResumePoint(
+    runId: string,
+    next: string[],
+    context: Record<string, unknown>,
+  ) {
+    const row = await this.prisma.aIExecution.findUnique({
+      where: { id: runId },
+      select: { stateJson: true },
+    });
     const state = (row?.stateJson ?? {}) as Record<string, unknown>;
     await this.prisma.aIExecution.update({
       where: { id: runId },
@@ -1199,7 +1583,10 @@ export class WorkflowEngineService {
   }
 
   /** Records a step as running before it starts — the live "current step". */
-  private async openStep(env: RunEnv, node: WorkflowNode): Promise<string | null> {
+  private async openStep(
+    env: RunEnv,
+    node: WorkflowNode,
+  ): Promise<string | null> {
     try {
       const row = await this.prisma.aIExecutionStep.create({
         data: {
@@ -1211,10 +1598,19 @@ export class WorkflowEngineService {
           outputJson: {},
         },
       });
-      await this.emitRunUpdate(env, { status: 'RUNNING', step: { stepId: node.id, status: 'RUNNING', ...(node.label ? { label: node.label } : {}) } });
+      await this.emitRunUpdate(env, {
+        status: 'RUNNING',
+        step: {
+          stepId: node.id,
+          status: 'RUNNING',
+          ...(node.label ? { label: node.label } : {}),
+        },
+      });
       return (row as { id?: string } | undefined)?.id ?? null;
     } catch (error) {
-      this.logger.warn(`Could not record step ${node.id} of run ${env.runId}: ${String(error)}`);
+      this.logger.warn(
+        `Could not record step ${node.id} of run ${env.runId}: ${String(error)}`,
+      );
       return null;
     }
   }
@@ -1232,7 +1628,9 @@ export class WorkflowEngineService {
       outputJson: {
         ...((step.output as Record<string, unknown> | null) ?? {}),
         // How many tries it took, when a retry was needed — shown on the timeline.
-        ...(step.attempts && step.attempts > 1 ? { attempts: step.attempts } : {}),
+        ...(step.attempts && step.attempts > 1
+          ? { attempts: step.attempts }
+          : {}),
       } as any,
       latencyMs,
       tokensUsed,
@@ -1241,16 +1639,34 @@ export class WorkflowEngineService {
     };
     try {
       if (rowId) {
-        await this.prisma.aIExecutionStep.update({ where: { id: rowId }, data });
+        await this.prisma.aIExecutionStep.update({
+          where: { id: rowId },
+          data,
+        });
       } else {
         await this.prisma.aIExecutionStep.create({
-          data: { executionId: env.runId, stepId: node.id, nodeType: node.type, inputJson: stepInputConfig(node.config) as any, ...data },
+          data: {
+            executionId: env.runId,
+            stepId: node.id,
+            nodeType: node.type,
+            inputJson: stepInputConfig(node.config) as any,
+            ...data,
+          },
         });
       }
     } catch (error) {
-      this.logger.warn(`Could not record the result of step ${node.id}: ${String(error)}`);
+      this.logger.warn(
+        `Could not record the result of step ${node.id}: ${String(error)}`,
+      );
     }
-    await this.emitRunUpdate(env, { status: 'RUNNING', step: { stepId: node.id, status: step.status, ...(node.label ? { label: node.label } : {}) } });
+    await this.emitRunUpdate(env, {
+      status: 'RUNNING',
+      step: {
+        stepId: node.id,
+        status: step.status,
+        ...(node.label ? { label: node.label } : {}),
+      },
+    });
   }
 
   /**
@@ -1269,13 +1685,20 @@ export class WorkflowEngineService {
       await this.prisma.workflowExecution.update({
         where: { id: env.legacyRunId },
         data: {
-          status: status === 'WAITING_APPROVAL' || status === 'PAUSED' ? 'RUNNING' : status === 'CANCELLED' ? 'FAILED' : status,
+          status:
+            status === 'WAITING_APPROVAL' || status === 'PAUSED'
+              ? 'RUNNING'
+              : status === 'CANCELLED'
+                ? 'FAILED'
+                : status,
           stepResults: JSON.stringify(results).slice(0, 100_000),
           finishedAt: new Date(),
         },
       });
     }
-    const failures = results.filter((r) => r.status === 'FAILED').map((r) => ({ stepId: r.stepId, output: r.output }));
+    const failures = results
+      .filter((r) => r.status === 'FAILED')
+      .map((r) => ({ stepId: r.stepId, output: r.output }));
     const totals = {
       latencyMs: duration,
       tokensUsed: totalTokens,
@@ -1284,18 +1707,34 @@ export class WorkflowEngineService {
     if (status === 'PAUSED' || status === 'CANCELLED') {
       await this.prisma.aIExecution.update({
         where: { id: env.runId },
-        data: { ...totals, ...(status === 'CANCELLED' ? { finishedAt: new Date() } : {}) },
+        data: {
+          ...totals,
+          ...(status === 'CANCELLED' ? { finishedAt: new Date() } : {}),
+        },
       });
     } else {
       await this.prisma.aIExecution.updateMany({
         // Only a run still in flight: never overwrite one someone paused or cancelled.
-        where: { id: env.runId, status: { in: ['RUNNING', 'WAITING_APPROVAL'] } },
+        where: {
+          id: env.runId,
+          status: { in: ['RUNNING', 'WAITING_APPROVAL'] },
+        },
         data: {
           ...totals,
-          status: status === 'WAITING_APPROVAL' ? 'WAITING_APPROVAL' : status === 'SUCCESS' ? 'COMPLETED' : 'FAILED',
+          status:
+            status === 'WAITING_APPROVAL'
+              ? 'WAITING_APPROVAL'
+              : status === 'SUCCESS'
+                ? 'COMPLETED'
+                : 'FAILED',
           finishedAt: status === 'WAITING_APPROVAL' ? null : new Date(),
           ...(status === 'FAILED'
-            ? { errorsJson: { message: error ?? 'A step failed.', failures } as any }
+            ? {
+                errorsJson: {
+                  message: error ?? 'A step failed.',
+                  failures,
+                } as any,
+              }
             : failures.length
               ? { errorsJson: { recovered: failures } as any }
               : {}),
@@ -1327,15 +1766,24 @@ export class WorkflowEngineService {
   }
 
   /** Tells open Studio pages what changed, so nothing has to poll. */
-  private async emitRunUpdate(env: RunEnv, update: Omit<AIRunUpdate, 'runId' | 'workflowId'>) {
+  private async emitRunUpdate(
+    env: RunEnv,
+    update: Omit<AIRunUpdate, 'runId' | 'workflowId'>,
+  ) {
     if (!this.realtime) return;
     try {
       await this.realtime.broadcastToWorkspace(env.workflow.workspaceId, {
         type: 'ai.run.updated',
-        payload: { runId: env.runId, workflowId: env.workflow.id, ...update } satisfies AIRunUpdate,
+        payload: {
+          runId: env.runId,
+          workflowId: env.workflow.id,
+          ...update,
+        } satisfies AIRunUpdate,
       });
     } catch (error) {
-      this.logger.debug(`Run update for ${env.runId} not broadcast: ${String(error)}`);
+      this.logger.debug(
+        `Run update for ${env.runId} not broadcast: ${String(error)}`,
+      );
     }
   }
 
@@ -1358,7 +1806,12 @@ export class WorkflowEngineService {
     }
     const cfg = node.config ?? {};
     const retries = Math.min(num(cfg['retries'], 0), 5);
-    const timeoutMs = num(cfg['timeoutMs'], MODEL_NODE_TYPES.has(node.type) ? DEFAULT_MODEL_STEP_TIMEOUT_MS : DEFAULT_STEP_TIMEOUT_MS);
+    const timeoutMs = num(
+      cfg['timeoutMs'],
+      MODEL_NODE_TYPES.has(node.type)
+        ? DEFAULT_MODEL_STEP_TIMEOUT_MS
+        : DEFAULT_STEP_TIMEOUT_MS,
+    );
 
     let lastError = '';
     let attempt = 1;
@@ -1382,7 +1835,9 @@ export class WorkflowEngineService {
         // Retrying cannot fix a missing connection or permission; say so now.
         if (!classified.retryable) break;
         if (attempt <= retries) {
-          await new Promise((r) => setTimeout(r, backoffMs(attempt, classified.code)));
+          await new Promise((r) =>
+            setTimeout(r, backoffMs(attempt, classified.code)),
+          );
         }
       }
     }
@@ -1392,7 +1847,12 @@ export class WorkflowEngineService {
       stepId: node.id,
       type: node.type,
       status: 'FAILED',
-      output: { error: lastError, errorCode: classified.code, retryable: classified.retryable, hint: classified.hint },
+      output: {
+        error: lastError,
+        errorCode: classified.code,
+        retryable: classified.retryable,
+        hint: classified.hint,
+      },
       attempts: Math.min(attempt, retries + 1),
     };
   }
@@ -1407,21 +1867,36 @@ export class WorkflowEngineService {
    * to call; a step placed on the canvas by a person is already their
    * explicit choice, and an approval gate is a HUMAN_APPROVAL node.
    */
-  private async assertToolEnabled(workspaceId: string, toolName: string, connector?: string): Promise<void> {
-    const row = await this.prisma.workspaceSettings.findUnique({ where: { workspaceId }, select: { policies: true } });
+  private async assertToolEnabled(
+    workspaceId: string,
+    toolName: string,
+    connector?: string,
+  ): Promise<void> {
+    const row = await this.prisma.workspaceSettings.findUnique({
+      where: { workspaceId },
+      select: { policies: true },
+    });
     const { toolPolicy } = resolveWorkspacePolicy(row?.policies);
     if (workspaceToolMode(toolPolicy, toolName, connector) === 'disabled') {
-      throw new Error(`'${toolName}' is turned off for this workspace by an admin (Settings → Policies).`);
+      throw new Error(
+        `'${toolName}' is turned off for this workspace by an admin (Settings → Policies).`,
+      );
     }
   }
 
-  private gateStep(node: WorkflowNode, env: RunEnv, appAccess?: 'read' | 'write' | 'destructive'): WorkflowStepResult | null {
+  private gateStep(
+    node: WorkflowNode,
+    env: RunEnv,
+    appAccess?: 'read' | 'write' | 'destructive',
+  ): WorkflowStepResult | null {
     const scope = scopeForNode(node.type, node.config ?? {}, appAccess);
     if (scope && env.scopes && !env.scopes.has(scope)) {
       throw new Error(missingPermissionMessage(scope));
     }
     if (env.mode === 'test' && scope && !isReadScope(scope)) {
-      const tool = String(node.config?.['toolName'] || node.config?.['tool'] || node.type);
+      const tool = String(
+        node.config?.['toolName'] || node.config?.['tool'] || node.type,
+      );
       return {
         stepId: node.id,
         type: node.type,
@@ -1462,7 +1937,9 @@ export class WorkflowEngineService {
         const template = String(cfg['template'] || cfg['message'] || '');
         // A snapshot, not the live context: the step's output is stored back
         // into the context, and a self-reference made the run unserialisable.
-        const rendered = template ? interpolateVariables(template, context) : { ...context };
+        const rendered = template
+          ? interpolateVariables(template, context)
+          : { ...context };
         return {
           stepId: node.id,
           type: node.type,
@@ -1506,7 +1983,12 @@ export class WorkflowEngineService {
       case 'AGENT':
         this.gateScopeOnly(node, env);
         if (cfg['inlineAgent'] && typeof cfg['inlineAgent'] === 'object') {
-          return this.runInlineAgentNode(node, context, env, cfg['inlineAgent'] as InlineAgentSpec);
+          return this.runInlineAgentNode(
+            node,
+            context,
+            env,
+            cfg['inlineAgent'] as InlineAgentSpec,
+          );
         }
         return this.runEntityNode(
           node,
@@ -1530,7 +2012,10 @@ export class WorkflowEngineService {
 
       case 'KNOWLEDGE_RETRIEVAL': {
         const kbId = String(cfg['knowledgeBaseId'] || '');
-        const queryText = interpolateVariables(String(cfg['query'] || 'information'), context);
+        const queryText = interpolateVariables(
+          String(cfg['query'] || 'information'),
+          context,
+        );
         // No knowledge base, or one that can't be searched, is a failed step —
         // never an empty "success" the next step would treat as "nothing found".
         if (!kbId) {
@@ -1538,7 +2023,9 @@ export class WorkflowEngineService {
             stepId: node.id,
             type: node.type,
             status: 'FAILED',
-            output: { error: `${node.label || 'Knowledge search'} has no knowledge base picked.` },
+            output: {
+              error: `${node.label || 'Knowledge search'} has no knowledge base picked.`,
+            },
           };
         }
         let docs: any[];
@@ -1552,7 +2039,9 @@ export class WorkflowEngineService {
             stepId: node.id,
             type: node.type,
             status: 'FAILED',
-            output: { error: `Searching the knowledge base failed: ${error instanceof Error ? error.message : String(error)}` },
+            output: {
+              error: `Searching the knowledge base failed: ${error instanceof Error ? error.message : String(error)}`,
+            },
           };
         }
         return {
@@ -1605,7 +2094,10 @@ export class WorkflowEngineService {
 
       case 'STRUCTURED_OUTPUT':
       case 'EXTRACT_DATA': {
-        const text = interpolateVariables(String(cfg['input'] || '{{input}}'), context);
+        const text = interpolateVariables(
+          String(cfg['input'] || '{{input}}'),
+          context,
+        );
         const fields = String(cfg['fields'] || cfg['schema'] || '')
           .split(',')
           .map((f) => f.trim())
@@ -1619,18 +2111,117 @@ export class WorkflowEngineService {
           },
           { role: 'user', content: text },
         ]);
-        const raw = aiRes.message.content.trim().replace(/^```(?:json)?\s*|\s*```$/g, '');
+        const raw = aiRes.message.content
+          .trim()
+          .replace(/^```(?:json)?\s*|\s*```$/g, '');
         let extracted: unknown;
         try {
           extracted = JSON.parse(raw);
         } catch {
-          throw new Error('The model did not return valid JSON for this extraction step.');
+          throw new Error(
+            'The model did not return valid JSON for this extraction step.',
+          );
         }
         return {
           stepId: node.id,
           type: node.type,
           status: 'SUCCESS',
           output: { extracted, tokensUsed: aiRes.usage?.totalTokens ?? 0 },
+        };
+      }
+
+      // An app action's input, worked out from the request and the agent's
+      // answer before it — the compiler puts one in front of an app step that
+      // has no input of its own (`compileStudioGraph`).
+      case 'TOOL_INPUT': {
+        const ref = parseConnectorActionRef(String(cfg['toolName'] || ''));
+        const title = String(cfg['title'] || ref?.provider || 'the app');
+        let capability:
+          { label: string; inputSchema: Record<string, unknown> } | undefined;
+        try {
+          capability = ref
+            ? this.connectors
+                ?.manifest(ref.provider)
+                .capabilities.find((c) => c.id === ref.actionId)
+            : undefined;
+        } catch {
+          capability = undefined;
+        }
+        if (!ref || !capability) {
+          return {
+            stepId: node.id,
+            type: node.type,
+            status: 'FAILED',
+            output: {
+              error: `${title} has no action '${ref?.actionId ?? ''}' to fill in.`,
+            },
+          };
+        }
+        const request = ['message', 'input', 'prompt', 'query', 'text']
+          .map((key) => context[key])
+          .find((v): v is string => typeof v === 'string' && !!v.trim());
+        const answer = context[LAST_OUTPUT_KEY];
+        const aiRes = await this.workspaceChat(workspaceId, cfg, [
+          {
+            role: 'system',
+            content:
+              `You fill in the input for the app action “${capability.label}” in ${title}. Its input follows this JSON Schema:\n` +
+              `${JSON.stringify(capability.inputSchema)}\n\n` +
+              'Use only what the request and the agent’s answer say — never invent email addresses, ids or names; leave a field out when neither gives it. ' +
+              'Reply with one JSON object only.',
+          },
+          {
+            role: 'user',
+            content: `Request:\n${request ?? '(none)'}\n\nAgent’s answer:\n${typeof answer === 'string' ? answer : JSON.stringify(answer ?? '')}`,
+          },
+        ]);
+        const raw = aiRes.message.content
+          .trim()
+          .replace(/^```(?:json)?\s*|\s*```$/g, '');
+        let toolInput: unknown;
+        try {
+          toolInput = JSON.parse(raw);
+        } catch {
+          toolInput = undefined;
+        }
+        if (
+          !toolInput ||
+          typeof toolInput !== 'object' ||
+          Array.isArray(toolInput)
+        ) {
+          throw new Error(
+            `The model did not return valid input for ${title} · ${capability.label}.`,
+          );
+        }
+        const required = Array.isArray(capability.inputSchema['required'])
+          ? (capability.inputSchema['required'] as unknown[]).map(String)
+          : [];
+        const missing = required.filter((key) => {
+          const v = (toolInput as Record<string, unknown>)[key];
+          return (
+            v === undefined ||
+            v === null ||
+            v === '' ||
+            (Array.isArray(v) && v.length === 0)
+          );
+        });
+        if (missing.length) {
+          return {
+            stepId: node.id,
+            type: node.type,
+            status: 'FAILED',
+            output: {
+              toolInput,
+              tokensUsed: aiRes.usage?.totalTokens ?? 0,
+              error: `${title} · ${capability.label} needs ${missing.join(', ')}, which neither the request nor the agent gave. Say it in the request and run again.`,
+            },
+          };
+        }
+        return {
+          stepId: node.id,
+          type: node.type,
+          status: 'SUCCESS',
+          output: { toolInput, tokensUsed: aiRes.usage?.totalTokens ?? 0 },
         };
       }
 
@@ -1661,7 +2252,9 @@ export class WorkflowEngineService {
 
       case 'LOOP':
       case 'ITERATION': {
-        const list = (readPath(context, String(cfg['itemsKey'] || 'items')) as any[]) || [];
+        const list =
+          (readPath(context, String(cfg['itemsKey'] || 'items')) as any[]) ||
+          [];
         return {
           stepId: node.id,
           type: node.type,
@@ -1682,18 +2275,29 @@ export class WorkflowEngineService {
       case 'MERGE':
         // Joined in runGraph, which knows the branches; reached here only
         // without one (e.g. a restart that began at the merge).
-        return { stepId: node.id, type: node.type, status: 'SUCCESS', output: { merged: {} } };
+        return {
+          stepId: node.id,
+          type: node.type,
+          status: 'SUCCESS',
+          output: { merged: {} },
+        };
 
       case 'UNSUPPORTED':
         return {
           stepId: node.id,
           type: String(cfg['originalType'] || node.type),
           status: 'SKIPPED',
-          output: { skipped: true, reason: String(cfg['reason'] || 'This step can’t run yet.') },
+          output: {
+            skipped: true,
+            reason: String(cfg['reason'] || 'This step can’t run yet.'),
+          },
         };
 
       case 'DELAY': {
-        const ms = cfg['seconds'] !== undefined ? num(cfg['seconds'], 0) * 1000 : num(cfg['delayMs'], 0);
+        const ms =
+          cfg['seconds'] !== undefined
+            ? num(cfg['seconds'], 0) * 1000
+            : num(cfg['delayMs'], 0);
         if (ms > MAX_INLINE_DELAY_MS) {
           throw new Error(
             `Delays longer than ${MAX_INLINE_DELAY_MS / 1000} seconds aren't supported yet. Use a schedule trigger or an approval step to pause longer.`,
@@ -1720,7 +2324,10 @@ export class WorkflowEngineService {
       // 4. Compute & Data
       case 'VARIABLE': {
         const varName = String(cfg['name'] || 'var');
-        const varVal = interpolateVariables(String(cfg['value'] || ''), context);
+        const varVal = interpolateVariables(
+          String(cfg['value'] || ''),
+          context,
+        );
         return {
           stepId: node.id,
           type: node.type,
@@ -1748,10 +2355,18 @@ export class WorkflowEngineService {
             where: { id: widgetId, workspaceId },
           });
         }
-        const componentType = String(cfg['componentType'] || widget?.componentType || 'metric_card');
+        const componentType = String(
+          cfg['componentType'] || widget?.componentType || 'metric_card',
+        );
         const bindingPath = String(cfg['bindingPath'] || '');
-        const boundValue = bindingPath && bindingPath !== '{{__last}}' ? readPath(context, bindingPath) : context[LAST_OUTPUT_KEY];
-        const title = interpolateVariables(String(cfg['title'] || widget?.name || 'Widget View'), context);
+        const boundValue =
+          bindingPath && bindingPath !== '{{__last}}'
+            ? readPath(context, bindingPath)
+            : context[LAST_OUTPUT_KEY];
+        const title = interpolateVariables(
+          String(cfg['title'] || widget?.name || 'Widget View'),
+          context,
+        );
 
         const rendered = {
           widgetId: widget?.id ?? widgetId,
@@ -1782,7 +2397,13 @@ export class WorkflowEngineService {
               where: { workspaceId },
               take: 15,
               orderBy: { updatedAt: 'desc' },
-              select: { id: true, identifier: true, title: true, status: true, priority: true },
+              select: {
+                id: true,
+                identifier: true,
+                title: true,
+                status: true,
+                priority: true,
+              },
             });
             fetchedData = { rows: tasks };
           } else if (service === 'projects') {
@@ -1805,7 +2426,9 @@ export class WorkflowEngineService {
 
       case 'WIDGET_ACTION': {
         const actionId = String(cfg['actionId'] || 'default');
-        const rawInput = cfg['input'] ? interpolateVariables(String(cfg['input']), context) : context[LAST_OUTPUT_KEY];
+        const rawInput = cfg['input']
+          ? interpolateVariables(String(cfg['input']), context)
+          : context[LAST_OUTPUT_KEY];
         return {
           stepId: node.id,
           type: node.type,
@@ -1840,23 +2463,36 @@ export class WorkflowEngineService {
             stepId: node.id,
             type: node.type,
             status: 'SKIPPED',
-            output: { skipped: true, reason: 'No code specified on this step.' },
+            output: {
+              skipped: true,
+              reason: 'No code specified on this step.',
+            },
           };
         }
-        const runRes = await executeSandboxedCode(rawCode, context, { timeoutMs: 2000 });
+        const runRes = await executeSandboxedCode(rawCode, context, {
+          timeoutMs: 2000,
+        });
         if (!runRes.success) {
           return {
             stepId: node.id,
             type: node.type,
             status: 'FAILED',
-            output: { error: runRes.error, logs: runRes.logs, durationMs: runRes.durationMs },
+            output: {
+              error: runRes.error,
+              logs: runRes.logs,
+              durationMs: runRes.durationMs,
+            },
           };
         }
         return {
           stepId: node.id,
           type: node.type,
           status: 'SUCCESS',
-          output: { result: runRes.result, logs: runRes.logs, durationMs: runRes.durationMs },
+          output: {
+            result: runRes.result,
+            logs: runRes.logs,
+            durationMs: runRes.durationMs,
+          },
         };
       }
 
@@ -1868,20 +2504,27 @@ export class WorkflowEngineService {
         if (gated) return gated;
         // `{{secrets.KEY}}` is resolved from the author's config only, before
         // run data is interpolated, so a trigger payload can't request a secret.
-        const withSecrets = (raw: string) => this.secrets.resolveSecretRefs(workspaceId, raw);
+        const withSecrets = (raw: string) =>
+          this.secrets.resolveSecretRefs(workspaceId, raw);
         const rawUrl = await withSecrets(String(cfg['url'] ?? ''));
         const url = interpolateVariables(rawUrl, context);
         const method = String(cfg['method'] ?? 'GET').toUpperCase();
 
-        const configuredHeaders = (cfg['headers'] as Record<string, string>) ?? {};
-        const headers: Record<string, string> = { 'user-agent': 'OneTab-AI-Workflow/1' };
+        const configuredHeaders =
+          (cfg['headers'] as Record<string, string>) ?? {};
+        const headers: Record<string, string> = {
+          'user-agent': 'OneTab-AI-Workflow/1',
+        };
         for (const [name, value] of Object.entries(configuredHeaders)) {
           headers[name] = await withSecrets(String(value));
         }
         const hasBody = method !== 'GET' && method !== 'HEAD';
         const body =
           hasBody && cfg['body']
-            ? interpolateVariables(await withSecrets(String(cfg['body'])), context)
+            ? interpolateVariables(
+                await withSecrets(String(cfg['body'])),
+                context,
+              )
             : undefined;
         if (body && !headers['content-type']) {
           headers['content-type'] = 'application/json';
@@ -1912,7 +2555,10 @@ export class WorkflowEngineService {
       case 'MCP':
       case 'MCP_TOOL': {
         // The canvas stores the picked tool as `<connectionId>::<toolName>`.
-        const picked = typeof cfg['mcpTool'] === 'string' ? (cfg['mcpTool'] as string).split('::') : [];
+        const picked =
+          typeof cfg['mcpTool'] === 'string'
+            ? (cfg['mcpTool'] as string).split('::')
+            : [];
         const mcpCfg =
           picked.length === 2 && !cfg['mcpConnectionId']
             ? { ...cfg, mcpConnectionId: picked[0], mcpToolName: picked[1] }
@@ -1933,13 +2579,22 @@ export class WorkflowEngineService {
 
       case 'RUN_WORKFLOW':
       case 'SUB_WORKFLOW': {
-        const targetWorkflowId = String(cfg['workflowId'] || cfg['workflow'] || '').trim();
+        const targetWorkflowId = String(
+          cfg['workflowId'] || cfg['workflow'] || '',
+        ).trim();
         if (!targetWorkflowId) {
-          throw new Error(`No target workflow configured for node '${node.label || node.id}'.`);
+          throw new Error(
+            `No target workflow configured for node '${node.label || node.id}'.`,
+          );
         }
-        const depth = typeof context['__depth'] === 'number' ? (context['__depth'] as number) : 0;
+        const depth =
+          typeof context['__depth'] === 'number'
+            ? (context['__depth'] as number)
+            : 0;
         if (depth >= 5) {
-          throw new Error('Maximum workflow invocation depth exceeded (5). Potential circular dependency.');
+          throw new Error(
+            'Maximum workflow invocation depth exceeded (5). Potential circular dependency.',
+          );
         }
         let rawInput: unknown = cfg['input'] ?? {};
         if (typeof rawInput === 'string') {
@@ -1950,11 +2605,18 @@ export class WorkflowEngineService {
           }
         }
         const subInput: Record<string, unknown> = {};
-        for (const [k, v] of Object.entries((rawInput as Record<string, unknown>) ?? {})) {
-          subInput[k] = typeof v === 'string' ? interpolateVariables(v, context) : v;
+        for (const [k, v] of Object.entries(
+          (rawInput as Record<string, unknown>) ?? {},
+        )) {
+          subInput[k] =
+            typeof v === 'string' ? interpolateVariables(v, context) : v;
         }
         const gated = this.gateStep(node, env);
-        if (gated) return { ...gated, output: { ...(gated.output as object), subInput } };
+        if (gated)
+          return {
+            ...gated,
+            output: { ...(gated.output as object), subInput },
+          };
         const subResult = await this.executeWorkflow(
           targetWorkflowId,
           { ...context, ...subInput, __depth: depth + 1 },
@@ -1988,9 +2650,16 @@ export class WorkflowEngineService {
 
       case 'FIRECRAWL_SEARCH': {
         this.gateScopeOnly(node, env);
-        const query = interpolateVariables(String(cfg['query'] || cfg['prompt'] || ''), context);
+        const query = interpolateVariables(
+          String(cfg['query'] || cfg['prompt'] || ''),
+          context,
+        );
         const limit = Number(cfg['limit']) || 5;
-        const result = await this.mcpRegistry.executeTool('firecrawl_search', { query, limit }, { workspaceId, actingUserId: creatorId, timezone: env.timezone });
+        const result = await this.mcpRegistry.executeTool(
+          'firecrawl_search',
+          { query, limit },
+          { workspaceId, actingUserId: creatorId, timezone: env.timezone },
+        );
         return {
           stepId: node.id,
           type: node.type,
@@ -2002,7 +2671,11 @@ export class WorkflowEngineService {
       case 'FIRECRAWL_SCRAPE': {
         this.gateScopeOnly(node, env);
         const url = interpolateVariables(String(cfg['url'] || ''), context);
-        const result = await this.mcpRegistry.executeTool('firecrawl_scrape', { url }, { workspaceId, actingUserId: creatorId, timezone: env.timezone });
+        const result = await this.mcpRegistry.executeTool(
+          'firecrawl_scrape',
+          { url },
+          { workspaceId, actingUserId: creatorId, timezone: env.timezone },
+        );
         return {
           stepId: node.id,
           type: node.type,
@@ -2015,7 +2688,11 @@ export class WorkflowEngineService {
         this.gateScopeOnly(node, env);
         const url = interpolateVariables(String(cfg['url'] || ''), context);
         const limit = Number(cfg['limit']) || 5;
-        const result = await this.mcpRegistry.executeTool('firecrawl_crawl', { url, limit }, { workspaceId, actingUserId: creatorId, timezone: env.timezone });
+        const result = await this.mcpRegistry.executeTool(
+          'firecrawl_crawl',
+          { url, limit },
+          { workspaceId, actingUserId: creatorId, timezone: env.timezone },
+        );
         return {
           stepId: node.id,
           type: node.type,
@@ -2027,8 +2704,15 @@ export class WorkflowEngineService {
       case 'FIRECRAWL_EXTRACT': {
         this.gateScopeOnly(node, env);
         const url = interpolateVariables(String(cfg['url'] || ''), context);
-        const prompt = interpolateVariables(String(cfg['prompt'] || 'Extract structured data'), context);
-        const result = await this.mcpRegistry.executeTool('firecrawl_extract', { url, prompt, schema: cfg['schema'] as any }, { workspaceId, actingUserId: creatorId, timezone: env.timezone });
+        const prompt = interpolateVariables(
+          String(cfg['prompt'] || 'Extract structured data'),
+          context,
+        );
+        const result = await this.mcpRegistry.executeTool(
+          'firecrawl_extract',
+          { url, prompt, schema: cfg['schema'] as any },
+          { workspaceId, actingUserId: creatorId, timezone: env.timezone },
+        );
         return {
           stepId: node.id,
           type: node.type,
@@ -2060,16 +2744,29 @@ export class WorkflowEngineService {
         const requiresApproval = cfg['required'] !== false;
         // What the approver reviews (and may edit) — usually the draft the
         // step before wrote, so "approve the report" shows the report.
-        const reviewPath = typeof cfg['reviewPath'] === 'string' ? (cfg['reviewPath'] as string) : '';
-        const reviewValue = reviewPath ? readPath(context, reviewPath) : undefined;
+        const reviewPath =
+          typeof cfg['reviewPath'] === 'string'
+            ? (cfg['reviewPath'] as string)
+            : '';
+        const reviewValue = reviewPath
+          ? readPath(context, reviewPath)
+          : undefined;
         // Or a fixed description of what is about to happen (a connector action's
         // input), shown read-only because there is no draft to edit.
-        const reviewText = typeof cfg['reviewText'] === 'string' ? (cfg['reviewText'] as string) : '';
+        const reviewText =
+          typeof cfg['reviewText'] === 'string'
+            ? (cfg['reviewText'] as string)
+            : '';
         const review = reviewPath
           ? {
               path: reviewPath,
               label: String(cfg['reviewLabel'] || 'Draft'),
-              value: typeof reviewValue === 'string' ? reviewValue : reviewValue === undefined ? '' : JSON.stringify(reviewValue, null, 2),
+              value:
+                typeof reviewValue === 'string'
+                  ? reviewValue
+                  : reviewValue === undefined
+                    ? ''
+                    : JSON.stringify(reviewValue, null, 2),
               readOnly: undefined as boolean | undefined,
             }
           : reviewText
@@ -2106,7 +2803,10 @@ export class WorkflowEngineService {
               executionId: env.runId,
               stepId: node.id,
               actionType: action,
-              proposedPayload: { ...context, ...(review ? { __review: review } : {}) } as any,
+              proposedPayload: {
+                ...context,
+                ...(review ? { __review: review } : {}),
+              } as any,
               state: 'PENDING',
             },
           });
@@ -2125,7 +2825,11 @@ export class WorkflowEngineService {
             stepId: node.id,
             type: node.type,
             status: 'WAITING',
-            output: { waitingForApproval: true, action, ...(review ? { reviewLabel: review.label } : {}) },
+            output: {
+              waitingForApproval: true,
+              action,
+              ...(review ? { reviewLabel: review.label } : {}),
+            },
           };
         }
         return {
@@ -2166,26 +2870,38 @@ export class WorkflowEngineService {
         stepId: node.id,
         type: node.type,
         status: 'FAILED',
-        output: { error: `No agent/coworker selected for node '${node.label || node.id}'.` },
+        output: {
+          error: `No agent/coworker selected for node '${node.label || node.id}'.`,
+        },
       };
     }
     const promptText = interpolateVariables(
-      rawPrompt || 'Execute your configured task using the current workflow context.',
+      rawPrompt ||
+        'Execute your configured task using the current workflow context.',
       context,
     );
     // A test run hands the agent only tools that read, so nothing changes.
-    const run = await this.aiRuntime.executeTurn(workspaceId, entityId, promptText, {
-      ...(env.mode === 'test' ? { readOnly: true } : {}),
-      // A coworker with no creator acts for the workflow's owner, never for nobody.
-      ...(env.workflow.creatorId ? { requesterId: env.workflow.creatorId } : {}),
-      source: 'workflow',
-    });
+    const run = await this.aiRuntime.executeTurn(
+      workspaceId,
+      entityId,
+      promptText,
+      {
+        ...(env.mode === 'test' ? { readOnly: true } : {}),
+        // A coworker with no creator acts for the workflow's owner, never for nobody.
+        ...(env.workflow.creatorId
+          ? { requesterId: env.workflow.creatorId }
+          : {}),
+        source: 'workflow',
+      },
+    );
     return {
       stepId: node.id,
       type: node.type,
       status: 'SUCCESS',
       output: {
         entityResponse: run.result,
+        // `{{step.aiOutput}}` reads any model step's answer (templates, plans, conditions).
+        aiOutput: run.result,
         toolCalls: run.tools,
         tokensUsed: run.tokensUsed,
         ...(env.mode === 'test' ? { readOnly: true } : {}),
@@ -2210,23 +2926,35 @@ export class WorkflowEngineService {
         stepId: node.id,
         type: node.type,
         status: 'FAILED',
-        output: { error: `${spec.name} isn’t attached to a saved agent. Save the agent, then run it again.` },
+        output: {
+          error: `${spec.name} isn’t attached to a saved agent. Save the agent, then run it again.`,
+        },
       };
     }
-    const prompt = interpolateVariables(String(node.config['goal'] || ''), context).trim() || 'Do your task using what the run has so far.';
-    const run = await this.aiRuntime.executeTurn(env.workflow.workspaceId, hostId, prompt, {
-      inlineAgent: withResolvedInstructions(spec, context),
-      team: this.teamFor(env),
-      ...(env.mode === 'test' ? { readOnly: true } : {}),
-      ...(env.workflow.creatorId ? { requesterId: env.workflow.creatorId } : {}),
-      source: 'workflow',
-    });
+    const prompt =
+      interpolateVariables(String(node.config['goal'] || ''), context).trim() ||
+      'Do your task using what the run has so far.';
+    const run = await this.aiRuntime.executeTurn(
+      env.workflow.workspaceId,
+      hostId,
+      prompt,
+      {
+        inlineAgent: withResolvedInstructions(spec, context),
+        team: this.teamFor(env),
+        ...(env.mode === 'test' ? { readOnly: true } : {}),
+        ...(env.workflow.creatorId
+          ? { requesterId: env.workflow.creatorId }
+          : {}),
+        source: 'workflow',
+      },
+    );
     return {
       stepId: node.id,
       type: node.type,
       status: 'SUCCESS',
       output: {
         entityResponse: run.result,
+        aiOutput: run.result,
         agent: spec.name,
         toolCalls: run.tools,
         tokensUsed: run.tokensUsed,
@@ -2250,12 +2978,19 @@ export class WorkflowEngineService {
       try {
         rawInput = rawInput.trim() ? JSON.parse(rawInput) : {};
       } catch {
-        throw new Error(`The input for '${node.label || node.id}' is not valid JSON.`);
+        throw new Error(
+          `The input for '${node.label || node.id}' is not valid JSON.`,
+        );
       }
     }
     const input: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries((rawInput as Record<string, unknown>) ?? {})) {
-      input[key] = typeof value === 'string' ? interpolateVariables(value, context) : value;
+    for (const [key, value] of Object.entries(
+      (rawInput as Record<string, unknown>) ?? {},
+    )) {
+      input[key] =
+        typeof value === 'string'
+          ? interpolateVariables(value, context)
+          : value;
     }
     const out = await this.mcpServers.callTool(
       workspaceId,
@@ -2267,7 +3002,9 @@ export class WorkflowEngineService {
       stepId: node.id,
       type: node.type,
       status: out.isError ? 'FAILED' : 'SUCCESS',
-      output: out.isError ? { error: out.text || 'The MCP tool reported an error.' } : { toolResult: out.text || out.content },
+      output: out.isError
+        ? { error: out.text || 'The MCP tool reported an error.' }
+        : { toolResult: out.text || out.content },
     };
   }
 
@@ -2293,7 +3030,9 @@ export class WorkflowEngineService {
         stepId: node.id,
         type: node.type,
         status: 'FAILED',
-        output: { error: `No tool configured for node '${node.label || node.id}'.` },
+        output: {
+          error: `No tool configured for node '${node.label || node.id}'.`,
+        },
       };
     }
 
@@ -2303,7 +3042,9 @@ export class WorkflowEngineService {
       try {
         rawInput = rawInput.trim() ? JSON.parse(rawInput) : {};
       } catch {
-        throw new Error(`The input for '${node.label || node.id}' is not valid JSON.`);
+        throw new Error(
+          `The input for '${node.label || node.id}' is not valid JSON.`,
+        );
       }
     }
     // `{{variables}}` are filled in everywhere in the input, including inside lists
@@ -2314,23 +3055,55 @@ export class WorkflowEngineService {
         : Array.isArray(value)
           ? value.map(resolve)
           : value && typeof value === 'object'
-            ? Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, resolve(v)]))
+            ? Object.fromEntries(
+                Object.entries(value as Record<string, unknown>).map(
+                  ([k, v]) => [k, resolve(v)],
+                ),
+              )
             : value;
-    const input: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries((rawInput as Record<string, unknown>) ?? {})) {
+    // A fill step's input (`TOOL_INPUT`), possibly edited by the approver as
+    // JSON text, under anything the step set itself.
+    let filled: unknown =
+      typeof cfg['inputFrom'] === 'string'
+        ? readPath(context, cfg['inputFrom'])
+        : undefined;
+    if (typeof filled === 'string') {
+      try {
+        filled = JSON.parse(filled);
+      } catch {
+        throw new Error(
+          `The input for '${node.label || node.id}' is not valid JSON.`,
+        );
+      }
+    }
+    const input: Record<string, unknown> =
+      filled && typeof filled === 'object' && !Array.isArray(filled)
+        ? { ...(filled as Record<string, unknown>) }
+        : {};
+    for (const [key, value] of Object.entries(
+      (rawInput as Record<string, unknown>) ?? {},
+    )) {
       input[key] = resolve(value);
     }
 
-    if (this.mcpRegistry.getToolDefinitions().some((t) => t.name === toolName)) {
+    if (
+      this.mcpRegistry.getToolDefinitions().some((t) => t.name === toolName)
+    ) {
       await this.assertToolEnabled(workspaceId, toolName);
       const gated = this.gateStep(node, env);
-      if (gated) return { ...gated, output: { ...(gated.output as object), input } };
+      if (gated)
+        return { ...gated, output: { ...(gated.output as object), input } };
       const output = await this.mcpRegistry.executeTool(toolName, input, {
         workspaceId,
         actingUserId: creatorId,
         timezone: env.timezone,
       });
-      return { stepId: node.id, type: node.type, status: 'SUCCESS', output: { toolResult: output } };
+      return {
+        stepId: node.id,
+        type: node.type,
+        status: 'SUCCESS',
+        output: { toolResult: output },
+      };
     }
 
     const dotIndex = toolName.indexOf('.');
@@ -2345,7 +3118,10 @@ export class WorkflowEngineService {
       // another member's personal connection (it would be refused anyway).
       // A card that picked an account uses exactly that one: quietly running
       // as a different account would act as the wrong person.
-      const pickedId = typeof cfg['integrationId'] === 'string' ? cfg['integrationId'].trim() : '';
+      const pickedId =
+        typeof cfg['integrationId'] === 'string'
+          ? cfg['integrationId'].trim()
+          : '';
       const integration = await this.prisma.externalIntegration.findFirst({
         where: {
           provider: providerKey,
@@ -2358,7 +3134,9 @@ export class WorkflowEngineService {
         orderBy: { updatedAt: 'desc' },
         select: { id: true, status: true },
       });
-      const appName = providerKey.charAt(0) + providerKey.slice(1).toLowerCase().replace(/_/g, ' ');
+      const appName =
+        providerKey.charAt(0) +
+        providerKey.slice(1).toLowerCase().replace(/_/g, ' ');
       if (!integration) {
         throw new Error(
           pickedId
@@ -2367,26 +3145,48 @@ export class WorkflowEngineService {
         );
       }
       if (integration.status !== 'CONNECTED') {
-        throw new Error(`The ${appName} connection is ${String(integration.status).toLowerCase()}. Reconnect ${appName} in Integrations to continue.`);
+        throw new Error(
+          `The ${appName} connection is ${String(integration.status).toLowerCase()}. Reconnect ${appName} in Integrations to continue.`,
+        );
       }
 
       if (creatorId) {
-        const actions = await this.integrations.getActions(integration.id, creatorId, workspaceId);
+        const actions = await this.integrations.getActions(
+          integration.id,
+          creatorId,
+          workspaceId,
+        );
         const match = actions.find(
           (a) => a.id.toLowerCase().replace(/[^a-z0-9]/g, '') === actionKey,
         );
         if (match) {
-          await this.assertToolEnabled(workspaceId, connectorToolName(providerKey, match.id), providerKey);
-          const gated = this.gateStep(node, env, match.permissionLevel as 'read' | 'write' | 'destructive');
-          if (gated) return { ...gated, output: { ...(gated.output as object), input } };
+          await this.assertToolEnabled(
+            workspaceId,
+            connectorToolName(providerKey, match.id),
+            providerKey,
+          );
+          const gated = this.gateStep(
+            node,
+            env,
+            match.permissionLevel as 'read' | 'write' | 'destructive',
+          );
+          if (gated)
+            return { ...gated, output: { ...(gated.output as object), input } };
           // Workflows gate sensitive steps with an explicit `HUMAN_APPROVAL`
           // node placed before this one in the graph, not an implicit check
           // per tool node — so a `requiresConfirmation` action here is
           // confirmed automatically rather than silently rejected.
           // An action that takes an idempotency key gets one per run + step,
           // so a retried step never repeats the action (e.g. a double punch).
-          const schemaProps = (match.inputSchema as { properties?: Record<string, unknown> } | undefined)?.properties;
-          if (schemaProps && 'idempotencyKey' in schemaProps && input['idempotencyKey'] === undefined) {
+          const schemaProps = (
+            match.inputSchema as
+              { properties?: Record<string, unknown> } | undefined
+          )?.properties;
+          if (
+            schemaProps &&
+            'idempotencyKey' in schemaProps &&
+            input['idempotencyKey'] === undefined
+          ) {
             input['idempotencyKey'] = `${env.runId}:${node.id}`;
           }
           const result = await this.integrations.executeAction(
@@ -2406,7 +3206,12 @@ export class WorkflowEngineService {
           // An app that answered "no" is a failed step, not a success with a
           // buried error. Its data is spread so later steps can read
           // `{{status}}`, `{{punchId}}`… directly.
-          const data = result.data && typeof result.data === 'object' && !Array.isArray(result.data) ? result.data : {};
+          const data =
+            result.data &&
+            typeof result.data === 'object' &&
+            !Array.isArray(result.data)
+              ? result.data
+              : {};
           return {
             stepId: node.id,
             type: node.type,
@@ -2414,7 +3219,13 @@ export class WorkflowEngineService {
             output: {
               ...data,
               toolResult: result,
-              ...(result.success === false ? { error: result.message || `${appName} couldn’t complete '${match.label}'.` } : {}),
+              ...(result.success === false
+                ? {
+                    error:
+                      result.message ||
+                      `${appName} couldn’t complete '${match.label}'.`,
+                  }
+                : {}),
             },
           };
         }
@@ -2434,7 +3245,8 @@ export class WorkflowEngineService {
   /** The scope check alone, for steps whose test-run behaviour is handled elsewhere. */
   private gateScopeOnly(node: WorkflowNode, env: RunEnv): void {
     const scope = scopeForNode(node.type, node.config ?? {});
-    if (scope && env.scopes && !env.scopes.has(scope)) throw new Error(missingPermissionMessage(scope));
+    if (scope && env.scopes && !env.scopes.has(scope))
+      throw new Error(missingPermissionMessage(scope));
   }
 
   private startNodes(nodes: WorkflowNode[], edges: WorkflowEdge[]): string[] {
@@ -2443,7 +3255,10 @@ export class WorkflowEngineService {
       hasIncoming.add(edge.target);
     }
     return nodes
-      .filter((n) => !hasIncoming.has(n.id) || n.type === 'START' || n.type === 'TRIGGER')
+      .filter(
+        (n) =>
+          !hasIncoming.has(n.id) || n.type === 'START' || n.type === 'TRIGGER',
+      )
       .map((n) => n.id);
   }
 

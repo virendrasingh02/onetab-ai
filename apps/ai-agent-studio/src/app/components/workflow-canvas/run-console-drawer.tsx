@@ -1,6 +1,22 @@
 import { agentGraphsApi, ApiError } from '@org/api-client';
-import type { AgentMessageRecord, AgentTaskRecord, CanvasAgentRunDetail, CanvasRunStep, StudioGraphIssue } from '@org/types';
-import { AIRunStatusBadge, Badge, Button, CodeBlock, EmptyState, SegmentedControl, Textarea, toast, Label } from '@org/ui';
+import type {
+  AgentMessageRecord,
+  AgentTaskRecord,
+  CanvasAgentRunDetail,
+  CanvasRunStep,
+  StudioGraphIssue,
+} from '@org/types';
+import {
+  AIRunStatusBadge,
+  Badge,
+  Button,
+  CodeBlock,
+  EmptyState,
+  SegmentedControl,
+  Textarea,
+  toast,
+  Label,
+} from '@org/ui';
 import { cn } from '@org/utils';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Node } from '@xyflow/react';
@@ -35,7 +51,8 @@ export const SETTLED = new Set(['COMPLETED', 'FAILED', 'CANCELLED', 'SUCCESS']);
 /** How often an open run is re-read while it is still going. */
 export const POLL_MS = 1_500;
 
-export type CanvasNodeStatus = 'idle' | 'running' | 'success' | 'failed' | 'waiting';
+export type CanvasNodeStatus =
+  'idle' | 'running' | 'success' | 'failed' | 'waiting';
 
 interface RunConsoleDrawerProps {
   agentId: string;
@@ -51,7 +68,8 @@ interface RunConsoleDrawerProps {
   onNodeResults?: (results: Record<string, NodeRunResult>) => void;
 }
 
-type Selection = { kind: 'step'; id: string } | { kind: 'task'; id: string } | null;
+type Selection =
+  { kind: 'step'; id: string } | { kind: 'task'; id: string } | null;
 
 export const STEP_STATUS: Record<string, CanvasNodeStatus> = {
   RUNNING: 'running',
@@ -62,9 +80,22 @@ export const STEP_STATUS: Record<string, CanvasNodeStatus> = {
 };
 
 /** The text a step or run produced, for reading rather than as raw JSON. */
-export function readableOutput(output: Record<string, unknown> | null | undefined): string {
+export function readableOutput(
+  output: Record<string, unknown> | null | undefined,
+): string {
   if (!output) return '';
-  for (const key of ['output', 'entityResponse', 'aiOutput', 'result', 'toolResult', 'extracted', 'loopResults', 'merged', 'reason', 'error']) {
+  for (const key of [
+    'output',
+    'entityResponse',
+    'aiOutput',
+    'result',
+    'toolResult',
+    'extracted',
+    'loopResults',
+    'merged',
+    'reason',
+    'error',
+  ]) {
     const value = output[key];
     if (value === undefined || value === null || value === '') continue;
     return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
@@ -74,11 +105,23 @@ export function readableOutput(output: Record<string, unknown> | null | undefine
 }
 
 /** A trigger's "output" is the whole run context; the card only wants what started the run. */
-export const isTriggerStep = (step: CanvasRunStep) => /^(TRIGGER|START)/i.test(step.nodeType);
-export function triggerInput(output: Record<string, unknown> | null | undefined): string {
+export const isTriggerStep = (step: CanvasRunStep) =>
+  /^(TRIGGER|START)/i.test(step.nodeType);
+export function triggerInput(
+  output: Record<string, unknown> | null | undefined,
+): string {
   if (!output) return '';
-  const input = output['input'] && typeof output['input'] === 'object' ? (output['input'] as Record<string, unknown>) : undefined;
-  for (const value of [output['message'], input?.['message'], output['__last'], output['payload'], input]) {
+  const input =
+    output['input'] && typeof output['input'] === 'object'
+      ? (output['input'] as Record<string, unknown>)
+      : undefined;
+  for (const value of [
+    output['message'],
+    input?.['message'],
+    output['__last'],
+    output['payload'],
+    input,
+  ]) {
     if (value === undefined || value === null || value === '') continue;
     return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
   }
@@ -91,16 +134,54 @@ export function formatDuration(ms: number): string {
   return `${Math.floor(ms / 60_000)} min ${Math.round((ms % 60_000) / 1_000)} s`;
 }
 
-export function StatusIcon({ status, className }: { status: string; className?: string }) {
+export function StatusIcon({
+  status,
+  className,
+}: {
+  status: string;
+  className?: string;
+}) {
   const s = status.toUpperCase();
   const cls = cn('size-3.5 shrink-0', className);
-  if (s === 'RUNNING') return <Loader2 className={cn(cls, 'animate-spin text-primary')} aria-label="Running" />;
-  if (s === 'SUCCESS' || s === 'COMPLETED') return <CheckCircle2 className={cn(cls, 'text-success')} aria-label="Done" />;
-  if (s === 'FAILED') return <XCircle className={cn(cls, 'text-destructive')} aria-label="Failed" />;
-  if (s === 'WAITING' || s === 'APPROVAL_REQUIRED') return <UserCheck className={cn(cls, 'text-warning')} aria-label="Waiting for a person" />;
-  if (s === 'SKIPPED') return <SkipForward className={cn(cls, 'text-muted-foreground')} aria-label="Skipped" />;
-  if (s === 'CANCELLED') return <Ban className={cn(cls, 'text-muted-foreground')} aria-label="Cancelled" />;
-  return <Circle className={cn(cls, 'text-muted-foreground')} aria-label={status} />;
+  if (s === 'RUNNING')
+    return (
+      <Loader2
+        className={cn(cls, 'animate-spin text-primary')}
+        aria-label="Running"
+      />
+    );
+  if (s === 'SUCCESS' || s === 'COMPLETED')
+    return (
+      <CheckCircle2 className={cn(cls, 'text-success')} aria-label="Done" />
+    );
+  if (s === 'FAILED')
+    return (
+      <XCircle className={cn(cls, 'text-destructive')} aria-label="Failed" />
+    );
+  if (s === 'WAITING' || s === 'APPROVAL_REQUIRED')
+    return (
+      <UserCheck
+        className={cn(cls, 'text-warning')}
+        aria-label="Waiting for a person"
+      />
+    );
+  if (s === 'SKIPPED')
+    return (
+      <SkipForward
+        className={cn(cls, 'text-muted-foreground')}
+        aria-label="Skipped"
+      />
+    );
+  if (s === 'CANCELLED')
+    return (
+      <Ban
+        className={cn(cls, 'text-muted-foreground')}
+        aria-label="Cancelled"
+      />
+    );
+  return (
+    <Circle className={cn(cls, 'text-muted-foreground')} aria-label={status} />
+  );
 }
 
 /** A run as the canvas shows it: each node's state, and what it produced, from its latest step. */
@@ -109,28 +190,46 @@ export function runToCanvas(run: CanvasAgentRunDetail): {
   results: Record<string, NodeRunResult>;
 } {
   const statuses: Record<string, CanvasNodeStatus> = {};
-  for (const step of run.steps) statuses[step.stepId] = STEP_STATUS[step.status] ?? 'idle';
+  for (const step of run.steps)
+    statuses[step.stepId] = STEP_STATUS[step.status] ?? 'idle';
   for (const task of run.agentTasks) {
     if (statuses[task.agentKey] === undefined || task.status === 'RUNNING') {
-      statuses[task.agentKey] = task.status === 'RUNNING' ? 'running' : task.status === 'FAILED' ? 'failed' : task.status === 'COMPLETED' ? 'success' : 'waiting';
+      statuses[task.agentKey] =
+        task.status === 'RUNNING'
+          ? 'running'
+          : task.status === 'FAILED'
+            ? 'failed'
+            : task.status === 'COMPLETED'
+              ? 'success'
+              : 'waiting';
     }
   }
   const results: Record<string, NodeRunResult> = {};
   // Steps come in order; a later attempt of the same step replaces the earlier one.
   for (const step of run.steps) {
-    const finished = step.finishedAt ? new Date(step.finishedAt).getTime() : Date.now();
+    const finished = step.finishedAt
+      ? new Date(step.finishedAt).getTime()
+      : Date.now();
     results[step.stepId] = {
       status: STEP_STATUS[step.status] ?? 'idle',
-      output: isTriggerStep(step) ? triggerInput(step.outputJson) : readableOutput(step.outputJson),
+      output: isTriggerStep(step)
+        ? triggerInput(step.outputJson)
+        : readableOutput(step.outputJson),
       tokens: step.tokensUsed ?? 0,
-      latencyMs: step.latencyMs || Math.max(0, finished - new Date(step.startedAt).getTime()),
+      latencyMs:
+        step.latencyMs ||
+        Math.max(0, finished - new Date(step.startedAt).getTime()),
       error: step.errorMessage,
     };
   }
   // Agents drawn on the canvas (and their sub-agents) report as team tasks keyed by node id.
   for (const task of run.agentTasks) {
-    const started = task.startedAt ? new Date(task.startedAt).getTime() : new Date(task.createdAt).getTime();
-    const ended = task.completedAt ? new Date(task.completedAt).getTime() : Date.now();
+    const started = task.startedAt
+      ? new Date(task.startedAt).getTime()
+      : new Date(task.createdAt).getTime();
+    const ended = task.completedAt
+      ? new Date(task.completedAt).getTime()
+      : Date.now();
     const prev = results[task.agentKey];
     results[task.agentKey] = {
       status: statuses[task.agentKey] ?? 'idle',
@@ -144,18 +243,27 @@ export function runToCanvas(run: CanvasAgentRunDetail): {
 }
 
 /** The answer a finished run gave: its Output step, or else the last step that succeeded. */
-export function finalRunStep(run: CanvasAgentRunDetail): CanvasRunStep | undefined {
+export function finalRunStep(
+  run: CanvasAgentRunDetail,
+): CanvasRunStep | undefined {
   return (
-    [...run.steps].reverse().find((s) => s.status === 'SUCCESS' && s.nodeType === 'OUTPUT') ??
+    [...run.steps]
+      .reverse()
+      .find((s) => s.status === 'SUCCESS' && s.nodeType === 'OUTPUT') ??
     [...run.steps].reverse().find((s) => s.status === 'SUCCESS')
   );
 }
 
 /** Tasks as a tree: each delegation under the agent that handed it over. */
-function taskTree(tasks: AgentTaskRecord[]): Array<{ task: AgentTaskRecord; depth: number }> {
+function taskTree(
+  tasks: AgentTaskRecord[],
+): Array<{ task: AgentTaskRecord; depth: number }> {
   const children = new Map<string | null, AgentTaskRecord[]>();
   for (const t of tasks) {
-    const parent = t.parentTaskId && tasks.some((p) => p.id === t.parentTaskId) ? t.parentTaskId : null;
+    const parent =
+      t.parentTaskId && tasks.some((p) => p.id === t.parentTaskId)
+        ? t.parentTaskId
+        : null;
     children.set(parent, [...(children.get(parent) ?? []), t]);
   }
   const out: Array<{ task: AgentTaskRecord; depth: number }> = [];
@@ -175,7 +283,8 @@ function describeStartError(error: unknown): { title: string; detail: string } {
     if (error.status === 403) {
       return {
         title: 'You can’t run this agent',
-        detail: 'Only its creator or a workspace admin can run or change it. Ask one of them, or build your own agent.',
+        detail:
+          'Only its creator or a workspace admin can run or change it. Ask one of them, or build your own agent.',
       };
     }
     if (error.status === 402 || error.status === 429) {
@@ -185,11 +294,23 @@ function describeStartError(error: unknown): { title: string; detail: string } {
   }
   return {
     title: 'Couldn’t start the run',
-    detail: error instanceof Error ? error.message : 'Something went wrong. Try again.',
+    detail:
+      error instanceof Error
+        ? error.message
+        : 'Something went wrong. Try again.',
   };
 }
 
-export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, onBeforeRun, onNodeStatuses, onNodeResults }: RunConsoleDrawerProps) {
+export function RunConsoleDrawer({
+  agentId,
+  agentName,
+  nodes,
+  isOpen,
+  onClose,
+  onBeforeRun,
+  onNodeStatuses,
+  onNodeResults,
+}: RunConsoleDrawerProps) {
   const { activeWorkspace } = useStudioSession();
   const workspaceId = activeWorkspace.id;
   const queryClient = useQueryClient();
@@ -199,17 +320,30 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
   const [issues, setIssues] = useState<StudioGraphIssue[]>([]);
   const [selection, setSelection] = useState<Selection>(null);
 
-  const labels = useMemo(
-    () => new Map(nodes.map((n) => [n.id, String((n.data as { label?: string } | undefined)?.label || n.type || n.id)])),
-    [nodes],
-  );
+  const labels = useMemo(() => {
+    const map = new Map(
+      nodes.map((n) => [
+        n.id,
+        String(
+          (n.data as { label?: string } | undefined)?.label || n.type || n.id,
+        ),
+      ]),
+    );
+    // Steps the compiler puts in front of an app card (`compileStudioGraph`).
+    for (const [id, label] of [...map]) {
+      map.set(`${id}__input`, `${label}: fill in`);
+      map.set(`${id}__approval`, `Approve: ${label}`);
+    }
+    return map;
+  }, [nodes]);
 
   const runQuery = useQuery({
     queryKey: ['canvas-run', workspaceId, runId],
     queryFn: () => agentGraphsApi.getRun(workspaceId, runId as string),
     enabled: !!runId && isOpen,
     refetchInterval: (query) => {
-      const status = (query.state.data as CanvasAgentRunDetail | undefined)?.status;
+      const status = (query.state.data as CanvasAgentRunDetail | undefined)
+        ?.status;
       return status && SETTLED.has(status) ? false : POLL_MS;
     },
   });
@@ -233,17 +367,26 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
       // Check first, so every problem shows here with the step it's on.
       const check = await agentGraphsApi.validate(workspaceId, agentId);
       setIssues(check.issues);
-      if (!check.valid) throw new Error('Fix the problems listed above, then run again.');
-      return agentGraphsApi.run(workspaceId, agentId, { mode, ...(message.trim() ? { message: message.trim() } : {}) });
+      if (!check.valid)
+        throw new Error('Fix the problems listed above, then run again.');
+      return agentGraphsApi.run(workspaceId, agentId, {
+        mode,
+        ...(message.trim() ? { message: message.trim() } : {}),
+      });
     },
     onSuccess: (started) => {
       setRunId(started.runId);
       setSelection(null);
-      queryClient.invalidateQueries({ queryKey: ['canvas-runs', workspaceId, agentId] });
+      queryClient.invalidateQueries({
+        queryKey: ['canvas-runs', workspaceId, agentId],
+      });
     },
     onError: (err) => {
       toast.error('Couldn’t start the run', {
-        description: err instanceof ApiError || err instanceof Error ? err.message : undefined,
+        description:
+          err instanceof ApiError || err instanceof Error
+            ? err.message
+            : undefined,
       });
     },
     meta: { disableToast: true },
@@ -251,7 +394,10 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
 
   // Problems with the graph are listed under "Fix before running"; anything else
   // that stops a run from starting is shown here, where the person is looking.
-  const startError = start.isError && !issues.some((i) => i.level === 'error') ? describeStartError(start.error) : null;
+  const startError =
+    start.isError && !issues.some((i) => i.level === 'error')
+      ? describeStartError(start.error)
+      : null;
 
   const { control, decide } = useCanvasRunControls({
     workspaceId,
@@ -265,9 +411,17 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
   const tasks = run ? taskTree(run.agentTasks) : [];
   const pendingApproval = run?.approvals.find((a) => a.state === 'PENDING');
   const finalStep = run ? finalRunStep(run) : undefined;
-  const selectedStep = selection?.kind === 'step' ? run?.steps.find((s) => s.id === selection.id) : undefined;
-  const selectedTask = selection?.kind === 'task' ? run?.agentTasks.find((t) => t.id === selection.id) : undefined;
-  const taskMessages = selectedTask ? run?.agentMessages.filter((m) => m.taskId === selectedTask.id) ?? [] : [];
+  const selectedStep =
+    selection?.kind === 'step'
+      ? run?.steps.find((s) => s.id === selection.id)
+      : undefined;
+  const selectedTask =
+    selection?.kind === 'task'
+      ? run?.agentTasks.find((t) => t.id === selection.id)
+      : undefined;
+  const taskMessages = selectedTask
+    ? (run?.agentMessages.filter((m) => m.taskId === selectedTask.id) ?? [])
+    : [];
   const settled = !!run && SETTLED.has(run.status);
 
   const copy = (text: string) => {
@@ -278,53 +432,92 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
   return (
     <aside
       aria-label={`Run ${agentName}`}
-      className="fixed inset-y-0 right-0 z-50 flex w-full max-w-2xl flex-col border-l border-border bg-surface shadow-2xl"
+      className="inset-y-0 right-0 max-w-2xl shadow-2xl fixed z-50 flex w-full flex-col border-l border-border bg-surface"
     >
       {/* Header */}
-      <div className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border px-5">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+      <div className="h-14 gap-3 px-5 flex shrink-0 items-center justify-between border-b border-border">
+        <div className="min-w-0 gap-2.5 flex items-center">
+          <div className="size-8 flex shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <Play className="size-4" />
           </div>
           <div className="min-w-0">
-            <div className="truncate text-sm font-bold text-foreground">Run {agentName}</div>
+            <div className="text-sm font-bold truncate text-foreground">
+              Run {agentName}
+            </div>
             <div className="text-xs text-muted-foreground">
-              {mode === 'test' ? 'Test: reads real data, changes nothing' : 'Live: acts for real'}
+              {mode === 'test'
+                ? 'Test: reads real data, changes nothing'
+                : 'Live: acts for real'}
             </div>
           </div>
           {run && <AIRunStatusBadge status={run.status} />}
         </div>
-        <div className="flex items-center gap-1">
+        <div className="gap-1 flex items-center">
           {run?.status === 'RUNNING' && (
-            <Button variant="ghost" size="xs" onClick={() => control.mutate('pause')} loading={control.isPending} className="gap-1">
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={() => control.mutate('pause')}
+              loading={control.isPending}
+              className="gap-1"
+            >
               <Pause className="size-3.5" /> Pause
             </Button>
           )}
           {run?.status === 'PAUSED' && (
-            <Button variant="ghost" size="xs" onClick={() => control.mutate('resume')} loading={control.isPending} className="gap-1">
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={() => control.mutate('resume')}
+              loading={control.isPending}
+              className="gap-1"
+            >
               <Play className="size-3.5" /> Resume
             </Button>
           )}
-          {run && ['RUNNING', 'PAUSED', 'WAITING_APPROVAL'].includes(run.status) && (
-            <Button variant="ghost" size="xs" onClick={() => control.mutate('cancel')} className="gap-1 text-destructive">
-              <Ban className="size-3.5" /> Cancel
-            </Button>
-          )}
+          {run &&
+            ['RUNNING', 'PAUSED', 'WAITING_APPROVAL'].includes(run.status) && (
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={() => control.mutate('cancel')}
+                className="gap-1 text-destructive"
+              >
+                <Ban className="size-3.5" /> Cancel
+              </Button>
+            )}
           {run && (run.status === 'FAILED' || run.status === 'CANCELLED') && (
-            <Button variant="ghost" size="xs" onClick={() => control.mutate('retry')} loading={control.isPending} className="gap-1">
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={() => control.mutate('retry')}
+              loading={control.isPending}
+              className="gap-1"
+            >
               <RotateCcw className="size-3.5" /> Retry
             </Button>
           )}
-          <Button variant="ghost" size="icon-xs" onClick={onClose} aria-label="Close run console">
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={onClose}
+            aria-label="Close run console"
+          >
             <X className="size-4" />
           </Button>
         </div>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto p-5 text-xs">
+      <div className="space-y-4 p-5 text-xs flex-1 overflow-y-auto">
         {/* Input */}
-        <section className="space-y-2.5 rounded-xl border border-border bg-surface-raised p-4" aria-label="Run input">
-          <Label htmlFor="run-console-message" className="font-semibold text-foreground">
+        <section
+          className="space-y-2.5 p-4 rounded-xl border border-border bg-surface-raised"
+          aria-label="Run input"
+        >
+          <Label
+            htmlFor="run-console-message"
+            className="font-semibold text-foreground"
+          >
             What should the agent work on?
           </Label>
           <Textarea
@@ -339,18 +532,31 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
               if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) start.mutate();
             }}
           />
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="gap-2 flex flex-wrap items-center justify-between">
             <SegmentedControl
               aria-label="Run mode"
               size="sm"
               value={mode}
               onChange={setMode}
               options={[
-                { value: 'test', label: 'Test', hint: 'Reads real data; writes and approvals are simulated' },
-                { value: 'live', label: 'Live', hint: 'Acts for real, as the agent’s owner' },
+                {
+                  value: 'test',
+                  label: 'Test',
+                  hint: 'Reads real data; writes and approvals are simulated',
+                },
+                {
+                  value: 'live',
+                  label: 'Live',
+                  hint: 'Acts for real, as the agent’s owner',
+                },
               ]}
             />
-            <Button size="sm" onClick={() => start.mutate()} loading={start.isPending} className="gap-1.5 font-semibold">
+            <Button
+              size="sm"
+              onClick={() => start.mutate()}
+              loading={start.isPending}
+              className="gap-1.5 font-semibold"
+            >
               <Play className="size-3.5" />
               {run && !settled ? 'Run again' : 'Run'}
             </Button>
@@ -358,18 +564,33 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
         </section>
 
         {issues.length > 0 && (
-          <section className="space-y-1.5 rounded-xl border border-warning/40 bg-warning/5 p-3" aria-label="Setup notes">
-            <div className="flex items-center gap-1.5 font-semibold text-warning">
-              <AlertTriangle className="size-3.5" /> {issues.some((i) => i.level === 'error') ? 'Fix before running' : 'Heads up'}
+          <section
+            className="space-y-1.5 p-3 rounded-xl border border-warning/40 bg-warning/5"
+            aria-label="Setup notes"
+          >
+            <div className="gap-1.5 font-semibold flex items-center text-warning">
+              <AlertTriangle className="size-3.5" />{' '}
+              {issues.some((i) => i.level === 'error')
+                ? 'Fix before running'
+                : 'Heads up'}
             </div>
             <ul className="space-y-1 text-xs text-muted-foreground">
               {issues.map((issue, i) => (
-                <li key={i} className="flex gap-1.5">
-                  <span className={cn('font-semibold', issue.level === 'error' ? 'text-destructive' : 'text-warning')}>
+                <li key={i} className="gap-1.5 flex">
+                  <span
+                    className={cn(
+                      'font-semibold',
+                      issue.level === 'error'
+                        ? 'text-destructive'
+                        : 'text-warning',
+                    )}
+                  >
                     {issue.level === 'error' ? 'Error' : 'Note'}
                   </span>
                   <span>
-                    {issue.nodeId && labels.get(issue.nodeId) ? `${labels.get(issue.nodeId)}: ` : ''}
+                    {issue.nodeId && labels.get(issue.nodeId)
+                      ? `${labels.get(issue.nodeId)}: `
+                      : ''}
                     {issue.message}
                   </span>
                 </li>
@@ -379,8 +600,12 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
         )}
 
         {startError && (
-          <section className="space-y-1.5 rounded-xl border border-destructive/40 bg-destructive/5 p-3" role="alert" aria-label="Run could not start">
-            <div className="flex items-center gap-1.5 font-semibold text-destructive">
+          <section
+            className="space-y-1.5 p-3 rounded-xl border border-destructive/40 bg-destructive/5"
+            role="alert"
+            aria-label="Run could not start"
+          >
+            <div className="gap-1.5 font-semibold flex items-center text-destructive">
               <AlertTriangle className="size-3.5" /> {startError.title}
             </div>
             <p className="text-xs text-muted-foreground">{startError.detail}</p>
@@ -397,7 +622,7 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
         )}
 
         {runId && !run && (
-          <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="gap-2 flex items-center text-muted-foreground">
             <Loader2 className="size-4 animate-spin" /> Starting…
           </div>
         )}
@@ -405,40 +630,75 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
         {run && (
           <>
             {/* Summary */}
-            <div className="flex flex-wrap items-center gap-4 rounded-xl border border-border bg-surface-raised px-4 py-2.5 font-mono text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Clock className="size-3" /> {formatDuration(run.latencyMs || (settled ? 0 : Date.now() - new Date(run.startedAt).getTime()))}
+            <div className="gap-4 px-4 py-2.5 text-xs flex flex-wrap items-center rounded-xl border border-border bg-surface-raised font-mono text-muted-foreground">
+              <span className="gap-1 flex items-center">
+                <Clock className="size-3" />{' '}
+                {formatDuration(
+                  run.latencyMs ||
+                    (settled
+                      ? 0
+                      : Date.now() - new Date(run.startedAt).getTime()),
+                )}
               </span>
-              <span className="flex items-center gap-1">
-                <Coins className="size-3" /> {run.tokensUsed.toLocaleString()} tokens · ${run.totalCost.toFixed(4)}
+              <span className="gap-1 flex items-center">
+                <Coins className="size-3" /> {run.tokensUsed.toLocaleString()}{' '}
+                tokens · ${run.totalCost.toFixed(4)}
               </span>
               <span>{run.steps.length} steps</span>
               {run.agentTasks.length > 0 && (
-                <span className="flex items-center gap-1">
-                  <Users className="size-3" /> {run.agentTasks.length} agent tasks
+                <span className="gap-1 flex items-center">
+                  <Users className="size-3" /> {run.agentTasks.length} agent
+                  tasks
                 </span>
               )}
             </div>
 
             {run.status === 'FAILED' && run.errorsJson?.message && (
-              <div role="alert" className="rounded-xl border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">
+              <div
+                role="alert"
+                className="p-3 text-xs rounded-xl border border-destructive/40 bg-destructive/5 text-destructive"
+              >
                 {run.errorsJson.message}
               </div>
             )}
 
             {pendingApproval && (
-              <section className="space-y-2 rounded-xl border border-warning/40 bg-warning/10 p-3" aria-label="Approval needed">
-                <div className="flex items-center gap-2 font-bold text-warning">
-                  <ShieldCheck className="size-4" /> Waiting for approval: {pendingApproval.actionType}
+              <section
+                className="space-y-2 p-3 rounded-xl border border-warning/40 bg-warning/10"
+                aria-label="Approval needed"
+              >
+                <div className="gap-2 font-bold flex items-center text-warning">
+                  <ShieldCheck className="size-4" /> Waiting for approval:{' '}
+                  {pendingApproval.actionType}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  The run is paused here. Approving continues it; rejecting stops it. You can also decide it in Approvals.
+                  The run is paused here. Approving continues it; rejecting
+                  stops it. You can also decide it in Approvals.
                 </p>
-                <div className="flex gap-2">
-                  <Button size="xs" onClick={() => decide.mutate({ id: pendingApproval.id, decision: 'APPROVED' })} loading={decide.isPending}>
+                <div className="gap-2 flex">
+                  <Button
+                    size="xs"
+                    onClick={() =>
+                      decide.mutate({
+                        id: pendingApproval.id,
+                        decision: 'APPROVED',
+                      })
+                    }
+                    loading={decide.isPending}
+                  >
                     Approve
                   </Button>
-                  <Button variant="outline" size="xs" onClick={() => decide.mutate({ id: pendingApproval.id, decision: 'REJECTED' })} disabled={decide.isPending}>
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    onClick={() =>
+                      decide.mutate({
+                        id: pendingApproval.id,
+                        decision: 'REJECTED',
+                      })
+                    }
+                    disabled={decide.isPending}
+                  >
                     Reject
                   </Button>
                 </div>
@@ -453,17 +713,25 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
                   <li key={step.id}>
                     <button
                       type="button"
-                      onClick={() => setSelection({ kind: 'step', id: step.id })}
+                      onClick={() =>
+                        setSelection({ kind: 'step', id: step.id })
+                      }
                       aria-pressed={selectedStep?.id === step.id}
                       className={cn(
-                        'flex w-full items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                        selectedStep?.id === step.id ? 'border-foreground/30 bg-selected' : 'border-border bg-surface-raised/40 hover:bg-surface-raised',
+                        'gap-2 px-2.5 py-1.5 flex w-full items-center justify-between rounded-lg border text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                        selectedStep?.id === step.id
+                          ? 'border-foreground/30 bg-selected'
+                          : 'border-border bg-surface-raised/40 hover:bg-surface-raised',
                       )}
                     >
-                      <span className="flex min-w-0 items-center gap-2">
+                      <span className="min-w-0 gap-2 flex items-center">
                         <StatusIcon status={step.status} />
-                        <span className="truncate font-semibold text-foreground">{labels.get(step.stepId) ?? step.stepId}</span>
-                        <span className="shrink-0 font-mono text-2xs uppercase text-muted-foreground">{step.nodeType}</span>
+                        <span className="font-semibold truncate text-foreground">
+                          {labels.get(step.stepId) ?? step.stepId}
+                        </span>
+                        <span className="shrink-0 font-mono text-2xs text-muted-foreground uppercase">
+                          {step.nodeType}
+                        </span>
                       </span>
                       <span className="shrink-0 font-mono text-2xs text-muted-foreground">
                         {step.tokensUsed ? `${step.tokensUsed} tok · ` : ''}
@@ -478,7 +746,7 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
             {/* Team */}
             {tasks.length > 0 && (
               <section className="space-y-1.5" aria-label="Agent team">
-                <h3 className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                <h3 className="gap-1.5 text-xs font-bold flex items-center text-foreground">
                   <Users className="size-3.5" /> What the team did
                 </h3>
                 <ul className="space-y-1">
@@ -486,19 +754,29 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
                     <li key={task.id} style={{ paddingLeft: depth * 16 }}>
                       <button
                         type="button"
-                        onClick={() => setSelection({ kind: 'task', id: task.id })}
+                        onClick={() =>
+                          setSelection({ kind: 'task', id: task.id })
+                        }
                         aria-pressed={selectedTask?.id === task.id}
                         className={cn(
-                          'flex w-full items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                          selectedTask?.id === task.id ? 'border-foreground/30 bg-selected' : 'border-border bg-surface-raised/40 hover:bg-surface-raised',
+                          'gap-2 px-2.5 py-1.5 flex w-full items-center justify-between rounded-lg border text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                          selectedTask?.id === task.id
+                            ? 'border-foreground/30 bg-selected'
+                            : 'border-border bg-surface-raised/40 hover:bg-surface-raised',
                         )}
                       >
-                        <span className="flex min-w-0 items-center gap-2">
+                        <span className="min-w-0 gap-2 flex items-center">
                           <StatusIcon status={task.status} />
-                          <span className="shrink-0 font-semibold text-foreground">{task.agentName}</span>
-                          <span className="truncate text-muted-foreground">{task.title}</span>
+                          <span className="font-semibold shrink-0 text-foreground">
+                            {task.agentName}
+                          </span>
+                          <span className="truncate text-muted-foreground">
+                            {task.title}
+                          </span>
                         </span>
-                        <span className="shrink-0 font-mono text-2xs text-muted-foreground">{task.tokensUsed ? `${task.tokensUsed} tok` : ''}</span>
+                        <span className="shrink-0 font-mono text-2xs text-muted-foreground">
+                          {task.tokensUsed ? `${task.tokensUsed} tok` : ''}
+                        </span>
                       </button>
                     </li>
                   ))}
@@ -507,33 +785,77 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
             )}
 
             {/* Detail */}
-            <section className="space-y-2 rounded-xl border border-border bg-surface-raised/40 p-3" aria-label="Details">
+            <section
+              className="space-y-2 p-3 rounded-xl border border-border bg-surface-raised/40"
+              aria-label="Details"
+            >
               {selectedTask ? (
-                <TaskDetail task={selectedTask} messages={taskMessages} onCopy={copy} />
+                <TaskDetail
+                  task={selectedTask}
+                  messages={taskMessages}
+                  onCopy={copy}
+                />
               ) : (
                 <>
                   <div className="flex items-center justify-between">
                     <h3 className="text-xs font-bold text-foreground">
-                      {selectedStep ? labels.get(selectedStep.stepId) ?? selectedStep.stepId : settled ? 'Result' : 'Latest output'}
+                      {selectedStep
+                        ? (labels.get(selectedStep.stepId) ??
+                          selectedStep.stepId)
+                        : settled
+                          ? 'Result'
+                          : 'Latest output'}
                     </h3>
                     {(selectedStep ?? finalStep) && (
-                      <Button variant="ghost" size="xs" className="gap-1" onClick={() => copy(readableOutput((selectedStep ?? finalStep)!.outputJson))}>
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        className="gap-1"
+                        onClick={() =>
+                          copy(
+                            readableOutput(
+                              (selectedStep ?? finalStep)!.outputJson,
+                            ),
+                          )
+                        }
+                      >
                         <Copy className="size-3" /> Copy
                       </Button>
                     )}
                   </div>
-                  {selectedStep?.errorMessage && <p className="text-xs text-destructive">{selectedStep.errorMessage}</p>}
-                  {selectedStep ?? finalStep ? (
-                    <div className="max-h-80 overflow-auto whitespace-pre-wrap rounded-lg bg-surface p-3 text-xs leading-relaxed text-foreground">
-                      {readableOutput((selectedStep ?? finalStep)!.outputJson) || 'No output.'}
+                  {selectedStep?.errorMessage && (
+                    <p className="text-xs text-destructive">
+                      {selectedStep.errorMessage}
+                    </p>
+                  )}
+                  {(selectedStep ?? finalStep) ? (
+                    <div className="max-h-80 p-3 text-xs leading-relaxed overflow-auto rounded-lg bg-surface whitespace-pre-wrap text-foreground">
+                      {readableOutput(
+                        (selectedStep ?? finalStep)!.outputJson,
+                      ) || 'No output.'}
                     </div>
                   ) : (
-                    <p className="text-muted-foreground">{settled ? 'The run produced no output.' : 'Working…'}</p>
+                    <p className="text-muted-foreground">
+                      {settled ? 'The run produced no output.' : 'Working…'}
+                    </p>
                   )}
                   {selectedStep && (
                     <details className="text-xs">
-                      <summary className="cursor-pointer text-muted-foreground">Raw step data</summary>
-                      <CodeBlock variant="compact" language="json" code={JSON.stringify({ input: selectedStep.inputJson, output: selectedStep.outputJson }, null, 2)} />
+                      <summary className="cursor-pointer text-muted-foreground">
+                        Raw step data
+                      </summary>
+                      <CodeBlock
+                        variant="compact"
+                        language="json"
+                        code={JSON.stringify(
+                          {
+                            input: selectedStep.inputJson,
+                            output: selectedStep.outputJson,
+                          },
+                          null,
+                          2,
+                        )}
+                      />
                     </details>
                   )}
                 </>
@@ -546,11 +868,19 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
   );
 }
 
-function TaskDetail({ task, messages, onCopy }: { task: AgentTaskRecord; messages: AgentMessageRecord[]; onCopy: (text: string) => void }) {
+function TaskDetail({
+  task,
+  messages,
+  onCopy,
+}: {
+  task: AgentTaskRecord;
+  messages: AgentMessageRecord[];
+  onCopy: (text: string) => void;
+}) {
   const result = task.output?.result ?? '';
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
+      <div className="gap-2 flex items-center justify-between">
         <h3 className="text-xs font-bold text-foreground">
           {task.agentName}
           <Badge variant="neutral" className="ml-2 text-2xs">
@@ -558,7 +888,12 @@ function TaskDetail({ task, messages, onCopy }: { task: AgentTaskRecord; message
           </Badge>
         </h3>
         {result && (
-          <Button variant="ghost" size="xs" className="gap-1" onClick={() => onCopy(result)}>
+          <Button
+            variant="ghost"
+            size="xs"
+            className="gap-1"
+            onClick={() => onCopy(result)}
+          >
             <Copy className="size-3" /> Copy result
           </Button>
         )}
@@ -570,22 +905,40 @@ function TaskDetail({ task, messages, onCopy }: { task: AgentTaskRecord; message
         </p>
       ))}
       {task.output?.tools && task.output.tools.length > 0 && (
-        <p className="text-xs text-muted-foreground">Tools used: {task.output.tools.join(', ')}</p>
+        <p className="text-xs text-muted-foreground">
+          Tools used: {task.output.tools.join(', ')}
+        </p>
       )}
       {messages.length > 0 ? (
         <ol className="space-y-2" aria-label="Conversation">
           {messages.map((m) => (
-            <li key={m.id} className="rounded-lg border border-border bg-surface p-2.5">
-              <div className="mb-1 flex items-center gap-1.5 text-2xs font-semibold text-muted-foreground">
+            <li
+              key={m.id}
+              className="p-2.5 rounded-lg border border-border bg-surface"
+            >
+              <div className="mb-1 gap-1.5 font-semibold flex items-center text-2xs text-muted-foreground">
                 <MessageSquare className="size-3" /> {m.fromName} → {m.toName}
-                <span className={cn('uppercase', m.kind === 'error' && 'text-destructive')}>· {m.kind}</span>
+                <span
+                  className={cn(
+                    'uppercase',
+                    m.kind === 'error' && 'text-destructive',
+                  )}
+                >
+                  · {m.kind}
+                </span>
               </div>
-              <div className="max-h-56 overflow-auto whitespace-pre-wrap text-xs leading-relaxed text-foreground">{m.content}</div>
+              <div className="max-h-56 text-xs leading-relaxed overflow-auto whitespace-pre-wrap text-foreground">
+                {m.content}
+              </div>
             </li>
           ))}
         </ol>
       ) : (
-        result && <div className="max-h-80 overflow-auto whitespace-pre-wrap rounded-lg bg-surface p-3 text-xs leading-relaxed">{result}</div>
+        result && (
+          <div className="max-h-80 p-3 text-xs leading-relaxed overflow-auto rounded-lg bg-surface whitespace-pre-wrap">
+            {result}
+          </div>
+        )
       )}
     </div>
   );
