@@ -102,6 +102,7 @@ import {
   resolvePreviewVisibility,
   useLinkPreviewStore,
 } from './use-link-preview.js';
+import { PollCard } from './poll-card.js';
 import { UserProfileCard } from './user-profile-card.js';
 
 export interface ChatBubbleProps {
@@ -191,6 +192,12 @@ export interface ChatBubbleProps {
   onToggleReplyNotifications?: () => void;
   /** Reply notifications for this message's thread are currently off. */
   replyNotificationsMuted?: boolean;
+  /** Casts the viewer's vote on a poll message; empty withdraws it. */
+  onPollVote?: (answerIds: string[]) => void | Promise<void>;
+  /** Ends a poll early — offered to its author only. */
+  onPollEnd?: () => void | Promise<void>;
+  /** Display name for a poll voter id. */
+  resolvePollVoterName?: (userId: string) => string;
 }
 
 export function formatShortTimestamp(timestamp: number): string {
@@ -559,6 +566,9 @@ export function ChatBubble({
   onRemind,
   onToggleReplyNotifications,
   replyNotificationsMuted = false,
+  onPollVote,
+  onPollEnd,
+  resolvePollVoterName,
 }: ChatBubbleProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isReactionOpen, setIsReactionOpen] = useState(false);
@@ -846,8 +856,11 @@ export function ChatBubble({
     senderBadge ||
     (entityBadgeKind ? <EntityKindBadge kind={entityBadgeKind} /> : null);
 
+  const pollPosted = !message.sendState || message.sendState === 'sent';
+  // A poll's answers are what people voted on; editing would rewrite the ballot.
   const canEdit =
     isOwn &&
+    !message.poll &&
     Boolean(onEdit) &&
     (editWindowMinutes == null ||
       Date.now() - message.timestamp < editWindowMinutes * 60_000);
@@ -1330,6 +1343,15 @@ export function ChatBubble({
                 >
                   {message.body.trim()}
                 </p>
+              ) : message.poll ? (
+                <PollCard
+                  poll={message.poll}
+                  isOwn={isOwn}
+                  // Not votable until the server has given it a real id.
+                  onVote={pollPosted ? onPollVote : undefined}
+                  onEnd={pollPosted ? onPollEnd : undefined}
+                  resolveName={resolvePollVoterName}
+                />
               ) : message.body ? (
                 <MarkdownMessage
                   text={message.body}

@@ -219,17 +219,17 @@ function StagedAttachmentChip({
     <div className="group/chip relative shrink-0">
       {previewUrl ? (
         <Hint label={caption}>
-          <div className="size-[72px] relative overflow-hidden rounded-xl bg-muted ring-1 ring-black/5">
+          <div className="ring-black/5 relative size-[72px] overflow-hidden rounded-xl bg-muted ring-1">
             <img
               src={previewUrl}
               alt={file.name}
-              className="absolute inset-0 !h-full !w-full max-w-none object-cover"
+              className="inset-0 absolute !h-full !w-full max-w-none object-cover"
             />
           </div>
         </Hint>
       ) : (
-        <div className="h-[72px] w-52 gap-2.5 px-3 flex items-center rounded-xl bg-muted/70">
-          <span className="size-10 text-2xs font-bold tracking-wide flex shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary-text">
+        <div className="w-52 gap-2.5 px-3 flex h-[72px] items-center rounded-xl bg-muted/70">
+          <span className="size-10 font-bold tracking-wide flex shrink-0 items-center justify-center rounded-lg bg-primary/15 text-2xs text-primary-text">
             {ext || <FileIcon className="size-4" />}
           </span>
           <span className="min-w-0 flex-1">
@@ -239,7 +239,7 @@ function StagedAttachmentChip({
             >
               {file.name}
             </span>
-            <span className="block text-xs text-muted-foreground">
+            <span className="text-xs block text-muted-foreground">
               {formatBytes(file.size)}
             </span>
           </span>
@@ -367,6 +367,8 @@ export interface ComposerProps {
   toolbarSlot?: ReactNode;
   /** Agents, coworkers and apps listed in the "+" menu, with Connect actions. */
   connectors?: ComposerConnectorsConfig;
+  /** Shows "Create poll" in the "+" menu; the host owns the dialog. */
+  onCreatePoll?: () => void;
   className?: string;
 }
 
@@ -417,6 +419,7 @@ export function Composer({
   linkPreviewsEnabled = true,
   toolbarSlot,
   connectors,
+  onCreatePoll,
   className,
 }: ComposerProps) {
   const [pickerState, setPickerState] = useState<{
@@ -500,14 +503,18 @@ export function Composer({
    * takes focus, so the user can write their reply straight under the quote.
    */
   const insertRequest = useComposerInsertStore((s) =>
-    conversationId && s.request?.conversationId === conversationId ? s.request : null,
+    conversationId && s.request?.conversationId === conversationId
+      ? s.request
+      : null,
   );
   const consumeInsert = useComposerInsertStore((s) => s.consume);
   useEffect(() => {
     if (!insertRequest || !lexicalRef.current || edit) return;
     if (!claimComposerInsert(insertRequest.nonce)) return;
     const current = lexicalRef.current.getMarkdown().trimEnd();
-    const next = current ? `${current}\n\n${insertRequest.markdown}` : insertRequest.markdown;
+    const next = current
+      ? `${current}\n\n${insertRequest.markdown}`
+      : insertRequest.markdown;
     lexicalRef.current.setMarkdown(next);
     lexicalRef.current.focus();
     setHasContent(next.trim().length > 0);
@@ -853,67 +860,69 @@ export function Composer({
       return sendAsMessage();
 
       function sendAsMessage() {
-      let finalBody = body;
-      let detectedCommand: string | undefined;
-      let commandArgs: string | undefined;
+        let finalBody = body;
+        let detectedCommand: string | undefined;
+        let commandArgs: string | undefined;
 
-      if (finalBody.startsWith('/shrug')) {
-        const after = finalBody.slice(6).trim();
-        finalBody = after ? `${after} ¯\\_(ツ)_/¯` : '¯\\_(ツ)_/¯';
-        detectedCommand = 'shrug';
-        commandArgs = after;
-      } else if (finalBody.startsWith('/away')) {
-        toast.info('Status updated to away');
-        detectedCommand = 'away';
-        finalBody = '';
-      } else if (finalBody.startsWith('/huddle')) {
-        if (onStartHuddle) {
-          onStartHuddle();
-          toast.info('Starting voice huddle…');
+        if (finalBody.startsWith('/shrug')) {
+          const after = finalBody.slice(6).trim();
+          finalBody = after ? `${after} ¯\\_(ツ)_/¯` : '¯\\_(ツ)_/¯';
+          detectedCommand = 'shrug';
+          commandArgs = after;
+        } else if (finalBody.startsWith('/away')) {
+          toast.info('Status updated to away');
+          detectedCommand = 'away';
+          finalBody = '';
+        } else if (finalBody.startsWith('/huddle')) {
+          if (onStartHuddle) {
+            onStartHuddle();
+            toast.info('Starting voice huddle…');
+          }
+          detectedCommand = 'huddle';
+          finalBody = '';
+        } else if (finalBody.startsWith('/help')) {
+          toast.info(
+            'Commands: /remind, /poll, /shrug, /away, /huddle, /topic, /invite',
+          );
+          detectedCommand = 'help';
+          finalBody = '';
+        } else if (finalBody.startsWith('/')) {
+          const spaceIdx = finalBody.indexOf(' ');
+          if (spaceIdx === -1) {
+            detectedCommand = finalBody.slice(1);
+          } else {
+            detectedCommand = finalBody.slice(1, spaceIdx);
+            commandArgs = finalBody.slice(spaceIdx + 1).trim();
+          }
         }
-        detectedCommand = 'huddle';
-        finalBody = '';
-      } else if (finalBody.startsWith('/help')) {
-        toast.info(
-          'Commands: /remind, /poll, /shrug, /away, /huddle, /topic, /invite',
-        );
-        detectedCommand = 'help';
-        finalBody = '';
-      } else if (finalBody.startsWith('/')) {
-        const spaceIdx = finalBody.indexOf(' ');
-        if (spaceIdx === -1) {
-          detectedCommand = finalBody.slice(1);
-        } else {
-          detectedCommand = finalBody.slice(1, spaceIdx);
-          commandArgs = finalBody.slice(spaceIdx + 1).trim();
+
+        const meta: ComposerMessageMeta = {
+          mentions,
+          command: detectedCommand,
+          commandArguments: commandArgs,
+          targetType: surfaceKind,
+          targetId: conversationId ?? undefined,
+          workspaceId,
+          channelId:
+            surfaceKind === 'channel'
+              ? (conversationId ?? undefined)
+              : undefined,
+        };
+
+        if (
+          !finalBody &&
+          detectedCommand &&
+          (detectedCommand === 'away' ||
+            detectedCommand === 'huddle' ||
+            detectedCommand === 'help')
+        ) {
+          return;
         }
-      }
 
-      const meta: ComposerMessageMeta = {
-        mentions,
-        command: detectedCommand,
-        commandArguments: commandArgs,
-        targetType: surfaceKind,
-        targetId: conversationId ?? undefined,
-        workspaceId,
-        channelId:
-          surfaceKind === 'channel' ? (conversationId ?? undefined) : undefined,
-      };
-
-      if (
-        !finalBody &&
-        detectedCommand &&
-        (detectedCommand === 'away' ||
-          detectedCommand === 'huddle' ||
-          detectedCommand === 'help')
-      ) {
-        return;
-      }
-
-      if (anon && anonymousPosting?.allowed) {
-        return anonymousPosting.onSendAnonymously(finalBody);
-      }
-      return onSend(finalBody, meta);
+        if (anon && anonymousPosting?.allowed) {
+          return anonymousPosting.onSendAnonymously(finalBody);
+        }
+        return onSend(finalBody, meta);
       }
     },
     [
@@ -1151,7 +1160,7 @@ export function Composer({
       {contextSlot}
 
       {anon && anonAllowed ? (
-        <div className="gap-1.5 mb-2 px-3 py-1.5 font-medium flex items-center rounded-lg border border-primary/20 bg-primary/10 text-xs text-primary-text">
+        <div className="gap-1.5 mb-2 px-3 py-1.5 font-medium text-xs flex items-center rounded-lg border border-primary/20 bg-primary/10 text-primary-text">
           <VenetianMask className="size-3.5" />
           This message will be posted as “Anonymous Participant”.
         </div>
@@ -1169,7 +1178,7 @@ export function Composer({
           className={cn(
             // Raised card with a soft primary halo on focus, so the composer
             // reads as the page's main input rather than one more bordered box.
-            'relative flex flex-col rounded-2xl border border-border-strong bg-surface shadow-elevated transition-[border-color,box-shadow] duration-200 hover:border-primary/40 focus-within:border-primary/70 focus-within:ring-4 focus-within:ring-primary/15',
+            'relative flex flex-col rounded-2xl border border-border-strong bg-surface shadow-elevated transition-[border-color,box-shadow] duration-200 focus-within:border-primary/70 focus-within:ring-4 focus-within:ring-primary/15 hover:border-primary/40',
             isDraggingOver && 'border-primary ring-4 ring-primary/25',
             disabled && 'pointer-events-none opacity-60',
           )}
@@ -1203,7 +1212,7 @@ export function Composer({
                   className="p-3 pointer-events-none z-[1000] bg-background/70 backdrop-blur-[2px]"
                 >
                   <div className="gap-3 flex h-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-primary bg-primary/10 text-primary-text">
-                    <div className="flex size-14 items-center justify-center rounded-full bg-primary/15">
+                    <div className="size-14 flex items-center justify-center rounded-full bg-primary/15">
                       <Plus className="size-7" aria-hidden="true" />
                     </div>
                     <div className="text-base font-semibold">
@@ -1307,7 +1316,7 @@ export function Composer({
                 buttons below — a surface with nowhere to send an upload (AI
                 chat) shouldn't offer to stage one that then silently vanishes
                 on send. */}
-              {onAttach || connectors ? (
+              {onAttach || connectors || onCreatePoll ? (
                 <>
                   <ComposerAttachMenu
                     onUpload={
@@ -1315,6 +1324,7 @@ export function Composer({
                         ? () => document.getElementById(fileInputId)?.click()
                         : undefined
                     }
+                    onCreatePoll={onCreatePoll}
                     connectors={connectors}
                   />
                   <input
@@ -1479,7 +1489,7 @@ export function Composer({
                   <PopoverContent
                     side="top"
                     align="end"
-                    className="w-[304px] p-3 space-y-3 z-50 rounded-lg border border-border bg-popover text-popover-foreground shadow-md"
+                    className="p-3 space-y-3 z-50 w-[304px] rounded-lg border border-border bg-popover text-popover-foreground shadow-md"
                   >
                     <div className="font-semibold text-xs gap-1.5 pb-2 flex items-center border-b border-border text-foreground">
                       {scheduleView === 'custom' ? (
@@ -1560,7 +1570,7 @@ export function Composer({
                         {pendingScheduled.map((item) => (
                           <div
                             key={item.id}
-                            className="gap-2 px-2 py-1.5 rounded-md text-xs flex items-start justify-between bg-accent/40"
+                            className="gap-2 px-2 py-1.5 text-xs flex items-start justify-between rounded-md bg-accent/40"
                           >
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-foreground">
@@ -1592,38 +1602,38 @@ export function Composer({
                     ) : null}
 
                     {scheduleView === 'presets' ? (
-                    <div className="space-y-1">
-                      <div className="font-medium mb-1 text-xs text-muted-foreground">
-                        Quick options
-                      </div>
-                      {schedulePresets.map((preset) => (
+                      <div className="space-y-1">
+                        <div className="font-medium mb-1 text-xs text-muted-foreground">
+                          Quick options
+                        </div>
+                        {schedulePresets.map((preset) => (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() =>
+                              void handleSchedule(preset.time.toISOString())
+                            }
+                            className="px-2 py-1.5 text-xs flex w-full items-center justify-between rounded-md text-left text-foreground transition-colors hover:bg-accent"
+                          >
+                            <span>{preset.label}</span>
+                            <span className="text-2xs text-muted-foreground">
+                              {preset.time.toLocaleTimeString([], {
+                                hour: 'numeric',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </button>
+                        ))}
                         <button
-                          key={preset.label}
                           type="button"
-                          onClick={() =>
-                            void handleSchedule(preset.time.toISOString())
-                          }
-                          className="px-2 py-1.5 rounded-md text-xs flex w-full items-center justify-between text-left text-foreground transition-colors hover:bg-accent"
+                          onClick={() => setScheduleView('custom')}
+                          className="mt-1 pt-2 px-2 py-1.5 gap-2 text-xs flex w-full items-center rounded-md border-t border-border text-left text-foreground transition-colors hover:bg-accent"
                         >
-                          <span>{preset.label}</span>
-                          <span className="text-2xs text-muted-foreground">
-                            {preset.time.toLocaleTimeString([], {
-                              hour: 'numeric',
-                              minute: '2-digit',
-                            })}
-                          </span>
+                          <CalendarDays className="size-3.5 text-muted-foreground" />
+                          <span className="flex-1">Custom date & time…</span>
+                          <ChevronRight className="size-3.5 text-muted-foreground" />
                         </button>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() => setScheduleView('custom')}
-                        className="mt-1 pt-2 px-2 py-1.5 gap-2 rounded-md text-xs flex w-full items-center border-t border-border text-left text-foreground transition-colors hover:bg-accent"
-                      >
-                        <CalendarDays className="size-3.5 text-muted-foreground" />
-                        <span className="flex-1">Custom date & time…</span>
-                        <ChevronRight className="size-3.5 text-muted-foreground" />
-                      </button>
-                    </div>
+                      </div>
                     ) : null}
                   </PopoverContent>
                 </Popover>

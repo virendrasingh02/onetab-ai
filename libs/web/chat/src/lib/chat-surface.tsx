@@ -21,6 +21,7 @@ import {
   MessageList,
   type MessageListHandle,
   MessageRenderer,
+  CreatePollDialog,
   PendingUploadMessage,
   PinnedBanner,
   PinnedPanel,
@@ -47,7 +48,11 @@ import type {
   SystemEventEntity,
   Thread,
 } from '@org/matrix-client';
-import { toPlatformUserId, type ComposerContext } from '@org/types';
+import {
+  toPlatformUserId,
+  type ComposerContext,
+  type PollDraft,
+} from '@org/types';
 import { toMentionRefs } from './mention-refs.js';
 import { useNameAliases } from './use-name-aliases.js';
 import { useCurrentWorkspace } from '@org/web-workspace';
@@ -75,13 +80,7 @@ import {
   useRightPanelStore,
   type RightPanelProfile,
 } from '@org/ui';
-import {
-  Hash,
-  Lock,
-  Pin,
-  Search,
-  Users,
-} from 'lucide-react';
+import { Hash, Lock, Pin, Search, Users } from 'lucide-react';
 import {
   useCallback,
   useEffect,
@@ -175,7 +174,11 @@ export interface ConversationMentions {
   unloadedCount: number;
 }
 
-const NO_MENTIONS: ConversationMentions = { ids: [], count: 0, unloadedCount: 0 };
+const NO_MENTIONS: ConversationMentions = {
+  ids: [],
+  count: 0,
+  unloadedCount: 0,
+};
 
 export interface ChatSurfaceProps {
   title: string;
@@ -429,7 +432,6 @@ export interface ChatSurfaceProps {
   composerContext?: ComposerContext;
 }
 
-
 /**
  * Matrix presence (`online` / `unavailable` / `offline`) narrowed to the
  * status vocabulary `UserAvatar` draws with — `unavailable` reads as "away".
@@ -525,11 +527,11 @@ export function ChatSurface({
   onViewSystemEventEntity,
   composerContext,
 }: ChatSurfaceProps) {
-
   const messageDensity = useMessageDensity();
   const openPosition = useOpenChatPosition();
   const { chat } = useChatPreferences();
-  const effectiveOnTyping = chat?.sendTypingNotice !== false ? onTyping : undefined;
+  const effectiveOnTyping =
+    chat?.sendTypingNotice !== false ? onTyping : undefined;
   const { openPreview } = useMediaPreview();
 
   // Tell the notification-sound bridge which room is on screen, so a message
@@ -654,7 +656,11 @@ export function ChatSurface({
     const lastByScope = new Map<string, string>();
     if (!showReadReceipts) return new Set<string>();
     for (const message of messages) {
-      if (message.senderId === myUserId && message.readers && message.readers.length > 0) {
+      if (
+        message.senderId === myUserId &&
+        message.readers &&
+        message.readers.length > 0
+      ) {
         lastByScope.set(message.threadRootId ?? '', message.id);
       }
     }
@@ -672,7 +678,6 @@ export function ChatSurface({
   }, [members, myUserId]);
 
   const repliesByRoot = useMemo(() => groupReplies(messages), [messages]);
-
 
   /*
    * A deleted message leaves the timeline outright — no "This message was
@@ -740,7 +745,8 @@ export function ChatSurface({
   }, [rootMessages, repliesByRoot, messages, pendingBatchIds]);
 
   const threadSummaryById = useMemo(
-    () => new Map((threadSummaries ?? []).map((thread) => [thread.rootId, thread])),
+    () =>
+      new Map((threadSummaries ?? []).map((thread) => [thread.rootId, thread])),
     [threadSummaries],
   );
 
@@ -781,8 +787,7 @@ export function ChatSurface({
         .filter((participant) => !participant.leftAt)
         .map((participant) => ({
           userId: participant.user.id,
-          displayName:
-            participant.user.displayName ?? participant.user.name,
+          displayName: participant.user.displayName ?? participant.user.name,
           avatarUrl: participant.user.avatarUrl ?? undefined,
           powerLevel: 0,
           membership: 'join' as const,
@@ -857,7 +862,9 @@ export function ChatSurface({
    */
   const listRef = useRef<MessageListHandle | null>(null);
   const [scrollEl, setScrollEl] = useState<HTMLElement | null>(null);
-  const [threadScrollEl, setThreadScrollEl] = useState<HTMLElement | null>(null);
+  const [threadScrollEl, setThreadScrollEl] = useState<HTMLElement | null>(
+    null,
+  );
 
   useEffect(() => {
     setScrollEl(listRef.current?.getScrollElement() ?? null);
@@ -889,8 +896,7 @@ export function ChatSurface({
 
   const threadMentionNav = useMentionNavigation({
     ids: panel === 'thread' ? threadUnreadMentions.ids : NO_MENTIONS.ids,
-    unloadedCount:
-      panel === 'thread' ? threadUnreadMentions.unloadedCount : 0,
+    unloadedCount: panel === 'thread' ? threadUnreadMentions.unloadedCount : 0,
     scrollElement: threadScrollEl,
     scrollToMessage,
     onMentionReached,
@@ -930,7 +936,9 @@ export function ChatSurface({
   const threadRoomId = threadRoot?.roomId;
   useEffect(() => {
     if (panel !== 'thread' || !client || !threadRoomId || !threadRootId) return;
-    void client.getThreadMessages(threadRoomId, threadRootId).catch(() => undefined);
+    void client
+      .getThreadMessages(threadRoomId, threadRootId)
+      .catch(() => undefined);
   }, [panel, client, threadRoomId, threadRootId]);
 
   const { slug: workspaceSlug } = useCurrentWorkspace();
@@ -946,7 +954,8 @@ export function ChatSurface({
   const kindOf = useCallback(
     (roomId: string): RoomKind => {
       if (roomKind) return roomKind;
-      if (welcome?.kind === 'direct' || welcome?.kind === 'self') return 'direct';
+      if (welcome?.kind === 'direct' || welcome?.kind === 'self')
+        return 'direct';
       if (welcome?.kind === 'group') return 'group';
       try {
         return client?.getRoom(roomId)?.kind ?? 'channel';
@@ -1007,7 +1016,8 @@ export function ChatSurface({
       // the peer is whoever *they* talk to there.
       if (room.kind === 'direct' && room.directUserId) {
         const params = new URLSearchParams();
-        if (forwarded.threadRootId) params.set('thread', forwarded.threadRootId);
+        if (forwarded.threadRootId)
+          params.set('thread', forwarded.threadRootId);
         params.set('msg', forwarded.eventId);
         const peerId = toPlatformUserId(room.directUserId);
         return () =>
@@ -1066,7 +1076,9 @@ export function ChatSurface({
   const timelineEphemeral = useMemo(() => {
     const extra = extraTimelineRows?.items ?? [];
     if (mainUploads.length === 0 && extra.length === 0) return noticeTimeline;
-    const byId = new Map(mainUploads.map((upload) => [`upload:${upload.id}`, upload]));
+    const byId = new Map(
+      mainUploads.map((upload) => [`upload:${upload.id}`, upload]),
+    );
     const extraIds = new Set(extra.map((item) => item.id));
     return {
       ephemeralItems: [
@@ -1080,13 +1092,16 @@ export function ChatSurface({
       renderEphemeral: (id: string) => {
         if (extraIds.has(id)) return extraTimelineRows?.render(id) ?? null;
         const upload = byId.get(id);
-        return upload ? renderPendingUpload(upload) : noticeTimeline.renderEphemeral(id);
+        return upload
+          ? renderPendingUpload(upload)
+          : noticeTimeline.renderEphemeral(id);
       },
     };
   }, [mainUploads, noticeTimeline, renderPendingUpload, extraTimelineRows]);
 
   const scheduledMessagesQuery = useScheduledMessages(effectiveWorkspaceId);
-  const scheduledMessageMutations = useScheduledMessageMutations(effectiveWorkspaceId);
+  const scheduledMessageMutations =
+    useScheduledMessageMutations(effectiveWorkspaceId);
   const pendingScheduledHere = useMemo(
     () =>
       (scheduledMessagesQuery.data ?? [])
@@ -1150,6 +1165,96 @@ export function ChatSurface({
     canMentionGroups: threadControl.canMentionGroups,
   });
 
+  // Polls post to a conversation with people in it — its main timeline or an
+  // open thread — not a notes-to-self DM, and not an agent or app that could
+  // never vote.
+  const pollsAvailable =
+    !!client &&
+    !!effectiveRoomId &&
+    welcome?.kind !== 'self' &&
+    welcome?.peer?.kind !== 'agent' &&
+    welcome?.peer?.kind !== 'app';
+  /** `threadRootId` set: the dialog was opened from that thread's reply box. */
+  const [pollDialog, setPollDialog] = useState<{
+    question?: string;
+    threadRootId?: string;
+  } | null>(null);
+  const openPollDialog = useCallback(() => setPollDialog({}), []);
+  const openThreadPollDialog = useCallback(
+    () => setPollDialog({ threadRootId: threadRoot?.id }),
+    [threadRoot?.id],
+  );
+  const runMainCommand = useCallback(
+    async (command: Parameters<typeof runMainSlashCommand>[0]) => {
+      if (command.name === 'poll' && pollsAvailable) {
+        setPollDialog({ question: command.args || undefined });
+        return true;
+      }
+      return runMainSlashCommand(command);
+    },
+    [pollsAvailable, runMainSlashCommand],
+  );
+  const runThreadCommand = useCallback(
+    async (command: Parameters<typeof runThreadSlashCommand>[0]) => {
+      if (command.name === 'poll' && pollsAvailable && threadRoot) {
+        setPollDialog({
+          question: command.args || undefined,
+          threadRootId: threadRoot.id,
+        });
+        return true;
+      }
+      return runThreadSlashCommand(command);
+    },
+    [pollsAvailable, runThreadSlashCommand, threadRoot],
+  );
+  const pollThreadRootId = pollDialog?.threadRootId;
+  const handleCreatePoll = useCallback(
+    async (draft: PollDraft) => {
+      if (!client || !effectiveRoomId) return;
+      try {
+        await client.sendPoll(effectiveRoomId, draft, {
+          threadRootId: pollThreadRootId,
+        });
+      } catch (error) {
+        toast.error('Could not post the poll.');
+        throw error;
+      }
+    },
+    [client, effectiveRoomId, pollThreadRootId],
+  );
+  const handlePollVote = useCallback(
+    async (message: Message, answerIds: string[]) => {
+      try {
+        await client?.votePoll(message.roomId, message.id, answerIds);
+      } catch (error) {
+        toast.error(
+          answerIds.length
+            ? 'Could not record your vote.'
+            : 'Could not remove your vote.',
+        );
+        throw error;
+      }
+    },
+    [client],
+  );
+  const handlePollEnd = useCallback(
+    async (message: Message) => {
+      try {
+        await client?.endPoll(message.roomId, message.id);
+      } catch {
+        toast.error('Could not end the poll.');
+      }
+    },
+    [client],
+  );
+  const resolvePollVoterName = useCallback(
+    (userId: string) =>
+      userId === myUserId
+        ? 'You'
+        : (memberById.get(userId)?.displayName ?? userId),
+    [memberById, myUserId],
+  );
+
   /** Wording inputs every notice raised from this surface shares. */
   const noticePlacement = useMemo(
     () => ({
@@ -1158,7 +1263,13 @@ export function ChatSurface({
       peerName: welcome?.peer?.name ?? title,
       isPrivate: welcome?.isPrivate ?? isEncrypted,
     }),
-    [effectiveRoomId, title, welcome?.peer?.name, welcome?.isPrivate, isEncrypted],
+    [
+      effectiveRoomId,
+      title,
+      welcome?.peer?.name,
+      welcome?.isPrivate,
+      isEncrypted,
+    ],
   );
 
   // Display names carry spaces, so the message renderer needs the roster to
@@ -1236,7 +1347,6 @@ export function ChatSurface({
         };
       }
     }
-
 
     for (const a of [
       ...(mainControl.agentMentions ?? []),
@@ -1387,17 +1497,21 @@ export function ChatSurface({
    * A link to a message is the conversation's own URL with `?msg=` (and
    * `?thread=` for a reply) — the form ChatPanel scrolls to and highlights.
    */
-  const copyMessageLink = useCallback((message: Message, confirmation: string) => {
-    const url = new URL(window.location.href);
-    url.hash = '';
-    url.search = '';
-    if (message.threadRootId) url.searchParams.set('thread', message.threadRootId);
-    url.searchParams.set('msg', message.id);
-    void navigator.clipboard
-      ?.writeText(url.toString())
-      .then(() => toast.success(confirmation))
-      .catch(() => toast.error('Could not copy the link.'));
-  }, []);
+  const copyMessageLink = useCallback(
+    (message: Message, confirmation: string) => {
+      const url = new URL(window.location.href);
+      url.hash = '';
+      url.search = '';
+      if (message.threadRootId)
+        url.searchParams.set('thread', message.threadRootId);
+      url.searchParams.set('msg', message.id);
+      void navigator.clipboard
+        ?.writeText(url.toString())
+        .then(() => toast.success(confirmation))
+        .catch(() => toast.error('Could not copy the link.'));
+    },
+    [],
+  );
 
   const renderMessage = useCallback(
     (
@@ -1435,6 +1549,17 @@ export function ChatSurface({
         <MessageRenderer
           message={message}
           roomKind={roomKind}
+          onPollVote={
+            message.poll
+              ? (answerIds: string[]) => handlePollVote(message, answerIds)
+              : undefined
+          }
+          onPollEnd={
+            message.poll && message.senderId === myUserId
+              ? () => handlePollEnd(message)
+              : undefined
+          }
+          resolvePollVoterName={message.poll ? resolvePollVoterName : undefined}
           isOwn={message.senderId === myUserId}
           showReadReceipt={receiptMessageIds.has(message.id)}
           // A thread reply also sent to the channel always shows its own
@@ -1442,7 +1567,11 @@ export function ChatSurface({
           // above it, even when the same person wrote both.
           isGrouped={grouped && !(message.alsoSentToChannel && !inThread)}
           threadRoot={(() => {
-            if (inThread || !message.alsoSentToChannel || !message.threadRootId) {
+            if (
+              inThread ||
+              !message.alsoSentToChannel ||
+              !message.threadRootId
+            ) {
               return undefined;
             }
             const root = byId.get(message.threadRootId);
@@ -1530,7 +1659,9 @@ export function ChatSurface({
             return original ? toReplyPreview(original) : null;
           })()}
           onJumpToReply={
-            message.replyToId ? () => jumpTo(message.replyToId as string) : undefined
+            message.replyToId
+              ? () => jumpTo(message.replyToId as string)
+              : undefined
           }
           onTogglePin={onTogglePin ? () => onTogglePin(message.id) : undefined}
           onToggleSave={
@@ -1572,7 +1703,9 @@ export function ChatSurface({
           })()}
           onMarkUnread={onMarkUnread ? () => onMarkUnread(message) : undefined}
           onRemind={
-            onRemind ? (remindAt: Date) => onRemind(message, remindAt) : undefined
+            onRemind
+              ? (remindAt: Date) => onRemind(message, remindAt)
+              : undefined
           }
           replyNotificationsMuted={mutedThreadRootIds?.includes(
             message.threadRootId ?? message.id,
@@ -1741,10 +1874,15 @@ export function ChatSurface({
                 kind={message.kind}
                 onOpen={() =>
                   openPreview([
-                    attachmentToMediaItem(attachment, message.kind, message.id, {
-                      ...uploaderContext,
-                      timestamp: message.timestamp,
-                    }),
+                    attachmentToMediaItem(
+                      attachment,
+                      message.kind,
+                      message.id,
+                      {
+                        ...uploaderContext,
+                        timestamp: message.timestamp,
+                      },
+                    ),
                   ])
                 }
               />
@@ -1754,6 +1892,9 @@ export function ChatSurface({
       );
     },
     [
+      handlePollVote,
+      handlePollEnd,
+      resolvePollVoterName,
       attachmentBursts,
       repliesByRoot,
       threadSummaryById,
@@ -1860,9 +2001,12 @@ export function ChatSurface({
     openHosted('threads', {
       title: panel === 'thread' ? 'Thread' : 'Threads',
       subtitle: (
-        <span className="flex items-center gap-1">
+        <span className="gap-1 flex items-center">
           {ChannelIcon ? (
-            <ChannelIcon className="size-3 shrink-0 text-muted-foreground" aria-hidden />
+            <ChannelIcon
+              className="size-3 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
           ) : null}
           <span className="truncate">{title}</span>
         </span>
@@ -1887,7 +2031,10 @@ export function ChatSurface({
   const workspaceMemberById = useMemo(
     () =>
       new Map(
-        (mainControl.workspaceMembers ?? []).map((member) => [member.userId, member]),
+        (mainControl.workspaceMembers ?? []).map((member) => [
+          member.userId,
+          member,
+        ]),
       ),
     [mainControl.workspaceMembers],
   );
@@ -1959,466 +2106,507 @@ export function ChatSurface({
 
   return (
     <MentionAliasesProvider aliases={nameAliases}>
-    <ReactorDirectoryProvider resolve={resolveReactor} myUserId={myUserId}>
-    <ChatLayout
-      banner={banner}
-      header={
-        showHeader ? (
-          <>
-            {headerMenuSlot
-              ? createPortal(headerMenuItems, headerMenuSlot)
-              : null}
+      <ReactorDirectoryProvider resolve={resolveReactor} myUserId={myUserId}>
+        <ChatLayout
+          banner={banner}
+          header={
+            showHeader ? (
+              <>
+                {headerMenuSlot
+                  ? createPortal(headerMenuItems, headerMenuSlot)
+                  : null}
 
-            {headerActionsSlot ? (
-              createPortal(
-                <div className="gap-0.5 flex items-center text-muted-foreground">
-                  {isEncrypted ? (
-                    <Hint label="End-to-end encrypted">
-                      <Lock
-                        className="size-3.5 shrink-0"
-                        aria-label="End-to-end encrypted"
-                      />
-                    </Hint>
-                  ) : null}
+                {headerActionsSlot ? (
+                  createPortal(
+                    <div className="gap-0.5 flex items-center text-muted-foreground">
+                      {isEncrypted ? (
+                        <Hint label="End-to-end encrypted">
+                          <Lock
+                            className="size-3.5 shrink-0"
+                            aria-label="End-to-end encrypted"
+                          />
+                        </Hint>
+                      ) : null}
 
-                  {headerActions}
+                      {headerActions}
 
-                  {/* The member stack and its panel moved to the right rail's
+                      {/* The member stack and its panel moved to the right rail's
                       channel details, which lists them with room to search. */}
-                  {showMembers ? (
-                    <Hint label="Channel Members">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        aria-label="Channel Members"
-                        aria-pressed={panel === 'members'}
-                        onClick={() => toggle('members')}
-                        leadingIcon={<Users />}
-                      >
-                        {members.length}
-                      </Button>
-                    </Hint>
-                  ) : null}
-                </div>,
-                headerActionsSlot,
-              )
+                      {showMembers ? (
+                        <Hint label="Channel Members">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label="Channel Members"
+                            aria-pressed={panel === 'members'}
+                            onClick={() => toggle('members')}
+                            leadingIcon={<Users />}
+                          >
+                            {members.length}
+                          </Button>
+                        </Hint>
+                      ) : null}
+                    </div>,
+                    headerActionsSlot,
+                  )
+                ) : (
+                  <ChatHeader
+                    title={title}
+                    subtitle={subtitle}
+                    isEncrypted={isEncrypted}
+                    memberCount={showMembers ? members.length : undefined}
+                    onToggleMembers={
+                      showMembers ? () => toggle('members') : undefined
+                    }
+                    actions={headerActions}
+                  />
+                )}
+              </>
             ) : (
-              <ChatHeader
-                title={title}
-                subtitle={subtitle}
-                isEncrypted={isEncrypted}
-                memberCount={showMembers ? members.length : undefined}
-                onToggleMembers={
-                  showMembers ? () => toggle('members') : undefined
-                }
-                actions={headerActions}
+              <>
+                {headerMenuSlot
+                  ? createPortal(headerMenuItems, headerMenuSlot)
+                  : null}
+
+                {headerActionsSlot
+                  ? createPortal(
+                      <div className="gap-0.5 flex items-center text-muted-foreground">
+                        {isEncrypted ? (
+                          <Hint label="End-to-end encrypted">
+                            <Lock
+                              className="size-3.5 shrink-0"
+                              aria-label="End-to-end encrypted"
+                            />
+                          </Hint>
+                        ) : null}
+
+                        {headerActions}
+
+                        {showMembers ? (
+                          <Hint label="Channel Members">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              aria-label="Channel Members"
+                              aria-pressed={panel === 'members'}
+                              onClick={() => toggle('members')}
+                              leadingIcon={<Users />}
+                            >
+                              {members.length}
+                            </Button>
+                          </Hint>
+                        ) : null}
+                      </div>,
+                      headerActionsSlot,
+                    )
+                  : null}
+              </>
+            )
+          }
+          sidePanelTitle={sidePanelTitle}
+          onCloseSidePanel={() => setPanel('none')}
+          sidePanel={
+            panel === 'search' ? (
+              <ConversationSearch
+                query={searchQuery}
+                onQueryChange={setSearchQuery}
+                results={searchResults}
+                onJump={jumpTo}
               />
-            )}
-          </>
-        ) : (
-          <>
-            {headerMenuSlot
-              ? createPortal(headerMenuItems, headerMenuSlot)
-              : null}
-
-            {headerActionsSlot
-              ? createPortal(
-                  <div className="gap-0.5 flex items-center text-muted-foreground">
-                    {isEncrypted ? (
-                      <Hint label="End-to-end encrypted">
-                        <Lock
-                          className="size-3.5 shrink-0"
-                          aria-label="End-to-end encrypted"
-                        />
-                      </Hint>
-                    ) : null}
-
-                    {headerActions}
-
-                    {showMembers ? (
-                      <Hint label="Channel Members">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          aria-label="Channel Members"
-                          aria-pressed={panel === 'members'}
-                          onClick={() => toggle('members')}
-                          leadingIcon={<Users />}
-                        >
-                          {members.length}
-                        </Button>
-                      </Hint>
-                    ) : null}
-                  </div>,
-                  headerActionsSlot,
-                )
-              : null}
-          </>
-        )
-      }
-      sidePanelTitle={sidePanelTitle}
-      onCloseSidePanel={() => setPanel('none')}
-      sidePanel={
-        panel === 'search' ? (
-          <ConversationSearch
-            query={searchQuery}
-            onQueryChange={setSearchQuery}
-            results={searchResults}
-            onJump={jumpTo}
-          />
-        ) : panel === 'pinned' ? (
-          <PinnedPanel
-            messages={pinnedMessages}
-            onJump={jumpTo}
-            onUnpin={onTogglePin}
-            onReact={
-              onReact
-                ? (messageId, key, reactedByMe) =>
-                    void onReact(messageId, key, reactedByMe)
-                : undefined
-            }
-            onOpenThread={(messageId) => openThreadPanel(messageId)}
-            onToggleSave={onToggleSave}
-            isSaved={(messageId) => savedIds?.includes(messageId) ?? false}
-            onForward={handleForward}
-          />
-        ) : panel === 'members' ? (
-          <MemberList
-            members={members}
-            presenceOf={presenceOf}
-            onSelect={(member) =>
-              handleOpenUserProfile({
-                userId: member.userId,
-                name: member.displayName,
-                avatarUrl: member.avatarUrl,
-                powerLevel: member.powerLevel,
-              })
-            }
-          />
-        ) : null
-      }
-    >
-      <div className="min-h-0 relative flex flex-1 flex-col overflow-hidden">
-        {/*
+            ) : panel === 'pinned' ? (
+              <PinnedPanel
+                messages={pinnedMessages}
+                onJump={jumpTo}
+                onUnpin={onTogglePin}
+                onReact={
+                  onReact
+                    ? (messageId, key, reactedByMe) =>
+                        void onReact(messageId, key, reactedByMe)
+                    : undefined
+                }
+                onOpenThread={(messageId) => openThreadPanel(messageId)}
+                onToggleSave={onToggleSave}
+                isSaved={(messageId) => savedIds?.includes(messageId) ?? false}
+                onForward={handleForward}
+              />
+            ) : panel === 'members' ? (
+              <MemberList
+                members={members}
+                presenceOf={presenceOf}
+                onSelect={(member) =>
+                  handleOpenUserProfile({
+                    userId: member.userId,
+                    name: member.displayName,
+                    avatarUrl: member.avatarUrl,
+                    powerLevel: member.powerLevel,
+                  })
+                }
+              />
+            ) : null
+          }
+        >
+          <div className="min-h-0 relative flex flex-1 flex-col overflow-hidden">
+            {/*
           The huddle bar opens full-width in the shell's dock below all three
           columns — it portals into `HuddleDock`, so where it sits in this tree
           does not place it. The state lives here because the huddle is this
           conversation's; the button that starts one is in the header.
         */}
-        <HuddleBar
-          participants={huddleRoster}
-          isJoined={huddleJoined}
-          isMuted={huddleMuted}
-          onJoin={() => huddle.startOrJoin()}
-          onLeave={() => huddle.leave()}
-          onToggleMute={() => setHuddleMuted((muted) => !muted)}
-          startedAt={huddle.huddle?.startedAt}
-          viewerJoinedAt={huddle.huddle?.viewerJoinedAt}
-          connectionState={huddle.connection}
-          onRetry={huddle.retry}
-          busy={huddle.busy}
-          elementCallUrl={huddle.elementCallUrl}
-          roomId={huddle.huddle?.matrixRoomId ?? conversationId ?? undefined}
-          onMediaReady={huddle.onMediaReady}
-        />
+            <HuddleBar
+              participants={huddleRoster}
+              isJoined={huddleJoined}
+              isMuted={huddleMuted}
+              onJoin={() => huddle.startOrJoin()}
+              onLeave={() => huddle.leave()}
+              onToggleMute={() => setHuddleMuted((muted) => !muted)}
+              startedAt={huddle.huddle?.startedAt}
+              viewerJoinedAt={huddle.huddle?.viewerJoinedAt}
+              connectionState={huddle.connection}
+              onRetry={huddle.retry}
+              busy={huddle.busy}
+              elementCallUrl={huddle.elementCallUrl}
+              roomId={
+                huddle.huddle?.matrixRoomId ?? conversationId ?? undefined
+              }
+              onMediaReady={huddle.onMediaReady}
+            />
 
-        {/* Threads live in the app's right rail — see the note by `inThreads`. */}
-        {inThreads && threadsSlot
-          ? createPortal(
-              panel === 'thread' && threadRoot ? (
-                <ThreadPanel
-                  replyCount={threadReplyCount(
-                    threadReplies.length,
-                    threadSummaryById.get(threadRoot.id),
-                  )}
-                  viewportRef={setThreadScrollEl}
-                  overlaySlot={
-                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
-                      <UnreadMentionsPill
-                        direction={threadMentionNav.direction}
-                        count={threadUnreadMentions.count}
-                        remaining={threadMentionNav.remaining}
-                        onJump={threadMentionNav.jumpToNext}
-                      />
-                    </div>
-                  }
-                  rootSlot={renderMessage(threadRoot, false, undefined, true)}
-                  repliesSlot={
-                    <>
-                      {interleaveMentionNotices(
-                        threadReplies,
-                        threadNotices,
-                        (reply) => (
-                          <div>{renderMessage(reply, false, undefined, true)}</div>
-                        ),
-                        (notice) => (
-                          <MentionNoticeRow
-                            notice={notice}
-                            onAddTargets={addMentionTargets}
-                          />
-                        ),
+            {/* Threads live in the app's right rail — see the note by `inThreads`. */}
+            {inThreads && threadsSlot
+              ? createPortal(
+                  panel === 'thread' && threadRoot ? (
+                    <ThreadPanel
+                      replyCount={threadReplyCount(
+                        threadReplies.length,
+                        threadSummaryById.get(threadRoot.id),
                       )}
-                      {threadUploads.map((upload) => (
-                        <div key={upload.id}>{renderPendingUpload(upload)}</div>
-                      ))}
-                    </>
-                  }
-                  composerSlot={
-                    <Composer
-                      conversationId={
-                        conversationId
-                          ? `${conversationId}-thread-${threadRoot.id}`
-                          : null
-                      }
-                      targetName={`${title} (thread)`}
-                      workspaceId={composerContext?.workspaceId}
-                      members={members}
-                      currentUserId={myUserId}
-                      linkPreviewsEnabled={chat?.linkPreviewsEnabled ?? true}
-                      showFormatting={false}
-                      placeholder="Reply in thread…"
-                      className="bg-transparent"
-                      contextSlot={
-                        <label className="gap-2 mb-2 flex w-fit cursor-pointer items-center text-xs text-muted-foreground">
-                          <Checkbox
-                            checked={alsoSendToChannel}
-                            onCheckedChange={(checked) =>
-                              setAlsoSendToChannel(checked === true)
-                            }
+                      viewportRef={setThreadScrollEl}
+                      overlaySlot={
+                        <div className="bottom-3 pointer-events-auto absolute left-1/2 z-30 -translate-x-1/2">
+                          <UnreadMentionsPill
+                            direction={threadMentionNav.direction}
+                            count={threadUnreadMentions.count}
+                            remaining={threadMentionNav.remaining}
+                            onJump={threadMentionNav.jumpToNext}
                           />
-                          <span className="gap-1 flex items-center">
-                            Also send to
-                            {!welcome?.kind || welcome.kind === 'channel' ? (
-                              <span className="gap-0.5 font-semibold flex items-center text-foreground">
-                                {(welcome?.isPrivate ?? isEncrypted) ? (
-                                  <Lock className="size-3" aria-hidden />
+                        </div>
+                      }
+                      rootSlot={renderMessage(
+                        threadRoot,
+                        false,
+                        undefined,
+                        true,
+                      )}
+                      repliesSlot={
+                        <>
+                          {interleaveMentionNotices(
+                            threadReplies,
+                            threadNotices,
+                            (reply) => (
+                              <div>
+                                {renderMessage(reply, false, undefined, true)}
+                              </div>
+                            ),
+                            (notice) => (
+                              <MentionNoticeRow
+                                notice={notice}
+                                onAddTargets={addMentionTargets}
+                              />
+                            ),
+                          )}
+                          {threadUploads.map((upload) => (
+                            <div key={upload.id}>
+                              {renderPendingUpload(upload)}
+                            </div>
+                          ))}
+                        </>
+                      }
+                      composerSlot={
+                        <Composer
+                          conversationId={
+                            conversationId
+                              ? `${conversationId}-thread-${threadRoot.id}`
+                              : null
+                          }
+                          targetName={`${title} (thread)`}
+                          workspaceId={composerContext?.workspaceId}
+                          members={members}
+                          currentUserId={myUserId}
+                          linkPreviewsEnabled={
+                            chat?.linkPreviewsEnabled ?? true
+                          }
+                          showFormatting={false}
+                          placeholder="Reply in thread…"
+                          className="bg-transparent"
+                          contextSlot={
+                            <label className="gap-2 mb-2 text-xs flex w-fit cursor-pointer items-center text-muted-foreground">
+                              <Checkbox
+                                checked={alsoSendToChannel}
+                                onCheckedChange={(checked) =>
+                                  setAlsoSendToChannel(checked === true)
+                                }
+                              />
+                              <span className="gap-1 flex items-center">
+                                Also send to
+                                {!welcome?.kind ||
+                                welcome.kind === 'channel' ? (
+                                  <span className="gap-0.5 font-semibold flex items-center text-foreground">
+                                    {(welcome?.isPrivate ?? isEncrypted) ? (
+                                      <Lock className="size-3" aria-hidden />
+                                    ) : (
+                                      <Hash className="size-3" aria-hidden />
+                                    )}
+                                    {title.replace(/^#/, '')}
+                                  </span>
                                 ) : (
-                                  <Hash className="size-3" aria-hidden />
+                                  <span className="font-semibold text-foreground">
+                                    this conversation
+                                  </span>
                                 )}
-                                {title.replace(/^#/, '')}
                               </span>
-                            ) : (
-                              <span className="font-semibold text-foreground">
-                                this conversation
-                              </span>
-                            )}
-                          </span>
-                        </label>
-                      }
-                      readOnlyMessage={
-                        threadComposerReadOnlyMessage ?? composerReadOnlyMessage
-                      }
-                      onSend={async (body, meta) => {
-                        const broadcast = alsoSendToChannel;
-                        setAlsoSendToChannel(false);
-                        const anchorId = await onSend(
-                          body,
-                          threadRoot.id,
-                          {
-                            ...(broadcast ? { alsoSendToChannel: true } : {}),
-                            mentions: toMentionRefs(meta?.mentions),
-                          },
-                        );
-                        threadControl.raiseMentionNotice(meta?.mentions, {
-                          ...noticePlacement,
-                          threadRootId: threadRoot.id,
-                          anchorId:
-                            typeof anchorId === 'string' ? anchorId : undefined,
-                        });
-                      }}
-                      onTyping={effectiveOnTyping}
-                      enterToSend={chat?.enterToSend ?? true}
-                      slashCommands={threadControl.slashCommands}
-                      onSlashCommand={runThreadSlashCommand}
-                      surfaceKind={threadComposerContext?.surfaceKind}
-                      viewerCanManage={threadControl.viewerCanManage}
-                      isGuest={threadControl.isGuest}
-                      canMentionGroups={threadControl.canMentionGroups}
-                      workspaceMembers={threadControl.workspaceMembers}
-                      agentMentions={threadControl.agentMentions}
-                      coworkerMentions={threadControl.coworkerMentions}
-                      appMentions={threadControl.appMentions}
-                      channelMentions={threadControl.channelMentions}
-                      connectors={threadControl.connectors}
-                      onAttach={
-                        onAttach
-                          ? (files) => void onAttach(files, threadRoot.id)
-                          : undefined
-                      }
-                      onSendVoice={
-                        onSendVoice
-                          ? (
-                              blob: Blob,
-                              meta: {
-                                durationMs: number;
-                                waveform: number[];
-                                mimeType: string;
-                              },
-                              onProgress?: (percent: number) => void,
-                            ) =>
-                              onSendVoice(blob, meta, onProgress, threadRoot.id)
-                          : undefined
+                            </label>
+                          }
+                          readOnlyMessage={
+                            threadComposerReadOnlyMessage ??
+                            composerReadOnlyMessage
+                          }
+                          onSend={async (body, meta) => {
+                            const broadcast = alsoSendToChannel;
+                            setAlsoSendToChannel(false);
+                            const anchorId = await onSend(body, threadRoot.id, {
+                              ...(broadcast ? { alsoSendToChannel: true } : {}),
+                              mentions: toMentionRefs(meta?.mentions),
+                            });
+                            threadControl.raiseMentionNotice(meta?.mentions, {
+                              ...noticePlacement,
+                              threadRootId: threadRoot.id,
+                              anchorId:
+                                typeof anchorId === 'string'
+                                  ? anchorId
+                                  : undefined,
+                            });
+                          }}
+                          onTyping={effectiveOnTyping}
+                          enterToSend={chat?.enterToSend ?? true}
+                          slashCommands={threadControl.slashCommands}
+                          onSlashCommand={runThreadCommand}
+                          onCreatePoll={
+                            pollsAvailable ? openThreadPollDialog : undefined
+                          }
+                          surfaceKind={threadComposerContext?.surfaceKind}
+                          viewerCanManage={threadControl.viewerCanManage}
+                          isGuest={threadControl.isGuest}
+                          canMentionGroups={threadControl.canMentionGroups}
+                          workspaceMembers={threadControl.workspaceMembers}
+                          agentMentions={threadControl.agentMentions}
+                          coworkerMentions={threadControl.coworkerMentions}
+                          appMentions={threadControl.appMentions}
+                          channelMentions={threadControl.channelMentions}
+                          connectors={threadControl.connectors}
+                          onAttach={
+                            onAttach
+                              ? (files) => void onAttach(files, threadRoot.id)
+                              : undefined
+                          }
+                          onSendVoice={
+                            onSendVoice
+                              ? (
+                                  blob: Blob,
+                                  meta: {
+                                    durationMs: number;
+                                    waveform: number[];
+                                    mimeType: string;
+                                  },
+                                  onProgress?: (percent: number) => void,
+                                ) =>
+                                  onSendVoice(
+                                    blob,
+                                    meta,
+                                    onProgress,
+                                    threadRoot.id,
+                                  )
+                              : undefined
+                          }
+                        />
                       }
                     />
-                  }
-                />
-              ) : (
-                <ThreadListPanel
-                  threads={threads}
-                  onOpen={(rootId) => openThreadPanel(rootId)}
-                />
-              ),
-              threadsSlot,
-            )
-          : null}
+                  ) : (
+                    <ThreadListPanel
+                      threads={threads}
+                      onOpen={(rootId) => openThreadPanel(rootId)}
+                    />
+                  ),
+                  threadsSlot,
+                )
+              : null}
 
-        {/* No `overflow` here: the list owns its own scroller, and nesting one
+            {/* No `overflow` here: the list owns its own scroller, and nesting one
           inside another gave the timeline two scrollbars. */}
-        <div className="min-h-0 flex flex-1 flex-col">
-          <PinnedBanner
-            messages={pinnedMessages}
-            onJump={jumpTo}
-            onViewAll={() => setPanel('pinned')}
-          />
-          <MessageList
-            ref={listRef}
-            conversationId={conversationId}
-            messages={rootMessages}
-            isLoading={isLoading}
-            isLoadingOlder={isLoadingOlder}
-            hasMore={hasMore}
-            error={error}
-            unreadBeforeId={firstUnreadId}
-            density={messageDensity}
-            openPosition={openPosition}
-            connectionState={connectionState}
-            onMarkRead={onMarkRead}
-            onLoadOlder={onLoadOlder}
-            onFollowingChange={onFollowingChange}
-            onVisibleMessageRead={onVisibleMessageRead}
-            unreadMentionCount={unreadMentions.count}
-            mentionDirection={mainMentionNav.direction}
-            mentionsRemaining={mainMentionNav.remaining}
-            onJumpToMention={mainMentionNav.jumpToNext}
-            renderMessage={renderMessage}
-            ephemeralItems={timelineEphemeral.ephemeralItems}
-            renderEphemeral={timelineEphemeral.renderEphemeral}
-            introSlot={
-              welcome ? (
-                <ChannelWelcome
-                  kind={welcome.kind}
-                  channelName={title}
-                  isPrivate={welcome.isPrivate ?? isEncrypted}
-                  createdAt={welcome.createdAt}
-                  createdByName={welcome.createdByName}
-                  createdBy={welcome.createdBy}
-                  description={
-                    welcome.description ??
-                    (!welcome.kind || welcome.kind === 'channel'
-                      ? subtitle
-                      : undefined)
-                  }
-                  welcomeMessage={welcome.welcomeMessage}
-                  members={members}
-                  memberCount={members.length}
-                  peer={welcome.peer}
-                  onAddPeople={welcome.onAddPeople}
-                  onEditDescription={welcome.onEditDescription}
-                  onOpenCopilot={welcome.onOpenCopilot}
-                  onViewProfile={welcome.onViewProfile}
-                  onAddBookmark={
-                    !welcome.kind || welcome.kind === 'channel'
-                      ? onAddBookmark
-                      : undefined
-                  }
-                  onStartHuddle={
-                    !huddlesEnabled ||
-                    welcome.kind === 'self' ||
-                    welcome.peer?.kind === 'agent' ||
-                    welcome.peer?.kind === 'app'
-                      ? undefined
-                      : () => huddle.startOrJoin()
-                  }
-                />
-              ) : null
-            }
-          />
-        </div>
+            <div className="min-h-0 flex flex-1 flex-col">
+              <PinnedBanner
+                messages={pinnedMessages}
+                onJump={jumpTo}
+                onViewAll={() => setPanel('pinned')}
+              />
+              <MessageList
+                ref={listRef}
+                conversationId={conversationId}
+                messages={rootMessages}
+                isLoading={isLoading}
+                isLoadingOlder={isLoadingOlder}
+                hasMore={hasMore}
+                error={error}
+                unreadBeforeId={firstUnreadId}
+                density={messageDensity}
+                openPosition={openPosition}
+                connectionState={connectionState}
+                onMarkRead={onMarkRead}
+                onLoadOlder={onLoadOlder}
+                onFollowingChange={onFollowingChange}
+                onVisibleMessageRead={onVisibleMessageRead}
+                unreadMentionCount={unreadMentions.count}
+                mentionDirection={mainMentionNav.direction}
+                mentionsRemaining={mainMentionNav.remaining}
+                onJumpToMention={mainMentionNav.jumpToNext}
+                renderMessage={renderMessage}
+                ephemeralItems={timelineEphemeral.ephemeralItems}
+                renderEphemeral={timelineEphemeral.renderEphemeral}
+                introSlot={
+                  welcome ? (
+                    <ChannelWelcome
+                      kind={welcome.kind}
+                      channelName={title}
+                      isPrivate={welcome.isPrivate ?? isEncrypted}
+                      createdAt={welcome.createdAt}
+                      createdByName={welcome.createdByName}
+                      createdBy={welcome.createdBy}
+                      description={
+                        welcome.description ??
+                        (!welcome.kind || welcome.kind === 'channel'
+                          ? subtitle
+                          : undefined)
+                      }
+                      welcomeMessage={welcome.welcomeMessage}
+                      members={members}
+                      memberCount={members.length}
+                      peer={welcome.peer}
+                      onAddPeople={welcome.onAddPeople}
+                      onEditDescription={welcome.onEditDescription}
+                      onOpenCopilot={welcome.onOpenCopilot}
+                      onViewProfile={welcome.onViewProfile}
+                      onAddBookmark={
+                        !welcome.kind || welcome.kind === 'channel'
+                          ? onAddBookmark
+                          : undefined
+                      }
+                      onStartHuddle={
+                        !huddlesEnabled ||
+                        welcome.kind === 'self' ||
+                        welcome.peer?.kind === 'agent' ||
+                        welcome.peer?.kind === 'app'
+                          ? undefined
+                          : () => huddle.startOrJoin()
+                      }
+                    />
+                  ) : null
+                }
+              />
+            </div>
 
-        <div className="bottom-0 sticky z-20 w-full shrink-0 bg-background">
-          {chat?.showTypingIndicators !== false ? (
-            <TypingIndicator names={typingNames} />
+            <div className="bottom-0 sticky z-20 w-full shrink-0 bg-background">
+              {chat?.showTypingIndicators !== false ? (
+                <TypingIndicator names={typingNames} />
+              ) : null}
+              <Composer
+                conversationId={conversationId}
+                targetName={title}
+                placeholder={
+                  welcome?.kind === 'self' ? 'Jot something down…' : undefined
+                }
+                workspaceId={composerContext?.workspaceId}
+                members={members}
+                currentUserId={myUserId}
+                linkPreviewsEnabled={chat?.linkPreviewsEnabled ?? true}
+                onSchedule={handleScheduleMessage}
+                pendingScheduled={pendingScheduledHere}
+                onCancelScheduled={handleCancelScheduled}
+                onTyping={effectiveOnTyping}
+                enterToSend={chat?.enterToSend ?? true}
+                slashCommands={mainControl.slashCommands}
+                onSlashCommand={runMainCommand}
+                onCreatePoll={pollsAvailable ? openPollDialog : undefined}
+                onAttach={
+                  onAttach ? (files) => void onAttach(files) : undefined
+                }
+                onSendVoice={onSendVoice}
+                readOnlyMessage={composerReadOnlyMessage}
+                anonymousPosting={anonymousPosting}
+                surfaceKind={composerContext?.surfaceKind}
+                viewerCanManage={mainControl.viewerCanManage}
+                isGuest={mainControl.isGuest}
+                canMentionGroups={mainControl.canMentionGroups}
+                workspaceMembers={mainControl.workspaceMembers}
+                agentMentions={mainControl.agentMentions}
+                coworkerMentions={mainControl.coworkerMentions}
+                appMentions={mainControl.appMentions}
+                channelMentions={mainControl.channelMentions}
+                connectors={mainControl.connectors}
+                replyingTo={replyingTo ? toReplyPreview(replyingTo) : null}
+                onCancelReply={() => setReplyingTo(null)}
+                onJumpToReply={
+                  replyingTo ? () => jumpTo(replyingTo.id) : undefined
+                }
+                onSend={async (body, meta) => {
+                  const replyToId = replyingTo?.id;
+                  setReplyingTo(null);
+                  const anchorId = await onSend(body, undefined, {
+                    ...(replyToId ? { replyToId } : {}),
+                    mentions: toMentionRefs(meta?.mentions),
+                  });
+                  mainControl.raiseMentionNotice(meta?.mentions, {
+                    ...noticePlacement,
+                    anchorId:
+                      typeof anchorId === 'string' ? anchorId : undefined,
+                  });
+                }}
+              />
+            </div>
+          </div>
+
+          {pollsAvailable ? (
+            <CreatePollDialog
+              open={pollDialog !== null}
+              onOpenChange={(open) => {
+                if (!open) setPollDialog(null);
+              }}
+              initialQuestion={pollDialog?.question}
+              targetName={
+                pollThreadRootId
+                  ? 'this thread'
+                  : !welcome?.kind || welcome.kind === 'channel'
+                    ? `#${title}`
+                    : title
+              }
+              onCreate={handleCreatePoll}
+            />
           ) : null}
-          <Composer
-            conversationId={conversationId}
-            targetName={title}
-            placeholder={
-              welcome?.kind === 'self' ? 'Jot something down…' : undefined
-            }
-            workspaceId={composerContext?.workspaceId}
-            members={members}
-            currentUserId={myUserId}
-            linkPreviewsEnabled={chat?.linkPreviewsEnabled ?? true}
-            onSchedule={handleScheduleMessage}
-            pendingScheduled={pendingScheduledHere}
-            onCancelScheduled={handleCancelScheduled}
-            onTyping={effectiveOnTyping}
-            enterToSend={chat?.enterToSend ?? true}
-            slashCommands={mainControl.slashCommands}
-            onSlashCommand={runMainSlashCommand}
-            onAttach={onAttach ? (files) => void onAttach(files) : undefined}
-            onSendVoice={onSendVoice}
-            readOnlyMessage={composerReadOnlyMessage}
-            anonymousPosting={anonymousPosting}
-            surfaceKind={composerContext?.surfaceKind}
-            viewerCanManage={mainControl.viewerCanManage}
-            isGuest={mainControl.isGuest}
-            canMentionGroups={mainControl.canMentionGroups}
-            workspaceMembers={mainControl.workspaceMembers}
-            agentMentions={mainControl.agentMentions}
-            coworkerMentions={mainControl.coworkerMentions}
-            appMentions={mainControl.appMentions}
-            channelMentions={mainControl.channelMentions}
-            connectors={mainControl.connectors}
-            replyingTo={replyingTo ? toReplyPreview(replyingTo) : null}
-            onCancelReply={() => setReplyingTo(null)}
-            onJumpToReply={
-              replyingTo ? () => jumpTo(replyingTo.id) : undefined
-            }
-            onSend={async (body, meta) => {
-              const replyToId = replyingTo?.id;
-              setReplyingTo(null);
-              const anchorId = await onSend(
-                body,
-                undefined,
-                {
-                  ...(replyToId ? { replyToId } : {}),
-                  mentions: toMentionRefs(meta?.mentions),
-                },
-              );
-              mainControl.raiseMentionNotice(meta?.mentions, {
-                ...noticePlacement,
-                anchorId: typeof anchorId === 'string' ? anchorId : undefined,
-              });
-            }}
-          />
-        </div>
-      </div>
 
-      {/* Fetched the first time someone forwards a message, not with the chat. */}
-      {forwardSource ? (
-        <Suspense fallback={null}>
-          <ForwardMessageDialog
-            source={forwardSource}
-            onOpenChange={(open) => {
-              if (!open) setForwardSource(null);
-            }}
-            onCopyLink={(message) => copyMessageLink(message, 'Link copied')}
-          />
-        </Suspense>
-      ) : null}
-    </ChatLayout>
-    </ReactorDirectoryProvider>
+          {/* Fetched the first time someone forwards a message, not with the chat. */}
+          {forwardSource ? (
+            <Suspense fallback={null}>
+              <ForwardMessageDialog
+                source={forwardSource}
+                onOpenChange={(open) => {
+                  if (!open) setForwardSource(null);
+                }}
+                onCopyLink={(message) =>
+                  copyMessageLink(message, 'Link copied')
+                }
+              />
+            </Suspense>
+          ) : null}
+        </ChatLayout>
+      </ReactorDirectoryProvider>
     </MentionAliasesProvider>
   );
 }

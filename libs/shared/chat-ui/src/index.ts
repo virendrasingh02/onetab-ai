@@ -71,10 +71,7 @@ export type {
   ComposerConnectorKind,
   ComposerConnectorsConfig,
 } from './lib/composer-attach-menu.js';
-export {
-  useDraftsStore,
-  type ConversationDraft,
-} from './lib/drafts-store.js';
+export { useDraftsStore, type ConversationDraft } from './lib/drafts-store.js';
 export {
   insertIntoComposer,
   quoteMarkdown,
@@ -114,7 +111,10 @@ export {
   type ReplyPreview,
 } from './lib/reply-quote.js';
 
-export { InlineMessageEditor, type InlineMessageEditorProps } from './lib/inline-message-editor.js';
+export {
+  InlineMessageEditor,
+  type InlineMessageEditorProps,
+} from './lib/inline-message-editor.js';
 export {
   LexicalComposerInput,
   LexicalToolbar,
@@ -138,7 +138,6 @@ export {
   MentionNode,
 } from './lib/lexical-nodes.js';
 
-
 export {
   BookmarkFavicon,
   getFaviconUrl,
@@ -149,6 +148,17 @@ export {
   AddBookmarkDialog,
   type AddBookmarkDialogProps,
 } from './lib/add-bookmark-dialog.js';
+
+export {
+  CreatePollDialog,
+  type CreatePollDialogProps,
+} from './lib/create-poll-dialog.js';
+
+export {
+  PollCard,
+  formatPollTimeLeft,
+  type PollCardProps,
+} from './lib/poll-card.js';
 
 export {
   BookmarksBar,
@@ -300,10 +310,7 @@ export {
   type ApprovalCardProps,
 } from './lib/cards/approval-card.js';
 
-export {
-  FormCard,
-  type FormCardProps,
-} from './lib/cards/form-card.js';
+export { FormCard, type FormCardProps } from './lib/cards/form-card.js';
 
 export {
   WorkflowCard,
@@ -469,6 +476,7 @@ export {
   type LinkPreviewApi,
 } from './lib/use-link-preview.js';
 
-
-
-export { EntityKindBadge, type EntityBadgeKind } from './lib/entity-kind-badge.js';
+export {
+  EntityKindBadge,
+  type EntityBadgeKind,
+} from './lib/entity-kind-badge.js';

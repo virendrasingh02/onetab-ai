@@ -80,6 +80,13 @@ export const DEFAULT_SLASH_COMMANDS: SlashCommand[] = [
     icon: 'clock',
   },
   {
+    name: '/poll',
+    args: '[question]',
+    description: 'Create a poll everyone here can vote on',
+    icon: 'bar-chart',
+    allowedSurfaces: ['channel', 'dm', 'group-dm', 'thread'],
+  },
+  {
     name: '/topic',
     args: '[text]',
     description: "Set the channel's topic",

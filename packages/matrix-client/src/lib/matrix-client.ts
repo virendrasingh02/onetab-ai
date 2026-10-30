@@ -57,6 +57,17 @@ import {
   THREAD_NOTIFICATIONS_EVENT,
   toThread,
 } from './mappers.js';
+import {
+  POLL_END_TYPE,
+  POLL_KEY,
+  POLL_PUSH_RULE_ID,
+  POLL_PUSH_RULE_PATTERN,
+  POLL_RESPONSE_TYPE,
+  buildPollContent,
+  emptyPoll,
+  isPollRelationType,
+  pollFallbackBody,
+} from './polls.js';
 import { recordReceipt } from './seen-times.js';
 import { KeyBackupManager } from './services/crypto/key-backup.js';
 import { MatrixSearchService } from './services/search/search-service.js';
@@ -82,6 +93,7 @@ import {
   type MessageReader,
   type MessageSearchResult,
   type NotificationCounts,
+  type PollDraft,
   type UnreadMention,
   type PresenceState,
   type PushRegistration,
@@ -116,7 +128,9 @@ const MAX_THREAD_PAGES = 50;
  * it. The one certain end of history is the room's creation event.
  */
 function hasOlderHistory(events: MatrixEvent[], token: string | null): boolean {
-  return !!token && !events.some((event) => event.getType() === 'm.room.create');
+  return (
+    !!token && !events.some((event) => event.getType() === 'm.room.create')
+  );
 }
 
 interface ImageSize {
@@ -130,7 +144,10 @@ interface ImageSize {
  * non-images, or where the browser cannot decode it — size is only a hint.
  */
 async function readImageSize(file: File): Promise<ImageSize | undefined> {
-  if (!file.type.startsWith('image/') || typeof createImageBitmap !== 'function') {
+  if (
+    !file.type.startsWith('image/') ||
+    typeof createImageBitmap !== 'function'
+  ) {
     return undefined;
   }
   try {
@@ -225,8 +242,8 @@ export class OneTabMatrixClient {
     (request) => this.emit({ type: 'verification.requested', request }),
   );
   private readonly calls = new CallManager(this);
-  private readonly keyBackup = new KeyBackupManager(
-    () => this.sdk?.getCrypto(),
+  private readonly keyBackup = new KeyBackupManager(() =>
+    this.sdk?.getCrypto(),
   );
   private readonly searchService = new MatrixSearchService(() => this.sdk);
 
@@ -317,7 +334,9 @@ export class OneTabMatrixClient {
   }
 
   /** Restores room encryption keys using a recovery key or passphrase. */
-  async restoreKeyBackup(keyOrPassphrase: string): Promise<KeyBackupRestoreResult> {
+  async restoreKeyBackup(
+    keyOrPassphrase: string,
+  ): Promise<KeyBackupRestoreResult> {
     return this.keyBackup.restoreKeyBackup(keyOrPassphrase);
   }
 
@@ -569,6 +588,9 @@ export class OneTabMatrixClient {
       if (this.sdk !== sdk || this.status.state === 'expired') return;
       switch (state) {
         case SyncState.Prepared:
+          this.setStatus('connected');
+          void this.ensurePollPushRule(sdk);
+          break;
         case SyncState.Syncing:
           this.setStatus('connected');
           break;
@@ -595,7 +617,8 @@ export class OneTabMatrixClient {
       if (type === 'm.reaction') {
         const reactionId = event.getId();
         const targetId = event.getRelation()?.event_id;
-        if (reactionId && targetId) this.reactionTargets.set(reactionId, targetId);
+        if (reactionId && targetId)
+          this.reactionTargets.set(reactionId, targetId);
       }
 
       // Backfill is delivered through pagination, not the live stream.
@@ -612,6 +635,15 @@ export class OneTabMatrixClient {
             if (message) this.emit({ type: 'message.updated', message });
           }
         }
+        return;
+      }
+
+      // A vote or "end poll" changes the poll's tally, not the timeline.
+      if (isPollRelationType(type)) {
+        const pollId = event.getRelation()?.event_id;
+        const poll = pollId ? room.findEventById(pollId) : undefined;
+        const message = poll ? toMessage(sdk, poll, room) : null;
+        if (message) this.emit({ type: 'message.updated', message });
         return;
       }
 
@@ -710,7 +742,11 @@ export class OneTabMatrixClient {
     sdk.on(MatrixEventEvent.Decrypted, (event: MatrixEvent) => {
       const roomId = event.getRoomId();
       const room = roomId ? sdk.getRoom(roomId) : null;
-      const message = toMessage(sdk, event, room);
+      // A decrypted vote re-tallies its poll.
+      const target = isPollRelationType(event.getType())
+        ? room?.findEventById(event.getRelation()?.event_id ?? '')
+        : event;
+      const message = target ? toMessage(sdk, target, room) : null;
       if (message) this.emit({ type: 'message.updated', message });
     });
 
@@ -724,7 +760,8 @@ export class OneTabMatrixClient {
     // changing (from anyone, on any device) refreshes the pinned bar.
     sdk.on(RoomStateEvent.Events, (event) => {
       const type = event.getType();
-      if (type !== PINNED_EVENTS_EVENT && type !== 'm.room.power_levels') return;
+      if (type !== PINNED_EVENTS_EVENT && type !== 'm.room.power_levels')
+        return;
       const room = sdk.getRoom(event.getRoomId() ?? '');
       if (room) this.emit({ type: 'room.upserted', room: toRoom(sdk, room) });
     });
@@ -1039,7 +1076,12 @@ export class OneTabMatrixClient {
       }),
     );
     await withRetry(() =>
-      sdk.sendStateEvent(roomId, 'm.room.avatar' as any, { url: upload.content_uri }, ''),
+      sdk.sendStateEvent(
+        roomId,
+        'm.room.avatar' as any,
+        { url: upload.content_uri },
+        '',
+      ),
     );
     return upload.content_uri;
   }
@@ -1092,7 +1134,10 @@ export class OneTabMatrixClient {
       if (options.preferred) {
         // Lookups take the first open room, so the preferred one leads.
         if (forUser[0] === roomId) continue;
-        next[id] = [roomId, ...forUser.filter((existing) => existing !== roomId)];
+        next[id] = [
+          roomId,
+          ...forUser.filter((existing) => existing !== roomId),
+        ];
         changed = true;
         continue;
       }
@@ -1166,7 +1211,8 @@ export class OneTabMatrixClient {
         !messages.some(
           (m) =>
             m.id === pending.id ||
-            (pending.transactionId && m.transactionId === pending.transactionId),
+            (pending.transactionId &&
+              m.transactionId === pending.transactionId),
         )
       ) {
         messages.push(pending);
@@ -1692,10 +1738,7 @@ export class OneTabMatrixClient {
 
     // Editing a forward edits only the note: the forwarded original rides
     // along in the new content, or the card would vanish with the edit.
-    const original = sdk
-      .getRoom(roomId)
-      ?.findEventById(eventId)
-      ?.getContent();
+    const original = sdk.getRoom(roomId)?.findEventById(eventId)?.getContent();
     const forwarded = readForwardedContent(original);
     const newContent: Record<string, unknown> = forwarded
       ? {
@@ -1727,7 +1770,8 @@ export class OneTabMatrixClient {
         typeof m?.user_id === 'string' &&
         typeof m.label === 'string' &&
         body.includes(`@${m.label.toLowerCase()}`) &&
-        all.findIndex((o) => o.user_id === m.user_id && o.label === m.label) === i,
+        all.findIndex((o) => o.user_id === m.user_id && o.label === m.label) ===
+          i,
     );
     if (keptMentions.length) {
       newContent[MENTIONS_KEY] = keptMentions;
@@ -1812,6 +1856,103 @@ export class OneTabMatrixClient {
     if (message) this.emit({ type: 'message.updated', message });
   }
 
+  // --- polls ---------------------------------------------------------------
+
+  /**
+   * Posts a poll — into a thread when `threadRootId` is set. Resolves to the
+   * send's transaction id, like `sendMessage`.
+   */
+  async sendPoll(
+    roomId: RoomId,
+    draft: PollDraft,
+    options: { threadRootId?: EventId } = {},
+  ): Promise<string> {
+    const content = buildPollContent(draft, this.options.now());
+    return this.sendTextEvent(
+      roomId,
+      pollFallbackBody(content.question, content.answers),
+      {
+        threadRootId: options.threadRootId,
+        extraContent: { [POLL_KEY]: content },
+        echo: { poll: emptyPoll(content) },
+      },
+    );
+  }
+
+  /** Casts, changes or (with no answers) withdraws the local user's vote. */
+  async votePoll(
+    roomId: RoomId,
+    pollId: EventId,
+    answerIds: string[],
+  ): Promise<void> {
+    const sdk = this.require();
+    await withRetry(() =>
+      sdk.sendEvent(
+        roomId,
+        POLL_RESPONSE_TYPE as never,
+        {
+          'm.relates_to': { rel_type: 'm.reference', event_id: pollId },
+          [POLL_RESPONSE_TYPE]: { answers: answerIds },
+        } as never,
+      ),
+    );
+    this.emitPoll(roomId, pollId);
+  }
+
+  /** Closes the poll before it expires. Only its author's end counts. */
+  async endPoll(roomId: RoomId, pollId: EventId): Promise<void> {
+    const sdk = this.require();
+    await withRetry(() =>
+      sdk.sendEvent(
+        roomId,
+        POLL_END_TYPE as never,
+        {
+          'm.relates_to': { rel_type: 'm.reference', event_id: pollId },
+          [POLL_END_TYPE]: {},
+          body: 'The poll has ended.',
+        } as never,
+      ),
+    );
+    this.emitPoll(roomId, pollId);
+  }
+
+  /** Installs the silent push rule for poll votes once per account — see `POLL_PUSH_RULE_ID`. */
+  private async ensurePollPushRule(sdk: SdkClient): Promise<void> {
+    const exists = sdk.pushRules?.global?.override?.some(
+      (rule) => rule.rule_id === POLL_PUSH_RULE_ID,
+    );
+    if (exists || !sdk.pushRules) return;
+    try {
+      await sdk.addPushRule(
+        'global',
+        PushRuleKind.Override,
+        POLL_PUSH_RULE_ID,
+        {
+          actions: [],
+          conditions: [
+            {
+              kind: ConditionKind.EventMatch,
+              key: 'type',
+              pattern: POLL_PUSH_RULE_PATTERN,
+            },
+          ],
+        },
+      );
+    } catch {
+      // Best effort: no default rule notifies for votes anyway. Retried on
+      // the next sign-in.
+    }
+  }
+
+  /** Re-tallies a poll now, rather than waiting for the remote echo. */
+  private emitPoll(roomId: RoomId, pollId: EventId): void {
+    const sdk = this.sdk;
+    const room = sdk?.getRoom(roomId);
+    const target = room?.findEventById(pollId);
+    const message = sdk && target ? toMessage(sdk, target, room ?? null) : null;
+    if (message) this.emit({ type: 'message.updated', message });
+  }
+
   // --- threads -------------------------------------------------------------
 
   getThreads(roomId: RoomId): Thread[] {
@@ -1886,7 +2027,8 @@ export class OneTabMatrixClient {
         !messages.some(
           (m) =>
             m.id === pending.id ||
-            (!!pending.transactionId && m.transactionId === pending.transactionId),
+            (!!pending.transactionId &&
+              m.transactionId === pending.transactionId),
         )
       ) {
         messages.push(pending);
@@ -1895,7 +2037,8 @@ export class OneTabMatrixClient {
 
     // Older replies came in as backfill, which no live listener reports:
     // tell the room views so their copy of the thread fills in too.
-    if (pagedIn) this.emit({ type: 'thread.updated', thread: toThread(room, thread) });
+    if (pagedIn)
+      this.emit({ type: 'thread.updated', thread: toThread(room, thread) });
 
     return messages;
   }
@@ -1966,10 +2109,16 @@ export class OneTabMatrixClient {
     fromEventId?: EventId,
   ): Promise<void> {
     const sdk = this.require();
-    await sdk.setRoomAccountData(roomId, MARKED_UNREAD_EVENT as never, {
-      unread,
-      ...(unread && fromEventId ? { [MARKED_UNREAD_FROM_KEY]: fromEventId } : {}),
-    } as never);
+    await sdk.setRoomAccountData(
+      roomId,
+      MARKED_UNREAD_EVENT as never,
+      {
+        unread,
+        ...(unread && fromEventId
+          ? { [MARKED_UNREAD_FROM_KEY]: fromEventId }
+          : {}),
+      } as never,
+    );
   }
 
   /** The reader left the room — automatic read receipts may resume. */
@@ -2074,9 +2223,13 @@ export class OneTabMatrixClient {
     const current = new Set(room ? readMutedThreadRootIds(room) : []);
     if (muted) current.add(threadRootId);
     else current.delete(threadRootId);
-    await sdk.setRoomAccountData(roomId, THREAD_NOTIFICATIONS_EVENT as never, {
-      muted: [...current],
-    } as never);
+    await sdk.setRoomAccountData(
+      roomId,
+      THREAD_NOTIFICATIONS_EVENT as never,
+      {
+        muted: [...current],
+      } as never,
+    );
 
     // Account data only reaches our own clients. Phone/desktop push comes from
     // the homeserver's push rules, so mirror the mute as a silent underride
@@ -2107,7 +2260,10 @@ export class OneTabMatrixClient {
     } catch (error) {
       // Unmuting a thread muted before push rules were written: no rule.
       if (muted || (error as { httpStatus?: number })?.httpStatus !== 404) {
-        console.warn('[matrix] could not sync thread mute to push rules', error);
+        console.warn(
+          '[matrix] could not sync thread mute to push rules',
+          error,
+        );
       }
     }
   }
@@ -2167,7 +2323,10 @@ export class OneTabMatrixClient {
    * Loads one message by id, even when it is outside the loaded timeline — e.g.
    * a pin on an old message. Resolves `null` when it is gone or unreadable.
    */
-  async fetchMessage(roomId: RoomId, eventId: EventId): Promise<Message | null> {
+  async fetchMessage(
+    roomId: RoomId,
+    eventId: EventId,
+  ): Promise<Message | null> {
     const sdk = this.require();
     const room = sdk.getRoom(roomId);
     const loaded = room?.findEventById(eventId);
@@ -2215,7 +2374,8 @@ export class OneTabMatrixClient {
       const room = sdk.getRoom(roomId);
       const event = room?.findEventById(eventId);
       // Readers are only shown under the viewer's own messages.
-      if (!event || event.getSender() !== sdk.getUserId() || event.isRedacted()) return [];
+      if (!event || event.getSender() !== sdk.getUserId() || event.isRedacted())
+        return [];
       // A thread root is itself a main-timeline message; only replies are
       // read on the thread's own receipt.
       const threadRootId = event.threadRootId;
@@ -2263,8 +2423,8 @@ export class OneTabMatrixClient {
       state === 'online'
         ? 'online'
         : state === 'offline'
-        ? 'offline'
-        : 'unavailable';
+          ? 'offline'
+          : 'unavailable';
     await sdk.setPresence({
       presence: matrixPresence,
       status_msg: statusMessage,
@@ -2365,7 +2525,10 @@ export class OneTabMatrixClient {
       }
     };
     await Promise.all(
-      Array.from({ length: Math.min(UPLOAD_CONCURRENCY, files.length) }, worker),
+      Array.from(
+        { length: Math.min(UPLOAD_CONCURRENCY, files.length) },
+        worker,
+      ),
     );
 
     const failed = files.flatMap((_, index) => (uploads[index] ? [] : [index]));

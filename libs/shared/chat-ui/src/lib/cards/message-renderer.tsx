@@ -78,7 +78,8 @@ export interface MessageRendererProps {
   onFollowUp?: (text: string) => void;
   /** Only the newest agent answer offers its follow-ups. */
   showFollowUps?: boolean;
-  entityKind?: 'app' | 'doc' | 'task' | 'kanban' | 'agent' | 'thread' | 'coworker';
+  entityKind?:
+    'app' | 'doc' | 'task' | 'kanban' | 'agent' | 'thread' | 'coworker';
   /** Whether the viewer can manage this conversation — gates a system
    * event's admin-only actions (delete/hide). */
   canManageConversation?: boolean;
@@ -100,6 +101,12 @@ export interface MessageRendererProps {
   /** Turns reply notifications for this message's thread off / on. */
   onToggleReplyNotifications?: () => void;
   replyNotificationsMuted?: boolean;
+  /** Casts the viewer's vote on a poll message; empty withdraws it. */
+  onPollVote?: (answerIds: string[]) => void | Promise<void>;
+  /** Ends a poll early — offered to its author only. */
+  onPollEnd?: () => void | Promise<void>;
+  /** Display name for a poll voter id. */
+  resolvePollVoterName?: (userId: string) => string;
 }
 
 export const MessageRenderer = memo(function MessageRenderer(

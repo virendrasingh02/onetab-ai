@@ -142,12 +142,7 @@ export type SendState = 'sending' | 'sent' | 'failed';
 // --- link previews ---------------------------------------------------------
 
 export type LinkPreviewStatus =
-  | 'idle'
-  | 'loading'
-  | 'ready'
-  | 'unavailable'
-  | 'blocked'
-  | 'error';
+  'idle' | 'loading' | 'ready' | 'unavailable' | 'blocked' | 'error';
 
 export type LinkPreviewVisibility = 'visible' | 'hidden' | 'removed';
 
@@ -260,6 +255,54 @@ export interface Message {
    * render the upload as a single message with a grid.
    */
   batchId?: string;
+  /** Set when this message is a poll — its question, answers and live tally. */
+  poll?: MessagePoll;
+}
+
+// --- polls -----------------------------------------------------------------
+
+export const POLL_LIMITS = {
+  questionLength: 300,
+  answerLength: 55,
+  minAnswers: 2,
+  maxAnswers: 10,
+} as const;
+
+/** What the author fills in to post a poll. */
+export interface PollDraft {
+  question: string;
+  answers: { text: string; emoji?: string }[];
+  /** How many answers one person may pick: 1 for a single choice. */
+  maxSelections: number;
+  /** How long the poll stays open, in ms. */
+  durationMs: number;
+}
+
+export interface PollAnswer {
+  id: string;
+  text: string;
+  emoji?: string;
+  votes: number;
+  voterIds: MatrixUserId[];
+}
+
+/**
+ * A poll as the timeline renders it: what was asked plus the tally of every
+ * vote the client holds. Votes are related events, so this is recomputed each
+ * time one arrives.
+ */
+export interface MessagePoll {
+  question: string;
+  answers: PollAnswer[];
+  maxSelections: number;
+  /** When the poll closes on its own. */
+  endsAt: Timestamp;
+  /** Set once it is closed — ended early by its author, or expired. */
+  closedAt?: Timestamp;
+  /** People with a counted vote. */
+  totalVoters: number;
+  /** The viewer's current answer ids; empty when they have not voted. */
+  myAnswerIds: string[];
 }
 
 export interface MessageReader {
@@ -331,12 +374,7 @@ export interface StructuredMessageAction {
   id: string;
   label: string;
   variant?:
-    | 'default'
-    | 'primary'
-    | 'destructive'
-    | 'outline'
-    | 'secondary'
-    | 'ghost';
+    'default' | 'primary' | 'destructive' | 'outline' | 'secondary' | 'ghost';
   icon?: string;
   actionType?: string;
   payload?: Record<string, unknown>;
@@ -440,12 +478,7 @@ export interface AppResponseMessageContent {
   badge?: {
     label: string;
     variant?:
-      | 'primary'
-      | 'neutral'
-      | 'success'
-      | 'warning'
-      | 'destructive'
-      | 'violet';
+      'primary' | 'neutral' | 'success' | 'warning' | 'destructive' | 'violet';
   };
   fields?: Array<{
     label: string;
@@ -563,7 +596,8 @@ export interface WorkflowMessageContent {
   description?: string;
   currentStepIndex: number;
   totalSteps?: number;
-  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'paused';
+  status:
+    'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'paused';
   steps: WorkflowStep[];
   durationMs?: number;
   startedAt?: number;
@@ -633,7 +667,8 @@ export interface Timeline {
 
 // --- presence & receipts ---------------------------------------------------
 
-export type PresenceState = 'online' | 'away' | 'busy' | 'offline' | 'unavailable';
+export type PresenceState =
+  'online' | 'away' | 'busy' | 'offline' | 'unavailable';
 
 export interface Presence {
   userId: MatrixUserId;

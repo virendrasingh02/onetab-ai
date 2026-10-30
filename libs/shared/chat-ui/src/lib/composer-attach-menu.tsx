@@ -9,6 +9,7 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
+  BarChart3,
   Bot,
   Check,
   Loader2,
@@ -58,17 +59,20 @@ const KIND_ORDER: ComposerConnectorKind[] = ['agent', 'coworker', 'app'];
 interface ComposerAttachMenuProps {
   /** Opens the native file picker; omitted when the surface can't take uploads. */
   onUpload?: () => void;
+  /** Opens the Create poll dialog; omitted where polls are not offered. */
+  onCreatePoll?: () => void;
   connectors?: ComposerConnectorsConfig;
   children?: ReactNode;
 }
 
 /**
- * The composer's "+" menu: Upload files first, then every agent, coworker and
+ * The composer's "+" menu: Upload files and Create poll first, then every agent, coworker and
  * app grouped by kind (each marked Connected or offering Connect), and a
  * "Manage connectors" footer.
  */
 export function ComposerAttachMenu({
   onUpload,
+  onCreatePoll,
   connectors,
 }: ComposerAttachMenuProps) {
   const [pending, setPending] = useState<string | null>(null);
@@ -139,9 +143,19 @@ export function ComposerAttachMenu({
           </DropdownMenuItem>
         ) : null}
 
+        {onCreatePoll ? (
+          <DropdownMenuItem onSelect={onCreatePoll} className="gap-2.5">
+            <BarChart3
+              className="size-4 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
+            <span className="truncate">Create poll</span>
+          </DropdownMenuItem>
+        ) : null}
+
         {items.length > 0 ? (
           <>
-            {onUpload ? <DropdownMenuSeparator /> : null}
+            {onUpload || onCreatePoll ? <DropdownMenuSeparator /> : null}
             <div className="max-h-64 overflow-y-auto">
               {KIND_ORDER.map((kind) => {
                 const group = items.filter((item) => item.kind === kind);

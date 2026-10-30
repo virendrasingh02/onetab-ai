@@ -1,4 +1,5 @@
 import type { MatrixClient as SdkClient } from 'matrix-js-sdk';
+import { isPollRelationType, toPoll } from './polls.js';
 import { noteReceiptPosition, recordedSeenAt } from './seen-times.js';
 import type { MatrixEvent } from 'matrix-js-sdk';
 import { Direction, NotificationCountType } from 'matrix-js-sdk';
@@ -189,7 +190,8 @@ export function toReactions(
  * never "see" a message, but the SDK counts whoever sent a room's latest event
  * as having read it, so an agent's reply would otherwise read "Seen by Agent".
  */
-const SERVICE_IDENTITY = /^@onetab_(?:agent-|coworker-|app-|anon-|email-|system-events(?::|$))/;
+const SERVICE_IDENTITY =
+  /^@onetab_(?:agent-|coworker-|app-|anon-|email-|system-events(?::|$))/;
 
 export function isServiceIdentity(userId: string): boolean {
   return SERVICE_IDENTITY.test(userId);
@@ -207,7 +209,10 @@ export function toReaders(
 
   const readers: MessageReader[] = [];
   const myUserId = client.getUserId();
-  if (typeof room.getMembers !== 'function' || typeof room.hasUserReadEvent !== 'function') {
+  if (
+    typeof room.getMembers !== 'function' ||
+    typeof room.hasUserReadEvent !== 'function'
+  ) {
     return readers;
   }
 
@@ -221,7 +226,8 @@ export function toReaders(
     if (isServiceIdentity(member.userId)) continue;
     if (!room.hasUserReadEvent(member.userId, eventId)) continue;
     const threadReceipt = thread?.getReadReceiptForUserId?.(member.userId);
-    const receipt = threadReceipt ?? room.getReadReceiptForUserId?.(member.userId);
+    const receipt =
+      threadReceipt ?? room.getReadReceiptForUserId?.(member.userId);
     const receiptTs = receipt?.data?.ts ?? 0;
     if (receipt?.eventId && receiptTs) {
       noteReceiptPosition(
@@ -312,7 +318,8 @@ export function extractStructuredEvent(
         parsed &&
         typeof parsed === 'object' &&
         typeof parsed.type === 'string' &&
-        (parsed.type.startsWith('mie.') || parsed.type.startsWith('org.onetab.'))
+        (parsed.type.startsWith('mie.') ||
+          parsed.type.startsWith('org.onetab.'))
       ) {
         const validated = validateStructuredEvent(parsed);
         if (validated.valid && validated.event) return validated.event;
@@ -436,7 +443,10 @@ export function pickForwardableContent(
     if (content[key] !== undefined) picked[key] = content[key];
   }
   // Only plain message types survive; an app card forwards as its text.
-  if (typeof picked['msgtype'] !== 'string' || !MSGTYPE_TO_KIND[picked['msgtype']]) {
+  if (
+    typeof picked['msgtype'] !== 'string' ||
+    !MSGTYPE_TO_KIND[picked['msgtype']]
+  ) {
     picked['msgtype'] = 'm.text';
   }
   return picked;
@@ -480,7 +490,10 @@ const MEDIA_KINDS: readonly MessageKind[] = [
  * filename — which the attachment card already shows — unless the event also
  * carries a different `filename`, in which case `body` is a caption.
  */
-function messageBodyText(content: MessageContentShape, kind: MessageKind): string {
+function messageBodyText(
+  content: MessageContentShape,
+  kind: MessageKind,
+): string {
   const body = content.body ?? '';
   if (!MEDIA_KINDS.includes(kind)) return body;
   return content.filename && content.filename !== body ? body : '';
@@ -563,7 +576,9 @@ export function toMessage(
   const kind = toMessageKind(content);
   const member = room?.getMember(senderId);
   const decryptionFailed = event.isDecryptionFailure();
-  const forwarded = decryptionFailed ? undefined : readForwardedContent(content);
+  const forwarded = decryptionFailed
+    ? undefined
+    : readForwardedContent(content);
   const isMention = eventHighlightsUser(client, event);
 
   const status = event.status;
@@ -577,7 +592,7 @@ export function toMessage(
           : undefined;
   const transactionId =
     typeof event.getTxnId === 'function'
-      ? event.getTxnId() ?? undefined
+      ? (event.getTxnId() ?? undefined)
       : undefined;
 
   return {
@@ -646,6 +661,9 @@ export function toMessage(
         : undefined,
     forwarded: forwarded ? toForwarded(client, forwarded) : undefined,
     batchId: MEDIA_KINDS.includes(kind) ? readBatchId(content) : undefined,
+    poll: decryptionFailed
+      ? undefined
+      : toPoll(client, room, event, content as Record<string, unknown>),
   };
 }
 
@@ -750,9 +768,7 @@ export function toRoomKind(room: SdkRoom, client: SdkClient): RoomKind {
   // lookup could match the workspace space and tag it there.
   if (room.isSpaceRoom?.()) return 'channel';
   const directMap = readDirectMap(client);
-  const directRoomIds = new Set<string>(
-    Object.values(directMap).flat(),
-  );
+  const directRoomIds = new Set<string>(Object.values(directMap).flat());
 
   if (directRoomIds.has(room.roomId)) {
     const peersInMap = Object.entries(directMap).filter(([_, roomIds]) =>
@@ -876,9 +892,7 @@ export function resolveGroupDirectMessageRoom(
 
   const rooms = options.includeChannels
     ? client.getRooms()
-    : [
-        ...new Set<string>(Object.values(readDirectMap(client)).flat()),
-      ]
+    : [...new Set<string>(Object.values(readDirectMap(client)).flat())]
         .map((roomId) => client.getRoom(roomId))
         .filter((room): room is NonNullable<typeof room> => room != null);
 
@@ -918,9 +932,9 @@ export const THREAD_NOTIFICATIONS_EVENT = 'mie.thread_notifications';
 export const SAVED_MESSAGES_EVENT = 'mie.saved_messages';
 
 export function readSavedMessages(client: SdkClient): SavedMessage[] {
-  const content = client.getAccountData(SAVED_MESSAGES_EVENT as never)?.getContent() as
-    | { messages?: unknown }
-    | undefined;
+  const content = client
+    .getAccountData(SAVED_MESSAGES_EVENT as never)
+    ?.getContent() as { messages?: unknown } | undefined;
   const list = content?.messages;
   if (!Array.isArray(list)) return [];
   return list.filter(
@@ -951,7 +965,10 @@ function readMarkedUnread(room: SdkRoom): { unread: boolean; fromId?: string } {
   )?.getContent() as Record<string, unknown> | undefined;
   if (content?.['unread'] !== true) return { unread: false };
   const fromId = content[MARKED_UNREAD_FROM_KEY];
-  return { unread: true, fromId: typeof fromId === 'string' ? fromId : undefined };
+  return {
+    unread: true,
+    fromId: typeof fromId === 'string' ? fromId : undefined,
+  };
 }
 
 export function readMutedThreadRootIds(room: SdkRoom): string[] {
@@ -1004,7 +1021,7 @@ export function toRoom(client: SdkClient, room: SdkRoom): Room {
     unreadCount: room.getUnreadNotificationCount() ?? 0,
     highlightCount:
       room.getUnreadNotificationCount(NotificationCountType.Highlight) ?? 0,
-    lastActivityAt: room.getLastActiveTimestamp(),
+    lastActivityAt: lastActivityAt(room),
     memberCount: room.getJoinedMemberCount(),
     invitedCount: room.getInvitedMemberCount(),
     directUserId,
@@ -1017,6 +1034,21 @@ export function toRoom(client: SdkClient, room: SdkRoom): Room {
       : false,
     myMembership: room.getMyMembership() as Room['myMembership'],
   };
+}
+
+/**
+ * When the room last saw activity, skipping votes and "end poll" events — a
+ * vote on an old poll should not float a conversation to the top of a list.
+ */
+function lastActivityAt(room: SdkRoom): number {
+  const events =
+    typeof room.getLiveTimeline === 'function'
+      ? room.getLiveTimeline().getEvents()
+      : [];
+  for (let i = events.length - 1; i >= 0; i--) {
+    if (!isPollRelationType(events[i].getType())) return events[i].getTs();
+  }
+  return room.getLastActiveTimestamp();
 }
 
 /**
