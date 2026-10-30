@@ -1,8 +1,16 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { assertPublicHttpUrl, UnsafeUrlError } from '@org/api-common';
 import { PrismaService } from '@org/database';
-import type { CreateMCPConnectionInput } from '@org/types';
+import type {
+  CreateMCPConnectionInput,
+  UpdateMCPConnectionInput,
+} from '@org/types';
 import { AIEncryptionService } from './ai-encryption.service.js';
 import {
   callMCPTool,
@@ -52,10 +60,16 @@ interface StoredAuth {
   token?: string;
 }
 
-type ConnectionRow = Awaited<ReturnType<PrismaService['mCPConnection']['findFirst']>> & object;
+type ConnectionRow = Awaited<
+  ReturnType<PrismaService['mCPConnection']['findFirst']>
+> &
+  object;
 
 /** `mcp_<first 6 of id>_<tool>` — stable, unique per connection, within 64 chars. */
-export function mcpFunctionName(connectionId: string, toolName: string): string {
+export function mcpFunctionName(
+  connectionId: string,
+  toolName: string,
+): string {
   const safeTool = toolName.replace(/[^a-zA-Z0-9_-]/g, '_');
   return `mcp_${connectionId.slice(-6)}_${safeTool}`.slice(0, 64);
 }
@@ -112,12 +126,79 @@ export class MCPService {
         transport: 'HTTP',
         status: 'DISCONNECTED',
         authConfig: token
-          ? { encryptedToken: this.encryption.encrypt(token), maskedToken: this.encryption.maskApiKey(token) }
+          ? {
+              encryptedToken: this.encryption.encrypt(token),
+              maskedToken: this.encryption.maskApiKey(token),
+            }
           : {},
         discoveredToolsJson: [],
       },
     });
     return this.handshake(row);
+  }
+
+  /**
+   * Renames, re-points, re-keys or toggles a server. A new URL or token
+   * re-runs the handshake so the stored tools always match what is saved.
+   */
+  async updateConnection(
+    workspaceId: string,
+    id: string,
+    data: UpdateMCPConnectionInput,
+  ) {
+    const conn = await this.getConnection(workspaceId, id);
+    const serverUrl = data.serverUrl?.trim();
+    const urlChanged = !!serverUrl && serverUrl !== conn.serverUrl;
+    if (urlChanged) await this.assertReachableUrl(serverUrl);
+
+    const token = data.token?.trim();
+    const tokenChanged = data.token !== undefined;
+    const updated = await this.prisma.mCPConnection.update({
+      where: { id },
+      data: {
+        ...(data.name !== undefined ? { name: data.name.trim() } : {}),
+        ...(urlChanged ? { serverUrl } : {}),
+        ...(data.isEnabled !== undefined ? { isEnabled: data.isEnabled } : {}),
+        ...(tokenChanged
+          ? {
+              authConfig: token
+                ? {
+                    encryptedToken: this.encryption.encrypt(token),
+                    maskedToken: this.encryption.maskApiKey(token),
+                  }
+                : {},
+            }
+          : {}),
+      },
+    });
+    // Re-enabling a server that never connected is a good moment to retry too.
+    const reconnect =
+      urlChanged ||
+      tokenChanged ||
+      (data.isEnabled === true && updated.status !== 'CONNECTED');
+    return reconnect ? this.handshake(updated) : this.toView(updated);
+  }
+
+  /** Runs one tool by hand, from the registry page. Same path agents use. */
+  async testTool(
+    workspaceId: string,
+    id: string,
+    toolName: string,
+    args: Record<string, unknown>,
+  ) {
+    try {
+      return await this.callTool(workspaceId, id, toolName, args);
+    } catch (err) {
+      if (
+        err instanceof BadRequestException ||
+        err instanceof NotFoundException
+      )
+        throw err;
+      const message = err instanceof Error ? err.message : String(err);
+      throw new BadRequestException(
+        `The server did not run '${toolName}': ${message}`,
+      );
+    }
   }
 
   async deleteConnection(workspaceId: string, id: string) {
@@ -149,8 +230,12 @@ export class MCPService {
             type: 'function',
             function: {
               name: functionName,
-              description: `[${row.name}] ${tool.description ?? tool.name}`.slice(0, 1024),
-              parameters: tool.inputSchema ?? { type: 'object', properties: {} },
+              description:
+                `[${row.name}] ${tool.description ?? tool.name}`.slice(0, 1024),
+              parameters: tool.inputSchema ?? {
+                type: 'object',
+                properties: {},
+              },
             },
           },
         });
@@ -166,9 +251,12 @@ export class MCPService {
     args: Record<string, unknown>,
   ): Promise<MCPCallResult> {
     const conn = await this.getConnection(workspaceId, connectionId);
-    if (!conn.isEnabled) throw new BadRequestException(`MCP server '${conn.name}' is disabled.`);
+    if (!conn.isEnabled)
+      throw new BadRequestException(`MCP server '${conn.name}' is disabled.`);
     if (!this.tools(conn).some((t) => t.name === toolName)) {
-      throw new BadRequestException(`'${toolName}' is not a tool on MCP server '${conn.name}'.`);
+      throw new BadRequestException(
+        `'${toolName}' is not a tool on MCP server '${conn.name}'.`,
+      );
     }
     return callMCPTool(await this.endpointFor(conn), toolName, args);
   }
@@ -222,7 +310,11 @@ export class MCPService {
         },
       });
     }
-    return { url: conn.serverUrl, token, allowPrivateNetwork: this.allowPrivateNetwork };
+    return {
+      url: conn.serverUrl,
+      token,
+      allowPrivateNetwork: this.allowPrivateNetwork,
+    };
   }
 
   private async assertReachableUrl(url: string) {
@@ -257,7 +349,9 @@ export class MCPService {
       status: row.status,
       isEnabled: row.isEnabled,
       hasToken,
-      maskedToken: auth.maskedToken ?? (auth.token ? this.encryption.maskApiKey(auth.token) : null),
+      maskedToken:
+        auth.maskedToken ??
+        (auth.token ? this.encryption.maskApiKey(auth.token) : null),
       discoveredToolsJson: this.tools(row),
       lastError: row.lastError ?? null,
       lastSyncedAt: row.lastSyncedAt ?? null,

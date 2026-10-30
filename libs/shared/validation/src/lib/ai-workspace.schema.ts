@@ -109,7 +109,9 @@ export const updateAIEntitySchema = updateCoworkerSchema.extend({
   systemPrompt: agentFields.systemPrompt.optional(),
   tools: agentFields.tools.optional(),
   graphJson: agentFields.graphJson.optional(),
-  status: z.enum(['AVAILABLE', 'WORKING', 'IDLE', 'RUNNING_TASK', 'ERROR']).optional(),
+  status: z
+    .enum(['AVAILABLE', 'WORKING', 'IDLE', 'RUNNING_TASK', 'ERROR'])
+    .optional(),
 });
 
 export const agentChatSchema = z.object({
@@ -118,7 +120,11 @@ export const agentChatSchema = z.object({
 });
 
 export const executeAIEntitySchema = z.object({
-  promptText: z.string().trim().min(1, 'Say what the agent should do.').max(20_000),
+  promptText: z
+    .string()
+    .trim()
+    .min(1, 'Say what the agent should do.')
+    .max(20_000),
   channelId: id.optional(),
   channelName: text(120).optional(),
   projectId: id.optional(),
@@ -221,7 +227,9 @@ export const locationEventSchema = z.object({
   longitude: z.number().min(-180).max(180),
   accuracy: z.number().positive().max(100_000),
   /** When the device took the reading (ISO 8601 or epoch ms); defaults to now. */
-  recordedAt: z.union([z.string().datetime({ offset: true }), z.number().int().positive()]).optional(),
+  recordedAt: z
+    .union([z.string().datetime({ offset: true }), z.number().int().positive()])
+    .optional(),
 });
 export type LocationEventInput = z.infer<typeof locationEventSchema>;
 
@@ -229,7 +237,16 @@ export type LocationEventInput = z.infer<typeof locationEventSchema>;
 
 /** Query-string filters arrive as strings; numbers are coerced and bounded. */
 export const aiExecutionFilterSchema = z.object({
-  status: z.enum(['RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'WAITING_APPROVAL', 'PAUSED']).optional(),
+  status: z
+    .enum([
+      'RUNNING',
+      'COMPLETED',
+      'FAILED',
+      'CANCELLED',
+      'WAITING_APPROVAL',
+      'PAUSED',
+    ])
+    .optional(),
   entityType: z.enum(['WORKFLOW', 'AGENT', 'COWORKER', 'APP']).optional(),
   entityId: id.optional(),
   startDate: z.string().datetime({ offset: true }).optional(),
@@ -254,16 +271,36 @@ export const createAISecretSchema = z.object({
     .trim()
     .min(1)
     .max(64)
-    .regex(/^[A-Za-z][A-Za-z0-9_]*$/, 'Use letters, numbers and underscores, e.g. FIRECRAWL_API_KEY.'),
+    .regex(
+      /^[A-Za-z][A-Za-z0-9_]*$/,
+      'Use letters, numbers and underscores, e.g. FIRECRAWL_API_KEY.',
+    ),
   value: z.string().min(1, 'A secret needs a value.').max(8_192),
   description: text(500).optional(),
 });
 
 export const createMCPConnectionSchema = z.object({
   name: text(80).min(1, 'Name this connection.'),
-  serverUrl: z.string().trim().url('Enter the server URL, e.g. https://mcp.example.com/mcp').max(2_000),
+  serverUrl: z
+    .string()
+    .trim()
+    .url('Enter the server URL, e.g. https://mcp.example.com/mcp')
+    .max(2_000),
   transport: z.enum(['HTTP', 'SSE']).optional(),
   token: z.string().trim().max(8_192).optional(),
+});
+
+/** Every field optional. `token: ''` removes the stored token. */
+export const updateMCPConnectionSchema = z.object({
+  name: text(80).min(1, 'Name this connection.').optional(),
+  serverUrl: z
+    .string()
+    .trim()
+    .url('Enter the server URL, e.g. https://mcp.example.com/mcp')
+    .max(2_000)
+    .optional(),
+  token: z.string().trim().max(8_192).optional(),
+  isEnabled: z.boolean().optional(),
 });
 
 export const testMcpToolSchema = z.object({
@@ -275,7 +312,9 @@ export const testMcpToolSchema = z.object({
 
 export const saveProviderCredentialSchema = z.object({
   apiKey: z.string().trim().max(8_192).optional(),
-  baseUrl: z.union([z.string().trim().url().max(2_000), z.literal('')]).optional(),
+  baseUrl: z
+    .union([z.string().trim().url().max(2_000), z.literal('')])
+    .optional(),
   defaultModel: text(200).optional(),
   enabled: z.boolean().optional(),
 });
@@ -337,7 +376,10 @@ export const importKnowledgeUrlSchema = z.object({
 
 export const importKnowledgeFromAppSchema = z.object({
   knowledgeBaseId: text(64).min(1),
-  items: z.array(z.object({ id: text(300).min(1), name: text(300).optional() })).min(1).max(25),
+  items: z
+    .array(z.object({ id: text(300).min(1), name: text(300).optional() }))
+    .min(1)
+    .max(25),
   tags: z.array(text(60)).max(20).optional(),
 });
 
@@ -354,7 +396,10 @@ const aiAppFields = {
     .string()
     .trim()
     .max(80)
-    .regex(/^[a-z0-9][a-z0-9-]*$/, 'Use lowercase letters, numbers and dashes.'),
+    .regex(
+      /^[a-z0-9][a-z0-9-]*$/,
+      'Use lowercase letters, numbers and dashes.',
+    ),
   description: text(2_000),
   icon: text(60),
   appType: z.enum(['CHAT_APP', 'WORKFLOW_APP', 'AGENT_APP', 'CUSTOM_UI']),
@@ -499,7 +544,9 @@ export type WorkflowGraphInput = z.infer<typeof workflowGraphSchema>;
  */
 export const createTrackerMonitorSchema = z.object({
   name: text(120).optional(),
-  type: z.enum(['task', 'project', 'metric', 'event', 'deadline', 'status']).optional(),
+  type: z
+    .enum(['task', 'project', 'metric', 'event', 'deadline', 'status'])
+    .optional(),
   target: text(200).optional(),
   condition: text(300).min(1, 'Say what to watch for.'),
   frequency: z.enum(['realtime', 'hourly', 'daily', 'weekly']).optional(),
@@ -510,5 +557,9 @@ export const createTrackerMonitorSchema = z.object({
 
 export const updateTrackerMonitorSchema = createTrackerMonitorSchema.partial();
 
-export type CreateTrackerMonitorInput = z.infer<typeof createTrackerMonitorSchema>;
-export type UpdateTrackerMonitorInput = z.infer<typeof updateTrackerMonitorSchema>;
+export type CreateTrackerMonitorInput = z.infer<
+  typeof createTrackerMonitorSchema
+>;
+export type UpdateTrackerMonitorInput = z.infer<
+  typeof updateTrackerMonitorSchema
+>;

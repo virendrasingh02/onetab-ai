@@ -329,6 +329,8 @@ import type {
   AIMemoryEntry,
   MCPConnection,
   CreateMCPConnectionInput,
+  UpdateMCPConnectionInput,
+  MCPToolCallResult,
   AIStudioOverview,
   AIFeedbackPayload,
   TrackerMonitor,
@@ -1878,47 +1880,115 @@ export const aiAnalyticsApi = {
 /** Agent install lifecycle — the server decides every outcome; nothing is optimistic. */
 export const agentInstallApi = {
   list: (workspaceId: string) =>
-    request<MarketplaceInstallation[]>(http.get(`/marketplace/workspaces/${workspaceId}/agent-installs`)),
+    request<MarketplaceInstallation[]>(
+      http.get(`/marketplace/workspaces/${workspaceId}/agent-installs`),
+    ),
 
   approvals: (workspaceId: string) =>
-    request<MarketplaceInstallation[]>(http.get(`/marketplace/workspaces/${workspaceId}/agent-installs/approvals`)),
+    request<MarketplaceInstallation[]>(
+      http.get(
+        `/marketplace/workspaces/${workspaceId}/agent-installs/approvals`,
+      ),
+    ),
 
   audit: (workspaceId: string) =>
-    request<AgentAuditEntry[]>(http.get(`/marketplace/workspaces/${workspaceId}/agent-installs/audit`)),
+    request<AgentAuditEntry[]>(
+      http.get(`/marketplace/workspaces/${workspaceId}/agent-installs/audit`),
+    ),
 
   preview: (workspaceId: string, slug: string) =>
-    request<AgentInstallPreview>(http.get(`/marketplace/workspaces/${workspaceId}/agent-installs/${slug}/preview`)),
+    request<AgentInstallPreview>(
+      http.get(
+        `/marketplace/workspaces/${workspaceId}/agent-installs/${slug}/preview`,
+      ),
+    ),
 
   install: (workspaceId: string, slug: string, input: AgentInstallRequest) =>
-    request<AgentInstallResult>(http.post(`/marketplace/workspaces/${workspaceId}/agent-installs/${slug}`, input)),
+    request<AgentInstallResult>(
+      http.post(
+        `/marketplace/workspaces/${workspaceId}/agent-installs/${slug}`,
+        input,
+      ),
+    ),
 
-  requestApproval: (workspaceId: string, slug: string, input: AgentInstallRequest) =>
-    request<MarketplaceInstallation>(http.post(`/marketplace/workspaces/${workspaceId}/agent-installs/${slug}/request`, input)),
+  requestApproval: (
+    workspaceId: string,
+    slug: string,
+    input: AgentInstallRequest,
+  ) =>
+    request<MarketplaceInstallation>(
+      http.post(
+        `/marketplace/workspaces/${workspaceId}/agent-installs/${slug}/request`,
+        input,
+      ),
+    ),
 
   resolve: (
     workspaceId: string,
     slug: string,
-    input: AgentInstallRequest & { action: 'APPROVE' | 'REJECT'; rejectionReason?: string },
+    input: AgentInstallRequest & {
+      action: 'APPROVE' | 'REJECT';
+      rejectionReason?: string;
+    },
   ) =>
-    request<AgentInstallResult>(http.post(`/marketplace/workspaces/${workspaceId}/agent-installs/${slug}/resolve`, input)),
+    request<AgentInstallResult>(
+      http.post(
+        `/marketplace/workspaces/${workspaceId}/agent-installs/${slug}/resolve`,
+        input,
+      ),
+    ),
 
-  update: (workspaceId: string, slug: string, input: Pick<AgentInstallRequest, 'settings' | 'approvedPermissions'>) =>
-    request<AgentInstallResult>(http.post(`/marketplace/workspaces/${workspaceId}/agent-installs/${slug}/update`, input)),
+  update: (
+    workspaceId: string,
+    slug: string,
+    input: Pick<AgentInstallRequest, 'settings' | 'approvedPermissions'>,
+  ) =>
+    request<AgentInstallResult>(
+      http.post(
+        `/marketplace/workspaces/${workspaceId}/agent-installs/${slug}/update`,
+        input,
+      ),
+    ),
 
   setEnabled: (workspaceId: string, slug: string, enabled: boolean) =>
-    request<MarketplaceInstallation>(http.patch(`/marketplace/workspaces/${workspaceId}/agent-installs/${slug}/enabled`, { enabled })),
+    request<MarketplaceInstallation>(
+      http.patch(
+        `/marketplace/workspaces/${workspaceId}/agent-installs/${slug}/enabled`,
+        { enabled },
+      ),
+    ),
 
-  updateAccess: (workspaceId: string, slug: string, input: Pick<AgentInstallRequest, 'scope' | 'access'>) =>
-    request<MarketplaceInstallation>(http.patch(`/marketplace/workspaces/${workspaceId}/agent-installs/${slug}/access`, input)),
+  updateAccess: (
+    workspaceId: string,
+    slug: string,
+    input: Pick<AgentInstallRequest, 'scope' | 'access'>,
+  ) =>
+    request<MarketplaceInstallation>(
+      http.patch(
+        `/marketplace/workspaces/${workspaceId}/agent-installs/${slug}/access`,
+        input,
+      ),
+    ),
 
   health: (workspaceId: string, slug: string) =>
-    request<AgentHealthResult>(http.post(`/marketplace/workspaces/${workspaceId}/agent-installs/${slug}/health`)),
+    request<AgentHealthResult>(
+      http.post(
+        `/marketplace/workspaces/${workspaceId}/agent-installs/${slug}/health`,
+      ),
+    ),
 
-  uninstall: (workspaceId: string, slug: string, opts: { purge?: boolean } = {}) =>
+  uninstall: (
+    workspaceId: string,
+    slug: string,
+    opts: { purge?: boolean } = {},
+  ) =>
     request<{ listingSlug: string; status: string; purged: boolean }>(
-      http.delete(`/marketplace/workspaces/${workspaceId}/agent-installs/${slug}`, {
-        params: opts.purge ? { purge: true, confirm: true } : undefined,
-      }),
+      http.delete(
+        `/marketplace/workspaces/${workspaceId}/agent-installs/${slug}`,
+        {
+          params: opts.purge ? { purge: true, confirm: true } : undefined,
+        },
+      ),
     ),
 };
 
@@ -2923,7 +2993,9 @@ export const agentGraphsApi = {
   /** A new secret for a switched-on webhook agent; the old one stops working (owner or admin). */
   rotateWebhookSecret: (workspaceId: string, agentId: string) =>
     request<CanvasAgentActivation>(
-      http.post(`/workspaces/${workspaceId}/agent-graphs/${agentId}/webhook-secret`),
+      http.post(
+        `/workspaces/${workspaceId}/agent-graphs/${agentId}/webhook-secret`,
+      ),
     ),
 
   /** The full URL a canvas agent's webhook is called on. */
@@ -6654,6 +6726,28 @@ export const mcpApi = {
   syncTools: (workspaceId: string, id: string) =>
     request<MCPConnection>(
       http.post(`/workspaces/${workspaceId}/mcp-connections/${id}/sync`),
+    ),
+
+  updateConnection: (
+    workspaceId: string,
+    id: string,
+    data: UpdateMCPConnectionInput,
+  ) =>
+    request<MCPConnection>(
+      http.patch(`/workspaces/${workspaceId}/mcp-connections/${id}`, data),
+    ),
+
+  testTool: (
+    workspaceId: string,
+    id: string,
+    toolName: string,
+    params: Record<string, unknown>,
+  ) =>
+    request<MCPToolCallResult>(
+      http.post(`/workspaces/${workspaceId}/mcp-connections/${id}/tools/test`, {
+        toolName,
+        params,
+      }),
     ),
 };
 

@@ -4,8 +4,10 @@ import type { IsoDateString } from './entities.js';
 // 1. KNOWLEDGE / RAG TYPES
 // ==========================================
 
-export type KnowledgeSourceType = 'FILE' | 'URL' | 'WORKSPACE' | 'MANUAL' | 'APP';
-export type KnowledgeDocumentStatus = 'QUEUED' | 'PROCESSING' | 'INDEXED' | 'FAILED';
+export type KnowledgeSourceType =
+  'FILE' | 'URL' | 'WORKSPACE' | 'MANUAL' | 'APP';
+export type KnowledgeDocumentStatus =
+  'QUEUED' | 'PROCESSING' | 'INDEXED' | 'FAILED';
 export type KnowledgeRetrievalMode = 'SEMANTIC' | 'KEYWORD' | 'HYBRID';
 
 export interface KnowledgeBase {
@@ -71,7 +73,10 @@ export interface KnowledgeRetrievalQuery {
   filters?: Record<string, unknown>;
 }
 
-export interface KnowledgeAnswerRequest extends Omit<KnowledgeRetrievalQuery, 'query'> {
+export interface KnowledgeAnswerRequest extends Omit<
+  KnowledgeRetrievalQuery,
+  'query'
+> {
   question: string;
   model?: string;
 }
@@ -90,7 +95,11 @@ export interface KnowledgeAnswer {
   latencyMs: number;
   retrievalMs: number;
   model?: string;
-  usage?: { promptTokens?: number; completionTokens?: number; totalTokens?: number };
+  usage?: {
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
+  };
 }
 
 export interface KnowledgeRetrievalResult {
@@ -267,11 +276,7 @@ export interface WorkflowEdgeSchema {
 // ==========================================
 
 export type ApprovalState =
-  | 'PENDING'
-  | 'APPROVED'
-  | 'REJECTED'
-  | 'EXPIRED'
-  | 'CANCELLED';
+  'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED' | 'CANCELLED';
 
 export interface AIApprovalRequest {
   id: string;
@@ -413,7 +418,11 @@ export interface MCPDiscoveredTool {
   name: string;
   description?: string;
   inputSchema?: Record<string, unknown>;
-  annotations?: { title?: string; readOnlyHint?: boolean; destructiveHint?: boolean };
+  annotations?: {
+    title?: string;
+    readOnlyHint?: boolean;
+    destructiveHint?: boolean;
+  };
 }
 
 /**
@@ -439,7 +448,10 @@ export interface MCPConnection {
 }
 
 /** The function name an agent uses for an MCP tool (mirrors `mcpFunctionName`). */
-export function mcpToolFunctionName(connectionId: string, toolName: string): string {
+export function mcpToolFunctionName(
+  connectionId: string,
+  toolName: string,
+): string {
   const safeTool = toolName.replace(/[^a-zA-Z0-9_-]/g, '_');
   return `mcp_${connectionId.slice(-6)}_${safeTool}`.slice(0, 64);
 }
@@ -450,6 +462,21 @@ export interface CreateMCPConnectionInput {
   transport?: MCPTransport;
   headers?: Record<string, string>;
   token?: string;
+}
+
+/** A changed URL or token re-runs the handshake. `token: ''` removes it. */
+export interface UpdateMCPConnectionInput {
+  name?: string;
+  serverUrl?: string;
+  token?: string;
+  isEnabled?: boolean;
+}
+
+/** One `tools/call` against a connected server. */
+export interface MCPToolCallResult {
+  isError: boolean;
+  text: string;
+  content: unknown[];
 }
 
 // ==========================================
