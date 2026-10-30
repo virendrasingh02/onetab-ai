@@ -104,6 +104,21 @@ const MAX_SAVED_MESSAGES = 500;
 /** Cap on 50-reply pages fetched when a thread is opened (2,500 replies). */
 const MAX_THREAD_PAGES = 50;
 
+/**
+ * Whether a room's loaded timeline has older history left to page in.
+ *
+ * The backward token alone is not enough: the homeserver hands one back on
+ * almost every synced page, including a brand-new room's first one, and
+ * trusting it made the welcome block flicker away on the first message (see
+ * `ChannelWelcome`). Counting events is not enough either — thread replies are
+ * moved out of the main timeline (`threadSupport`) and a gappy sync resets it
+ * to just the new events, so a short page says nothing about what is behind
+ * it. The one certain end of history is the room's creation event.
+ */
+function hasOlderHistory(events: MatrixEvent[], token: string | null): boolean {
+  return !!token && !events.some((event) => event.getType() === 'm.room.create');
+}
+
 interface ImageSize {
   w: number;
   h: number;
@@ -1158,22 +1173,8 @@ export class OneTabMatrixClient {
       }
     }
 
-    /*
-     * The homeserver hands back a backward `prev_batch` token on almost every
-     * synced timeline, including a room's very first page — it is a stream
-     * position, not a promise that paginating it yields more events. Trusting
-     * its mere presence made a brand-new room's welcome block flicker away
-     * the instant its first real message arrived (see `ChannelWelcome`):
-     * `messages.length` went from 0 to 1, which switches the caller from an
-     * unconditional "empty conversation" render to one gated on `hasMore`, and
-     * the stale token made that gate say "more history" when there was none.
-     * If this page holds fewer raw events than a full initial sync fetches,
-     * the sync was never truncated — there is nothing left for the token to
-     * point at, whatever it claims.
-     */
     const paginationToken = timeline.getPaginationToken(Direction.Backward);
-    const hasMore =
-      rawEvents.length >= this.options.initialSyncLimit && !!paginationToken;
+    const hasMore = hasOlderHistory(rawEvents, paginationToken);
 
     return { messages, paginationToken, hasMore };
   }
@@ -1199,6 +1200,7 @@ export class OneTabMatrixClient {
 
     const events = timeline.getEvents();
     const added = events.slice(0, Math.max(0, events.length - before));
+    const paginationToken = timeline.getPaginationToken(Direction.Backward);
 
     return {
       messages: added
@@ -1212,8 +1214,8 @@ export class OneTabMatrixClient {
         })
         .map((event) => toMessage(sdk, event, room))
         .filter((message): message is Message => message !== null),
-      paginationToken: timeline.getPaginationToken(Direction.Backward),
-      hasMore: !!timeline.getPaginationToken(Direction.Backward),
+      paginationToken,
+      hasMore: hasOlderHistory(events, paginationToken),
     };
   }
 
