@@ -324,10 +324,10 @@ export default function ChatTab() {
         isDirect: false,
         isAI: true,
         onPress: () => {
-          // Open direct coworker session or agent chat
+          // Open coworker details and tasks dashboard
           router.push({
-            pathname: '/agent/[agentId]/chat',
-            params: { agentId: cw.id },
+            pathname: '/coworker/[coworkerId]',
+            params: { coworkerId: cw.id },
           });
         },
         onLongPress: () => handleLongPress(`cw:${cw.id}`, cw.name, false),
@@ -710,8 +710,8 @@ function NewChatSheet({
                     onPress={() => {
                       onClose();
                       router.push({
-                        pathname: '/agent/[agentId]/chat',
-                        params: { agentId: cw.id },
+                        pathname: '/coworker/[coworkerId]',
+                        params: { coworkerId: cw.id },
                       });
                     }}
                   />

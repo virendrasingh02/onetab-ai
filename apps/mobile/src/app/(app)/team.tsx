@@ -1,5 +1,6 @@
 import { coworkersApi, memberApi, queryKeys } from '@org/api-client';
 import { useQuery } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import {
@@ -14,6 +15,8 @@ import {
   TextField,
 } from '../../components/ui';
 import { humanize, relativeTime } from '../../lib/format';
+import { haptics } from '../../lib/haptics';
+import { useSession } from '../../lib/session';
 import { useWorkspace } from '../../lib/workspace';
 
 /**
@@ -22,6 +25,8 @@ import { useWorkspace } from '../../lib/workspace';
  */
 export default function TeamScreen() {
   const { workspaceId } = useWorkspace();
+  const { user } = useSession();
+  const router = useRouter();
   const [filter, setFilter] = useState('');
 
   const members = useQuery({
@@ -71,6 +76,13 @@ export default function TeamScreen() {
                         tone={c.isActive ? 'success' : 'warning'}
                       />
                     }
+                    onPress={() => {
+                      haptics.selection();
+                      router.push({
+                        pathname: '/coworker/[coworkerId]',
+                        params: { coworkerId: c.id },
+                      });
+                    }}
                   />
                 </View>
               ))
@@ -112,6 +124,17 @@ export default function TeamScreen() {
                       label={humanize(m.role)}
                       tone={m.status === 'ACTIVE' ? 'neutral' : 'warning'}
                     />
+                  }
+                  onPress={
+                    m.user.id !== user?.id
+                      ? () => {
+                          haptics.selection();
+                          router.push({
+                            pathname: '/dm/new',
+                            params: { user: m.user.id },
+                          });
+                        }
+                      : undefined
                   }
                 />
               </View>

@@ -26,6 +26,7 @@ import {
   relativeTime,
   statusTone,
 } from '../../../../lib/format';
+import { routeForDeepLink } from '../../../../lib/deep-links';
 import { haptics } from '../../../../lib/haptics';
 import { useWorkspace } from '../../../../lib/workspace';
 import { useTheme } from '../../../../theme/theme';
@@ -166,7 +167,14 @@ export default function UpdatesTab() {
                   }
                   onPress={() => {
                     if (item.deepLink) {
-                      router.push(item.deepLink as Href);
+                      haptics.selection();
+                      const route = routeForDeepLink(item.deepLink);
+                      if (route.pathname !== '/notifications') {
+                        router.push({
+                          pathname: route.pathname,
+                          params: route.params,
+                        } as Href);
+                      }
                     }
                   }}
                 />

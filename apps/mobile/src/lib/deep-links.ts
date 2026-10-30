@@ -50,19 +50,25 @@ export function routeForDeepLink(link: string | null | undefined): MobileRoute {
   const [head, second] = path;
 
   switch (head) {
+    case 'home':
+    case 'dashboard':
+    case 'overview':
+      return { pathname: '/' };
     case 'c':
     case 'channels':
       return second
         ? { pathname: '/channel/[slug]', params: { slug: second } }
         : { pathname: '/chat' };
     case 'dms': {
-      // The web opens a DM at `dms?room=<roomId>` or `dms?user=<userId>`.
+      // The web opens a DM at `dms?room=<roomId>` or `dms?user=<userId>` or `dms/:peerId`.
       const roomId = query.get('room');
       if (roomId) return { pathname: '/dm/[roomId]', params: { roomId } };
-      const user = query.get('user');
+      const user = query.get('user') ?? second;
       if (user) return { pathname: '/dm/new', params: { user } };
       return { pathname: '/chat', params: { tab: 'dms' } };
     }
+    case 'threads':
+      return { pathname: '/chat' };
     case 'ai': {
       if (second === 'runs' || second === 'executions') {
         const run = query.get('run');
@@ -74,20 +80,38 @@ export function routeForDeepLink(link: string | null | undefined): MobileRoute {
       }
       return { pathname: '/agents' };
     }
+    case 'agents': {
+      if (second) {
+        if (path[2] === 'chat' || second === 'chat') {
+          const agentId = second === 'chat' ? (path[2] ?? '') : second;
+          return agentId
+            ? { pathname: '/agent/[agentId]/chat', params: { agentId } }
+            : { pathname: '/agents' };
+        }
+        return { pathname: '/agent/[agentId]', params: { agentId: second } };
+      }
+      return { pathname: '/agents' };
+    }
+    case 'approvals':
+      return { pathname: '/approvals' };
     case 'coworkers': {
       const coworkerId = query.get('coworkerId') ?? second;
       return coworkerId
         ? { pathname: '/coworker/[coworkerId]', params: { coworkerId } }
         : { pathname: '/agents' };
     }
-    case 'tasks': {
+    case 'tasks':
+    case 'kanban':
+    case 'projects':
+    case 'work': {
       const taskId = query.get('taskId') ?? second;
       return taskId
         ? { pathname: '/tasks/[taskId]', params: { taskId } }
         : { pathname: '/tasks' };
     }
     case 'documents':
-    case 'docs': {
+    case 'docs':
+    case 'notes': {
       const docId = query.get('docId') ?? second;
       return docId
         ? { pathname: '/documents/[docId]', params: { docId } }
@@ -111,6 +135,8 @@ export function routeForDeepLink(link: string | null | undefined): MobileRoute {
         ? { pathname: '/automation/[workflowId]', params: { workflowId } }
         : { pathname: '/updates' };
     }
+    case 'profile':
+      return { pathname: '/profile' };
     case 'settings':
       if (second === 'billing') return { pathname: '/billing' };
       if (second === 'integrations') return { pathname: '/integrations' };

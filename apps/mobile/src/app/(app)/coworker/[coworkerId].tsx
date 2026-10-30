@@ -173,9 +173,22 @@ export default function CoworkerDetailScreen() {
               <View key={link.id}>
                 {idx > 0 ? <Divider inset={rowDividerInset} /> : null}
                 <ListRow
-                  icon="sparkles"
-                  title={link.agent?.id ? `Agent (${link.agent.id})` : 'Specialist Agent'}
-                  subtitle="Specialist Agent"
+                  avatar={
+                    link.agent
+                      ? { name: link.agent.name, uri: link.agent.avatarUrl }
+                      : undefined
+                  }
+                  icon={link.agent ? undefined : 'sparkles'}
+                  title={link.agent?.name ?? 'Specialist Agent'}
+                  subtitle={link.agent?.role || link.agent?.description || 'Autonomous specialist'}
+                  right={
+                    link.agent ? (
+                      <Badge
+                        label={link.agent.isActive ? 'Active' : 'Paused'}
+                        tone={link.agent.isActive ? 'success' : 'neutral'}
+                      />
+                    ) : null
+                  }
                   onPress={() => {
                     if (link.agent?.id) {
                       router.push({
@@ -184,6 +197,35 @@ export default function CoworkerDetailScreen() {
                       });
                     }
                   }}
+                />
+              </View>
+            ))}
+          </Card>
+        </>
+      ) : null}
+
+      {/* Connected Integrations & Apps */}
+      {coworker.appLinks && coworker.appLinks.length > 0 ? (
+        <>
+          <SectionHeader title={`Connected Apps & Tools (${coworker.appLinks.length})`} />
+          <Card>
+            {coworker.appLinks.map((link, idx) => (
+              <View key={link.id}>
+                {idx > 0 ? <Divider inset={rowDividerInset} /> : null}
+                <ListRow
+                  icon="extension-puzzle-outline"
+                  title={link.integration?.displayName || link.integration?.provider || 'Tool'}
+                  subtitle={`Connected ${relativeTime(link.createdAt)}`}
+                  right={
+                    <Badge
+                      label={humanize(link.integration?.status || 'CONNECTED')}
+                      tone={
+                        link.integration?.status === 'connected' || link.integration?.status === 'ACTIVE'
+                          ? 'success'
+                          : 'neutral'
+                      }
+                    />
+                  }
                 />
               </View>
             ))}

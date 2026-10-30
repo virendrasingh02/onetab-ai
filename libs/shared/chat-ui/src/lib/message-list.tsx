@@ -1434,12 +1434,11 @@ export function MessageList({
         The current day's divider, floating at the top of the viewport. The
         inline `DateSeparator` rows still scroll past normally underneath — this
         is the one that stays put, and `shift` lifts it out of the way as the
-        next day's inline divider arrives at the top. A fade sits behind it so
-        text slides out underneath instead of the chip cutting a line in half.
+        next day's inline divider arrives at the top.
       */}
       {floatingDay ? (
         <div
-          className="top-0 inset-x-0 pb-3 pointer-events-none absolute z-20 flex justify-center overflow-hidden bg-gradient-to-b from-background via-background/85 to-transparent"
+          className="top-0 inset-x-0 pb-3 pointer-events-none absolute z-20 flex justify-center overflow-hidden"
           style={
             newMessagesCount > 0
               ? { transform: `translateY(${NEW_MESSAGES_BAR_HEIGHT}px)` }

@@ -25,6 +25,13 @@ describe('routeForDeepLink', () => {
       pathname: '/chat',
       params: { tab: 'dms' },
     });
+    expect(routeForDeepLink('dms/u_42')).toEqual({
+      pathname: '/dm/new',
+      params: { user: 'u_42' },
+    });
+    expect(routeForDeepLink('threads')).toEqual({
+      pathname: '/chat',
+    });
   });
 
   it('opens an AI run in the execution monitor', () => {
@@ -73,6 +80,34 @@ describe('routeForDeepLink', () => {
     });
     expect(routeForDeepLink('attendance')).toEqual({
       pathname: '/timesheet',
+    });
+    expect(routeForDeepLink('kanban?taskId=t2')).toEqual({
+      pathname: '/tasks/[taskId]',
+      params: { taskId: 't2' },
+    });
+    expect(routeForDeepLink('notes/doc_3')).toEqual({
+      pathname: '/documents/[docId]',
+      params: { docId: 'doc_3' },
+    });
+    expect(routeForDeepLink('approvals')).toEqual({
+      pathname: '/approvals',
+    });
+    expect(routeForDeepLink('home')).toEqual({
+      pathname: '/',
+    });
+    expect(routeForDeepLink('dashboard')).toEqual({
+      pathname: '/',
+    });
+    expect(routeForDeepLink('agents/ag_1/chat')).toEqual({
+      pathname: '/agent/[agentId]/chat',
+      params: { agentId: 'ag_1' },
+    });
+    expect(routeForDeepLink('agents/ag_1')).toEqual({
+      pathname: '/agent/[agentId]',
+      params: { agentId: 'ag_1' },
+    });
+    expect(routeForDeepLink('profile')).toEqual({
+      pathname: '/profile',
     });
     expect(routeForDeepLink('coworkers?coworkerId=cw_42')).toEqual({
       pathname: '/coworker/[coworkerId]',

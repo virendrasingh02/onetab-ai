@@ -61,7 +61,7 @@ export default function TasksScreen() {
   // New task form state
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
-  const [newStatus] = useState<TaskStatus>('TODO');
+  const [newStatus, setNewStatus] = useState<TaskStatus>('TODO');
   const [newPriority, setNewPriority] = useState<TaskPriority>('MEDIUM');
 
   // Shared work-tools keys: one prefix invalidation refreshes this board,
@@ -88,6 +88,7 @@ export default function TasksScreen() {
       setCreateModalOpen(false);
       setNewTitle('');
       setNewDesc('');
+      setNewStatus('TODO');
       setNewPriority('MEDIUM');
       void invalidateTasks();
     },
@@ -506,6 +507,32 @@ export default function TasksScreen() {
               multiline
               numberOfLines={4}
             />
+
+            <AppText style={[styles.fieldLabel, { color: colors.subtle }]}>Initial Status</AppText>
+            <View style={styles.prioritySelector}>
+              {STATUS_COLUMNS.map((col) => (
+                <Pressable
+                  key={col.key}
+                  style={[
+                    styles.priorityPill,
+                    newStatus === col.key && {
+                      backgroundColor: colors.selected,
+                      borderColor: colors.primary,
+                    },
+                  ]}
+                  onPress={() => setNewStatus(col.key)}
+                >
+                  <AppText
+                    style={[
+                      styles.priorityPillText,
+                      { color: newStatus === col.key ? colors.primaryText : colors.subtle },
+                    ]}
+                  >
+                    {col.label}
+                  </AppText>
+                </Pressable>
+              ))}
+            </View>
 
             <AppText style={[styles.fieldLabel, { color: colors.subtle }]}>Priority</AppText>
             <View style={styles.prioritySelector}>
