@@ -151,9 +151,9 @@ export class RealtimeClient {
 
   /**
    * Redeems a single-use stream ticket (so the raw access token never rides in
-   * the URL) and opens the `EventSource`. Falls back to `?token=` if the ticket
-   * endpoint is unreachable — an older API, or a transient failure — so a
-   * connection is never lost purely over the hardening.
+   * the URL) and opens the `EventSource`. If the ticket can't be had — the API
+   * is restarting, or the network blipped — it retries with backoff rather than
+   * putting the bearer token in a URL where logs and proxies would keep it.
    */
   private async openStream(generation: number): Promise<void> {
     const token = this.getToken();
@@ -170,14 +170,17 @@ export class RealtimeClient {
       );
       if (data?.ticket) params.set('ticket', data.ticket);
     } catch {
-      // Fall through to the token path.
+      // Handled below: no ticket means no stream this attempt.
     }
 
     // The client moved on (disconnected, disposed, or reconnected) while the
     // ticket request was in flight — drop this attempt.
     if (this.isDisposed || generation !== this.connectGeneration) return;
 
-    if (!params.has('ticket')) params.set('token', token);
+    if (!params.has('ticket')) {
+      this.scheduleReconnect();
+      return;
+    }
     if (this.currentWorkspaceId) {
       params.set('workspaceId', this.currentWorkspaceId);
     }

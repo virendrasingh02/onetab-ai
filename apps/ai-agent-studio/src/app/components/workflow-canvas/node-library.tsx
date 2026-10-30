@@ -35,7 +35,9 @@ import {
   StopCircle,
   Terminal,
   UserCheck,
+  Users,
   Variable,
+  Workflow,
   Zap,
 } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
@@ -43,6 +45,7 @@ import { compileStudioGraph } from '@org/types';
 import { Input } from '@org/ui';
 import { AppConnectorIcon } from '../common/app-connector-icon.jsx';
 import { useConnectorCatalogNodes } from './connector-nodes.js';
+import { useTeamCatalogNodes } from './team-nodes.js';
 
 export type NodeCategory =
   | 'all'
@@ -50,6 +53,7 @@ export type NodeCategory =
   | 'widgets'
   | 'connectors'
   | 'ai'
+  | 'team'
   | 'knowledge'
   | 'logic'
   | 'transform'
@@ -193,6 +197,38 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
       instructions: 'You are a specialist. Complete the part of the task you are given and report back clearly.',
       temperature: 0.2,
     },
+  },
+
+  // YOUR TEAM — what the workspace already has, used as a step (each runs as itself)
+  {
+    type: 'AI_COWORKER',
+    category: 'team',
+    label: 'AI Coworker',
+    subtitle: 'Hand work to a coworker',
+    description: 'One of your AI coworkers does this step with its own apps, specialists and approvals',
+    icon: Users,
+    badge: 'Team',
+    defaultConfig: {},
+  },
+  {
+    type: 'CALL_AGENT',
+    category: 'team',
+    label: 'Saved Agent',
+    subtitle: 'Hand work to another agent',
+    description: 'Another agent from My Agents does this step and its answer flows on',
+    icon: Bot,
+    badge: 'Team',
+    defaultConfig: {},
+  },
+  {
+    type: 'RUN_WORKFLOW',
+    category: 'team',
+    label: 'Run Automation',
+    subtitle: 'Start an existing automation',
+    description: 'Runs one of your automations as a step and passes its result on',
+    icon: Workflow,
+    badge: 'Team',
+    defaultConfig: {},
   },
   {
     type: 'AI_CHAT_MODEL',
@@ -702,6 +738,7 @@ export const CATEGORY_ITEMS: { id: NodeCategory; label: string; count: number }[
   { id: 'widgets', label: 'UI Widgets', count: CATALOG_NODES.filter((n) => n.category === 'widgets').length },
   { id: 'connectors', label: 'Apps & Connectors', count: CATALOG_NODES.filter((n) => n.type.startsWith('APP_CONNECTOR')).length },
   { id: 'ai', label: 'AI & Reasoning', count: CATALOG_NODES.filter((n) => n.category === 'ai').length },
+  { id: 'team', label: 'Your Team', count: CATALOG_NODES.filter((n) => n.category === 'team').length },
   { id: 'knowledge', label: 'Knowledge & RAG', count: CATALOG_NODES.filter((n) => n.category === 'knowledge').length },
   { id: 'logic', label: 'Logic & Flow', count: CATALOG_NODES.filter((n) => n.category === 'logic').length },
   { id: 'transform', label: 'Data & Transform', count: CATALOG_NODES.filter((n) => n.category === 'transform').length },
@@ -721,9 +758,10 @@ export function NodeLibrary({
   const [selectedCategory, setSelectedCategory] = useState<NodeCategory>('all');
   const [search, setSearch] = useState('');
   const connectorNodes = useConnectorCatalogNodes();
+  const teamNodes = useTeamCatalogNodes();
 
   const filteredNodes = useMemo(() => {
-    return [...CATALOG_NODES, ...connectorNodes].filter((node) => {
+    return [...CATALOG_NODES, ...teamNodes, ...connectorNodes].filter((node) => {
       const matchesCategory =
         selectedCategory === 'all' ||
         node.category === selectedCategory ||
@@ -735,7 +773,7 @@ export function NodeLibrary({
         node.description.toLowerCase().includes(search.toLowerCase());
       return matchesCategory && matchesSearch;
     });
-  }, [selectedCategory, search, connectorNodes]);
+  }, [selectedCategory, search, connectorNodes, teamNodes]);
 
   const onDragStart = (
     event: React.DragEvent,

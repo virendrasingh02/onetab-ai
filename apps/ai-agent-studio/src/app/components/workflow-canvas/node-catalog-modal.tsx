@@ -17,6 +17,7 @@ import {
   Sparkles,
   StickyNote,
   UserCheck,
+  Users,
   Wrench,
   X,
   Zap,
@@ -31,12 +32,14 @@ import {
   type ConnectorAppGroup,
 } from './connector-nodes.js';
 import { CATALOG_NODES, stepUnsupportedReason, type CatalogNodeItem, type NodeCategory } from './node-library.js';
+import { useTeamCatalogNodes } from './team-nodes.js';
 
 /** The picker's categories, in the order someone building an agent reaches for them. */
 const CATEGORIES: Array<{ id: NodeCategory; label: string; hint: string; icon: LucideIcon; accent: string }> = [
   { id: 'all', label: 'All steps', hint: 'Everything you can add to this agent', icon: LayoutGrid, accent: 'var(--color-accent-indigo)' },
   { id: 'triggers', label: 'Triggers', hint: 'What starts the agent', icon: Zap, accent: 'var(--color-accent-green)' },
   { id: 'ai', label: 'AI & agents', hint: 'Agents and model calls that think, write and decide', icon: Sparkles, accent: 'var(--color-accent-violet)' },
+  { id: 'team', label: 'Your team', hint: 'Hand a step to one of your AI coworkers, agents or automations', icon: Users, accent: 'var(--color-accent-pink)' },
   { id: 'connectors', label: 'Apps', hint: 'Read and act in Gmail, Slack, GitHub and your other apps', icon: Plug, accent: 'var(--color-accent-blue)' },
   { id: 'knowledge', label: 'Knowledge', hint: 'Search your docs and knowledge bases', icon: Database, accent: 'var(--color-accent-cyan)' },
   { id: 'logic', label: 'Logic & flow', hint: 'Branch, loop, wait and run steps in parallel', icon: GitBranch, accent: 'var(--color-accent-amber)' },
@@ -52,6 +55,12 @@ const CATEGORY = Object.fromEntries(CATEGORIES.map((c) => [c.id, c])) as Record<
 
 /** Steps that make no sense in the middle of a flow. */
 const NOT_INSERTABLE = new Set<NodeCategory>(['triggers', 'annotations']);
+
+const TEAM_SECTION: Record<string, string> = {
+  AI_COWORKER: 'Your coworkers',
+  CALL_AGENT: 'Your agents',
+  RUN_WORKFLOW: 'Your automations',
+};
 
 const isConnectorNode = (node: CatalogNodeItem) => node.type.startsWith('APP_CONNECTOR');
 const isTriggerNode = (node: CatalogNodeItem) => node.category === 'triggers' || node.type.includes('TRIGGER');
@@ -127,6 +136,7 @@ export function NodeCatalogModal({ isOpen, onClose, onSelectNode, mode = 'add', 
   const listRef = useRef<HTMLDivElement>(null);
 
   const { groups, loading: appsLoading, error: appsError, retry: retryApps } = useConnectorAppGroups();
+  const teamNodes = useTeamCatalogNodes();
   const inserting = mode === 'insert' || !!slot;
   const fits = (item: CatalogNodeItem) => !slot || slot.accepts(item.type.toUpperCase());
   const q = search.trim().toLowerCase();
@@ -166,9 +176,19 @@ export function NodeCatalogModal({ isOpen, onClose, onSelectNode, mode = 'add', 
         section: group.connected ? 'Your connected apps' : 'More apps — connect after adding',
       });
     }
-    return [...nodeRows, ...appRows];
+    // One card per coworker, agent and automation the workspace has — ready to run, nothing to pick.
+    const teamRows: CatalogRow[] = teamNodes
+      .filter((item) => fits(item) && (!q || matchesQuery(q, item.label, item.subtitle, item.badge, 'team')))
+      .map((item) => ({
+        kind: 'node',
+        key: itemKey(item),
+        item,
+        category: 'team',
+        section: TEAM_SECTION[item.type] ?? 'Your team',
+      }));
+    return [...teamRows, ...nodeRows, ...appRows];
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `fits` only changes with `slot`
-  }, [q, groups, inserting, slot]);
+  }, [q, groups, teamNodes, inserting, slot]);
 
   const hiddenUnsupported = showUnsupported
     ? 0
@@ -203,6 +223,13 @@ export function NodeCatalogModal({ isOpen, onClose, onSelectNode, mode = 'add', 
   const rows = useMemo<CatalogRow[]>(() => {
     if (selectedCategory !== 'all') {
       const inCategory = usableRows.filter((r) => r.category === selectedCategory);
+      if (selectedCategory === 'team') {
+        // The workspace's own members first, the pick-after-adding cards after them.
+        return [
+          ...inCategory.filter((r) => r.key.includes(':')),
+          ...inCategory.filter((r) => !r.key.includes(':')).map((r) => ({ ...r, section: 'Any of them — pick after adding' })),
+        ];
+      }
       if (selectedCategory !== 'connectors') return inCategory;
       // Apps first (connected, then the rest), the any-app cards after them.
       return [
@@ -316,7 +343,7 @@ export function NodeCatalogModal({ isOpen, onClose, onSelectNode, mode = 'add', 
 
   const active = CATEGORY[selectedCategory];
   const heading = slot ? `Add to ${slot.label}` : inserting ? 'Insert a step' : 'Add a step';
-  const showHeaders = selectedCategory === 'all' || selectedCategory === 'connectors';
+  const showHeaders = selectedCategory === 'all' || selectedCategory === 'connectors' || selectedCategory === 'team';
   const appsFit = !slot || slot.accepts('APP_CONNECTOR_ACTION');
   const showAppsStatus =
     appsFit && (selectedCategory === 'all' || selectedCategory === 'connectors') && (appsLoading || appsError || groups.length === 0);

@@ -91,6 +91,38 @@ export function normalizeAgent(raw: AIAgent | AIAgentDetail): StudioAgent {
   };
 }
 
+/** A workflow built around a coworker: trigger → the coworker's step → output. */
+function coworkerStarterGraph(name: string, coworker: { id: string; name: string }): string {
+  return JSON.stringify({
+    schemaVersion: '1.0.0',
+    name,
+    nodes: [
+      {
+        id: 'start-1',
+        type: 'START',
+        position: { x: 100, y: 200 },
+        data: { label: 'Workflow Trigger', subtitle: 'Manual execution & API trigger', config: { triggerType: 'MANUAL' } },
+      },
+      {
+        id: 'coworker-1',
+        type: 'AI_COWORKER',
+        position: { x: 420, y: 180 },
+        data: { label: coworker.name, subtitle: 'AI Coworker', config: { coworkerId: coworker.id } },
+      },
+      {
+        id: 'end-1',
+        type: 'END',
+        position: { x: 780, y: 200 },
+        data: { label: 'Workflow Output', subtitle: 'Final response delivery' },
+      },
+    ],
+    edges: [
+      { id: 'e1-2', source: 'start-1', target: 'coworker-1', animated: true },
+      { id: 'e2-3', source: 'coworker-1', target: 'end-1' },
+    ],
+  });
+}
+
 /** The graph a new agent starts with: trigger → agent → output. */
 function starterGraph(name: string, model: string): string {
   return JSON.stringify({
@@ -171,6 +203,17 @@ export const agentService = {
       graphJson: data.graphJson || starterGraph(name, model),
     });
     return normalizeAgent(created);
+  },
+
+  /** A new canvas that hands its work to `coworker` — the start of grouping work under it. */
+  createCoworkerWorkflow(workspaceId: string, coworker: { id: string; name: string }): Promise<StudioAgent> {
+    const name = `${coworker.name} workflow`;
+    return this.createAgent(workspaceId, {
+      name,
+      role: 'Workflow',
+      description: `Hands work to ${coworker.name}.`,
+      graphJson: coworkerStarterGraph(name, coworker),
+    });
   },
 
   async updateAgent(

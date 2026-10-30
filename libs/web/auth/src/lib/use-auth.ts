@@ -21,7 +21,7 @@ import type {
 import { getDesktopApi } from '@org/web-desktop';
 import type { CurrentUser } from '@org/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAccountStore } from './account-store.js';
 import { useAuthStore } from './auth.store.js';
@@ -117,6 +117,12 @@ export function useSessionBootstrap(): void {
   const clear = useAuthStore((state) => state.clear);
   const user = useAuthStore((state) => state.user);
   const navigate = useNavigate();
+  // React Router hands out a new `navigate` on every pathname change. As an
+  // effect dependency it re-ran this "cold load" restore on each navigation,
+  // rotating the refresh cookie every time — and a rotation racing another tab
+  // replays a spent token, which the API answers by revoking every session.
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
 
   useEffect(() => {
     let cancelled = false;
@@ -238,7 +244,7 @@ export function useSessionBootstrap(): void {
           window.location.pathname.startsWith('/login') ||
           window.location.pathname.startsWith('/auth/callback')
         ) {
-          navigate('/', { replace: true });
+          navigateRef.current('/', { replace: true });
         }
       }
     });
@@ -250,7 +256,7 @@ export function useSessionBootstrap(): void {
     // `user` is the cached identity read once at store creation; re-running this
     // when it changes would re-bootstrap on every profile edit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setSession, setStatus, clear, navigate]);
+  }, [setSession, setStatus, clear]);
 
   // A refresh failure mid-session must drop the user back to sign-in.
   useEffect(() => {

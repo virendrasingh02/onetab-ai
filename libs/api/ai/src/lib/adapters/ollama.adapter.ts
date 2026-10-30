@@ -125,17 +125,10 @@ export class OllamaAdapter extends BaseProviderAdapter {
       throw this.normalizeHttpError(res.status, {}, 'Ollama returned error');
     } catch (err) {
       this.logger.warn(`Ollama local request failed: ${String(err)}`);
-      // Return graceful fallback message
-      const lastMsg =
-        options.messages[options.messages.length - 1]?.content ?? '';
-      return {
-        message: {
-          role: 'assistant',
-          content: `[Ollama (${options.model}) Local Fallback] Received: "${lastMsg.slice(0, 60)}..."`,
-        },
-        provider: 'ollama',
-        model: options.model,
-      };
+      // Surface the failure. A canned "answer" echoing the prompt reached
+      // users as a real reply and kept model failover from trying the next
+      // provider.
+      throw this.handleCatchError(err);
     }
   }
 

@@ -44,10 +44,12 @@ export function WorkspaceSetupChecklist() {
     enabled,
     staleTime: 60_000,
   });
+  // Pending invites only matter while the member is alone; listing them needs
+  // admin rights, so asking otherwise just earns members a 403.
   const invitations = useQuery({
     queryKey: ['home-setup', 'invitations', workspaceId],
     queryFn: () => invitationApi.list(workspaceId as string),
-    enabled,
+    enabled: enabled && Boolean(workspace) && (workspace?.memberCount ?? 0) <= 1,
     staleTime: 60_000,
     retry: false,
   });

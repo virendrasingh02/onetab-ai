@@ -4,6 +4,7 @@ import { ConnectorRegistryService } from '@org/api-integrations';
 import { PrismaService } from '@org/database';
 import {
   BUSINESS_COWORKER_KEYS,
+  CANVAS_AGENT_TRIGGER,
   PLANS_CONFIG,
   buildConnectableApps,
   buildRosterConnectors,
@@ -82,10 +83,21 @@ export class CoworkerRosterService {
     const [summaries, workflows, runs30, runsMonth, lastRuns, waiting, openTasks, doneTasks, subscription, aiRunsThisMonth, runningNow] =
       await Promise.all([
         this.connectors.list(workspaceId, userId),
-        this.prisma.automationWorkflow.findMany({
-          where: { workspaceId, archivedAt: null, nodesJson: { contains: 'AI_COWORKER' } },
-          select: { id: true, name: true, isActive: true, nodesJson: true },
-        }),
+        // Automations, plus Studio canvases read from the canvas itself (so a step
+        // counts as soon as it's saved), not from the engine copy each run syncs.
+        Promise.all([
+          this.prisma.automationWorkflow.findMany({
+            where: { workspaceId, archivedAt: null, triggerType: { not: CANVAS_AGENT_TRIGGER }, nodesJson: { contains: 'AI_COWORKER' } },
+            select: { id: true, name: true, isActive: true, nodesJson: true },
+          }),
+          this.prisma.aIAgent.findMany({
+            where: { workspaceId, type: 'agent', isActive: true, graphJson: { contains: 'AI_COWORKER' } },
+            select: { id: true, name: true, isActive: true, graphJson: true },
+          }),
+        ]).then(([automations, canvases]) => [
+          ...automations.map((w) => ({ id: w.id, name: w.name, isActive: w.isActive, nodesJson: w.nodesJson, kind: 'automation' as const })),
+          ...canvases.map((a) => ({ id: a.id, name: a.name, isActive: a.isActive, nodesJson: a.graphJson, kind: 'canvas' as const })),
+        ]),
         this.prisma.aIExecution.groupBy({
           by: ['agentId', 'status'],
           where: { workspaceId, agentId: { in: ids }, startedAt: { gte: since30 } },
@@ -206,6 +218,7 @@ export class CoworkerRosterService {
             id: w.id,
             name: w.name,
             isActive: w.isActive,
+            kind: w.kind,
             sharedWith: w.coworkerIds.filter((id) => id !== c.id && nameOf.has(id)).map((id) => ({ id, name: nameOf.get(id) as string })),
           })),
         channels: c._count.channelCoworkers,

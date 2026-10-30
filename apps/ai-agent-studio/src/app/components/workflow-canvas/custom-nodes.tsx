@@ -1,4 +1,5 @@
 import {
+  AiEntityAvatar,
   AppSelect,
   Badge,
   Button,
@@ -47,6 +48,8 @@ import {
   StickyNote,
   Trash2,
   UserCheck,
+  Users,
+  Workflow,
   Wrench,
   X,
   Zap,
@@ -64,6 +67,7 @@ import { useModelLabel, useModelOptions } from './agent-config/use-agent-config-
 import { CATALOG_NODES,type CatalogNodeItem, type NodeCategory } from './node-library.js';
 import { AppConnectorIcon } from '../common/app-connector-icon.jsx';
 import { useConnectorCatalogNodes, useConnectorNode } from './connector-nodes.js';
+import { TEAM_REF_KEY, teamMemberFor, useWorkspaceTeam, type TeamStepType } from './team-nodes.js';
 import { useNavigate } from '../../router.js';
 import { useWorkflowLayout, type WorkflowDirection, type WorkflowEdgeStyle } from './workflow-layout-context.js';
 import { firstIssue, type AgentModuleId, type ModuleSummary } from './agent-config/agent-module-model.js';
@@ -2294,6 +2298,61 @@ export const GenericStudioNode = memo(({ id, data, selected }: NodeProps) => {
   );
 });
 GenericStudioNode.displayName = 'GenericStudioNode';
+
+const TEAM_NODE: Record<string, { kind: string; entity: 'coworker' | 'agent' | null; icon: typeof Bot; verb: string }> = {
+  AI_COWORKER: { kind: 'AI Coworker', entity: 'coworker', icon: Users, verb: 'coworker' },
+  CALL_AGENT: { kind: 'Saved Agent', entity: 'agent', icon: Bot, verb: 'agent' },
+  RUN_WORKFLOW: { kind: 'Automation', entity: null, icon: Workflow, verb: 'automation' },
+};
+
+// 10b. Team member — a coworker, saved agent or automation the workspace already has, run as itself.
+export const TeamMemberNode = memo(({ id, type, data, selected }: NodeProps) => {
+  const nodeData = data as WorkflowNodePayload;
+  const cfg = nodeData.config || {};
+  const meta = TEAM_NODE[String(type)] ?? TEAM_NODE['AI_COWORKER'];
+  const team = useWorkspaceTeam();
+  const refId = cfg[TEAM_REF_KEY[String(type) as TeamStepType] ?? 'coworkerId'];
+  const member = teamMemberFor(team, String(type), refId);
+  const missing = !!refId && !team.loading && !member;
+  const task = typeof cfg.task === 'string' && cfg.task.trim() ? cfg.task.trim() : '';
+  return (
+    <NodeShell
+      id={id}
+      data={nodeData}
+      selected={selected}
+      tone="violet"
+      className="min-w-[230px] max-w-[290px]"
+      header={{
+        title: member?.name ?? nodeData.label,
+        description: meta.kind,
+        defaultTitle: meta.kind,
+        defaultDescription: `Hand work to a ${meta.verb}`,
+        icon: meta.icon,
+        iconBg: 'bg-accent-violet/15 text-accent-violet',
+        customIcon:
+          member && meta.entity ? <AiEntityAvatar name={member.name} kind={meta.entity} avatarUrl={member.avatarUrl} size="sm" /> : undefined,
+        badge: member && !member.isActive ? (
+          <span className="rounded-full bg-warning/15 px-1.5 py-0.5 text-2xs font-semibold text-warning">{meta.entity ? 'Paused' : 'Off'}</span>
+        ) : undefined,
+      }}
+    >
+      <div className="mt-2 space-y-1 text-2xs">
+        {!refId ? (
+          <p className="text-warning">Pick which {meta.verb} does this step.</p>
+        ) : missing ? (
+          <p className="text-destructive">This {meta.verb} no longer exists in this workspace.</p>
+        ) : member?.detail ? (
+          <p className="truncate text-muted-foreground">{member.detail}</p>
+        ) : null}
+        <p className="line-clamp-2 text-muted-foreground">
+          <span className="font-medium text-foreground">Task: </span>
+          {task || 'Whatever the previous step produced'}
+        </p>
+      </div>
+    </NodeShell>
+  );
+});
+TeamMemberNode.displayName = 'TeamMemberNode';
 // 11. Sticky Note / Documentation Node
 export const StickyNoteNode = memo(({ id, data, selected }: NodeProps) => {
   const nodeData = data as WorkflowNodePayload;
@@ -2483,6 +2542,9 @@ const BASE_NODE_TYPES: Record<string, any> = {
   AGENT: AgentNode,
   SUB_AGENT: AgentNode,
   AGENT_COORDINATOR: AgentNode,
+  AI_COWORKER: TeamMemberNode,
+  CALL_AGENT: TeamMemberNode,
+  RUN_WORKFLOW: TeamMemberNode,
   AI_CHAT_MODEL: LlmNode,
   INTENT_CLASSIFIER: AgentNode,
   STRUCTURED_OUTPUT: AgentNode,

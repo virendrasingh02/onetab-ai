@@ -54,6 +54,8 @@ export interface RosterWorkflow {
   id: string;
   name: string;
   isActive: boolean;
+  /** `canvas`: a Studio canvas (an agent, opened by its id); `automation`: an automation workflow. */
+  kind: 'canvas' | 'automation';
   /** Other coworkers the same workflow also calls. */
   sharedWith: Array<{ id: string; name: string }>;
 }
@@ -240,14 +242,18 @@ export function buildConnectableApps(input: {
   return out.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** Ids of the coworkers an automation workflow's AI_COWORKER nodes call. */
+/**
+ * Ids of the coworkers a workflow's AI_COWORKER nodes call — an automation's
+ * `nodesJson` (a node array) or a Studio canvas `graphJson` (`{ nodes }`).
+ */
 export function workflowCoworkerIds(nodesJson: string | null | undefined): string[] {
-  let nodes: unknown;
+  let parsed: unknown;
   try {
-    nodes = JSON.parse(nodesJson || '[]');
+    parsed = JSON.parse(nodesJson || '[]');
   } catch {
     return [];
   }
+  const nodes = Array.isArray(parsed) ? parsed : (parsed as { nodes?: unknown } | null)?.nodes;
   if (!Array.isArray(nodes)) return [];
   const ids = new Set<string>();
   for (const node of nodes as Array<Record<string, any>>) {

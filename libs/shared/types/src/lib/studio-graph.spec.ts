@@ -472,6 +472,28 @@ describe('studioGraphApps', () => {
     });
   });
 
+  it('counts planner-made app steps that only name the app they need', () => {
+    const graphJson = JSON.stringify({
+      nodes: [
+        node('t', 'START'),
+        node('git', 'MCP_TOOL', {
+          toolName: 'GITHUB.list_commits',
+          needsConnection: 'GITHUB',
+        }),
+        // No action picked yet — the app is still needed.
+        node('slack', 'MCP_TOOL', { toolName: '', needsConnection: 'SLACK' }),
+        // A workspace MCP server tool needs no app connection.
+        node('mcp', 'MCP_TOOL', { toolName: 'search' }),
+      ],
+      edges: [edge('t', 'git'), edge('git', 'slack'), edge('slack', 'mcp')],
+    });
+    expect(studioGraphApps(graphJson)).toEqual({
+      providers: ['GITHUB', 'SLACK'],
+      tools: ['github_list_commits'],
+      approvalTools: [],
+    });
+  });
+
   it('is empty for anything that is not a canvas', () => {
     expect(studioGraphApps(null)).toEqual({
       providers: [],
@@ -713,5 +735,48 @@ describe('app step after an agent', () => {
     expect(
       result.nodes.find((n) => n.id === 'g__approval')?.config['reviewText'],
     ).toBeDefined();
+  });
+});
+
+describe('compileStudioGraph — team steps', () => {
+  it('runs a coworker, a saved agent and an automation as themselves', () => {
+    const out = compileStudioGraph({
+      nodes: [
+        node('t', 'TRIGGER_MANUAL'),
+        node('c', 'AI_COWORKER', { coworkerId: 'ledger', task: 'Reconcile {{t.message}}' }),
+        node('a', 'CALL_AGENT', { agentId: 'writer' }),
+        node('w', 'RUN_WORKFLOW', { workflowId: 'wf1' }),
+      ],
+      edges: [edge('t', 'c'), edge('c', 'a'), edge('a', 'w')],
+    });
+    const byId = Object.fromEntries(out.nodes.map((n) => [n.id, n]));
+    expect(byId['c']).toMatchObject({ type: 'AI_COWORKER', config: { coworkerId: 'ledger', task: 'Reconcile {{t.message}}' } });
+    // A saved agent is an AGENT step with no inline spec: the entity's own turn.
+    expect(byId['a']).toMatchObject({ type: 'AGENT', config: { agentId: 'writer', goal: `{{${LAST_OUTPUT_KEY}}}` } });
+    expect(byId['a']?.config['inlineAgent']).toBeUndefined();
+    expect(byId['w']).toMatchObject({ type: 'RUN_WORKFLOW', config: { workflowId: 'wf1', input: { message: `{{${LAST_OUTPUT_KEY}}}` } } });
+    // Saved agents aren't canvas agents.
+    expect(out.agents).toEqual([]);
+    expect(out.issues.filter((i) => i.level === 'error')).toEqual([]);
+  });
+
+  it('asks for a pick when a team step has none', () => {
+    const out = compileStudioGraph({
+      nodes: [node('t', 'TRIGGER_MANUAL'), node('c', 'AI_COWORKER'), node('a', 'CALL_AGENT'), node('w', 'RUN_WORKFLOW')],
+      edges: [edge('t', 'c'), edge('c', 'a'), edge('a', 'w')],
+    });
+    expect(out.issues.filter((i) => i.level === 'error').map((i) => i.nodeId).sort()).toEqual(['a', 'c', 'w']);
+  });
+
+  it('does not hand off to a saved agent drawn before an app action', () => {
+    const out = compileStudioGraph({
+      nodes: [
+        node('t', 'TRIGGER_MANUAL'),
+        node('a', 'CALL_AGENT', { agentId: 'writer' }),
+        node('s', 'APP_CONNECTOR_ACTION', { provider: 'SLACK', connectorId: 'slack', actionId: 'send_message', input: {} }),
+      ],
+      edges: [edge('t', 'a'), edge('a', 's')],
+    });
+    expect(out.nodes.find((n) => n.id === 'a')?.config['inlineAgent']).toBeUndefined();
   });
 });

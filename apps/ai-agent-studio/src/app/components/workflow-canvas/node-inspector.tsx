@@ -5,6 +5,7 @@ import type { Connection, Edge, Node } from '@xyflow/react';
 import {
   Braces,
   ChevronRight,
+  ExternalLink,
   Flame,
   LayoutDashboard,
   Link2,
@@ -26,6 +27,10 @@ import {
 } from './agent-config/agent-module-model.js';
 import { AgentModulesOverview } from './agent-config/agent-modules-overview.js';
 import { useConnectors } from '../../services/connectors.js';
+import { WEB_APP_URL } from '../../auth-redirect.js';
+import { useNavigate } from '../../router.js';
+import { useStudioSession } from '../../session-guard.js';
+import { TEAM_REF_KEY, TEAM_STEP_TYPES, useWorkspaceTeam, type TeamStepType } from './team-nodes.js';
 import { variableOptions } from './variable-options.js';
 import { ModuleDrawer, type ModuleActions } from './agent-config/module-drawer.js';
 import { useBuiltinTools, useKnowledgeBases, useMediaQuery, useModelOptions } from './agent-config/use-agent-config-data.js';
@@ -1178,6 +1183,16 @@ export function NodeInspector({
           </div>
         )}
 
+        {/* 7b. YOUR TEAM — a coworker, saved agent or automation used as a step */}
+        {TEAM_STEP_TYPES.has(nodeType) && (
+          <TeamStepConfig
+            type={nodeType as TeamStepType}
+            config={config}
+            disabled={readOnly}
+            onChange={updateConfig}
+          />
+        )}
+
         {/* 8. KNOWLEDGE & RETRIEVAL CONFIGURATION */}
         {(nodeType === 'KB_SEARCH' || nodeType === 'VECTOR_SEARCH' || nodeType === 'KNOWLEDGE_RETRIEVAL') && (
           <div className="space-y-3 pt-2 border-t border-border">
@@ -1348,6 +1363,102 @@ function KnowledgeBaseSelect({ value, onChange, disabled }: { value: string; onC
         onValueChange={onChange}
       />
       {missing && <p className="text-2xs text-destructive">That knowledge base no longer exists — pick another.</p>}
+    </div>
+  );
+}
+
+const TEAM_COPY: Record<TeamStepType, { label: string; placeholder: string; empty: string; task: string }> = {
+  AI_COWORKER: {
+    label: 'Coworker',
+    placeholder: 'Pick a coworker',
+    empty: 'No coworkers yet',
+    task: 'It works the task with its own apps, specialists and approvals — writes and payments still wait for sign-off.',
+  },
+  CALL_AGENT: {
+    label: 'Agent',
+    placeholder: 'Pick an agent',
+    empty: 'No other agents yet',
+    task: 'It answers with its own model, tools and connected apps.',
+  },
+  RUN_WORKFLOW: {
+    label: 'Automation',
+    placeholder: 'Pick an automation',
+    empty: 'No automations yet',
+    task: 'Sent to the automation as {{message}}.',
+  },
+};
+
+/** Who does a team step, and what they're asked to do. */
+function TeamStepConfig({
+  type,
+  config,
+  disabled,
+  onChange,
+}: {
+  type: TeamStepType;
+  config: Record<string, any>;
+  disabled?: boolean;
+  onChange: (key: string, value: unknown) => void;
+}) {
+  const team = useWorkspaceTeam();
+  const navigate = useNavigate();
+  const { activeWorkspace } = useStudioSession();
+  const key = TEAM_REF_KEY[type];
+  const value = typeof config[key] === 'string' ? (config[key] as string) : '';
+  const copy = TEAM_COPY[type];
+  const list = type === 'AI_COWORKER' ? team.coworkers : type === 'CALL_AGENT' ? team.agents : team.automations;
+  const options = list.map((m) => ({
+    value: m.id,
+    label: m.name,
+    description: [m.detail, m.isActive ? null : type === 'RUN_WORKFLOW' ? 'off' : 'paused'].filter(Boolean).join(' · ') || undefined,
+  }));
+  const missing = Boolean(value) && !team.loading && !list.some((m) => m.id === value);
+  if (missing) options.unshift({ value, label: value, description: 'Not found in this workspace' });
+
+  const open = () => {
+    if (type === 'AI_COWORKER') navigate('/coworkers');
+    else if (type === 'CALL_AGENT') navigate(`/agents/${value}`);
+    else window.open(`${WEB_APP_URL}/w/${activeWorkspace.slug}/automations/builder/${value}`, '_blank', 'noopener');
+  };
+
+  return (
+    <div className="space-y-3 pt-2 border-t border-border">
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <Label className="text-xs font-semibold text-foreground">{copy.label}</Label>
+          {value && !missing ? (
+            <Button size="xs" variant="ghost" trailingIcon={<ExternalLink />} onClick={open}>
+              Open
+            </Button>
+          ) : null}
+        </div>
+        <AppSelect
+          size="sm"
+          searchable
+          value={value}
+          placeholder={copy.placeholder}
+          loading={team.loading}
+          disabled={disabled}
+          aria-label={copy.label}
+          options={options}
+          emptyText={team.error ? `Couldn’t load your ${copy.label.toLowerCase()}s` : copy.empty}
+          onValueChange={(v) => onChange(key, v)}
+        />
+        {missing && <p className="text-2xs text-destructive">That {copy.label.toLowerCase()} no longer exists — pick another.</p>}
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold text-foreground">Task</Label>
+        <Textarea
+          rows={3}
+          value={typeof config['task'] === 'string' ? config['task'] : ''}
+          disabled={disabled}
+          placeholder="Leave empty to pass on what the previous step produced"
+          onChange={(e) => onChange('task', e.target.value)}
+        />
+        <p className="text-2xs text-muted-foreground">
+          Use {'{{step.field}}'} to include earlier results. {copy.task}
+        </p>
+      </div>
     </div>
   );
 }

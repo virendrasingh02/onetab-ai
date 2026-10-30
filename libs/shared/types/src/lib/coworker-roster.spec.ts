@@ -82,6 +82,17 @@ describe('workflowCoworkerIds', () => {
     expect(workflowCoworkerIds(JSON.stringify(nodes))).toEqual(['a', 'b', 'c']);
     expect(workflowCoworkerIds('not json')).toEqual([]);
   });
+
+  it('reads a Studio canvas graph', () => {
+    const graph = {
+      nodes: [
+        { id: 'c1', type: 'AI_COWORKER', data: { label: 'Ledger', config: { coworkerId: 'ledger' } } },
+        { id: 'a1', type: 'AGENT', data: { config: {} } },
+      ],
+      edges: [],
+    };
+    expect(workflowCoworkerIds(JSON.stringify(graph))).toEqual(['ledger']);
+  });
 });
 
 describe('business coworker templates', () => {

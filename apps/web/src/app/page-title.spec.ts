@@ -62,7 +62,7 @@ describe('resolvePageTitle — static routes', () => {
     ['/w/acme/files', 'Files'],
     ['/w/acme/inbox', 'Inbox'],
     ['/w/acme/threads', 'Threads'],
-    ['/w/acme/directory', 'Team Directory'],
+    ['/w/acme/directory', 'People'],
     ['/w/acme/members', 'Team Directory'],
     ['/w/acme/dashboard', 'Dashboard'],
     ['/w/acme/meetings', 'Meetings'],

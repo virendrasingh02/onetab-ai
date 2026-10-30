@@ -949,9 +949,11 @@ function WorkflowCanvasInner({
         <button
           type="button"
           onClick={() => setIsCatalogOpen((prev) => !prev)}
-          title="Add Node to Workflow (Ctrl+K)"
+          disabled={isLocked}
+          title={isLocked ? 'Unlock the canvas to add steps' : 'Add Node to Workflow (Ctrl+K)'}
           className={cn(
             'size-8.5 rounded-full transition-all duration-200 cursor-pointer flex items-center justify-center shrink-0',
+            'disabled:pointer-events-none disabled:opacity-40',
             'bg-foreground text-background shadow-md shadow-foreground/15',
             'hover:bg-foreground/85 hover:scale-110 hover:shadow-lg hover:shadow-foreground/15 active:scale-95',
             'ring-2 ring-foreground/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/55',
@@ -2637,6 +2639,12 @@ export function AgentDetailPage() {
 
   const handleAddNode = useCallback(
     (node: Node, options?: { silent?: boolean }) => {
+      // Every add path (library, Ctrl+K, right-click, paste, edge split) lands
+      // here, so this is where a locked or view-only canvas refuses changes.
+      if (isCanvasLocked) {
+        toast.error(canManage ? 'Unlock the canvas to add steps' : 'You can view this agent but not edit it');
+        return;
+      }
       const withSelected: Node = {
         ...node,
         selected: true,
@@ -2647,11 +2655,12 @@ export function AgentDetailPage() {
       focusNode(node);
       if (!options?.silent) toast.success(`Added "${node.data?.label || 'Node'}"`);
     },
-    [focusNode, setSelectedNode],
+    [focusNode, setSelectedNode, isCanvasLocked, canManage],
   );
 
   const handleConnectNextNode = useCallback(
     (sourceNode: Node, item: any, handleId?: string, options?: { select?: boolean }) => {
+      if (isCanvasLocked) return;
       const select = options?.select !== false;
       const newNodeId = `${item.type.toLowerCase()}-${Date.now().toString(36)}`;
       const slot = isSlotHost(sourceNode.type) ? getSlot(handleId) : undefined;
@@ -2725,7 +2734,7 @@ export function AgentDetailPage() {
           : `Connected "${item.label}" to "${sourceNode.data?.label || 'Node'}"`,
       );
     },
-    [focusNode, nodes, edges, workflowDirection, setSelectedNode],
+    [focusNode, nodes, edges, workflowDirection, setSelectedNode, isCanvasLocked],
   );
 
   /** Opens a node's panel (optionally at one of its modules), asking first if a drawer has unsaved edits. */

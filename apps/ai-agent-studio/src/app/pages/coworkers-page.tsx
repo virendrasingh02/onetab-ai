@@ -40,6 +40,7 @@ import {
   Unlink,
   Users,
 } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { WEB_APP_URL } from '../auth-redirect.js';
 import {
@@ -53,6 +54,7 @@ import {
 } from '../components/common/ai-entity-summary.js';
 import { AppConnectorIcon } from '../components/common/app-connector-icon.jsx';
 import { useNavigate } from '../router.js';
+import { agentService } from '../services/agentService.js';
 import { useStudioSession } from '../session-guard.js';
 
 const STATE_LABEL: Record<RosterConnector['state'], string> = {
@@ -677,24 +679,58 @@ function ConnectorsSection({ coworker: c, connectable, workspaceId }: { coworker
   );
 }
 
+/**
+ * The canvases and automations that hand work to this coworker. Coworkers are
+ * built into workflows on the one Studio canvas (Your team → coworker step),
+ * next to agents, apps and automations — not in a builder of their own.
+ */
 function WorkflowsSection({ coworker: c, slug }: { coworker: CoworkerRosterEntry; slug: string }) {
   const navigate = useNavigate();
+  const { activeWorkspace } = useStudioSession();
+  const { can } = useWorkspacePermission();
+  // A workflow is a new canvas agent: same "Who can create AI agents" policy the server checks.
+  const { canCreateAgents } = useCreationPolicies(activeWorkspace.id);
+  const queryClient = useQueryClient();
   const shared = c.workflows.filter((w) => w.sharedWith.length).length;
+  const create = useMutation({
+    mutationFn: () => agentService.createCoworkerWorkflow(activeWorkspace.id, { id: c.id, name: c.name }),
+    onSuccess: (agent) => {
+      void queryClient.invalidateQueries({ queryKey: ['agents', activeWorkspace.id] });
+      navigate(`/agents/${agent.id}`);
+    },
+    onError: (error) => toast.error('Couldn’t create the workflow', { description: errorText(error, '') }),
+  });
+  const open = (w: CoworkerRosterEntry['workflows'][number]) => {
+    if (w.kind === 'canvas') navigate(`/agents/${w.id}`);
+    else window.open(`${WEB_APP_URL}/w/${slug}/automations/builder/${w.id}`, '_blank', 'noopener');
+  };
   return (
     <section aria-label="Workflows">
-      <SectionTitle icon={<GitBranch />}>
+      <SectionTitle
+        icon={<GitBranch />}
+        aside={
+          can('create') && canCreateAgents ? (
+            <Button size="sm" variant="ghost" leadingIcon={<Plus />} loading={create.isPending} onClick={() => create.mutate()}>
+              Use in a workflow
+            </Button>
+          ) : undefined
+        }
+      >
         Workflows ({c.workflows.length}
         {shared ? ` · ${shared} shared` : ''})
       </SectionTitle>
       {c.workflows.length === 0 ? (
-        <p className="text-xs text-muted-foreground">No workflow calls {c.name} yet. Add an “AI coworker” step on the canvas to group work under it.</p>
+        <p className="text-xs text-muted-foreground">
+          No workflow hands work to {c.name} yet. On any canvas, add a step from <span className="text-foreground">Your team</span> to put {c.name} to work next to your agents, apps and automations.
+        </p>
       ) : (
         <ul className="flex flex-wrap gap-2">
           {c.workflows.map((w) => (
             <li key={w.id}>
               <button
                 type="button"
-                onClick={() => navigate(`/w/${slug}/ai/workflows/${w.id}`)}
+                onClick={() => open(w)}
+                title={w.kind === 'canvas' ? 'Open on the canvas' : 'Open the automation in the main app'}
                 className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <span className={`size-1.5 rounded-full ${w.isActive ? 'bg-success' : 'bg-muted-foreground/50'}`} aria-hidden />

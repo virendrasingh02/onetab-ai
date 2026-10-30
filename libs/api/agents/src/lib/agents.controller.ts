@@ -250,7 +250,7 @@ export class AgentsController {
   getMarketplaceListing(
     @WorkspaceId() workspaceId: string,
     @Param('agentId') agentId: string,
-  ) {
+  ): ReturnType<MarketplaceService['getStudioListing']> {
     return this.marketplace.getStudioListing(workspaceId, agentId);
   }
 

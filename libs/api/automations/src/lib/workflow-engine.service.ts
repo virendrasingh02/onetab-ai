@@ -2596,6 +2596,20 @@ export class WorkflowEngineService {
             'Maximum workflow invocation depth exceeded (5). Potential circular dependency.',
           );
         }
+        // Only an automation of this run's own workspace, never one picked by id from elsewhere.
+        const target = await this.prisma.automationWorkflow.findFirst({
+          where: {
+            id: targetWorkflowId,
+            workspaceId: env.workflow.workspaceId,
+            archivedAt: null,
+          },
+          select: { id: true },
+        });
+        if (!target) {
+          throw new Error(
+            `${node.label || 'Run automation'}: the automation it runs no longer exists in this workspace.`,
+          );
+        }
         let rawInput: unknown = cfg['input'] ?? {};
         if (typeof rawInput === 'string') {
           try {

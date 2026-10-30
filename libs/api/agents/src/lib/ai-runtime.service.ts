@@ -1161,7 +1161,7 @@ export class AIRuntimeService {
     ];
     const tools = plan.toolSchemas.length > 0 ? plan.toolSchemas : undefined;
     let tokensUsed = 0;
-    const callModel = async () => {
+    const callModel = async (withTools = true) => {
       const calledAt = Date.now();
       const result = await this.aiService.chat({
         provider,
@@ -1169,7 +1169,7 @@ export class AIRuntimeService {
         apiKey: cred.apiKey,
         baseUrl: cred.baseUrl,
         messages,
-        tools,
+        tools: withTools ? tools : undefined,
         ...plan.sampling,
       });
       tokensUsed += result.usage?.totalTokens ?? 0;
@@ -1217,6 +1217,17 @@ export class AIRuntimeService {
       await team;
       calls.forEach((call, i) => messages.push({ role: 'tool', toolCallId: call.id, name: call.function.name, content: contents[i]! }));
       chatResult = await callModel();
+    }
+    // Out of tool rounds while the model still wants another tool: its text is
+    // a "let me check…" aside, not an answer. One last call without tools makes
+    // it answer from what it already found.
+    if ((chatResult.message.toolCalls?.length ?? 0) > 0) {
+      messages.push({
+        role: 'user',
+        content:
+          'You have used every tool call available for this request. Answer now from what you found so far, and say plainly what you could not find.',
+      });
+      chatResult = await callModel(false);
     }
     return { content: chatResult.message.content, tokensUsed };
   }

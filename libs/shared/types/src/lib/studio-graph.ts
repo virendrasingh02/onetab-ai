@@ -467,6 +467,7 @@ const TEMPLATED_KEYS = [
   'url',
   'body',
   'goal',
+  'task',
   'message',
 ];
 /** What the engine's `interpolateVariables` resolves: a plain dotted path. */
@@ -570,6 +571,25 @@ export function studioGraphApps(
     ? graph.nodes
     : []) as CanvasGraphNode[]) {
     const type = typeOf(node);
+    // Planner-made app steps are MCP_TOOL cards that name the app they need
+    // (`needsConnection`, tool `GITHUB.list_commits`). Missing them made the
+    // agent read as ready while its run failed on MISSING_CONNECTION.
+    if (type === 'MCP_TOOL') {
+      const cfg = configOf(node);
+      const needs = cfg['needsConnection'];
+      if (typeof needs !== 'string' || !needs) continue;
+      const provider = providerKey(needs);
+      if (!provider) continue;
+      add(out.providers, provider);
+      const toolName = typeof cfg['toolName'] === 'string' ? cfg['toolName'] : '';
+      const actionId = toolName.includes('.') ? toolName.slice(toolName.indexOf('.') + 1) : '';
+      if (actionId) {
+        const tool = connectorToolName(provider, actionId);
+        add(out.tools, tool);
+        if (isTruthy(cfg['requireApproval'])) add(out.approvalTools, tool);
+      }
+      continue;
+    }
     if (!CONNECTOR_ACTION_TYPES.has(type)) continue;
     const cfg = configOf(node);
     const ref = connectorRefOf(type, cfg);
@@ -1176,6 +1196,47 @@ export function compileStudioGraph(graph: {
           template: asText(cfg['prompt']) ?? asText(cfg['template']) ?? LAST,
         });
 
+      // Workspace team members: a saved coworker, agent or automation used
+      // as a step. Each runs as itself (its own tools, apps, approvals).
+      case 'AI_COWORKER':
+        if (!asText(cfg['coworkerId'])) {
+          issues.push({
+            nodeId: node.id,
+            level: 'error',
+            message: `${label ?? 'AI coworker'}: pick the coworker this step hands work to.`,
+          });
+        }
+        return step('AI_COWORKER', {
+          coworkerId: asText(cfg['coworkerId']) ?? '',
+          task: asText(cfg['task']) ?? LAST,
+        });
+      case 'CALL_AGENT':
+        if (!asText(cfg['agentId'])) {
+          issues.push({
+            nodeId: node.id,
+            level: 'error',
+            message: `${label ?? 'Saved agent'}: pick the agent this step hands work to.`,
+          });
+        }
+        // An `AGENT` step without `inlineAgent` is a saved entity's own turn.
+        return step('AGENT', {
+          agentId: asText(cfg['agentId']) ?? '',
+          goal: asText(cfg['task']) ?? LAST,
+        });
+      case 'RUN_WORKFLOW':
+      case 'SUB_WORKFLOW':
+        if (!asText(cfg['workflowId'])) {
+          issues.push({
+            nodeId: node.id,
+            level: 'error',
+            message: `${label ?? 'Run automation'}: pick the automation to run.`,
+          });
+        }
+        return step('RUN_WORKFLOW', {
+          workflowId: asText(cfg['workflowId']) ?? '',
+          input: { message: asText(cfg['task']) ?? LAST },
+        });
+
       case 'KB_SEARCH':
       case 'VECTOR_SEARCH':
       case 'KNOWLEDGE_RETRIEVAL':
@@ -1463,7 +1524,7 @@ export function compileStudioGraph(graph: {
   // The agents as drawn — chat and the profile read these, so the run-only
   // hand-off note added below stays out of them.
   const agents = compiled
-    .filter((n) => n.type === 'AGENT')
+    .filter((n) => n.type === 'AGENT' && n.config['inlineAgent'])
     .map((n) => n.config['inlineAgent'] as InlineAgentSpec);
 
   const runEdges: CompiledStudioGraph['edges'] = [];
@@ -1504,7 +1565,10 @@ export function compileStudioGraph(graph: {
     const incoming = runEdges.filter((e) => e.target === node.id);
     const agents = incoming
       .map((e) => compiledById.get(e.source))
-      .filter((n): n is CompiledStudioNode => n?.type === 'AGENT');
+      .filter(
+        (n): n is CompiledStudioNode =>
+          n?.type === 'AGENT' && !!n.config['inlineAgent'],
+      );
     if (!agents.length) continue;
     const title = labelOf(node) ?? `${ref.provider} ${ref.id}`;
     const action = ref.id.replace(/_/g, ' ');

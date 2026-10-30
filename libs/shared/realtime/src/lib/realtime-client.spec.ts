@@ -76,7 +76,8 @@ describe('RealtimeClient', () => {
     expect(client.getState()).toBe('disconnected');
   });
 
-  it('falls back to the token in the URL when the ticket endpoint fails', async () => {
+  it('retries instead of putting the token in the URL when the ticket endpoint fails', async () => {
+    vi.useFakeTimers();
     vi.mocked(http.post).mockRejectedValueOnce(new Error('offline'));
 
     const bus = new RealtimeEventBus();
@@ -88,11 +89,17 @@ describe('RealtimeClient', () => {
     });
 
     client.connect();
-    await flush();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mockEventSourceInstances.length).toBe(0);
+    expect(client.getState()).toBe('disconnected');
 
-    const es = mockEventSourceInstances[0];
-    expect(es.url).toContain('token=valid-jwt-token');
+    // The backoff retry gets a ticket and connects without the token.
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(mockEventSourceInstances.length).toBe(1);
+    expect(mockEventSourceInstances[0].url).toContain('ticket=tkt-1');
+    expect(mockEventSourceInstances[0].url).not.toContain('valid-jwt-token');
     client.dispose();
+    vi.useRealTimers();
   });
 
   it('receives incoming events and routes to event bus', async () => {
