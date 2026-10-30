@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { formatSystemEventFallbackText, type StructuredChatMessage } from '@org/types';
+import {
+  formatSystemEventFallbackText,
+  type StructuredChatMessage,
+} from '@org/types';
 import { MatrixAdminService } from './matrix-admin.service.js';
 
 /** A human-readable fallback for clients that don't understand a given
@@ -7,6 +10,13 @@ import { MatrixAdminService } from './matrix-admin.service.js';
  *  builds in `@org/matrix-client`, kept in sync deliberately so a room reads the
  *  same way regardless of which side posted the event. */
 function fallbackBodyFor(event: StructuredChatMessage): string {
+  const body = fallbackText(event);
+  return body.length > MAX_FALLBACK_BODY_CHARS
+    ? `${body.slice(0, MAX_FALLBACK_BODY_CHARS)}…`
+    : body;
+}
+
+function fallbackText(event: StructuredChatMessage): string {
   switch (event.type) {
     case 'mie.ai.agent':
       return event.responseText || event.summary || 'AI Agent Response';
@@ -23,6 +33,66 @@ function fallbackBodyFor(event: StructuredChatMessage): string {
     default:
       return 'Application Message';
   }
+}
+
+/**
+ * Synapse rejects any event over 64 KiB ("event too large"), and a reply whose
+ * tools returned scraped pages or search results easily blows past that, so
+ * the whole turn failed to post. Tool inputs/outputs are diagnostics shown
+ * in a collapsed panel, so they are clipped first; only if that is not enough
+ * is the answer itself shortened. The budget leaves room for the fallback
+ * body and the relation/envelope around the event.
+ */
+const MAX_STRUCTURED_BYTES = 24 * 1024;
+const MAX_TOOL_DETAIL_CHARS = 1500;
+const MAX_FALLBACK_BODY_CHARS = 2000;
+
+function byteSize(value: unknown): number {
+  return Buffer.byteLength(JSON.stringify(value) ?? '', 'utf8');
+}
+
+function clip(value: unknown, maxChars: number): unknown {
+  if (value === undefined || value === null) return value;
+  const text = typeof value === 'string' ? value : JSON.stringify(value);
+  if (text === undefined || text.length <= maxChars) return value;
+  return `${text.slice(0, maxChars)}… (truncated)`;
+}
+
+export function fitStructuredEvent(
+  event: StructuredChatMessage,
+  maxBytes = MAX_STRUCTURED_BYTES,
+): StructuredChatMessage {
+  if (event.type !== 'mie.ai.agent' || byteSize(event) <= maxBytes)
+    return event;
+
+  let fitted = {
+    ...event,
+    tools: event.tools?.map((tool) => ({
+      ...tool,
+      input: clip(tool.input, MAX_TOOL_DETAIL_CHARS),
+      output: clip(tool.output, MAX_TOOL_DETAIL_CHARS),
+    })),
+  };
+  if (byteSize(fitted) <= maxBytes) return fitted;
+
+  fitted = {
+    ...fitted,
+    tools: fitted.tools?.map((tool) => ({
+      ...tool,
+      input: undefined,
+      output: undefined,
+    })),
+  };
+  const overflow = byteSize(fitted) - maxBytes;
+  if (overflow <= 0 || !fitted.responseText) return fitted;
+
+  const keep = Math.max(0, fitted.responseText.length - overflow - 64);
+  return {
+    ...fitted,
+    responseText: `${fitted.responseText.slice(0, keep)}
+
+… (reply shortened to fit)`,
+  };
 }
 
 /**
@@ -70,7 +140,9 @@ export class MatrixBotMessagingService {
     return this.admin.sendEventAs(roomId, senderMatrixId, 'm.room.message', {
       msgtype: 'm.text',
       body: text,
-      ...(Object.keys(relatesTo).length > 0 ? { 'm.relates_to': relatesTo } : {}),
+      ...(Object.keys(relatesTo).length > 0
+        ? { 'm.relates_to': relatesTo }
+        : {}),
     });
   }
 
@@ -93,6 +165,7 @@ export class MatrixBotMessagingService {
       mentionUserIds?: string[];
     } = {},
   ): Promise<string> {
+    event = fitStructuredEvent(event);
     const fallbackBody = options.fallbackBody || fallbackBodyFor(event);
 
     const relatesTo: Record<string, unknown> = {};
@@ -110,10 +183,12 @@ export class MatrixBotMessagingService {
     return this.admin.sendEventAs(roomId, senderMatrixId, 'm.room.message', {
       msgtype: event.type,
       body: fallbackBody,
+      // One copy only: `extractStructuredEvent` reads `mie_event` first, and
+      // every extra copy counts against the 64 KiB event limit.
       mie_event: event,
-      [event.type]: event,
-      'org.onetab.structured_event': event,
-      ...(Object.keys(relatesTo).length > 0 ? { 'm.relates_to': relatesTo } : {}),
+      ...(Object.keys(relatesTo).length > 0
+        ? { 'm.relates_to': relatesTo }
+        : {}),
       ...(options.mentionUserIds?.length
         ? { 'm.mentions': { user_ids: options.mentionUserIds } }
         : {}),
@@ -133,20 +208,18 @@ export class MatrixBotMessagingService {
     event: StructuredChatMessage,
     options: { fallbackBody?: string; threadRootId?: string } = {},
   ): Promise<void> {
+    event = fitStructuredEvent(event);
     const fallbackBody = options.fallbackBody || fallbackBodyFor(event);
 
+    // Clients apply `m.new_content`; the outer content is only the text
+    // fallback, so the event is not repeated there.
     await this.admin.sendEventAs(roomId, senderMatrixId, 'm.room.message', {
       msgtype: event.type,
       body: `* ${fallbackBody}`,
-      mie_event: event,
-      [event.type]: event,
-      'org.onetab.structured_event': event,
       'm.new_content': {
         msgtype: event.type,
         body: fallbackBody,
         mie_event: event,
-        [event.type]: event,
-        'org.onetab.structured_event': event,
       },
       'm.relates_to': {
         rel_type: 'm.replace',
