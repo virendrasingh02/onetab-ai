@@ -68,8 +68,10 @@ class DesktopLogger {
     } else if (level === 'warn') {
       console.warn(line);
     } else if (level === 'debug') {
+      // eslint-disable-next-line no-console
       if (!app.isPackaged) console.debug(line);
     } else {
+      // eslint-disable-next-line no-console
       console.log(line);
     }
 

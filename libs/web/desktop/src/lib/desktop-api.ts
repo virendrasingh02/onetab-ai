@@ -258,6 +258,22 @@ export interface DesktopFileOpened {
   mimeType?: string;
 }
 
+export interface DesktopAgentExecuteRequest {
+  agentId: string;
+  input: string | Record<string, unknown>;
+  apiKey?: string;
+  sessionId?: string;
+  context?: Record<string, unknown>;
+}
+
+export interface DesktopAgentExecuteResponse {
+  runId: string;
+  status: string;
+  result?: string;
+  error?: string;
+  tools?: unknown[];
+}
+
 export interface DesktopUserActivityPayload {
   activityType: string;
   userInfo?: Record<string, unknown>;
@@ -423,6 +439,10 @@ export interface OneTabDesktopApi {
     onRequest: (handler: (request: DesktopDisplayMediaRequest) => void) => Unsubscribe;
     /** `null` cancels. */
     respond: (requestId: string, sourceId: string | null) => Promise<boolean>;
+  };
+  /** Runs an agent through the shell, which signs the call with the stored session. */
+  agent?: {
+    execute: (request: DesktopAgentExecuteRequest) => Promise<DesktopAgentExecuteResponse>;
   };
   onDeepLink: (handler: (link: DesktopDeepLink) => void) => Unsubscribe;
   onFileOpened?: (handler: (file: DesktopFileOpened) => void) => Unsubscribe;

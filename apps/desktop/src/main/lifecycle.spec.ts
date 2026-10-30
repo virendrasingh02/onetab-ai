@@ -8,6 +8,7 @@ const showAboutPanelMock = vi.fn();
 const dockBounceMock = vi.fn(() => 42);
 const markQuitting = vi.fn();
 const showMainWindow = vi.fn();
+const getMainWindow = vi.fn((): unknown => null);
 
 vi.mock('electron', () => ({
   app: {
@@ -27,6 +28,7 @@ vi.mock('./logger.js', () => ({
 vi.mock('./window.js', () => ({
   markQuitting: (...a: unknown[]) => markQuitting(...a),
   showMainWindow: (...a: unknown[]) => showMainWindow(...a),
+  getMainWindow: () => getMainWindow(),
 }));
 
 const { relaunchArgs, restartApp, quitApp, focusApp, showAboutPanel, dockBounce } = await import(
@@ -73,6 +75,27 @@ describe('focusApp & showAboutPanel & dockBounce', () => {
     focusApp();
     expect(focus).toHaveBeenCalledWith({ steal: true });
     expect(showMainWindow).toHaveBeenCalled();
+  });
+
+  it('focusApp briefly pins the window on top on Windows to get past the foreground lock', () => {
+    const platform = Object.getOwnPropertyDescriptor(process, 'platform');
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    const window = {
+      isDestroyed: () => false,
+      isAlwaysOnTop: () => false,
+      setAlwaysOnTop: vi.fn(),
+      moveTop: vi.fn(),
+      focus: vi.fn(),
+    };
+    getMainWindow.mockReturnValueOnce(window);
+    try {
+      focusApp();
+    } finally {
+      if (platform) Object.defineProperty(process, 'platform', platform);
+    }
+    expect(window.setAlwaysOnTop.mock.calls).toEqual([[true], [false]]);
+    expect(window.moveTop).toHaveBeenCalled();
+    expect(window.focus).toHaveBeenCalled();
   });
 
   it('showAboutPanel delegates to app.showAboutPanel', () => {

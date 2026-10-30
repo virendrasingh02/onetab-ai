@@ -4,7 +4,7 @@ import { useAppDownload, DOWNLOAD_DISMISSED_KEY, DOWNLOAD_SNOOZE_KEY } from "./u
 
 describe("useAppDownload hook", () => {
   beforeEach(() => {
-    localStorage.clear();
+    window.localStorage.clear();
   });
 
   it("initializes with default options and detects environment", () => {
@@ -22,7 +22,7 @@ describe("useAppDownload hook", () => {
       result.current.dismiss();
     });
     expect(result.current.isDismissed).toBe(true);
-    expect(localStorage.getItem(DOWNLOAD_DISMISSED_KEY)).toBe("true");
+    expect(window.localStorage.getItem(DOWNLOAD_DISMISSED_KEY)).toBe("true");
     expect(result.current.shouldShowPrompt).toBe(false);
   });
 
@@ -32,7 +32,7 @@ describe("useAppDownload hook", () => {
       result.current.snooze(24);
     });
     expect(result.current.isSnoozed).toBe(true);
-    expect(localStorage.getItem(DOWNLOAD_SNOOZE_KEY)).toBeDefined();
+    expect(window.localStorage.getItem(DOWNLOAD_SNOOZE_KEY)).toBeDefined();
     expect(result.current.shouldShowPrompt).toBe(false);
   });
 
@@ -47,7 +47,7 @@ describe("useAppDownload hook", () => {
       result.current.resetState();
     });
     expect(result.current.isDismissed).toBe(false);
-    expect(localStorage.getItem(DOWNLOAD_DISMISSED_KEY)).toBeNull();
+    expect(window.localStorage.getItem(DOWNLOAD_DISMISSED_KEY)).toBeNull();
   });
 
   it("allows switching desktop platform", () => {

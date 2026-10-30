@@ -128,6 +128,19 @@ export function getUpdateStatus(): DesktopUpdateStatus {
   return lastStatus;
 }
 
+/** Body of `GET /app-versions/check-update`; every field is optional on the wire. */
+interface CheckUpdateResponse {
+  status?: string;
+  mandatory?: boolean;
+  forceUpdate?: boolean;
+  updateAvailable?: boolean;
+  latestVersion?: string;
+  releaseNotes?: string;
+  downloadUrl?: string;
+  changelog?: string;
+  minimumSupportedVersion?: string;
+}
+
 export async function checkForUpdates(
   isDev: boolean,
   apiUrl: string = configuredApiUrl,
@@ -162,7 +175,7 @@ export async function checkForUpdates(
     });
 
     if (res.ok) {
-      const data = (await res.json()) as any;
+      const data = (await res.json()) as CheckUpdateResponse;
       if (data && typeof data === 'object') {
         if (data.status === 'update-required' || data.mandatory || data.forceUpdate) {
           publish({

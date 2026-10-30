@@ -1,7 +1,7 @@
 import { app } from 'electron';
 import { HIDDEN_LAUNCH_ARG } from './startup.js';
 import { logger } from './logger.js';
-import { markQuitting, showMainWindow } from './window.js';
+import { getMainWindow, markQuitting, showMainWindow } from './window.js';
 import { DEEP_LINK_PROTOCOLS } from '../shared/ipc.js';
 
 /**
@@ -56,6 +56,23 @@ export function focusApp(): void {
     logger.debug('Lifecycle', 'app.focus failed', error);
   }
   showMainWindow();
+  raiseAboveForegroundLock();
+}
+
+/**
+ * Windows only lets the foreground process hand out focus, and a relaunch makes
+ * the short-lived second instance the foreground one - so `focus()` from here
+ * just flashes the taskbar button and the window stays buried. Pinning it on
+ * top for a moment is the accepted way to bring it forward anyway.
+ */
+function raiseAboveForegroundLock(): void {
+  if (process.platform !== 'win32') return;
+  const window = getMainWindow();
+  if (!window || window.isDestroyed() || window.isAlwaysOnTop()) return;
+  window.setAlwaysOnTop(true);
+  window.moveTop();
+  window.focus();
+  window.setAlwaysOnTop(false);
 }
 
 /**

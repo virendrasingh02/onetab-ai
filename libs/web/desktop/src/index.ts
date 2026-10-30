@@ -21,6 +21,8 @@ export {
   showAboutPanel,
   type DesktopAppInfo,
   type DesktopAppMetadata,
+  type DesktopAgentExecuteRequest,
+  type DesktopAgentExecuteResponse,
   type DesktopAuthFlowStatus,
   type DesktopAuthSession,
   type DesktopBrowserAuthIntent,

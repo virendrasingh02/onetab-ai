@@ -7,7 +7,7 @@ import { useDesktop } from './desktop-provider.js';
 // Local client build version (can be overridden via VITE_APP_VERSION)
 const CLIENT_WEB_VERSION =
   (typeof import.meta !== 'undefined' &&
-    (import.meta as any).env?.VITE_APP_VERSION) ||
+    (import.meta as { env?: Record<string, string | undefined> }).env?.VITE_APP_VERSION) ||
   '2.8.4';
 
 /**
