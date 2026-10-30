@@ -110,6 +110,14 @@ function WorkspaceGate() {
         name="automation/[workflowId]"
         options={{ title: 'Automation' }}
       />
+      <Stack.Screen name="automation/studio" options={{ title: 'Agent Studio' }} />
+      <Stack.Screen name="search" options={modal('Search Workspace')} />
+      <Stack.Screen name="ai/chat" options={{ title: 'AI Assistant' }} />
+      <Stack.Screen name="ai/writer" options={{ title: 'AI Writer' }} />
+      <Stack.Screen name="ai/images" options={{ title: 'AI Image Studio' }} />
+      <Stack.Screen name="knowledge/index" options={{ title: 'Knowledge Base' }} />
+      <Stack.Screen name="knowledge/[kbId]" options={{ title: 'Knowledge Collection' }} />
+      <Stack.Screen name="admin/index" options={{ title: 'Workspace Administration' }} />
       <Stack.Screen name="executions" options={{ title: 'Executions' }} />
       <Stack.Screen name="approvals" options={{ title: 'Approvals' }} />
       <Stack.Screen name="tasks/index" options={{ title: 'Tasks & Kanban' }} />

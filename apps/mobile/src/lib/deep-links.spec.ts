@@ -115,6 +115,45 @@ describe('routeForDeepLink', () => {
     });
   });
 
+  it('maps AI suite, Agent Studio, Knowledge Base, Search, and Admin', () => {
+    expect(routeForDeepLink('search')).toEqual({
+      pathname: '/search',
+    });
+    expect(routeForDeepLink('ai/chat')).toEqual({
+      pathname: '/ai/chat',
+    });
+    expect(routeForDeepLink('ai/writer')).toEqual({
+      pathname: '/ai/writer',
+    });
+    expect(routeForDeepLink('writer')).toEqual({
+      pathname: '/ai/writer',
+    });
+    expect(routeForDeepLink('ai/images')).toEqual({
+      pathname: '/ai/images',
+    });
+    expect(routeForDeepLink('images')).toEqual({
+      pathname: '/ai/images',
+    });
+    expect(routeForDeepLink('studio?workflowId=wf_1')).toEqual({
+      pathname: '/automation/studio',
+      params: { workflowId: 'wf_1' },
+    });
+    expect(routeForDeepLink('automations/studio/wf_2')).toEqual({
+      pathname: '/automation/studio',
+      params: { workflowId: 'wf_2' },
+    });
+    expect(routeForDeepLink('knowledge')).toEqual({
+      pathname: '/knowledge',
+    });
+    expect(routeForDeepLink('knowledge/kb_99')).toEqual({
+      pathname: '/knowledge/[kbId]',
+      params: { kbId: 'kb_99' },
+    });
+    expect(routeForDeepLink('admin')).toEqual({
+      pathname: '/admin',
+    });
+  });
+
   it('strips the workspace prefix from absolute and scheme links', () => {
     expect(
       routeForDeepLink('https://app.onetab.ai/w/acme/c/launch'),

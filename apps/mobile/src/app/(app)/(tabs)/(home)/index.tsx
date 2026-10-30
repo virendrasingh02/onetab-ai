@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import {
   Pressable,
+  ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
@@ -131,17 +132,33 @@ export default function HomeScreen() {
             <Ionicons name="chevron-down" size={16} color={colors.subtle} />
           </Pressable>
         </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open profile"
-          onPress={() => router.push('/profile')}
-        >
-          <Avatar
-            name={user?.displayName ?? 'You'}
-            uri={user?.avatarUrl}
-            size={44}
-          />
-        </Pressable>
+        <View style={styles.headerRightActions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Search workspace"
+            onPress={() => {
+              haptics.selection();
+              router.push('/search');
+            }}
+            style={[
+              styles.headerSearchBtn,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
+            <Ionicons name="search" size={18} color={colors.foreground} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open profile"
+            onPress={() => router.push('/profile')}
+          >
+            <Avatar
+              name={user?.displayName ?? 'You'}
+              uri={user?.avatarUrl}
+              size={44}
+            />
+          </Pressable>
+        </View>
       </View>
 
       {/* Pending Approvals Notice Banner */}
@@ -173,21 +190,66 @@ export default function HomeScreen() {
         </Pressable>
       ) : null}
 
-      {/* Quick Action Navigation Grid */}
+      {/* Quick Actions Grid — AI & Creation Suite */}
+      <View style={styles.sectionHeaderWrap}>
+        <AppText variant="label">AI & Workspace Tools</AppText>
+      </View>
       <View style={styles.quickActionsGrid}>
         <Pressable
           style={[styles.quickActionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
           onPress={() => {
             haptics.selection();
-            router.push('/dm/new');
+            router.push('/ai/chat');
           }}
         >
           <View style={[styles.actionIconWrap, { backgroundColor: colors.selected }]}>
-            <Ionicons name="chatbubble-ellipses" size={20} color={colors.primary} />
+            <Ionicons name="sparkles" size={20} color={colors.primary} />
           </View>
-          <AppText style={[styles.actionCardLabel, { color: colors.foreground }]}>New DM</AppText>
+          <AppText style={[styles.actionCardLabel, { color: colors.foreground }]}>AI Chat</AppText>
         </Pressable>
 
+        <Pressable
+          style={[styles.quickActionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          onPress={() => {
+            haptics.selection();
+            router.push('/ai/writer');
+          }}
+        >
+          <View style={[styles.actionIconWrap, { backgroundColor: colors.selected }]}>
+            <Ionicons name="create-outline" size={20} color={colors.primary} />
+          </View>
+          <AppText style={[styles.actionCardLabel, { color: colors.foreground }]}>AI Writer</AppText>
+        </Pressable>
+
+        <Pressable
+          style={[styles.quickActionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          onPress={() => {
+            haptics.selection();
+            router.push('/ai/images');
+          }}
+        >
+          <View style={[styles.actionIconWrap, { backgroundColor: colors.selected }]}>
+            <Ionicons name="image-outline" size={20} color={colors.primary} />
+          </View>
+          <AppText style={[styles.actionCardLabel, { color: colors.foreground }]}>Images</AppText>
+        </Pressable>
+
+        <Pressable
+          style={[styles.quickActionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          onPress={() => {
+            haptics.selection();
+            router.push('/automation/studio');
+          }}
+        >
+          <View style={[styles.actionIconWrap, { backgroundColor: colors.selected }]}>
+            <Ionicons name="git-network-outline" size={20} color={colors.primary} />
+          </View>
+          <AppText style={[styles.actionCardLabel, { color: colors.foreground }]}>Studio</AppText>
+        </Pressable>
+      </View>
+
+      {/* Quick Actions Grid — Productivity Suite */}
+      <View style={styles.quickActionsGrid}>
         <Pressable
           style={[styles.quickActionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
           onPress={() => {
@@ -218,6 +280,19 @@ export default function HomeScreen() {
           style={[styles.quickActionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
           onPress={() => {
             haptics.selection();
+            router.push('/knowledge');
+          }}
+        >
+          <View style={[styles.actionIconWrap, { backgroundColor: colors.selected }]}>
+            <Ionicons name="library-outline" size={20} color={colors.primary} />
+          </View>
+          <AppText style={[styles.actionCardLabel, { color: colors.foreground }]}>Knowledge</AppText>
+        </Pressable>
+
+        <Pressable
+          style={[styles.quickActionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          onPress={() => {
+            haptics.selection();
             router.push('/meetings');
           }}
         >
@@ -227,6 +302,54 @@ export default function HomeScreen() {
           <AppText style={[styles.actionCardLabel, { color: colors.foreground }]}>Meetings</AppText>
         </Pressable>
       </View>
+
+      {/* Quick Jump Shortcuts */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.quickJumpRow}
+      >
+        <Pressable
+          onPress={() => {
+            haptics.selection();
+            router.push('/timesheet');
+          }}
+          style={[styles.quickJumpPill, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
+          <Ionicons name="time-outline" size={14} color={colors.foreground} />
+          <AppText variant="caption">Timesheet</AppText>
+        </Pressable>
+        <Pressable
+          onPress={() => {
+            haptics.selection();
+            router.push('/admin');
+          }}
+          style={[styles.quickJumpPill, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
+          <Ionicons name="shield-outline" size={14} color={colors.foreground} />
+          <AppText variant="caption">Admin & Roles</AppText>
+        </Pressable>
+        <Pressable
+          onPress={() => {
+            haptics.selection();
+            router.push('/integrations');
+          }}
+          style={[styles.quickJumpPill, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
+          <Ionicons name="extension-puzzle-outline" size={14} color={colors.foreground} />
+          <AppText variant="caption">Connectors</AppText>
+        </Pressable>
+        <Pressable
+          onPress={() => {
+            haptics.selection();
+            router.push('/files');
+          }}
+          style={[styles.quickJumpPill, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
+          <Ionicons name="folder-outline" size={14} color={colors.foreground} />
+          <AppText variant="caption">Storage & Files</AppText>
+        </Pressable>
+      </ScrollView>
 
       {/* AI Daily Catch-Up / Briefing */}
       {catchUpQuery.data ? (
@@ -439,6 +562,36 @@ const styles = StyleSheet.create({
   headerTextContainer: {
     flex: 1,
     paddingRight: spacing.md,
+  },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  headerSearchBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sectionHeaderWrap: {
+    marginBottom: spacing.xs,
+  },
+  quickJumpRow: {
+    gap: spacing.xs,
+    paddingBottom: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  quickJumpPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: radius.full,
+    borderWidth: 1,
   },
   greeting: {
     fontSize: 14,

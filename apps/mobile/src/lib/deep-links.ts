@@ -69,7 +69,18 @@ export function routeForDeepLink(link: string | null | undefined): MobileRoute {
     }
     case 'threads':
       return { pathname: '/chat' };
+    case 'search':
+      return { pathname: '/search' };
     case 'ai': {
+      if (second === 'chat' || second === 'assistant') {
+        return { pathname: '/ai/chat' };
+      }
+      if (second === 'writer') {
+        return { pathname: '/ai/writer' };
+      }
+      if (second === 'images' || second === 'image-generator') {
+        return { pathname: '/ai/images' };
+      }
       if (second === 'runs' || second === 'executions') {
         const run = query.get('run');
         return { pathname: '/executions', params: run ? { run } : {} };
@@ -80,6 +91,18 @@ export function routeForDeepLink(link: string | null | undefined): MobileRoute {
       }
       return { pathname: '/agents' };
     }
+    case 'writer':
+      return { pathname: '/ai/writer' };
+    case 'images':
+      return { pathname: '/ai/images' };
+    case 'knowledge': {
+      const kbId = query.get('kbId') ?? second;
+      return kbId
+        ? { pathname: '/knowledge/[kbId]', params: { kbId } }
+        : { pathname: '/knowledge' };
+    }
+    case 'admin':
+      return { pathname: '/admin' };
     case 'agents': {
       if (second) {
         if (path[2] === 'chat' || second === 'chat') {
@@ -127,8 +150,22 @@ export function routeForDeepLink(link: string | null | undefined): MobileRoute {
     case 'timesheet':
     case 'attendance':
       return { pathname: '/timesheet' };
+    case 'studio': {
+      const workflowId = query.get('workflowId') ?? second;
+      return {
+        pathname: '/automation/studio',
+        params: workflowId ? { workflowId } : {},
+      };
+    }
     case 'automations':
     case 'workflows': {
+      if (second === 'studio') {
+        const workflowId = path[2] ?? query.get('workflowId');
+        return {
+          pathname: '/automation/studio',
+          params: workflowId ? { workflowId } : {},
+        };
+      }
       // The web builder lives at `automations/builder/:id`.
       const workflowId = second === 'builder' ? path[2] : second;
       return workflowId

@@ -1,7 +1,6 @@
 import { automationsApi, queryKeys } from '@org/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
 import { StyleSheet, View } from 'react-native';
 import { Alert } from '../../../lib/alert';
 import {
@@ -16,7 +15,6 @@ import {
   SectionHeader,
   ToggleRow,
 } from '../../../components/ui';
-import { webLink } from '../../../lib/config';
 import {
   formatDuration,
   humanize,
@@ -37,7 +35,7 @@ function stepCount(nodesJson: string): number {
 
 export default function AutomationDetailScreen() {
   const { workflowId } = useLocalSearchParams<{ workflowId: string }>();
-  const { workspaceId, workspace } = useWorkspace();
+  const { workspaceId } = useWorkspace();
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -128,14 +126,15 @@ export default function AutomationDetailScreen() {
                 style={styles.flex}
               />
               <Button
-                label="Edit steps"
-                icon="open-outline"
+                label="Edit in Studio"
+                icon="construct-outline"
                 variant="secondary"
-                onPress={() =>
-                  void WebBrowser.openBrowserAsync(
-                    webLink(workspace?.slug, `automations/builder/${wf.id}`),
-                  )
-                }
+                onPress={() => {
+                  router.push({
+                    pathname: '/automation/studio',
+                    params: { workflowId: wf.id },
+                  });
+                }}
                 style={styles.flex}
               />
             </View>

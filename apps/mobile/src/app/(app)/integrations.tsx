@@ -98,8 +98,17 @@ export default function IntegrationsScreen() {
     };
   }, [connectors.data, filter]);
 
-  const openWeb = () =>
-    void WebBrowser.openBrowserAsync(webLink(workspace?.slug, 'integrations'));
+  const openWeb = async () => {
+    try {
+      await WebBrowser.openAuthSessionAsync(
+        webLink(workspace?.slug, 'integrations'),
+        'onetab://',
+      );
+    } catch {
+      await WebBrowser.openBrowserAsync(webLink(workspace?.slug, 'integrations'));
+    }
+    void connectors.refetch();
+  };
 
   return (
     <Screen

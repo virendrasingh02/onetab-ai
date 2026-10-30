@@ -51,7 +51,7 @@ export default function NewAutomationScreen() {
         queryKey: queryKeys.automations.all(workspaceId),
       });
       router.replace({
-        pathname: '/automation/[workflowId]',
+        pathname: '/automation/studio',
         params: { workflowId: wf.id },
       });
     },
@@ -63,8 +63,7 @@ export default function NewAutomationScreen() {
     <Screen>
       <AppText variant="muted">
         Scheduled and webhook automations run on the server, so they keep
-        working when your phone is locked or offline. Add steps in the workflow
-        builder on the web.
+        working when your phone is locked or offline. Configure and visually build steps in the touch-first Agent Studio right on your phone.
       </AppText>
       <Card>
         <TextField
