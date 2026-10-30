@@ -42,8 +42,8 @@ export class AppService {
       database = 'down';
     }
 
-    const redisPing = await this.cache.ping();
-    const redis: 'up' | 'fallback_memory' = redisPing ? 'up' : 'fallback_memory';
+    const cacheStatus = await this.cache.status();
+    const redisUp = cacheStatus.mode === 'redis';
 
     const memoryUsage = process.memoryUsage();
     const isReady = database === 'up';
@@ -58,8 +58,10 @@ export class AppService {
           pool: this.prisma.getPoolMetrics(),
         },
         redis: {
-          status: redis,
-          isDistributed: redisPing,
+          status: redisUp ? 'up' : 'fallback_memory',
+          isDistributed: redisUp,
+          latencyMs: cacheStatus.latencyMs,
+          pubSub: cacheStatus.subscriber,
         },
       },
       process: {

@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { createHash, timingSafeEqual } from 'node:crypto';
+import { CacheService } from '@org/api-cache';
 import { generateToken } from '@org/api-common';
 import { PrismaService } from '@org/database';
 import { ApiErrorCode, type CurrentUser } from '@org/types';
@@ -21,18 +22,24 @@ interface PendingDesktopAuth {
 
 const AUTH_CODE_TTL_MS = 60_000; // 60 seconds
 
+/**
+ * Codes live in the shared cache (Redis) so a code issued by one API replica
+ * can be exchanged on another, and survive an API restart within their TTL.
+ * The key is a hash of the code, so the raw code is never stored.
+ */
+function codeKey(code: string): string {
+  return `desktopauth:code:${createHash('sha256').update(code).digest('hex')}`;
+}
+
 @Injectable()
 export class DesktopAuthService {
   private readonly logger = new Logger(DesktopAuthService.name);
-  private readonly pendingCodes = new Map<string, PendingDesktopAuth>();
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly tokens: TokenService,
-  ) {
-    // Periodically prune expired codes
-    setInterval(() => this.pruneExpired(), 30_000).unref();
-  }
+    private readonly cache: CacheService,
+  ) {}
 
   /**
    * Generates a one-time short-lived authorization code tied to the authenticated user and PKCE challenge.
@@ -44,12 +51,13 @@ export class DesktopAuthService {
     const code = generateToken(32);
     const expiresAt = Date.now() + AUTH_CODE_TTL_MS;
 
-    this.pendingCodes.set(code, {
+    const pending: PendingDesktopAuth = {
       userId,
       codeChallenge: input.codeChallenge,
       state: input.state,
       expiresAt,
-    });
+    };
+    await this.cache.set(codeKey(code), pending, AUTH_CODE_TTL_MS);
 
     this.logger.debug(`Generated desktop auth code for user ${userId}`);
     return { code, state: input.state };
@@ -62,7 +70,9 @@ export class DesktopAuthService {
     input: DesktopExchangeInput,
     context: SessionContext = {},
   ): Promise<{ user: CurrentUser; session: IssuedSession }> {
-    const pending = this.pendingCodes.get(input.code);
+    // One-time use: the atomic read-and-delete prevents replay, even when two
+    // replicas receive the same code concurrently.
+    const pending = await this.cache.take<PendingDesktopAuth>(codeKey(input.code));
 
     if (!pending) {
       throw new UnauthorizedException({
@@ -70,9 +80,6 @@ export class DesktopAuthService {
         message: 'Invalid, already used, or expired authorization code.',
       });
     }
-
-    // One-time use: remove immediately to prevent replay
-    this.pendingCodes.delete(input.code);
 
     if (Date.now() > pending.expiresAt) {
       throw new UnauthorizedException({
@@ -131,14 +138,5 @@ export class DesktopAuthService {
 
     this.logger.log(`Desktop auth code exchanged successfully for user ${user.id}`);
     return { user: toCurrentUser(signedIn), session };
-  }
-
-  private pruneExpired(): void {
-    const now = Date.now();
-    for (const [code, entry] of this.pendingCodes.entries()) {
-      if (now > entry.expiresAt) {
-        this.pendingCodes.delete(code);
-      }
-    }
   }
 }

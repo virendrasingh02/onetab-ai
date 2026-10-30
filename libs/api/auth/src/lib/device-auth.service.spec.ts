@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ConfigService } from '@nestjs/config';
+import { CacheService } from '@org/api-cache';
 import type { PrismaService } from '@org/database';
 import type { CurrentUser } from '@org/types';
 import { DeviceAuthService } from './device-auth.service.js';
@@ -57,6 +59,8 @@ describe('DeviceAuthService', () => {
     service = new DeviceAuthService(
       mockPrisma as unknown as PrismaService,
       mockTokens as unknown as TokenService,
+      // Never initialised, so it runs on its in-memory fallback store.
+      new CacheService({ get: () => undefined } as unknown as ConfigService),
     );
   });
 

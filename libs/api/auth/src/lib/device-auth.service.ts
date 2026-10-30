@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { CacheService } from '@org/api-cache';
 import { generateToken } from '@org/api-common';
 import { PrismaService } from '@org/database';
 import { ApiErrorCode, type CurrentUser } from '@org/types';
@@ -38,6 +39,11 @@ interface PendingDeviceRequest {
 }
 
 const DEVICE_AUTH_TTL_MS = 5 * 60 * 1000; // 5 minutes
+/** Kept past expiry so a late poll still sees "expired" instead of "not found". */
+const DEVICE_AUTH_GRACE_MS = 60_000;
+
+const requestKey = (requestId: string) => `deviceauth:req:${requestId}`;
+const codeKey = (userCode: string) => `deviceauth:code:${userCode}`;
 const PAIRING_CHARS = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'; // Excludes 0, 1, I, L, O for clarity
 
 function generatePairingCode(): string {
@@ -60,15 +66,17 @@ function normalizePairingCode(code: string): string {
 @Injectable()
 export class DeviceAuthService {
   private readonly logger = new Logger(DeviceAuthService.name);
-  private readonly requestsById = new Map<string, PendingDeviceRequest>();
-  private readonly requestsByCode = new Map<string, string>(); // userCode -> requestId
 
+  /**
+   * Requests live in the shared cache (Redis) so the desktop that created a
+   * request, the phone that approves it and the desktop's polls can each land
+   * on a different API replica. Entries expire on their own via TTL.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly tokens: TokenService,
-  ) {
-    setInterval(() => this.pruneExpired(), 30_000).unref();
-  }
+    private readonly cache: CacheService,
+  ) {}
 
   /**
    * Desktop client creates a device authorization request.
@@ -79,15 +87,16 @@ export class DeviceAuthService {
     webAppUrl = 'http://localhost:4200',
   ): Promise<CreateDeviceAuthResponse> {
     const requestId = generateToken(32);
-    let userCode = generatePairingCode();
+    const now = Date.now();
+    const storeTtlMs = DEVICE_AUTH_TTL_MS + DEVICE_AUTH_GRACE_MS;
 
-    // Ensure collision resistance for active pairing codes
-    while (this.requestsByCode.has(userCode)) {
+    // Claim a pairing code no active request holds (atomic across replicas)
+    let userCode = generatePairingCode();
+    while (!(await this.cache.setIfAbsent(codeKey(userCode), requestId, storeTtlMs))) {
       userCode = generatePairingCode();
     }
 
     const secretToken = generateToken(32);
-    const now = Date.now();
     const expiresAt = now + DEVICE_AUTH_TTL_MS;
 
     const deviceInfo = {
@@ -109,8 +118,7 @@ export class DeviceAuthService {
       expiresAt,
     };
 
-    this.requestsById.set(requestId, entry);
-    this.requestsByCode.set(userCode, requestId);
+    await this.cache.set(requestKey(requestId), entry, storeTtlMs);
 
     const baseUrl = webAppUrl.replace(/\/+$/, '');
     const verificationUrl = `${baseUrl}/auth/device?request=${requestId}`;
@@ -133,7 +141,7 @@ export class DeviceAuthService {
    * Retrieves sanitized public metadata for a device request.
    */
   async getInfo(requestId?: string, userCode?: string): Promise<DeviceAuthInfoResponse> {
-    const entry = this.findEntry(requestId, userCode);
+    const entry = await this.findEntry(requestId, userCode);
 
     if (!entry) {
       throw new NotFoundException({
@@ -162,7 +170,7 @@ export class DeviceAuthService {
     requestId?: string,
     userCode?: string,
   ): Promise<{ success: boolean; status: string }> {
-    const entry = this.findEntry(requestId, userCode);
+    const entry = await this.findEntry(requestId, userCode);
 
     if (!entry) {
       throw new NotFoundException({
@@ -172,7 +180,6 @@ export class DeviceAuthService {
     }
 
     if (Date.now() > entry.expiresAt || entry.status === 'expired') {
-      entry.status = 'expired';
       throw new BadRequestException({
         code: ApiErrorCode.TOKEN_EXPIRED,
         message: 'Device authorization request has expired.',
@@ -188,6 +195,7 @@ export class DeviceAuthService {
 
     entry.status = 'approved';
     entry.approvedUserId = user.id;
+    await this.save(entry);
 
     this.logger.log(`Device auth request ${entry.requestId} approved by user ${user.id}`);
     return { success: true, status: 'approved' };
@@ -197,9 +205,10 @@ export class DeviceAuthService {
    * Mobile user rejects/cancels the device authorization request.
    */
   async reject(requestId?: string, userCode?: string): Promise<{ success: boolean }> {
-    const entry = this.findEntry(requestId, userCode);
+    const entry = await this.findEntry(requestId, userCode);
     if (entry && entry.status === 'pending') {
       entry.status = 'rejected';
+      await this.save(entry);
       this.logger.log(`Device auth request ${entry.requestId} rejected`);
     }
     return { success: true };
@@ -209,7 +218,7 @@ export class DeviceAuthService {
    * Desktop client polls the status of its active request.
    */
   async pollStatus(input: PollDeviceAuthInput): Promise<{ status: PendingDeviceRequest['status'] }> {
-    const entry = this.requestsById.get(input.requestId);
+    const entry = await this.cache.get<PendingDeviceRequest>(requestKey(input.requestId));
 
     if (!entry || !this.verifySecret(entry.secretToken, input.secretToken)) {
       throw new UnauthorizedException({
@@ -219,7 +228,7 @@ export class DeviceAuthService {
     }
 
     if (Date.now() > entry.expiresAt && entry.status === 'pending') {
-      entry.status = 'expired';
+      return { status: 'expired' };
     }
 
     return { status: entry.status };
@@ -232,7 +241,7 @@ export class DeviceAuthService {
     input: ExchangeDeviceAuthInput,
     context: SessionContext = {},
   ): Promise<{ user: CurrentUser; session: IssuedSession }> {
-    const entry = this.requestsById.get(input.requestId);
+    const entry = await this.cache.get<PendingDeviceRequest>(requestKey(input.requestId));
 
     if (!entry || !this.verifySecret(entry.secretToken, input.secretToken)) {
       throw new UnauthorizedException({
@@ -242,8 +251,7 @@ export class DeviceAuthService {
     }
 
     if (Date.now() > entry.expiresAt || entry.status === 'expired') {
-      entry.status = 'expired';
-      this.cleanup(entry.requestId);
+      await this.cleanup(entry);
       throw new UnauthorizedException({
         code: ApiErrorCode.TOKEN_EXPIRED,
         message: 'Device authorization request has expired.',
@@ -257,10 +265,17 @@ export class DeviceAuthService {
       });
     }
 
-    // Immediately consume request (one-time use)
-    entry.status = 'consumed';
-    const userId = entry.approvedUserId;
-    this.cleanup(entry.requestId);
+    // Consume the request atomically (one-time use): if two exchanges race,
+    // possibly on different replicas, only the one that deletes it wins.
+    const consumed = await this.cache.take<PendingDeviceRequest>(requestKey(entry.requestId));
+    await this.cache.del(codeKey(entry.userCode));
+    if (!consumed || consumed.status !== 'approved' || !consumed.approvedUserId) {
+      throw new UnauthorizedException({
+        code: ApiErrorCode.UNAUTHORIZED,
+        message: 'Device authorization request was already used.',
+      });
+    }
+    const userId = consumed.approvedUserId;
 
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -287,16 +302,25 @@ export class DeviceAuthService {
     return { user: toCurrentUser(signedIn), session };
   }
 
-  private findEntry(requestId?: string, userCode?: string): PendingDeviceRequest | undefined {
-    if (requestId && this.requestsById.has(requestId)) {
-      return this.requestsById.get(requestId);
+  private async findEntry(
+    requestId?: string,
+    userCode?: string,
+  ): Promise<PendingDeviceRequest | null> {
+    if (requestId) {
+      const byId = await this.cache.get<PendingDeviceRequest>(requestKey(requestId));
+      if (byId) return byId;
     }
     if (userCode) {
-      const normalized = normalizePairingCode(userCode);
-      const id = this.requestsByCode.get(normalized);
-      if (id) return this.requestsById.get(id);
+      const id = await this.cache.get<string>(codeKey(normalizePairingCode(userCode)));
+      if (id) return this.cache.get<PendingDeviceRequest>(requestKey(id));
     }
-    return undefined;
+    return null;
+  }
+
+  /** Writes a status change back, keeping the request's original expiry. */
+  private async save(entry: PendingDeviceRequest): Promise<void> {
+    const ttlMs = entry.expiresAt + DEVICE_AUTH_GRACE_MS - Date.now();
+    if (ttlMs > 0) await this.cache.set(requestKey(entry.requestId), entry, ttlMs);
   }
 
   private verifySecret(storedSecret: string, providedSecret: string): boolean {
@@ -305,20 +329,10 @@ export class DeviceAuthService {
     return bufA.length === bufB.length && timingSafeEqual(bufA, bufB);
   }
 
-  private cleanup(requestId: string): void {
-    const entry = this.requestsById.get(requestId);
-    if (entry) {
-      this.requestsByCode.delete(entry.userCode);
-      this.requestsById.delete(requestId);
-    }
-  }
-
-  private pruneExpired(): void {
-    const now = Date.now();
-    for (const [id, entry] of this.requestsById.entries()) {
-      if (now > entry.expiresAt + 60_000) {
-        this.cleanup(id);
-      }
-    }
+  private async cleanup(entry: PendingDeviceRequest): Promise<void> {
+    await Promise.all([
+      this.cache.del(requestKey(entry.requestId)),
+      this.cache.del(codeKey(entry.userCode)),
+    ]);
   }
 }

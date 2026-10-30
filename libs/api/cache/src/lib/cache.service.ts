@@ -13,6 +13,31 @@ export interface CacheEntry<T = unknown> {
   expiresAt?: number;
 }
 
+export interface CacheStatus {
+  mode: 'redis' | 'memory';
+  /** Connection URL with any password masked — safe to log or return. */
+  url: string;
+  latencyMs: number | null;
+  subscriber: boolean;
+}
+
+/** Max backoff between reconnect attempts. Reconnects never stop for good. */
+const MAX_RECONNECT_DELAY_MS = 30_000;
+/** A stalled Redis must fail fast (and fall back) rather than hang requests. */
+const COMMAND_TIMEOUT_MS = 2_000;
+const MEMORY_SWEEP_INTERVAL_MS = 60_000;
+
+/** Masks the password in a Redis URL so it never reaches logs or health output. */
+function redactUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.password) parsed.password = '***';
+    return parsed.toString();
+  } catch {
+    return '<invalid REDIS_URL>';
+  }
+}
+
 @Injectable()
 export class CacheService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(CacheService.name);
@@ -21,6 +46,9 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
   private subClient: Redis | null = null;
   private isConnected = false;
   private isSubConnected = false;
+  /** Whether the primary client was ever ready — drives "lost"/"recovered" logs. */
+  private hasBeenReady = false;
+  private sweepTimer: NodeJS.Timeout | null = null;
 
   // Resilient in-memory fallback store when Redis is unavailable or in test mode
   private readonly inMemoryStore = new Map<string, CacheEntry>();
@@ -28,6 +56,7 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
   private readonly localSubscribers = new Map<string, Set<(message: string) => void>>();
 
   private readonly redisUrl: string;
+  private readonly safeUrl: string;
   private readonly keyPrefix: string;
 
   constructor(private readonly config: ConfigService) {
@@ -39,29 +68,34 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
       this.config.get<string>('REDIS_KEY_PREFIX') ??
       process.env['REDIS_KEY_PREFIX'] ??
       'onetab:';
+    this.safeUrl = redactUrl(this.redisUrl);
   }
 
   async onModuleInit(): Promise<void> {
+    this.sweepTimer = setInterval(() => this.sweepMemory(), MEMORY_SWEEP_INTERVAL_MS);
+    this.sweepTimer.unref();
     await this.initRedis();
   }
 
   async onModuleDestroy(): Promise<void> {
+    if (this.sweepTimer) clearInterval(this.sweepTimer);
+    this.sweepTimer = null;
     await this.disconnect();
   }
 
   private async initRedis(): Promise<void> {
     try {
       const redisOptions: RedisOptions = {
-        maxRetriesPerRequest: 3,
-        retryStrategy: (times) => {
-          if (times > 10) {
-            this.logger.warn(
-              'Redis connection retry limit reached. Operating in in-memory fallback mode.',
-            );
-            return null; // Stop retrying automatically to prevent log spam
-          }
-          return Math.min(times * 100, 3000);
-        },
+        maxRetriesPerRequest: 1,
+        // Keep retrying with capped backoff: a Redis that comes back after a
+        // long outage is picked up again instead of leaving this replica stuck
+        // on the per-process fallback until restart.
+        retryStrategy: (times) => Math.min(times * 200, MAX_RECONNECT_DELAY_MS),
+        // Fail commands immediately while disconnected; callers fall back to
+        // the in-memory store rather than waiting on a queued command.
+        enableOfflineQueue: false,
+        commandTimeout: COMMAND_TIMEOUT_MS,
+        connectTimeout: 5_000,
         enableReadyCheck: true,
         lazyConnect: true,
       };
@@ -70,32 +104,45 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
       this.pubClient = new Redis(this.redisUrl, redisOptions);
       this.subClient = new Redis(this.redisUrl, redisOptions);
 
-      this.redisClient.on('connect', () => {
+      this.redisClient.on('ready', () => {
         this.isConnected = true;
-        this.logger.log(`Redis primary client connected (${this.redisUrl})`);
+        this.logger.log(
+          this.hasBeenReady
+            ? `Redis connection recovered (${this.safeUrl}). Distributed cache re-enabled.`
+            : `Redis primary client connected (${this.safeUrl})`,
+        );
+        this.hasBeenReady = true;
       });
 
-      this.redisClient.on('error', (err) => {
+      this.redisClient.on('close', () => {
         if (this.isConnected) {
-          this.logger.warn(`Redis connection error: ${err.message}. Falling back to in-memory store.`);
+          this.logger.warn(
+            `Redis connection lost (${this.safeUrl}). Falling back to in-memory store while reconnecting.`,
+          );
         }
         this.isConnected = false;
       });
 
-      this.pubClient.on('connect', () => {
-        // Connected
+      this.redisClient.on('error', () => {
+        // State changes are tracked on ready/close; reconnect errors repeat
+        // every attempt, so they are not logged individually.
       });
 
       this.pubClient.on('error', () => {
         // Suppress unhandled event error when offline
       });
 
-      this.subClient.on('connect', () => {
+      this.subClient.on('ready', () => {
         this.isSubConnected = true;
+        void this.resubscribeAll();
+      });
+
+      this.subClient.on('close', () => {
+        this.isSubConnected = false;
       });
 
       this.subClient.on('error', () => {
-        this.isSubConnected = false;
+        // Suppress unhandled event error when offline
       });
 
       this.subClient.on('message', (channel: string, message: string) => {
@@ -116,11 +163,39 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
         this.pubClient.connect(),
         this.subClient.connect(),
       ]);
+      if (!this.isConnected) {
+        this.logger.warn(
+          `Could not connect to Redis at startup (${this.safeUrl}). Using in-memory fallback; will keep retrying in the background.`,
+        );
+      }
     } catch {
       this.logger.warn(
-        `Could not connect to Redis at startup (${this.redisUrl}). CacheService will operate with resilient in-memory fallback.`,
+        `Could not connect to Redis at startup (${this.safeUrl}). CacheService will operate with resilient in-memory fallback.`,
       );
       this.isConnected = false;
+    }
+  }
+
+  /**
+   * Re-subscribes every channel that has local handlers. Covers channels
+   * registered while the subscriber was offline — ioredis only restores
+   * subscriptions it actually made.
+   */
+  private async resubscribeAll(): Promise<void> {
+    const channels = [...this.localSubscribers.keys()];
+    if (!this.subClient || channels.length === 0) return;
+    try {
+      await this.subClient.subscribe(...channels);
+    } catch (err) {
+      this.logger.warn('Redis resubscribe failed.', err);
+    }
+  }
+
+  /** Drops expired fallback entries so an outage can't grow memory without bound. */
+  private sweepMemory(): void {
+    const now = Date.now();
+    for (const [key, entry] of this.inMemoryStore) {
+      if (entry.expiresAt && now > entry.expiresAt) this.inMemoryStore.delete(key);
     }
   }
 
@@ -141,6 +216,18 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
 
   isRedisActive(): boolean {
     return this.isConnected;
+  }
+
+  /** Connection snapshot for readiness/health endpoints. */
+  async status(): Promise<CacheStatus> {
+    const started = Date.now();
+    const up = await this.ping();
+    return {
+      mode: up ? 'redis' : 'memory',
+      url: this.safeUrl,
+      latencyMs: up ? Date.now() - started : null,
+      subscriber: this.isSubConnected,
+    };
   }
 
   private formatKey(key: string): string {
@@ -211,18 +298,103 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
   }
 
   async clear(): Promise<void> {
-    if (this.isConnected && this.redisClient) {
-      try {
-        const keys = await this.redisClient.keys(`${this.keyPrefix}*`);
-        if (keys.length > 0) {
-          await this.redisClient.del(...keys);
-        }
-      } catch (err) {
-        this.logger.warn('Redis clear operation failed.', err);
-      }
-    }
+    // SCAN-based sweep: KEYS blocks the whole Redis server on a large keyspace.
+    await this.deletePattern('*');
     this.inMemoryStore.clear();
     this.inMemoryQueues.clear();
+  }
+
+  /**
+   * Atomically reads and deletes a key — for one-time values (auth codes,
+   * nonces) that must be redeemable exactly once across every replica.
+   */
+  async take<T>(key: string): Promise<T | null> {
+    const fullKey = this.formatKey(key);
+
+    if (this.isConnected && this.redisClient) {
+      try {
+        const raw = await this.redisClient.getdel(fullKey);
+        this.inMemoryStore.delete(fullKey);
+        return raw ? (JSON.parse(raw) as T) : null;
+      } catch (err) {
+        this.logger.warn(`Redis GETDEL failed for key "${fullKey}", checking fallback store.`, err);
+      }
+    }
+
+    const value = await this.get<T>(key);
+    this.inMemoryStore.delete(fullKey);
+    return value;
+  }
+
+  /** Sets the key only if it does not exist yet; `true` when this call wrote it. */
+  async setIfAbsent<T>(key: string, value: T, ttlMs: number): Promise<boolean> {
+    const fullKey = this.formatKey(key);
+
+    if (this.isConnected && this.redisClient) {
+      try {
+        const result = await this.redisClient.set(fullKey, JSON.stringify(value), 'PX', ttlMs, 'NX');
+        return result === 'OK';
+      } catch (err) {
+        this.logger.warn(`Redis SET NX failed for key "${fullKey}", writing to fallback store.`, err);
+      }
+    }
+
+    if ((await this.get(key)) !== null) return false;
+    this.inMemoryStore.set(fullKey, { value, expiresAt: Date.now() + ttlMs });
+    return true;
+  }
+
+  /**
+   * Atomic counter with a fixed window: the first increment starts a `ttlMs`
+   * window, later ones keep its expiry. Returns the new count and the time
+   * left in the window — the building block for rate limits across replicas.
+   */
+  async increment(key: string, ttlMs: number): Promise<{ count: number; ttlMs: number }> {
+    const fullKey = this.formatKey(key);
+
+    if (this.isConnected && this.redisClient) {
+      try {
+        const luaScript = `
+          local count = redis.call("incr", KEYS[1])
+          local ttl = redis.call("pttl", KEYS[1])
+          if ttl < 0 then
+            redis.call("pexpire", KEYS[1], ARGV[1])
+            ttl = tonumber(ARGV[1])
+          end
+          return { count, ttl }
+        `;
+        const [count, ttl] = (await this.redisClient.eval(
+          luaScript,
+          1,
+          fullKey,
+          String(Math.max(1, Math.ceil(ttlMs))),
+        )) as [number, number];
+        return { count, ttlMs: ttl };
+      } catch (err) {
+        this.logger.warn(`Redis INCR failed for key "${fullKey}", using fallback store.`, err);
+      }
+    }
+
+    const now = Date.now();
+    const entry = this.inMemoryStore.get(fullKey);
+    if (entry && entry.expiresAt && now <= entry.expiresAt && typeof entry.value === 'number') {
+      entry.value += 1;
+      return { count: entry.value, ttlMs: entry.expiresAt - now };
+    }
+    this.inMemoryStore.set(fullKey, { value: 1, expiresAt: now + ttlMs });
+    return { count: 1, ttlMs };
+  }
+
+  /**
+   * Read-through cache: returns the cached value, or runs `loader`, caches its
+   * result for `ttlMs` and returns it. `null`/`undefined` results are not cached.
+   */
+  async getOrSet<T>(key: string, ttlMs: number, loader: () => Promise<T>): Promise<T> {
+    const cached = await this.get<T>(key);
+    if (cached !== null) return cached;
+    const value = await loader();
+    if (value !== null && value !== undefined) await this.set(key, value, ttlMs);
+    return value;
   }
 
   /**

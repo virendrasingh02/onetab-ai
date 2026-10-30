@@ -39,6 +39,7 @@
     "@nestjs/passport": "^11.0.5",
     "@nestjs/schedule": "^6.1.3",
     "@nestjs/throttler": "^6.5.0",
+    "@org/api-cache": "*",
     "@org/api-mail": "*",
     "@org/database": "*",
     "@simplewebauthn/server": "^14.0.3",
