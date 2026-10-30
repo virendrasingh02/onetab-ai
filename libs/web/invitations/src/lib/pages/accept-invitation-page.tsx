@@ -9,7 +9,6 @@ import {
 } from '@org/auth';
 import type { InvitationPublicPreview } from '@org/types';
 import {
-  Badge,
   Button,
   FormError,
   LoadingState,
@@ -29,6 +28,7 @@ import {
   LogOut,
   Mail,
   RefreshCw,
+  ShieldCheck,
   UserPlus,
   Users,
   WifiOff,
@@ -51,7 +51,7 @@ function inviterName(preview: InvitationPublicPreview): string {
   return preview.inviter.displayName ?? preview.inviter.name;
 }
 
-/** Round status glyph above a terminal state's actions. */
+/** Round status glyph shown above a terminal state's title. */
 function StatusIcon({
   tone,
   children,
@@ -60,122 +60,171 @@ function StatusIcon({
   children: ReactNode;
 }) {
   const toneClass = {
-    success: 'bg-success/15 text-success',
-    primary: 'bg-primary/10 text-primary',
-    destructive: 'bg-destructive/10 text-destructive',
-    muted: 'bg-muted text-muted-foreground',
+    success: 'bg-success/15 text-success ring-success/20',
+    primary: 'bg-primary/10 text-primary ring-primary/20',
+    destructive: 'bg-destructive/10 text-destructive ring-destructive/20',
+    muted: 'bg-muted text-muted-foreground ring-border',
   }[tone];
   return (
     <div
-      className={`size-12 flex items-center justify-center rounded-full ${toneClass}`}
+      className={`size-14 flex items-center justify-center rounded-2xl ring-1 ${toneClass}`}
     >
       {children}
     </div>
   );
 }
 
-/** What the invitation grants: workspace, role, and any channel/team/project scope. */
+/** Workspace logo with the inviter's face tucked into its corner. */
+function InviteHero({ preview }: { preview: InvitationPublicPreview }) {
+  return (
+    <div className="relative">
+      {/* The preview's logo URL is API-relative; resolve it before loading. */}
+      <WorkspaceAvatar
+        name={preview.workspace.name}
+        src={resolveMediaUrl(preview.workspace.avatarUrl)}
+        icon={preview.workspace.icon}
+        iconColor={preview.workspace.iconColor}
+        avatarColor={preview.workspace.avatarColor}
+        seed={preview.workspace.id}
+        size="xl"
+        className="shadow-md"
+      />
+      <span className="-bottom-1.5 -right-1.5 absolute flex rounded-full ring-[3px] ring-background">
+        <UserAvatar
+          name={inviterName(preview)}
+          src={preview.inviter.avatarUrl}
+          seed={preview.inviter.id}
+          indicator={false}
+          size="md"
+        />
+      </span>
+    </div>
+  );
+}
+
+const ROLE_HINTS: Record<InvitationPublicPreview['role'], string> = {
+  OWNER: 'Full control of the workspace, members and billing',
+  ADMIN: 'Manage members, channels and workspace settings',
+  MEMBER: 'Chat, share files and collaborate across channels',
+  GUEST: "Limited access to the channels you're invited to",
+};
+
+function DetailRow({
+  icon,
+  label,
+  children,
+  hint,
+}: {
+  icon: ReactNode;
+  label: string;
+  children: ReactNode;
+  hint?: string;
+}) {
+  return (
+    <div className="gap-3 px-4 py-3 flex items-start">
+      <span
+        className="mt-0.5 size-7 flex shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"
+        aria-hidden
+      >
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <dt className="text-[11px] text-muted-foreground">{label}</dt>
+        <dd className="text-sm font-medium truncate text-foreground">
+          {children}
+        </dd>
+        {hint && (
+          <p className="mt-0.5 leading-snug text-[11px] text-muted-foreground">
+            {hint}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** What the invitation grants: role, any channel/team/project scope, and who it's for. */
 function InvitationCard({ preview }: { preview: InvitationPublicPreview }) {
   const name = inviterName(preview);
-  const scopes = [
-    preview.channel && {
-      key: 'channel',
-      icon: <Hash className="size-3" />,
-      label: preview.channel.name,
-    },
-    preview.team && {
-      key: 'team',
-      icon: <Users className="size-3" />,
-      label: preview.team.name,
-    },
-    preview.project && {
-      key: 'project',
-      icon: <FolderKanban className="size-3" />,
-      label: preview.project.name,
-    },
-  ].filter(Boolean) as { key: string; icon: ReactNode; label: string }[];
+  const role = preview.role.toLowerCase();
+  const expiresSoon =
+    new Date(preview.expiresAt).getTime() - Date.now() < 48 * 60 * 60 * 1000;
 
   return (
-    <div className="rounded-xl border border-border bg-surface shadow-xs">
-      <div className="p-4 flex items-center gap-3">
-        {/* The preview's logo URL is API-relative; resolve it before loading. */}
-        <WorkspaceAvatar
-          name={preview.workspace.name}
-          src={resolveMediaUrl(preview.workspace.avatarUrl)}
-          icon={preview.workspace.icon}
-          iconColor={preview.workspace.iconColor}
-          avatarColor={preview.workspace.avatarColor}
-          seed={preview.workspace.id}
-          size="lg"
-          className="shrink-0 shadow-2xs"
-        />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-foreground truncate">
-            {preview.workspace.name}
-          </p>
-          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-            <Badge
-              variant="neutral"
-              className="text-[10px] px-1.5 py-0 capitalize"
-            >
-              {preview.role.toLowerCase()}
-            </Badge>
-            {scopes.map((scope) => (
-              <span
-                key={scope.key}
-                className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-px text-foreground"
-              >
-                {scope.icon}
-                <span className="truncate max-w-[10rem]">{scope.label}</span>
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-
+    <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-xs">
       {preview.message && (
-        <div className="px-4 pb-3">
-          <p className="rounded-lg border border-border/80 bg-background/80 p-2.5 text-xs italic text-muted-foreground">
-            &ldquo;{preview.message}&rdquo;
-          </p>
-        </div>
-      )}
-
-      <dl className="px-4 py-3 border-t border-border/60 space-y-2 text-xs text-muted-foreground">
-        <div className="flex items-center gap-2">
+        <figure className="gap-2.5 px-4 py-3 flex border-b border-border/60">
           <UserAvatar
             name={name}
             src={preview.inviter.avatarUrl}
             seed={preview.inviter.id}
             indicator={false}
-            className="size-4"
+            size="sm"
+            className="shrink-0"
           />
-          <dt className="sr-only">Invited by</dt>
-          <dd>
-            Invited by <strong className="text-foreground">{name}</strong>
-          </dd>
-        </div>
-        {preview.email && (
-          <div className="flex items-center gap-2">
-            <Mail className="size-4 shrink-0" aria-hidden />
-            <dt className="sr-only">Sent to</dt>
-            <dd className="truncate">
-              Sent to{' '}
-              <strong className="text-foreground">{preview.email}</strong>
-            </dd>
+          <div className="min-w-0">
+            <figcaption className="font-medium text-[11px] text-foreground">
+              {name}
+            </figcaption>
+            <blockquote className="mt-0.5 text-xs leading-relaxed break-words text-muted-foreground">
+              {preview.message}
+            </blockquote>
           </div>
+        </figure>
+      )}
+
+      <dl className="divide-y divide-border/60">
+        <DetailRow
+          icon={<ShieldCheck className="size-3.5" />}
+          label="Your role"
+          hint={ROLE_HINTS[preview.role]}
+        >
+          <span className="capitalize">{role}</span>
+        </DetailRow>
+        {preview.channel && (
+          <DetailRow
+            icon={<Hash className="size-3.5" />}
+            label="You'll start in"
+          >
+            {preview.channel.name}
+          </DetailRow>
         )}
-        <div className="flex items-center gap-2">
-          <Clock className="size-4 shrink-0" aria-hidden />
-          <dt className="sr-only">Expires</dt>
-          <dd>
-            Expires{' '}
-            <time dateTime={preview.expiresAt}>
-              {formatRelative(preview.expiresAt)}
-            </time>
-          </dd>
-        </div>
+        {preview.team && (
+          <DetailRow icon={<Users className="size-3.5" />} label="Team">
+            {preview.team.name}
+          </DetailRow>
+        )}
+        {preview.project && (
+          <DetailRow
+            icon={<FolderKanban className="size-3.5" />}
+            label="Project"
+          >
+            {preview.project.name}
+          </DetailRow>
+        )}
+        {preview.email && (
+          <DetailRow
+            icon={<Mail className="size-3.5" />}
+            label="Invitation for"
+          >
+            {preview.email}
+          </DetailRow>
+        )}
       </dl>
+
+      <p
+        className={`gap-1.5 px-4 py-2 flex items-center border-t border-border/60 bg-muted/40 text-[11px] ${
+          expiresSoon ? 'text-accent-amber' : 'text-muted-foreground'
+        }`}
+      >
+        <Clock className="size-3.5 shrink-0" aria-hidden />
+        <span>
+          Expires{' '}
+          <time dateTime={preview.expiresAt}>
+            {formatRelative(preview.expiresAt)}
+          </time>
+        </span>
+      </p>
     </div>
   );
 }
@@ -194,6 +243,7 @@ export function AcceptInvitationPage() {
   const declineMutation = useDeclineInvitation();
 
   const [declined, setDeclined] = useState(false);
+  const [confirmingDecline, setConfirmingDecline] = useState(false);
 
   const preview = previewQuery.data;
   const isAuthenticated = authStatus === 'authenticated';
@@ -252,7 +302,8 @@ export function AcceptInvitationPage() {
   const goHome = (
     <Button
       variant="outline"
-      className="w-full text-xs"
+      size="lg"
+      className="w-full"
       onClick={() => navigate('/')}
     >
       {isAuthenticated ? 'Go to your workspaces' : 'Go to sign in'}
@@ -273,7 +324,9 @@ export function AcceptInvitationPage() {
     return (
       <AuthLayout
         title={
-          acceptMutation.data?.alreadyMember ? "You're already in" : "You're in!"
+          acceptMutation.data?.alreadyMember
+            ? "You're already in"
+            : "You're in!"
         }
         subtitle={
           preview
@@ -284,13 +337,16 @@ export function AcceptInvitationPage() {
               }…`
             : 'Opening your workspace…'
         }
-      >
-        <div className="py-4 flex flex-col items-center text-center space-y-4">
+        hero={
           <StatusIcon tone="success">
             <CheckCircle2 className="size-7" />
           </StatusIcon>
+        }
+      >
+        <div className="pt-1 space-y-2">
           <Button
-            className="w-full font-semibold"
+            className="font-semibold w-full"
+            size="lg"
             onClick={() => navigate(acceptDestination, { replace: true })}
           >
             Open now <ArrowRight className="size-4 ml-1.5" />
@@ -310,13 +366,13 @@ export function AcceptInvitationPage() {
             ? `You won't be added to ${preview.workspace.name}. Ask ${inviterName(preview)} for a new invite if you change your mind.`
             : 'You have declined this workspace invitation.'
         }
-      >
-        <div className="py-4 flex flex-col items-center text-center space-y-4">
+        hero={
           <StatusIcon tone="muted">
             <XCircle className="size-6" />
           </StatusIcon>
-          {goHome}
-        </div>
+        }
+      >
+        <div className="pt-1 space-y-2">{goHome}</div>
       </AuthLayout>
     );
   }
@@ -330,13 +386,16 @@ export function AcceptInvitationPage() {
       <AuthLayout
         title="We couldn't load this invitation"
         subtitle="Check your connection and try again."
-      >
-        <div className="py-4 flex flex-col items-center text-center space-y-4">
+        hero={
           <StatusIcon tone="muted">
             <WifiOff className="size-6" />
           </StatusIcon>
+        }
+      >
+        <div className="pt-1 space-y-2">
           <Button
-            className="w-full font-semibold"
+            className="font-semibold w-full"
+            size="lg"
             onClick={() => previewQuery.refetch()}
             loading={previewQuery.isFetching}
             leadingIcon={<RefreshCw className="size-4" />}
@@ -363,13 +422,16 @@ export function AcceptInvitationPage() {
       <AuthLayout
         title="You're already a member"
         subtitle={`You already have access to ${preview.workspace.name}.`}
-      >
-        <div className="py-4 flex flex-col items-center text-center space-y-4">
+        hero={
           <StatusIcon tone="primary">
             <Building2 className="size-6" />
           </StatusIcon>
+        }
+      >
+        <div className="pt-1 space-y-2">
           <Button
-            className="w-full font-semibold"
+            className="font-semibold w-full"
+            size="lg"
             onClick={() => navigate(`/w/${preview.workspace.slug}`)}
           >
             Open {preview.workspace.name}{' '}
@@ -409,13 +471,16 @@ export function AcceptInvitationPage() {
     };
 
     return (
-      <AuthLayout title={title} subtitle={body}>
-        <div className="py-4 flex flex-col items-center text-center space-y-4">
+      <AuthLayout
+        title={title}
+        subtitle={body}
+        hero={
           <StatusIcon tone="destructive">
             <XCircle className="size-6" />
           </StatusIcon>
-          {goHome}
-        </div>
+        }
+      >
+        <div className="pt-1 space-y-2">{goHome}</div>
       </AuthLayout>
     );
   }
@@ -440,16 +505,17 @@ export function AcceptInvitationPage() {
       <AuthLayout
         title={`Join ${preview.workspace.name}`}
         subtitle="This invitation was sent to a different account."
+        hero={<InviteHero preview={preview} />}
       >
         <div className="space-y-4 py-2">
           <InvitationCard preview={preview} />
 
           <div
             role="alert"
-            className="rounded-xl border border-accent-amber/40 bg-accent-amber/10 p-3 space-y-1.5 text-xs"
+            className="p-3 space-y-1.5 text-xs rounded-xl border border-accent-amber/40 bg-accent-amber/10"
           >
-            <div className="flex items-start gap-2 text-accent-amber font-semibold">
-              <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+            <div className="gap-2 font-semibold flex items-start text-accent-amber">
+              <AlertTriangle className="size-4 mt-0.5 shrink-0" />
               <span>Wrong account</span>
             </div>
             <p className="text-[11px] text-muted-foreground">
@@ -465,14 +531,17 @@ export function AcceptInvitationPage() {
             {matchingAccounts.map((account) => (
               <Button
                 key={account.id}
-                className="w-full gap-2 font-semibold"
+                className="gap-2 font-semibold w-full"
                 loading={
                   switchAccount.isPending &&
                   (switchAccount.variables as { accountId?: string })
                     ?.accountId === account.id
                 }
                 onClick={() =>
-                  switchAccount.mutate({ accountId: account.id, to: invitePath })
+                  switchAccount.mutate({
+                    accountId: account.id,
+                    to: invitePath,
+                  })
                 }
               >
                 <UserAvatar
@@ -488,7 +557,7 @@ export function AcceptInvitationPage() {
 
             <Button
               variant={matchingAccounts.length > 0 ? 'outline' : 'default'}
-              className="w-full gap-2 font-semibold"
+              className="gap-2 font-semibold w-full"
               loading={logout.isPending}
               onClick={() => logout.mutate({ returnTo: invitePath })}
             >
@@ -497,7 +566,7 @@ export function AcceptInvitationPage() {
             </Button>
             <Button
               variant="ghost"
-              className="w-full text-xs text-muted-foreground"
+              className="text-xs w-full text-muted-foreground"
               onClick={() => navigate('/')}
             >
               Not now
@@ -509,76 +578,139 @@ export function AcceptInvitationPage() {
   }
 
   // 8. Valid — ready to accept (authenticated) or authenticate first.
+  // Two-step decline, inline — declining can't be undone from this link.
+  const declineButton =
+    canDecline &&
+    (confirmingDecline ? (
+      <div
+        role="group"
+        aria-label="Confirm decline"
+        className="gap-2 flex flex-col items-center text-center"
+      >
+        <p className="text-xs text-balance text-muted-foreground">
+          Decline this invitation? You'll need a new one to join later.
+        </p>
+        <div className="gap-2 flex">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setConfirmingDecline(false)}
+            disabled={declineMutation.isPending}
+          >
+            Keep invitation
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-destructive hover:text-destructive"
+            onClick={handleDecline}
+            loading={declineMutation.isPending}
+            disabled={acceptMutation.isPending}
+          >
+            Decline
+          </Button>
+        </div>
+      </div>
+    ) : (
+      <button
+        type="button"
+        onClick={() => setConfirmingDecline(true)}
+        disabled={acceptMutation.isPending}
+        className="px-1 text-xs mx-auto block rounded-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+      >
+        Decline invitation
+      </button>
+    ));
+
   return (
     <AuthLayout
       title={`Join ${preview.workspace.name}`}
-      subtitle={`${inviterName(preview)} has invited you to collaborate.`}
+      subtitle={
+        <>
+          <strong className="font-semibold text-foreground">
+            {inviterName(preview)}
+          </strong>{' '}
+          invited you to collaborate
+          {preview.channel ? (
+            <>
+              {' '}
+              in{' '}
+              <strong className="font-semibold text-foreground">
+                #{preview.channel.name}
+              </strong>
+            </>
+          ) : null}
+          .
+        </>
+      }
+      hero={<InviteHero preview={preview} />}
     >
-      <div className="space-y-4 py-2">
+      <div className="space-y-5">
         <InvitationCard preview={preview} />
 
         <FormError error={actionError} />
 
         {isAuthenticated ? (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Button
-              className="w-full font-semibold"
+              size="lg"
+              className="font-semibold w-full"
               onClick={handleAccept}
               loading={acceptMutation.isPending}
               disabled={declineMutation.isPending}
-              leadingIcon={<CheckCircle2 className="size-4" />}
             >
               {acceptLabel}
+              <ArrowRight className="size-4 ml-1.5" />
             </Button>
-            {canDecline && (
-              <Button
-                variant="ghost"
-                className="w-full text-xs text-muted-foreground hover:text-foreground"
-                onClick={handleDecline}
-                loading={declineMutation.isPending}
-                disabled={acceptMutation.isPending}
-              >
-                Decline invitation
-              </Button>
-            )}
-            {currentUser?.email && (
-              <p className="pt-1 text-center text-[11px] text-muted-foreground">
-                Signed in as{' '}
-                <span className="text-foreground">{currentUser.email}</span>
+            {/* An emailed invite already names the account in the card. */}
+            {currentUser?.email && !preview.email && (
+              <p className="text-center text-[11px] text-muted-foreground">
+                Joining as{' '}
+                <span className="font-medium text-foreground">
+                  {currentUser.email}
+                </span>
               </p>
             )}
+            {declineButton}
           </div>
         ) : (
-          <div className="space-y-2">
-            <p className="text-xs text-center text-muted-foreground">
-              {preview.email
-                ? `Sign in or create an account with ${preview.email} to join.`
-                : 'Sign in or create an account to join.'}
-            </p>
-            <Button
-              className="w-full font-semibold gap-2"
-              onClick={() => navigate('/register', { state: authState })}
-            >
-              <UserPlus className="size-4" />
-              Create account and join
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full text-xs gap-2"
-              onClick={() => navigate('/login', { state: authState })}
-            >
-              <LogIn className="size-3.5" />
-              I already have an account
-            </Button>
-            {canDecline && (
+          <div className="space-y-3">
+            <div className="space-y-2">
               <Button
-                variant="ghost"
-                className="w-full text-xs text-muted-foreground hover:text-foreground"
-                onClick={handleDecline}
-                loading={declineMutation.isPending}
+                size="lg"
+                className="font-semibold gap-2 w-full"
+                onClick={() => navigate('/register', { state: authState })}
               >
-                Decline invitation
+                <UserPlus className="size-4" />
+                Create account and join
               </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                className="gap-2 w-full"
+                onClick={() => navigate('/login', { state: authState })}
+              >
+                <LogIn className="size-4" />
+                Sign in to join
+              </Button>
+            </div>
+            <p className="leading-relaxed text-center text-[11px] text-balance text-muted-foreground">
+              {preview.email ? (
+                <>
+                  Use{' '}
+                  <span className="font-medium text-foreground">
+                    {preview.email}
+                  </span>{' '}
+                  so your invitation is matched automatically.
+                </>
+              ) : (
+                "Already on Onetab AI? Sign in and you'll join right after."
+              )}
+            </p>
+            {declineButton && (
+              <div className="pt-2 border-t border-border/60">
+                {declineButton}
+              </div>
             )}
           </div>
         )}

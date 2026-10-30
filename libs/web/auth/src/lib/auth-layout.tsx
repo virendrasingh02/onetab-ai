@@ -15,6 +15,8 @@ const FOOTER_LINKS: { key: keyof LegalLinks; label: string }[] = [
 export interface AuthLayoutProps {
   title: string;
   subtitle?: ReactNode;
+  /** Optional visual above the title (e.g. an avatar or status glyph). */
+  hero?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
   className?: string;
@@ -31,6 +33,7 @@ export interface AuthLayoutProps {
 export function AuthLayout({
   title,
   subtitle,
+  hero,
   children,
   footer,
   className,
@@ -42,15 +45,15 @@ export function AuthLayout({
   useForcesDarkWindowChrome();
 
   return (
-    <div className="dark min-h-full flex flex-col justify-between items-center bg-background text-foreground px-4 py-5 sm:py-6 selection:bg-primary/25">
+    <div className="dark px-4 py-5 sm:py-6 flex min-h-full flex-col items-center justify-between bg-background text-foreground selection:bg-primary/25">
       {/* Top Header Bar with centered Brand Emblem */}
-      <header className="w-full max-w-4xl px-4 flex items-center justify-center">
+      <header className="max-w-4xl px-4 flex w-full items-center justify-center">
         <Link
           to="/"
-          className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:opacity-90 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="gap-2 px-2.5 py-1.5 inline-flex items-center rounded-lg transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label={`${brandName} Home`}
         >
-          <div className="size-7 rounded-md bg-surface-raised border border-border flex items-center justify-center font-bold text-xs text-foreground shadow-xs">
+          <div className="size-7 font-bold text-xs flex items-center justify-center rounded-md border border-border bg-surface-raised text-foreground shadow-xs">
             {brandLogoText}
           </div>
           <span className="text-sm font-semibold tracking-tight text-foreground">
@@ -60,14 +63,15 @@ export function AuthLayout({
       </header>
 
       {/* Main Content Area */}
-      <main className="w-full max-w-[360px] my-auto py-6 flex flex-col items-center">
+      <main className="py-6 my-auto flex w-full max-w-[360px] flex-col items-center">
         <div className={cn('w-full', className)}>
-          <h1 className="text-2xl sm:text-[28px] font-bold tracking-tight text-foreground text-center leading-tight">
+          {hero ? <div className="mb-5 flex justify-center">{hero}</div> : null}
+          <h1 className="text-2xl sm:text-[28px] font-bold tracking-tight leading-tight text-center text-foreground">
             {title}
           </h1>
 
           {subtitle ? (
-            <p className="mt-1.5 text-xs sm:text-sm text-muted-foreground text-center text-balance leading-relaxed">
+            <p className="mt-1.5 text-xs sm:text-sm leading-relaxed text-center text-balance text-muted-foreground">
               {subtitle}
             </p>
           ) : null}
@@ -75,7 +79,7 @@ export function AuthLayout({
           <div className="mt-5 w-full">{children}</div>
 
           {footer ? (
-            <div className="mt-4 text-xs text-center text-muted-foreground leading-normal">
+            <div className="mt-4 text-xs leading-normal text-center text-muted-foreground">
               {footer}
             </div>
           ) : null}
@@ -83,15 +87,16 @@ export function AuthLayout({
       </main>
 
       {/* Bottom Legal Notice & Footer Links */}
-      <footer className="pt-4 text-center max-w-md w-full px-2 space-y-2">
+      <footer className="pt-4 max-w-md px-2 space-y-2 w-full text-center">
         {LEGAL_LINKS.terms ? (
-          <p className="text-[11px] sm:text-xs text-subtle leading-relaxed">
-            By proceeding, you acknowledge that you have read, understood, and agree to {brandName}&apos;s{' '}
+          <p className="sm:text-xs leading-relaxed text-[11px] text-subtle">
+            By proceeding, you acknowledge that you have read, understood, and
+            agree to {brandName}&apos;s{' '}
             <a
               href={LEGAL_LINKS.terms}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+              className="text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground"
             >
               Terms and Conditions
             </a>
@@ -99,8 +104,10 @@ export function AuthLayout({
           </p>
         ) : null}
 
-        <div className="text-[11px] sm:text-xs text-subtle flex items-center justify-center gap-3 sm:gap-4 flex-wrap">
-          <span>© {new Date().getFullYear()} {brandName}</span>
+        <div className="sm:text-xs gap-3 sm:gap-4 flex flex-wrap items-center justify-center text-[11px] text-subtle">
+          <span>
+            © {new Date().getFullYear()} {brandName}
+          </span>
           {FOOTER_LINKS.map(({ key, label }) =>
             LEGAL_LINKS[key] ? (
               <a
@@ -108,7 +115,7 @@ export function AuthLayout({
                 href={LEGAL_LINKS[key]}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hover:text-foreground transition-colors"
+                className="transition-colors hover:text-foreground"
               >
                 {label}
               </a>
@@ -116,7 +123,7 @@ export function AuthLayout({
           )}
         </div>
 
-        <div className="flex justify-center pt-1">
+        <div className="pt-1 flex justify-center">
           <LanguageSelect
             value={locale}
             onChange={(code) => setLocale(code)}
@@ -127,4 +134,3 @@ export function AuthLayout({
     </div>
   );
 }
-
