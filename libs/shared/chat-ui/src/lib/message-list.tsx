@@ -952,7 +952,11 @@ export function MessageList({
 
       if (conversationId && restorePendingFor.current !== conversationId) {
         const anchor = captureAnchor();
-        const next: ScrollAnchor = { ...anchor, atBottom };
+        const next: ScrollAnchor = {
+          ...anchor,
+          atBottom,
+          unreadBeforeId: unreadBeforeId ?? null,
+        };
         setScrollAnchor(conversationId, next);
       }
 
@@ -1008,6 +1012,7 @@ export function MessageList({
     reportFollowing,
     virtualizer,
     onVisibleMessageRead,
+    unreadBeforeId,
   ]);
 
   /** Coalesce the scroll handler to one run per frame. */
@@ -1085,8 +1090,14 @@ export function MessageList({
       return;
     }
 
+    const saved =
+      openPosition === 'newest' ? undefined : getScrollAnchor(conversationId);
+    // Already read past this same "new messages" line on an earlier visit:
+    // go back to where they were, not to the line again.
+    const seenThisLine =
+      !!saved && (saved.unreadBeforeId ?? null) === (unreadBeforeId ?? null);
     const unreadIndex =
-      openPosition !== 'newest' && unreadBeforeId
+      openPosition !== 'newest' && unreadBeforeId && !seenThisLine
         ? rows.findIndex((row) => row.kind === 'unread')
         : -1;
     // Everything below runs before this commit paints: hide the viewport, put
@@ -1107,8 +1118,6 @@ export function MessageList({
       return;
     }
 
-    const saved =
-      openPosition === 'newest' ? undefined : getScrollAnchor(conversationId);
     if (saved && !saved.atBottom && rows.some((row) => row.key === saved.key)) {
       stickToBottom.current = false;
       reportFollowing(false);

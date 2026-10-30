@@ -23,6 +23,7 @@ import {
   AiEntityAvatar,
 } from '@org/ui';
 import { cn } from '@org/utils';
+import { MessageTime } from '../message-time.js';
 import { EntityKindBadge } from '../entity-kind-badge.js';
 import { AppLogoAvatar } from '../app-logo-avatar.js';
 import {
@@ -688,16 +689,10 @@ export function AgentMessageCard({
                     <EntityKindBadge kind={badgeKind} />
                   </span>
 
-                  <time
-                    dateTime={new Date(message.timestamp).toISOString()}
-                    className="font-medium text-xs text-muted-foreground"
-                  >
-                    {new Date(message.timestamp).toLocaleTimeString(undefined, {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      hour12: true,
-                    })}
-                  </time>
+                  <MessageTime
+                    timestamp={message.timestamp}
+                    className="font-medium text-xs cursor-pointer text-muted-foreground hover:underline"
+                  />
                 </div>
               </div>
             </div>

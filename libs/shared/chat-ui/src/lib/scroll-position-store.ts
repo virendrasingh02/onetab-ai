@@ -29,11 +29,19 @@ export interface ScrollAnchor {
   offset: number;
   /** The reader was pinned to the newest message; ignore `key`/`offset`. */
   atBottom: boolean;
+  /**
+   * The "new messages" line showing when this was saved. Reopening with the
+   * same line returns to the reader's place instead of snapping back to the
+   * line every visit; a different line (new activity since) wins.
+   */
+  unreadBeforeId?: string | null;
 }
 
 const anchors = new Map<string, ScrollAnchor>();
 
-export function getScrollAnchor(conversationId: string): ScrollAnchor | undefined {
+export function getScrollAnchor(
+  conversationId: string,
+): ScrollAnchor | undefined {
   return anchors.get(conversationId);
 }
 

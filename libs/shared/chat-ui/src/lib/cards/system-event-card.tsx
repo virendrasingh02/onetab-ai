@@ -472,7 +472,7 @@ export function SystemEventTimestamp({ timestamp }: { timestamp: number }) {
   return (
     <MessageTime
       timestamp={timestamp}
-      className="text-xs font-medium shrink-0 cursor-default text-muted-foreground"
+      className="font-medium text-xs shrink-0 cursor-pointer text-muted-foreground hover:underline"
     />
   );
 }
