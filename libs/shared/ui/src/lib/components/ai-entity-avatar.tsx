@@ -109,14 +109,14 @@ export interface AiEntityColorOption {
 
 /** Tailwind classes per colour id. Literal strings so Tailwind keeps them. */
 const COLOR_CLASSES: Record<string, Pick<AiEntityColorOption, 'swatch' | 'tone' | 'cover'>> = {
-  emerald: { swatch: 'bg-emerald-500', tone: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30', cover: 'from-emerald-500/25 to-emerald-600/5' },
-  indigo: { swatch: 'bg-indigo-500', tone: 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/30', cover: 'from-indigo-500/25 to-indigo-600/5' },
-  purple: { swatch: 'bg-purple-500', tone: 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30', cover: 'from-purple-500/25 to-purple-600/5' },
-  amber: { swatch: 'bg-amber-500', tone: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30', cover: 'from-amber-500/25 to-amber-600/5' },
-  cyan: { swatch: 'bg-cyan-500', tone: 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border-cyan-500/30', cover: 'from-cyan-500/25 to-cyan-600/5' },
-  rose: { swatch: 'bg-rose-500', tone: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30', cover: 'from-rose-500/25 to-rose-600/5' },
-  sky: { swatch: 'bg-sky-600', tone: 'bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/30', cover: 'from-sky-500/25 to-sky-700/5' },
-  zinc: { swatch: 'bg-zinc-500', tone: 'bg-zinc-500/15 text-zinc-600 dark:text-zinc-400 border-zinc-500/30', cover: 'from-zinc-500/25 to-zinc-600/5' },
+  emerald: { swatch: 'bg-emerald-500', tone: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30', cover: 'from-emerald-500/45 via-emerald-500/20 to-emerald-600/5' },
+  indigo: { swatch: 'bg-indigo-500', tone: 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/30', cover: 'from-indigo-500/45 via-indigo-500/20 to-indigo-600/5' },
+  purple: { swatch: 'bg-purple-500', tone: 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30', cover: 'from-purple-500/45 via-purple-500/20 to-purple-600/5' },
+  amber: { swatch: 'bg-amber-500', tone: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30', cover: 'from-amber-500/45 via-amber-500/20 to-amber-600/5' },
+  cyan: { swatch: 'bg-cyan-500', tone: 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border-cyan-500/30', cover: 'from-cyan-500/45 via-cyan-500/20 to-cyan-600/5' },
+  rose: { swatch: 'bg-rose-500', tone: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30', cover: 'from-rose-500/45 via-rose-500/20 to-rose-600/5' },
+  sky: { swatch: 'bg-sky-600', tone: 'bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/30', cover: 'from-sky-500/45 via-sky-500/20 to-sky-700/5' },
+  zinc: { swatch: 'bg-zinc-500', tone: 'bg-zinc-500/15 text-zinc-600 dark:text-zinc-400 border-zinc-500/30', cover: 'from-zinc-500/45 via-zinc-500/20 to-zinc-600/5' },
 };
 
 /** Every identity colour, in picker order — ids, labels and hex come from `@org/types`. */
@@ -184,11 +184,16 @@ export function getAiEntityTone(kind: AiEntityKind, name: string, avatarUrl?: st
     : cn('bg-gradient-to-br', getAiEntityGradient(name));
 }
 
-/** A profile cover's gradient stops: the chosen colour, else the name-derived tint. */
-export function getAiEntityCover(name: string, avatarUrl?: string | null): string {
+/**
+ * A profile cover's gradient stops (use with `bg-gradient-to-br`), matching
+ * `getAiEntityTone`: the chosen colour, else primary for agents and the
+ * name-derived tint for coworkers.
+ */
+export function getAiEntityCover(name: string, avatarUrl?: string | null, kind: AiEntityKind = 'coworker'): string {
   const parsed = parseAiEntityAvatar(avatarUrl);
   const chosen = parsed.type === 'icon' && parsed.color ? COLOR_BY_ID.get(parsed.color) : undefined;
-  return chosen ? chosen.cover : getAiEntityGradient(name);
+  if (chosen) return chosen.cover;
+  return kind === 'agent' ? 'from-primary/40 via-primary/15 to-primary/5' : getAiEntityGradient(name);
 }
 
 const SIZES = {

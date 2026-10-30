@@ -27,6 +27,7 @@ import {
   toast,
   type RightPanelProfile,
   confirm,
+  getAiEntityCover,
 } from '@org/ui';
 import {
   Activity,
@@ -312,6 +313,7 @@ export const AgentProfileRightPanel: FC<AgentProfileRightPanelProps> = ({
         kind="AI Agent"
         isActive={isActive}
         subtitle={role}
+        coverClassName={getAiEntityCover(name, agent?.avatarUrl, 'agent')}
         actions={
           <>
             <Button

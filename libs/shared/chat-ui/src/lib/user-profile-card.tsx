@@ -1,6 +1,7 @@
 import {
   Badge,
   Button,
+  getAiEntityCover,
   LocalTime,
   Popover,
   PopoverContent,
@@ -29,6 +30,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useAiEntity } from './cards/agent-avatar-context.js';
 import { EmployeeInfoSection } from './employee-info-section.js';
 import {
   MEMBER_ROLE_LABELS,
@@ -133,6 +135,14 @@ export function UserProfileCard({
   const resolvedTitle = title || member?.title || undefined;
   const resolvedTimezone = timezone ?? member?.timezone ?? undefined;
   const resolvedBio = (bio ?? member?.bio)?.trim() || undefined;
+  // Agents and coworkers take their look from the live API identity, so the
+  // card's avatar and cover match their rail profile (and follow edits).
+  const isAiEntity = entityKind === 'agent' || entityKind === 'coworker';
+  const liveEntity = useAiEntity(
+    isAiEntity ? entityId : undefined,
+    isAiEntity ? name : undefined,
+  );
+  const resolvedAvatarUrl = liveEntity?.avatarUrl || avatarUrl;
 
   /* One timer for both directions: any new intent cancels the pending one. */
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -167,7 +177,7 @@ export function UserProfileCard({
       entityId,
       userId,
       name,
-      avatarUrl,
+      avatarUrl: resolvedAvatarUrl,
       title: resolvedTitle,
       role: member ? MEMBER_ROLE_LABELS[member.role] : role,
       powerLevel,
@@ -210,7 +220,20 @@ export function UserProfileCard({
         onMouseLeave={() => scheduleHover(false, HOVER_CLOSE_DELAY_MS)}
         className="z-[100] w-80 max-w-[calc(100vw-1.5rem)] p-0 shadow-2xl overflow-hidden rounded-2xl border border-border bg-popover text-foreground"
       >
-        {/* Header banner — the person's cover, else their avatar gradient */}
+        {/* Header banner — an AI entity's identity colour (as on its rail
+            profile), else the person's cover, else their avatar gradient */}
+        {isAiEntity ? (
+          <div
+            className={cn(
+              'h-20 w-full border-b border-border/60 bg-gradient-to-br',
+              getAiEntityCover(
+                name,
+                resolvedAvatarUrl,
+                liveEntity?.kind ?? (entityKind === 'coworker' ? 'coworker' : 'agent'),
+              ),
+            )}
+          />
+        ) : (
         <UserCover src={member?.coverUrl} seed={userId} className="h-20">
           <div className="top-2 right-2 gap-1 absolute flex">
             {/* Workspace role wins; the Matrix room power level is only a
@@ -226,13 +249,14 @@ export function UserProfileCard({
             ) : null}
           </div>
         </UserCover>
+        )}
 
         {/* User Avatar Row */}
         <div className="px-4 pb-3 pt-0 relative">
           <div className="-mt-10 mb-2 flex items-end">
             <UserAvatar
               name={name}
-              src={avatarUrl}
+              src={resolvedAvatarUrl}
               seed={userId}
               size="xl"
               presence={status}
