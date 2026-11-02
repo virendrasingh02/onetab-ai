@@ -58,6 +58,8 @@ export interface MessageRendererProps {
   editSlot?: ReactNode;
   onDelete?: () => void;
   onOpenThread?: () => void;
+  /** "Open in channel" — see `ChatBubble`. */
+  onOpenInConversation?: () => void;
   onTogglePin?: () => void;
   onToggleSave?: () => void;
   onCopyLink?: () => void;
@@ -141,6 +143,8 @@ export const MessageRenderer = memo(function MessageRenderer(
               onAction={onAction}
               onRetry={onRetry}
               onOpenThread={onOpenThread}
+              onOpenInConversation={props.onOpenInConversation}
+              roomKind={props.roomKind}
               onToggleSave={onToggleSave}
               isSaved={isSaved}
               onReact={onReact}

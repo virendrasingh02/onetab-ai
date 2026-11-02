@@ -4,6 +4,7 @@ import {
   splitAppConnectionName,
   type AIAgentMessageContent,
   type Message,
+  type RoomKind,
   type RoomMember,
   type StructuredMessageAction,
 } from '@org/types';
@@ -67,6 +68,7 @@ import { UserProfileCard } from '../user-profile-card.js';
 import { MarkdownMessage } from '../markdown-message.js';
 import {
   MessageActionToolbar,
+  openInConversationLabel,
   ThreadRepliesButton,
   ReactionPicker,
 } from '../chat-bubble.js';
@@ -88,6 +90,9 @@ export interface AgentMessageCardProps {
   onFollowUp?: (text: string) => void;
   showFollowUps?: boolean;
   onOpenThread?: () => void;
+  /** Opens the reply where it lives — see `ChatBubble`. */
+  onOpenInConversation?: () => void;
+  roomKind?: RoomKind;
   onToggleSave?: () => void;
   isSaved?: boolean;
   /** Same optional handlers a normal message row takes — each action shows
@@ -168,6 +173,8 @@ export function AgentMessageCard({
   onFollowUp,
   showFollowUps = true,
   onOpenThread,
+  onOpenInConversation,
+  roomKind,
   onToggleSave,
   isSaved = false,
   onReply,
@@ -433,6 +440,14 @@ export function AgentMessageCard({
   ): EntityAction[] => {
     const onToolbar = surface === 'dropdown';
     return [
+      {
+        id: 'open-in-conversation',
+        group: 'reply',
+        label: openInConversationLabel(roomKind),
+        icon: ArrowUpRight,
+        hidden: onToolbar || !onOpenInConversation,
+        run: onOpenInConversation,
+      },
       {
         id: 'reply-thread',
         group: 'reply',
@@ -1363,6 +1378,8 @@ export function AgentMessageCard({
           actionsPinned={actionsPinned}
           onPinnedChange={setActionsPinned}
           onReact={onReact}
+          onOpenInConversation={onOpenInConversation}
+          roomKind={roomKind}
           onOpenThread={onOpenThread}
           onForward={onForward}
           onCopyLink={onCopyLink}

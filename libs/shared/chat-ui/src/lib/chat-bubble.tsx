@@ -29,6 +29,8 @@ import { EntityKindBadge } from './entity-kind-badge.js';
 import {
   Activity,
   AlertTriangle,
+  ArrowRight,
+  ArrowUpRight,
   Bell,
   BellOff,
   Blocks,
@@ -44,6 +46,7 @@ import {
   FileText,
   FolderKanban,
   Forward,
+  Hash,
   Link2,
   Link2Off,
   Lock,
@@ -135,6 +138,12 @@ export interface ChatBubbleProps {
   /** `WorkspacePolicy.messageEditWindowMinutes` — null/unset means unlimited (default). Only ever narrows when the message is own; never grants edit on someone else's. */
   editWindowMinutes?: number | null;
   onOpenThread?: () => void;
+  /**
+   * Opens the message where it lives — its channel or DM, scrolled to it.
+   * For views that list messages away from their conversation (the Threads
+   * inbox); the conversation itself leaves it unset.
+   */
+  onOpenInConversation?: () => void;
   threadReplyCount?: number;
   /**
    * Draws the curved line joining the avatar to the "N replies" summary.
@@ -528,6 +537,7 @@ export function ChatBubble({
   canModerateMessages = false,
   editWindowMinutes = null,
   onOpenThread,
+  onOpenInConversation,
   threadReplyCount,
   showThreadConnector = false,
   threadHasUnread = false,
@@ -883,6 +893,15 @@ export function ChatBubble({
   ): EntityAction[] => {
     const onToolbar = surface === 'dropdown';
     return [
+      {
+        id: 'open-in-conversation',
+        group: 'reply',
+        label: openInConversationLabel(roomKind),
+        icon: roomKind === 'channel' ? Hash : ArrowUpRight,
+        shortcut: 'O',
+        hidden: onToolbar || !onOpenInConversation,
+        run: onOpenInConversation,
+      },
       {
         id: 'reply-thread',
         group: 'reply',
@@ -1575,6 +1594,8 @@ export function ChatBubble({
           actionsPinned={actionsPinned}
           onPinnedChange={setActionsPinned}
           onReact={onReact}
+          onOpenInConversation={onOpenInConversation}
+          roomKind={roomKind}
           onOpenThread={onOpenThread}
           onForward={onForward}
           onCopyLink={onCopyLink}
@@ -1876,6 +1897,29 @@ export function MessageToolbarShell({
   );
 }
 
+/** "Open in channel" for a channel; a DM or group is a conversation. */
+export function openInConversationLabel(roomKind?: RoomKind): string {
+  return roomKind === 'channel' ? 'Open in channel' : 'Open in conversation';
+}
+
+/** A `#` with an arrow after it — "go to the channel" — or just the arrow for a DM. */
+function OpenInConversationIcon({ roomKind }: { roomKind?: RoomKind }) {
+  if (roomKind !== 'channel') {
+    return (
+      <ArrowUpRight className="size-4.5 ease-out group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform duration-200 group-hover/btn:scale-110" />
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-px">
+      <Hash className="size-4 ease-out transition-transform duration-200 group-hover/btn:scale-110" />
+      <ArrowRight
+        strokeWidth={2.5}
+        className="size-3 -ml-0.5 ease-out group-hover/btn:translate-x-0.5 transition-transform duration-200"
+      />
+    </span>
+  );
+}
+
 /**
  * The floating hover/focus toolbar every message row shares — a plain message
  * and an agent's card render this same component, so the two can't drift.
@@ -1890,6 +1934,8 @@ export function MessageActionToolbar({
   actionsPinned,
   onPinnedChange,
   onReact,
+  onOpenInConversation,
+  roomKind,
   onOpenThread,
   onForward,
   onCopyLink,
@@ -1905,6 +1951,9 @@ export function MessageActionToolbar({
   actionsPinned: boolean;
   onPinnedChange: (pinned: boolean) => void;
   onReact?: (key: string) => void;
+  onOpenInConversation?: () => void;
+  /** Picks the "Open in …" wording and icon. */
+  roomKind?: RoomKind;
   onOpenThread?: () => void;
   onForward?: () => void;
   onCopyLink?: () => void;
@@ -1930,6 +1979,21 @@ export function MessageActionToolbar({
             <Smile className="size-4.5 ease-out transition-transform duration-200 group-hover/btn:scale-110 group-hover/btn:rotate-12" />
           </button>
         </ReactionPicker>
+      ) : null}
+
+      {onOpenInConversation ? (
+        <Hint label={openInConversationLabel(roomKind)}>
+          <button
+            aria-label={openInConversationLabel(roomKind)}
+            onClick={() => {
+              onOpenInConversation();
+              onPinnedChange(false);
+            }}
+            className={TOOLBAR_BTN}
+          >
+            <OpenInConversationIcon roomKind={roomKind} />
+          </button>
+        </Hint>
       ) : null}
 
       {onOpenThread ? (

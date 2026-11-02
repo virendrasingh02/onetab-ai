@@ -566,7 +566,15 @@ export function toMessage(
   if (!isRenderableMessageType(event.getType())) return null;
 
   const content = event.getContent<MessageContentShape>();
-  const relation = content['m.relates_to'];
+  // Once an edit lands, `getContent()` is the edit's `m.new_content`, which by
+  // spec carries no `m.relates_to` — read the relation off the original event,
+  // or an edited thread reply (an agent's answer is edited as it streams)
+  // loses its thread and drops into the main timeline.
+  const wireContent =
+    typeof event.getWireContent === 'function'
+      ? (event.getWireContent() as MessageContentShape | undefined)
+      : undefined;
+  const relation = wireContent?.['m.relates_to'] ?? content['m.relates_to'];
 
   // A replacement carries the new body under `m.new_content`; the SDK applies
   // it to the original event, so an edit event itself is not a timeline entry.

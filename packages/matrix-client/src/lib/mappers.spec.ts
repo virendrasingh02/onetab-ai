@@ -51,6 +51,8 @@ interface FakeEventInput {
   decryptionFailure?: boolean;
   encrypted?: boolean;
   replacing?: boolean;
+  /** The original event's content, when `content` is an applied edit. */
+  wireContent?: Record<string, unknown>;
 }
 
 function fakeEvent(input: FakeEventInput): MatrixEvent {
@@ -60,6 +62,7 @@ function fakeEvent(input: FakeEventInput): MatrixEvent {
     getSender: () => input.sender ?? '@alice:example.org',
     getType: () => input.type ?? 'm.room.message',
     getContent: () => input.content,
+    getWireContent: () => input.wireContent ?? input.content,
     getTs: () => input.ts ?? 1_700_000_000_000,
     isRedacted: () => input.redacted ?? false,
     isDecryptionFailure: () => input.decryptionFailure ?? false,
@@ -137,6 +140,36 @@ describe('toMessage', () => {
       isEdited: false,
       isRedacted: false,
     });
+  });
+
+  it('keeps an edited thread reply in its thread', () => {
+    // After an edit, `getContent()` is the edit's `m.new_content`, which has
+    // no `m.relates_to` — the thread lives on the original event.
+    const message = toMessage(
+      client,
+      fakeEvent({
+        replacing: true,
+        content: { msgtype: 'm.text', body: 'final answer' },
+        wireContent: {
+          msgtype: 'm.text',
+          body: 'thinking…',
+          'm.relates_to': {
+            rel_type: 'm.thread',
+            event_id: '$root',
+            is_falling_back: true,
+            'm.in_reply_to': { event_id: '$root' },
+          },
+        },
+      }),
+      room,
+    );
+
+    expect(message).toMatchObject({
+      body: 'final answer',
+      isEdited: true,
+      threadRootId: '$root',
+    });
+    expect(message?.replyToId).toBeUndefined();
   });
 
   it('skips non-message events, so a redaction echo is not an empty bubble', () => {
@@ -428,10 +461,30 @@ describe('collectUnreadMentions', () => {
 
   it('keeps only unread, highlight-firing messages from other people, oldest first', () => {
     const events = [
-      fakeEvent({ id: '$a', sender: '@alice:example.org', ts: 30, content: { body: '@me later' } }),
-      fakeEvent({ id: '$b', sender: '@bob:example.org', ts: 10, content: { body: '@me first' } }),
-      fakeEvent({ id: '$plain', sender: '@bob:example.org', ts: 20, content: { body: 'hi all' } }),
-      fakeEvent({ id: '$mine', sender: ME, ts: 25, content: { body: '@me self' } }),
+      fakeEvent({
+        id: '$a',
+        sender: '@alice:example.org',
+        ts: 30,
+        content: { body: '@me later' },
+      }),
+      fakeEvent({
+        id: '$b',
+        sender: '@bob:example.org',
+        ts: 10,
+        content: { body: '@me first' },
+      }),
+      fakeEvent({
+        id: '$plain',
+        sender: '@bob:example.org',
+        ts: 20,
+        content: { body: 'hi all' },
+      }),
+      fakeEvent({
+        id: '$mine',
+        sender: ME,
+        ts: 25,
+        content: { body: '@me self' },
+      }),
     ];
     const room = mentionsRoom({ timeline: events });
 
@@ -442,27 +495,51 @@ describe('collectUnreadMentions', () => {
     );
 
     expect(result.map((m) => m.eventId)).toEqual(['$b', '$a']);
-    expect(result[0]).toMatchObject({ roomId: '!room:example.org', timestamp: 10 });
+    expect(result[0]).toMatchObject({
+      roomId: '!room:example.org',
+      timestamp: 10,
+    });
   });
 
   it('drops a mention the reader has already read a receipt for', () => {
     const events = [
-      fakeEvent({ id: '$a', sender: '@alice:example.org', ts: 10, content: { body: '@me' } }),
-      fakeEvent({ id: '$b', sender: '@alice:example.org', ts: 20, content: { body: '@me' } }),
+      fakeEvent({
+        id: '$a',
+        sender: '@alice:example.org',
+        ts: 10,
+        content: { body: '@me' },
+      }),
+      fakeEvent({
+        id: '$b',
+        sender: '@alice:example.org',
+        ts: 20,
+        content: { body: '@me' },
+      }),
     ];
     const room = mentionsRoom({ timeline: events, readEventIds: ['$a'] });
 
-    const result = collectUnreadMentions(highlightingClient(['$a', '$b']), room, ME);
+    const result = collectUnreadMentions(
+      highlightingClient(['$a', '$b']),
+      room,
+      ME,
+    );
     expect(result.map((m) => m.eventId)).toEqual(['$b']);
   });
 
   it('ignores redacted mentions', () => {
     const room = mentionsRoom({
       timeline: [
-        fakeEvent({ id: '$a', sender: '@alice:example.org', redacted: true, content: { body: '@me' } }),
+        fakeEvent({
+          id: '$a',
+          sender: '@alice:example.org',
+          redacted: true,
+          content: { body: '@me' },
+        }),
       ],
     });
-    expect(collectUnreadMentions(highlightingClient(['$a']), room, ME)).toEqual([]);
+    expect(collectUnreadMentions(highlightingClient(['$a']), room, ME)).toEqual(
+      [],
+    );
   });
 
   it('includes thread replies, tagged with their root id', () => {
@@ -472,15 +549,29 @@ describe('collectUnreadMentions', () => {
         {
           id: '$root',
           events: [
-            fakeEvent({ id: '$reply', sender: '@alice:example.org', ts: 40, content: { body: '@me in thread' } }),
+            fakeEvent({
+              id: '$reply',
+              sender: '@alice:example.org',
+              ts: 40,
+              content: { body: '@me in thread' },
+            }),
           ],
         },
       ],
     });
 
-    const result = collectUnreadMentions(highlightingClient(['$reply']), room, ME);
+    const result = collectUnreadMentions(
+      highlightingClient(['$reply']),
+      room,
+      ME,
+    );
     expect(result).toEqual([
-      { eventId: '$reply', roomId: '!room:example.org', timestamp: 40, threadRootId: '$root' },
+      {
+        eventId: '$reply',
+        roomId: '!room:example.org',
+        timestamp: 40,
+        threadRootId: '$root',
+      },
     ]);
   });
 
@@ -496,7 +587,9 @@ describe('collectUnreadMentions', () => {
       threads: [{ id: '$root', events: [shared] }],
     });
 
-    expect(collectUnreadMentions(highlightingClient(['$dup']), room, ME)).toHaveLength(1);
+    expect(
+      collectUnreadMentions(highlightingClient(['$dup']), room, ME),
+    ).toHaveLength(1);
   });
 });
 
@@ -541,7 +634,9 @@ function fakeDmRoom(input: FakeDmRoomInput): SdkRoom {
         type === 'm.room.name' && input.name
           ? ({ getContent: () => ({ name: input.name }) } as unknown)
           : type === 'm.room.encryption' && input.encrypted
-            ? ({ getContent: () => ({ algorithm: 'm.megolm.v1.aes-sha2' }) } as unknown)
+            ? ({
+                getContent: () => ({ algorithm: 'm.megolm.v1.aes-sha2' }),
+              } as unknown)
             : null,
     },
     getMembers: () =>
@@ -591,7 +686,9 @@ describe('resolveDirectMessageRoom', () => {
   it('returns a recorded room whose invite is still pending, so no duplicate is created', () => {
     const client = fakeDmClient({
       direct: { [peer]: ['!dm:example.org'] },
-      rooms: [fakeDmRoom({ roomId: '!dm:example.org', myMembership: 'invite' })],
+      rooms: [
+        fakeDmRoom({ roomId: '!dm:example.org', myMembership: 'invite' }),
+      ],
     });
     expect(resolveDirectMessageRoom(client, peer)).toBe('!dm:example.org');
   });
@@ -599,7 +696,9 @@ describe('resolveDirectMessageRoom', () => {
   it('skips a recorded room the caller has left', () => {
     const client = fakeDmClient({
       direct: { [peer]: ['!old:example.org'] },
-      rooms: [fakeDmRoom({ roomId: '!old:example.org', myMembership: 'leave' })],
+      rooms: [
+        fakeDmRoom({ roomId: '!old:example.org', myMembership: 'leave' }),
+      ],
     });
     expect(resolveDirectMessageRoom(client, peer)).toBeNull();
   });
@@ -674,14 +773,19 @@ describe('resolveDirectMessageRoom', () => {
   });
 
   it('returns null when nothing matches', () => {
-    expect(resolveDirectMessageRoom(fakeDmClient({ rooms: [] }), peer)).toBeNull();
+    expect(
+      resolveDirectMessageRoom(fakeDmClient({ rooms: [] }), peer),
+    ).toBeNull();
   });
 
   describe('note-to-self', () => {
     it('finds the untagged room only the caller has ever been in', () => {
       const client = fakeDmClient({
         rooms: [
-          fakeDmRoom({ roomId: '!notes:example.org', members: [{ userId: me }] }),
+          fakeDmRoom({
+            roomId: '!notes:example.org',
+            members: [{ userId: me }],
+          }),
         ],
       });
       expect(resolveDirectMessageRoom(client, me)).toBe('!notes:example.org');
@@ -691,7 +795,10 @@ describe('resolveDirectMessageRoom', () => {
       const client = fakeDmClient({
         direct: { [me]: ['!notes:example.org'] },
         rooms: [
-          fakeDmRoom({ roomId: '!notes:example.org', members: [{ userId: me }] }),
+          fakeDmRoom({
+            roomId: '!notes:example.org',
+            members: [{ userId: me }],
+          }),
         ],
       });
       expect(resolveDirectMessageRoom(client, me)).toBe('!notes:example.org');
@@ -706,10 +813,15 @@ describe('resolveDirectMessageRoom', () => {
             members: [{ userId: me }],
             encrypted: true,
           }),
-          fakeDmRoom({ roomId: '!plain:example.org', members: [{ userId: me }] }),
+          fakeDmRoom({
+            roomId: '!plain:example.org',
+            members: [{ userId: me }],
+          }),
         ],
       });
-      expect(resolveDirectMessageRoom(client, me)).toBe('!old-encrypted:example.org');
+      expect(resolveDirectMessageRoom(client, me)).toBe(
+        '!old-encrypted:example.org',
+      );
       expect(
         resolveDirectMessageRoom(client, me, { skipEncrypted: true }),
       ).toBe('!plain:example.org');
@@ -797,7 +909,9 @@ describe('resolveGroupDirectMessageRoom', () => {
         }),
       ],
     });
-    expect(resolveGroupDirectMessageRoom(client, [alice, bob, carol])).toBeNull();
+    expect(
+      resolveGroupDirectMessageRoom(client, [alice, bob, carol]),
+    ).toBeNull();
   });
 
   it('does not reuse a room that has an extra person', () => {
@@ -904,10 +1018,18 @@ describe('toReaders', () => {
 
   it('lists every joined member whose read marker is at or past the event', () => {
     const client = fakeClient();
-    const ts: Record<string, number> = { [alice]: 1000, [bob]: 2000, [me]: 3000 };
+    const ts: Record<string, number> = {
+      [alice]: 1000,
+      [bob]: 2000,
+      [me]: 3000,
+    };
     const room = {
       roomId: '!room:example.org',
-      getMembers: () => [member(alice, 'Alice'), member(bob, 'Bob'), member(me, 'Me')],
+      getMembers: () => [
+        member(alice, 'Alice'),
+        member(bob, 'Bob'),
+        member(me, 'Me'),
+      ],
       hasUserReadEvent: () => true,
       getReadReceiptForUserId: (id: string) => ({ data: { ts: ts[id] } }),
     } as unknown as SdkRoom;
@@ -932,7 +1054,9 @@ describe('toReaders', () => {
     } as unknown as SdkRoom;
     room.hasUserReadEvent = ((userId: string) => userId !== bob) as never;
 
-    expect(toReaders(client, room, '$evt-1').map((r) => r.userId)).toEqual([alice]);
+    expect(toReaders(client, room, '$evt-1').map((r) => r.userId)).toEqual([
+      alice,
+    ]);
   });
 
   it('never counts agents, apps or other service identities as readers', () => {
@@ -994,13 +1118,14 @@ describe('toReaders', () => {
   });
 });
 
-
 describe('readPinnedEventIds', () => {
   const roomWithPins = (content: unknown) =>
     ({
       currentState: {
         getStateEvents: (type: string) =>
-          type === 'm.room.pinned_events' ? { getContent: () => content } : null,
+          type === 'm.room.pinned_events'
+            ? { getContent: () => content }
+            : null,
       },
     }) as unknown as SdkRoom;
 
@@ -1102,7 +1227,11 @@ describe('forwarding', () => {
     const plain = toMessage(
       client,
       fakeEvent({
-        content: { msgtype: 'm.video', body: 'clip.webm', url: 'mxc://example.org/clip' },
+        content: {
+          msgtype: 'm.video',
+          body: 'clip.webm',
+          url: 'mxc://example.org/clip',
+        },
       }),
       room,
     );
@@ -1126,12 +1255,18 @@ describe('forwarding', () => {
   });
 
   it('ignores a malformed payload', () => {
-    expect(readForwardedContent({ [FORWARDED_CONTENT_KEY]: { event_id: 1 } })).toBeUndefined();
+    expect(
+      readForwardedContent({ [FORWARDED_CONTENT_KEY]: { event_id: 1 } }),
+    ).toBeUndefined();
     expect(readForwardedContent(null)).toBeUndefined();
     const message = toMessage(
       client,
       fakeEvent({
-        content: { msgtype: 'm.text', body: 'plain', [FORWARDED_CONTENT_KEY]: 'nope' },
+        content: {
+          msgtype: 'm.text',
+          body: 'plain',
+          [FORWARDED_CONTENT_KEY]: 'nope',
+        },
       }),
       room,
     );
@@ -1185,6 +1320,8 @@ describe('room mentions', () => {
       user_ids: ['@a:x'],
       room: true,
     });
-    expect(buildMentionsContent('hi', ['@a:x'])).toEqual({ user_ids: ['@a:x'] });
+    expect(buildMentionsContent('hi', ['@a:x'])).toEqual({
+      user_ids: ['@a:x'],
+    });
   });
 });

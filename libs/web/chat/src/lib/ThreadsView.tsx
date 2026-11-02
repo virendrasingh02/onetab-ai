@@ -68,6 +68,10 @@ import {
 import { useAllThreads, type CrossRoomThread } from './use-all-threads.js';
 import { useRoomActions, useRoomSummary } from './use-chat.js';
 import { useThreadConversation } from './use-thread-conversation.js';
+import {
+  useThreadMessageActions,
+  type ThreadMessageActions,
+} from './use-thread-message-actions.js';
 import { toMentionRefs } from './mention-refs.js';
 import { useNameAliases } from './use-name-aliases.js';
 import { useReadReceiptsEnabled } from './use-read-receipts-enabled.js';
@@ -165,8 +169,11 @@ function useAttachmentSlot() {
     (message: Message, burst?: Message[]): ReactNode => {
       if (burst && burst.length > 1) {
         const files = burst.filter(
-          (item): item is Message & { attachment: NonNullable<Message['attachment']> } =>
-            !!item.attachment,
+          (
+            item,
+          ): item is Message & {
+            attachment: NonNullable<Message['attachment']>;
+          } => !!item.attachment,
         );
         const items = files.map((file) =>
           attachmentToMediaItem(file.attachment, file.kind, file.id, {
@@ -224,6 +231,7 @@ function ThreadDetail({
   setEditing,
   attachmentSlot,
   density,
+  messageActions,
 }: {
   thread: CrossRoomThread;
   channelLink: string;
@@ -239,6 +247,7 @@ function ThreadDetail({
   setEditing: (message: Message | null) => void;
   attachmentSlot: (message: Message, burst?: Message[]) => ReactNode;
   density: 'comfy' | 'compact';
+  messageActions: ThreadMessageActions;
 }) {
   const { messages, isLoading, send, markRead } = useThreadConversation(
     thread.roomId,
@@ -309,13 +318,20 @@ function ThreadDetail({
       ),
     [replies, bursts, pendingBatchIds],
   );
-  const me = myUserId ? members.find((member) => member.userId === myUserId) : undefined;
+  const me = myUserId
+    ? members.find((member) => member.userId === myUserId)
+    : undefined;
 
   const deleteReply = useCallback(
     async (reply: Message) => {
-      const ids = (bursts.membersByHead.get(reply.id) ?? [reply]).map((m) => m.id);
+      const ids = (bursts.membersByHead.get(reply.id) ?? [reply]).map(
+        (m) => m.id,
+      );
       const ok = await confirm({
-        title: ids.length > 1 ? `Delete these ${ids.length} files?` : 'Delete this message?',
+        title:
+          ids.length > 1
+            ? `Delete these ${ids.length} files?`
+            : 'Delete this message?',
         description:
           'It is removed for everyone in the conversation. This cannot be undone.',
         confirmLabel: 'Delete',
@@ -334,7 +350,11 @@ function ThreadDetail({
     if (!readReceiptsEnabled) return undefined;
     let id: string | undefined;
     for (const reply of replies) {
-      if (reply.senderId === myUserId && reply.readers && reply.readers.length > 0) {
+      if (
+        reply.senderId === myUserId &&
+        reply.readers &&
+        reply.readers.length > 0
+      ) {
         id = reply.id;
       }
     }
@@ -460,6 +480,27 @@ function ThreadDetail({
                   onCopyLink={() =>
                     copyThreadMessageLink(channelLink, reply.id)
                   }
+                  onOpenInConversation={() =>
+                    messageActions.openInConversation(reply)
+                  }
+                  onForward={
+                    reply.sendState === 'failed'
+                      ? undefined
+                      : () => messageActions.forward(reply)
+                  }
+                  isSaved={messageActions.isSaved(reply.id)}
+                  onToggleSave={() => messageActions.toggleSave(reply)}
+                  isPinned={messageActions.isPinned(reply.id)}
+                  onTogglePin={
+                    messageActions.togglePin
+                      ? () => void messageActions.togglePin?.(reply)
+                      : undefined
+                  }
+                  onRemind={
+                    messageActions.remind
+                      ? (at) => void messageActions.remind?.(reply, at)
+                      : undefined
+                  }
                   attachmentSlot={attachmentSlot(
                     reply,
                     bursts.membersByHead.get(reply.id),
@@ -486,8 +527,12 @@ function ThreadDetail({
                 status={upload.status}
                 error={upload.error}
                 compact={density === 'compact'}
-                onRetry={client ? () => void retryUpload(client, upload.id) : undefined}
-                onDismiss={() => usePendingUploadsStore.getState().remove(upload.id)}
+                onRetry={
+                  client ? () => void retryUpload(client, upload.id) : undefined
+                }
+                onDismiss={() =>
+                  usePendingUploadsStore.getState().remove(upload.id)
+                }
               />
             </li>
           ))}
@@ -498,7 +543,11 @@ function ThreadDetail({
         <Composer
           onSend={async (body, meta) => {
             if (editing) {
-              await actions.edit(editing.id, body, toMentionRefs(meta?.mentions));
+              await actions.edit(
+                editing.id,
+                body,
+                toMentionRefs(meta?.mentions),
+              );
               setEditing(null);
             } else {
               const anchorId = await send(body, toMentionRefs(meta?.mentions));
@@ -607,6 +656,11 @@ function ThreadRow({
   const attachmentSlot = useAttachmentSlot();
   const [editing, setEditing] = useState<Message | null>(null);
   const channelLink = useChannelLink(thread, workspaceSlug, channelSlugByName);
+  const messageActions = useThreadMessageActions(
+    thread,
+    channelLink,
+    isPrivate,
+  );
 
   const mentionNames = useMemo(
     () => members.map((member) => member.displayName),
@@ -659,8 +713,10 @@ function ThreadRow({
             setEditing={setEditing}
             attachmentSlot={attachmentSlot}
             density={density}
+            messageActions={messageActions}
           />
         ) : null}
+        {messageActions.forwardDialog}
       </li>
     );
   }
@@ -671,6 +727,7 @@ function ThreadRow({
       <MessageRenderer
         message={root}
         isOwn={root.senderId === myUserId}
+        roomKind={thread.roomKind}
         density={density}
         mentionNames={mentionNames}
         threadReplyCount={thread.replyCount}
@@ -707,6 +764,30 @@ function ThreadRow({
         }
         onCopyText={() => void navigator.clipboard?.writeText(root.body)}
         onCopyLink={() => copyThreadMessageLink(channelLink, root.id)}
+        onOpenInConversation={() => messageActions.openInConversation(root)}
+        onForward={
+          root.sendState === 'failed'
+            ? undefined
+            : () => messageActions.forward(root)
+        }
+        isSaved={messageActions.isSaved(root.id)}
+        onToggleSave={() => messageActions.toggleSave(root)}
+        isPinned={messageActions.isPinned(root.id)}
+        onTogglePin={
+          messageActions.togglePin
+            ? () => void messageActions.togglePin?.(root)
+            : undefined
+        }
+        onMarkUnread={() => void messageActions.markUnread(root)}
+        onRemind={
+          messageActions.remind
+            ? (at) => void messageActions.remind?.(root, at)
+            : undefined
+        }
+        replyNotificationsMuted={messageActions.replyNotificationsMuted}
+        onToggleReplyNotifications={() =>
+          void messageActions.toggleReplyNotifications()
+        }
         attachmentSlot={attachmentSlot(root)}
       />
 
@@ -724,8 +805,10 @@ function ThreadRow({
           setEditing={setEditing}
           attachmentSlot={attachmentSlot}
           density={density}
+          messageActions={messageActions}
         />
       ) : null}
+      {messageActions.forwardDialog}
     </li>
   );
 }
