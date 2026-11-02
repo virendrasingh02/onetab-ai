@@ -1,3 +1,4 @@
+import { MessagePreview } from '@org/chat-ui';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -393,7 +394,7 @@ export function UniversalContextPanel({
                         <span>{msg.channelName ? `#${msg.channelName}` : ''}</span>
                       </div>
                       <p className="line-clamp-2 text-muted-foreground group-hover:text-foreground text-[11px]">
-                        {msg.body}
+                        <MessagePreview text={msg.body} />
                       </p>
                     </button>
                   ))}

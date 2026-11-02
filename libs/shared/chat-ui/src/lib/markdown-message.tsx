@@ -1,7 +1,7 @@
 import { useAuthenticatedMediaSrc } from '@org/hooks';
 import { CodeBlock, useRightPanelStore, type RightPanelProfile } from '@org/ui';
 import { toPlatformUserId } from '@org/types';
-import { cn } from '@org/utils';
+import { cn, parseCommandInvocation } from '@org/utils';
 import {
   CheckSquare,
   ChevronDown,
@@ -20,6 +20,7 @@ import {
 
 import { compactBlankLineCount } from './blank-lines.js';
 import { LinkHoverCard } from './link-hover-card.js';
+import { CommandChips } from './message-preview.js';
 import { useMentionAliases } from './mention-aliases.js';
 
 /**
@@ -173,6 +174,36 @@ const GROUP_MENTION_CHIP_CLASS = cn(
 const HASHTAG_CHIP_CLASS = cn(CHIP_BASE_CLASS, 'bg-info/10 text-info-text');
 
 const NO_MENTIONS: InlineOptions = { mentionNames: [] };
+
+/**
+ * A message that is a slash-command invocation — `/asana create_task Fix
+ * login` — as sent from the composer. The command (and an app action written
+ * as one `snake_case` word right after it) render as chips so the line reads
+ * as "ran this command" rather than as prose that happens to start with `/`.
+ */
+function CommandInvocation({
+  text,
+  options,
+}: {
+  text: string;
+  options: InlineOptions;
+}): ReactNode | null {
+  const invocation = parseCommandInvocation(text);
+  if (!invocation) return null;
+  const { command, action, rest } = invocation;
+  const firstBreak = rest.indexOf('\n');
+  const sameLine = firstBreak === -1 ? rest : rest.slice(0, firstBreak);
+  const below = firstBreak === -1 ? '' : rest.slice(firstBreak + 1);
+  return (
+    <>
+      <p className="break-words whitespace-pre-wrap">
+        <CommandChips command={command} action={action} />
+        {sameLine ? <> {renderInline(sameLine, 'cmd', options)}</> : null}
+      </p>
+      {below.trim() ? renderBlocks(below, options) : null}
+    </>
+  );
+}
 
 function renderInline(
   text: string,
@@ -866,7 +897,7 @@ export function MarkdownMessage({
         className,
       )}
     >
-      {renderBlocks(text, options)}
+      {CommandInvocation({ text, options }) ?? renderBlocks(text, options)}
     </div>
   );
 }

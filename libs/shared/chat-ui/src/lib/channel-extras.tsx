@@ -50,6 +50,7 @@ import { BookmarkFavicon } from './bookmark-favicon.js';
 import { ReactionPicker } from './chat-bubble.js';
 import { ReactionBar, reactionAddButtonClass } from './reaction-bar.js';
 import { MarkdownMessage } from './markdown-message.js';
+import { MessagePreview as MessageText } from './message-preview.js';
 
 /* --- channel bookmarks ---------------------------------------------------- */
 
@@ -502,7 +503,11 @@ function MessagePreview({
           </span>
         </span>
         <span className="mt-0.5 text-xs line-clamp-2 block text-muted-foreground">
-          {message.isRedacted ? 'This message was deleted.' : message.body}
+          {message.isRedacted ? (
+            'This message was deleted.'
+          ) : (
+            <MessageText text={message.body} />
+          )}
         </span>
         {meta}
       </button>
@@ -827,7 +832,10 @@ export function PinnedBanner({ messages, onJump, onViewAll }: PinnedBannerProps)
         <span className="shrink-0 font-semibold text-foreground">
           {latest.senderName}
         </span>
-        <span className="truncate text-muted-foreground">{preview}</span>
+        <MessageText
+          text={preview}
+          className="truncate text-muted-foreground"
+        />
       </button>
       {onViewAll ? (
         <button
@@ -1015,7 +1023,7 @@ export function ThreadListPanel({
               </span>
 
               <span className="mt-0.5 text-sm line-clamp-2 block text-muted-foreground">
-                {thread.root.body}
+                <MessageText text={thread.root.body} />
               </span>
 
               <span className="mt-1.5 gap-2 flex items-center">

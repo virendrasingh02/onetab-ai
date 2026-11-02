@@ -1,6 +1,6 @@
 import type { FederatedSearchResultItem } from '@org/types';
 import { Button, Input, Switch, AIModelIcon, AppSelect, DatePicker } from '@org/ui';
-import { cn, formatRelative } from '@org/utils';
+import { cn, formatRelative, toPlainMessageText } from '@org/utils';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ArrowLeft, Search } from 'lucide-react';
 import {
@@ -292,7 +292,7 @@ function ResultRow({ item }: { item: FederatedSearchResultItem }) {
           {item.title}
         </span>
         <span className="block truncate text-xs text-muted-foreground">
-          {item.snippet ? `${item.snippet} · ` : ''}
+          {item.snippet ? `${toPlainMessageText(item.snippet)} · ` : ''}
           {SEARCH_CATEGORY_META[item.category]?.label ?? item.category} · {item.workspace.name}
           {item.timestamp ? ` · ${formatRelative(item.timestamp)}` : ''}
         </span>

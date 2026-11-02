@@ -61,6 +61,7 @@ import {
   type ComposerConnectorsConfig,
 } from './composer-attach-menu.js';
 import { compactBlankLines } from './blank-lines.js';
+import { MessagePreview } from './message-preview.js';
 import { useDraftsStore } from './drafts-store.js';
 import {
   claimComposerInsert,
@@ -1582,7 +1583,7 @@ export function Composer({
                           >
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-foreground">
-                                {item.body}
+                                <MessagePreview text={item.body} />
                               </p>
                               <p className="text-2xs text-muted-foreground">
                                 {new Date(item.scheduledFor).toLocaleString(

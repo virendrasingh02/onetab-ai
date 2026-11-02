@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { MessagePreview } from '@org/chat-ui';
 import type { BookmarkDto, CreateBookmarkInput } from '@org/types';
 import {
   Badge,
@@ -335,8 +336,8 @@ export function SavedView() {
                             </div>
 
                             {item.snippet && (
-                              <p className="mt-2 text-xs sm:text-sm leading-relaxed line-clamp-3 whitespace-pre-wrap text-muted-foreground">
-                                {item.snippet}
+                              <p className="mt-2 text-xs sm:text-sm leading-relaxed line-clamp-3 text-muted-foreground">
+                                <MessagePreview text={item.snippet} />
                               </p>
                             )}
 

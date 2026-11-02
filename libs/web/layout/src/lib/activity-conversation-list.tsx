@@ -19,7 +19,7 @@ import {
   toPresenceStatus,
   UserAvatar,
 } from '@org/ui';
-import { cn } from '@org/utils';
+import { cn, toPlainMessageText } from '@org/utils';
 import {
   useDirectMessagePreferences,
   useGroupDirectMessages,
@@ -85,7 +85,7 @@ function previewLine(
 ): string | undefined {
   const preview = entry?.latestPreview;
   if (!preview) return undefined;
-  const body = preview.body.replace(/\s+/g, ' ').trim() || 'Sent an attachment';
+  const body = toPlainMessageText(preview.body) || 'Sent an attachment';
   if (selfId && preview.senderUserId === selfId) return `You: ${body}`;
   if (!showSender || !preview.senderName) return body;
   return `${preview.senderName.split(' ')[0]}: ${body}`;

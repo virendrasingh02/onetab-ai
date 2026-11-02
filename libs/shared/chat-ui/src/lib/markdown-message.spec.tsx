@@ -31,6 +31,26 @@ describe('MarkdownMessage', () => {
     ).toBeInTheDocument();
   });
 
+  it('renders a slash-command invocation as command + action chips', () => {
+    const { container } = render(
+      <MarkdownMessage text={'/asana create\\_task design website'} />,
+    );
+
+    expect(container.querySelector('[data-command="asana"]')).toHaveTextContent(
+      'asana',
+    );
+    expect(screen.getByText('create_task')).toBeInTheDocument();
+    expect(container).toHaveTextContent('design website');
+  });
+
+  it('leaves a slash that is not a command as text', () => {
+    const { container } = render(
+      <MarkdownMessage text={'/usr/bin is a path'} />,
+    );
+
+    expect(container.querySelector('[data-command]')).toBeNull();
+  });
+
   it('keeps the label of a link with nowhere safe to go', () => {
     const { container } = render(
       <MarkdownMessage

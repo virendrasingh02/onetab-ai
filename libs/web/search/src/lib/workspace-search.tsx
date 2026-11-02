@@ -1,6 +1,6 @@
 import { useMediaPreview } from '@org/media-preview';
 import type { SearchCategory, SearchResultItem } from '@org/types';
-import { cn } from '@org/utils';
+import { cn, toPlainMessageText } from '@org/utils';
 import { Hint } from '@org/ui';
 import { useUploadMediaAdapter } from '@org/web-upload';
 import { Eye, Search } from 'lucide-react';
@@ -132,7 +132,7 @@ export function WorkspaceSearchResults({
                             <span className="truncate block">{item.title}</span>
                             {item.snippet ? (
                               <span className="truncate block text-xs text-muted-foreground">
-                                {item.snippet}
+                                {toPlainMessageText(item.snippet)}
                               </span>
                             ) : null}
                           </span>

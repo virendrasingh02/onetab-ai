@@ -81,8 +81,10 @@ export {
 
 export {
   DEFAULT_SLASH_COMMANDS,
+  SLASH_COMMAND_CATEGORIES,
   getContextualSlashCommands,
   type SlashCommand,
+  type SlashCommandCategory,
   type SlashCommandSource,
 } from './lib/slash-commands.js';
 
@@ -480,3 +482,8 @@ export {
   EntityKindBadge,
   type EntityBadgeKind,
 } from './lib/entity-kind-badge.js';
+
+export {
+  CommandChips,
+  MessagePreview,
+} from './lib/message-preview.js';

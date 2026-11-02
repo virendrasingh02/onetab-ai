@@ -112,3 +112,9 @@ export {
   type PhoneCountry,
   type PhoneCountryOption,
 } from './lib/phone.js';
+
+export {
+  parseCommandInvocation,
+  toPlainMessageText,
+  type CommandInvocation,
+} from './lib/message-text.js';

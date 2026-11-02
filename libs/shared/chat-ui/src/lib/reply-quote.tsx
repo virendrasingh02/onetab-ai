@@ -1,7 +1,8 @@
 import type { Message } from '@org/types';
 import { UserAvatar } from '@org/ui';
-import { cn } from '@org/utils';
+import { cn, toPlainMessageText } from '@org/utils';
 import { CornerUpLeft, Image as ImageIcon, X } from 'lucide-react';
+import { MessagePreview } from './message-preview.js';
 
 /** What the quote needs from the message being replied to. */
 export interface ReplyPreview {
@@ -18,15 +19,9 @@ export interface ReplyPreview {
 
 const SNIPPET_LENGTH = 140;
 
-/** Flattens markdown-ish text into a one-line snippet. */
+/** Flattens the markdown body into a one-line plain-text snippet. */
 function toSnippet(body: string): string {
-  const flat = body
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
-    .replace(/```[\s\S]*?```/g, 'code block')
-    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
-    .replace(/[*_~`>#]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+  const flat = toPlainMessageText(body);
   return flat.length > SNIPPET_LENGTH
     ? `${flat.slice(0, SNIPPET_LENGTH).trimEnd()}…`
     : flat;
@@ -48,7 +43,7 @@ export function ReplySnippet({ preview }: { preview: ReplyPreview }) {
   if (preview.isRedacted) {
     return <span className="italic">Original message was deleted</span>;
   }
-  if (preview.text) return <span>{preview.text}</span>;
+  if (preview.text) return <MessagePreview text={preview.text} />;
   if (preview.hasAttachment) {
     return (
       <span className="gap-1 inline-flex items-center">

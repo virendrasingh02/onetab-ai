@@ -1,4 +1,4 @@
-import { ThreadListPanel } from '@org/chat-ui';
+import { MessagePreview, ThreadListPanel } from '@org/chat-ui';
 import type { Message, RoomMember } from '@org/matrix-client';
 import { Badge, EmptyState, LoadingState, UserAvatar } from '@org/ui';
 import { formatListTimestamp } from '@org/utils';
@@ -142,7 +142,9 @@ function MentionRow({
             {trigger}
           </Badge>
         </div>
-        <p className="mt-0.5 text-sm text-muted-foreground">{message.body}</p>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          <MessagePreview text={message.body} />
+        </p>
       </div>
     </li>
   );

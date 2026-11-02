@@ -35,6 +35,7 @@ import {
   insertIntoComposer,
   quoteMarkdown,
   toReplyPreview,
+  type SlashCommand,
   type TimelineEphemeralItem,
 } from '@org/chat-ui';
 import type {
@@ -57,6 +58,7 @@ import { toMentionRefs } from './mention-refs.js';
 import { useNameAliases } from './use-name-aliases.js';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import { useComposerControl } from './use-composer-control.js';
+import { SlashHelpDialog } from './slash-help-dialog.js';
 import { useSlashCommands } from './use-slash-commands.js';
 import { useMentionAddActions } from './use-mention-add-actions.js';
 import {
@@ -1148,10 +1150,13 @@ export function ChatSurface({
     welcome?.kind !== 'self' &&
     welcome?.peer?.kind !== 'agent' &&
     welcome?.peer?.kind !== 'app';
+  /** The command list `/help` was run against — the thread's or the main box's. */
+  const [helpCommands, setHelpCommands] = useState<SlashCommand[] | null>(null);
   const runMainSlashCommand = useSlashCommands({
     context: composerContext,
     roomId: effectiveRoomId,
     slashCommands: mainControl.slashCommands,
+    onShowHelp: () => setHelpCommands(mainControl.slashCommands),
     startHuddle: huddleAvailable ? startOrJoinHuddle : undefined,
     sendText: (body) => onSend(body),
     canMentionGroups: mainControl.canMentionGroups,
@@ -1160,6 +1165,7 @@ export function ChatSurface({
     context: threadComposerContext,
     roomId: effectiveRoomId,
     slashCommands: threadControl.slashCommands,
+    onShowHelp: () => setHelpCommands(threadControl.slashCommands),
     startHuddle: huddleAvailable ? startOrJoinHuddle : undefined,
     sendText: (body) => (threadRoot ? onSend(body, threadRoot.id) : undefined),
     canMentionGroups: threadControl.canMentionGroups,
@@ -2572,6 +2578,14 @@ export function ChatSurface({
               />
             </div>
           </div>
+
+          <SlashHelpDialog
+            open={helpCommands !== null}
+            onOpenChange={(open) => {
+              if (!open) setHelpCommands(null);
+            }}
+            commands={helpCommands ?? []}
+          />
 
           {pollsAvailable ? (
             <CreatePollDialog

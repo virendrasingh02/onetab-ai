@@ -78,6 +78,7 @@ import {
   KEY_ESCAPE_COMMAND,
   PASTE_COMMAND,
   SELECTION_CHANGE_COMMAND,
+  createCommand,
 } from 'lexical';
 import {
   BarChart2,
@@ -138,7 +139,11 @@ import {
   CommandNode,
   MentionNode,
 } from './lexical-nodes.js';
-import type { SlashCommand, SlashCommandSource } from './slash-commands.js';
+import {
+  SLASH_COMMAND_CATEGORIES,
+  type SlashCommand,
+  type SlashCommandSource,
+} from './slash-commands.js';
 
 /**
  * Classes the editor hangs on the DOM it renders.
@@ -325,6 +330,9 @@ export interface LexicalEditorRef {
 /* -------------------------------------------------------------------------- */
 
 /** Every mention chip in the document. Call inside an editor read. */
+/** Sends whatever is in the editor, as Enter would with no menu open. */
+const SUBMIT_MESSAGE_COMMAND = createCommand<void>('SUBMIT_MESSAGE_COMMAND');
+
 function readMentions(): DetectedMention[] {
   return $nodesOfType(MentionNode).map((node) => ({
     id: $getChipTarget(node),
@@ -442,6 +450,16 @@ function EditorApiPlugin({
       COMMAND_PRIORITY_HIGH,
     );
   }, [editor, send, enterToSend]);
+
+  useEffect(
+    () =>
+      editor.registerCommand(
+        SUBMIT_MESSAGE_COMMAND,
+        () => send(),
+        COMMAND_PRIORITY_NORMAL,
+      ),
+    [editor, send],
+  );
 
   useEffect(() => {
     if (!onRegisterRef) return;
@@ -898,8 +916,12 @@ function MenuShell({
   children,
   onClose,
   showFooter = true,
+  className,
+  listClassName,
 }: {
   label: string;
+  className?: string;
+  listClassName?: string;
   icon?: ReactNode;
   hint?: string;
   id?: string;
@@ -941,13 +963,16 @@ function MenuShell({
       ref={menuRef}
       role="region"
       aria-label={`${label} suggestions`}
-      className={`left-0 mb-5 absolute bottom-full z-120 ${MENU_CLASS}`}
+      className={cn('left-0 mb-5 absolute bottom-full z-120', MENU_CLASS, className)}
     >
       <ul
         id={id}
         role="listbox"
         aria-label={label}
-        className="max-h-72 p-1.5 overflow-y-auto overscroll-contain scrollbar-thin"
+        className={cn(
+          'max-h-72 p-1.5 overflow-y-auto overscroll-contain scrollbar-thin',
+          listClassName,
+        )}
       >
         {children}
       </ul>
@@ -1449,6 +1474,43 @@ class CommandMenuOption extends MenuOption {
   }
 }
 
+interface CommandMenuSection {
+  key: string;
+  label: string;
+  source?: SlashCommandSource;
+  items: { option: CommandMenuOption; index: number }[];
+}
+
+/**
+ * How well a command matches the typed query; lower is better, `null` is no
+ * match. Name prefixes beat name substrings beat title/description hits, so
+ * `/re` puts `/remind` above anything that merely mentions "re…".
+ */
+function scoreCommand(command: SlashCommand, needle: string): number | null {
+  if (!needle) return 0;
+  const name = command.name.slice(1).toLowerCase();
+  if (name.startsWith(needle)) return 0;
+  if (name.includes(needle)) return 1;
+  if (command.title?.toLowerCase().includes(needle)) return 2;
+  if (command.source?.label.toLowerCase().includes(needle)) return 3;
+  if (command.description.toLowerCase().includes(needle)) return 4;
+  return null;
+}
+
+/** `/remind` with the typed part emphasised. */
+function CommandName({ name, query }: { name: string; query: string }) {
+  const body = name.slice(1);
+  const at = query ? body.toLowerCase().indexOf(query) : -1;
+  if (at < 0) return <>{name}</>;
+  return (
+    <>
+      /{body.slice(0, at)}
+      <span className="text-primary">{body.slice(at, at + query.length)}</span>
+      {body.slice(at + query.length)}
+    </>
+  );
+}
+
 function SlashCommandsPlugin({
   commands,
   onOpenChange,
@@ -1458,6 +1520,7 @@ function SlashCommandsPlugin({
 }) {
   const [editor] = useLexicalComposerContext();
   const [query, setQuery] = useState<string | null>(null);
+  const needle = (query ?? '').toLowerCase().trim();
 
   const basicTrigger = useBasicTypeaheadTriggerMatch('/', {
     minLength: 0,
@@ -1474,24 +1537,74 @@ function SlashCommandsPlugin({
     [basicTrigger],
   );
 
-  const options = useMemo(() => {
-    const needle = (query ?? '').toLowerCase().trim();
-    const matches = (command: SlashCommand) =>
-      !needle ||
-      command.name.slice(1).toLowerCase().startsWith(needle) ||
-      command.title?.toLowerCase().includes(needle) ||
-      command.source?.label.toLowerCase().includes(needle) ||
-      command.description.toLowerCase().includes(needle);
+  // Built-ins first — grouped by category while browsing, ranked by match
+  // quality once the user is typing — then each configured app / agent's
+  // entries under its own heading. `options` is the flat keyboard order the
+  // sections render in.
+  const { options, sections } = useMemo(() => {
+    const scored = commands.flatMap((command, order) => {
+      const score = scoreCommand(command, needle);
+      return score === null ? [] : [{ command, order, score }];
+    });
+    const builtIn = scored.filter((s) => !s.command.source);
+    const contributed = scored.filter((s) => s.command.source).slice(0, 40);
 
-    // Built-ins first, then each configured app / agent's entries in the order
-    // they were supplied. Built-ins keep the short cap; configured entries get
-    // a wider one (the list scrolls) so a connected app's actions aren't cut.
-    const builtIn = commands.filter((c) => !c.source && matches(c));
-    const contributed = commands.filter((c) => c.source && matches(c));
-    return [...builtIn.slice(0, 12), ...contributed.slice(0, 40)].map(
-      (command) => new CommandMenuOption(command),
-    );
-  }, [commands, query]);
+    const groups: {
+      key: string;
+      label: string;
+      source?: SlashCommandSource;
+      commands: SlashCommand[];
+    }[] = [];
+    if (needle) {
+      const ranked = [...builtIn]
+        .sort((a, b) => a.score - b.score || a.order - b.order)
+        .slice(0, 12)
+        .map((s) => s.command);
+      if (ranked.length) {
+        groups.push({ key: 'matches', label: 'Commands', commands: ranked });
+      }
+    } else {
+      const categories = [
+        ...SLASH_COMMAND_CATEGORIES,
+        { id: undefined, label: 'Other' },
+      ];
+      for (const cat of categories) {
+        const inCat = builtIn
+          .filter((s) => s.command.category === cat.id)
+          .map((s) => s.command);
+        if (inCat.length) {
+          groups.push({
+            key: `cat-${cat.id ?? 'other'}`,
+            label: cat.label,
+            commands: inCat,
+          });
+        }
+      }
+    }
+    for (const { command } of contributed) {
+      const source = command.source as SlashCommandSource;
+      const key = `src-${source.kind}-${source.label}`;
+      let group = groups.find((g) => g.key === key);
+      if (!group) {
+        group = { key, label: source.label, source, commands: [] };
+        groups.push(group);
+      }
+      group.commands.push(command);
+    }
+
+    const flat: CommandMenuOption[] = [];
+    const built: CommandMenuSection[] = groups.map((g) => ({
+      key: g.key,
+      label: g.label,
+      source: g.source,
+      items: g.commands.map((command) => {
+        const option = new CommandMenuOption(command);
+        flat.push(option);
+        return { option, index: flat.length - 1 };
+      }),
+    }));
+    return { options: flat, sections: built };
+  }, [commands, needle]);
 
   const onSelectOption = useCallback(
     (
@@ -1499,7 +1612,9 @@ function SlashCommandsPlugin({
       nodeToReplace: ReturnType<typeof $createTextNode> | null,
       closeMenu: () => void,
     ) => {
-      editor.update(() => {
+      let runNow = false;
+      editor.update(
+        () => {
         // A prompt-scaffold command (AI Studio's `/summarize`, …) drops its
         // text at the caret for the user to keep typing from — it's a
         // starting point, not a tagged action, so it isn't a chip.
@@ -1532,7 +1647,20 @@ function SlashCommandsPlugin({
         chip.insertAfter(spacer);
         spacer.selectEnd();
         closeMenu();
-      });
+        // An argument-less command (`/help`, `/away`, …) has nothing left to
+        // type, so it runs now — unless the message already holds other text.
+        runNow =
+          !!option.command.runOnSelect &&
+          $getRoot().getTextContent().trim() === option.command.name;
+        },
+        {
+          // Sent once the chip is committed — `send` reads the committed
+          // state, and this runs inside the menu's own Enter handler.
+          onUpdate: () => {
+            if (runNow) editor.dispatchCommand(SUBMIT_MESSAGE_COMMAND, undefined);
+          },
+        },
+      );
     },
     [editor],
   );
@@ -1563,72 +1691,108 @@ function SlashCommandsPlugin({
           <MenuShell
             label="Commands"
             onClose={handleClose}
+            className="w-[26rem]"
+            listClassName="max-h-80"
           >
             {options.length === 0 ? (
-              <li className="px-3 py-6 text-xs text-center text-muted-foreground">
-                No matching commands found
+              <li className="px-3 py-7 flex flex-col items-center gap-1.5 text-center">
+                <span className="size-8 flex items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                  <Slash className="size-4" />
+                </span>
+                <span className="text-xs font-medium text-foreground">
+                  No command matches “/{needle}”
+                </span>
+                <span className="text-2xs text-muted-foreground">
+                  Press Enter to send it as a message.
+                </span>
               </li>
             ) : (
-              options.map((option, index) => {
-                const { command } = option;
-                const source = command.source;
-                return (
-                  <MenuItem
-                    key={option.key}
-                    id={`command-option-${index}`}
-                    option={option}
-                    isSelected={selectedIndex === index}
-                    onHighlight={() => setHighlightedIndex(index)}
-                    onSelect={() => selectOptionAndCleanUp(option)}
-                  >
-                    {source ? (
-                      <SlashSourceIcon source={source} />
-                    ) : (
-                      <span className="size-6 flex shrink-0 items-center justify-center rounded-md border border-info/20 bg-info/10 text-info-text">
-                        {renderCommandIcon(command.icon)}
-                      </span>
+              sections.map((section, sectionIndex) => (
+                <Fragment key={section.key}>
+                  <li
+                    role="presentation"
+                    className={cn(
+                      'px-2.5 pb-1 flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wide text-muted-foreground/80 select-none',
+                      sectionIndex === 0
+                        ? 'pt-1'
+                        : 'mt-1 pt-2.5 border-t border-border/40',
                     )}
-                    <span className="min-w-0 flex-1">
-                      <span
-                        className={`font-semibold block truncate ${
-                          source ? 'text-foreground' : 'text-info-text'
-                        }`}
+                  >
+                    {section.source ? (
+                      <>
+                        {section.source.kind === 'app'
+                          ? 'App'
+                          : section.source.kind === 'agent'
+                            ? 'Agent'
+                            : 'Coworker'}
+                        <span className="opacity-40">·</span>
+                        <span className="normal-case tracking-normal text-foreground/70">
+                          {section.label}
+                        </span>
+                      </>
+                    ) : (
+                      section.label
+                    )}
+                  </li>
+                  {section.items.map(({ option, index }) => {
+                    const { command } = option;
+                    const source = command.source;
+                    const selected = selectedIndex === index;
+                    return (
+                      <MenuItem
+                        key={option.key}
+                        id={`command-option-${index}`}
+                        option={option}
+                        isSelected={selected}
+                        onHighlight={() => setHighlightedIndex(index)}
+                        onSelect={() => selectOptionAndCleanUp(option)}
                       >
-                        {source ? (command.title ?? command.name) : command.name}
-                        {command.args && !source ? (
-                          <span className="ml-1 font-normal text-muted-foreground">
-                            {command.args}
+                        {source ? (
+                          <SlashSourceIcon source={source} />
+                        ) : (
+                          <span
+                            className={cn(
+                              'size-8 flex shrink-0 items-center justify-center rounded-lg border transition-colors',
+                              selected
+                                ? 'border-primary/25 bg-primary/10 text-primary'
+                                : 'border-border/60 bg-muted/60 text-foreground/70',
+                            )}
+                          >
+                            {renderCommandIcon(command.icon)}
+                          </span>
+                        )}
+                        <span className="min-w-0 flex-1">
+                          <span className="flex min-w-0 items-baseline gap-1.5">
+                            <span className="truncate font-semibold text-foreground">
+                              {source ? (
+                                (command.title ?? command.name)
+                              ) : (
+                                <CommandName name={command.name} query={needle} />
+                              )}
+                            </span>
+                            {command.args && !source ? (
+                              <span className="truncate font-mono text-2xs font-normal text-muted-foreground/80">
+                                {command.args}
+                              </span>
+                            ) : null}
+                          </span>
+                          <span className="mt-0.5 block truncate text-2xs font-normal text-muted-foreground">
+                            {command.description}
+                          </span>
+                        </span>
+                        {selected ? (
+                          <span className="flex shrink-0 items-center gap-1 text-2xs font-normal text-muted-foreground">
+                            {command.runOnSelect ? 'Run' : 'Use'}
+                            <kbd className="rounded-md border border-border/60 bg-background/70 px-1.5 py-0.5 font-mono text-2xs text-foreground/70">
+                              ↵
+                            </kbd>
                           </span>
                         ) : null}
-                      </span>
-                      <span className="block truncate text-2xs text-muted-foreground">
-                        {source ? (
-                          <>
-                            <span className="font-medium text-foreground/70">
-                              {source.kind === 'app'
-                                ? 'App'
-                                : source.kind === 'agent'
-                                  ? 'Agent'
-                                  : 'Coworker'}{' '}
-                              · {source.label}
-                            </span>
-                            {command.description
-                              ? ` · ${command.description}`
-                              : ''}
-                          </>
-                        ) : (
-                          command.description
-                        )}
-                      </span>
-                    </span>
-                    {selectedIndex === index ? (
-                      <kbd className="rounded-md border border-border/60 bg-background/70 px-1.5 py-0.5 font-mono text-2xs shrink-0 text-muted-foreground">
-                        Enter
-                      </kbd>
-                    ) : null}
-                  </MenuItem>
-                );
-              })
+                      </MenuItem>
+                    );
+                  })}
+                </Fragment>
+              ))
             )}
           </MenuShell>,
           anchorRef.current,

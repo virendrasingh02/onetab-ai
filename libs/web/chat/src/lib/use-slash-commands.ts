@@ -34,7 +34,9 @@ interface Options {
   context?: ComposerContext;
   /** Matrix room the composer posts into — the reminder's "where". */
   roomId?: string | null;
-  /** The commands the `/` menu offered, for `/help`. */
+  /** Opens the `/help` dialog; unset falls back to listing the names. */
+  onShowHelp?: () => void;
+  /** The commands the `/` menu offered, for `/help` without a dialog. */
   slashCommands: SlashCommand[];
   /** Starts or joins this conversation's huddle; unset when huddles are off. */
   startHuddle?: () => void;
@@ -67,6 +69,7 @@ export function useSlashCommands({
   context,
   roomId,
   slashCommands,
+  onShowHelp,
   startHuddle,
   sendText,
   canMentionGroups,
@@ -85,6 +88,10 @@ export function useSlashCommands({
 
       switch (name) {
         case 'help': {
+          if (onShowHelp) {
+            onShowHelp();
+            return true;
+          }
           const lines = slashCommands
             .filter((c) => !c.source)
             .map((c) => c.name)
@@ -281,6 +288,7 @@ export function useSlashCommands({
     },
     [
       slashCommands,
+      onShowHelp,
       canMentionGroups,
       sendText,
       startHuddle,

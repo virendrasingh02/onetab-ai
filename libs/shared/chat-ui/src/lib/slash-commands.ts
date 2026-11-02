@@ -28,6 +28,13 @@ export interface SlashCommand {
    * rows and groups them under their source.
    */
   source?: SlashCommandSource;
+  /** Section the `/` menu lists a built-in under. Unset → "Other". */
+  category?: SlashCommandCategory;
+  /**
+   * Takes no input, so picking it from the menu runs it straight away instead
+   * of leaving a chip for the user to send.
+   */
+  runOnSelect?: boolean;
   /** Row title (e.g. "Create an Issue"); falls back to `name`. */
   title?: string;
   /**
@@ -42,6 +49,20 @@ export interface SlashCommand {
   };
 }
 
+export type SlashCommandCategory =
+  | 'conversation'
+  | 'productivity'
+  | 'navigation'
+  | 'status';
+
+/** Menu order and headings for built-in command categories. */
+export const SLASH_COMMAND_CATEGORIES: { id: SlashCommandCategory; label: string }[] = [
+  { id: 'conversation', label: 'Conversation' },
+  { id: 'productivity', label: 'Productivity' },
+  { id: 'navigation', label: 'Go to' },
+  { id: 'status', label: 'You' },
+];
+
 export interface SlashCommandSource {
   kind: 'app' | 'agent' | 'coworker';
   /** Display name of the app/agent, e.g. "GitHub". */
@@ -52,35 +73,43 @@ export interface SlashCommandSource {
 export const DEFAULT_SLASH_COMMANDS: SlashCommand[] = [
   {
     name: '/help',
+    category: 'navigation',
+    runOnSelect: true,
     description: 'Show available slash commands & shortcuts',
     icon: 'help',
   },
   {
     name: '/here',
+    category: 'conversation',
     description: 'Notify everyone active in this channel',
     icon: 'users',
     allowedSurfaces: ['channel', 'group-dm', 'thread'],
   },
   {
     name: '/channel',
+    category: 'conversation',
     description: 'Notify everyone in this channel',
     icon: 'megaphone',
     allowedSurfaces: ['channel', 'group-dm', 'thread'],
   },
   {
     name: '/huddle',
+    category: 'conversation',
+    runOnSelect: true,
     description: 'Start an audio/video huddle',
     icon: 'video',
     allowedSurfaces: ['channel', 'dm', 'group-dm'],
   },
   {
     name: '/remind',
+    category: 'productivity',
     args: '[who] [what] [when]',
     description: 'Set a reminder for yourself or someone else',
     icon: 'clock',
   },
   {
     name: '/poll',
+    category: 'conversation',
     args: '[question]',
     description: 'Create a poll everyone here can vote on',
     icon: 'bar-chart',
@@ -88,6 +117,7 @@ export const DEFAULT_SLASH_COMMANDS: SlashCommand[] = [
   },
   {
     name: '/topic',
+    category: 'conversation',
     args: '[text]',
     description: "Set the channel's topic",
     icon: 'hash',
@@ -96,6 +126,7 @@ export const DEFAULT_SLASH_COMMANDS: SlashCommand[] = [
   },
   {
     name: '/invite',
+    category: 'conversation',
     args: '@person',
     description: 'Add someone to this channel',
     icon: 'user-plus',
@@ -104,34 +135,42 @@ export const DEFAULT_SLASH_COMMANDS: SlashCommand[] = [
   },
   {
     name: '/dm',
+    category: 'navigation',
     args: '@person [message]',
     description: 'Open a direct message',
     icon: 'message-square',
   },
   {
     name: '/away',
+    category: 'status',
+    runOnSelect: true,
     description: 'Toggle your away status',
     icon: 'moon',
   },
   {
     name: '/shrug',
+    category: 'status',
     args: '[message]',
     description: 'Append ¯\\_(ツ)_/¯',
     icon: 'smile',
   },
   {
     name: '/search',
+    category: 'navigation',
     args: '[query]',
     description: 'Search messages, files and channels',
     icon: 'search',
   },
   {
     name: '/settings',
+    category: 'navigation',
+    runOnSelect: true,
     description: 'Open your preferences and settings',
     icon: 'settings',
   },
   {
     name: '/task',
+    category: 'productivity',
     args: '[title]',
     description: 'Create a new task in this workspace',
     icon: 'check-square',
@@ -139,6 +178,7 @@ export const DEFAULT_SLASH_COMMANDS: SlashCommand[] = [
   },
   {
     name: '/assign',
+    category: 'productivity',
     args: '@person [task]',
     description: 'Assign a task to someone',
     icon: 'user-check',

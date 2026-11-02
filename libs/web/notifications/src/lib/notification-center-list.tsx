@@ -1,6 +1,6 @@
 import type { NotificationView } from '@org/types';
 import { Button, EmptyState, Hint, Skeleton } from '@org/ui';
-import { cn, formatRelative } from '@org/utils';
+import { cn, formatRelative, toPlainMessageText } from '@org/utils';
 import {
   AtSign,
   Bell,
@@ -257,7 +257,7 @@ export function NotificationCenterList({
 
                   {n.body ? (
                     <span className="mt-0.5 text-xs leading-relaxed line-clamp-2 block text-muted-foreground">
-                      {n.body}
+                      {toPlainMessageText(n.body)}
                     </span>
                   ) : null}
 

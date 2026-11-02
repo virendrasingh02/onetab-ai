@@ -1,4 +1,5 @@
 import { resolveDeepLinkRoute } from '@org/platform';
+import { toPlainMessageText } from '@org/utils';
 import {
   RealtimeEventType,
   useRealtime,
@@ -101,7 +102,7 @@ export function RealtimeNotificationsBridge({
         void notificationService.notify({
           id: notification.id,
           title: notification.title,
-          body: notification.body ?? '',
+          body: toPlainMessageText(notification.body ?? ''),
           type: isMessageKind ? 'message' : 'info',
           priority:
             isCallKind || isCriticalKind
