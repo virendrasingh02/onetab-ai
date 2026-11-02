@@ -17,6 +17,7 @@ import {
   PhoneInput,
   Progress,
   SettingsCard,
+  scrollToSettingsSection,
   SettingsGroup,
   SettingsRow,
   Skeleton,
@@ -35,8 +36,8 @@ import {
 } from '@org/web-workspace';
 import { useMutation } from '@tanstack/react-query';
 import { CheckCircle2, Circle, UserRound } from 'lucide-react';
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 /** Completion items stored on the account profile (Settings → Profile). */
 const ACCOUNT_FIELD_KEYS = new Set([
@@ -50,10 +51,14 @@ const ACCOUNT_FIELD_KEYS = new Set([
 /** Completion items set by HR on the Employment card. */
 const HR_FIELD_KEYS = new Set(['department', 'team', 'joiningDate']);
 
-const ANCHOR = {
+/** Section ids on Settings → Profile; `account` wraps the account form. */
+export const PROFILE_ANCHOR = {
+  account: 'profile-account',
   contact: 'work-profile-contact',
+  employment: 'work-profile-employment',
   privacy: 'work-profile-privacy',
 } as const;
+const ANCHOR = PROFILE_ANCHOR;
 
 const VISIBILITY_OPTIONS: { value: PeopleVisibility; label: string }[] = [
   { value: 'PRIVATE', label: 'Only me' },
@@ -80,24 +85,25 @@ const linkError = (l: { label: string; url: string }) => {
   return isHttpUrl(url) ? undefined : 'Use a full http(s) link';
 };
 
-const scrollTo = (id: string) =>
-  document
-    .getElementById(id)
-    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
 /**
- * Settings → Profile → "Work & privacy": the one place an employee edits their own
- * employee-specific details — contact, skills, links, birthday, privacy and
- * celebration notifications. Name, photo, title, location, time zone and bio
- * stay in the Profile view's Account tab; this panel links there rather than repeating them.
+ * Settings → Profile, below the account form: the employee-specific details —
+ * contact, skills, links, birthday, privacy and celebration notifications.
+ * Name, photo, title, location, time zone and bio live in the account form above.
  */
 export function EmployeeSettingsPanel() {
-  const { workspaceId, workspace } = useCurrentWorkspace();
+  const { workspaceId } = useCurrentWorkspace();
   const me = useCurrentUser();
   const { data, isLoading, isError, refetch } = useEmployeeProfile(
     workspaceId,
     me?.id,
   );
+  const [searchParams] = useSearchParams();
+  // `?view=work` (celebration nudges, the profile rail) deep-links the
+  // employee details, which used to be their own tab.
+  const deepLinked = !!data && searchParams.get('view') === 'work';
+  useEffect(() => {
+    if (deepLinked) scrollToSettingsSection(ANCHOR.contact);
+  }, [deepLinked]);
 
   if (isLoading)
     return <Skeleton className="h-96 w-full rounded-xl" aria-busy="true" />;
@@ -114,7 +120,6 @@ export function EmployeeSettingsPanel() {
 
   return (
     <div className="space-y-8">
-      <CompletionSection data={data} workspaceSlug={workspace?.slug} />
       <ContactSection key={`c-${data.userId}`} data={data} />
       <EmploymentSection data={data} />
       {data.privacy && data.celebrationPrefs && (
@@ -126,18 +131,13 @@ export function EmployeeSettingsPanel() {
 
 // --- completion --------------------------------------------------------------------
 
-function CompletionSection({
-  data,
-  workspaceSlug,
-}: {
-  data: EmployeeProfileView;
-  workspaceSlug?: string;
-}) {
-  const completion = data.completion;
+/** Profile-completion checklist that opens Settings → Profile; each item jumps to its field. */
+export function EmployeeProfileCompletion() {
+  const { workspaceId } = useCurrentWorkspace();
+  const me = useCurrentUser();
+  const { data } = useEmployeeProfile(workspaceId, me?.id);
+  const completion = data?.completion;
   if (!completion) return null;
-  const profileHref = workspaceSlug
-    ? `/w/${workspaceSlug}/settings/profile`
-    : undefined; // Account view
 
   return (
     <SettingsGroup
@@ -190,22 +190,17 @@ function CompletionSection({
                 <li key={item.key}>
                   {HR_FIELD_KEYS.has(item.key) ? (
                     <span className={rowClass}>{label}</span>
-                  ) : ACCOUNT_FIELD_KEYS.has(item.key) && profileHref ? (
-                    <Link
-                      to={profileHref}
-                      className={`${rowClass} hover:text-primary-text`}
-                    >
-                      {label}
-                    </Link>
                   ) : (
                     <button
                       type="button"
                       className={`${rowClass} cursor-pointer hover:text-primary-text`}
                       onClick={() =>
-                        scrollTo(
-                          item.section === 'privacy'
-                            ? ANCHOR.privacy
-                            : ANCHOR.contact,
+                        scrollToSettingsSection(
+                          ACCOUNT_FIELD_KEYS.has(item.key)
+                            ? ANCHOR.account
+                            : item.section === 'privacy'
+                              ? ANCHOR.privacy
+                              : ANCHOR.contact,
                         )
                       }
                     >
@@ -489,6 +484,7 @@ function ContactSection({ data }: { data: EmployeeProfileView }) {
 function EmploymentSection({ data }: { data: EmployeeProfileView }) {
   return (
     <SettingsGroup
+      id={ANCHOR.employment}
       title="Employment"
       description="Managed by HR. Ask a workspace admin if something is wrong."
     >

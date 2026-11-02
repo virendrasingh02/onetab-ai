@@ -25,7 +25,7 @@ export function SettingsSectionHeader({
 }) {
   return (
     <div className="gap-4 flex flex-wrap items-start justify-between">
-      <div className="min-w-0 flex-1 basis-72">
+      <div className="min-w-0 basis-72 flex-1">
         <div className="gap-2 flex flex-wrap items-center">
           <h1 className="text-xl font-bold tracking-tight text-foreground">
             {title}
@@ -43,7 +43,10 @@ export function SettingsSectionHeader({
   );
 }
 
-export interface SettingsGroupProps extends Omit<ComponentProps<'section'>, 'title'> {
+export interface SettingsGroupProps extends Omit<
+  ComponentProps<'section'>,
+  'title'
+> {
   /** Small uppercase label above the group (e.g. 'Color mode'). */
   title?: ReactNode;
   /** Optional one-line hint under the label. */
@@ -119,7 +122,7 @@ export function SettingsIconTile({
   return (
     <div
       className={cn(
-        'size-9 flex shrink-0 items-center justify-center rounded-lg border border-border bg-surface-inset text-muted-foreground [&_svg]:size-4',
+        'size-9 [&_svg]:size-4 flex shrink-0 items-center justify-center rounded-lg border border-border bg-surface-inset text-muted-foreground',
         className,
       )}
       {...props}
@@ -148,7 +151,7 @@ export function SettingsBadge({
   ...props
 }: SettingsBadgeProps) {
   const classes = cn(
-    'px-2 py-0.5 font-medium rounded-full border text-[10px] leading-4 transition-colors',
+    'px-2 py-0.5 font-medium leading-4 rounded-full border text-[10px] transition-colors',
     BADGE_TONES[tone],
     onClick && 'cursor-pointer hover:brightness-95 disabled:opacity-60',
     className,
@@ -202,7 +205,7 @@ export function SettingsRow({
       )}
       {...props}
     >
-      <div className="gap-3.5 min-w-0 flex flex-1 basis-60 items-center">
+      <div className="gap-3.5 min-w-0 basis-60 flex flex-1 items-center">
         {icon ? <SettingsIconTile>{icon}</SettingsIconTile> : null}
         <div className="min-w-0">
           <div className="gap-2 flex items-center">
@@ -230,5 +233,70 @@ export function SettingsRow({
       </div>
       {children ? <div className="shrink-0">{children}</div> : null}
     </div>
+  );
+}
+
+/**
+ * Smooth-scrolls the settings page to the element with `id`, moving only its
+ * nearest scrollable ancestor. `Element.scrollIntoView()` also scrolls
+ * `overflow: hidden` ancestors, which shoves the whole settings shell up out
+ * of the viewport.
+ */
+export function scrollToSettingsSection(id: string) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  let parent = el.parentElement;
+  while (parent) {
+    const { overflowY } = getComputedStyle(parent);
+    if (
+      (overflowY === 'auto' || overflowY === 'scroll') &&
+      parent.scrollHeight > parent.clientHeight
+    ) {
+      break;
+    }
+    parent = parent.parentElement;
+  }
+  if (!parent) return;
+  // Land just below the sticky jump nav, whose height varies as it wraps.
+  const nav = parent.querySelector<HTMLElement>('[data-settings-jump-nav]');
+  const offset = (nav?.offsetHeight ?? 0) + 16;
+  const top =
+    el.getBoundingClientRect().top -
+    parent.getBoundingClientRect().top +
+    parent.scrollTop -
+    offset;
+  parent.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+}
+
+export interface SettingsJumpNavProps {
+  items: { id: string; label: ReactNode }[];
+  className?: string;
+}
+
+/** Sticky pill row that jumps between the groups of a long settings section. */
+export function SettingsJumpNav({ items, className }: SettingsJumpNavProps) {
+  return (
+    <nav
+      aria-label="On this page"
+      data-settings-jump-nav=""
+      className={cn(
+        '-top-6 md:-top-10 -mx-1 px-1 py-2 backdrop-blur-md sticky z-10 bg-background/90',
+        className,
+      )}
+    >
+      <ul className="gap-1.5 flex [scrollbar-width:none] overflow-x-auto">
+        {items.map((item) => (
+          <li key={item.id} className="shrink-0">
+            <button
+              type="button"
+              onClick={() => scrollToSettingsSection(item.id)}
+              className="px-3 py-1 text-xs font-medium rounded-full border border-border bg-surface whitespace-nowrap text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+            >
+              {item.label}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }

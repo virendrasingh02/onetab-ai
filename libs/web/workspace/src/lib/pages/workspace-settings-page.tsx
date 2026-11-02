@@ -57,7 +57,7 @@ import {
   SettingsBadge,
   SettingsCard,
   SettingsRow,
-  SegmentedControl,
+  SettingsJumpNav,
   SettingsSectionHeader,
 } from '@org/ui';
 import { cn, getSystemTimezone, initials, slugify } from '@org/utils';
@@ -169,6 +169,8 @@ export interface WorkspaceSettingsPageProps {
   profilePanel?: ReactNode;
   /** The employee work-profile panel (contact, birthday, privacy), from `@org/web-members`. */
   workProfilePanel?: ReactNode;
+  /** The profile-completion checklist opening the Profile section, from `@org/web-members`. */
+  profileCompletionPanel?: ReactNode;
   /** The invitations & access-links manager, from `@org/web-invitations`. */
   invitationsPanel?: ReactNode;
   /** The Matrix end-to-end encryption and key backup panel, from `@org/web-chat`. */
@@ -195,6 +197,7 @@ export function WorkspaceSettingsPage({
   themePanel,
   profilePanel,
   workProfilePanel,
+  profileCompletionPanel,
   invitationsPanel,
   encryptionSecurityPanel,
 }: WorkspaceSettingsPageProps = {}) {
@@ -324,7 +327,7 @@ export function WorkspaceSettingsPage({
     'workspace-appearance': 'appearance',
     plans: 'billing',
     'timezone-region': 'profile',
-    // Work Profile was merged into Profile (its "Work & privacy" view).
+    // Work Profile was merged into the Profile page.
     'work-profile': 'profile',
     'focus-status': 'profile',
     'integrations/import': 'import-export',
@@ -335,18 +338,6 @@ export function WorkspaceSettingsPage({
     searchParams.get('section') ||
     'appearance';
   const currentTab = SECTION_ALIASES[rawSection] ?? rawSection;
-  /* Profile has two views: the account (identity, status, hours) and the
-     employee's work & privacy details. `?view=work` deep-links the latter. */
-  const profileWorkView =
-    !!workProfilePanel &&
-    (searchParams.get('view') === 'work' || rawSection === 'work-profile');
-  const setProfileView = (view: 'account' | 'work') => {
-    const next = new URLSearchParams(searchParams);
-    if (view === 'work') next.set('view', 'work');
-    else next.delete('view');
-    setSearchParams(next, { replace: true });
-  };
-
   const handleTabChange = (val: string) => {
     if (!workspaceSlug) return;
     navigate(`/w/${workspaceSlug}/settings/${val}`);
@@ -1205,269 +1196,267 @@ export function WorkspaceSettingsPage({
               }
             />
 
+            {/* Ids match PROFILE_ANCHOR in @org/web-members (which depends on this lib). */}
             {workProfilePanel && (
-              <SegmentedControl
-                aria-label="Profile view"
-                value={profileWorkView ? 'work' : 'account'}
-                onChange={setProfileView}
-                options={[
-                  { value: 'account', label: 'Account' },
-                  {
-                    value: 'work',
-                    label: 'Work & privacy',
-                    hint: 'Contact details, birthday, privacy and celebration notifications',
-                  },
+              <SettingsJumpNav
+                items={[
+                  { id: 'profile-account', label: 'Profile' },
+                  { id: 'work-profile-contact', label: 'About & contact' },
+                  { id: 'work-profile-employment', label: 'Employment' },
+                  { id: 'work-profile-privacy', label: 'Birthday & privacy' },
                 ]}
               />
             )}
 
-            {profileWorkView
-              ? workProfilePanel
-              : (profilePanel ?? (
-                  <SettingsCard>
-                    <div className="sm:flex-row sm:items-center gap-4 pb-6 flex flex-col justify-between border-b border-border/40">
-                      <div className="gap-5 flex items-center">
-                        <UserAvatar
-                          name={user.displayName ?? user.name}
-                          src={profileForm.watch('avatarUrl') || user.avatarUrl}
-                          seed={user.id}
-                          size="xl"
-                          presence={user.presence}
-                          statusEmoji={user.statusEmoji}
-                          statusText={user.statusText}
-                        />
-                        <div className="space-y-1">
-                          <h3 className="text-sm font-semibold text-foreground">
-                            {user.displayName ?? user.name}
-                          </h3>
-                          <p className="text-xs text-muted-foreground">
-                            {user.email}
-                          </p>
-                          <span className="px-2.5 py-0.5 font-semibold inline-block rounded-full bg-primary/10 text-[10px] text-primary">
-                            {workspace.role}
-                          </span>
-                        </div>
-                      </div>
+            {profileCompletionPanel}
 
-                      {/* Quick Status & Focus Mode controls */}
-                      <div className="gap-2 flex items-center">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={openStatusModal}
-                          className="text-xs gap-1.5"
-                        >
-                          <Smile className="size-3.5 text-primary" />
-                          {user.statusText ? 'Edit Status' : 'Set Status'}
-                        </Button>
+            <div id="profile-account">
+              {profilePanel ?? (
+                <SettingsCard>
+                  <div className="sm:flex-row sm:items-center gap-4 pb-6 flex flex-col justify-between border-b border-border/40">
+                    <div className="gap-5 flex items-center">
+                      <UserAvatar
+                        name={user.displayName ?? user.name}
+                        src={profileForm.watch('avatarUrl') || user.avatarUrl}
+                        seed={user.id}
+                        size="xl"
+                        presence={user.presence}
+                        statusEmoji={user.statusEmoji}
+                        statusText={user.statusText}
+                      />
+                      <div className="space-y-1">
+                        <h3 className="text-sm font-semibold text-foreground">
+                          {user.displayName ?? user.name}
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                          {user.email}
+                        </p>
+                        <span className="px-2.5 py-0.5 font-semibold inline-block rounded-full bg-primary/10 text-[10px] text-primary">
+                          {workspace.role}
+                        </span>
                       </div>
                     </div>
 
-                    {/* Active Status Highlight if set */}
-                    {(user.statusText || user.statusEmoji) && (
-                      <div className="p-3 text-xs flex items-center justify-between rounded-xl border border-primary/25 bg-primary/5 text-foreground">
-                        <div className="gap-2 min-w-0 flex items-center">
-                          <span className="text-lg">
-                            {user.statusEmoji || '💬'}
-                          </span>
-                          <div className="min-w-0">
-                            <span className="font-semibold block truncate">
-                              {user.statusText}
-                            </span>
-                            {user.statusExpiresAt && (
-                              <span className="gap-1 mt-0.5 flex items-center text-[11px] text-muted-foreground">
-                                <Clock className="size-3" />
-                                Clears{' '}
-                                {new Date(
-                                  user.statusExpiresAt,
-                                ).toLocaleTimeString([], {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={openStatusModal}
-                          className="h-7 text-xs text-primary"
-                        >
-                          Change
-                        </Button>
-                      </div>
-                    )}
-
-                    <Form {...profileForm}>
-                      <form
-                        onSubmit={onProfileSubmit}
-                        className="space-y-4 max-w-xl"
-                        noValidate
+                    {/* Quick Status & Focus Mode controls */}
+                    <div className="gap-2 flex items-center">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={openStatusModal}
+                        className="text-xs gap-1.5"
                       >
-                        <FormError
-                          error={formErrorMessage(updateProfile.error)}
-                        />
+                        <Smile className="size-3.5 text-primary" />
+                        {user.statusText ? 'Edit Status' : 'Set Status'}
+                      </Button>
+                    </div>
+                  </div>
 
-                        <FormField
-                          control={profileForm.control}
-                          name="name"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-xs font-medium">
-                                Full name
-                              </FormLabel>
+                  {/* Active Status Highlight if set */}
+                  {(user.statusText || user.statusEmoji) && (
+                    <div className="p-3 text-xs flex items-center justify-between rounded-xl border border-primary/25 bg-primary/5 text-foreground">
+                      <div className="gap-2 min-w-0 flex items-center">
+                        <span className="text-lg">
+                          {user.statusEmoji || '💬'}
+                        </span>
+                        <div className="min-w-0">
+                          <span className="font-semibold block truncate">
+                            {user.statusText}
+                          </span>
+                          {user.statusExpiresAt && (
+                            <span className="gap-1 mt-0.5 flex items-center text-[11px] text-muted-foreground">
+                              <Clock className="size-3" />
+                              Clears{' '}
+                              {new Date(
+                                user.statusExpiresAt,
+                              ).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={openStatusModal}
+                        className="h-7 text-xs text-primary"
+                      >
+                        Change
+                      </Button>
+                    </div>
+                  )}
+
+                  <Form {...profileForm}>
+                    <form
+                      onSubmit={onProfileSubmit}
+                      className="space-y-4 max-w-xl"
+                      noValidate
+                    >
+                      <FormError
+                        error={formErrorMessage(updateProfile.error)}
+                      />
+
+                      <FormField
+                        control={profileForm.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium">
+                              Full name
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                value={field.value ?? ''}
+                                className="h-9 text-xs"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={profileForm.control}
+                        name="displayName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium">
+                              Display name
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                value={field.value ?? ''}
+                                placeholder="Optional"
+                                className="h-9 text-xs"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={profileForm.control}
+                        name="bio"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium">
+                              Bio
+                            </FormLabel>
+                            <FormControl>
+                              <Textarea
+                                {...field}
+                                value={field.value ?? ''}
+                                rows={3}
+                                placeholder="What you work on..."
+                                className="text-xs"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={profileForm.control}
+                        name="avatarUrl"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium">
+                              Avatar Image
+                            </FormLabel>
+                            <div className="gap-3 flex items-center">
                               <FormControl>
                                 <Input
                                   {...field}
                                   value={field.value ?? ''}
-                                  className="h-9 text-xs"
+                                  placeholder="Image URL (https://...) or upload an image"
+                                  className="h-9 text-xs flex-1 font-mono"
                                 />
                               </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={profileForm.control}
-                          name="displayName"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-xs font-medium">
-                                Display name
-                              </FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  value={field.value ?? ''}
-                                  placeholder="Optional"
-                                  className="h-9 text-xs"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={profileForm.control}
-                          name="bio"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-xs font-medium">
-                                Bio
-                              </FormLabel>
-                              <FormControl>
-                                <Textarea
-                                  {...field}
-                                  value={field.value ?? ''}
-                                  rows={3}
-                                  placeholder="What you work on..."
-                                  className="text-xs"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={profileForm.control}
-                          name="avatarUrl"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-xs font-medium">
-                                Avatar Image
-                              </FormLabel>
-                              <div className="gap-3 flex items-center">
-                                <FormControl>
-                                  <Input
-                                    {...field}
-                                    value={field.value ?? ''}
-                                    placeholder="Image URL (https://...) or upload an image"
-                                    className="h-9 text-xs flex-1 font-mono"
-                                  />
-                                </FormControl>
-                                <label className="gap-1.5 px-3 py-2 text-xs font-medium inline-flex shrink-0 cursor-pointer items-center rounded-md border border-border transition-colors hover:bg-accent">
-                                  <Upload className="size-3.5 text-muted-foreground" />
-                                  <span>Upload</span>
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={(e) => {
-                                      const file = e.target.files?.[0];
-                                      if (file) {
-                                        const reader = new FileReader();
-                                        reader.onload = (evt) => {
-                                          if (evt.target?.result) {
-                                            profileForm.setValue(
-                                              'avatarUrl',
-                                              evt.target.result as string,
-                                              {
-                                                shouldDirty: true,
-                                              },
-                                            );
-                                          }
-                                        };
-                                        reader.readAsDataURL(file);
-                                      }
-                                    }}
-                                  />
-                                </label>
-                                {field.value ? (
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-9 text-xs px-2.5 text-destructive hover:text-destructive"
-                                    onClick={() =>
-                                      profileForm.setValue('avatarUrl', '', {
-                                        shouldDirty: true,
-                                      })
+                              <label className="gap-1.5 px-3 py-2 text-xs font-medium inline-flex shrink-0 cursor-pointer items-center rounded-md border border-border transition-colors hover:bg-accent">
+                                <Upload className="size-3.5 text-muted-foreground" />
+                                <span>Upload</span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      const reader = new FileReader();
+                                      reader.onload = (evt) => {
+                                        if (evt.target?.result) {
+                                          profileForm.setValue(
+                                            'avatarUrl',
+                                            evt.target.result as string,
+                                            {
+                                              shouldDirty: true,
+                                            },
+                                          );
+                                        }
+                                      };
+                                      reader.readAsDataURL(file);
                                     }
-                                  >
-                                    <Trash2 className="size-3.5 mr-1" />
-                                    Remove
-                                  </Button>
-                                ) : null}
-                              </div>
-                              <FormDescription className="mt-1 text-[11px] text-muted-foreground">
-                                Upload an image file or paste an image URL. If
-                                removed, fallback displays single letter initial
-                                &quot;
-                                {initials(
-                                  profileForm.watch('name') || user.name,
-                                )}
-                                &quot;.
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                                  }}
+                                />
+                              </label>
+                              {field.value ? (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-9 text-xs px-2.5 text-destructive hover:text-destructive"
+                                  onClick={() =>
+                                    profileForm.setValue('avatarUrl', '', {
+                                      shouldDirty: true,
+                                    })
+                                  }
+                                >
+                                  <Trash2 className="size-3.5 mr-1" />
+                                  Remove
+                                </Button>
+                              ) : null}
+                            </div>
+                            <FormDescription className="mt-1 text-[11px] text-muted-foreground">
+                              Upload an image file or paste an image URL. If
+                              removed, fallback displays single letter initial
+                              &quot;
+                              {initials(profileForm.watch('name') || user.name)}
+                              &quot;.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                        {/* Region, timezone, date/time formats and working hours
+                      {/* Region, timezone, date/time formats and working hours
                         moved to Settings → Language & Region. The `timezone`
                         field still rides this form; it's edited there. */}
 
-                        <div className="pt-2">
-                          <Button
-                            type="submit"
-                            size="sm"
-                            loading={updateProfile.isPending}
-                            disabled={!profileForm.formState.isDirty}
-                            className="text-xs"
-                          >
-                            Save profile
-                          </Button>
-                        </div>
-                      </form>
-                    </Form>
-                  </SettingsCard>
-                ))}
+                      <div className="pt-2">
+                        <Button
+                          type="submit"
+                          size="sm"
+                          loading={updateProfile.isPending}
+                          disabled={!profileForm.formState.isDirty}
+                          className="text-xs"
+                        >
+                          Save profile
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                </SettingsCard>
+              )}
+            </div>
+
+            {workProfilePanel}
           </div>
         )}
 

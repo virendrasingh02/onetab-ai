@@ -466,11 +466,14 @@ export {
   SettingsCard,
   SettingsGroup,
   SettingsIconTile,
+  SettingsJumpNav,
   SettingsRow,
   SettingsSectionHeader,
+  scrollToSettingsSection,
   type SettingsBadgeProps,
   type SettingsCardProps,
   type SettingsGroupProps,
+  type SettingsJumpNavProps,
   type SettingsRowProps,
 } from './lib/components/settings-primitives.js';
 

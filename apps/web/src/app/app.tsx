@@ -95,6 +95,11 @@ const EmployeeSettingsPanel = lazy(() =>
     default: m.EmployeeSettingsPanel,
   })),
 );
+const EmployeeProfileCompletion = lazy(() =>
+  import('@org/web-members').then((m) => ({
+    default: m.EmployeeProfileCompletion,
+  })),
+);
 const ProfileSettingsPanel = lazy(() =>
   import('@org/web-profile').then((m) => ({ default: m.ProfileSettingsPanel })),
 );
@@ -146,6 +151,7 @@ function WorkspaceSettings() {
         themePanel={<ThemeSettings />}
         profilePanel={<ProfileSettingsPanel />}
         workProfilePanel={<EmployeeSettingsPanel />}
+        profileCompletionPanel={<EmployeeProfileCompletion />}
         invitationsPanel={<InvitationsPage embedded />}
         encryptionSecurityPanel={<EncryptionSecurityPanel />}
       />
