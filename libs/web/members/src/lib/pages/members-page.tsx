@@ -401,10 +401,16 @@ export function MembersPage() {
                           entity={member}
                           label={name}
                         >
-                          <li className="gap-3 px-4 py-3 flex items-center justify-between transition-colors hover:bg-muted/10">
+                          {/* Row opens the DM; the buttons on the right stop propagation. */}
+                          <li
+                            onClick={openMessage}
+                            className="gap-3 px-4 py-3 flex cursor-pointer items-center justify-between transition-colors hover:bg-muted/10"
+                          >
                             <button
                               type="button"
-                              onClick={openProfile}
+                              aria-label={
+                                isSelf ? 'Open your notes' : `Message ${name}`
+                              }
                               className="gap-3 min-w-0 flex flex-1 cursor-pointer items-center text-left"
                             >
                               <UserAvatar
@@ -474,7 +480,10 @@ export function MembersPage() {
                               </div>
                             </button>
 
-                            <div className="gap-2 flex shrink-0 items-center">
+                            <div
+                              className="gap-2 flex shrink-0 items-center"
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <div
                                 className={`gap-1.5 text-xs font-medium flex items-center ${presenceMeta.text}`}
                               >
@@ -579,11 +588,12 @@ export function MembersPage() {
                       return (
                         <li
                           key={coworker.id}
-                          className="gap-3 px-4 py-3 flex items-center justify-between transition-colors hover:bg-muted/10"
+                          onClick={handleMessage}
+                          className="gap-3 px-4 py-3 flex cursor-pointer items-center justify-between transition-colors hover:bg-muted/10"
                         >
                           <button
                             type="button"
-                            onClick={openCoworkerProfile}
+                            aria-label={`Message ${coworker.name}`}
                             className="gap-3 min-w-0 flex flex-1 cursor-pointer items-center text-left"
                           >
                             <span className="relative inline-flex shrink-0">
@@ -622,7 +632,10 @@ export function MembersPage() {
                             </div>
                           </button>
 
-                          <div className="gap-2 flex shrink-0 items-center">
+                          <div
+                            className="gap-2 flex shrink-0 items-center"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <div
                               className={`gap-1.5 text-xs font-medium flex items-center ${statusMeta.text}`}
                             >
