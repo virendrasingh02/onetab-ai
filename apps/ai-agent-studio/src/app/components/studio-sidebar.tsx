@@ -31,12 +31,10 @@ import {
   ExternalLink,
   Home,
   MessageSquare,
-  GitBranch,
   Layers,
   LayoutDashboard,
   MoreHorizontal,
   Settings,
-  Users,
   ShieldAlert,
   UserPlus,
   Wand2,
@@ -104,23 +102,13 @@ function buildNavGroups(slug: string): NavGroup[] {
     items: [
       {
         to: '/agents',
-        label: 'Agents',
+        label: 'Agents & Workflows',
         icon: Bot,
         match: studioSectionPaths(slug, 'agents'),
       },
       {
-        to: '/coworkers',
-        label: 'AI Coworkers',
-        icon: Users,
-      },
-      {
-        to: '/workflows',
-        label: 'Visual Workflows',
-        icon: GitBranch,
-      },
-      {
         to: '/templates',
-        label: 'Agent Templates',
+        label: 'Templates',
         icon: Layers,
       },
     ],

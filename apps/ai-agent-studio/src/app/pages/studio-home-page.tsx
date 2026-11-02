@@ -540,8 +540,8 @@ function StudioInsights({ home }: { home: React.ReactNode }) {
                       </div>
                       <p className="mt-1 max-w-sm text-xs text-muted-foreground">
                         {plannedLive.length === 1
-                          ? 'Your agent built from a plan is under Agents → Planned agents.'
-                          : `Your ${plannedLive.length} agents built from a plan are under Agents → Planned agents.`}
+                          ? 'Your agent built from a plan is under Agents & Workflows → Planned.'
+                          : `Your ${plannedLive.length} agents built from a plan are under Agents & Workflows → Planned.`}
                       </p>
                       <div className="mt-4 gap-2 flex flex-wrap justify-center">
                         <Button size="sm" asChild className="gap-1.5">

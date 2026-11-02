@@ -101,7 +101,7 @@ function aiPath(slug: string | undefined, ...rest: string[]) {
   return [`/w/${slug ?? ''}/ai`, ...rest].join('/');
 }
 
-const CATEGORY_STYLE: Record<NodeCategory, { border: string; bg: string; text: string; handle: string; hex: string }> = {
+export const CATEGORY_STYLE: Record<NodeCategory, { border: string; bg: string; text: string; handle: string; hex: string }> = {
   triggers: { border: 'border-accent-amber/50', bg: 'bg-accent-amber/10', text: 'text-accent-amber', handle: '!bg-accent-amber', hex: '#f59e0b' },
   ai: { border: 'border-accent-violet/50', bg: 'bg-accent-violet/10', text: 'text-accent-violet', handle: '!bg-accent-violet', hex: '#8b5cf6' },
   knowledge: { border: 'border-accent-blue/50', bg: 'bg-accent-blue/10', text: 'text-accent-blue', handle: '!bg-accent-blue', hex: '#3b82f6' },
@@ -191,7 +191,7 @@ function StepNode({ data, selected, id }: NodeProps) {
   );
 }
 
-const nodeTypes = Object.fromEntries(
+export const nodeTypes = Object.fromEntries(
   [...new Set([...PALETTE.map((i) => i.type), ...['START', 'USER_INPUT', 'HUMAN_INPUT', 'PARALLEL', 'SWITCH', 'STRUCTURED_OUTPUT', 'CODE', 'triggerNode', 'conditionNode', 'aiActionNode', 'apiActionNode', 'ACTION']])].map((t) => [t, StepNode]),
 );
 
@@ -206,7 +206,7 @@ function starterGraph(): { nodes: Node[]; edges: Edge[] } {
 }
 
 /** Reads a stored graph, bringing older node shapes up to the current catalog. */
-function loadGraph(workflow: AutomationWorkflowDetail | null): { nodes: Node[]; edges: Edge[] } {
+export function loadGraph(workflow: AutomationWorkflowDetail | null): { nodes: Node[]; edges: Edge[] } {
   if (!workflow) return starterGraph();
   try {
     const nodes = (JSON.parse(workflow.nodesJson || '[]') as Node[]).map((n) => {

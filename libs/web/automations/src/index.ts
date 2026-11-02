@@ -12,6 +12,7 @@ export {
 
 export { WorkflowListView, type WorkflowItem } from './lib/WorkflowListView.js';
 export { WorkflowCanvasView } from './lib/WorkflowCanvasView.js';
+export { WorkflowPreviewView } from './lib/WorkflowPreviewView.js';
 export { buildWorkflowActions, downloadWorkflowConfig, type WorkflowActionOptions } from './lib/workflow-actions.js';
 export { WORKFLOW_TEMPLATES, type WorkflowTemplate } from './lib/workflow-templates.js';
 export { NODE_CATALOG, WORKFLOW_EVENTS, type NodeCatalogItem, type WorkflowField } from './lib/workflow-catalog.js';

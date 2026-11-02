@@ -239,6 +239,11 @@ const WorkflowCanvasView = lazy(() =>
     default: m.WorkflowCanvasView,
   })),
 );
+const WorkflowPreviewView = lazy(() =>
+  import('@org/web-automations').then((m) => ({
+    default: m.WorkflowPreviewView,
+  })),
+);
 const AutomationCenterLayout = lazy(() =>
   import('@org/web-automations').then((m) => ({
     default: m.AutomationCenterLayout,
@@ -308,6 +313,20 @@ function StudioRedirect() {
     );
   }, [location.pathname, location.search, location.hash]);
   return <LoadingState fullPage />;
+}
+
+/** An automation's steps in the workspace; `new` still goes to the Studio editor. */
+function WorkflowStepsRoute() {
+  const { workflowId, workspaceSlug } = useParams<{
+    workflowId: string;
+    workspaceSlug: string;
+  }>();
+  if (workflowId === 'new') return <StudioRedirect />;
+  return (
+    <WorkflowPreviewView
+      editUrl={(id) => studioAppUrl(`/w/${workspaceSlug}/ai/workflows/${id}`)}
+    />
+  );
 }
 
 /**
@@ -450,6 +469,11 @@ const workspaceChildRoutes = (
     <Route
       path="ai/agents/:agentId"
       element={<AIEntityEditorRoute agentFallback={<StudioRedirect />} />}
+    />
+    {/* The sidebar opens an automation here, read-only; editing is in the Studio. */}
+    <Route
+      path="ai/workflows/:workflowId"
+      element={<WorkflowStepsRoute />}
     />
     <Route path="ai/*" element={<StudioRedirect />} />
 

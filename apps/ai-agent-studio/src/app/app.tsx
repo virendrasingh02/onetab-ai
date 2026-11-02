@@ -31,10 +31,10 @@ import { SessionGuard } from './session-guard.js';
 const BREADCRUMB_MAP: Record<string, { section: string; page: string }> = {
   '/create': { section: 'Build & Orchestrate', page: 'Create with AI' },
   '/connectors/new': { section: 'Intelligence & Tools', page: 'New Custom Connector' },
-  '/agents': { section: 'Build & Orchestrate', page: 'Agents' },
-  '/coworkers': { section: 'Build & Orchestrate', page: 'AI Coworkers' },
-  '/workflows': { section: 'Build & Orchestrate', page: 'Visual Workflows' },
-  '/templates': { section: 'Build & Orchestrate', page: 'Agent Templates' },
+  '/agents': { section: 'Agents & Workflows', page: 'Agents' },
+  '/coworkers': { section: 'Agents & Workflows', page: 'AI Coworkers' },
+  '/workflows': { section: 'Agents & Workflows', page: 'Workflows' },
+  '/templates': { section: 'Build & Orchestrate', page: 'Templates' },
   '/connectors': { section: 'Intelligence & Tools', page: 'App Connectors' },
   '/widgets': { section: 'Intelligence & Tools', page: 'Widget Center' },
   '/widgets/new': { section: 'Intelligence & Tools', page: 'Widget Builder' },
@@ -60,7 +60,7 @@ function getBreadcrumb(pathname: string): { section: string; page: string } {
     approvals: 'Human Approvals',
     studio: 'Planned Agent',
   };
-  if (first === 'agents') return { section: 'Build & Orchestrate', page: 'Agents' };
+  if (first === 'agents') return { section: 'Agents & Workflows', page: 'Planned' };
   if (first in core) {
     return { section: 'Plan, Run & Approve', page: core[first] };
   }

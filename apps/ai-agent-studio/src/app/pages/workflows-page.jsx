@@ -43,6 +43,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { agentService } from '../services/agentService.js';
+import { SectionTabs } from '../components/section-tabs.js';
 import { useStudioSession } from '../session-guard.js';
 
 export function WorkflowsPage() {
@@ -130,9 +131,10 @@ export function WorkflowsPage() {
     <Page width="full" className="space-y-6">
       {/* Header bar matching Admin */}
       <PageHeader
-        title="Visual Workflows"
+        title="Workflows"
         description="Multi-step automations with triggers, branches and approval steps."
         icon={<GitBranch className="size-5" />}
+        toolbar={<SectionTabs section="agents" />}
         accent="blue"
         actions={
           <div className="flex items-center gap-2">

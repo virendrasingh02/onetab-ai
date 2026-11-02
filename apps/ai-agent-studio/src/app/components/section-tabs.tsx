@@ -7,9 +7,12 @@ import { useStudioSession } from '../session-guard.js';
  * these tabs under its header so you can move between them.
  */
 export const STUDIO_SECTIONS = {
+  // Agents, coworkers and workflows are all built on the same canvas.
   agents: [
-    { segment: 'my-agents', label: 'Canvas agents' },
-    { segment: 'agents', label: 'Planned agents' },
+    { segment: 'my-agents', label: 'Agents' },
+    { segment: 'coworkers', label: 'AI Coworkers' },
+    { segment: 'workflows', label: 'Workflows' },
+    { segment: 'agents', label: 'Planned' },
   ],
   tools: [
     { segment: 'tools', label: 'All tools' },

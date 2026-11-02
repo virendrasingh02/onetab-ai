@@ -55,6 +55,7 @@ import {
 import { AppConnectorIcon } from '../components/common/app-connector-icon.jsx';
 import { useNavigate } from '../router.js';
 import { agentService } from '../services/agentService.js';
+import { SectionTabs } from '../components/section-tabs.js';
 import { useStudioSession } from '../session-guard.js';
 
 const STATE_LABEL: Record<RosterConnector['state'], string> = {
@@ -115,6 +116,7 @@ export function CoworkersPage() {
         description="Coworkers plan the work, hand it to their specialist agents and act through connected apps. Writes, sends and payments wait for your approval."
         icon={<Users />}
         accent="blue"
+        toolbar={<SectionTabs section="agents" />}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {coworkers.length ? (
