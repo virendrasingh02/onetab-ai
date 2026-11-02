@@ -31,18 +31,15 @@ import {
   ExternalLink,
   Home,
   MessageSquare,
-  Sparkles,
   GitBranch,
   Layers,
   LayoutDashboard,
   MoreHorizontal,
-  Plug,
   Settings,
   Users,
   ShieldAlert,
   UserPlus,
   Wand2,
-  ShieldCheck,
   Wrench,
   LogOut,
 } from 'lucide-react';
@@ -56,6 +53,7 @@ import {
 } from '../services/approvals-query.js';
 import { useStudioSession } from '../session-guard.js';
 import { studioCorePath } from '../studio-core-bridge.js';
+import { studioSectionPaths } from './section-tabs.js';
 
 const WEB_APP_URL =
   (import.meta.env?.['VITE_WEB_APP_URL'] as string | undefined) ??
@@ -66,6 +64,8 @@ export interface NavItem {
   label: string;
   icon: ComponentType<{ className?: string }>;
   end?: boolean;
+  /** Other routes this row stands for (sibling pages behind its section tabs). */
+  match?: string[];
   showsPendingApprovals?: boolean;
 }
 
@@ -89,7 +89,6 @@ function buildNavGroups(slug: string): NavGroup[] {
     showsPendingApprovals: true,
     items: [
       { to: studioCorePath(slug), label: 'Studio Home', icon: Home, end: true },
-      { to: studioCorePath(slug, 'agents'), label: 'Planned Agents', icon: Sparkles },
       { to: studioCorePath(slug, 'runs'), label: 'Runs', icon: Activity },
       {
         to: studioCorePath(slug, 'approvals'),
@@ -105,8 +104,9 @@ function buildNavGroups(slug: string): NavGroup[] {
     items: [
       {
         to: '/agents',
-        label: 'My Agents',
+        label: 'Agents',
         icon: Bot,
+        match: studioSectionPaths(slug, 'agents'),
       },
       {
         to: '/coworkers',
@@ -146,18 +146,9 @@ function buildNavGroups(slug: string): NavGroup[] {
       },
       {
         to: '/tools',
-        label: 'Tools & Integrations',
+        label: 'Tools',
         icon: Wrench,
-      },
-      {
-        to: '/tool-access',
-        label: 'Tool Access',
-        icon: ShieldCheck,
-      },
-      {
-        to: '/mcp',
-        label: 'MCP Registry',
-        icon: Plug,
+        match: studioSectionPaths(slug, 'tools'),
       },
     ],
   },
@@ -236,12 +227,20 @@ function CountBadge({ count, className }: { count: number; className?: string })
   );
 }
 
+/** Whether `pathname` is this row's page, or one of the pages it stands for. */
+function isNavItemActive(item: Pick<NavItem, 'to' | 'end' | 'match'>, pathname: string): boolean {
+  const under = (to: string) => pathname === to || pathname.startsWith(to + '/');
+  if (item.end ? pathname === item.to : under(item.to)) return true;
+  return item.match?.some(under) ?? false;
+}
+
 /** One navigation row; renders an icon-only tile with a tooltip when collapsed. */
 function StudioNavRow({
   to,
   label,
   icon: Icon,
   end,
+  match,
   collapsed,
   count,
   onNavigate,
@@ -250,11 +249,15 @@ function StudioNavRow({
   label: string;
   icon: ComponentType<{ className?: string }>;
   end?: boolean;
+  match?: string[];
   collapsed: boolean;
   count?: number;
   onNavigate?: () => void;
 }) {
   const hasCount = count !== undefined && count > 0;
+  const { pathname } = useLocation();
+  // NavLink's own matching only knows `to`; a section row is also active on its siblings.
+  const active = (isActive: boolean) => isActive || isNavItemActive({ to, end, match }, pathname);
 
   if (collapsed) {
     return (
@@ -264,7 +267,7 @@ function StudioNavRow({
           end={end}
           onClick={onNavigate}
           aria-label={label}
-          className={({ isActive }) => cn(ICON_ROW, isActive ? ICON_ACTIVE : ICON_IDLE)}
+          className={({ isActive }) => cn(ICON_ROW, active(isActive) ? ICON_ACTIVE : ICON_IDLE)}
         >
           <Icon className="size-4 shrink-0" />
           {hasCount ? (
@@ -280,7 +283,7 @@ function StudioNavRow({
       to={to}
       end={end}
       onClick={onNavigate}
-      className={({ isActive }) => cn(ROW_BASE, isActive ? ROW_ACTIVE : ROW_IDLE)}
+      className={({ isActive }) => cn(ROW_BASE, active(isActive) ? ROW_ACTIVE : ROW_IDLE)}
     >
       <Icon className="size-4 shrink-0" />
       <span className="flex-1 truncate">{label}</span>
@@ -409,9 +412,7 @@ export function StudioSidebar({
   useEffect(() => {
     const p = location.pathname;
     const activeGroup = navGroups.find((g) =>
-      g.items.some((item) =>
-        item.end ? p === item.to : p === item.to || p.startsWith(item.to + '/'),
-      ),
+      g.items.some((item) => isNavItemActive(item, p)),
     );
     if (!activeGroup) return;
     setExpandedGroups((prev) => {
@@ -557,6 +558,7 @@ export function StudioSidebar({
                 key={item.to}
                 to={item.to}
                 end={item.end}
+                match={item.match}
                 label={item.label}
                 icon={item.icon}
                 collapsed={collapsed}

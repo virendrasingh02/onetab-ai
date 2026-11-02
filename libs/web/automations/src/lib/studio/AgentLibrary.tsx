@@ -33,7 +33,7 @@ import { AgentCard } from './AgentCard.js';
 import { templateIcon } from './studio-meta.js';
 import { useAgentFavorites, useStudioAgents, useStudioMutations } from './use-studio.js';
 
-type View = 'all' | 'mine' | 'shared' | 'favorites' | 'scheduled' | 'active' | 'paused' | 'drafts' | 'failing' | 'archived' | 'templates';
+type View = 'all' | 'mine' | 'shared' | 'favorites' | 'scheduled' | 'active' | 'paused' | 'drafts' | 'failing' | 'archived';
 type TypeFilter = 'all' | 'planned' | 'workflow' | 'assistant' | 'coworker';
 
 const VIEWS: ReadonlyArray<{ id: View; label: string }> = [
@@ -47,7 +47,6 @@ const VIEWS: ReadonlyArray<{ id: View; label: string }> = [
   { id: 'drafts', label: 'Drafts' },
   { id: 'failing', label: 'Failing' },
   { id: 'archived', label: 'Archived' },
-  { id: 'templates', label: 'Templates' },
 ];
 
 const TYPES = [
@@ -61,7 +60,7 @@ const TYPES = [
 /**
  * Every agent in the workspace in one library — Studio agents, canvas
  * workflows, chat assistants and coworkers — with views for what is yours,
- * what is on, what is failing, favorites and templates.
+ * what is on, what is failing and favorites. Templates have a page of their own.
  */
 export function AgentLibrary() {
   const navigate = useNavigate();
@@ -91,6 +90,11 @@ export function AgentLibrary() {
       },
       { replace: true },
     );
+
+  // Templates used to be a view here; old `?view=templates` links go to their page.
+  useEffect(() => {
+    if (params.get('view') === 'templates') navigate(aiWorkspacePath(slug, 'templates'), { replace: true });
+  }, [params, navigate, slug]);
 
   // "New → Coworker" lands here with ?create=coworker.
   useEffect(() => {
@@ -181,15 +185,13 @@ export function AgentLibrary() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <SearchInput value={query} onValueChange={setQuery} placeholder="Search agents" aria-label="Search agents" className="w-full sm:w-64" />
-        {view !== 'templates' ? (
-          <AppSelect
-            className="w-full sm:w-48"
-            aria-label="Kind of agent"
-            value={type}
-            onValueChange={(v) => setParam('type', v)}
-            options={TYPES.map((t) => ({ value: t.value, label: t.label }))}
-          />
-        ) : null}
+        <AppSelect
+          className="w-full sm:w-48"
+          aria-label="Kind of agent"
+          value={type}
+          onValueChange={(v) => setParam('type', v)}
+          options={TYPES.map((t) => ({ value: t.value, label: t.label }))}
+        />
         <div className="ml-auto flex gap-2">
           {canCreateCoworkers ? (
             <Button variant="outline" leadingIcon={<UserCheck />} onClick={() => setCoworkerOpen(true)}>
@@ -214,9 +216,7 @@ export function AgentLibrary() {
         </ResponsiveTabsList>
       </Tabs>
 
-      {view === 'templates' ? (
-        <TemplateGallery slug={slug} query={needle} />
-      ) : loading ? (
+      {loading ? (
         <LoadingState label="Loading agents…" />
       ) : studio.isError && assistants.isError ? (
         <ErrorState title="Couldn't load agents" onRetry={() => void studio.refetch()} />
@@ -233,7 +233,7 @@ export function AgentLibrary() {
             ) : undefined
           }
           secondaryAction={
-            <Button variant="outline" leadingIcon={<LayoutTemplate />} onClick={() => setParam('view', 'templates')}>
+            <Button variant="outline" leadingIcon={<LayoutTemplate />} onClick={() => navigate(aiWorkspacePath(slug, 'templates'))}>
               Browse templates
             </Button>
           }

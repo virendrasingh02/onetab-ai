@@ -23,6 +23,7 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate } from '../router.js';
 import { useConnectors } from '../services/connectors.js';
 import { useStudioSession } from '../session-guard.js';
+import { SectionTabs } from '../components/section-tabs.js';
 
 /** These mutations report their own errors, so the app-wide error toast stays quiet. */
 const QUIET = { disableToast: true } as const;
@@ -202,18 +203,19 @@ export function ToolsPage() {
   const result = runMutation.data;
 
   return (
-    <Page className="space-y-6">
+    <Page width="full" className="space-y-6">
       <PageHeader
-        title="Tools & Integrations"
-        description="Everything agents can call in this workspace: built-in tools, connected apps, your own APIs and MCP servers. Try the built-in ones in the sandbox."
+        title="Tools"
+        description="Everything agents can call: built-in tools, connected apps, your own APIs and MCP servers. Try the built-in ones in the sandbox."
         icon={<Wrench className="size-5" />}
-        accent="amber"
+        toolbar={<SectionTabs section="tools" />}
+        accent="cyan"
       />
 
       <section className="space-y-3" aria-labelledby="add-tool">
         <div className="flex items-center gap-2">
           <Plus className="size-4 text-muted-foreground" />
-          <h2 id="add-tool" className="text-sm font-bold text-foreground">
+          <h2 id="add-tool" className="text-sm font-semibold text-foreground">
             Add a tool
           </h2>
         </div>
@@ -260,7 +262,7 @@ export function ToolsPage() {
           {/* Sandbox */}
           <section className="space-y-4 rounded-xl border bg-surface p-5 shadow-xs" aria-labelledby="tool-sandbox">
             <div className="flex items-center justify-between">
-              <h2 id="tool-sandbox" className="flex items-center gap-2 text-sm font-bold text-foreground">
+              <h2 id="tool-sandbox" className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <Flame className="size-4 text-warning" /> Tool sandbox
               </h2>
               <Badge variant="outline" className="text-2xs">
@@ -356,7 +358,7 @@ export function ToolsPage() {
           {/* Catalog */}
           <section className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-sm font-bold text-foreground">All tools ({counts.all})</h2>
+              <h2 className="text-sm font-semibold text-foreground">All tools ({counts.all})</h2>
               <Input
                 type="search"
                 leadingIcon={<Search className="size-3.5" />}

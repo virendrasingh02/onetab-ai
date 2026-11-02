@@ -51,10 +51,10 @@ import {
   Upload,
   Wand2,
   Wrench,
+  Home,
 } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
 import { Link, useNavigate } from '../router.js';
-import { useStudioTemplates } from '../services/templates.js';
 import { useStudioSession } from '../session-guard.js';
 
 /** Tools arrive as an array once normalized, or as the API's JSON string. */
@@ -84,11 +84,11 @@ export function StudioHomePage() {
   const { activeWorkspace } = useStudioSession();
   const navigate = useNavigate();
   return (
-    <Page className="space-y-8">
+    <Page width="full" className="space-y-8">
       <PageHeader
         title="Studio Home"
         description={`What your agents are doing in ${activeWorkspace.name} — and what to build next.`}
-        icon={<Sparkles className="size-5" />}
+        icon={<Home className="size-5" />}
         accent="violet"
         className="mb-0"
         actions={
@@ -125,7 +125,7 @@ function GettingStarted({ steps }: { steps: JourneyStep[] }) {
   return (
     <section aria-labelledby="journey-heading" className="rounded-xl border border-border bg-surface p-4 sm:p-5">
       <div className="flex items-center justify-between gap-2">
-        <h2 id="journey-heading" className="text-sm font-bold text-foreground">
+        <h2 id="journey-heading" className="text-sm font-semibold text-foreground">
           Get your first agent live
         </h2>
         <span className="text-xs text-muted-foreground">{doneCount} of {steps.length} done</span>
@@ -179,7 +179,6 @@ function StudioInsights() {
   // Pins are the member's server-side agent favorites — shared with the in-app Studio, synced across devices.
   const { favorites: pinnedSet, toggle: toggleFavorite } = useAgentFavorites(activeWorkspace.id);
   const pinnedAgentIds = useMemo(() => [...pinnedSet], [pinnedSet]);
-  const { templates } = useStudioTemplates();
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importJsonText, setImportJsonText] = useState('');
 
@@ -397,13 +396,13 @@ function StudioInsights() {
                       <div className="text-sm font-semibold text-foreground">No canvas agents yet</div>
                       <p className="mt-1 max-w-sm text-xs text-muted-foreground">
                         {plannedLive.length === 1
-                          ? 'Your agent built from a plan lives in Planned Agents.'
-                          : `Your ${plannedLive.length} agents built from a plan live in Planned Agents.`}
+                          ? 'Your agent built from a plan is under Agents → Planned agents.'
+                          : `Your ${plannedLive.length} agents built from a plan are under Agents → Planned agents.`}
                       </p>
                       <div className="mt-4 flex flex-wrap justify-center gap-2">
                         <Button size="sm" asChild className="gap-1.5">
                           <Link to={`/w/${activeWorkspace.slug}/ai/agents`}>
-                            <Sparkles className="size-3.5" /> Open Planned Agents
+                            <Sparkles className="size-3.5" /> Open planned agents
                           </Link>
                         </Button>
                         <Button size="sm" variant="outline" onClick={() => navigate('/agents?create=blank')} className="gap-1.5">
@@ -631,38 +630,8 @@ function StudioInsights() {
         </div>
 
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Layers className="size-4 text-warning" />
-              <h2 className="text-sm font-bold text-foreground">Featured Templates</h2>
-            </div>
-            <Link to="/templates" className="text-xs font-medium text-primary hover:underline">
-              Browse All ({templates.length})
-            </Link>
-          </div>
-
-          <div className="space-y-3">
-            {templates.slice(0, 5).map((tpl) => (
-              <div
-                key={tpl.id}
-                onClick={() => navigate(`/templates?use=${tpl.id}`)}
-                className="group flex cursor-pointer flex-col rounded-xl border border-border bg-surface p-3.5 transition-all hover:border-border-strong hover:bg-surface-raised/40 hover:shadow-xs"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-foreground transition-colors group-hover:text-primary">{tpl.name}</span>
-                  <Badge variant="outline" className="text-2xs">{tpl.tags[0]}</Badge>
-                </div>
-                <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{tpl.description}</p>
-                <div className="mt-2.5 flex items-center justify-between font-mono text-2xs text-muted-foreground">
-                  <span>{tpl.nodes.length} nodes · {tpl.edges.length} edges</span>
-                  <span className="font-semibold text-primary group-hover:underline">Use Template →</span>
-                </div>
-              </div>
-            ))}
-          </div>
-
           <div className="space-y-2 rounded-xl border border-border bg-surface p-4">
-            <h3 className="flex items-center gap-2 text-xs font-bold text-foreground">
+            <h3 className="flex items-center gap-2 text-xs font-semibold text-foreground">
               <Wrench className="size-3.5 text-primary" />
               Developer Resources
             </h3>
@@ -730,7 +699,7 @@ function StudioInsights() {
         <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
           <div className="rounded-xl border border-border bg-surface p-4 lg:col-span-2">
             <div className="flex items-center justify-between">
-              <h3 className="flex items-center gap-2 text-xs font-bold text-foreground">
+              <h3 className="flex items-center gap-2 text-xs font-semibold text-foreground">
                 <Activity className="size-4 text-accent-blue" /> Runs — last 7 days
               </h3>
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -756,7 +725,7 @@ function StudioInsights() {
           </div>
 
           <div className="rounded-xl border border-border bg-surface p-4">
-            <h3 className="flex items-center gap-2 text-xs font-bold text-foreground">
+            <h3 className="flex items-center gap-2 text-xs font-semibold text-foreground">
               <Trophy className="size-4 text-warning" /> Busiest agents
             </h3>
             {perAgent.length === 0 ? (

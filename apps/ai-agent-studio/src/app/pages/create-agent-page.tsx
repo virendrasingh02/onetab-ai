@@ -674,7 +674,7 @@ ${graphJson}`;
   const triggerPreset = schedulePresets.find((p) => (p.cron ?? null) === currentCron);
 
   return (
-    <Page className="mx-auto w-full max-w-6xl space-y-6 py-4">
+    <Page width="full" className="space-y-6 py-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Button variant="ghost" size="sm" onClick={() => setPhase('describe')} className="gap-1.5">
           <ArrowLeft className="size-3.5" /> Edit prompt
@@ -740,7 +740,7 @@ ${graphJson}`;
           </div>
 
           <div className="space-y-2">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">It will</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">It will</h2>
             <ol className="space-y-1.5">
               {finalSpec.steps.map((step, i) => (
                 <li key={step.id} className="group flex items-start gap-2.5 rounded-lg border border-transparent px-2 py-1.5 hover:border-border hover:bg-accent/40">
@@ -767,7 +767,7 @@ ${graphJson}`;
           </div>
 
           <div className="space-y-2">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Workflow</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Workflow</h2>
             {preview && <FlowPreview graph={preview} />}
             {finalSpec.team && (
               <p className="text-xs text-muted-foreground">
@@ -778,7 +778,7 @@ ${graphJson}`;
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Runs</h2>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Runs</h2>
               <div className="flex flex-wrap gap-1.5" role="group" aria-label="When it runs">
                 {schedulePresets.map((p) => (
                   <Button
@@ -798,7 +798,7 @@ ${graphJson}`;
               </p>
             </div>
             <div className="space-y-2">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Uses</h2>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Uses</h2>
               <div className="flex flex-wrap gap-1.5">
                 {finalSpec.apps.map((a) => (
                   <ConnectionBadge key={a.provider} label={a.label} connected={a.connected} />

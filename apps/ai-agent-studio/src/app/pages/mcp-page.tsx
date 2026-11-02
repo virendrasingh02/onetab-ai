@@ -34,9 +34,11 @@ import {
   RefreshCw,
   Server,
   Trash2,
+  Wrench,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useStudioSession } from '../session-guard.js';
+import { SectionTabs } from '../components/section-tabs.js';
 
 const STATUS_BADGE = {
   CONNECTED: { variant: 'success', label: 'Connected' },
@@ -422,12 +424,13 @@ export function McpPage() {
     : null;
 
   return (
-    <Page className="space-y-6">
+    <Page width="full" className="space-y-6">
       <PageHeader
-        title="Model Context Protocol (MCP) Registry"
-        description="Connect remote MCP servers over HTTP to give your agents external tools, databases, and APIs."
-        icon={<Plug className="size-5" />}
-        accent="pink"
+        title="Tools"
+        description="Connect remote MCP servers over HTTP to give your agents more tools and data."
+        icon={<Wrench className="size-5" />}
+        toolbar={<SectionTabs section="tools" />}
+        accent="cyan"
         actions={
           <div className="gap-2 flex items-center">
             <Button
@@ -589,7 +592,7 @@ export function McpPage() {
         />
       ) : (
         <div className="space-y-3">
-          <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Connected Servers ({connections.length})
           </h2>
 

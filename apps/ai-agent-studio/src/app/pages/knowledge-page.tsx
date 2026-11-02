@@ -335,10 +335,10 @@ export function KnowledgePage() {
   }
 
   return (
-    <Page className="space-y-6">
+    <Page width="full" className="space-y-6">
       <PageHeader
-        title="Knowledge Base & RAG Management"
-        description={`Index documents for semantic and keyword search that your agents can cite in ${activeWorkspace.name}.`}
+        title="Knowledge & RAG"
+        description={`Documents your agents can search and cite in ${activeWorkspace.name}.`}
         icon={<BookOpen className="size-5" />}
         accent="cyan"
         actions={
@@ -374,7 +374,7 @@ export function KnowledgePage() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Collections */}
           <div className="space-y-4">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">Knowledge Collections</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Knowledge Collections</h2>
             <Input
               type="search"
               leadingIcon={<Search className="size-3.5" />}
@@ -461,7 +461,7 @@ export function KnowledgePage() {
                 <div className="space-y-4 rounded-xl border border-border bg-surface p-4">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <h2 className="text-base font-bold text-foreground">{activeKb.name}</h2>
+                      <h2 className="text-base font-semibold text-foreground">{activeKb.name}</h2>
                       {activeKb.description ? (
                         <p className="mt-0.5 text-xs text-muted-foreground">{activeKb.description}</p>
                       ) : null}
@@ -582,7 +582,7 @@ export function KnowledgePage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Sparkles className="size-4 text-primary" />
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">Retrieval sandbox</h3>
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Retrieval sandbox</h3>
                     </div>
                     <SegmentedControl
                       aria-label="Search mode"

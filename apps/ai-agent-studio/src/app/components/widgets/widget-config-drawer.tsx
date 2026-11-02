@@ -88,7 +88,7 @@ export function WidgetConfigDrawer({
       <div className="flex items-center justify-between border-b border-border p-3.5 bg-surface-raised">
         <div className="flex items-center gap-2">
           <Sliders className="size-4 text-primary" />
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Configuration
           </h3>
         </div>

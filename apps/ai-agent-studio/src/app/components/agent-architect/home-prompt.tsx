@@ -50,7 +50,7 @@ export function HomePrompt({ workspaceId }: { workspaceId: string }) {
           <Badge variant="primary" className="gap-1">
             <Sparkles className="size-3" aria-hidden /> Create with one prompt
           </Badge>
-          <h2 id="home-create-heading" className="text-base font-semibold text-foreground">
+          <h2 id="home-create-heading" className="text-sm font-semibold text-foreground">
             What do you want your agent to do?
           </h2>
         </div>
@@ -79,7 +79,7 @@ export function HomePrompt({ workspaceId }: { workspaceId: string }) {
         </div>
       </form>
       <div className="space-y-2">
-        <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           <Lightbulb className="size-3.5" aria-hidden /> Suggestions
         </h3>
         <ul className="space-y-1.5">

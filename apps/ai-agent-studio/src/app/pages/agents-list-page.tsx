@@ -50,6 +50,7 @@ import { AgentAvatar, DEFAULT_CATEGORIES } from '../data/agent-metadata.js';
 import { useStudioSession } from '../session-guard.js';
 import { AIEntityFacts, AIEntityHeader, AIEntityOwner, plural } from '../components/common/ai-entity-summary.js';
 import { useAiModels, useModelOptions } from '../components/workflow-canvas/agent-config/use-agent-config-data.js';
+import { SectionTabs } from '../components/section-tabs.js';
 
 
 type AgentStatus = 'draft' | 'testing' | 'published' | 'paused' | 'archived';
@@ -413,9 +414,10 @@ export function AgentsListPage() {
     <Page width="full" className="space-y-6">
       {/* Header bar matching Admin */}
       <PageHeader
-        title="Agent Lifecycle Management"
-        description={`Build, test, deploy, pause, archive, and manage autonomous AI agents across environments in ${activeWorkspace.name}.`}
+        title="Agents"
+        description={`Build, test and publish the agents that work in ${activeWorkspace.name}.`}
         icon={<Bot className="size-5" />}
+        toolbar={<SectionTabs section="agents" />}
         accent="blue"
         actions={
           <div className="flex items-center gap-2">
@@ -445,15 +447,6 @@ export function AgentsListPage() {
           </div>
         }
       />
-
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-surface/60 px-4 py-2.5 text-xs text-muted-foreground">
-        <span>
-          Agents made with <strong className="text-foreground">Create with AI</strong> or a template are plan-first agents. They are listed under Planned Agents, not here.
-        </span>
-        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => navigate(`/w/${activeWorkspace.slug}/ai/agents`)}>
-          Open Planned Agents
-        </Button>
-      </div>
 
       {/* Filter and Search Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3">

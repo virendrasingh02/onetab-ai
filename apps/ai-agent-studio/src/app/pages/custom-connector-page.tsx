@@ -27,7 +27,7 @@ import {
   toast,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { ArrowLeft, ChevronDown, ChevronRight, Play, Plug, Plus, Save, Trash2, Zap } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronRight, Play, Plus, Save, Trash2, Zap, Boxes } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from '../router.js';
 import {
@@ -96,7 +96,7 @@ export function CustomConnectorPage() {
   const def = detail.data?.customDefinition;
   if (detail.isError || !detail.data || !def || !detail.data.customIntegrationId) {
     return (
-      <Page>
+      <Page width="full">
         <ErrorState
           title="This connector can’t be edited"
           description={
@@ -181,7 +181,7 @@ function Builder({ initial, integrationId, provider }: { initial: Draft; integra
   };
 
   return (
-    <Page>
+    <Page width="full">
       <Button
         variant="link"
         size="xs"
@@ -194,7 +194,8 @@ function Builder({ initial, integrationId, provider }: { initial: Draft; integra
       <PageHeader
         title={editing ? `Edit ${draft.name || 'connector'}` : 'Build a connector'}
         description="Describe an API and the actions it offers. Once saved, agents can use each action as a tool, workflows as a step, and its events can start an agent."
-        icon={<Plug />}
+        icon={<Boxes />}
+        accent="cyan"
         actions={
           <div className="flex items-center gap-2">
             {editing && (
@@ -220,7 +221,7 @@ function Builder({ initial, integrationId, provider }: { initial: Draft; integra
         </div>
       )}
 
-      <div className="mx-auto max-w-4xl space-y-5 pb-24">
+      <div className="space-y-5 pb-24">
         <Section step={1} title="About this connector" description="How it appears in the connector list and in the agent builder.">
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Name" htmlFor="cc-name" required>
@@ -382,7 +383,7 @@ function Builder({ initial, integrationId, provider }: { initial: Draft; integra
       </div>
 
       <div className="sticky bottom-0 -mx-3 border-t border-border bg-background/95 px-3 py-3 backdrop-blur sm:-mx-6 sm:px-6">
-        <div className="mx-auto flex max-w-4xl items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3">
           <p className="hidden text-xs text-muted-foreground sm:block">
             {editing ? 'Changes apply to agents and workflows the moment you save.' : 'Saving checks that the API can be reached with these credentials.'}
           </p>

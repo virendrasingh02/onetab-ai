@@ -232,7 +232,7 @@ export function WidgetComponentPalette({
   return (
     <div className={cn('flex flex-col h-full bg-surface border-r border-border text-foreground', className)}>
       <div className="p-3 border-b border-border space-y-2 bg-surface-raised">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Component Library
         </h3>
         <div className="relative">

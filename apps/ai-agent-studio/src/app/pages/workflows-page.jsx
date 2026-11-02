@@ -131,7 +131,7 @@ export function WorkflowsPage() {
       {/* Header bar matching Admin */}
       <PageHeader
         title="Visual Workflows"
-        description="Multi-step graph pipelines, automated triggers, conditional branching, and human approval steps."
+        description="Multi-step automations with triggers, branches and approval steps."
         icon={<GitBranch className="size-5" />}
         accent="blue"
         actions={

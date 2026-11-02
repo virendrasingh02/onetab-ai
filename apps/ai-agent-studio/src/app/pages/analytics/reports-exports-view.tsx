@@ -113,7 +113,7 @@ export function ReportsExportsView({ dateRange }: { dateRange: string }) {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-base font-bold text-foreground">
+        <h3 className="text-sm font-semibold text-foreground">
           Analytics Reports & Telemetry Data Exports
         </h3>
         <p className="text-xs text-muted-foreground mt-0.5">

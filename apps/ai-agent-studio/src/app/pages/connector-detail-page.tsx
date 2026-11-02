@@ -65,7 +65,7 @@ export function ConnectorDetailPage() {
   if (detail.isLoading) return <LoadingState fullPage label="Loading connector…" />;
   if (detail.isError || !detail.data) {
     return (
-      <Page>
+      <Page width="full">
         <ErrorState
           title="Couldn’t load this connector"
           description={errorMessage(detail.error, 'It may not exist on this server.')}
@@ -86,7 +86,7 @@ export function ConnectorDetailPage() {
   const actions = c.capabilities.filter((x) => x.kind === 'action');
 
   return (
-    <Page>
+    <Page width="full">
       <Button
         variant="link"
         size="xs"

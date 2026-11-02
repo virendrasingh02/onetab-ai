@@ -105,7 +105,7 @@ export function TracesTimelineView({
               {/* Trace Summary */}
               <div className="flex items-center justify-between border-b border-border pb-4 mb-4">
                 <div>
-                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                     Trace Waterfall: <span className="font-mono text-xs">{trace.traceId}</span>
                   </h3>
                   <p className="text-xs text-muted-foreground mt-0.5">

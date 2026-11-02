@@ -15,7 +15,7 @@ import {
   TooltipTrigger,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { Bot, ChevronRight, KeyRound, Layers, Plug, Plus, Search, Star, Wrench, Zap, Eye } from 'lucide-react';
+import { Bot, ChevronRight, KeyRound, Layers, Plug, Plus, Search, Star, Wrench, Zap, Eye, Boxes } from 'lucide-react';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from '../router.js';
 import { AddToAgentDialog } from '../components/connectors/add-to-agent-dialog.js';
@@ -97,11 +97,12 @@ export function ConnectorsPage() {
   );
 
   return (
-    <Page>
+    <Page width="full">
       <PageHeader
         title="App Connectors"
         description="Connect the apps your agents work in. Every action, read and event a connector offers becomes a tool, a workflow step or a trigger in the Studio."
-        icon={<Plug />}
+        icon={<Boxes />}
+        accent="cyan"
         actions={
           <div className="flex items-center gap-2">
             <Button size="sm" variant="outline" onClick={() => setOauthOpen(true)} leadingIcon={<KeyRound />}>

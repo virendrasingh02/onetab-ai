@@ -32,9 +32,6 @@
   ],
   "references": [
     {
-      "path": "../../shared/platform/tsconfig.lib.json"
-    },
-    {
       "path": "../automations/tsconfig.lib.json"
     },
     {
@@ -47,13 +44,13 @@
       "path": "../../shared/validation/tsconfig.lib.json"
     },
     {
+      "path": "../../shared/api-client/tsconfig.lib.json"
+    },
+    {
       "path": "../../shared/types/tsconfig.lib.json"
     },
     {
       "path": "../auth/tsconfig.lib.json"
-    },
-    {
-      "path": "../../shared/api-client/tsconfig.lib.json"
     },
     {
       "path": "../../shared/ui/tsconfig.lib.json"

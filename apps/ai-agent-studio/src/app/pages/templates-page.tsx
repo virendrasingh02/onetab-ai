@@ -1,5 +1,6 @@
 import { agentsApi } from '@org/api-client';
-import { Badge, Button, Card, Input, Page, PageHeader, toast } from '@org/ui';
+import { Badge, Button, Card, Input, Page, PageHeader, ResponsiveTabs, toast } from '@org/ui';
+import { TemplateGallery } from '@org/web-automations';
 import { cn } from '@org/utils';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -45,11 +46,22 @@ const TEMPLATE_ICONS: Record<string, LucideIcon> = {
 const templateApps = (template: StudioTemplate) =>
   Array.from(new Set(template.requiredTools.filter((t) => t.includes('.')).map((t) => t.split('.')[0].toUpperCase())));
 
+type TemplateKind = 'planned' | 'canvas';
+
+const TEMPLATE_KINDS: ReadonlyArray<{ value: TemplateKind; label: string }> = [
+  { value: 'planned', label: 'Plan-first agents' },
+  { value: 'canvas', label: 'Canvas workflows' },
+];
+
+/**
+ * Every template in the Studio, in one place: plan-first agents (opened as a
+ * plan you review) and canvas workflows (cloned into the visual builder).
+ */
 export function TemplatesPage() {
   const { activeWorkspace } = useStudioSession();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const connectorsQuery = useConnectors();
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -57,6 +69,20 @@ export function TemplatesPage() {
   const [search, setSearch] = useState('');
   // `?use=<templateId>` (from the overview's quick-start links) highlights a template.
   const preselectedId = searchParams.get('use');
+  // `?use=` names a canvas template, so it opens on that tab.
+  const kind: TemplateKind =
+    searchParams.get('kind') === 'canvas' || (preselectedId && searchParams.get('kind') !== 'planned') ? 'canvas' : 'planned';
+  const setKind = (next: string) =>
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        params.delete('use');
+        if (next === 'canvas') params.set('kind', 'canvas');
+        else params.delete('kind');
+        return params;
+      },
+      { replace: true },
+    );
   useEffect(() => {
     if (!preselectedId) return;
     document
@@ -113,13 +139,23 @@ export function TemplatesPage() {
   });
 
   return (
-    <Page className="space-y-6">
+    <Page width="full" className="space-y-6">
       {/* Header bar matching Admin */}
       <PageHeader
-        title="Workflow Templates"
-        description="Production-tested workflows inspired by Firecrawl Open Agent Builder concepts with web search, scraping, RAG, and approvals."
+        title="Agent Templates"
+        description="Ready-made agents and workflows. Pick one and adjust it before you save."
         icon={<Layers className="size-5" />}
-        accent="violet"
+        accent="blue"
+        toolbar={
+          <ResponsiveTabs
+            aria-label="Kind of template"
+            variant="underline"
+            size="sm"
+            value={kind}
+            onValueChange={setKind}
+            items={TEMPLATE_KINDS.map((k) => ({ value: k.value, label: k.label }))}
+          />
+        }
         actions={
           <div className="relative w-full sm:w-72">
             <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground pointer-events-none" />
@@ -134,6 +170,10 @@ export function TemplatesPage() {
         }
       />
 
+      {kind === 'planned' ? (
+        <TemplateGallery slug={activeWorkspace.slug} query={search.trim().toLowerCase()} />
+      ) : (
+      <>
       {/* Category Tabs Toolbar matching Admin */}
       <div className="flex gap-1.5 overflow-x-auto border-b border-border pb-2.5 scrollbar-none">
         {categories.map((cat) => (
@@ -195,7 +235,7 @@ export function TemplatesPage() {
                       <TemplateIcon className="size-5" />
                     </div>
                     <div>
-                      <h3 className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">
+                      <h3 className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
                         {template.name}
                       </h3>
                       <span className="text-2xs text-muted-foreground font-mono">
@@ -263,6 +303,8 @@ export function TemplatesPage() {
           );
         })}
       </div>
+      </>
+      )}
     </Page>
   );
 }

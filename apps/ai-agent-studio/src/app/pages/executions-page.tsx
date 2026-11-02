@@ -33,6 +33,7 @@ import {
   RefreshCw,
   Search,
   XCircle,
+  MessageSquare,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useStudioSession } from '../session-guard.js';
@@ -144,13 +145,13 @@ export function ExecutionsPage() {
   });
 
   return (
-    <Page className="space-y-6">
+    <Page width="full" className="space-y-6">
       {/* Header matching Admin PageHeader */}
       <PageHeader
         title="Agent Chat Logs"
         description={`Prompts, answers, latency and token use for agent conversations in ${activeWorkspace.name}.`}
-        icon={<Activity className="size-5" />}
-        accent="blue"
+        icon={<MessageSquare className="size-5" />}
+        accent="amber"
         actions={
           <Button
             variant="outline"

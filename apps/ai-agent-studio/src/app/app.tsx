@@ -31,7 +31,7 @@ import { SessionGuard } from './session-guard.js';
 const BREADCRUMB_MAP: Record<string, { section: string; page: string }> = {
   '/create': { section: 'Build & Orchestrate', page: 'Create with AI' },
   '/connectors/new': { section: 'Intelligence & Tools', page: 'New Custom Connector' },
-  '/agents': { section: 'Build & Orchestrate', page: 'My Agents' },
+  '/agents': { section: 'Build & Orchestrate', page: 'Agents' },
   '/coworkers': { section: 'Build & Orchestrate', page: 'AI Coworkers' },
   '/workflows': { section: 'Build & Orchestrate', page: 'Visual Workflows' },
   '/templates': { section: 'Build & Orchestrate', page: 'Agent Templates' },
@@ -39,8 +39,9 @@ const BREADCRUMB_MAP: Record<string, { section: string; page: string }> = {
   '/widgets': { section: 'Intelligence & Tools', page: 'Widget Center' },
   '/widgets/new': { section: 'Intelligence & Tools', page: 'Widget Builder' },
   '/knowledge': { section: 'Intelligence & Tools', page: 'Knowledge & RAG' },
-  '/tools': { section: 'Intelligence & Tools', page: 'Tools & Integrations' },
-  '/mcp': { section: 'Intelligence & Tools', page: 'MCP Registry' },
+  '/tools': { section: 'Intelligence & Tools', page: 'Tools' },
+  '/tool-access': { section: 'Intelligence & Tools', page: 'Tools' },
+  '/mcp': { section: 'Intelligence & Tools', page: 'Tools' },
   '/executions': { section: 'Operations & Governance', page: 'Agent Chat Logs' },
   '/approvals': { section: 'Operations & Governance', page: 'Human Approvals' },
   '/analytics': { section: 'Operations & Governance', page: 'Studio Analytics' },
@@ -55,11 +56,11 @@ function getBreadcrumb(pathname: string): { section: string; page: string } {
   const first = rest.split('/')[1] ?? '';
   const core: Record<string, string> = {
     '': 'Studio Home',
-    agents: 'Planned Agents',
     runs: 'Runs',
     approvals: 'Human Approvals',
     studio: 'Planned Agent',
   };
+  if (first === 'agents') return { section: 'Build & Orchestrate', page: 'Agents' };
   if (first in core) {
     return { section: 'Plan, Run & Approve', page: core[first] };
   }

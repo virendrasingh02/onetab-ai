@@ -279,13 +279,13 @@ export function AnalyticsPage() {
   };
 
   return (
-    <Page className="space-y-6">
+    <Page width="full" className="space-y-6">
       {/* Top Header */}
       <PageHeader
-        title="Analytics & Observability Center"
-        description={`Production telemetry, distributed tracing, cost forecasting, and latency analytics for ${activeWorkspace.name}.`}
+        title="Studio Analytics"
+        description={`Runs, cost, tokens and latency for the agents in ${activeWorkspace.name}.`}
         icon={<BarChart3 className="size-5" />}
-        accent="violet"
+        accent="amber"
         actions={
           <div className="flex items-center gap-2">
             {/* Date Range Selector */}

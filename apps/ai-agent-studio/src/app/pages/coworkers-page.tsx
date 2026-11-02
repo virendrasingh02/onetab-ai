@@ -109,11 +109,12 @@ export function CoworkersPage() {
   const allOpen = coworkers.length > 0 && coworkers.every((c) => expanded.has(c.id));
 
   return (
-    <Page>
+    <Page width="full">
       <PageHeader
         title="AI Coworkers"
-        description="Each coworker is an orchestrator: it plans the work, hands reasoning to its specialist agents and acts through the app connectors attached to it. Writes, sends and money moves wait for approval."
+        description="Coworkers plan the work, hand it to their specialist agents and act through connected apps. Writes, sends and payments wait for your approval."
         icon={<Users />}
+        accent="blue"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {coworkers.length ? (
@@ -328,7 +329,7 @@ function CoworkerCard({
 function SectionTitle({ icon, children, aside }: { icon: ReactNode; children: ReactNode; aside?: ReactNode }) {
   return (
     <div className="mb-2 flex items-center justify-between gap-2">
-      <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground [&_svg]:size-3.5">
+      <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground [&_svg]:size-3.5">
         {icon}
         {children}
       </h3>

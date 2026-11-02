@@ -263,7 +263,7 @@ export function StudioHome({ planHref }: { planHref?: (prompt: string) => string
           description="Working agents made from the tools you already have. Each opens as a plan you can change before saving."
           actions={
             <Button variant="ghost" size="sm" asChild>
-              <Link to={`${aiWorkspacePath(slug, 'agents')}?view=templates`}>
+              <Link to={aiWorkspacePath(slug, 'templates')}>
                 All templates <ArrowRight className="size-3.5" />
               </Link>
             </Button>

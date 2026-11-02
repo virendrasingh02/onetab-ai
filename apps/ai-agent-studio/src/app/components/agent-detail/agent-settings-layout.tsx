@@ -52,7 +52,7 @@ export function AgentSettingsLayout({ items, isDirty, isSaving, onSave, children
   };
 
   return (
-    <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-6 lg:grid-cols-[200px_minmax(0,1fr)]">
+    <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-[200px_minmax(0,1fr)]">
       <nav
         aria-label="Settings sections"
         className="sticky top-0 z-10 -mx-1 flex gap-1 overflow-x-auto bg-background/90 px-1 py-2 backdrop-blur lg:top-4 lg:mx-0 lg:flex-col lg:self-start lg:overflow-visible lg:bg-transparent lg:p-0 lg:backdrop-blur-none"

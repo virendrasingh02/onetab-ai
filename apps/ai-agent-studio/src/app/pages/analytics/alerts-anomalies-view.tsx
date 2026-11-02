@@ -76,7 +76,7 @@ export function AlertsAnomaliesView({ alerts = [], onRefresh }: AlertsAnomaliesV
       {/* HEADER & NEW RULE ACTION */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <Bell className="size-4 text-primary" />
             Active Observability Alerts & Anomaly Guards
           </h3>

@@ -138,13 +138,13 @@ print("Result:", data.get("result"))`,
   };
 
   return (
-    <Page className="space-y-6">
+    <Page width="full" className="space-y-6">
       {/* Header */}
       <PageHeader
-        title="Developer Hub & Universal API Sandbox"
-        description="Integrate autonomous workflows and published agents into external applications, CI/CD pipelines, and microservices."
+        title="Developer Hub"
+        description="Call published agents and workflows from your own apps, pipelines and services."
         icon={<Code2 className="size-5" />}
-        accent="blue"
+        accent="indigo"
         actions={
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-xs font-mono">

@@ -89,11 +89,12 @@ export function ConnectorGroupsPage() {
   };
 
   return (
-    <Page>
+    <Page width="full">
       <PageHeader
         title="Connector groups"
         description="Give one agent several apps at once. Pick the apps and the actions each may use, then reuse the set for other agents."
         icon={<Layers />}
+        accent="cyan"
         actions={
           <div className="flex items-center gap-2">
             <Button size="sm" variant="outline" onClick={() => navigate('/connectors')} leadingIcon={<ArrowLeft />}>

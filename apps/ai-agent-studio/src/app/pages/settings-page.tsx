@@ -222,13 +222,13 @@ export function SettingsPage() {
   };
 
   return (
-    <Page className="space-y-6">
+    <Page width="full" className="space-y-6">
       {/* Header matching Admin */}
       <PageHeader
-        title="Workspace Settings & Model Providers"
+        title="Settings & Security"
         description={`Model provider credentials, the team, agent API keys and usage for ${activeWorkspace.name}.`}
         icon={<Settings className="size-5" />}
-        accent="violet"
+        accent="indigo"
       />
 
       {/* Tabs */}

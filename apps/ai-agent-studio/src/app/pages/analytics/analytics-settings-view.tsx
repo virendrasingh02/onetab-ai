@@ -55,9 +55,9 @@ export function AnalyticsSettingsView({ settings, onRefresh }: AnalyticsSettings
   };
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6">
       <div>
-        <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <Settings className="size-4 text-primary" />
           Analytics & Telemetry Configuration
         </h3>

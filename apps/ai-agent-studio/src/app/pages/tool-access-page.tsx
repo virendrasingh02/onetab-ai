@@ -21,10 +21,11 @@ import {
 } from '@org/ui';
 import { useWorkspacePermission } from '@org/web-workspace';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, ChevronRight, Info, Search, ShieldCheck } from 'lucide-react';
+import { ChevronDown, ChevronRight, Info, Search, Wrench } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useConnectors } from '../services/connectors.js';
 import { useStudioSession } from '../session-guard.js';
+import { SectionTabs } from '../components/section-tabs.js';
 
 const MODE_OPTIONS: { value: WorkspaceToolMode; label: string; description: string }[] = [
   { value: 'allow', label: 'Allowed', description: 'Each agent’s own autonomy rules decide' },
@@ -144,7 +145,7 @@ export function ToolAccessPage() {
   if (policies.isLoading || builtin.isLoading || connectors.isLoading) return <LoadingState label="Loading tool access…" />;
   if (policies.isError || builtin.isError || connectors.isError) {
     return (
-      <Page className="space-y-6">
+      <Page width="full" className="space-y-6">
         <ErrorState
           title="Couldn’t load tool access"
           description="The platform didn’t answer. Try again in a moment."
@@ -164,12 +165,13 @@ export function ToolAccessPage() {
   const restrictedApps = (connectors.data ?? []).filter((c) => appMode(c) !== 'allow').length;
 
   return (
-    <Page className="space-y-6">
+    <Page width="full" className="space-y-6">
       <PageHeader
-        title="Tool access"
+        title="Tools"
         description="Decide which tools and connected apps agents may use in this workspace. These rules sit over every agent’s own settings and apply on its next run."
-        icon={<ShieldCheck className="size-5" />}
-        accent="amber"
+        icon={<Wrench className="size-5" />}
+        toolbar={<SectionTabs section="tools" />}
+        accent="cyan"
         actions={
           canEdit ? (
             <div className="flex items-center gap-2">

@@ -1,12 +1,14 @@
 import { useAuthStore } from '@org/auth';
 import { RealtimeProvider } from '@org/realtime';
-import { LoadingState, Page } from '@org/ui';
+import { LoadingState, Page, PageHeader, type PageHeaderProps } from '@org/ui';
+import { Activity, Bot, ShieldAlert } from 'lucide-react';
 import { WorkflowCanvasView } from '@org/web-automations';
 import { AgentCreatePage, AgentDetailPage, AgentLibrary } from '@org/web-automations';
 import { AIApprovalsSection, AIRunsSection } from '@org/web-ai';
 import { useEffect, type ReactNode } from 'react';
 import { LEGACY_SEGMENTS, Navigate, Outlet, Route, scopeStudioPath, useLocation, useParams } from './router.js';
 
+import { SectionTabs } from './components/section-tabs.js';
 import { StudioHomePage } from './pages/studio-home-page.js';
 
 import { useStudioSession } from './session-guard.js';
@@ -80,10 +82,18 @@ function AgentRedirect() {
   return <Navigate to={`/agents/${agentId}`} replace />;
 }
 
-/** The shared list sections ship unpadded (their host layout pads them), so pad them here. */
-function SectionFrame({ children }: { children: ReactNode }) {
+/**
+ * The shared list sections ship unpadded and untitled (their host layout pads
+ * and titles them), so give them the same frame and header as every other
+ * Studio page.
+ */
+function SectionFrame({
+  children,
+  ...header
+}: { children: ReactNode } & Pick<PageHeaderProps, 'title' | 'description' | 'icon' | 'accent' | 'toolbar'>) {
   return (
-    <Page padding="none" className="p-3 sm:p-6">
+    <Page width="full" padding="none" className="p-3 sm:p-6">
+      <PageHeader accent="violet" {...header} />
       {children}
     </Page>
   );
@@ -103,9 +113,44 @@ export function studioCoreRoutes(children?: ReactNode) {
     <>
     <Route path={STUDIO_CORE_PATH} element={<StudioCoreRoute />}>
       <Route index element={<StudioHomePage />} />
-      <Route path="agents" element={<SectionFrame><AgentLibrary /></SectionFrame>} />
-      <Route path="runs" element={<SectionFrame><AIRunsSection /></SectionFrame>} />
-      <Route path="approvals" element={<SectionFrame><AIApprovalsSection /></SectionFrame>} />
+      <Route
+        path="agents"
+        element={
+          <SectionFrame
+            title="Agents"
+            description="Agents planned from a plain-language description. Review the plan, test it, then switch it on."
+            icon={<Bot />}
+            accent="blue"
+            toolbar={<SectionTabs section="agents" />}
+          >
+            <AgentLibrary />
+          </SectionFrame>
+        }
+      />
+      <Route
+        path="runs"
+        element={
+          <SectionFrame
+            title="Runs"
+            description="Every agent, coworker and workflow run, live — with its steps, cost and outcome."
+            icon={<Activity />}
+          >
+            <AIRunsSection />
+          </SectionFrame>
+        }
+      />
+      <Route
+        path="approvals"
+        element={
+          <SectionFrame
+            title="Human Approvals"
+            description="Actions your agents are holding until someone approves or rejects them."
+            icon={<ShieldAlert />}
+          >
+            <AIApprovalsSection />
+          </SectionFrame>
+        }
+      />
       <Route path="studio/new" element={<AgentCreatePage />} />
       <Route path="studio/:workflowId" element={<AgentDetailPage />} />
       <Route path="workflows/:workflowId" element={<CanvasRoute />} />

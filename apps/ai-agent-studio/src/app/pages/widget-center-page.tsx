@@ -188,12 +188,12 @@ export function WidgetCenterPage() {
   };
 
   return (
-    <Page className="space-y-6">
+    <Page width="full" className="space-y-6">
       <PageHeader
         title="Widget Center"
-        description="Discover, design, configure, and orchestrate interactive UI widgets for AI agents, workflows, and dashboards."
+        description="Design the interactive cards agents show in chat, workflows and dashboards."
         icon={<LayoutDashboard className="size-5" />}
-        accent="violet"
+        accent="cyan"
         actions={
           <div className="flex items-center gap-2">
             <Button
