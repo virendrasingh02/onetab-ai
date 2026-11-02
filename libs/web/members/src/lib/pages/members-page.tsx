@@ -4,22 +4,17 @@ import { useUserPresenceMap } from '@org/realtime';
 import {
   WorkspacePermission,
   WorkspaceRole,
-  coworkerTemplateKey,
-  getCoworkerTemplate,
   type AICoworkerDetail,
 } from '@org/types';
 import {
   ActionDropdownMenu,
+  AiEntityAvatar,
   Badge,
   Button,
   EmptyState,
   EntityContextMenu,
   LocalTime,
   SearchInput,
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetTitle,
   Skeleton,
   SkeletonAvatar,
   SkeletonText,
@@ -37,14 +32,8 @@ import {
 } from '@org/web-workspace';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Bot,
-  Check,
-  Clock,
-  Cpu,
   MessageSquare,
   MoreHorizontal,
-  Play,
-  Shield,
   ShieldCheck,
   Sparkles,
   UserMinus,
@@ -56,11 +45,82 @@ import { useNavigate } from 'react-router-dom';
 import { useMemo, useState } from 'react';
 import { useMemberMutations, useMembers } from '../use-members.js';
 
+/** Coworker status pill, from the API's `status` + `isActive` — same shape as `PRESENCE_META`. */
+function coworkerStatusMeta(coworker: AICoworkerDetail): {
+  label: string;
+  dot: string;
+  text: string;
+} {
+  if (!coworker.isActive) {
+    return {
+      label: 'Paused',
+      dot: 'bg-muted-foreground/40',
+      text: 'text-muted-foreground',
+    };
+  }
+  switch (coworker.status) {
+    case 'WORKING':
+    case 'RUNNING_TASK':
+      return {
+        label: 'Working',
+        dot: 'bg-primary ring-2 ring-primary/20 animate-pulse',
+        text: 'text-primary',
+      };
+    case 'IDLE':
+      return {
+        label: 'Idle',
+        dot: 'bg-warning ring-2 ring-warning/20',
+        text: 'text-warning-text',
+      };
+    case 'ERROR':
+      return {
+        label: 'Needs attention',
+        dot: 'bg-destructive ring-2 ring-destructive/20',
+        text: 'text-destructive-text',
+      };
+    default:
+      return {
+        label: 'Available',
+        dot: 'bg-success ring-2 ring-success/20',
+        text: 'text-success-text',
+      };
+  }
+}
+
 const ROLE_BADGE: Record<string, 'primary' | 'info' | 'neutral'> = {
   OWNER: 'primary',
   ADMIN: 'info',
   MEMBER: 'neutral',
   GUEST: 'neutral',
+};
+
+type PresenceKey = 'online' | 'away' | 'busy' | 'offline';
+
+/** Right-hand status pill on a human row, mirroring the coworker "Available" pill. */
+const PRESENCE_META: Record<
+  PresenceKey,
+  { label: string; dot: string; text: string }
+> = {
+  online: {
+    label: 'Active',
+    dot: 'bg-success ring-2 ring-success/20',
+    text: 'text-success-text',
+  },
+  away: {
+    label: 'Away',
+    dot: 'bg-warning ring-2 ring-warning/20',
+    text: 'text-warning-text',
+  },
+  busy: {
+    label: 'Busy',
+    dot: 'bg-destructive ring-2 ring-destructive/20',
+    text: 'text-destructive-text',
+  },
+  offline: {
+    label: 'Offline',
+    dot: 'bg-muted-foreground/40',
+    text: 'text-muted-foreground',
+  },
 };
 
 export function MembersPage() {
@@ -84,8 +144,6 @@ export function MembersPage() {
     (s: WorkspaceState) => s.setInviteMembersOpen,
   );
   const [query, setQuery] = useState('');
-  const [selectedCoworker, setSelectedCoworker] =
-    useState<AICoworkerDetail | null>(null);
 
   // Asks for the capability rather than comparing role rungs, so this agrees
   // with what the API's guard will decide for the same request.
@@ -97,9 +155,12 @@ export function MembersPage() {
     const list = members.data ?? [];
     if (!term) return list;
     return list.filter((member) =>
-      (member.user.displayName ?? member.user.name)
-        .toLowerCase()
-        .includes(term),
+      [
+        member.user.displayName ?? member.user.name,
+        member.user.username,
+        member.user.jobTitle,
+        member.role,
+      ].some((field) => field?.toLowerCase().includes(term)),
     );
   }, [members.data, query]);
 
@@ -204,117 +265,12 @@ export function MembersPage() {
             />
           ) : (
             <>
-              {/* AI Coworkers Section */}
-              {filteredCoworkers.length > 0 && (
-                <div className="space-y-2">
-                  <div className="px-1 flex items-center justify-between">
-                    <div className="gap-1.5 flex items-center">
-                      <Sparkles className="size-3.5 text-primary" aria-hidden />
-                      <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                        AI Coworkers
-                      </h3>
-                      <Badge
-                        variant="primary"
-                        className="px-1.5 py-0 font-medium text-[10px]"
-                      >
-                        {filteredCoworkers.length}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <ul className="divide-y rounded-lg border bg-card">
-                    {filteredCoworkers.map((coworker) => {
-                      const openDrawer = () => setSelectedCoworker(coworker);
-                      const handleMessage = () => {
-                        if (workspace?.slug) {
-                          navigate(
-                            `/w/${workspace.slug}/coworkers/${coworker.id}`,
-                          );
-                        }
-                      };
-
-                      return (
-                        <li
-                          key={coworker.id}
-                          className="gap-3 px-4 py-3 flex items-center justify-between transition-colors hover:bg-muted/10"
-                        >
-                          <button
-                            type="button"
-                            onClick={openDrawer}
-                            className="gap-3 min-w-0 flex flex-1 cursor-pointer items-center text-left"
-                          >
-                            <div className="size-10 bg-purple-500/10 border-purple-500/20 text-purple-600 dark:text-purple-400 relative flex shrink-0 items-center justify-center rounded-xl border">
-                              <Bot className="size-5" />
-                              <span className="-bottom-0.5 -right-0.5 size-2.5 bg-success absolute rounded-full shadow-[0_0_6px_color-mix(in_oklab,var(--color-success)_50%,transparent)] ring-2 ring-background" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="gap-2 flex items-center">
-                                <p className="text-sm font-semibold truncate text-foreground hover:underline">
-                                  {coworker.name}
-                                </p>
-                                <Badge
-                                  variant="primary"
-                                  className="font-bold px-1 py-0 h-4 border-purple-500/30 bg-purple-500/15 text-purple-700 dark:text-purple-300 text-[9px] uppercase"
-                                >
-                                  AI COWORKER
-                                </Badge>
-                              </div>
-                              <p className="text-xs mt-0.5 truncate text-muted-foreground">
-                                {coworker.role ? (
-                                  <span className="font-medium mr-1.5 text-foreground/80">
-                                    {coworker.role}
-                                  </span>
-                                ) : null}
-                                {coworker.description ? (
-                                  <span>{coworker.description}</span>
-                                ) : null}
-                              </p>
-                            </div>
-                          </button>
-
-                          <div className="gap-2 flex shrink-0 items-center">
-                            <div className="gap-1.5 text-xs text-success-text font-medium flex items-center">
-                              <span className="size-2 bg-success ring-success/20 rounded-full shadow-[0_0_8px_color-mix(in_oklab,var(--color-success)_40%,transparent)] ring-2" />
-                              <span className="sm:inline hidden">
-                                Available
-                              </span>
-                            </div>
-
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 text-xs gap-1.5"
-                              onClick={handleMessage}
-                            >
-                              <MessageSquare className="size-3.5" />
-                              <span>Message</span>
-                            </Button>
-
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-7 text-xs"
-                              onClick={openDrawer}
-                            >
-                              View profile
-                            </Button>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              )}
-
               {/* Humans Section */}
               {filteredHumans.length > 0 && (
                 <div className="space-y-2">
                   <div className="px-1 flex items-center justify-between">
                     <div className="gap-1.5 flex items-center">
-                      <Users
-                        className="size-3.5 text-muted-foreground"
-                        aria-hidden
-                      />
+                      <Users className="size-3.5 text-primary" aria-hidden />
                       <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                         Humans
                       </h3>
@@ -332,7 +288,7 @@ export function MembersPage() {
                       const isSelf = member.user.id === currentUser?.id;
                       const isOwner = member.role === WorkspaceRole.OWNER;
                       const livePresence = presenceMap[member.user.id];
-                      const memberStatus =
+                      const memberStatus: PresenceKey =
                         livePresence?.status ??
                         (member.user.presence === 'ONLINE'
                           ? 'online'
@@ -341,22 +297,42 @@ export function MembersPage() {
                             : member.user.presence === 'BUSY'
                               ? 'busy'
                               : 'offline');
+                      const presenceMeta = PRESENCE_META[memberStatus];
+                      const statusEmoji =
+                        livePresence?.statusEmoji ?? member.user.statusEmoji;
+                      const statusText =
+                        livePresence?.statusText ?? member.user.statusText;
 
                       const name = member.user.displayName ?? member.user.name;
+                      const jobTitle =
+                        member.user.jobTitle?.trim() ||
+                        member.user.title?.trim() ||
+                        null;
                       const openProfile = () =>
                         openProfilePanel({
                           userId: member.user.id,
-                          name: member.user.displayName ?? member.user.name,
+                          name,
                           avatarUrl: member.user.avatarUrl ?? undefined,
+                          title: jobTitle ?? undefined,
                           role: member.role,
+                          email: member.email ?? undefined,
+                          joinedAt: member.joinedAt,
+                          bio: member.user.bio ?? undefined,
                           timezone: member.user.timezone,
-                          statusEmoji: member.user.statusEmoji,
-                          statusText: member.user.statusText,
+                          statusEmoji,
+                          statusText,
                           status:
                             memberStatus === 'away' || memberStatus === 'busy'
                               ? 'unavailable'
                               : memberStatus,
                         });
+                      const openMessage = () => {
+                        if (workspace?.slug) {
+                          navigate(
+                            `/w/${workspace.slug}/dms/${member.user.id}`,
+                          );
+                        }
+                      };
 
                       const manageable = canManage && !isOwner && !isSelf;
                       const actions: EntityAction[] = [
@@ -373,10 +349,7 @@ export function MembersPage() {
                           label: isSelf ? 'Open your notes' : `Message ${name}`,
                           icon: MessageSquare,
                           hidden: !workspace?.slug,
-                          run: () =>
-                            navigate(
-                              `/w/${workspace?.slug}/dms/${member.user.id}`,
-                            ),
+                          run: openMessage,
                         },
                         {
                           id: 'role',
@@ -432,30 +405,62 @@ export function MembersPage() {
                             <button
                               type="button"
                               onClick={openProfile}
-                              className="gap-3 min-w-0 flex flex-1 cursor-pointer items-center text-left transition-opacity hover:opacity-80"
+                              className="gap-3 min-w-0 flex flex-1 cursor-pointer items-center text-left"
                             >
                               <UserAvatar
-                                name={
-                                  member.user.displayName ?? member.user.name
-                                }
+                                size="lg"
+                                name={name}
                                 src={member.user.avatarUrl}
                                 seed={member.user.id}
+                                avatarColor={member.avatarColor}
                                 presence={memberStatus}
-                                statusEmoji={member.user.statusEmoji}
-                                statusText={member.user.statusText}
+                                statusEmoji={statusEmoji}
+                                statusText={statusText}
                               />
                               <div className="min-w-0 flex-1">
-                                <p className="text-sm font-medium truncate text-foreground hover:underline">
-                                  {member.user.displayName ?? member.user.name}
-                                  {isSelf ? (
-                                    <span className="font-normal text-muted-foreground">
-                                      {' '}
-                                      (you)
+                                <div className="gap-2 min-w-0 flex items-center">
+                                  <p className="text-sm font-semibold truncate text-foreground hover:underline">
+                                    {name}
+                                    {isSelf ? (
+                                      <span className="font-normal text-muted-foreground">
+                                        {' '}
+                                        (you)
+                                      </span>
+                                    ) : null}
+                                  </p>
+                                  {member.user.username ? (
+                                    <span className="text-xs truncate text-muted-foreground">
+                                      @{member.user.username}
                                     </span>
                                   ) : null}
-                                </p>
-                                <p className="gap-1.5 text-xs flex items-center text-muted-foreground">
-                                  <span>
+                                  <Badge
+                                    variant={
+                                      ROLE_BADGE[member.role] ?? 'neutral'
+                                    }
+                                    className="font-bold px-1 py-0 h-4 shrink-0 text-[9px] uppercase"
+                                  >
+                                    {member.role.toLowerCase()}
+                                  </Badge>
+                                </div>
+                                <p className="gap-1.5 text-xs mt-0.5 min-w-0 flex items-center text-muted-foreground">
+                                  {jobTitle ? (
+                                    <>
+                                      <span className="font-medium truncate text-foreground/80">
+                                        {jobTitle}
+                                      </span>
+                                      <span aria-hidden>·</span>
+                                    </>
+                                  ) : null}
+                                  {statusText || statusEmoji ? (
+                                    <>
+                                      <span className="truncate">
+                                        {statusEmoji ? `${statusEmoji} ` : ''}
+                                        {statusText}
+                                      </span>
+                                      <span aria-hidden>·</span>
+                                    </>
+                                  ) : null}
+                                  <span className="shrink-0">
                                     Joined {formatRelative(member.joinedAt)}
                                   </span>
                                   <span aria-hidden>·</span>
@@ -463,21 +468,44 @@ export function MembersPage() {
                                     timezone={member.user.timezone}
                                     icon
                                     withHint
-                                    hintName={
-                                      member.user.displayName ??
-                                      member.user.name
-                                    }
+                                    hintName={name}
                                   />
                                 </p>
                               </div>
                             </button>
 
-                            <div className="gap-2 flex items-center">
-                              <Badge
-                                variant={ROLE_BADGE[member.role] ?? 'neutral'}
+                            <div className="gap-2 flex shrink-0 items-center">
+                              <div
+                                className={`gap-1.5 text-xs font-medium flex items-center ${presenceMeta.text}`}
                               >
-                                {member.role.toLowerCase()}
-                              </Badge>
+                                <span
+                                  className={`size-2 rounded-full ${presenceMeta.dot}`}
+                                />
+                                <span className="sm:inline hidden">
+                                  {presenceMeta.label}
+                                </span>
+                              </div>
+
+                              {workspace?.slug ? (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 text-xs gap-1.5"
+                                  onClick={openMessage}
+                                >
+                                  <MessageSquare className="size-3.5" />
+                                  <span>{isSelf ? 'Notes' : 'Message'}</span>
+                                </Button>
+                              ) : null}
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={openProfile}
+                              >
+                                View profile
+                              </Button>
 
                               {manageable ? (
                                 <ActionDropdownMenu
@@ -489,7 +517,7 @@ export function MembersPage() {
                                     <Button
                                       variant="ghost"
                                       size="icon-sm"
-                                      aria-label={`Manage ${member.user.name}`}
+                                      aria-label={`Manage ${name}`}
                                     >
                                       <MoreHorizontal />
                                     </Button>
@@ -504,144 +532,137 @@ export function MembersPage() {
                   </ul>
                 </div>
               )}
+
+              {/* AI Coworkers Section */}
+              {filteredCoworkers.length > 0 && (
+                <div className="space-y-2">
+                  <div className="px-1 flex items-center justify-between">
+                    <div className="gap-1.5 flex items-center">
+                      <Sparkles className="size-3.5 text-primary" aria-hidden />
+                      <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                        AI Coworkers
+                      </h3>
+                      <Badge
+                        variant="primary"
+                        className="px-1.5 py-0 font-medium text-[10px]"
+                      >
+                        {filteredCoworkers.length}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <ul className="divide-y rounded-lg border bg-card">
+                    {filteredCoworkers.map((coworker) => {
+                      // Same right-rail profile the coworker's DM header opens.
+                      const openCoworkerProfile = () =>
+                        openProfilePanel({
+                          entityKind: 'coworker',
+                          entityId: coworker.id,
+                          raw: coworker,
+                          userId:
+                            coworker.matrixUserId ?? `coworker-${coworker.id}`,
+                          name: coworker.name,
+                          avatarUrl: coworker.avatarUrl ?? undefined,
+                          role: coworker.role,
+                          bio: coworker.description ?? undefined,
+                        });
+                      const handleMessage = () => {
+                        if (workspace?.slug) {
+                          navigate(
+                            `/w/${workspace.slug}/coworkers/${coworker.id}`,
+                          );
+                        }
+                      };
+
+                      const statusMeta = coworkerStatusMeta(coworker);
+
+                      return (
+                        <li
+                          key={coworker.id}
+                          className="gap-3 px-4 py-3 flex items-center justify-between transition-colors hover:bg-muted/10"
+                        >
+                          <button
+                            type="button"
+                            onClick={openCoworkerProfile}
+                            className="gap-3 min-w-0 flex flex-1 cursor-pointer items-center text-left"
+                          >
+                            <span className="relative inline-flex shrink-0">
+                              <AiEntityAvatar
+                                name={coworker.name}
+                                kind="coworker"
+                                avatarUrl={coworker.avatarUrl}
+                                size="md"
+                              />
+                              <span
+                                className={`-bottom-0.5 -right-0.5 size-2.5 absolute rounded-full ring-2 ring-background ${statusMeta.dot}`}
+                              />
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <div className="gap-2 flex items-center">
+                                <p className="text-sm font-semibold truncate text-foreground hover:underline">
+                                  {coworker.name}
+                                </p>
+                                <Badge
+                                  variant="primary"
+                                  className="font-bold px-1 py-0 h-4 border-purple-500/30 bg-purple-500/15 text-purple-700 dark:text-purple-300 text-[9px] uppercase"
+                                >
+                                  AI COWORKER
+                                </Badge>
+                              </div>
+                              <p className="text-xs mt-0.5 truncate text-muted-foreground">
+                                {coworker.role ? (
+                                  <span className="font-medium mr-1.5 text-foreground/80">
+                                    {coworker.role}
+                                  </span>
+                                ) : null}
+                                {coworker.description ? (
+                                  <span>{coworker.description}</span>
+                                ) : null}
+                              </p>
+                            </div>
+                          </button>
+
+                          <div className="gap-2 flex shrink-0 items-center">
+                            <div
+                              className={`gap-1.5 text-xs font-medium flex items-center ${statusMeta.text}`}
+                            >
+                              <span
+                                className={`size-2 rounded-full ${statusMeta.dot}`}
+                              />
+                              <span className="sm:inline hidden">
+                                {statusMeta.label}
+                              </span>
+                            </div>
+
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs gap-1.5"
+                              onClick={handleMessage}
+                            >
+                              <MessageSquare className="size-3.5" />
+                              <span>Message</span>
+                            </Button>
+
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={openCoworkerProfile}
+                            >
+                              View profile
+                            </Button>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
             </>
           )}
         </div>
       </div>
-
-      {/* Coworker Profile Sheet Drawer */}
-      <Sheet
-        open={Boolean(selectedCoworker)}
-        onOpenChange={(open) => !open && setSelectedCoworker(null)}
-      >
-        <SheetContent
-          side="right"
-          className="p-0 sm:max-w-md w-full overflow-y-auto"
-        >
-          <SheetTitle className="sr-only">
-            {selectedCoworker?.name ?? 'Coworker Profile'}
-          </SheetTitle>
-          <SheetDescription className="sr-only">
-            View coworker details, capabilities, and telemetry.
-          </SheetDescription>
-          {selectedCoworker && (
-            <div className="p-6 space-y-6 flex h-full w-full flex-col bg-surface text-foreground">
-              <div className="flex items-start justify-between">
-                <div className="gap-3 flex items-center">
-                  <div className="size-14 bg-purple-500/10 border-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center rounded-2xl border">
-                    <Bot className="size-8" />
-                  </div>
-                  <div>
-                    <div className="gap-2 flex items-center">
-                      <h3 className="text-lg font-bold text-foreground">
-                        {selectedCoworker.name}
-                      </h3>
-                      <Badge
-                        variant="primary"
-                        className="font-bold px-1.5 py-0 h-4 border-purple-500/30 bg-purple-500/15 text-purple-700 dark:text-purple-300 text-[9px] uppercase"
-                      >
-                        AI COWORKER
-                      </Badge>
-                    </div>
-                    <p className="text-xs font-medium mt-0.5 text-primary">
-                      {selectedCoworker.role}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <Button
-                className="gap-2 font-medium w-full shadow-xs"
-                onClick={() => {
-                  setSelectedCoworker(null);
-                  if (workspace?.slug) {
-                    navigate(
-                      `/w/${workspace.slug}/coworkers/${selectedCoworker.id}`,
-                    );
-                  }
-                }}
-              >
-                <Play className="size-3.5 fill-current" />
-                <span>Direct Message</span>
-              </Button>
-
-              <div className="space-y-3 pt-3 text-xs border-t border-border/60">
-                <div className="py-0.5 flex items-center justify-between">
-                  <span className="gap-1.5 flex items-center text-muted-foreground">
-                    <Clock className="size-3.5" />
-                    Status
-                  </span>
-                  <div className="gap-1.5 text-success-text font-semibold flex items-center">
-                    <span className="size-2 bg-success rounded-full shadow-[0_0_8px_color-mix(in_oklab,var(--color-success)_50%,transparent)]" />
-                    <span>Available</span>
-                  </div>
-                </div>
-
-                <div className="py-0.5 flex items-center justify-between">
-                  <span className="gap-1.5 flex items-center text-muted-foreground">
-                    <Cpu className="size-3.5" />
-                    Model &amp; Provider
-                  </span>
-                  <span className="font-semibold font-mono text-foreground">
-                    {selectedCoworker.model || 'gpt-4o'} (
-                    {selectedCoworker.provider || 'openai'})
-                  </span>
-                </div>
-
-                <div className="py-0.5 flex items-center justify-between">
-                  <span className="gap-1.5 flex items-center text-muted-foreground">
-                    <Shield className="size-3.5" />
-                    Knowledge Access
-                  </span>
-                  <Badge variant="primary" className="text-[10px]">
-                    Workspace RAG Active
-                  </Badge>
-                </div>
-              </div>
-
-              {selectedCoworker.description && (
-                <div className="pt-3 space-y-1.5 border-t border-border/60">
-                  <h4 className="font-bold tracking-wider text-[11px] text-muted-foreground uppercase">
-                    Scope &amp; Purpose
-                  </h4>
-                  <p className="text-xs leading-relaxed whitespace-pre-wrap text-foreground/90">
-                    {selectedCoworker.description}
-                  </p>
-                </div>
-              )}
-
-              {/* Capabilities */}
-              <div className="pt-3 space-y-2 border-t border-border/60">
-                <h4 className="font-bold tracking-wider gap-1.5 flex items-center text-[11px] text-muted-foreground uppercase">
-                  <Check className="size-3 text-primary" />
-                  <span>Capabilities</span>
-                </h4>
-                <ul className="space-y-1.5">
-                  {(
-                    (
-                      selectedCoworker.configuration as {
-                        capabilities?: string[];
-                      } | null
-                    )?.capabilities ??
-                    getCoworkerTemplate(
-                      coworkerTemplateKey(selectedCoworker.configuration),
-                    )?.capabilities ??
-                    []
-                  ).map((cap: string, i: number) => (
-                    <li
-                      key={i}
-                      className="gap-2 text-xs flex items-start text-foreground/90"
-                    >
-                      <span className="size-1.5 mt-1.5 shrink-0 rounded-full bg-primary/70" />
-                      <span>{cap}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
     </div>
   );
 }
