@@ -1,8 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { toast } from '@org/ui';
-import { useMentionAddActions } from './use-mention-add-actions.js';
 import { useCurrentUser } from '@org/auth';
 import { useChatPreferences } from '@org/common';
 import {
@@ -58,7 +56,9 @@ export interface ComposerControlResult {
    * room / not connected to the channel), each with what the viewer may do
    * about it. Empty when the viewer has switched these notices off.
    */
-  findUnreachable: (mentions: readonly DetectedMention[]) => MentionNoticeTarget[];
+  findUnreachable: (
+    mentions: readonly DetectedMention[],
+  ) => MentionNoticeTarget[];
   /**
    * Call after a message is sent: raises an "Only visible to you" notice under
    * it for any mention that won't reach its target. Returns whether one was
@@ -76,7 +76,7 @@ export interface ComposerControlResult {
   coworkerMentions?: MentionCandidate[];
   appMentions?: MentionCandidate[];
   channelMentions?: MentionCandidate[];
-  /** What the composer's "+" menu lists: everything usable, connected or not. */
+  /** What the composer's "+" menu lists: only what's connected here. */
   connectors: ComposerConnectorsConfig;
   slashCommands: SlashCommand[];
 }
@@ -107,7 +107,8 @@ export function useComposerControl(
   // Channel members query to determine viewer's channelRole
   const channelMembersQuery = useQuery({
     queryKey: queryKeys.channels.members(workspaceId ?? '', channelId ?? ''),
-    queryFn: () => channelApi.members(workspaceId as string, channelId as string),
+    queryFn: () =>
+      channelApi.members(workspaceId as string, channelId as string),
     enabled: isChannel,
     staleTime: 30_000,
   });
@@ -115,7 +116,8 @@ export function useComposerControl(
   // Channel linked agents
   const channelAgentsQuery = useQuery({
     queryKey: queryKeys.channels.agents(workspaceId ?? '', channelId ?? ''),
-    queryFn: () => channelAgentsApi.list(workspaceId as string, channelId as string),
+    queryFn: () =>
+      channelAgentsApi.list(workspaceId as string, channelId as string),
     enabled: isChannel,
     staleTime: 30_000,
   });
@@ -124,7 +126,10 @@ export function useComposerControl(
   const channelCoworkersQuery = useQuery({
     queryKey: queryKeys.channels.coworkers(workspaceId ?? '', channelId ?? ''),
     queryFn: () =>
-      coworkersApi.listChannelCoworkers(workspaceId as string, channelId as string),
+      coworkersApi.listChannelCoworkers(
+        workspaceId as string,
+        channelId as string,
+      ),
     enabled: isChannel,
     staleTime: 30_000,
   });
@@ -219,7 +224,10 @@ export function useComposerControl(
           viewerCanManage,
         });
         if (evaluation.reachable) continue;
-        if (mention.kind === 'user' && context.suggestMissingMembers === false) {
+        if (
+          mention.kind === 'user' &&
+          context.suggestMissingMembers === false
+        ) {
           continue;
         }
         list.push({
@@ -377,134 +385,80 @@ export function useComposerControl(
   );
 
   // ── "+" menu connectors ────────────────────────────────────────────────────
-  // Unlike the mention arrays above (usable things only), this lists everything
-  // the viewer could bring into the conversation, each marked connected or not.
-  const providersQuery = useQuery({
-    queryKey: queryKeys.integrations.providers(workspaceId ?? ''),
-    queryFn: () => integrationsApi.getProviders(workspaceId as string),
-    enabled: hasWorkspace,
-    staleTime: 60_000,
-  });
-
-  const addToChannel = useMentionAddActions({ workspaceId, channelId });
+  // Only what this conversation can actually use: in a channel, the agents,
+  // coworkers and apps linked (and enabled) on it; elsewhere, everything active
+  // in the workspace — the same sets the mention notices treat as reachable.
   const navigate = useNavigate();
   const slug = currentWorkspace.slug;
 
   const connectors = useMemo<ComposerConnectorsConfig>(() => {
+    const byName = (a: ComposerConnectorItem, b: ComposerConnectorItem) =>
+      a.name.localeCompare(b.name);
+
     const agents: ComposerConnectorItem[] = (workspaceAgentsQuery.data ?? [])
-      .filter((a) => a.isActive)
+      .filter((a) => a.isActive && (!isChannel || reachable.agentIds.has(a.id)))
       .map((a) => ({
         id: a.id,
         name: a.name,
         kind: 'agent' as const,
-        connected: isChannel ? reachable.agentIds.has(a.id) : true,
-      }));
+        avatarUrl: a.avatarUrl ?? undefined,
+      }))
+      .sort(byName);
     const coworkers: ComposerConnectorItem[] = (
       workspaceCoworkersQuery.data ?? []
     )
-      .filter((c) => c.isActive)
+      .filter(
+        (c) => c.isActive && (!isChannel || reachable.coworkerIds.has(c.id)),
+      )
       .map((c) => ({
         id: c.id,
         name: c.name,
         kind: 'coworker' as const,
-        connected: isChannel ? reachable.coworkerIds.has(c.id) : true,
-      }));
-
-    const integrations = workspaceIntegrationsQuery.data ?? [];
-    const byProvider = new Map(
-      integrations
-        .filter((app) => app.status === 'CONNECTED')
-        .map((app) => [app.provider, app]),
-    );
-    const catalog = providersQuery.data ?? [];
-    const apps: ComposerConnectorItem[] = catalog.map((provider) => {
-      const integration = byProvider.get(provider.provider);
-      return {
-        // Unconnected providers have no integration row, so they key on the
-        // provider id; `connect` below tells the two apart by `workspaceApp`.
-        id: integration?.id ?? provider.provider,
-        name: provider.displayName,
+        avatarUrl: c.avatarUrl ?? undefined,
+      }))
+      .sort(byName);
+    const apps: ComposerConnectorItem[] = (
+      workspaceIntegrationsQuery.data ?? []
+    )
+      .filter(
+        (app) =>
+          app.status === 'CONNECTED' &&
+          (!isChannel || reachable.appIds.has(app.id)),
+      )
+      .map((app) => ({
+        id: app.id,
+        name: getAppDisplayName(app),
         kind: 'app' as const,
-        connected: integration
-          ? isChannel
-            ? reachable.appIds.has(integration.id)
-            : true
-          : false,
-      };
-    });
-    // Connected apps the catalog doesn't know about (custom APIs) still list.
-    for (const integration of byProvider.values()) {
-      if (apps.some((app) => app.id === integration.id)) continue;
-      apps.push({
-        id: integration.id,
-        name: integration.displayName ?? integration.provider,
-        kind: 'app',
-        connected: isChannel ? reachable.appIds.has(integration.id) : true,
-      });
-    }
+        avatarUrl: getAppLogoUrl(app.provider),
+      }))
+      .sort(byName);
 
-    const integrationIds = new Set(
-      integrations
-        .filter((app) => app.status === 'CONNECTED')
-        .map((app) => app.id),
-    );
-    const sortByState = (list: ComposerConnectorItem[]) =>
-      [...list].sort(
-        (a, b) =>
-          Number(b.connected) - Number(a.connected) ||
-          a.name.localeCompare(b.name),
-      );
+    const loading =
+      workspaceAgentsQuery.isLoading ||
+      workspaceCoworkersQuery.isLoading ||
+      workspaceIntegrationsQuery.isLoading ||
+      (isChannel &&
+        (channelAgentsQuery.isLoading ||
+          channelCoworkersQuery.isLoading ||
+          channelAppsQuery.isLoading));
 
     return {
-      items: [
-        ...sortByState(agents),
-        ...sortByState(coworkers),
-        ...sortByState(apps),
-      ],
-      showStatus: true,
-      onConnect: async (item) => {
-        const manage = () =>
-          slug && navigate(`/w/${slug}/integrations`);
-        if (item.kind === 'app') {
-          // Not connected to the workspace yet → that happens in the hub.
-          if (!integrationIds.has(item.id)) return void manage();
-          if (!isChannel) return;
-          const result = await addToChannel([
-            {
-              id: item.id,
-              name: item.name,
-              kind: 'app',
-              addAction: 'channel-app',
-            },
-          ]);
-          if (result.error) toast.error(result.error);
-          else toast.success(`${item.name} connected to this channel`);
-          return;
-        }
-        if (!isChannel) return;
-        const result = await addToChannel([
-          {
-            id: item.id,
-            name: item.name,
-            kind: item.kind,
-            addAction: 'channel-agent',
-          },
-        ]);
-        if (result.error) toast.error(result.error);
-        else toast.success(`${item.name} connected to this channel`);
-      },
-      onManage: slug
-        ? () => navigate(`/w/${slug}/integrations`)
-        : undefined,
+      items: [...agents, ...coworkers, ...apps],
+      loading,
+      onManage: slug ? () => navigate(`/w/${slug}/integrations`) : undefined,
     };
   }, [
     workspaceAgentsQuery.data,
+    workspaceAgentsQuery.isLoading,
     workspaceCoworkersQuery.data,
+    workspaceCoworkersQuery.isLoading,
     workspaceIntegrationsQuery.data,
-    providersQuery.data,
+    workspaceIntegrationsQuery.isLoading,
+    channelAgentsQuery.isLoading,
+    channelCoworkersQuery.isLoading,
+    channelAppsQuery.isLoading,
     isChannel,
     reachable,
-    addToChannel,
     navigate,
     slug,
   ]);
@@ -531,9 +485,7 @@ export function useComposerControl(
   });
   // `useQueries` returns a fresh array each render; key the memo on the data.
   const appActionsData = appActionQueries.map((q) => q.data);
-  const appActionsKey = appActionQueries
-    .map((q) => q.dataUpdatedAt)
-    .join(',');
+  const appActionsKey = appActionQueries.map((q) => q.dataUpdatedAt).join(',');
 
   const slashCommands = useMemo<SlashCommand[]>(() => {
     const builtIn = getContextualSlashCommands({

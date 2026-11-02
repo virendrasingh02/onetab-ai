@@ -1326,6 +1326,14 @@ export function Composer({
                     }
                     onCreatePoll={onCreatePoll}
                     connectors={connectors}
+                    onPickConnector={(item) =>
+                      lexicalRef.current?.insertMention({
+                        id: item.id,
+                        name: item.name,
+                        avatarUrl: item.avatarUrl,
+                        kind: item.kind,
+                      })
+                    }
                   />
                   <input
                     id={fileInputId}

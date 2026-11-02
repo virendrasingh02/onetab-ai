@@ -1,4 +1,5 @@
 import {
+  AiEntityAvatar,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -7,19 +8,17 @@ import {
   DropdownMenuTrigger,
   Hint,
 } from '@org/ui';
-import { cn } from '@org/utils';
 import {
+  AtSign,
   BarChart3,
-  Bot,
-  Check,
+  Blocks,
   Loader2,
   Paperclip,
   Plug,
   Plus,
   Settings2,
-  Sparkles,
 } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 
 const IS_MAC =
   typeof navigator !== 'undefined' &&
@@ -32,26 +31,22 @@ export interface ComposerConnectorItem {
   id: string;
   name: string;
   kind: ComposerConnectorKind;
-  /** Already usable in this conversation. Unconnected items offer "Connect". */
-  connected: boolean;
+  /** Agent/coworker avatar (incl. `icon:` identities) or an app's logo. */
+  avatarUrl?: string;
 }
 
 export interface ComposerConnectorsConfig {
-  /** Every agent, coworker and app the viewer could use — not just connected. */
+  /** Only what is connected to — and so usable in — this conversation. */
   items: ComposerConnectorItem[];
-  /** Hides the Connect / Connected affordance where connecting has no meaning. */
-  showStatus: boolean;
-  onConnect: (item: ComposerConnectorItem) => void | Promise<void>;
+  /** True while the lists are still loading, so the menu doesn't flash empty. */
+  loading?: boolean;
   onManage?: () => void;
 }
 
-const KIND_META: Record<
-  ComposerConnectorKind,
-  { label: string; Icon: typeof Bot }
-> = {
-  agent: { label: 'AI agents', Icon: Bot },
-  coworker: { label: 'AI coworkers', Icon: Sparkles },
-  app: { label: 'Apps', Icon: Plug },
+const KIND_LABEL: Record<ComposerConnectorKind, string> = {
+  agent: 'AI agents',
+  coworker: 'AI coworkers',
+  app: 'Apps',
 };
 
 const KIND_ORDER: ComposerConnectorKind[] = ['agent', 'coworker', 'app'];
@@ -62,20 +57,44 @@ interface ComposerAttachMenuProps {
   /** Opens the Create poll dialog; omitted where polls are not offered. */
   onCreatePoll?: () => void;
   connectors?: ComposerConnectorsConfig;
+  /** Inserts the picked agent, coworker or app as an @mention. */
+  onPickConnector?: (item: ComposerConnectorItem) => void;
   children?: ReactNode;
 }
 
+function ConnectorIcon({ item }: { item: ComposerConnectorItem }) {
+  if (item.kind === 'app') {
+    return (
+      <span className="size-6 flex shrink-0 items-center justify-center overflow-hidden rounded-lg border border-accent-violet/20 bg-accent-violet-soft text-accent-violet">
+        {item.avatarUrl ? (
+          <img src={item.avatarUrl} alt="" className="size-4 object-contain" />
+        ) : (
+          <Blocks className="size-3.5" aria-hidden />
+        )}
+      </span>
+    );
+  }
+  return (
+    <AiEntityAvatar
+      name={item.name}
+      kind={item.kind}
+      avatarUrl={item.avatarUrl}
+      size="xs"
+    />
+  );
+}
+
 /**
- * The composer's "+" menu: Upload files and Create poll first, then every agent, coworker and
- * app grouped by kind (each marked Connected or offering Connect), and a
- * "Manage connectors" footer.
+ * The composer's "+" menu: Upload files and Create poll first, then the
+ * agents, coworkers and apps connected to this conversation grouped by kind
+ * (picking one @mentions it), and a "Manage connectors" footer for the rest.
  */
 export function ComposerAttachMenu({
   onUpload,
   onCreatePoll,
   connectors,
+  onPickConnector,
 }: ComposerAttachMenuProps) {
-  const [pending, setPending] = useState<string | null>(null);
   const items = connectors?.items ?? [];
 
   // Ctrl/⌘+U opens the file picker, matching the shortcut shown in the menu.
@@ -96,23 +115,13 @@ export function ComposerAttachMenu({
     return () => window.removeEventListener('keydown', handler);
   }, [onUpload]);
 
-  const connect = async (item: ComposerConnectorItem) => {
-    if (!connectors || pending) return;
-    setPending(item.id);
-    try {
-      await connectors.onConnect(item);
-    } finally {
-      setPending(null);
-    }
-  };
-
   return (
     <DropdownMenu modal={false}>
-      <Hint label="Attach files or connect tools">
+      <Hint label="Attach files or use connected tools">
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            aria-label="Attach files or connect tools"
+            aria-label="Attach files or use connected tools"
             className="size-8 flex touch-target shrink-0 items-center justify-center rounded-full border border-primary/25 bg-primary/10 text-primary-text transition-colors hover:border-primary/40 hover:bg-primary/20 active:scale-95"
           >
             <Plus className="size-4" aria-hidden="true" />
@@ -153,70 +162,56 @@ export function ComposerAttachMenu({
           </DropdownMenuItem>
         ) : null}
 
-        {items.length > 0 ? (
+        {connectors ? (
           <>
             {onUpload || onCreatePoll ? <DropdownMenuSeparator /> : null}
-            <div className="max-h-64 overflow-y-auto">
-              {KIND_ORDER.map((kind) => {
-                const group = items.filter((item) => item.kind === kind);
-                if (group.length === 0) return null;
-                const { label, Icon } = KIND_META[kind];
-                return (
-                  <div key={kind}>
-                    <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
-                      {label}
-                    </DropdownMenuLabel>
-                    {group.map((item) => {
-                      const busy = pending === item.id;
-                      return (
+            {items.length > 0 ? (
+              <div className="max-h-64 overflow-y-auto">
+                {KIND_ORDER.map((kind) => {
+                  const group = items.filter((item) => item.kind === kind);
+                  if (group.length === 0) return null;
+                  return (
+                    <div key={kind}>
+                      <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
+                        {KIND_LABEL[kind]}
+                      </DropdownMenuLabel>
+                      {group.map((item) => (
                         <DropdownMenuItem
                           key={`${item.kind}:${item.id}`}
-                          // Keep the menu open so several can be connected in a row.
-                          onSelect={(event) => {
-                            if (connectors?.showStatus && !item.connected) {
-                              event.preventDefault();
-                              void connect(item);
-                            }
-                          }}
-                          className="gap-2.5 justify-between"
+                          onSelect={() => onPickConnector?.(item)}
+                          className="group gap-2.5"
                         >
-                          <span className="gap-2.5 min-w-0 flex items-center">
-                            <Icon
-                              className="size-4 shrink-0 text-muted-foreground"
-                              aria-hidden
-                            />
-                            <span className="truncate">{item.name}</span>
+                          <ConnectorIcon item={item} />
+                          <span className="min-w-0 flex-1 truncate">
+                            {item.name}
                           </span>
-                          {connectors?.showStatus ? (
-                            item.connected ? (
-                              <span className="gap-1 text-xs flex shrink-0 items-center text-success-text">
-                                <Check className="size-3.5" aria-hidden />
-                                Connected
-                              </span>
-                            ) : (
-                              <span
-                                className={cn(
-                                  'gap-1 text-xs flex shrink-0 items-center text-muted-foreground',
-                                  busy && 'opacity-70',
-                                )}
-                              >
-                                {busy ? (
-                                  <Loader2
-                                    className="size-3.5 animate-spin"
-                                    aria-hidden
-                                  />
-                                ) : null}
-                                Connect
-                              </span>
-                            )
-                          ) : null}
+                          <AtSign
+                            className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-data-[highlighted]:opacity-100"
+                            aria-hidden
+                          />
                         </DropdownMenuItem>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="gap-2 px-2 py-3 flex items-center text-muted-foreground">
+                {connectors.loading ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                    <span className="text-sm">Loading connectors…</span>
+                  </>
+                ) : (
+                  <>
+                    <Plug className="size-4 shrink-0" aria-hidden />
+                    <span className="text-sm">
+                      No agents, coworkers or apps connected here yet
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
           </>
         ) : null}
 

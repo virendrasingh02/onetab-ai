@@ -1,11 +1,9 @@
-import type { LinkPreview } from '@org/types';
 import {
   Badge,
   copyToClipboard,
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
-  Hint,
   toast,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -25,7 +23,7 @@ import {
   Video,
   type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { normalizeUrl } from './link-detector.js';
 import { useLinkPreviewStore } from './use-link-preview.js';
 
@@ -173,7 +171,7 @@ export function LinkHoverCard({ href, className, children, enrich = false }: Lin
         side="top"
         align="start"
         data-slot="link-hover-card"
-        className="w-80 overflow-hidden p-0"
+        className="w-80 overflow-hidden rounded-lg p-0"
         // The card is portalled, but React events still bubble through the
         // message that owns the link — don't let a click or right-click here
         // also open its thread, selection, or context menu.
@@ -186,15 +184,24 @@ export function LinkHoverCard({ href, className, children, enrich = false }: Lin
   );
 }
 
-const ICON_BUTTON_CLASS =
-  'inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring';
+const ACTION_BUTTON_CLASS =
+  'inline-flex h-8 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
+/**
+ * Card layout, top to bottom: the page's thumbnail, what the link is (kind,
+ * title, description), where it really goes, then labelled actions. Text the
+ * unfurl repeats — a site name equal to the title or the domain — is dropped
+ * so the card reads once.
+ */
 function LinkHoverBody({ href, enrich }: { href: string; enrich: boolean }) {
   const target = useMemo(() => describeLinkTarget(href), [href]);
   const normalized = normalizeUrl(href);
   const preview = useLinkPreviewStore((s) => s.previews[normalized]);
   const loading = useLinkPreviewStore((s) => Boolean(s.loadingUrls[normalized]));
   const fetchPreview = useLinkPreviewStore((s) => s.fetchPreview);
+  const [imageFailed, setImageFailed] = useState(false);
+  const [faviconFailed, setFaviconFailed] = useState(false);
+  const titleId = useId();
 
   // The card's content only mounts while it is open, so this is the
   // "on hover" fetch; the store dedupes and caches per URL. Direct file links
@@ -204,74 +211,150 @@ function LinkHoverBody({ href, enrich }: { href: string; enrich: boolean }) {
     if (canUnfurl) void fetchPreview(href);
   }, [canUnfurl, href, fetchPreview]);
 
-  const rich = preview?.status === 'ready' ? preview : undefined;
+  const rich =
+    preview?.status === 'ready' && (preview.title || preview.description || preview.image)
+      ? preview
+      : undefined;
   const kind: LinkKind =
     target.kind === 'link' &&
     (rich?.mediaType === 'video' || rich?.mediaType === 'audio' || rich?.mediaType === 'image')
       ? rich.mediaType
       : target.kind;
   const { label, icon: KindIcon } = KIND_META[kind];
+  const isEmail = kind === 'email';
+  const showKind = kind !== 'link';
+
+  const siteName = rich?.siteName?.trim();
+  const showSiteName = Boolean(
+    siteName &&
+      siteName.toLowerCase() !== rich?.title?.trim().toLowerCase() &&
+      siteName.toLowerCase() !== target.host.toLowerCase(),
+  );
+  const favicon = rich?.favicon && !faviconFailed ? rich.favicon : undefined;
 
   return (
-    <>
-      <div className="flex items-center gap-2 py-1.5 pr-1.5 pl-3">
-        <KindIcon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-        <span className="text-xs font-semibold text-foreground">{label}</span>
-        {target.fileType ? (
-          <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-normal">
-            {target.fileType}
-          </Badge>
-        ) : null}
-        <div className="ml-auto flex items-center">
-          <CopyLinkButton value={target.copyValue} />
-          <Hint label={kind === 'email' ? 'Compose email' : 'Open in new tab'}>
-            <a
-              href={href}
-              target="_blank"
-              rel="noreferrer noopener"
-              aria-label={kind === 'email' ? 'Compose email' : 'Open link in a new tab'}
-              className={ICON_BUTTON_CLASS}
-            >
-              <ExternalLink className="size-3.5" aria-hidden="true" />
-            </a>
-          </Hint>
-        </div>
-      </div>
-
-      {rich ? (
-        <RichPreview preview={rich} />
-      ) : canUnfurl && loading ? (
-        <div
-          role="status"
-          aria-label="Loading link preview"
-          className="animate-pulse space-y-1.5 border-t border-border/60 px-3 py-2.5"
-        >
-          <div className="h-3 w-3/4 rounded-xs bg-muted" />
-          <div className="h-3 w-full rounded-xs bg-muted" />
-        </div>
+    <div
+      role="group"
+      aria-labelledby={rich?.title ? titleId : undefined}
+      aria-label={rich?.title ? undefined : `${label} details`}
+    >
+      {rich?.image && !imageFailed ? (
+        <img
+          src={rich.image}
+          alt=""
+          loading="lazy"
+          className="aspect-[1.91/1] w-full border-b border-border/60 bg-muted object-cover"
+          onError={() => setImageFailed(true)}
+        />
       ) : null}
 
-      <div className="border-t border-border/60 bg-surface-inset/50 px-3 py-2">
-        <p
-          title={href}
-          className="line-clamp-4 text-xs leading-relaxed text-muted-foreground select-text [overflow-wrap:anywhere]"
-        >
-          {/* One unbreakable box, so the origin stays whole and only the path wraps. */}
-          <span className="inline-block max-w-full font-medium text-foreground">{target.host}</span>
-          {target.rest}
-        </p>
+      <div className="space-y-2 px-3 pt-3 pb-2.5">
+        {showKind || showSiteName ? (
+          <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+            {showKind ? (
+              <span className="inline-flex shrink-0 items-center gap-1 font-medium text-foreground">
+                <KindIcon className="size-3.5 shrink-0" aria-hidden="true" />
+                {label}
+              </span>
+            ) : null}
+            {target.fileType ? (
+              <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-normal">
+                {target.fileType}
+              </Badge>
+            ) : null}
+            {showKind && showSiteName ? <span aria-hidden="true">·</span> : null}
+            {showSiteName ? <span className="truncate">{siteName}</span> : null}
+          </div>
+        ) : null}
+
+        {rich?.title || rich?.description ? (
+          <div className="space-y-1">
+            {rich.title ? (
+              // Bigger click target for the same destination; keyboard users
+              // already have "Open" below, so it stays out of the tab order.
+              <a
+                id={titleId}
+                href={href}
+                target="_blank"
+                rel="noreferrer noopener"
+                tabIndex={-1}
+                className="line-clamp-2 text-sm leading-snug font-semibold text-foreground hover:underline"
+              >
+                {rich.title}
+              </a>
+            ) : null}
+            {rich.description ? (
+              <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                {rich.description}
+              </p>
+            ) : null}
+          </div>
+        ) : !rich && canUnfurl && loading ? (
+          <div
+            role="status"
+            aria-label="Loading link preview"
+            className="space-y-1.5 motion-safe:animate-pulse"
+          >
+            <div className="h-3.5 w-3/4 rounded-xs bg-muted" />
+            <div className="h-3 w-full rounded-xs bg-muted" />
+          </div>
+        ) : null}
+
+        <div className="flex items-start gap-2 rounded-md bg-surface-inset/60 px-2 py-1.5">
+          {favicon ? (
+            <img
+              src={favicon}
+              alt=""
+              aria-hidden="true"
+              className="mt-0.5 size-3.5 shrink-0 rounded-xs object-contain"
+              onError={() => setFaviconFailed(true)}
+            />
+          ) : isEmail ? (
+            <Mail className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          ) : (
+            <Globe className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          )}
+          <p
+            title={href}
+            className="line-clamp-2 min-w-0 text-xs leading-relaxed text-muted-foreground select-text [overflow-wrap:anywhere]"
+          >
+            <span className="sr-only">{isEmail ? 'Address: ' : 'Goes to: '}</span>
+            {/* One unbreakable box, so the origin stays whole and only the path wraps. */}
+            <span className="inline-block max-w-full font-medium text-foreground">{target.host}</span>
+            {target.rest}
+          </p>
+        </div>
+
         {target.insecure ? (
-          <p className="mt-1.5 flex items-center gap-1 text-[11px] text-warning-text">
+          <p role="note" className="flex items-center gap-1 text-[11px] text-warning-text">
             <ShieldAlert className="size-3 shrink-0" aria-hidden="true" />
             Not secure — this link doesn&apos;t use HTTPS
           </p>
         ) : null}
       </div>
-    </>
+
+      <div className="flex items-center gap-1 border-t border-border/60 p-1">
+        <CopyLinkButton value={target.copyValue} isEmail={isEmail} />
+        <a
+          href={href}
+          target="_blank"
+          rel="noreferrer noopener"
+          aria-label={isEmail ? 'Compose email' : 'Open link in a new tab'}
+          className={ACTION_BUTTON_CLASS}
+        >
+          {isEmail ? (
+            <Mail className="size-3.5" aria-hidden="true" />
+          ) : (
+            <ExternalLink className="size-3.5" aria-hidden="true" />
+          )}
+          {isEmail ? 'Compose email' : 'Open link'}
+        </a>
+      </div>
+    </div>
   );
 }
 
-function CopyLinkButton({ value }: { value: string }) {
+function CopyLinkButton({ value, isEmail }: { value: string; isEmail: boolean }) {
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -291,62 +374,18 @@ function CopyLinkButton({ value }: { value: string }) {
   };
 
   return (
-    <Hint label={copied ? 'Copied' : 'Copy link'}>
-      <button
-        type="button"
-        onClick={() => void handleCopy()}
-        aria-label={copied ? 'Link copied' : 'Copy link'}
-        className={cn(ICON_BUTTON_CLASS, copied && 'text-success-text')}
-      >
-        {copied ? (
-          <Check className="size-3.5" aria-hidden="true" />
-        ) : (
-          <Copy className="size-3.5" aria-hidden="true" />
-        )}
-      </button>
-    </Hint>
-  );
-}
-
-/** The page's own title / description / thumbnail, when the unfurl found them. */
-function RichPreview({ preview }: { preview: LinkPreview }) {
-  const [imageFailed, setImageFailed] = useState(false);
-  const [faviconFailed, setFaviconFailed] = useState(false);
-  const { title, description, image, favicon, siteName, domain } = preview;
-
-  if (!title && !description && !image) return null;
-
-  return (
-    <div className="space-y-1 border-t border-border/60 px-3 py-2.5">
-      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-        {favicon && !faviconFailed ? (
-          <img
-            src={favicon}
-            alt=""
-            aria-hidden="true"
-            className="size-3.5 shrink-0 rounded-xs object-contain"
-            onError={() => setFaviconFailed(true)}
-          />
-        ) : (
-          <Globe className="size-3.5 shrink-0" aria-hidden="true" />
-        )}
-        <span className="truncate">{siteName || domain}</span>
-      </div>
-      {title ? (
-        <p className="line-clamp-2 text-sm leading-snug font-semibold text-foreground">{title}</p>
-      ) : null}
-      {description ? (
-        <p className="line-clamp-3 text-xs leading-relaxed text-muted-foreground">{description}</p>
-      ) : null}
-      {image && !imageFailed ? (
-        <img
-          src={image}
-          alt=""
-          loading="lazy"
-          className="mt-1.5 max-h-36 w-full rounded-md border border-border object-cover"
-          onError={() => setImageFailed(true)}
-        />
-      ) : null}
-    </div>
+    <button
+      type="button"
+      onClick={() => void handleCopy()}
+      aria-label={copied ? 'Link copied' : undefined}
+      className={cn(ACTION_BUTTON_CLASS, copied && 'text-success-text hover:text-success-text')}
+    >
+      {copied ? (
+        <Check className="size-3.5" aria-hidden="true" />
+      ) : (
+        <Copy className="size-3.5" aria-hidden="true" />
+      )}
+      {copied ? 'Copied' : isEmail ? 'Copy address' : 'Copy link'}
+    </button>
   );
 }

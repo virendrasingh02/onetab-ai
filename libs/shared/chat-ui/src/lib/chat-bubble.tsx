@@ -1,6 +1,7 @@
 import {
   getAppLogoUrl,
   splitAppConnectionName,
+  type LinkPreview,
   type Message,
   type RoomKind,
   type RoomMember,
@@ -637,14 +638,40 @@ export function ChatBubble({
     fetchPreview,
   ]);
 
+  /*
+   * One card per distinct preview. Repeated URLs collapse, and so do different
+   * URLs that unfurl to the same page — e.g. several private Trello cards all
+   * return Trello's generic landing page. Links still loading share a single
+   * skeleton rather than stacking one per URL.
+   */
   const previewsToRender = useMemo(() => {
-    if (message.linkPreviews && message.linkPreviews.length > 0) {
-      return message.linkPreviews;
+    const source: Array<LinkPreview | null> =
+      message.linkPreviews && message.linkPreviews.length > 0
+        ? message.linkPreviews
+        : detectedLinks.map((link) => {
+            const norm = link.normalizedUrl || normalizeUrl(link.url);
+            return previewsMap[norm] ?? null;
+          });
+    const seen = new Set<string>();
+    const unique: LinkPreview[] = [];
+    let pending = false;
+    for (const preview of source) {
+      if (!preview) {
+        pending = true;
+        continue;
+      }
+      if (preview.status === 'error') continue;
+      const urlKey = `url:${preview.normalizedUrl || preview.url}`;
+      const contentKey =
+        preview.title || preview.description
+          ? `content:${preview.domain}|${preview.title ?? ''}|${preview.description ?? ''}|${preview.image ?? ''}`
+          : null;
+      if (seen.has(urlKey) || (contentKey && seen.has(contentKey))) continue;
+      seen.add(urlKey);
+      if (contentKey) seen.add(contentKey);
+      unique.push(preview);
     }
-    return detectedLinks.map((link) => {
-      const norm = link.normalizedUrl || normalizeUrl(link.url);
-      return previewsMap[norm] ?? null;
-    });
+    return { unique, pending };
   }, [message.linkPreviews, detectedLinks, previewsMap]);
   /*
    * Touch has no hover: a long-press opens the message's action sheet (via
@@ -1404,25 +1431,18 @@ export function ChatBubble({
               {/* Link Previews */}
               {isPreviewsVisible && hasLinkPreviews ? (
                 <div className="mt-2 space-y-2">
-                  {previewsToRender.map((preview, idx) => {
-                    if (!preview) {
-                      return (
-                        <LinkPreviewSkeleton
-                          key={detectedLinks[idx]?.url || idx}
-                        />
-                      );
-                    }
-                    if (preview.status === 'error') return null;
-                    return (
-                      <LinkPreviewCard
-                        key={preview.url || idx}
-                        preview={preview}
-                        onRemove={() => {
-                          void toggleMessageOverride(message.id, true);
-                        }}
-                      />
-                    );
-                  })}
+                  {previewsToRender.unique.map((preview, idx) => (
+                    <LinkPreviewCard
+                      key={preview.url || idx}
+                      preview={preview}
+                      onRemove={() => {
+                        void toggleMessageOverride(message.id, true);
+                      }}
+                    />
+                  ))}
+                  {previewsToRender.pending ? (
+                    <LinkPreviewSkeleton key="pending" />
+                  ) : null}
                 </div>
               ) : null}
 
