@@ -1,6 +1,13 @@
 import React from 'react';
 import type { MarketplaceListing } from '@org/types';
-import { Badge, Button, Card, PageSection, Skeleton, SkeletonList } from '@org/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  PageSection,
+  Skeleton,
+  SkeletonList,
+} from '@org/ui';
 import { MarketplaceCard } from './MarketplaceCard';
 import { EntityIcon, MarketplaceGrid } from './marketplace-ui';
 import { ArrowRight, Code2, Plug, Sparkles, Users } from 'lucide-react';
@@ -16,9 +23,13 @@ interface MarketplaceDiscoverViewProps {
   onViewAllAgents: () => void;
   /** Where "Open builder" goes — the developer portal. Defaults to the agents list. */
   onOpenBuilder?: () => void;
+  /** The workspace's own agents, coworkers and automations, shown first. */
+  workspaceSection?: React.ReactNode;
 }
 
-export const MarketplaceDiscoverView: React.FC<MarketplaceDiscoverViewProps> = ({
+export const MarketplaceDiscoverView: React.FC<
+  MarketplaceDiscoverViewProps
+> = ({
   listings,
   isLoading,
   onSelectListing,
@@ -28,12 +39,20 @@ export const MarketplaceDiscoverView: React.FC<MarketplaceDiscoverViewProps> = (
   onViewAllApps,
   onViewAllAgents,
   onOpenBuilder = onViewAllAgents,
+  workspaceSection,
 }) => {
   if (isLoading) {
     return (
-      <div className="py-6 space-y-6">
-        <Skeleton className="h-44 rounded-2xl" />
-        <SkeletonList rows={6} />
+      <div className="space-y-10 py-4">
+        {workspaceSection}
+        <div
+          className="space-y-6"
+          aria-busy="true"
+          aria-label="Loading the Marketplace"
+        >
+          <Skeleton className="h-44 rounded-2xl" />
+          <SkeletonList rows={6} />
+        </div>
       </div>
     );
   }
@@ -61,11 +80,13 @@ export const MarketplaceDiscoverView: React.FC<MarketplaceDiscoverViewProps> = (
 
   return (
     <div className="space-y-10 py-4">
+      {workspaceSection}
+
       {/* Hero Spotlight Banner */}
       {spotlightAgent && spotlightApp && apps.length > 0 && (
-        <Card className="relative overflow-hidden p-6 md:p-8">
-          <div className="absolute right-0 top-0 -mt-10 -mr-10 size-64 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
-          <div className="relative z-10 gap-6 md:flex-row md:items-center flex flex-col justify-between">
+        <Card className="p-6 md:p-8 relative overflow-hidden">
+          <div className="right-0 top-0 -mt-10 -mr-10 size-64 blur-3xl pointer-events-none absolute rounded-full bg-primary/5" />
+          <div className="gap-6 md:flex-row md:items-center relative z-10 flex flex-col justify-between">
             <div className="max-w-xl space-y-3">
               <Badge variant="primary">
                 <Sparkles aria-hidden />
@@ -75,7 +96,9 @@ export const MarketplaceDiscoverView: React.FC<MarketplaceDiscoverViewProps> = (
                 Autonomous Dev Team: Code Reviewer & GitHub
               </h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Connect your repositories with GitHub alerts and have the AI Code Reviewer automatically inspect every pull request for performance, type safety, and test coverage before you merge.
+                Connect your repositories with GitHub alerts and have the AI
+                Code Reviewer automatically inspect every pull request for
+                performance, type safety, and test coverage before you merge.
               </p>
               <div className="gap-2 pt-2 flex items-center">
                 <Button
@@ -97,7 +120,7 @@ export const MarketplaceDiscoverView: React.FC<MarketplaceDiscoverViewProps> = (
             </div>
 
             {/* Visual paired icons */}
-            <div className="flex -space-x-4 items-center self-center md:self-auto">
+            <div className="-space-x-4 md:self-auto flex items-center self-center">
               <EntityIcon
                 iconUrl={spotlightApp.iconUrl}
                 kind={spotlightApp.kind}
@@ -117,6 +140,7 @@ export const MarketplaceDiscoverView: React.FC<MarketplaceDiscoverViewProps> = (
       {teamBuilt.length > 0 && (
         <PageSection
           variant="plain"
+          aria-label="Built by your team"
           title={
             <span className="gap-2 flex items-center">
               <Users className="size-4 text-muted-foreground" aria-hidden />
@@ -124,7 +148,9 @@ export const MarketplaceDiscoverView: React.FC<MarketplaceDiscoverViewProps> = (
             </span>
           }
         >
-          <MarketplaceGrid>{teamBuilt.slice(0, 6).map(renderCard)}</MarketplaceGrid>
+          <MarketplaceGrid>
+            {teamBuilt.slice(0, 6).map(renderCard)}
+          </MarketplaceGrid>
         </PageSection>
       )}
 
@@ -132,8 +158,15 @@ export const MarketplaceDiscoverView: React.FC<MarketplaceDiscoverViewProps> = (
       <PageSection
         variant="plain"
         title="Autonomous AI agents"
+        description="Ready-made agents from the Marketplace — install one to add it to your workspace."
+        aria-label="Autonomous AI agents"
         actions={
-          <Button variant="ghost" size="sm" onClick={onViewAllAgents}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onViewAllAgents}
+            aria-label={`View all ${agents.length} Marketplace agents`}
+          >
             View all agents ({agents.length})
             <ArrowRight aria-hidden />
           </Button>
@@ -146,6 +179,7 @@ export const MarketplaceDiscoverView: React.FC<MarketplaceDiscoverViewProps> = (
       <PageSection
         variant="plain"
         title="Essential apps & integrations"
+        aria-label="Essential apps and integrations"
         actions={
           <Button variant="ghost" size="sm" onClick={onViewAllApps}>
             {apps.length > 0 ? `View all apps (${apps.length})` : 'Browse apps'}
@@ -167,7 +201,8 @@ export const MarketplaceDiscoverView: React.FC<MarketplaceDiscoverViewProps> = (
                   Connect your tools
                 </h3>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  Sign in to Gmail, GitHub, Jira and more once — agents, search and chat can then work with them.
+                  Sign in to Gmail, GitHub, Jira and more once — agents, search
+                  and chat can then work with them.
                 </p>
               </div>
             </div>
@@ -189,7 +224,8 @@ export const MarketplaceDiscoverView: React.FC<MarketplaceDiscoverViewProps> = (
               Build your own agent or custom integration
             </h3>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Connect private enterprise tools, prompt internal models, or configure custom webhooks for your team.
+              Connect private enterprise tools, prompt internal models, or
+              configure custom webhooks for your team.
             </p>
           </div>
         </div>

@@ -1,5 +1,9 @@
-import { coworkersApi, queryKeys } from '@org/api-client';
-import type { AICoworkerDetail, CoworkerRosterEntry } from '@org/types';
+import { automationsApi, coworkersApi, queryKeys } from '@org/api-client';
+import type {
+  AICoworkerDetail,
+  AutomationWorkflowDetail,
+  CoworkerRosterEntry,
+} from '@org/types';
 import { RealtimeEventType, useRealtime } from '@org/realtime';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
@@ -12,6 +16,7 @@ export interface WorkspaceCoworker {
   description: string;
   avatarUrl: string | null;
   isActive: boolean;
+  createdAt?: string;
   updatedAt?: string;
   /** Connectors, specialists, workflows and activity — absent until the roster loads. */
   roster?: CoworkerRosterEntry;
@@ -81,6 +86,7 @@ export function useWorkspaceCoworkers(workspaceId: string) {
       ),
       avatarUrl: cw.avatarUrl ?? null,
       isActive: cw.isActive,
+      createdAt: cw.createdAt,
       updatedAt: cw.updatedAt,
       roster: byId.get(cw.id),
     }));
@@ -95,4 +101,23 @@ export function useWorkspaceCoworkers(workspaceId: string) {
       void roster.refetch();
     },
   };
+}
+
+/**
+ * The workspace's automations (archived ones left out) — the same list the
+ * Automation Center reads. They're built in the Studio, so refresh on return.
+ */
+export function useWorkspaceAutomations(workspaceId: string) {
+  return useQuery<
+    AutomationWorkflowDetail[],
+    Error,
+    AutomationWorkflowDetail[]
+  >({
+    queryKey: queryKeys.automations.list(workspaceId),
+    queryFn: () => automationsApi.list(workspaceId),
+    enabled: Boolean(workspaceId),
+    staleTime: 15_000,
+    refetchOnWindowFocus: 'always',
+    select: (items) => items.filter((w) => !w.archivedAt),
+  });
 }

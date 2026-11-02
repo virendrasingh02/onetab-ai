@@ -32,8 +32,10 @@ import {
   MarketplaceInstalledView,
   MarketplaceWorkspaceView,
   MarketplaceWorkspaceAgentsView,
+  MarketplaceWorkspaceStrip,
   openStudioTab,
   useWorkspaceCoworkers,
+  useWorkspaceAutomations,
   MarketplaceDeveloperView,
   UniversalInstallModal,
   AgentInstallDialog,
@@ -210,6 +212,7 @@ export function AgentMarketplaceView({
   // The same published-agent list the sidebar's "AI Agents" section reads.
   const workspaceAgents = useAgents(activeWorkspaceId || undefined);
   const workspaceAgentList = workspaceAgents.data ?? [];
+  const workspaceAutomations = useWorkspaceAutomations(activeWorkspaceId);
 
   // Active detail page selection
   const selectedAppListing = useMemo(() => {
@@ -420,6 +423,28 @@ export function AgentMarketplaceView({
                   }}
                   onViewAllApps={() => handleTabChange('apps')}
                   onViewAllAgents={() => handleTabChange('agents')}
+                  workspaceSection={
+                    <MarketplaceWorkspaceStrip
+                      agents={workspaceAgentList}
+                      coworkers={workspaceCoworkers.coworkers}
+                      automations={workspaceAutomations.data ?? []}
+                      isLoading={
+                        workspaceAgents.isLoading ||
+                        workspaceCoworkers.isLoading ||
+                        workspaceAutomations.isLoading
+                      }
+                      workspaceSlug={activeWorkspaceSlug}
+                      searchQuery={searchQuery}
+                      onOpenStudio={handleOpenStudio}
+                      onViewAll={(kind) =>
+                        kind === 'agent'
+                          ? handleTabChange('agents')
+                          : kind === 'coworker'
+                            ? handleTabChange('workspace')
+                            : navigate(`/w/${activeWorkspaceSlug}/automations`)
+                      }
+                    />
+                  }
                 />
               )}
 
