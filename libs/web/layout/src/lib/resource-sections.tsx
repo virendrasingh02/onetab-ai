@@ -66,7 +66,6 @@ import {
   useState,
   type ComponentType,
 } from 'react';
-import { studioAppUrl, studioWorkspacePath } from '@org/platform';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useSplitViewAction } from './split-view/use-split-view-action.js';
 import {
@@ -1046,13 +1045,9 @@ export function CoworkersSection({
             aria-label="Add coworker"
             className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100"
           >
-            <a
-              href={studioAppUrl(studioWorkspacePath(workspaceSlug, 'create'))}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <NavLink to={`/w/${workspaceSlug}/marketplace?tab=agents`}>
               <Plus className="size-3.5" />
-            </a>
+            </NavLink>
           </Button>
         </Hint>
       }
@@ -1093,15 +1088,13 @@ export function CoworkersSection({
       )}
 
       <li>
-        <a
-          href={studioAppUrl(studioWorkspacePath(workspaceSlug, 'create'))}
-          target="_blank"
-          rel="noopener noreferrer"
+        <NavLink
+          to={`/w/${workspaceSlug}/marketplace?tab=agents`}
           className={navActionClass({ depth: 1 })}
         >
           <NavAddGlyph />
           <span className="flex-1 truncate">Add coworker</span>
-        </a>
+        </NavLink>
       </li>
     </Section>
   );
