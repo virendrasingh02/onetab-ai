@@ -137,7 +137,7 @@ export function AppHeader({
     }
   };
 
-  const handle = `@${user.email.split('@')[0]}`;
+  const handle = `@${user.username || user.email.split('@')[0]}`;
 
   return (
     <>
@@ -186,7 +186,7 @@ export function AppHeader({
                 aria-expanded={sidebarOpen}
                 style={NO_DRAG}
                 className={cn(
-                  'size-7 p-0 shrink-0 cursor-pointer text-muted-foreground hover:text-foreground touch-target',
+                  'size-7 p-0 touch-target shrink-0 cursor-pointer text-muted-foreground hover:text-foreground',
                   // Always visible on touch/phone — there is no hover to reveal
                   // it, and it is the only route into the navigation drawer.
                   // From `md` up it stays a quiet hover affordance as before.
@@ -289,7 +289,7 @@ export function AppHeader({
               onClick={onOpenSearch}
               aria-label="Search"
               style={NO_DRAG}
-              className="sm:hidden size-7 p-0 flex text-muted-foreground hover:text-foreground touch-target"
+              className="sm:hidden size-7 p-0 flex touch-target text-muted-foreground hover:text-foreground"
             >
               <Search className="size-4" />
             </Button>
@@ -322,7 +322,7 @@ export function AppHeader({
               aria-pressed={isAssistantActive}
               aria-label={isAssistantActive ? 'Close AI assistant' : 'Ask AI'}
               style={NO_DRAG}
-              className="gap-1 px-2 text-xs font-medium sm:gap-1.5 sm:px-3 h-7 cursor-pointer touch-target"
+              className="gap-1 px-2 text-xs font-medium sm:gap-1.5 sm:px-3 h-7 touch-target cursor-pointer"
             >
               <Sparkles className="size-3.5" />
               <span className="sm:inline hidden">Ask AI</span>
@@ -330,7 +330,7 @@ export function AppHeader({
           </Hint>
 
           {/* Update nudge — desktop app update only */}
-          <div style={NO_DRAG} className="flex items-center gap-1.5">
+          <div style={NO_DRAG} className="gap-1.5 flex items-center">
             <DesktopUpdateIndicator />
           </div>
 
@@ -343,7 +343,7 @@ export function AppHeader({
               <button
                 type="button"
                 style={NO_DRAG}
-                className="ml-1 flex items-center justify-center cursor-pointer rounded-full transition-transform outline-none hover:scale-105 focus-visible:ring-1 focus-visible:ring-ring touch-target"
+                className="ml-1 flex touch-target cursor-pointer items-center justify-center rounded-full transition-transform outline-none hover:scale-105 focus-visible:ring-1 focus-visible:ring-ring"
                 aria-label="Account menu"
               >
                 <UserAvatar

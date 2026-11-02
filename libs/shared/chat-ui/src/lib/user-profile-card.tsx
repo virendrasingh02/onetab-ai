@@ -58,7 +58,8 @@ function WorkspaceRoleBadge({
         'gap-1 px-1.5 py-0.5 font-semibold inline-flex items-center rounded-md border text-2xs whitespace-nowrap',
         role === 'OWNER' && 'border-warning/30 bg-warning/10 text-warning-text',
         role === 'ADMIN' && 'border-primary/30 bg-primary/10 text-primary-text',
-        role === 'GUEST' && 'border-border bg-surface-inset text-muted-foreground',
+        role === 'GUEST' &&
+          'border-border bg-surface-inset text-muted-foreground',
         className,
       )}
     >
@@ -66,6 +67,20 @@ function WorkspaceRoleBadge({
       {MEMBER_ROLE_LABELS[role]}
     </span>
   );
+}
+
+/**
+ * The `@handle` under a name: the member's real username when the roster
+ * knows it. A bridged platform id (`@onetab_<cuid>:server`) is an internal
+ * key, not something to show a person, so it yields no handle at all.
+ */
+function profileHandle(
+  userId: string,
+  username?: string | null,
+): string | null {
+  if (username) return `@${username}`;
+  const local = userId.replace(/^@/, '').split(':')[0];
+  return /^onetab_/i.test(local) ? null : `@${local}`;
 }
 
 /**
@@ -165,7 +180,7 @@ export function UserProfileCard({
   // would otherwise open over whatever replaced it.
   useEffect(() => cancelHoverTimer, []);
 
-  const handle = `@${userId.replace(/^@/, '').split(':')[0]}`;
+  const handle = profileHandle(userId, member?.username);
 
   /* Clicking a person always fills the right rail — there is no modal fallback. */
   const handleClick = (e: React.MouseEvent) => {
@@ -185,8 +200,7 @@ export function UserProfileCard({
       joinedAt: joinedAt ?? member?.joinedAt ?? undefined,
       bio: resolvedBio,
       timezone: resolvedTimezone,
-      status:
-        status === 'away' || status === 'busy' ? 'unavailable' : status,
+      status: status === 'away' || status === 'busy' ? 'unavailable' : status,
       statusEmoji,
       statusText,
     });
@@ -218,7 +232,7 @@ export function UserProfileCard({
         onOpenAutoFocus={(e) => e.preventDefault()}
         onMouseEnter={cancelHoverTimer}
         onMouseLeave={() => scheduleHover(false, HOVER_CLOSE_DELAY_MS)}
-        className="z-[100] w-80 max-w-[calc(100vw-1.5rem)] p-0 shadow-2xl overflow-hidden rounded-2xl border border-border bg-popover text-foreground"
+        className="w-80 p-0 shadow-2xl z-[100] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-border bg-popover text-foreground"
       >
         {/* Header banner — an AI entity's identity colour (as on its rail
             profile), else the person's cover, else their avatar gradient */}
@@ -229,26 +243,27 @@ export function UserProfileCard({
               getAiEntityCover(
                 name,
                 resolvedAvatarUrl,
-                liveEntity?.kind ?? (entityKind === 'coworker' ? 'coworker' : 'agent'),
+                liveEntity?.kind ??
+                  (entityKind === 'coworker' ? 'coworker' : 'agent'),
               ),
             )}
           />
         ) : (
-        <UserCover src={member?.coverUrl} seed={userId} className="h-20">
-          <div className="top-2 right-2 gap-1 absolute flex">
-            {/* Workspace role wins; the Matrix room power level is only a
+          <UserCover src={member?.coverUrl} seed={userId} className="h-20">
+            <div className="top-2 right-2 gap-1 absolute flex">
+              {/* Workspace role wins; the Matrix room power level is only a
                 fallback for people outside this workspace's roster. */}
-            {member ? null : powerLevel >= 100 ? (
-              <span className="bg-black/40 px-2 py-0.5 font-bold text-white backdrop-blur-xs rounded-full text-2xs">
-                👑 Admin
-              </span>
-            ) : powerLevel >= 50 ? (
-              <span className="bg-black/40 px-2 py-0.5 font-bold text-white backdrop-blur-xs rounded-full text-2xs">
-                🛡️ Mod
-              </span>
-            ) : null}
-          </div>
-        </UserCover>
+              {member ? null : powerLevel >= 100 ? (
+                <span className="bg-black/40 px-2 py-0.5 font-bold text-white backdrop-blur-xs rounded-full text-2xs">
+                  👑 Admin
+                </span>
+              ) : powerLevel >= 50 ? (
+                <span className="bg-black/40 px-2 py-0.5 font-bold text-white backdrop-blur-xs rounded-full text-2xs">
+                  🛡️ Mod
+                </span>
+              ) : null}
+            </div>
+          </UserCover>
         )}
 
         {/* User Avatar Row */}
@@ -286,9 +301,11 @@ export function UserProfileCard({
                 {resolvedTitle}
               </p>
             ) : null}
-            <p className="text-xs font-medium font-mono text-muted-foreground">
-              {handle}
-            </p>
+            {handle ? (
+              <p className="text-xs font-medium font-mono text-muted-foreground">
+                {handle}
+              </p>
+            ) : null}
             {member && member.role !== 'MEMBER' ? (
               <WorkspaceRoleBadge role={member.role} className="mt-1.5" />
             ) : null}
@@ -308,7 +325,6 @@ export function UserProfileCard({
 
           {/* Local time (the full profile, with the bio, opens in the right rail). */}
           <div className="space-y-2 text-xs">
-
             {/* Local time — just the clock and the time, nothing else. */}
             <div className="gap-1.5 flex items-center text-muted-foreground">
               <LocalTime
@@ -383,9 +399,9 @@ export function UserProfileRightPanel({
   /** Shareable link to this person's conversation; adds a Link action. */
   profileLink?: string;
 }) {
-  const handle = `@${userId.replace(/^@/, '').split(':')[0]}`;
   const isBotOrAgent = userId.startsWith('agent-') || userId.startsWith('app-');
   const member = useMemberProfile(isBotOrAgent ? undefined : userId);
+  const handle = profileHandle(userId, member?.username);
   const roleLabel = member ? MEMBER_ROLE_LABELS[member.role] : role;
   const resolvedTitle = title || member?.title || undefined;
   const resolvedBio = (bio ?? member?.bio)?.trim() || undefined;
@@ -394,10 +410,7 @@ export function UserProfileRightPanel({
   return (
     <div className="flex h-full flex-col bg-surface text-foreground">
       {/* Profile Details Content Body */}
-      <ScrollArea
-        className="min-h-0 relative flex-1"
-        contentClassName="pb-6"
-      >
+      <ScrollArea className="min-h-0 relative flex-1" contentClassName="pb-6">
         {/* Cover banner — the person's cover, else their avatar gradient */}
         <UserCover
           src={member?.coverUrl}
@@ -407,213 +420,219 @@ export function UserProfileRightPanel({
 
         <div className="space-y-4 px-4">
           {/* Avatar & Presence */}
-          <div className="-mt-12 flex items-end justify-between relative z-10">
-          <UserAvatar
-            name={name}
-            src={avatarUrl}
-            seed={userId}
-            size="xl"
-            presence={status}
-            statusEmoji={statusEmoji}
-            statusText={statusText}
-            className="size-20 shadow-xl rounded-full ring-1 ring-foreground/10"
-          />
-        </div>
+          <div className="-mt-12 relative z-10 flex items-end justify-between">
+            <UserAvatar
+              name={name}
+              src={avatarUrl}
+              seed={userId}
+              size="xl"
+              presence={status}
+              statusEmoji={statusEmoji}
+              statusText={statusText}
+              className="size-20 shadow-xl rounded-full ring-1 ring-foreground/10"
+            />
+          </div>
 
-        {/* Action Buttons: Message, Audio Call, Video Call */}
-        <div className="gap-2 pt-1 flex items-center flex-wrap">
-          <Button
-            size="sm"
-            onClick={() => onSendDirectMessage?.(userId)}
-            className="h-8 text-xs font-semibold px-3 gap-1.5 flex-1 min-w-[100px] rounded-md bg-foreground text-background shadow-xs hover:bg-foreground/85"
-          >
-            <MessageSquare className="size-3.5" />
-            <span>Message</span>
-          </Button>
+          {/* Action Buttons: Message, Audio Call, Video Call */}
+          <div className="gap-2 pt-1 flex flex-wrap items-center">
+            <Button
+              size="sm"
+              onClick={() => onSendDirectMessage?.(userId)}
+              className="h-8 text-xs font-semibold px-3 gap-1.5 min-w-[100px] flex-1 rounded-md bg-foreground text-background shadow-xs hover:bg-foreground/85"
+            >
+              <MessageSquare className="size-3.5" />
+              <span>Message</span>
+            </Button>
 
-          {!isBotOrAgent && (
-            // Same joined-segment treatment as the conversation header's call control.
-            <div className="inline-flex h-8 items-center overflow-hidden rounded-md border border-border bg-background shadow-xs transition-colors hover:border-foreground/20 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/40">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  if (onStartCall) {
-                    onStartCall(userId);
-                  } else {
-                    onSendDirectMessage?.(userId);
-                  }
-                }}
-                className="h-full gap-1.5 rounded-none px-3 text-xs font-medium focus-visible:ring-0"
-                title="Start voice call"
-                aria-label="Start voice call"
-              >
-                <Phone className="size-3.5" />
-                <span>Call</span>
-              </Button>
-              <span aria-hidden className="h-4 w-px bg-border" />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  if (onStartVideoCall) {
-                    onStartVideoCall(userId);
-                  } else if (onStartCall) {
-                    onStartCall(userId);
-                  } else {
-                    onSendDirectMessage?.(userId);
-                  }
-                }}
-                className="h-full gap-1.5 rounded-none px-3 text-xs font-medium focus-visible:ring-0"
-                title="Start video call"
-                aria-label="Start video call"
-              >
-                <Video className="size-3.5" />
-                <span>Video</span>
-              </Button>
-              {profileLink ? (
-                <>
-                  <span aria-hidden className="h-4 w-px bg-border" />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      navigator.clipboard?.writeText(profileLink).then(
-                        () => toast.success('Link copied'),
-                        () => toast.error('Could not copy the link.'),
-                      );
-                    }}
-                    className="h-full gap-1.5 rounded-none px-3 text-xs font-medium focus-visible:ring-0"
-                    title="Copy link"
-                    aria-label="Copy link"
-                  >
-                    <Link2 className="size-3.5" />
-                    <span>Link</span>
-                  </Button>
-                </>
+            {!isBotOrAgent && (
+              // Same joined-segment treatment as the conversation header's call control.
+              <div className="h-8 inline-flex items-center overflow-hidden rounded-md border border-border bg-background shadow-xs transition-colors hover:border-foreground/20 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/40">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    if (onStartCall) {
+                      onStartCall(userId);
+                    } else {
+                      onSendDirectMessage?.(userId);
+                    }
+                  }}
+                  className="gap-1.5 px-3 text-xs font-medium h-full rounded-none focus-visible:ring-0"
+                  title="Start voice call"
+                  aria-label="Start voice call"
+                >
+                  <Phone className="size-3.5" />
+                  <span>Call</span>
+                </Button>
+                <span aria-hidden className="h-4 w-px bg-border" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    if (onStartVideoCall) {
+                      onStartVideoCall(userId);
+                    } else if (onStartCall) {
+                      onStartCall(userId);
+                    } else {
+                      onSendDirectMessage?.(userId);
+                    }
+                  }}
+                  className="gap-1.5 px-3 text-xs font-medium h-full rounded-none focus-visible:ring-0"
+                  title="Start video call"
+                  aria-label="Start video call"
+                >
+                  <Video className="size-3.5" />
+                  <span>Video</span>
+                </Button>
+                {profileLink ? (
+                  <>
+                    <span aria-hidden className="h-4 w-px bg-border" />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(profileLink).then(
+                          () => toast.success('Link copied'),
+                          () => toast.error('Could not copy the link.'),
+                        );
+                      }}
+                      className="gap-1.5 px-3 text-xs font-medium h-full rounded-none focus-visible:ring-0"
+                      title="Copy link"
+                      aria-label="Copy link"
+                    >
+                      <Link2 className="size-3.5" />
+                      <span>Link</span>
+                    </Button>
+                  </>
+                ) : null}
+              </div>
+            )}
+          </div>
+
+          {/* Name, Title, Handle & Status */}
+          <div className="space-y-1">
+            <div className="gap-2 flex items-center">
+              <h2 className="text-lg font-extrabold tracking-tight text-foreground">
+                {name}
+              </h2>
+              {member ? (
+                <WorkspaceRoleBadge role={member.role} />
+              ) : powerLevel >= 50 ? (
+                <Badge
+                  variant="primary"
+                  className="bg-primary text-2xs text-primary-foreground"
+                >
+                  {powerLevel >= 100 ? 'Admin' : 'Moderator'}
+                </Badge>
               ) : null}
             </div>
-          )}
-        </div>
 
-        {/* Name, Title, Handle & Status */}
-        <div className="space-y-1">
-          <div className="gap-2 flex items-center">
-            <h2 className="text-lg font-extrabold tracking-tight text-foreground">
-              {name}
-            </h2>
-            {member ? (
-              <WorkspaceRoleBadge role={member.role} />
-            ) : powerLevel >= 50 ? (
-              <Badge
-                variant="primary"
-                className="bg-primary text-2xs text-primary-foreground"
-              >
-                {powerLevel >= 100 ? 'Admin' : 'Moderator'}
-              </Badge>
+            {resolvedTitle ? (
+              <p className="text-xs font-semibold text-primary-text">
+                {resolvedTitle}
+              </p>
             ) : null}
+
+            <div className="gap-2 text-xs flex items-center">
+              {handle ? (
+                <>
+                  <span className="font-mono text-muted-foreground">
+                    {handle}
+                  </span>
+                  <span className="text-border">·</span>
+                </>
+              ) : null}
+              <div className="gap-1.5 flex items-center">
+                <PresenceDot presence={status} hint={false} />
+                <span className="font-medium text-muted-foreground">
+                  {PRESENCE_LABELS[toPresenceStatus(status)]}
+                </span>
+              </div>
+            </div>
           </div>
 
-          {resolvedTitle ? (
-            <p className="text-xs font-semibold text-primary-text">
-              {resolvedTitle}
-            </p>
-          ) : null}
-
-          <div className="gap-2 text-xs flex items-center">
-            <span className="font-mono text-muted-foreground">{handle}</span>
-            <span className="text-border">·</span>
-            <div className="gap-1.5 flex items-center">
-              <PresenceDot presence={status} hint={false} />
-              <span className="font-medium text-muted-foreground">
-                {PRESENCE_LABELS[toPresenceStatus(status)]}
+          {/* Custom Status Banner */}
+          {(statusText || statusEmoji) && (
+            <div className="gap-2 px-3 py-2 text-xs flex items-center rounded-xl border border-primary/20 bg-primary/5 text-foreground">
+              <span className="text-base shrink-0">{statusEmoji || '💬'}</span>
+              <span className="font-medium truncate">
+                {statusText || 'Status set'}
               </span>
             </div>
+          )}
+
+          <hr className="border-border" />
+
+          {/* Local time — just the clock and the time, nothing else. */}
+          <div className="gap-1.5 text-xs flex items-center text-muted-foreground">
+            <LocalTime
+              timezone={resolvedTimezone || 'UTC'}
+              icon
+              className="font-medium text-foreground"
+            />
+            <span>local time</span>
           </div>
-        </div>
 
-        {/* Custom Status Banner */}
-        {(statusText || statusEmoji) && (
-          <div className="gap-2 px-3 py-2 text-xs flex items-center rounded-xl border border-primary/20 bg-primary/5 text-foreground">
-            <span className="text-base shrink-0">{statusEmoji || '💬'}</span>
-            <span className="font-medium truncate">
-              {statusText || 'Status set'}
-            </span>
-          </div>
-        )}
-
-        <hr className="border-border" />
-
-        {/* Local time — just the clock and the time, nothing else. */}
-        <div className="gap-1.5 flex items-center text-xs text-muted-foreground">
-          <LocalTime
-            timezone={resolvedTimezone || 'UTC'}
-            icon
-            className="font-medium text-foreground"
-          />
-          <span>local time</span>
-        </div>
-
-        {/* Bio & Details */}
-        <div className="space-y-3 text-xs">
-          {resolvedBio ? (
-            <div className="p-3 space-y-1.5 rounded-xl border border-border bg-surface-inset/50">
-              <p className="font-bold tracking-wider text-2xs text-muted-foreground uppercase">
-                About Me
-              </p>
-              <p className="leading-relaxed text-foreground">{resolvedBio}</p>
-            </div>
-          ) : null}
-
-          <div className="gap-2 grid grid-cols-2">
-            <div className="p-2.5 rounded-xl border border-border bg-surface-inset/50">
-              <div className="gap-1.5 font-bold tracking-wider flex items-center text-2xs text-muted-foreground uppercase">
-                <Shield className="size-3 text-primary-text" />
-                <span>Role</span>
-              </div>
-              <p className="mt-0.5 text-xs font-semibold text-foreground">
-                {roleLabel}
-              </p>
-            </div>
-
-            <div className="p-2.5 rounded-xl border border-border bg-surface-inset/50">
-              <div className="gap-1.5 font-bold tracking-wider flex items-center text-2xs text-muted-foreground uppercase">
-                <Zap className="size-3 text-warning-text" />
-                <span>Power</span>
-              </div>
-              <p className="mt-0.5 text-xs font-semibold text-foreground">
-                {powerLevel} / 100
-              </p>
-            </div>
-
-            {email ? (
-              <div className="p-2.5 col-span-2 rounded-xl border border-border bg-surface-inset/50">
-                <div className="gap-1.5 font-bold tracking-wider flex items-center text-2xs text-muted-foreground uppercase">
-                  <Mail className="size-3 text-success-text" />
-                  <span>Email</span>
-                </div>
-                <p className="mt-0.5 text-xs font-semibold text-foreground">
-                  {email}
+          {/* Bio & Details */}
+          <div className="space-y-3 text-xs">
+            {resolvedBio ? (
+              <div className="p-3 space-y-1.5 rounded-xl border border-border bg-surface-inset/50">
+                <p className="font-bold tracking-wider text-2xs text-muted-foreground uppercase">
+                  About Me
                 </p>
+                <p className="leading-relaxed text-foreground">{resolvedBio}</p>
               </div>
             ) : null}
 
-            <div className="p-2.5 col-span-2 rounded-xl border border-border bg-surface-inset/50">
-              <div className="gap-1.5 font-bold tracking-wider flex items-center text-2xs text-muted-foreground uppercase">
-                <Calendar className="size-3 text-accent-blue" />
-                <span>Member Joined</span>
+            <div className="gap-2 grid grid-cols-2">
+              <div className="p-2.5 rounded-xl border border-border bg-surface-inset/50">
+                <div className="gap-1.5 font-bold tracking-wider flex items-center text-2xs text-muted-foreground uppercase">
+                  <Shield className="size-3 text-primary-text" />
+                  <span>Role</span>
+                </div>
+                <p className="mt-0.5 text-xs font-semibold text-foreground">
+                  {roleLabel}
+                </p>
               </div>
-              <p className="mt-0.5 text-xs font-semibold text-foreground">
-                {joinedAt
-                  ? new Date(joinedAt).toLocaleDateString()
-                  : 'Workspace Member'}
-              </p>
+
+              <div className="p-2.5 rounded-xl border border-border bg-surface-inset/50">
+                <div className="gap-1.5 font-bold tracking-wider flex items-center text-2xs text-muted-foreground uppercase">
+                  <Zap className="size-3 text-warning-text" />
+                  <span>Power</span>
+                </div>
+                <p className="mt-0.5 text-xs font-semibold text-foreground">
+                  {powerLevel} / 100
+                </p>
+              </div>
+
+              {email ? (
+                <div className="p-2.5 col-span-2 rounded-xl border border-border bg-surface-inset/50">
+                  <div className="gap-1.5 font-bold tracking-wider flex items-center text-2xs text-muted-foreground uppercase">
+                    <Mail className="size-3 text-success-text" />
+                    <span>Email</span>
+                  </div>
+                  <p className="mt-0.5 text-xs font-semibold text-foreground">
+                    {email}
+                  </p>
+                </div>
+              ) : null}
+
+              <div className="p-2.5 col-span-2 rounded-xl border border-border bg-surface-inset/50">
+                <div className="gap-1.5 font-bold tracking-wider flex items-center text-2xs text-muted-foreground uppercase">
+                  <Calendar className="size-3 text-accent-blue" />
+                  <span>Member Joined</span>
+                </div>
+                <p className="mt-0.5 text-xs font-semibold text-foreground">
+                  {joinedAt
+                    ? new Date(joinedAt).toLocaleDateString()
+                    : 'Workspace Member'}
+                </p>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Employee details the viewer is allowed to see (when the app provides them). */}
-        {!isBotOrAgent && <EmployeeInfoSection userId={userId} />}
+          {/* Employee details the viewer is allowed to see (when the app provides them). */}
+          {!isBotOrAgent && <EmployeeInfoSection userId={userId} />}
         </div>
       </ScrollArea>
     </div>

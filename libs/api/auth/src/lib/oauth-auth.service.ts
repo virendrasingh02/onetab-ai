@@ -16,6 +16,7 @@ import {
   timingSafeEqual,
 } from 'node:crypto';
 import axios from 'axios';
+import { allocateUsername } from '@org/api-common';
 import { PrismaService } from '@org/database';
 import type { UserIdentityDto } from '@org/types';
 import type {
@@ -695,6 +696,7 @@ export class OAuthAuthService {
           data: {
             email,
             name: identity.name?.trim() || email.split('@')[0] || email,
+            username: await allocateUsername(tx, email),
             avatarUrl: identity.avatarUrl ?? null,
             passwordHash: null,
             emailVerifiedAt: new Date(),

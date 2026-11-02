@@ -21,6 +21,8 @@ export interface PublicUser {
   id: string;
   name: string;
   displayName: string | null;
+  /** Public `@handle` without the `@`; null only for users not yet backfilled. */
+  username?: string | null;
   avatarUrl: string | null;
   coverUrl?: string | null;
   title?: string | null;
@@ -146,7 +148,8 @@ export interface ThemeTypographyConfig {
 
 /** Geometry and border radii customizations. */
 export interface ThemeShapeConfig {
-  radiusBase: '0px' | '4px' | '6px' | '8px' | '10px' | '12px' | '16px' | '9999px';
+  radiusBase:
+    '0px' | '4px' | '6px' | '8px' | '10px' | '12px' | '16px' | '9999px';
   radiusButton?: '0px' | '4px' | '6px' | '8px' | '10px' | '12px' | '9999px';
   radiusCard?: '0px' | '6px' | '8px' | '10px' | '12px' | '16px' | '20px';
   radiusInput?: '0px' | '4px' | '6px' | '8px' | '10px' | '12px';
@@ -173,7 +176,10 @@ export interface ThemeConfig {
    * the customizer writes here; whichever mode is painted layers its entry over
    * `colors` (which stays as the mode-agnostic / legacy base).
    */
-  modeColors?: { light?: Partial<ThemeColorsConfig>; dark?: Partial<ThemeColorsConfig> };
+  modeColors?: {
+    light?: Partial<ThemeColorsConfig>;
+    dark?: Partial<ThemeColorsConfig>;
+  };
   gradients?: Partial<ThemeGradientsConfig>;
   backgrounds?: Partial<ThemeBackgroundsConfig>;
   typography?: Partial<ThemeTypographyConfig>;
@@ -482,11 +488,7 @@ export interface ChannelAgentView {
  *  so this file doesn't take on a type-only circular import; the two unions
  *  are kept in sync by hand. */
 type CoworkerStatusLiteral =
-  | 'AVAILABLE'
-  | 'WORKING'
-  | 'IDLE'
-  | 'RUNNING_TASK'
-  | 'ERROR';
+  'AVAILABLE' | 'WORKING' | 'IDLE' | 'RUNNING_TASK' | 'ERROR';
 
 /** An AI coworker added to a channel (drives who may answer in its Matrix room). */
 export interface ChannelCoworkerView {
@@ -541,7 +543,8 @@ export interface ChannelAppView {
   };
 }
 
-export type ScheduledMessageStatus = 'PENDING' | 'SENT' | 'CANCELLED' | 'FAILED';
+export type ScheduledMessageStatus =
+  'PENDING' | 'SENT' | 'CANCELLED' | 'FAILED';
 
 /** A chat message scheduled for later delivery — see `ScheduledMessage`. */
 export interface ScheduledMessageView {
@@ -560,7 +563,6 @@ export interface ScheduledMessageView {
 }
 
 export interface Invitation {
-
   id: string;
   workspaceId: string;
   email: string | null;

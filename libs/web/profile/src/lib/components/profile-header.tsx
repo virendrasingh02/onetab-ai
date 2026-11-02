@@ -48,7 +48,7 @@ export function ProfileHeader({
 }: ProfileHeaderProps) {
   const [copiedLink, setCopiedLink] = useState(false);
 
-  const handle = `@${user.email.split('@')[0]}`;
+  const handle = `@${user.username || user.email.split('@')[0]}`;
   const displayName = user.displayName || user.name;
 
   const handleCopyProfileLink = () => {
@@ -64,7 +64,7 @@ export function ProfileHeader({
   };
 
   return (
-    <div className="w-full space-y-4">
+    <div className="space-y-4 w-full">
       {/* Cover Banner Component */}
       <ProfileCover
         coverUrl={user.coverUrl}
@@ -77,9 +77,9 @@ export function ProfileHeader({
 
       {/* Identity & Actions Bar (Overlapping Cover Boundary) */}
       <div className="px-4 sm:px-6 relative">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 -mt-16 sm:-mt-20">
+        <div className="sm:flex-row sm:items-end gap-4 -mt-16 sm:-mt-20 flex flex-col justify-between">
           {/* Avatar overlapping cover boundary */}
-          <div className="flex items-end gap-4">
+          <div className="gap-4 flex items-end">
             <ProfileAvatar
               name={displayName}
               avatarUrl={user.avatarUrl}
@@ -93,13 +93,17 @@ export function ProfileHeader({
 
             {/* Identity details (Mobile Stack) */}
             <div className="sm:hidden space-y-1 pb-1">
-              <h2 className="text-xl font-bold tracking-tight text-foreground">{displayName}</h2>
-              <p className="text-xs font-mono text-muted-foreground">{handle}</p>
+              <h2 className="text-xl font-bold tracking-tight text-foreground">
+                {displayName}
+              </h2>
+              <p className="text-xs font-mono text-muted-foreground">
+                {handle}
+              </p>
             </div>
           </div>
 
           {/* Action Buttons Row */}
-          <div className="flex items-center gap-2 self-start sm:self-auto pt-2 sm:pt-0">
+          <div className="gap-2 sm:self-auto pt-2 sm:pt-0 flex items-center self-start">
             {isCurrentUser ? (
               <>
                 <Button
@@ -107,7 +111,7 @@ export function ProfileHeader({
                   variant="primary"
                   size="sm"
                   onClick={onOpenEditModal}
-                  className="text-xs font-semibold gap-1.5 shadow-sm px-4"
+                  className="text-xs font-semibold gap-1.5 px-4 shadow-sm"
                 >
                   <Edit3 className="size-3.5" />
                   <span>Edit Profile</span>
@@ -122,7 +126,7 @@ export function ProfileHeader({
                     className="text-xs gap-1.5 border-border bg-surface hover:bg-accent"
                   >
                     <Smile className="size-3.5 text-primary" />
-                    <span className="hidden md:inline">
+                    <span className="md:inline hidden">
                       {user.statusText ? 'Update Status' : 'Set Status'}
                     </span>
                   </Button>
@@ -142,18 +146,25 @@ export function ProfileHeader({
                   <MoreHorizontal className="size-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52 p-1.5 rounded-xl border border-border bg-popover text-foreground shadow-xl">
+              <DropdownMenuContent
+                align="end"
+                className="w-52 p-1.5 shadow-xl rounded-xl border border-border bg-popover text-foreground"
+              >
                 <DropdownMenuItem
                   onClick={handleCopyProfileLink}
-                  className="text-xs font-medium cursor-pointer rounded-lg hover:bg-accent gap-2"
+                  className="text-xs font-medium gap-2 cursor-pointer rounded-lg hover:bg-accent"
                 >
-                  {copiedLink ? <Check className="size-3.5 text-success" /> : <LinkIcon className="size-3.5" />}
+                  {copiedLink ? (
+                    <Check className="size-3.5 text-success" />
+                  ) : (
+                    <LinkIcon className="size-3.5" />
+                  )}
                   <span>Copy Profile Link</span>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem
                   onClick={handleCopyUsername}
-                  className="text-xs font-medium cursor-pointer rounded-lg hover:bg-accent gap-2"
+                  className="text-xs font-medium gap-2 cursor-pointer rounded-lg hover:bg-accent"
                 >
                   <Copy className="size-3.5" />
                   <span>Copy Username Handle</span>
@@ -165,7 +176,7 @@ export function ProfileHeader({
                   <>
                     <DropdownMenuItem
                       onClick={onOpenAvatarCrop}
-                      className="text-xs font-medium cursor-pointer rounded-lg hover:bg-accent gap-2"
+                      className="text-xs font-medium gap-2 cursor-pointer rounded-lg hover:bg-accent"
                     >
                       <Edit3 className="size-3.5" />
                       <span>Change Avatar</span>
@@ -173,7 +184,7 @@ export function ProfileHeader({
 
                     <DropdownMenuItem
                       onClick={onOpenCoverCrop}
-                      className="text-xs font-medium cursor-pointer rounded-lg hover:bg-accent gap-2"
+                      className="text-xs font-medium gap-2 cursor-pointer rounded-lg hover:bg-accent"
                     >
                       <Edit3 className="size-3.5" />
                       <span>Change Header Cover</span>
@@ -185,13 +196,16 @@ export function ProfileHeader({
                   onClick={() => {
                     if (navigator.share) {
                       navigator
-                        .share({ title: displayName, url: window.location.href })
+                        .share({
+                          title: displayName,
+                          url: window.location.href,
+                        })
                         .catch(() => undefined);
                     } else {
                       handleCopyProfileLink();
                     }
                   }}
-                  className="text-xs font-medium cursor-pointer rounded-lg hover:bg-accent gap-2"
+                  className="text-xs font-medium gap-2 cursor-pointer rounded-lg hover:bg-accent"
                 >
                   <Share2 className="size-3.5" />
                   <span>Share Profile</span>
@@ -203,14 +217,21 @@ export function ProfileHeader({
 
         {/* Identity & Metadata Row (Desktop) */}
         <div className="pt-3 space-y-2">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">{displayName}</h1>
-            <span className="text-sm font-mono text-muted-foreground">{handle}</span>
-            <Badge variant="neutral" className="text-[10px] uppercase font-semibold border-border bg-surface-raised">
+          <div className="gap-3 flex flex-wrap items-center">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              {displayName}
+            </h1>
+            <span className="text-sm font-mono text-muted-foreground">
+              {handle}
+            </span>
+            <Badge
+              variant="neutral"
+              className="font-semibold border-border bg-surface-raised text-[10px] uppercase"
+            >
               {workspaceRole}
             </Badge>
             {user.jobTitle && (
-              <span className="text-xs font-medium text-primary-text bg-primary/10 px-2.5 py-0.5 rounded-full">
+              <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-primary/10 text-primary-text">
                 {user.jobTitle}
               </span>
             )}
@@ -218,15 +239,19 @@ export function ProfileHeader({
 
           {/* Bio statement */}
           {user.bio ? (
-            <p className="text-xs text-foreground/90 max-w-2xl leading-relaxed">{user.bio}</p>
+            <p className="text-xs max-w-2xl leading-relaxed text-foreground/90">
+              {user.bio}
+            </p>
           ) : (
-            <p className="text-xs text-muted-foreground italic">No bio provided yet.</p>
+            <p className="text-xs text-muted-foreground italic">
+              No bio provided yet.
+            </p>
           )}
 
           {/* Quick Meta Chips */}
-          <div className="flex flex-wrap items-center gap-4 pt-1 text-xs text-muted-foreground">
+          <div className="gap-4 pt-1 text-xs flex flex-wrap items-center text-muted-foreground">
             {user.location && (
-              <div className="flex items-center gap-1.5">
+              <div className="gap-1.5 flex items-center">
                 <MapPin className="size-3.5 text-muted-foreground" />
                 <span>{user.location}</span>
               </div>
@@ -234,18 +259,24 @@ export function ProfileHeader({
 
             {user.website && (
               <a
-                href={user.website.startsWith('http') ? user.website : `https://${user.website}`}
+                href={
+                  user.website.startsWith('http')
+                    ? user.website
+                    : `https://${user.website}`
+                }
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-primary hover:underline"
+                className="gap-1.5 flex items-center text-primary hover:underline"
               >
                 <Globe className="size-3.5" />
-                <span className="truncate max-w-xs">{user.website.replace(/^https?:\/\//, '')}</span>
+                <span className="max-w-xs truncate">
+                  {user.website.replace(/^https?:\/\//, '')}
+                </span>
               </a>
             )}
 
             {user.timezone && (
-              <div className="flex items-center gap-1.5">
+              <div className="gap-1.5 flex items-center">
                 <Clock className="size-3.5 text-muted-foreground" />
                 <span>{user.timezone}</span>
               </div>
@@ -255,15 +286,25 @@ export function ProfileHeader({
 
         {/* Active Status Highlight Banner if set */}
         {(user.statusText || user.statusEmoji) && (
-          <div className="mt-4 p-3 rounded-xl border border-primary/25 bg-primary/5 text-xs text-foreground flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span className="text-lg shrink-0">{user.statusEmoji || '💬'}</span>
+          <div className="mt-4 p-3 text-xs gap-3 flex items-center justify-between rounded-xl border border-primary/25 bg-primary/5 text-foreground">
+            <div className="gap-2.5 min-w-0 flex items-center">
+              <span className="text-lg shrink-0">
+                {user.statusEmoji || '💬'}
+              </span>
               <div className="min-w-0">
-                <span className="font-semibold block truncate">{user.statusText}</span>
+                <span className="font-semibold block truncate">
+                  {user.statusText}
+                </span>
                 {user.statusExpiresAt && (
-                  <span className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                  <span className="gap-1 mt-0.5 flex items-center text-[11px] text-muted-foreground">
                     <Clock className="size-3" />
-                    <span>Clears {new Date(user.statusExpiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span>
+                      Clears{' '}
+                      {new Date(user.statusExpiresAt).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
                   </span>
                 )}
               </div>
@@ -274,7 +315,7 @@ export function ProfileHeader({
                 variant="ghost"
                 size="xs"
                 onClick={onOpenStatusModal}
-                className="text-xs text-primary font-medium hover:bg-primary/10"
+                className="text-xs font-medium text-primary hover:bg-primary/10"
               >
                 Change
               </Button>

@@ -1,10 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { allocateUsername } from '@org/api-common';
 import { MatrixAdminService } from '@org/api-matrix';
 import { PrismaService } from '@org/database';
-import type {
-  MigrationScope,
-} from '@org/types';
+import type { MigrationScope } from '@org/types';
 import { MigrationAiAdvisorService } from './migration-ai-advisor.service.js';
 import { MigrationMappingService } from './migration-mapping.service.js';
 import type {
@@ -162,7 +161,10 @@ export class MigrationWorkerService {
       if (this.shouldHalt(migrationId)) return;
 
       // STAGE 4 & 5: CHANNELS & CHANNEL MEMBERSHIP
-      const channelMap = new Map<string, { channelId: string; matrixRoomId?: string }>();
+      const channelMap = new Map<
+        string,
+        { channelId: string; matrixRoomId?: string }
+      >();
       await this.runStage(migrationId, 'CHANNELS', async () => {
         let cursor: string | undefined;
         do {
@@ -222,7 +224,11 @@ export class MigrationWorkerService {
               userMap,
             );
 
-            this.recordProgressItem(migrationId, 'channels', `#${destChannel.name}`);
+            this.recordProgressItem(
+              migrationId,
+              'channels',
+              `#${destChannel.name}`,
+            );
           }
           cursor = channelBatch.nextCursor;
         } while (cursor);
@@ -255,7 +261,9 @@ export class MigrationWorkerService {
       // STAGE 12: SEARCH INDEXING
       await this.runStage(migrationId, 'SEARCH_INDEXING', async () => {
         // Postgres tsvector GIN indexes update automatically on row upserts
-        this.logger.log(`Postgres full-text search indexes synced for workspace ${workspaceId}`);
+        this.logger.log(
+          `Postgres full-text search indexes synced for workspace ${workspaceId}`,
+        );
       });
 
       // STAGE 13: VALIDATION
@@ -265,7 +273,10 @@ export class MigrationWorkerService {
 
       // STAGE 14: AI ADVISOR & ADOPTION
       await this.runStage(migrationId, 'FINALIZATION', async () => {
-        await this.aiAdvisor.generateAdoptionRecommendations(workspaceId, migrationId);
+        await this.aiAdvisor.generateAdoptionRecommendations(
+          workspaceId,
+          migrationId,
+        );
       });
 
       // MARK AS COMPLETED
@@ -278,13 +289,22 @@ export class MigrationWorkerService {
         },
       });
 
-      await this.logAudit(workspaceId, session.createdById, 'migration.completed', migrationId, {
-        sourceWorkspace: session.sourceWorkspaceName,
-      });
+      await this.logAudit(
+        workspaceId,
+        session.createdById,
+        'migration.completed',
+        migrationId,
+        {
+          sourceWorkspace: session.sourceWorkspaceName,
+        },
+      );
 
       this.logger.log(`Migration ${migrationId} finished successfully.`);
     } catch (err: any) {
-      this.logger.error(`Migration ${migrationId} failed: ${err.message}`, err.stack);
+      this.logger.error(
+        `Migration ${migrationId} failed: ${err.message}`,
+        err.stack,
+      );
       await this.prisma.migrationSession.update({
         where: { id: migrationId },
         data: {
@@ -308,7 +328,10 @@ export class MigrationWorkerService {
     }
     if (state.isPaused) {
       this.prisma.migrationSession
-        .update({ where: { id: migrationId }, data: { status: 'PAUSED', pausedAt: new Date() } })
+        .update({
+          where: { id: migrationId },
+          data: { status: 'PAUSED', pausedAt: new Date() },
+        })
         .catch(() => null);
       return true;
     }
@@ -390,13 +413,20 @@ export class MigrationWorkerService {
 
     // 2. Create placeholder or invited user with original author identity preserved
     const randomHash = Math.random().toString(36).substring(2, 9);
-    const placeholderEmail = sourceUser.email || `slack_${sourceUser.id}_${randomHash}@imported.local`;
-    const name = sourceUser.displayName || sourceUser.realName || sourceUser.name;
+    const placeholderEmail =
+      sourceUser.email || `slack_${sourceUser.id}_${randomHash}@imported.local`;
+    const name =
+      sourceUser.displayName || sourceUser.realName || sourceUser.name;
 
     const newUser = await this.prisma.user.create({
       data: {
         email: placeholderEmail,
         name,
+        // Keep the Slack handle when it is free.
+        username: await allocateUsername(
+          this.prisma,
+          sourceUser.name || placeholderEmail,
+        ),
         displayName: sourceUser.displayName || sourceUser.realName,
         avatarUrl: sourceUser.avatarUrl,
         passwordHash: '$2b$10$placeholder_migration_hash',
@@ -427,7 +457,10 @@ export class MigrationWorkerService {
     customRename?: string,
   ) {
     const rawName = customRename || sourceChannel.name.replace(/^#/, '');
-    const cleanName = rawName.toLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-');
+    const cleanName = rawName
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]/g, '-')
+      .replace(/-+/g, '-');
     const slug = cleanName;
 
     // Check existing
@@ -435,7 +468,10 @@ export class MigrationWorkerService {
       where: { workspaceId_slug: { workspaceId, slug } },
     });
 
-    if (existing && (resolutionStrategy === 'USE_EXISTING' || resolutionStrategy === 'MERGE')) {
+    if (
+      existing &&
+      (resolutionStrategy === 'USE_EXISTING' || resolutionStrategy === 'MERGE')
+    ) {
       return existing;
     }
 
@@ -451,7 +487,8 @@ export class MigrationWorkerService {
         topic: sourceChannel.topic || 'Migrated from Slack',
         description: sourceChannel.purpose || 'Imported Slack Channel',
         visibility: sourceChannel.isPrivate ? 'PRIVATE' : 'PUBLIC',
-        isArchived: sourceChannel.isArchived || resolutionStrategy === 'ARCHIVE',
+        isArchived:
+          sourceChannel.isArchived || resolutionStrategy === 'ARCHIVE',
         archivedAt: sourceChannel.isArchived ? new Date() : null,
       },
     });
@@ -470,7 +507,10 @@ export class MigrationWorkerService {
     userMap: Map<string, string>,
   ) {
     try {
-      const sourceMemberIds = await provider.fetchChannelMembers(authOrConfig, sourceChannelId);
+      const sourceMemberIds = await provider.fetchChannelMembers(
+        authOrConfig,
+        sourceChannelId,
+      );
       for (const smId of sourceMemberIds) {
         const destUserId = userMap.get(smId);
         if (destUserId) {
@@ -490,7 +530,9 @@ export class MigrationWorkerService {
         }
       }
     } catch (e: any) {
-      this.logger.warn(`Could not sync channel members for ${sourceChannelId}: ${e.message}`);
+      this.logger.warn(
+        `Could not sync channel members for ${sourceChannelId}: ${e.message}`,
+      );
     }
   }
 
@@ -636,7 +678,10 @@ export class MigrationWorkerService {
         if (existingMapping) continue;
 
         const destUserId = userMap.get(reply.userId) || 'system';
-        const normalizedText = this.normalizeSlackFormatting(reply.text, userMap);
+        const normalizedText = this.normalizeSlackFormatting(
+          reply.text,
+          userMap,
+        );
 
         // Only a real root event can carry a thread; a placeholder root means
         // the root never reached Matrix, so the reply posts unthreaded.
@@ -645,7 +690,14 @@ export class MigrationWorkerService {
           ? await this.sendHistoricMessage(matrixRoomId, destUserId, {
               msgtype: 'm.text',
               body: normalizedText,
-              ...(rootIsEvent ? { 'm.relates_to': { rel_type: 'm.thread', event_id: rootDestMessageId } } : {}),
+              ...(rootIsEvent
+                ? {
+                    'm.relates_to': {
+                      rel_type: 'm.thread',
+                      event_id: rootDestMessageId,
+                    },
+                  }
+                : {}),
               'org.onetab.historical_migration': true,
               origin_server_ts: Math.round(Number(reply.timestamp) * 1000),
             })
@@ -657,20 +709,29 @@ export class MigrationWorkerService {
           'THREAD',
           reply.id,
           eventId ?? `thread_${reply.id}`,
-          { threadTs, parentId: rootDestMessageId, delivered: eventId !== null },
+          {
+            threadTs,
+            parentId: rootDestMessageId,
+            delivered: eventId !== null,
+          },
         );
 
         this.recordProgressItem(migrationId, 'threads');
       }
     } catch (e: any) {
-      this.logger.warn(`Failed to migrate replies for thread ${threadTs}: ${e.message}`);
+      this.logger.warn(
+        `Failed to migrate replies for thread ${threadTs}: ${e.message}`,
+      );
     }
   }
 
   /**
    * Normalizes Slack mrkdwn into standard Markdown and translates user/channel mentions.
    */
-  private normalizeSlackFormatting(text: string, userMap: Map<string, string>): string {
+  private normalizeSlackFormatting(
+    text: string,
+    userMap: Map<string, string>,
+  ): string {
     if (!text) return '';
 
     let out = text;
@@ -710,14 +771,17 @@ export class MigrationWorkerService {
         content,
       );
     } catch (e: any) {
-      this.logger.warn(`Could not post a migrated message to ${matrixRoomId}: ${e?.message ?? e}`);
+      this.logger.warn(
+        `Could not post a migrated message to ${matrixRoomId}: ${e?.message ?? e}`,
+      );
       return null;
     }
   }
 
   private recordProgressItem(
     migrationId: string,
-    category: 'members' | 'channels' | 'messages' | 'threads' | 'reactions' | 'files',
+    category:
+      'members' | 'channels' | 'messages' | 'threads' | 'reactions' | 'files',
     itemName?: string,
   ) {
     const state = this.activeWorkers.get(migrationId);

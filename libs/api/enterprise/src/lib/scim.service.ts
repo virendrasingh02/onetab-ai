@@ -6,6 +6,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { allocateUsername } from '@org/api-common';
 import { PrismaService } from '@org/database';
 import { MembershipStatus, PresenceStatus, WorkspaceRole } from '@org/types';
 import type {
@@ -114,7 +115,11 @@ export class SCIMService {
     };
   }
 
-  async getUser(orgId: string, userId: string, baseUrl: string): Promise<SCIMUserResource> {
+  async getUser(
+    orgId: string,
+    userId: string,
+    baseUrl: string,
+  ): Promise<SCIMUserResource> {
     const org = await this.prisma.organization.findUniqueOrThrow({
       where: { id: orgId },
       include: { workspaces: { select: { id: true } } },
@@ -148,7 +153,9 @@ export class SCIMService {
     payload: SCIMUserPayload,
     baseUrl: string,
   ): Promise<SCIMUserResource> {
-    const email = (payload.emails?.[0]?.value || payload.userName || '').toLowerCase().trim();
+    const email = (payload.emails?.[0]?.value || payload.userName || '')
+      .toLowerCase()
+      .trim();
     if (!email || !email.includes('@')) {
       throw new BadRequestException({
         schemas: ['urn:ietf:params:scim:api:messages:2.0:Error'],
@@ -160,7 +167,9 @@ export class SCIMService {
     const displayName =
       payload.displayName ||
       payload.name?.formatted ||
-      [payload.name?.givenName, payload.name?.familyName].filter(Boolean).join(' ') ||
+      [payload.name?.givenName, payload.name?.familyName]
+        .filter(Boolean)
+        .join(' ') ||
       email.split('@')[0];
 
     const active = payload.active !== false;
@@ -183,6 +192,7 @@ export class SCIMService {
       create: {
         email,
         name: displayName,
+        username: await allocateUsername(this.prisma, email),
         passwordHash: '$2b$10$scim_provisioned_placeholder',
         emailVerifiedAt: new Date(),
         presence: active ? PresenceStatus.ONLINE : PresenceStatus.OFFLINE,
@@ -192,7 +202,9 @@ export class SCIMService {
 
     // Wire up workspace membership in org workspaces
     if (primaryWorkspace) {
-      const membershipStatus = active ? MembershipStatus.ACTIVE : MembershipStatus.SUSPENDED;
+      const membershipStatus = active
+        ? MembershipStatus.ACTIVE
+        : MembershipStatus.SUSPENDED;
       await this.prisma.workspaceMember.upsert({
         where: {
           workspaceId_userId: {
@@ -212,14 +224,22 @@ export class SCIMService {
       });
     }
 
-    this.logger.log(`SCIM user provisioned: ${email} (${user.id}) in org ${orgId}`);
+    this.logger.log(
+      `SCIM user provisioned: ${email} (${user.id}) in org ${orgId}`,
+    );
 
     // Log enterprise audit log
-    await this.logEnterpriseAudit(orgId, 'SCIM_SYSTEM', 'SCIM_USER_CREATE', `User:${user.id}`, {
-      email,
-      displayName,
-      active,
-    });
+    await this.logEnterpriseAudit(
+      orgId,
+      'SCIM_SYSTEM',
+      'SCIM_USER_CREATE',
+      `User:${user.id}`,
+      {
+        email,
+        displayName,
+        active,
+      },
+    );
 
     return this.getUser(orgId, user.id, baseUrl);
   }
@@ -233,7 +253,9 @@ export class SCIMService {
       .filter((d): d is string => !!d)
       .map((d) => d.toLowerCase());
     if (!domain || !owned.includes(domain)) {
-      throw new ForbiddenException('Email domain is not verified for this organization.');
+      throw new ForbiddenException(
+        'Email domain is not verified for this organization.',
+      );
     }
   }
 
@@ -244,21 +266,35 @@ export class SCIMService {
     baseUrl: string,
   ): Promise<SCIMUserResource> {
     const existing = await this.getUser(orgId, userId, baseUrl);
-    const email = (payload.emails?.[0]?.value || payload.userName || existing.userName).toLowerCase().trim();
+    const email = (
+      payload.emails?.[0]?.value ||
+      payload.userName ||
+      existing.userName
+    )
+      .toLowerCase()
+      .trim();
     const displayName =
       payload.displayName ||
       payload.name?.formatted ||
-      [payload.name?.givenName, payload.name?.familyName].filter(Boolean).join(' ') ||
+      [payload.name?.givenName, payload.name?.familyName]
+        .filter(Boolean)
+        .join(' ') ||
       existing.displayName;
 
-    const active = payload.active !== undefined ? payload.active : existing.active;
+    const active =
+      payload.active !== undefined ? payload.active : existing.active;
 
     // An email is an identity: a tenant may not repoint a user at an address
     // outside its verified domains, or at one another account already holds.
     if (email !== existing.userName.toLowerCase()) {
-      const org = await this.prisma.organization.findUniqueOrThrow({ where: { id: orgId } });
+      const org = await this.prisma.organization.findUniqueOrThrow({
+        where: { id: orgId },
+      });
       this.assertOrgOwnsEmailDomain(org, email);
-      const taken = await this.prisma.user.findUnique({ where: { email }, select: { id: true } });
+      const taken = await this.prisma.user.findUnique({
+        where: { email },
+        select: { id: true },
+      });
       if (taken && taken.id !== userId) {
         throw new ConflictException('That email is already in use.');
       }
@@ -275,11 +311,17 @@ export class SCIMService {
 
     await this.applyUserActiveStatus(orgId, userId, active);
 
-    await this.logEnterpriseAudit(orgId, 'SCIM_SYSTEM', 'SCIM_USER_UPDATE', `User:${userId}`, {
-      email,
-      displayName,
-      active,
-    });
+    await this.logEnterpriseAudit(
+      orgId,
+      'SCIM_SYSTEM',
+      'SCIM_USER_UPDATE',
+      `User:${userId}`,
+      {
+        email,
+        displayName,
+        active,
+      },
+    );
 
     return this.getUser(orgId, userId, baseUrl);
   }
@@ -301,9 +343,14 @@ export class SCIMService {
 
       if (opType === 'replace' || opType === 'add') {
         if (path === 'active' || (val && typeof val.active === 'boolean')) {
-          updatedActive = path === 'active' ? Boolean(val) : Boolean(val.active);
-        } else if (path === 'displayname' || (val && typeof val.displayName === 'string')) {
-          updatedName = path === 'displayname' ? String(val) : String(val.displayName);
+          updatedActive =
+            path === 'active' ? Boolean(val) : Boolean(val.active);
+        } else if (
+          path === 'displayname' ||
+          (val && typeof val.displayName === 'string')
+        ) {
+          updatedName =
+            path === 'displayname' ? String(val) : String(val.displayName);
         } else if (path.startsWith('name.') || (val && val.formatted)) {
           updatedName = val?.formatted || val?.givenName || updatedName;
         }
@@ -338,9 +385,15 @@ export class SCIMService {
       data: { presence: PresenceStatus.OFFLINE },
     });
 
-    await this.logEnterpriseAudit(orgId, 'SCIM_SYSTEM', 'SCIM_USER_DEPROVISION', `User:${userId}`, {
-      action: 'DELETE',
-    });
+    await this.logEnterpriseAudit(
+      orgId,
+      'SCIM_SYSTEM',
+      'SCIM_USER_DEPROVISION',
+      `User:${userId}`,
+      {
+        action: 'DELETE',
+      },
+    );
   }
 
   /* -------------------------------------------------------------------------- */
@@ -373,7 +426,9 @@ export class SCIMService {
         orderBy: { displayName: 'asc' },
         include: {
           members: {
-            include: { user: { select: { id: true, name: true, email: true } } },
+            include: {
+              user: { select: { id: true, name: true, email: true } },
+            },
           },
         },
       }),
@@ -390,7 +445,11 @@ export class SCIMService {
     };
   }
 
-  async getGroup(orgId: string, groupId: string, baseUrl: string): Promise<SCIMGroupResource> {
+  async getGroup(
+    orgId: string,
+    groupId: string,
+    baseUrl: string,
+  ): Promise<SCIMGroupResource> {
     const group = await this.prisma.sCIMGroup.findFirst({
       where: { id: groupId, organizationId: orgId },
       include: {
@@ -450,16 +509,26 @@ export class SCIMService {
 
     // Add members if provided
     if (payload.members && Array.isArray(payload.members)) {
-      await this.syncGroupMembers(orgId, group.id, payload.members.map((m) => m.value));
+      await this.syncGroupMembers(
+        orgId,
+        group.id,
+        payload.members.map((m) => m.value),
+      );
     }
 
     // Apply role mappings
     await this.applyGroupRoleMappings(orgId, displayName);
 
-    await this.logEnterpriseAudit(orgId, 'SCIM_SYSTEM', 'SCIM_GROUP_CREATE', `Group:${group.id}`, {
-      displayName,
-      memberCount: payload.members?.length ?? 0,
-    });
+    await this.logEnterpriseAudit(
+      orgId,
+      'SCIM_SYSTEM',
+      'SCIM_GROUP_CREATE',
+      `Group:${group.id}`,
+      {
+        displayName,
+        memberCount: payload.members?.length ?? 0,
+      },
+    );
 
     return this.getGroup(orgId, group.id, baseUrl);
   }
@@ -475,18 +544,31 @@ export class SCIMService {
 
     await this.prisma.sCIMGroup.update({
       where: { id: groupId },
-      data: { displayName, externalId: payload.externalId ?? existing.externalId },
+      data: {
+        displayName,
+        externalId: payload.externalId ?? existing.externalId,
+      },
     });
 
     if (payload.members !== undefined) {
-      await this.syncGroupMembers(orgId, groupId, payload.members.map((m) => m.value));
+      await this.syncGroupMembers(
+        orgId,
+        groupId,
+        payload.members.map((m) => m.value),
+      );
     }
 
     await this.applyGroupRoleMappings(orgId, displayName);
 
-    await this.logEnterpriseAudit(orgId, 'SCIM_SYSTEM', 'SCIM_GROUP_UPDATE', `Group:${groupId}`, {
-      displayName,
-    });
+    await this.logEnterpriseAudit(
+      orgId,
+      'SCIM_SYSTEM',
+      'SCIM_GROUP_UPDATE',
+      `Group:${groupId}`,
+      {
+        displayName,
+      },
+    );
 
     return this.getGroup(orgId, groupId, baseUrl);
   }
@@ -505,7 +587,11 @@ export class SCIMService {
       const val = op.value;
 
       if (opType === 'add' && (path === 'members' || !path)) {
-        const membersToAdd = Array.isArray(val) ? val : Array.isArray((val as any)?.members) ? (val as any).members : [val];
+        const membersToAdd = Array.isArray(val)
+          ? val
+          : Array.isArray((val as any)?.members)
+            ? (val as any).members
+            : [val];
         for (const item of membersToAdd) {
           const userId = item?.value || item;
           if (typeof userId === 'string') {
@@ -537,9 +623,18 @@ export class SCIMService {
       } else if (opType === 'replace') {
         if (path === 'members' || (val && (val as any).members)) {
           const newMembers = Array.isArray(val) ? val : (val as any).members;
-          await this.syncGroupMembers(orgId, groupId, (newMembers || []).map((m: any) => m.value || m));
-        } else if (path === 'displayname' || (val && (val as any).displayName)) {
-          const newName = (typeof val === 'string' ? val : (val as any).displayName)?.trim();
+          await this.syncGroupMembers(
+            orgId,
+            groupId,
+            (newMembers || []).map((m: any) => m.value || m),
+          );
+        } else if (
+          path === 'displayname' ||
+          (val && (val as any).displayName)
+        ) {
+          const newName = (
+            typeof val === 'string' ? val : (val as any).displayName
+          )?.trim();
           if (newName) {
             await this.prisma.sCIMGroup.update({
               where: { id: groupId },
@@ -552,9 +647,15 @@ export class SCIMService {
 
     await this.applyGroupRoleMappings(orgId, group.displayName);
 
-    await this.logEnterpriseAudit(orgId, 'SCIM_SYSTEM', 'SCIM_GROUP_PATCH', `Group:${groupId}`, {
-      patch: patchRequest,
-    });
+    await this.logEnterpriseAudit(
+      orgId,
+      'SCIM_SYSTEM',
+      'SCIM_GROUP_PATCH',
+      `Group:${groupId}`,
+      {
+        patch: patchRequest,
+      },
+    );
 
     return this.getGroup(orgId, groupId, baseUrl);
   }
@@ -564,7 +665,13 @@ export class SCIMService {
       where: { id: groupId, organizationId: orgId },
     });
 
-    await this.logEnterpriseAudit(orgId, 'SCIM_SYSTEM', 'SCIM_GROUP_DELETE', `Group:${groupId}`, {});
+    await this.logEnterpriseAudit(
+      orgId,
+      'SCIM_SYSTEM',
+      'SCIM_GROUP_DELETE',
+      `Group:${groupId}`,
+      {},
+    );
   }
 
   /* -------------------------------------------------------------------------- */
@@ -614,7 +721,9 @@ export class SCIMService {
             { name: 'emails', type: 'complex', multiValued: true },
             { name: 'active', type: 'boolean' },
           ],
-          meta: { location: `${baseUrl}/Schemas/urn:ietf:params:scim:schemas:core:2.0:User` },
+          meta: {
+            location: `${baseUrl}/Schemas/urn:ietf:params:scim:schemas:core:2.0:User`,
+          },
         },
         {
           id: 'urn:ietf:params:scim:schemas:core:2.0:Group',
@@ -624,7 +733,9 @@ export class SCIMService {
             { name: 'displayName', type: 'string', required: true },
             { name: 'members', type: 'complex', multiValued: true },
           ],
-          meta: { location: `${baseUrl}/Schemas/urn:ietf:params:scim:schemas:core:2.0:Group` },
+          meta: {
+            location: `${baseUrl}/Schemas/urn:ietf:params:scim:schemas:core:2.0:Group`,
+          },
         },
       ],
     };
@@ -659,7 +770,9 @@ export class SCIMService {
 
   private toScimUser(user: any, baseUrl: string): SCIMUserResource {
     const membership = user.workspaceMembers?.[0];
-    const active = membership ? membership.status === MembershipStatus.ACTIVE : user.presence !== PresenceStatus.OFFLINE;
+    const active = membership
+      ? membership.status === MembershipStatus.ACTIVE
+      : user.presence !== PresenceStatus.OFFLINE;
 
     const names = (user.name || '').trim().split(' ');
     const givenName = names[0] || '';
@@ -694,11 +807,13 @@ export class SCIMService {
   }
 
   private toScimGroup(group: any, baseUrl: string): SCIMGroupResource {
-    const members: SCIMGroupMemberRef[] = (group.members || []).map((m: any) => ({
-      value: m.user.id,
-      display: m.user.name || m.user.email,
-      $ref: `${baseUrl}/Users/${m.user.id}`,
-    }));
+    const members: SCIMGroupMemberRef[] = (group.members || []).map(
+      (m: any) => ({
+        value: m.user.id,
+        display: m.user.name || m.user.email,
+        $ref: `${baseUrl}/Users/${m.user.id}`,
+      }),
+    );
 
     return {
       schemas: ['urn:ietf:params:scim:schemas:core:2.0:Group'],
@@ -715,7 +830,11 @@ export class SCIMService {
     };
   }
 
-  private async applyUserActiveStatus(orgId: string, userId: string, active: boolean): Promise<void> {
+  private async applyUserActiveStatus(
+    orgId: string,
+    userId: string,
+    active: boolean,
+  ): Promise<void> {
     const org = await this.prisma.organization.findUnique({
       where: { id: orgId },
       include: { workspaces: { select: { id: true } } },
@@ -723,7 +842,9 @@ export class SCIMService {
     if (!org) return;
 
     const workspaceIds = org.workspaces.map((w) => w.id);
-    const newStatus = active ? MembershipStatus.ACTIVE : MembershipStatus.SUSPENDED;
+    const newStatus = active
+      ? MembershipStatus.ACTIVE
+      : MembershipStatus.SUSPENDED;
 
     await this.prisma.workspaceMember.updateMany({
       where: {
@@ -741,7 +862,11 @@ export class SCIMService {
     }
   }
 
-  private async syncGroupMembers(orgId: string, groupId: string, userIds: string[]): Promise<void> {
+  private async syncGroupMembers(
+    orgId: string,
+    groupId: string,
+    userIds: string[],
+  ): Promise<void> {
     // Delete existing members not in list
     await this.prisma.sCIMGroupMember.deleteMany({
       where: {
@@ -762,7 +887,10 @@ export class SCIMService {
     }
   }
 
-  private async applyGroupRoleMappings(orgId: string, groupName: string): Promise<void> {
+  private async applyGroupRoleMappings(
+    orgId: string,
+    groupName: string,
+  ): Promise<void> {
     const mapping = await this.prisma.sSOGroupRoleMapping.findUnique({
       where: {
         organizationId_groupName: { organizationId: orgId, groupName },
@@ -773,7 +901,10 @@ export class SCIMService {
 
     const group = await this.prisma.sCIMGroup.findUnique({
       where: {
-        organizationId_displayName: { organizationId: orgId, displayName: groupName },
+        organizationId_displayName: {
+          organizationId: orgId,
+          displayName: groupName,
+        },
       },
       include: { members: true },
     });
@@ -803,7 +934,9 @@ export class SCIMService {
       });
     }
 
-    this.logger.log(`Synced role "${mapping.targetRole}" for ${userIds.length} members in group "${groupName}"`);
+    this.logger.log(
+      `Synced role "${mapping.targetRole}" for ${userIds.length} members in group "${groupName}"`,
+    );
   }
 
   private parseFilter(filter: string): any | null {

@@ -10,6 +10,8 @@ export type MemberWorkspaceRole = 'OWNER' | 'ADMIN' | 'MEMBER' | 'GUEST';
  */
 export interface MemberProfile {
   role: MemberWorkspaceRole;
+  /** Public `@handle` without the `@`. */
+  username?: string | null;
   title?: string | null;
   bio?: string | null;
   timezone?: string | null;
@@ -20,7 +22,9 @@ export interface MemberProfile {
 }
 
 /** Resolves a user id — platform cuid or `@onetab_<cuid>:server` — to a member. */
-export type MemberProfileResolver = (userId: string) => MemberProfile | undefined;
+export type MemberProfileResolver = (
+  userId: string,
+) => MemberProfile | undefined;
 
 const MemberProfileContext = createContext<MemberProfileResolver | null>(null);
 

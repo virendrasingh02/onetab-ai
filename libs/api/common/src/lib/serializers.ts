@@ -25,6 +25,7 @@ interface UserRow {
   id: string;
   name: string;
   displayName: string | null;
+  username?: string | null;
   avatarUrl: string | null;
   presence: string;
   statusText?: string | null;
@@ -53,10 +54,11 @@ export function toPublicUser(user: UserRow): PublicUser {
     id: user.id,
     name: user.name,
     displayName: user.displayName,
+    username: user.username ?? null,
     avatarUrl: user.avatarUrl,
     presence: user.presence as PublicUser['presence'],
-    statusText: isExpired ? null : user.statusText ?? null,
-    statusEmoji: isExpired ? null : user.statusEmoji ?? null,
+    statusText: isExpired ? null : (user.statusText ?? null),
+    statusEmoji: isExpired ? null : (user.statusEmoji ?? null),
     statusExpiresAt: isExpired
       ? null
       : (user.statusExpiresAt?.toISOString() ?? null),
@@ -379,7 +381,8 @@ export function toUpload(
   urls?: UploadUrls,
 ): Upload {
   const type: UploadContextType = row.contextType ?? 'WORKSPACE';
-  const contextId = row.contextId ?? (type === 'CHANNEL' ? row.channelId : null);
+  const contextId =
+    row.contextId ?? (type === 'CHANNEL' ? row.channelId : null);
   const version = row.version ?? 1;
 
   return {
@@ -415,6 +418,7 @@ export const PUBLIC_USER_SELECT = {
   id: true,
   name: true,
   displayName: true,
+  username: true,
   avatarUrl: true,
   presence: true,
   statusText: true,

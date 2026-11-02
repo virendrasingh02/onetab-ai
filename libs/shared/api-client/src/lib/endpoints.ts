@@ -1458,6 +1458,15 @@ export const userApi = {
   updateProfile: (input: UpdateProfileInput) =>
     request<CurrentUser>(http.patch('/users/me', input)),
 
+  /** Whether a handle is free for the signed-in user (their own counts). */
+  checkUsername: (username: string, signal?: AbortSignal) =>
+    request<{ username: string; available: boolean; reason?: string }>(
+      http.get('/users/me/username-availability', {
+        params: { username },
+        signal,
+      }),
+    ),
+
   /**
    * Multipart profile cover upload. Returns the stored, API-relative
    * `coverUrl` — render it through `resolveMediaUrl`.

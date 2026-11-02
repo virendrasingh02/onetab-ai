@@ -9,7 +9,13 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { expiresAt, generateToken, hashToken, parseDuration } from '@org/api-common';
+import {
+  allocateUsername,
+  expiresAt,
+  generateToken,
+  hashToken,
+  parseDuration,
+} from '@org/api-common';
 import {
   MailService,
   magicLinkEmail,
@@ -165,6 +171,7 @@ export class AuthService {
       data: {
         email: input.email,
         name: input.name,
+        username: await allocateUsername(this.prisma, input.email),
         passwordHash: await bcrypt.hash(input.password, BCRYPT_ROUNDS),
       },
     });
@@ -217,7 +224,10 @@ export class AuthService {
     return { user: toCurrentUser(signedIn), session };
   }
 
-  async logout(refreshToken: string | undefined, userId?: string): Promise<void> {
+  async logout(
+    refreshToken: string | undefined,
+    userId?: string,
+  ): Promise<void> {
     if (refreshToken) {
       try {
         await this.tokens.revoke(refreshToken);
@@ -272,7 +282,18 @@ export class AuthService {
   }
 
   async me(userId: string): Promise<CurrentUser> {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    let user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+    // Accounts made outside sign-up (seed scripts, older imports) get their
+    // handle on first read; a lost race to the same handle just retries later.
+    if (user && !user.username) {
+      user = await this.prisma.user
+        .update({
+          where: { id: userId },
+          data: { username: await allocateUsername(this.prisma, user.email) },
+        })
+        .catch(() => user);
+    }
 
     // The token verified, but the account behind it is gone — a deleted user
     // holding a still-valid access token. Treat it as no session at all.
@@ -421,7 +442,8 @@ export class AuthService {
     input: MagicLinkRequestInput,
     context: SessionContext = {},
   ): Promise<MagicLinkRequestResult> {
-    const ttl = this.config.get<string>('MAGIC_LINK_TTL') || MAGIC_LINK_DEFAULT_TTL;
+    const ttl =
+      this.config.get<string>('MAGIC_LINK_TTL') || MAGIC_LINK_DEFAULT_TTL;
     const answer: MagicLinkRequestResult = {
       message: MAGIC_LINK_SENT_MESSAGE,
       expiresInMinutes: Math.max(1, Math.round(parseDuration(ttl) / 60_000)),
@@ -461,7 +483,11 @@ export class AuthService {
       // Only the newest link works. Earlier ones are expired rather than marked
       // used, so clicking an old email reads "expired", which is what happened.
       this.prisma.magicLinkToken.updateMany({
-        where: { userId: user.id, usedAt: null, expiresAt: { gt: new Date(now) } },
+        where: {
+          userId: user.id,
+          usedAt: null,
+          expiresAt: { gt: new Date(now) },
+        },
         data: { expiresAt: new Date(now) },
       }),
       this.prisma.magicLinkToken.create({
@@ -572,7 +598,10 @@ export class AuthService {
           data: { emailVerifiedAt: now },
         });
       }
-      this.logger.log({ event: 'magic_link_2fa_required', userId: record.userId });
+      this.logger.log({
+        event: 'magic_link_2fa_required',
+        userId: record.userId,
+      });
       return { twoFactor: challenge };
     }
 
@@ -656,7 +685,15 @@ export class AuthService {
    */
   private async startTwoFactorChallenge(
     userId: string,
-    method: 'password' | 'magic_link' | 'google' | 'apple' | 'passkey' | 'saml' | 'oidc' | string,
+    method:
+      | 'password'
+      | 'magic_link'
+      | 'google'
+      | 'apple'
+      | 'passkey'
+      | 'saml'
+      | 'oidc'
+      | string,
   ): Promise<TwoFactorChallengeResponse | null> {
     const twoFactor = await this.prisma.twoFactorAuth.findUnique({
       where: { userId },
@@ -685,14 +722,24 @@ export class AuthService {
   async completeTwoFactorLogin(
     input: TwoFactorLoginInput,
     context: SessionContext = {},
-  ): Promise<{ user: CurrentUser; session: IssuedSession; usedRecoveryCode: boolean }> {
+  ): Promise<{
+    user: CurrentUser;
+    session: IssuedSession;
+    usedRecoveryCode: boolean;
+  }> {
     const now = new Date();
     const restart = (message: string) =>
       new UnauthorizedException({ code: ApiErrorCode.TOKEN_EXPIRED, message });
 
     const challenge = await this.prisma.twoFactorChallenge.findUnique({
       where: { tokenHash: hashToken(input.challengeToken) },
-      select: { id: true, userId: true, method: true, expiresAt: true, usedAt: true },
+      select: {
+        id: true,
+        userId: true,
+        method: true,
+        expiresAt: true,
+        usedAt: true,
+      },
     });
     if (!challenge || challenge.usedAt) {
       throw restart('This sign-in is no longer valid. Sign in again.');
@@ -733,7 +780,8 @@ export class AuthService {
       });
       throw new UnauthorizedException({
         code: ApiErrorCode.INVALID_CREDENTIALS,
-        message: 'That code is not right. Check your authenticator app and try again.',
+        message:
+          'That code is not right. Check your authenticator app and try again.',
       });
     }
 
@@ -771,7 +819,12 @@ export class AuthService {
    * from two tabs is accepted once. `null` when the code is wrong.
    */
   private async redeemSecondFactor(
-    twoFactor: { userId: string; secret: string; backupCodes: string; lastTotpStep: number | null },
+    twoFactor: {
+      userId: string;
+      secret: string;
+      backupCodes: string;
+      lastTotpStep: number | null;
+    },
     code: string,
   ): Promise<'totp' | 'recovery' | null> {
     const step = matchTotpStep(twoFactor.secret, code);
@@ -819,7 +872,10 @@ export class AuthService {
       select: { id: true, email: true, passwordHash: true },
     });
 
-    if (!user.passwordHash || !(await bcrypt.compare(input.currentPassword, user.passwordHash))) {
+    if (
+      !user.passwordHash ||
+      !(await bcrypt.compare(input.currentPassword, user.passwordHash))
+    ) {
       this.recordSecurityEvent('PASSWORD_CHANGE_FAILED', user);
       throw new UnauthorizedException({
         code: ApiErrorCode.INVALID_CREDENTIALS,
@@ -841,7 +897,11 @@ export class AuthService {
     currentRefreshToken?: string,
     currentSessionId?: string,
   ): Promise<UserSessionDto[]> {
-    return this.tokens.listSessionsForUser(userId, currentRefreshToken, currentSessionId);
+    return this.tokens.listSessionsForUser(
+      userId,
+      currentRefreshToken,
+      currentSessionId,
+    );
   }
 
   async revokeSession(userId: string, sessionId: string): Promise<void> {
@@ -904,8 +964,8 @@ export class AuthService {
 
     const hasBackupCodes = Boolean(
       twoFactor?.backupCodes &&
-        twoFactor.backupCodes !== '[]' &&
-        JSON.parse(twoFactor.backupCodes).length > 0,
+      twoFactor.backupCodes !== '[]' &&
+      JSON.parse(twoFactor.backupCodes).length > 0,
     );
 
     const googleIdentity = identities.find((i) => i.provider === 'google');
@@ -988,7 +1048,9 @@ export class AuthService {
 
     const isValid = verifyTotpToken(twoFactor.secret, code);
     if (!isValid) {
-      throw new BadRequestException('Invalid verification code. Please try again.');
+      throw new BadRequestException(
+        'Invalid verification code. Please try again.',
+      );
     }
 
     const backupCodes = generateRecoveryCodes(8);
@@ -1064,7 +1126,9 @@ export class AuthService {
     });
 
     if (!twoFactor || !twoFactor.isEnabled) {
-      throw new BadRequestException('Two-factor authentication is not enabled.');
+      throw new BadRequestException(
+        'Two-factor authentication is not enabled.',
+      );
     }
 
     const plainCodes = generateRecoveryCodes(8);
@@ -1195,6 +1259,7 @@ export function toCurrentUser(user: {
   email: string;
   name: string;
   displayName: string | null;
+  username?: string | null;
   avatarUrl: string | null;
   bio: string | null;
   jobTitle?: string | null;
@@ -1226,6 +1291,7 @@ export function toCurrentUser(user: {
     email: user.email,
     name: user.name,
     displayName: user.displayName,
+    username: user.username ?? null,
     avatarUrl: user.avatarUrl,
     bio: user.bio,
     jobTitle: user.jobTitle ?? null,
@@ -1243,8 +1309,8 @@ export function toCurrentUser(user: {
     dateFormat: (user.dateFormat ?? null) as CurrentUser['dateFormat'],
     systemRole: user.systemRole as CurrentUser['systemRole'],
     presence: user.presence as CurrentUser['presence'],
-    statusText: isExpired ? null : user.statusText ?? null,
-    statusEmoji: isExpired ? null : user.statusEmoji ?? null,
+    statusText: isExpired ? null : (user.statusText ?? null),
+    statusEmoji: isExpired ? null : (user.statusEmoji ?? null),
     statusExpiresAt: isExpired
       ? null
       : (user.statusExpiresAt?.toISOString() ?? null),

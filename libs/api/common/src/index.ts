@@ -72,10 +72,7 @@ export {
   type CallUpdatedEvent,
 } from './lib/events.js';
 
-export {
-  resolveTextMentions,
-  type MentionCandidate,
-} from './lib/mentions.js';
+export { resolveTextMentions, type MentionCandidate } from './lib/mentions.js';
 
 export {
   ALLOW_ARCHIVED_KEY,
@@ -100,7 +97,6 @@ export {
   WorkspaceRoles,
   type AuthenticatedUser,
 } from './lib/decorators.js';
-
 
 export { isCronDue, isValidCronExpression } from './lib/cron.js';
 
@@ -156,3 +152,5 @@ export {
   toWorkspace,
   type UploadUrls,
 } from './lib/serializers.js';
+
+export { allocateUsername } from './lib/username.js';

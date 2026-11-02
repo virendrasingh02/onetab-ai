@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   AppEvent,
@@ -16,7 +21,11 @@ import {
   type PublicUser,
   type UserPreferences,
 } from '@org/types';
-import { normalizeProfileWebsite } from '@org/validation';
+import {
+  normalizeProfileWebsite,
+  normalizeUsername,
+  usernameProblem,
+} from '@org/validation';
 import type {
   NavigationPreferenceInput,
   SidebarPreferencesInput,
@@ -64,7 +73,10 @@ export class UserService {
     }
 
     // Process avatar into square webp variants (256x256 main, plus 32, 48, 64, 96, 128, 512)
-    const { main, variants } = await this.imageProcessing.processAvatar(file.buffer, 256);
+    const { main, variants } = await this.imageProcessing.processAvatar(
+      file.buffer,
+      256,
+    );
 
     // Save main avatar
     const mainKey = `avatars/${userId}/avatar.webp`;
@@ -73,7 +85,10 @@ export class UserService {
     // Save all size variants
     await Promise.all(
       Object.entries(variants).map(([size, variant]: [string, any]) =>
-        this.storage.put(`avatars/${userId}/avatar_${size}.webp`, variant.buffer),
+        this.storage.put(
+          `avatars/${userId}/avatar_${size}.webp`,
+          variant.buffer,
+        ),
       ),
     );
 
@@ -85,10 +100,14 @@ export class UserService {
     return { avatarUrl };
   }
 
-  async readAvatar(userId: string, size?: number): Promise<{ content: Buffer; mimeType: string }> {
-    const key = size && size !== 256
-      ? `avatars/${userId}/avatar_${size}.webp`
-      : `avatars/${userId}/avatar.webp`;
+  async readAvatar(
+    userId: string,
+    size?: number,
+  ): Promise<{ content: Buffer; mimeType: string }> {
+    const key =
+      size && size !== 256
+        ? `avatars/${userId}/avatar_${size}.webp`
+        : `avatars/${userId}/avatar.webp`;
 
     if (await this.storage.exists(key)) {
       return {
@@ -126,17 +145,24 @@ export class UserService {
       .generateVariants(file.buffer, ['coverImage'])
       .catch(() => ({}) as Record<string, undefined>);
     if (!coverImage) {
-      throw new BadRequestException('Cover must be a PNG, JPEG, WebP or GIF image.');
+      throw new BadRequestException(
+        'Cover must be a PNG, JPEG, WebP or GIF image.',
+      );
     }
 
     await this.storage.put(coverStorageKey(userId), coverImage.buffer);
 
     const coverUrl = `/users/${userId}/cover?v=${Date.now()}`;
-    await this.prisma.user.update({ where: { id: userId }, data: { coverUrl } });
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { coverUrl },
+    });
     return { coverUrl };
   }
 
-  async readCover(userId: string): Promise<{ content: Buffer; mimeType: string }> {
+  async readCover(
+    userId: string,
+  ): Promise<{ content: Buffer; mimeType: string }> {
     const key = coverStorageKey(userId);
     if (!(await this.storage.exists(key))) {
       throw new NotFoundException('Cover not found.');
@@ -204,7 +230,9 @@ export class UserService {
   ): Promise<void> {
     const keyOf = (n: string) => n.trim().toLowerCase();
     const current = new Set(
-      [after.name, after.displayName].filter(Boolean).map((n) => keyOf(n as string)),
+      [after.name, after.displayName]
+        .filter(Boolean)
+        .map((n) => keyOf(n as string)),
     );
     const old = [before.displayName, before.name]
       .filter((n): n is string => !!n?.trim())
@@ -259,6 +287,27 @@ export class UserService {
       }));
   }
 
+  /**
+   * Whether `raw` can become `userId`'s handle: valid, not reserved, and not
+   * held by anyone else. Your own current handle counts as available.
+   */
+  async checkUsername(
+    raw: string,
+    userId: string,
+  ): Promise<{ username: string; available: boolean; reason?: string }> {
+    const username = normalizeUsername(raw);
+    const problem = usernameProblem(username);
+    if (problem) return { username, available: false, reason: problem };
+    const holder = await this.prisma.user.findUnique({
+      where: { username },
+      select: { id: true },
+    });
+    if (holder && holder.id !== userId) {
+      return { username, available: false, reason: 'That username is taken' };
+    }
+    return { username, available: true };
+  }
+
   async updateProfile(
     userId: string,
     input: UpdateProfileInput,
@@ -273,63 +322,90 @@ export class UserService {
       },
     });
 
-    const user = await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        name: input.name,
-        ...(input.displayName !== undefined
-          ? { displayName: input.displayName }
-          : {}),
-        ...(input.bio !== undefined ? { bio: input.bio } : {}),
-        // `title` is the older spelling of the same field; `jobTitle` wins.
-        ...(input.jobTitle !== undefined
-          ? { jobTitle: input.jobTitle || null }
-          : input.title !== undefined
-            ? { jobTitle: input.title || null }
+    if (input.username !== undefined) {
+      const { available, reason } = await this.checkUsername(
+        input.username,
+        userId,
+      );
+      if (!available) throw new ConflictException(reason);
+    }
+
+    const user = await this.prisma.user
+      .update({
+        where: { id: userId },
+        data: {
+          name: input.name,
+          ...(input.displayName !== undefined
+            ? { displayName: input.displayName }
             : {}),
-        ...(input.location !== undefined
-          ? { location: input.location || null }
-          : {}),
-        ...(input.website !== undefined
-          ? {
-              website: input.website
-                ? normalizeProfileWebsite(input.website)
-                : null,
-            }
-          : {}),
-        ...(input.github !== undefined
-          ? { github: input.github ? input.github.replace(/^@/, '') : null }
-          : {}),
-        ...(input.coverUrl !== undefined
-          ? { coverUrl: input.coverUrl || null }
-          : {}),
-        ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
-        ...(input.preferredLanguage !== undefined
-          ? { preferredLanguage: input.preferredLanguage }
-          : {}),
-        ...(input.avatarUrl !== undefined ? { avatarUrl: input.avatarUrl } : {}),
-        ...(input.workingHoursStart !== undefined
-          ? { workingHoursStart: input.workingHoursStart }
-          : {}),
-        ...(input.workingHoursEnd !== undefined
-          ? { workingHoursEnd: input.workingHoursEnd }
-          : {}),
-        ...(input.workingDays !== undefined
-          ? { workingDays: input.workingDays }
-          : {}),
-        ...(input.timeFormat !== undefined ? { timeFormat: input.timeFormat } : {}),
-        ...(input.dateFormat !== undefined ? { dateFormat: input.dateFormat } : {}),
-        ...(input.statusText !== undefined ? { statusText: input.statusText } : {}),
-        ...(input.statusEmoji !== undefined ? { statusEmoji: input.statusEmoji } : {}),
-        ...(input.statusExpiresAt !== undefined
-          ? {
-              statusExpiresAt: input.statusExpiresAt
-                ? new Date(input.statusExpiresAt)
-                : null,
-            }
-          : {}),
-      },
-    });
+          ...(input.username !== undefined ? { username: input.username } : {}),
+          ...(input.bio !== undefined ? { bio: input.bio } : {}),
+          // `title` is the older spelling of the same field; `jobTitle` wins.
+          ...(input.jobTitle !== undefined
+            ? { jobTitle: input.jobTitle || null }
+            : input.title !== undefined
+              ? { jobTitle: input.title || null }
+              : {}),
+          ...(input.location !== undefined
+            ? { location: input.location || null }
+            : {}),
+          ...(input.website !== undefined
+            ? {
+                website: input.website
+                  ? normalizeProfileWebsite(input.website)
+                  : null,
+              }
+            : {}),
+          ...(input.github !== undefined
+            ? { github: input.github ? input.github.replace(/^@/, '') : null }
+            : {}),
+          ...(input.coverUrl !== undefined
+            ? { coverUrl: input.coverUrl || null }
+            : {}),
+          ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+          ...(input.preferredLanguage !== undefined
+            ? { preferredLanguage: input.preferredLanguage }
+            : {}),
+          ...(input.avatarUrl !== undefined
+            ? { avatarUrl: input.avatarUrl }
+            : {}),
+          ...(input.workingHoursStart !== undefined
+            ? { workingHoursStart: input.workingHoursStart }
+            : {}),
+          ...(input.workingHoursEnd !== undefined
+            ? { workingHoursEnd: input.workingHoursEnd }
+            : {}),
+          ...(input.workingDays !== undefined
+            ? { workingDays: input.workingDays }
+            : {}),
+          ...(input.timeFormat !== undefined
+            ? { timeFormat: input.timeFormat }
+            : {}),
+          ...(input.dateFormat !== undefined
+            ? { dateFormat: input.dateFormat }
+            : {}),
+          ...(input.statusText !== undefined
+            ? { statusText: input.statusText }
+            : {}),
+          ...(input.statusEmoji !== undefined
+            ? { statusEmoji: input.statusEmoji }
+            : {}),
+          ...(input.statusExpiresAt !== undefined
+            ? {
+                statusExpiresAt: input.statusExpiresAt
+                  ? new Date(input.statusExpiresAt)
+                  : null,
+              }
+            : {}),
+        },
+      })
+      .catch((err: unknown) => {
+        // Someone took the same handle between the check and the write.
+        if ((err as { code?: string }).code === 'P2002') {
+          throw new ConflictException('That username is taken');
+        }
+        throw err;
+      });
 
     // Remember the names this person stops using, so `@Old Name` in messages
     // written before the rename still resolves to them. Best effort: a profile
@@ -362,14 +438,14 @@ export class UserService {
       }
     }
 
-    const isExpired =
-      user.statusExpiresAt && user.statusExpiresAt < new Date();
+    const isExpired = user.statusExpiresAt && user.statusExpiresAt < new Date();
 
     return {
       id: user.id,
       email: user.email,
       name: user.name,
       displayName: user.displayName,
+      username: user.username ?? null,
       avatarUrl: user.avatarUrl,
       title: user.jobTitle ?? null,
       jobTitle: user.jobTitle ?? null,
@@ -387,8 +463,8 @@ export class UserService {
       dateFormat: (user.dateFormat ?? null) as CurrentUser['dateFormat'],
       systemRole: user.systemRole as CurrentUser['systemRole'],
       presence: user.presence as CurrentUser['presence'],
-      statusText: isExpired ? null : user.statusText ?? null,
-      statusEmoji: isExpired ? null : user.statusEmoji ?? null,
+      statusText: isExpired ? null : (user.statusText ?? null),
+      statusEmoji: isExpired ? null : (user.statusEmoji ?? null),
       statusExpiresAt: isExpired
         ? null
         : (user.statusExpiresAt?.toISOString() ?? null),
@@ -430,14 +506,14 @@ export class UserService {
       data,
     });
 
-    const isExpired =
-      user.statusExpiresAt && user.statusExpiresAt < new Date();
+    const isExpired = user.statusExpiresAt && user.statusExpiresAt < new Date();
 
     return {
       id: user.id,
       email: user.email,
       name: user.name,
       displayName: user.displayName,
+      username: user.username ?? null,
       avatarUrl: user.avatarUrl,
       bio: user.bio,
       jobTitle: user.jobTitle ?? null,
@@ -455,8 +531,8 @@ export class UserService {
       dateFormat: (user.dateFormat ?? null) as CurrentUser['dateFormat'],
       systemRole: user.systemRole as CurrentUser['systemRole'],
       presence: user.presence as CurrentUser['presence'],
-      statusText: isExpired ? null : user.statusText ?? null,
-      statusEmoji: isExpired ? null : user.statusEmoji ?? null,
+      statusText: isExpired ? null : (user.statusText ?? null),
+      statusEmoji: isExpired ? null : (user.statusEmoji ?? null),
       statusExpiresAt: isExpired
         ? null
         : (user.statusExpiresAt?.toISOString() ?? null),
@@ -636,27 +712,26 @@ export class UserService {
       }),
     ]);
 
-    const density =
-      settings?.density === 'compact' ? 'compact' : 'comfy';
+    const density = settings?.density === 'compact' ? 'compact' : 'comfy';
     const readReceipts = settings?.showReadReceipts ?? true;
     const enterToSend = settings?.enterToSend ?? true;
     const sendTypingNotice = settings?.sendTypingNotice ?? true;
     const showTypingIndicators = settings?.showTypingIndicators ?? true;
     const mentionWarningsEnabled = settings?.mentionWarningsEnabled ?? true;
     const allowDirectMessagesFrom =
-      (settings?.allowDirectMessagesFrom as 'everyone' | 'members' | 'admins') ?? 'everyone';
+      (settings?.allowDirectMessagesFrom as
+        'everyone' | 'members' | 'admins') ?? 'everyone';
     const linkPreviewsEnabled = settings?.autoloadMedia ?? true;
 
     const storedNotifications =
       (settings?.notificationDisplayPrefs as
-        | UserPreferences['notifications']
-        | null
-        | undefined) ?? undefined;
+        UserPreferences['notifications'] | null | undefined) ?? undefined;
 
     return {
       chat: {
         messageDensity: density,
-        openPosition: settings?.openPosition === 'newest' ? 'newest' : 'last-read',
+        openPosition:
+          settings?.openPosition === 'newest' ? 'newest' : 'last-read',
         readReceipts,
         enterToSend,
         sendTypingNotice,
@@ -715,7 +790,8 @@ export class UserService {
           sendTypingNotice: updated.chat.sendTypingNotice ?? true,
           showTypingIndicators: updated.chat.showTypingIndicators ?? true,
           mentionWarningsEnabled: updated.chat.mentionWarningsEnabled ?? true,
-          allowDirectMessagesFrom: updated.chat.allowDirectMessagesFrom ?? 'everyone',
+          allowDirectMessagesFrom:
+            updated.chat.allowDirectMessagesFrom ?? 'everyone',
           autoloadMedia: updated.chat.linkPreviewsEnabled ?? true,
           notificationDisplayPrefs: updated.notifications as object,
         },
@@ -727,7 +803,8 @@ export class UserService {
           sendTypingNotice: updated.chat.sendTypingNotice ?? true,
           showTypingIndicators: updated.chat.showTypingIndicators ?? true,
           mentionWarningsEnabled: updated.chat.mentionWarningsEnabled ?? true,
-          allowDirectMessagesFrom: updated.chat.allowDirectMessagesFrom ?? 'everyone',
+          allowDirectMessagesFrom:
+            updated.chat.allowDirectMessagesFrom ?? 'everyone',
           autoloadMedia: updated.chat.linkPreviewsEnabled ?? true,
           notificationDisplayPrefs: updated.notifications as object,
         },
@@ -769,14 +846,14 @@ export class UserService {
       data: { preferredLanguage: language },
     });
 
-    const isExpired =
-      user.statusExpiresAt && user.statusExpiresAt < new Date();
+    const isExpired = user.statusExpiresAt && user.statusExpiresAt < new Date();
 
     const currentUser: CurrentUser = {
       id: user.id,
       email: user.email,
       name: user.name,
       displayName: user.displayName,
+      username: user.username ?? null,
       avatarUrl: user.avatarUrl,
       bio: user.bio,
       jobTitle: user.jobTitle ?? null,
@@ -794,8 +871,8 @@ export class UserService {
       dateFormat: (user.dateFormat ?? null) as CurrentUser['dateFormat'],
       systemRole: user.systemRole as CurrentUser['systemRole'],
       presence: user.presence as CurrentUser['presence'],
-      statusText: isExpired ? null : user.statusText ?? null,
-      statusEmoji: isExpired ? null : user.statusEmoji ?? null,
+      statusText: isExpired ? null : (user.statusText ?? null),
+      statusEmoji: isExpired ? null : (user.statusEmoji ?? null),
       statusExpiresAt: isExpired
         ? null
         : (user.statusExpiresAt?.toISOString() ?? null),

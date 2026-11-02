@@ -16,6 +16,9 @@ model User {
   passwordHash              String?
   name                      String
   displayName               String?
+  /// Public `@handle`, stored lowercase without the `@`. Unique across the
+  /// platform; assigned from the email on sign-up and editable in Profile.
+  username                  String?                     @unique
   avatarUrl                 String?
   bio                       String?
   /// Public role line shown on profile cards ("Product Designer").
@@ -1318,7 +1321,7 @@ model ChatSettings {
   density                  String   @default("comfortable")
   /// Where the timeline lands when a conversation opens: `last-read` | `newest`.
   openPosition             String   @default("last-read")
-  showReadReceipts        Boolean  @default(true)
+  showReadReceipts         Boolean  @default(true)
   sendTypingNotice         Boolean  @default(true)
   /// Show other people's typing indicators. Independent of `sendTypingNotice`,
   /// which controls whether *this* user's own typing is broadcast.

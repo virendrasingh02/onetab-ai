@@ -49,6 +49,15 @@ export class UserController {
     private readonly scheduledStatuses: ScheduledStatusService,
   ) {}
 
+  /** Live check behind the Profile handle field; never reveals who holds it. */
+  @Get('me/username-availability')
+  checkUsername(
+    @CurrentUser('id') userId: string,
+    @Query('username') username = '',
+  ) {
+    return this.users.checkUsername(username.slice(0, 64), userId);
+  }
+
   @Get('me/language')
   getLanguage(@CurrentUser('id') userId: string) {
     return this.users.getLanguage(userId);
@@ -124,20 +133,18 @@ export class UserController {
   }
 
   @Post('me/avatar')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 15 * 1024 * 1024 } }))
-  uploadAvatar(
-    @CurrentUser('id') userId: string,
-    @UploadedFile() file: any,
-  ) {
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: 15 * 1024 * 1024 } }),
+  )
+  uploadAvatar(@CurrentUser('id') userId: string, @UploadedFile() file: any) {
     return this.users.uploadAvatar(userId, file);
   }
 
   @Post('me/cover')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 15 * 1024 * 1024 } }))
-  uploadCover(
-    @CurrentUser('id') userId: string,
-    @UploadedFile() file: any,
-  ) {
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: 15 * 1024 * 1024 } }),
+  )
+  uploadCover(@CurrentUser('id') userId: string, @UploadedFile() file: any) {
     return this.users.uploadCover(userId, file);
   }
 

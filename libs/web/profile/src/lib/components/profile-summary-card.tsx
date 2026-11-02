@@ -24,7 +24,7 @@ export function ProfileSummaryCard({
   className = '',
 }: ProfileSummaryCardProps) {
   const displayName = user.displayName || user.name;
-  const handle = `@${user.email.split('@')[0]}`;
+  const handle = `@${user.username || user.email.split('@')[0]}`;
   const userTimezone = user.timezone || 'UTC';
   const region = getRegionForTimezone(userTimezone);
   const viewerZone = getSystemTimezone();
@@ -42,7 +42,7 @@ export function ProfileSummaryCard({
 
   return (
     <div
-      className={`rounded-2xl border border-border bg-surface text-foreground shadow-xs overflow-hidden ${className}`}
+      className={`overflow-hidden rounded-2xl border border-border bg-surface text-foreground shadow-xs ${className}`}
     >
       {/* Mini Cover Header */}
       <UserCover
@@ -70,31 +70,35 @@ export function ProfileSummaryCard({
 
         {/* Identity */}
         <div className="space-y-0.5 mb-4">
-          <h3 className="text-base font-bold tracking-tight text-foreground">{displayName}</h3>
+          <h3 className="text-base font-bold tracking-tight text-foreground">
+            {displayName}
+          </h3>
           <p className="text-xs font-mono text-muted-foreground">{handle}</p>
         </div>
 
         {/* Metadata Table */}
-        <div className="space-y-2.5 pt-3 border-t border-border/60 text-xs">
-          <div className="flex items-center justify-between py-1">
-            <div className="flex items-center gap-2 text-muted-foreground">
+        <div className="space-y-2.5 pt-3 text-xs border-t border-border/60">
+          <div className="py-1 flex items-center justify-between">
+            <div className="gap-2 flex items-center text-muted-foreground">
               <Calendar className="size-3.5 text-muted-foreground" />
               <span>Joined on</span>
             </div>
-            <span className="font-semibold text-foreground">{formattedJoinedDate}</span>
+            <span className="font-semibold text-foreground">
+              {formattedJoinedDate}
+            </span>
           </div>
 
-          <div className="flex items-center justify-between py-1">
-            <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="py-1 flex items-center justify-between">
+            <div className="gap-2 flex items-center text-muted-foreground">
               <Globe className="size-3.5 text-muted-foreground" />
               <span>Timezone</span>
             </div>
             <div className="text-right">
-              <div className="font-semibold text-foreground flex items-center justify-end gap-1.5">
+              <div className="font-semibold gap-1.5 flex items-center justify-end text-foreground">
                 <span>{region.flag}</span>
                 <span>{describeTimezone(userTimezone)}</span>
               </div>
-              <div className="text-[11px] text-muted-foreground flex items-center justify-end gap-1 mt-0.5">
+              <div className="gap-1 mt-0.5 flex items-center justify-end text-[11px] text-muted-foreground">
                 <LocalTime timezone={userTimezone} className="font-mono" />
                 <span>•</span>
                 <span>{diff}</span>
@@ -102,15 +106,21 @@ export function ProfileSummaryCard({
             </div>
           </div>
 
-          <div className="flex items-center justify-between py-1">
-            <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="py-1 flex items-center justify-between">
+            <div className="gap-2 flex items-center text-muted-foreground">
               <Clock className="size-3.5 text-muted-foreground" />
               <span>Working Hours</span>
             </div>
             <div className="text-right">
-              <div className="flex items-center justify-end gap-1 font-medium text-foreground">
+              <div className="gap-1 font-medium flex items-center justify-end text-foreground">
                 <span>{workStatus.icon}</span>
-                <span>{workStatus.status === 'working' ? 'Working now' : workStatus.label === 'Day off' ? 'Day off' : 'Off-Hours'}</span>
+                <span>
+                  {workStatus.status === 'working'
+                    ? 'Working now'
+                    : workStatus.label === 'Day off'
+                      ? 'Day off'
+                      : 'Off-Hours'}
+                </span>
               </div>
               <div className="text-[11px] text-muted-foreground">
                 {formatWorkingSchedule(schedule)}
@@ -118,12 +128,14 @@ export function ProfileSummaryCard({
             </div>
           </div>
 
-          <div className="flex items-center justify-between py-1">
-            <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="py-1 flex items-center justify-between">
+            <div className="gap-2 flex items-center text-muted-foreground">
               <Shield className="size-3.5 text-muted-foreground" />
               <span>Role</span>
             </div>
-            <span className="font-semibold text-foreground">{workspaceRole}</span>
+            <span className="font-semibold text-foreground">
+              {workspaceRole}
+            </span>
           </div>
         </div>
       </div>

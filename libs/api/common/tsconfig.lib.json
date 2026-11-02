@@ -6,13 +6,9 @@
     "rootDir": "src",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "types": [
-      "node"
-    ]
+    "types": ["node"]
   },
-  "include": [
-    "src/**/*.ts"
-  ],
+  "include": ["src/**/*.ts"],
   "exclude": [
     "out-tsc",
     "dist",
@@ -23,10 +19,13 @@
   ],
   "references": [
     {
-      "path": "../../shared/types/tsconfig.lib.json"
+      "path": "../../shared/validation/tsconfig.lib.json"
     },
     {
       "path": "../../shared/utils/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/types/tsconfig.lib.json"
     }
   ]
 }

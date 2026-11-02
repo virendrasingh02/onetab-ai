@@ -69,7 +69,14 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { useI18nStore } from '@org/i18n';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { Provider } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { useActiveWorkspaceId } from './use-active-workspace-id';
@@ -176,7 +183,9 @@ function RealtimeAppBridge({ children }: { children: ReactNode }) {
         <AvatarPresenceBridge>
           <AgentAvatarBridge workspaceId={activeWorkspaceId ?? undefined}>
             <MemberProfileBridge workspaceId={activeWorkspaceId ?? undefined}>
-              <WorkspaceColorBridge enabled={!!user}>{children}</WorkspaceColorBridge>
+              <WorkspaceColorBridge enabled={!!user}>
+                {children}
+              </WorkspaceColorBridge>
             </MemberProfileBridge>
           </AgentAvatarBridge>
         </AvatarPresenceBridge>
@@ -213,14 +222,29 @@ function AgentAvatarBridge({
   const resolve = useCallback<AiEntityResolver>(
     ({ id, name }) => {
       const lower = name?.trim().toLowerCase();
-      const find = <T extends { id: string; name: string; avatarUrl?: string | null }>(
+      const find = <
+        T extends { id: string; name: string; avatarUrl?: string | null },
+      >(
         list: T[] | undefined,
       ) =>
-        list?.find((e) => (id && e.id === id) || (lower && e.name.toLowerCase() === lower));
+        list?.find(
+          (e) =>
+            (id && e.id === id) || (lower && e.name.toLowerCase() === lower),
+        );
       const cw = find(coworkers);
-      if (cw) return { kind: 'coworker', name: cw.name, avatarUrl: cw.avatarUrl ?? undefined };
+      if (cw)
+        return {
+          kind: 'coworker',
+          name: cw.name,
+          avatarUrl: cw.avatarUrl ?? undefined,
+        };
       const ag = find(agents);
-      if (ag) return { kind: 'agent', name: ag.name, avatarUrl: ag.avatarUrl ?? undefined };
+      if (ag)
+        return {
+          kind: 'agent',
+          name: ag.name,
+          avatarUrl: ag.avatarUrl ?? undefined,
+        };
       return undefined;
     },
     [agents, coworkers],
@@ -232,7 +256,8 @@ function AgentAvatarBridge({
   );
 }
 
-const normalizeKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+const normalizeKey = (value: string) =>
+  value.toLowerCase().replace(/[^a-z0-9]/g, '');
 
 /**
  * Gives every timeline row the *current* name + logo of a connected app, from
@@ -256,7 +281,10 @@ function AppEntityBridge({
   // Same params + key as `useAppLogos`, so the cache is shared.
   const logoParams = { kind: 'INTEGRATION', pageSize: 100 } as const;
   const { data: listings } = useQuery({
-    queryKey: queryKeys.marketplace.browse(workspaceId ?? '', JSON.stringify(logoParams)),
+    queryKey: queryKeys.marketplace.browse(
+      workspaceId ?? '',
+      JSON.stringify(logoParams),
+    ),
     queryFn: () => marketplaceApi.browse(logoParams, workspaceId),
     enabled: !!workspaceId,
     staleTime: 5 * 60_000,
@@ -277,14 +305,17 @@ function AppEntityBridge({
       const appName = getAppDisplayName(row);
       const keys = [row.provider, appName].map(normalizeKey);
       const listingLogo = listings?.items.find((l) =>
-        keys.some((k) => k === normalizeKey(l.slug) || k === normalizeKey(l.name)),
+        keys.some(
+          (k) => k === normalizeKey(l.slug) || k === normalizeKey(l.name),
+        ),
       )?.iconUrl;
       return {
         id: row.id,
         name: appName,
         provider: row.provider,
         logoUrl: listingLogo || getAppLogoUrl(row.provider, appName),
-        accountLabel: splitAppConnectionName(row.displayName ?? '').accountLabel,
+        accountLabel: splitAppConnectionName(row.displayName ?? '')
+          .accountLabel,
       };
     },
     [integrations, listings],
@@ -341,11 +372,19 @@ function AppConnectBridge({
   useEffect(() => {
     if (!workspaceId) return;
     const refresh = () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.integrations.all(workspaceId) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.agents.all(workspaceId) });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.integrations.all(workspaceId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.agents.all(workspaceId),
+      });
     };
     const onMessage = (event: MessageEvent) => {
-      if ((event.data as { type?: unknown } | null)?.type !== 'INTEGRATION_CONNECTED') return;
+      if (
+        (event.data as { type?: unknown } | null)?.type !==
+        'INTEGRATION_CONNECTED'
+      )
+        return;
       connectPending.current = false;
       refresh();
     };
@@ -363,36 +402,56 @@ function AppConnectBridge({
   const value = useMemo<AppConnector>(() => {
     const openHub = (provider: string) => {
       // `/integrations` redirects (dropping the query), so go to the hub's tab directly.
-      if (slug) navigate(`/w/${slug}/marketplace?tab=apps&connect=${encodeURIComponent(provider)}`);
+      if (slug)
+        navigate(
+          `/w/${slug}/marketplace?tab=apps&connect=${encodeURIComponent(provider)}`,
+        );
     };
     return {
       isConnected: (provider) => {
         if (!integrations) return undefined;
         const key = provider.toUpperCase();
         return integrations.some(
-          (i) => i.provider.toUpperCase() === key && i.status?.toUpperCase() === 'CONNECTED',
+          (i) =>
+            i.provider.toUpperCase() === key &&
+            i.status?.toUpperCase() === 'CONNECTED',
         );
       },
       connect: async (provider, label) => {
         if (!workspaceId) return;
         const key = provider.toUpperCase();
-        const capabilities = providers?.find((p) => p.provider.toUpperCase() === key);
-        if (!capabilities || capabilities.credentialFields?.length || capabilities.authType !== 'OAUTH2') {
+        const capabilities = providers?.find(
+          (p) => p.provider.toUpperCase() === key,
+        );
+        if (
+          !capabilities ||
+          capabilities.credentialFields?.length ||
+          capabilities.authType !== 'OAUTH2'
+        ) {
           openHub(key);
           return;
         }
         const popup = window.open('', `connect-${key}`, 'width=600,height=700');
         try {
-          const result = await integrationsApi.connect(workspaceId, key, { scopeType: 'USER' });
+          const result = await integrationsApi.connect(workspaceId, key, {
+            scopeType: 'USER',
+          });
           if (result.authUrl) {
             connectPending.current = true;
             if (popup) popup.location.href = result.authUrl;
-            else window.open(result.authUrl, `connect-${key}`, 'width=600,height=700');
+            else
+              window.open(
+                result.authUrl,
+                `connect-${key}`,
+                'width=600,height=700',
+              );
             return;
           }
           popup?.close();
           toast.success(`${label} connected`);
-          void queryClient.invalidateQueries({ queryKey: queryKeys.integrations.all(workspaceId) });
+          void queryClient.invalidateQueries({
+            queryKey: queryKeys.integrations.all(workspaceId),
+          });
         } catch {
           // Most often: no OAuth app is set up for it yet — the hub walks through that.
           popup?.close();
@@ -435,6 +494,7 @@ function MemberProfileBridge({
       if (!m) return undefined;
       return {
         role: m.role,
+        username: m.user.username,
         title: m.user.jobTitle ?? m.user.title,
         bio: m.user.bio,
         timezone: m.user.timezone,
@@ -453,7 +513,9 @@ function MemberProfileBridge({
   );
   return (
     <MemberProfileProvider value={resolve}>
-      <AvatarColorProvider resolve={resolveColor}>{children}</AvatarColorProvider>
+      <AvatarColorProvider resolve={resolveColor}>
+        {children}
+      </AvatarColorProvider>
     </MemberProfileProvider>
   );
 }
@@ -485,7 +547,9 @@ function WorkspaceColorBridge({
     [byId],
   );
   return (
-    <WorkspaceColorProvider resolve={resolve}>{children}</WorkspaceColorProvider>
+    <WorkspaceColorProvider resolve={resolve}>
+      {children}
+    </WorkspaceColorProvider>
   );
 }
 
@@ -503,12 +567,13 @@ function AvatarPresenceBridge({ children }: { children: ReactNode }) {
   const matrixPresence = useMatrixPresenceResolver();
   useMirrorPresenceToMatrix();
   const resolve = useCallback(
-    (userId: string) =>
-      presenceMap[userId]?.status ?? matrixPresence(userId),
+    (userId: string) => presenceMap[userId]?.status ?? matrixPresence(userId),
     [presenceMap, matrixPresence],
   );
   return (
-    <AvatarPresenceProvider resolve={resolve}>{children}</AvatarPresenceProvider>
+    <AvatarPresenceProvider resolve={resolve}>
+      {children}
+    </AvatarPresenceProvider>
   );
 }
 
@@ -586,20 +651,20 @@ export function Providers({ children }: { children: ReactNode }) {
         mutationCache: new MutationCache({
           onSuccess: (_data, _variables, _context, mutation) => {
             const meta = mutation.options.meta as
-              | { successMessage?: string; disableToast?: boolean }
-              | undefined;
+              { successMessage?: string; disableToast?: boolean } | undefined;
             if (meta?.successMessage && !meta.disableToast) {
               toast.success(meta.successMessage);
             }
           },
           onError: (error, _variables, _context, mutation) => {
             const meta = mutation.options.meta as
-              | { errorMessage?: string; disableToast?: boolean }
-              | undefined;
+              { errorMessage?: string; disableToast?: boolean } | undefined;
             if (meta?.disableToast) return;
             const message =
               meta?.errorMessage ||
-              (error instanceof ApiError ? error.message : (error as Error)?.message) ||
+              (error instanceof ApiError
+                ? error.message
+                : (error as Error)?.message) ||
               'Action failed. Please try again.';
             toast.error('Action failed', { description: message });
           },

@@ -28,10 +28,11 @@ import {
 } from '@org/ui';
 import { getSystemTimezone } from '@org/utils';
 import { updateProfileSchema, type UpdateProfileInput } from '@org/validation';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Camera, Info, Lock, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { UsernameField } from './username-field.js';
 import { ImageCropperDialog } from './image-cropper-dialog.js';
 import { useProfileCover } from '../use-profile-cover.js';
 
@@ -41,11 +42,21 @@ export interface ProfileEditModalProps {
   user: CurrentUser;
 }
 
-export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalProps) {
+export function ProfileEditModal({
+  open,
+  onOpenChange,
+  user,
+}: ProfileEditModalProps) {
   const setUser = useAuthStore((state) => state.setUser);
   const systemTimezone = getSystemTimezone();
-  const { coverUrl, coverSrc, cropSource, uploadCover, removeCover, isSaving: isCoverSaving } =
-    useProfileCover();
+  const {
+    coverUrl,
+    coverSrc,
+    cropSource,
+    uploadCover,
+    removeCover,
+    isSaving: isCoverSaving,
+  } = useProfileCover();
 
   // Cropper states
   const [cropperOpen, setCropperOpen] = useState(false);
@@ -64,6 +75,7 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
     defaultValues: {
       name: user.name || '',
       displayName: user.displayName || '',
+      username: user.username || undefined,
       bio: user.bio || '',
       timezone: user.timezone || systemTimezone,
       avatarUrl: user.avatarUrl || '',
@@ -84,6 +96,7 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
       form.reset({
         name: user.name || '',
         displayName: user.displayName || '',
+        username: user.username || undefined,
         bio: user.bio || '',
         timezone: user.timezone || systemTimezone,
         avatarUrl: user.avatarUrl || '',
@@ -95,26 +108,38 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
     }
   }, [open, user, form, systemTimezone]);
 
+  const queryClient = useQueryClient();
   const updateMutation = useMutation({
     mutationFn: (input: UpdateProfileInput) => userApi.updateProfile(input),
     onSuccess: (updated) => {
       setUser(updated);
+      // Rosters feed every profile card; refresh them so the new name/handle
+      // shows on your own card straight away, in every workspace.
+      void queryClient.invalidateQueries({ queryKey: ['members'] });
       toast.success('Profile updated successfully');
       onOpenChange(false);
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.message || 'Failed to update profile');
+      const message =
+        err?.response?.data?.message || 'Failed to update profile';
+      if (err?.response?.status === 409) form.setError('username', { message });
+      toast.error(message);
     },
   });
 
   const onSubmit = form.handleSubmit(async (values) => {
     // Reconstruct full name from first and last if edited
-    const combinedName = `${firstName.trim()} ${lastName.trim()}`.trim() || values.name;
+    const combinedName =
+      `${firstName.trim()} ${lastName.trim()}`.trim() || values.name;
 
     await updateMutation.mutateAsync({
       ...values,
       name: combinedName,
       displayName: values.displayName?.trim() || null,
+      username:
+        values.username && values.username !== user.username
+          ? values.username
+          : undefined,
       bio: values.bio?.trim() || null,
       avatarUrl: values.avatarUrl?.trim() || null,
       jobTitle: values.jobTitle?.trim() || null,
@@ -144,38 +169,48 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
   };
 
   const avatarWatch = form.watch('avatarUrl') || user.avatarUrl;
-  const displayNameWatch = form.watch('displayName') || `${firstName} ${lastName}`.trim() || user.name;
-  const usernameHandle = `@${user.email.split('@')[0]}`;
+  const displayNameWatch =
+    form.watch('displayName') || `${firstName} ${lastName}`.trim() || user.name;
+  const usernameHandle = `@${form.watch('username') || user.username || user.email.split('@')[0]}`;
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-3xl p-0 overflow-hidden bg-card border-border shadow-2xl rounded-2xl max-h-[90vh] flex flex-col">
-          <DialogHeader className="p-6 pb-4 border-b border-border/60 shrink-0">
-            <DialogTitle className="text-lg font-bold text-foreground">Edit Profile</DialogTitle>
+        <DialogContent className="sm:max-w-3xl p-0 shadow-2xl flex max-h-[90vh] flex-col overflow-hidden rounded-2xl border-border bg-card">
+          <DialogHeader className="p-6 pb-4 shrink-0 border-b border-border/60">
+            <DialogTitle className="text-lg font-bold text-foreground">
+              Edit Profile
+            </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Update your photo, cover banner, display identity, and regional details.
+              Update your photo, cover banner, display identity, and regional
+              details.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-6 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
+          <div className="p-6 space-y-6 flex-1 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent] overflow-x-hidden overflow-y-auto">
             {/* Visual Cover & Avatar Preview Box */}
             <div className="space-y-2">
-              <div className="text-xs font-semibold text-foreground">Cover &amp; Profile Picture</div>
-              <div className="relative rounded-2xl overflow-hidden border border-border bg-surface-raised">
+              <div className="text-xs font-semibold text-foreground">
+                Cover &amp; Profile Picture
+              </div>
+              <div className="relative overflow-hidden rounded-2xl border border-border bg-surface-raised">
                 {/* Cover Preview Area */}
-                <UserCover src={coverSrc} seed={user.id} className="h-36 sm:h-44">
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
+                <UserCover
+                  src={coverSrc}
+                  seed={user.id}
+                  className="h-36 sm:h-44"
+                >
+                  <div className="inset-0 from-black/25 absolute bg-gradient-to-t to-transparent" />
 
                   {/* Change/Remove Cover buttons */}
-                  <div className="absolute top-3 right-3 flex items-center gap-2">
+                  <div className="top-3 right-3 gap-2 absolute flex items-center">
                     <Button
                       type="button"
                       variant="secondary"
                       size="xs"
                       onClick={handleOpenCoverCropper}
                       disabled={isCoverSaving}
-                      className="bg-black/60 hover:bg-black/80 text-white backdrop-blur-md text-xs gap-1.5 shadow-md border border-white/20"
+                      className="bg-black/60 hover:bg-black/80 text-white backdrop-blur-md text-xs gap-1.5 border-white/20 border shadow-md"
                     >
                       <Camera className="size-3.5" />
                       <span>Change Cover</span>
@@ -188,7 +223,7 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
                         size="xs"
                         disabled={isCoverSaving}
                         onClick={() => void removeCover()}
-                        className="bg-black/60 hover:bg-destructive/80 text-white backdrop-blur-md text-xs px-2 shadow-md border border-white/20"
+                        className="bg-black/60 text-white backdrop-blur-md text-xs px-2 border-white/20 border shadow-md hover:bg-destructive/80"
                         title="Remove cover"
                       >
                         <Trash2 className="size-3.5 text-destructive-foreground" />
@@ -198,9 +233,9 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
                 </UserCover>
 
                 {/* Avatar Preview Area */}
-                <div className="px-6 pb-4 pt-0 relative flex flex-wrap items-end gap-x-4 gap-y-3">
-                  <div className="-mt-12 relative group/edit inline-block shrink-0">
-                    <div className="relative rounded-full ring-4 ring-surface shadow-lg overflow-hidden bg-surface">
+                <div className="px-6 pb-4 pt-0 gap-x-4 gap-y-3 relative flex flex-wrap items-end">
+                  <div className="-mt-12 group/edit relative inline-block shrink-0">
+                    <div className="relative overflow-hidden rounded-full bg-surface shadow-lg ring-4 ring-surface">
                       <UserAvatar
                         name={displayNameWatch}
                         src={avatarWatch}
@@ -212,20 +247,26 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
                       <button
                         type="button"
                         onClick={handleOpenAvatarCropper}
-                        className="absolute inset-0 bg-black/60 backdrop-blur-2xs opacity-0 group-hover/edit:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 text-white cursor-pointer"
+                        className="inset-0 bg-black/60 backdrop-blur-2xs gap-1 text-white absolute flex cursor-pointer flex-col items-center justify-center opacity-0 transition-opacity group-hover/edit:opacity-100"
                       >
                         <Camera className="size-5 text-white" />
-                        <span className="text-[9px] font-bold uppercase tracking-wider">Change</span>
+                        <span className="font-bold tracking-wider text-[9px] uppercase">
+                          Change
+                        </span>
                       </button>
                     </div>
                   </div>
 
-                  <div className="min-w-0 flex-1 pb-1">
-                    <p className="truncate text-base font-semibold tracking-tight text-foreground">{displayNameWatch}</p>
-                    <p className="truncate text-xs font-mono text-muted-foreground">{usernameHandle}</p>
+                  <div className="min-w-0 pb-1 flex-1">
+                    <p className="text-base font-semibold tracking-tight truncate text-foreground">
+                      {displayNameWatch}
+                    </p>
+                    <p className="text-xs truncate font-mono text-muted-foreground">
+                      {usernameHandle}
+                    </p>
                   </div>
 
-                  <div className="flex items-center gap-2 pb-1">
+                  <div className="gap-2 pb-1 flex items-center">
                     <Button
                       type="button"
                       variant="outline"
@@ -241,8 +282,10 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
                         type="button"
                         variant="ghost"
                         size="xs"
-                        onClick={() => form.setValue('avatarUrl', '', { shouldDirty: true })}
-                        className="text-xs text-destructive hover:text-destructive gap-1"
+                        onClick={() =>
+                          form.setValue('avatarUrl', '', { shouldDirty: true })
+                        }
+                        className="text-xs gap-1 text-destructive hover:text-destructive"
                       >
                         <Trash2 className="size-3.5 mr-0.5" />
                         <span>Remove</span>
@@ -256,10 +299,16 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
             {/* Form Fields */}
             <Form {...form}>
               <form onSubmit={onSubmit} className="space-y-5" noValidate>
-                <FormError error={updateMutation.error ? 'Failed to save changes. Please try again.' : undefined} />
+                <FormError
+                  error={
+                    updateMutation.error
+                      ? 'Failed to save changes. Please try again.'
+                      : undefined
+                  }
+                />
 
                 {/* 3-Column Responsive Name Grid: First Name, Last Name, Display Name */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="sm:grid-cols-3 gap-4 grid grid-cols-1">
                   <Field label="First Name" required>
                     <Input
                       value={firstName}
@@ -283,7 +332,9 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
                     name="displayName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-semibold">Display Name</FormLabel>
+                        <FormLabel className="text-xs font-semibold">
+                          Display Name
+                        </FormLabel>
                         <FormControl>
                           <Input
                             {...field}
@@ -307,30 +358,40 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
                     </>
                   }
                   labelAside={
-                    <span className="text-[11px] text-muted-foreground">Primary Login</span>
+                    <span className="text-[11px] text-muted-foreground">
+                      Primary Login
+                    </span>
                   }
                   hint={
                     <>
-                      <Info className="size-3 text-muted-foreground shrink-0" />
-                      <span>To change your verified email, visit Account Security settings.</span>
+                      <Info className="size-3 shrink-0 text-muted-foreground" />
+                      <span>
+                        To change your verified email, visit Account Security
+                        settings.
+                      </span>
                     </>
                   }
                 >
                   <Input
                     value={user.email}
                     disabled
-                    className="h-9 text-xs bg-surface-muted border-border font-mono text-muted-foreground cursor-not-allowed"
+                    className="h-9 text-xs cursor-not-allowed border-border bg-surface-muted font-mono text-muted-foreground"
                   />
                 </Field>
 
                 {/* Username / Handle */}
-                <Field label="Username / Handle">
-                  <Input
-                    value={usernameHandle}
-                    disabled
-                    className="h-9 text-xs bg-surface-muted border-border font-mono text-muted-foreground"
-                  />
-                </Field>
+                <FormField
+                  control={form.control}
+                  name="username"
+                  render={({ field, fieldState }) => (
+                    <UsernameField
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      current={user.username}
+                      error={fieldState.error?.message}
+                    />
+                  )}
+                />
 
                 {/* Bio */}
                 <FormField
@@ -339,8 +400,10 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
                   render={({ field }) => (
                     <FormItem>
                       <div className="flex items-center justify-between">
-                        <FormLabel className="text-xs font-semibold">Bio</FormLabel>
-                        <span className="text-[10px] text-muted-foreground font-mono">
+                        <FormLabel className="text-xs font-semibold">
+                          Bio
+                        </FormLabel>
+                        <span className="font-mono text-[10px] text-muted-foreground">
                           {(field.value || '').length}/280
                         </span>
                       </div>
@@ -371,11 +434,16 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
                       <FormControl>
                         <TimezoneSelect
                           value={field.value || systemTimezone}
-                          onChange={(zone) => form.setValue('timezone', zone, { shouldDirty: true })}
+                          onChange={(zone) =>
+                            form.setValue('timezone', zone, {
+                              shouldDirty: true,
+                            })
+                          }
                         />
                       </FormControl>
                       <FormDescription className="text-[11px]">
-                        Used for scheduling, teammate local time cards, and notifications.
+                        Used for scheduling, teammate local time cards, and
+                        notifications.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -383,13 +451,15 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
                 />
 
                 {/* 2-Column Responsive: Job Title & Location */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:grid-cols-2 gap-4 grid grid-cols-1">
                   <FormField
                     control={form.control}
                     name="jobTitle"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-semibold">Job Title</FormLabel>
+                        <FormLabel className="text-xs font-semibold">
+                          Job Title
+                        </FormLabel>
                         <FormControl>
                           <Input
                             {...field}
@@ -408,7 +478,9 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
                     name="location"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-semibold">Location</FormLabel>
+                        <FormLabel className="text-xs font-semibold">
+                          Location
+                        </FormLabel>
                         <FormControl>
                           <Input
                             {...field}
@@ -424,13 +496,15 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
                 </div>
 
                 {/* 2-Column Responsive: Website & GitHub */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:grid-cols-2 gap-4 grid grid-cols-1">
                   <FormField
                     control={form.control}
                     name="website"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-semibold">Website / Portfolio</FormLabel>
+                        <FormLabel className="text-xs font-semibold">
+                          Website / Portfolio
+                        </FormLabel>
                         <FormControl>
                           <Input
                             {...field}
@@ -449,7 +523,9 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
                     name="github"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-semibold">GitHub Username</FormLabel>
+                        <FormLabel className="text-xs font-semibold">
+                          GitHub Username
+                        </FormLabel>
                         <FormControl>
                           <Input
                             {...field}
@@ -467,7 +543,7 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
             </Form>
           </div>
 
-          <DialogFooter className="p-4 bg-surface-muted/60 border-t border-border/60 flex items-center justify-between sm:justify-between gap-2 shrink-0">
+          <DialogFooter className="p-4 sm:justify-between gap-2 flex shrink-0 items-center justify-between border-t border-border/60 bg-surface-muted/60">
             <Button
               type="button"
               variant="ghost"

@@ -47,6 +47,90 @@ export function normalizeProfileWebsite(value: string): string | null {
   }
 }
 
+export const USERNAME_MIN_LENGTH = 3;
+export const USERNAME_MAX_LENGTH = 30;
+
+/** Lowercase letters, digits, `_` and single inner dots. */
+const USERNAME_PATTERN = /^[a-z0-9_](?:[a-z0-9_]|\.(?!\.))*[a-z0-9_]$/;
+
+/**
+ * Handles that read as the platform, a role or a broadcast mention, so a
+ * person can't pose as staff or hijack `@everyone`-style pings.
+ */
+const RESERVED_USERNAMES = new Set([
+  'admin',
+  'administrator',
+  'root',
+  'system',
+  'support',
+  'help',
+  'staff',
+  'moderator',
+  'mod',
+  'owner',
+  'security',
+  'onetab',
+  'onetabai',
+  'official',
+  'everyone',
+  'here',
+  'channel',
+  'all',
+  'bot',
+  'agent',
+  'api',
+  'null',
+  'undefined',
+  'me',
+  'settings',
+  'billing',
+  'team',
+]);
+
+/** `"@Ada.L "` → `"ada.l"`; the stored form of a handle. */
+export function normalizeUsername(value: string): string {
+  return value.trim().replace(/^@+/, '').toLowerCase();
+}
+
+/** Why a (normalised) handle can't be used, or `null` when it can. */
+export function usernameProblem(username: string): string | null {
+  if (username.length < USERNAME_MIN_LENGTH)
+    return `Use at least ${USERNAME_MIN_LENGTH} characters`;
+  if (username.length > USERNAME_MAX_LENGTH)
+    return `Use at most ${USERNAME_MAX_LENGTH} characters`;
+  if (!USERNAME_PATTERN.test(username))
+    return 'Use letters, numbers, underscores and single dots (not at the start or end)';
+  if (RESERVED_USERNAMES.has(username)) return 'That username is reserved';
+  return null;
+}
+
+/** Accepts `@Ada.L`, stores `ada.l`. */
+export const usernameSchema = z
+  .string()
+  .transform(normalizeUsername)
+  .superRefine((v, ctx) => {
+    const problem = usernameProblem(v);
+    if (problem) ctx.addIssue({ code: 'custom', message: problem });
+  });
+
+/**
+ * A valid handle derived from an email or name, before uniqueness — the API
+ * appends a suffix when it is taken.
+ */
+export function usernameBaseFrom(source: string): string {
+  const local = source.split('@')[0] ?? '';
+  let base = local
+    .toLowerCase()
+    .replace(/[^a-z0-9._]/g, '')
+    .replace(/\.{2,}/g, '.')
+    .replace(/^\.+|\.+$/g, '')
+    .slice(0, USERNAME_MAX_LENGTH - 5)
+    .replace(/\.+$/, '');
+  if (base.length < USERNAME_MIN_LENGTH) base = `${base}user`.slice(0, 20);
+  if (RESERVED_USERNAMES.has(base)) base = `${base}_user`;
+  return base;
+}
+
 /*
  * Cover images are rendered as an unquoted CSS `url(...)`, so on top of the
  * scheme check they must not contain quotes, parentheses, backslashes or
@@ -61,6 +145,7 @@ const COVER_URL_PATTERN =
 export const updateProfileSchema = z.object({
   name: z.string().trim().min(2, 'Name must be at least 2 characters').max(80),
   displayName: z.string().trim().max(48).nullable().optional(),
+  username: usernameSchema.optional(),
   bio: z.string().trim().max(280).nullable().optional(),
   timezone: z.string().min(1).max(64).optional(),
   preferredLanguage: languageCodeSchema.optional(),

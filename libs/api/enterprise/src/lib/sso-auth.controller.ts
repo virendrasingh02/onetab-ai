@@ -18,7 +18,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from '@org/api-auth';
-import { Public } from '@org/api-common';
+import { allocateUsername, Public } from '@org/api-common';
 import { PrismaService } from '@org/database';
 import { MembershipStatus, WorkspaceRole } from '@org/types';
 import type { SSOLookupResponse } from '@org/types';
@@ -98,10 +98,7 @@ export class SsoAuthController {
 
     const org = await this.prisma.organization.findFirst({
       where: {
-        OR: [
-          { domain },
-          { verifiedDomains: { has: domain } },
-        ],
+        OR: [{ domain }, { verifiedDomains: { has: domain } }],
       },
       include: {
         ssoConfigs: {
@@ -142,8 +139,10 @@ export class SsoAuthController {
     }
 
     const config = org.ssoConfigs[0];
-    const spEntityId = config?.spEntityId || `${this.apiUrl}/auth/sso/saml/metadata/${orgId}`;
-    const acsUrl = config?.acsUrl || `${this.apiUrl}/auth/sso/saml/acs/${orgId}`;
+    const spEntityId =
+      config?.spEntityId || `${this.apiUrl}/auth/sso/saml/metadata/${orgId}`;
+    const acsUrl =
+      config?.acsUrl || `${this.apiUrl}/auth/sso/saml/acs/${orgId}`;
 
     return this.samlService.generateSpMetadata({
       spEntityId,
@@ -181,10 +180,13 @@ export class SsoAuthController {
     });
 
     if (!config || config.providerType !== 'SAML' || !config.ssoUrl) {
-      throw new BadRequestException('SAML SSO is not configured or active for this organization.');
+      throw new BadRequestException(
+        'SAML SSO is not configured or active for this organization.',
+      );
     }
 
-    const spEntityId = config.spEntityId || `${this.apiUrl}/auth/sso/saml/metadata/${orgId}`;
+    const spEntityId =
+      config.spEntityId || `${this.apiUrl}/auth/sso/saml/metadata/${orgId}`;
     const acsUrl = config.acsUrl || `${this.apiUrl}/auth/sso/saml/acs/${orgId}`;
 
     const relayState = JSON.stringify({
@@ -218,7 +220,9 @@ export class SsoAuthController {
   ) {
     if (!samlResponse) {
       this.logger.warn('SAML ACS received without SAMLResponse.');
-      return res.redirect(`${this.webAppUrl}/login?error=saml_invalid_response`);
+      return res.redirect(
+        `${this.webAppUrl}/login?error=saml_invalid_response`,
+      );
     }
 
     const config = await this.prisma.sSOConfig.findFirst({
@@ -226,11 +230,14 @@ export class SsoAuthController {
     });
 
     if (!config || !config.certificate) {
-      this.logger.error(`SAML ACS configuration missing certificate for org: ${orgId}`);
+      this.logger.error(
+        `SAML ACS configuration missing certificate for org: ${orgId}`,
+      );
       return res.redirect(`${this.webAppUrl}/login?error=sso_config_error`);
     }
 
-    const spEntityId = config.spEntityId || `${this.apiUrl}/auth/sso/saml/metadata/${orgId}`;
+    const spEntityId =
+      config.spEntityId || `${this.apiUrl}/auth/sso/saml/metadata/${orgId}`;
     const acsUrl = config.acsUrl || `${this.apiUrl}/auth/sso/saml/acs/${orgId}`;
 
     let claims;
@@ -242,15 +249,21 @@ export class SsoAuthController {
         expectedAcsUrl: acsUrl,
       });
     } catch (err: any) {
-      this.logger.error(`SAML validation failed for org ${orgId}: ${err.message}`);
-      return res.redirect(`${this.webAppUrl}/login?error=saml_verification_failed`);
+      this.logger.error(
+        `SAML validation failed for org ${orgId}: ${err.message}`,
+      );
+      return res.redirect(
+        `${this.webAppUrl}/login?error=saml_verification_failed`,
+      );
     }
 
     // Parse relay state
     let destination = '/';
     if (relayState) {
       try {
-        const decoded = JSON.parse(Buffer.from(relayState, 'base64url').toString('utf8'));
+        const decoded = JSON.parse(
+          Buffer.from(relayState, 'base64url').toString('utf8'),
+        );
         destination = decoded.returnTo || '/';
       } catch {
         destination = '/';
@@ -258,14 +271,25 @@ export class SsoAuthController {
     }
 
     // Resolve or provision user
-    const outcome = await this.resolveSsoUser(orgId, 'saml', claims.nameId, claims.email, claims.displayName, claims.groups);
+    const outcome = await this.resolveSsoUser(
+      orgId,
+      'saml',
+      claims.nameId,
+      claims.email,
+      claims.displayName,
+      claims.groups,
+    );
 
     const context = {
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],
     };
 
-    const sessionResult = await this.authService.signInWithFederatedIdentity(outcome.userId, `saml:${orgId}`, context);
+    const sessionResult = await this.authService.signInWithFederatedIdentity(
+      outcome.userId,
+      `saml:${orgId}`,
+      context,
+    );
 
     if ('twoFactor' in sessionResult) {
       const fragment = new URLSearchParams({
@@ -276,7 +300,10 @@ export class SsoAuthController {
     }
 
     this.setRefreshCookie(res, sessionResult.session);
-    return res.redirect(HttpStatus.FOUND, `${this.webAppUrl}${destination.startsWith('/') ? destination : `/${destination}`}`);
+    return res.redirect(
+      HttpStatus.FOUND,
+      `${this.webAppUrl}${destination.startsWith('/') ? destination : `/${destination}`}`,
+    );
   }
 
   /* -------------------------------------------------------------------------- */
@@ -297,8 +324,15 @@ export class SsoAuthController {
       where: { organizationId, isActive: true },
     });
 
-    if (!config || config.providerType !== 'OIDC' || !config.oidcIssuer || !config.oidcClientId) {
-      throw new BadRequestException('OIDC SSO is not configured or active for this organization.');
+    if (
+      !config ||
+      config.providerType !== 'OIDC' ||
+      !config.oidcIssuer ||
+      !config.oidcClientId
+    ) {
+      throw new BadRequestException(
+        'OIDC SSO is not configured or active for this organization.',
+      );
     }
 
     const redirectUri = `${this.apiUrl}/auth/sso/oidc/callback/${organizationId}`;
@@ -324,7 +358,11 @@ export class SsoAuthController {
       expiresAt: Date.now() + SSO_FLOW_TTL_MS,
     };
 
-    this.setFlowCookie(res, OIDC_FLOW_COOKIE, encryptSecret(JSON.stringify(flowState), this.flowKey));
+    this.setFlowCookie(
+      res,
+      OIDC_FLOW_COOKIE,
+      encryptSecret(JSON.stringify(flowState), this.flowKey),
+    );
     return res.redirect(HttpStatus.FOUND, url);
   }
 
@@ -347,13 +385,21 @@ export class SsoAuthController {
 
     let flow: OidcFlowState | null;
     try {
-      const plain = typeof rawFlow === 'string' ? decryptSecret(rawFlow, this.flowKey) : null;
+      const plain =
+        typeof rawFlow === 'string'
+          ? decryptSecret(rawFlow, this.flowKey)
+          : null;
       flow = plain ? JSON.parse(plain) : null;
     } catch {
       flow = null;
     }
 
-    if (!flow || flow.organizationId !== orgId || flow.state !== state || flow.expiresAt <= Date.now()) {
+    if (
+      !flow ||
+      flow.organizationId !== orgId ||
+      flow.state !== state ||
+      flow.expiresAt <= Date.now()
+    ) {
       this.logger.warn(`OIDC state mismatch for org: ${orgId}`);
       return res.redirect(`${this.webAppUrl}/login?error=oauth_state_mismatch`);
     }
@@ -370,7 +416,8 @@ export class SsoAuthController {
       return res.redirect(`${this.webAppUrl}/login?error=sso_config_error`);
     }
 
-    const clientSecret = this.enterpriseService.getDecryptedOidcClientSecret(config);
+    const clientSecret =
+      this.enterpriseService.getDecryptedOidcClientSecret(config);
     const redirectUri = `${this.apiUrl}/auth/sso/oidc/callback/${orgId}`;
 
     let claims;
@@ -405,7 +452,11 @@ export class SsoAuthController {
       userAgent: req.headers['user-agent'],
     };
 
-    const sessionResult = await this.authService.signInWithFederatedIdentity(outcome.userId, `oidc:${orgId}`, context);
+    const sessionResult = await this.authService.signInWithFederatedIdentity(
+      outcome.userId,
+      `oidc:${orgId}`,
+      context,
+    );
 
     if ('twoFactor' in sessionResult) {
       const fragment = new URLSearchParams({
@@ -417,7 +468,10 @@ export class SsoAuthController {
 
     this.setRefreshCookie(res, sessionResult.session);
     const destination = flow.returnTo || '/';
-    return res.redirect(HttpStatus.FOUND, `${this.webAppUrl}${destination.startsWith('/') ? destination : `/${destination}`}`);
+    return res.redirect(
+      HttpStatus.FOUND,
+      `${this.webAppUrl}${destination.startsWith('/') ? destination : `/${destination}`}`,
+    );
   }
 
   /* -------------------------------------------------------------------------- */
@@ -452,41 +506,68 @@ export class SsoAuthController {
     });
 
     if (!org) {
-      throw new UnauthorizedException('No organization found matching this email domain.');
+      throw new UnauthorizedException(
+        'No organization found matching this email domain.',
+      );
     }
 
     // Verify user is an ADMIN or OWNER in at least one workspace of this organization
     let authorizedUser: any = null;
     for (const workspace of org.workspaces) {
       const member = workspace.members[0];
-      if (member && (member.role === WorkspaceRole.ADMIN || member.role === WorkspaceRole.OWNER)) {
+      if (
+        member &&
+        (member.role === WorkspaceRole.ADMIN ||
+          member.role === WorkspaceRole.OWNER)
+      ) {
         authorizedUser = member.user;
         break;
       }
     }
 
     if (!authorizedUser) {
-      throw new ForbiddenException('Break-glass emergency recovery is restricted to organization administrators.');
+      throw new ForbiddenException(
+        'Break-glass emergency recovery is restricted to organization administrators.',
+      );
     }
 
-    const isValid = await this.enterpriseService.verifyRecoveryLogin(org.id, recoveryCode);
+    const isValid = await this.enterpriseService.verifyRecoveryLogin(
+      org.id,
+      recoveryCode,
+    );
     if (!isValid) {
-      await this.enterpriseService.logAuditEvent(org.id, cleanEmail, 'RECOVERY_LOGIN_FAILED', `User:${authorizedUser.id}`, {
-        ip: req.ip,
-      });
+      await this.enterpriseService.logAuditEvent(
+        org.id,
+        cleanEmail,
+        'RECOVERY_LOGIN_FAILED',
+        `User:${authorizedUser.id}`,
+        {
+          ip: req.ip,
+        },
+      );
       throw new UnauthorizedException('Invalid recovery code.');
     }
 
-    await this.enterpriseService.logAuditEvent(org.id, cleanEmail, 'RECOVERY_LOGIN_SUCCESS', `User:${authorizedUser.id}`, {
-      ip: req.ip,
-    });
+    await this.enterpriseService.logAuditEvent(
+      org.id,
+      cleanEmail,
+      'RECOVERY_LOGIN_SUCCESS',
+      `User:${authorizedUser.id}`,
+      {
+        ip: req.ip,
+      },
+    );
 
     const context = {
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],
     };
 
-    const sessionResult = await this.authService.signInWithFederatedIdentity(authorizedUser.id, 'recovery', context);
+    const sessionResult = await this.authService.signInWithFederatedIdentity(
+      authorizedUser.id,
+      'recovery',
+      context,
+    );
     if ('twoFactor' in sessionResult) {
       return sessionResult.twoFactor;
     }
@@ -573,6 +654,7 @@ export class SsoAuthController {
           data: {
             email: cleanEmail,
             name: displayName || cleanEmail.split('@')[0],
+            username: await allocateUsername(this.prisma, cleanEmail),
             emailVerifiedAt: new Date(),
             passwordHash: '$2b$10$sso_federated_user_placeholder',
           },
@@ -606,7 +688,11 @@ export class SsoAuthController {
     return { userId };
   }
 
-  private async ensureWorkspaceMembershipAndRoles(orgId: string, userId: string, groups: string[]): Promise<void> {
+  private async ensureWorkspaceMembershipAndRoles(
+    orgId: string,
+    userId: string,
+    groups: string[],
+  ): Promise<void> {
     const org = await this.prisma.organization.findUnique({
       where: { id: orgId },
       include: {
@@ -623,7 +709,10 @@ export class SsoAuthController {
       if (groups.includes(mapping.groupName)) {
         if (mapping.targetRole === WorkspaceRole.OWNER) {
           assignedRole = WorkspaceRole.OWNER;
-        } else if (mapping.targetRole === WorkspaceRole.ADMIN && assignedRole !== WorkspaceRole.OWNER) {
+        } else if (
+          mapping.targetRole === WorkspaceRole.ADMIN &&
+          assignedRole !== WorkspaceRole.OWNER
+        ) {
           assignedRole = WorkspaceRole.ADMIN;
         }
       }
@@ -647,7 +736,9 @@ export class SsoAuthController {
         },
         update: {
           status: MembershipStatus.ACTIVE,
-          ...(assignedRole !== WorkspaceRole.MEMBER ? { role: assignedRole } : {}),
+          ...(assignedRole !== WorkspaceRole.MEMBER
+            ? { role: assignedRole }
+            : {}),
         },
       });
     }
@@ -668,7 +759,11 @@ export class SsoAuthController {
     });
   }
 
-  private setFlowCookie(res: Response, cookieName: string, value: string): void {
+  private setFlowCookie(
+    res: Response,
+    cookieName: string,
+    value: string,
+  ): void {
     const isProduction = this.config.get<string>('NODE_ENV') === 'production';
     res.cookie(cookieName, value, {
       httpOnly: true,
