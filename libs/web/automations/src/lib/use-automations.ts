@@ -1,4 +1,4 @@
-import { automationsApi, queryKeys } from '@org/api-client';
+import { agentStudioApi, automationsApi, queryKeys } from '@org/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 export function useWorkflows(workspaceId: string | undefined) {
@@ -78,6 +78,16 @@ export function useWorkflowMutations(workspaceId: string | undefined) {
     onSuccess: invalidate,
   });
 
+  /**
+   * Starts a run and resolves as soon as it exists. `trigger` waits for every
+   * step, so a multi-step AI workflow outlives the client's request timeout.
+   */
+  const start = useMutation({
+    mutationFn: (workflowId: string) =>
+      agentStudioApi.run(workspaceId as string, workflowId),
+    onSuccess: invalidate,
+  });
+
   const triggerWebhook = useMutation({
     mutationFn: ({
       workflowId,
@@ -88,11 +98,16 @@ export function useWorkflowMutations(workspaceId: string | undefined) {
       payload?: Record<string, unknown>;
       secret?: string;
     }) =>
-      automationsApi.webhook(workspaceId as string, workflowId, payload ?? {}, secret),
+      automationsApi.webhook(
+        workspaceId as string,
+        workflowId,
+        payload ?? {},
+        secret,
+      ),
     onSuccess: invalidate,
   });
 
-  return { create, update, remove, trigger, triggerWebhook };
+  return { create, update, remove, trigger, start, triggerWebhook };
 }
 
 export function useAutomationOverview(workspaceId: string | undefined) {
@@ -139,4 +154,3 @@ export async function triggerWebhook(
 ) {
   return automationsApi.webhook(workspaceId, workflowId, payload, secret);
 }
-

@@ -60,12 +60,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import {
-  useId,
-  useMemo,
-  useState,
-  type ComponentType,
-} from 'react';
+import { useId, useMemo, useState, type ComponentType } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useSplitViewAction } from './split-view/use-split-view-action.js';
 import {
@@ -108,7 +103,6 @@ export interface ResourceItemData {
   isActive?: boolean;
 }
 
-
 const PROVIDER_ICON: Record<string, string> = {
   GITHUB: 'Code',
   JIRA: 'Code',
@@ -125,6 +119,13 @@ const TRIGGER_ICON: Record<string, string> = {
   EVENT: 'Zap',
 };
 
+const TRIGGER_LABEL: Record<string, string> = {
+  WEBHOOK: 'Webhook',
+  CRON: 'Scheduled',
+  EVENT: 'Event',
+  MANUAL: 'Manual',
+};
+
 const TILE_SIZE = {
   /** Sidebar rows. */
   md: { box: 'size-6 rounded-full text-[10px]', glyph: 'size-3.5' },
@@ -137,7 +138,7 @@ const TILE_TONE = {
   neutral: 'border-border/60 bg-surface-raised text-muted-foreground',
 } as const;
 
-const isImageSource =(value?: string | null): value is string =>
+const isImageSource = (value?: string | null): value is string =>
   !!value && /^(https?:\/\/|data:image)/.test(value);
 
 /**
@@ -177,16 +178,24 @@ export function NavEntityTile({
 }) {
   const [imageFailed, setImageFailed] = useState(false);
   const { box, glyph } = TILE_SIZE[size];
-  const src = !imageFailed ? (isImageSource(image) ? image : isImageSource(icon) ? icon : null) : null;
+  const src = !imageFailed
+    ? isImageSource(image)
+      ? image
+      : isImageSource(icon)
+        ? icon
+        : null
+    : null;
   const namedIcon = icon && !isImageSource(icon) ? icon : undefined;
 
   const tile = (
     <span
       className={cn(
-        'relative flex shrink-0 items-center justify-center overflow-hidden border font-semibold leading-none shadow-xs',
+        'font-semibold relative flex shrink-0 items-center justify-center overflow-hidden border leading-none shadow-xs',
         box,
         // A logo on a transparent PNG still needs a quiet, light backdrop.
-        src && fit === 'contain' ? TILE_TONE.neutral : (toneClassName ?? TILE_TONE[tone]),
+        src && fit === 'contain'
+          ? TILE_TONE.neutral
+          : (toneClassName ?? TILE_TONE[tone]),
         !working && className,
       )}
     >
@@ -223,9 +232,9 @@ export function NavEntityTile({
       <span
         role="status"
         aria-label="Working"
-        className="absolute -bottom-0.5 -right-0.5 z-10 flex size-3 items-center justify-center rounded-full bg-background shadow-xs"
+        className="-bottom-0.5 -right-0.5 size-3 absolute z-10 flex items-center justify-center rounded-full bg-background shadow-xs"
       >
-        <Loader2 className="size-full animate-spin p-px text-primary" />
+        <Loader2 className="animate-spin size-full p-px text-primary" />
       </span>
     </span>
   );
@@ -256,7 +265,11 @@ export function AppLogo({
       image={logoUrl}
       // No brand logo: the same violet blocks glyph the app chat header shows.
       glyph={logoUrl ? undefined : Blocks}
-      toneClassName={logoUrl ? undefined : 'border-accent-violet/30 bg-accent-violet/10 text-accent-violet'}
+      toneClassName={
+        logoUrl
+          ? undefined
+          : 'border-accent-violet/30 bg-accent-violet/10 text-accent-violet'
+      }
       fit="contain"
       size={size}
     />
@@ -266,7 +279,7 @@ export function AppLogo({
 /** Centres a `+` in the same 24px slot the tiles use, so "Add …" rows line up. */
 function NavAddGlyph() {
   return (
-    <span className="flex size-6 shrink-0 items-center justify-center text-muted-foreground">
+    <span className="size-6 flex shrink-0 items-center justify-center text-muted-foreground">
       <Plus className="size-4" aria-hidden />
     </span>
   );
@@ -316,7 +329,10 @@ function ResourceRowShell({
         <NavLink
           to={to}
           className={({ isActive }) =>
-            navRowClass(isSelected || isActive, { depth, extra: NAV_ROW_ACTIONS_PADDING })
+            navRowClass(isSelected || isActive, {
+              depth,
+              extra: NAV_ROW_ACTIONS_PADDING,
+            })
           }
           title={title}
         >
@@ -340,7 +356,10 @@ function ResourceRowShell({
   );
 }
 
-function favoriteAction(isFavorite: boolean, onToggle: () => void): EntityAction {
+function favoriteAction(
+  isFavorite: boolean,
+  onToggle: () => void,
+): EntityAction {
   return {
     id: 'favorite',
     group: 'organize',
@@ -416,7 +435,11 @@ export function CoworkerNavRow({
     <ResourceRowShell
       to={path}
       name={coworker.name}
-      title={coworker.detail ? `${coworker.name} — ${coworker.detail}` : coworker.name}
+      title={
+        coworker.detail
+          ? `${coworker.name} — ${coworker.detail}`
+          : coworker.name
+      }
       isSelected={isSelected}
       isFavorite={isFavorite}
       onToggleFavorite={onToggleFavorite}
@@ -430,8 +453,14 @@ export function CoworkerNavRow({
         label={coworker.name}
         image={coworker.avatarUrl}
         glyph={getCoworkerGlyph(coworker.avatarUrl)}
-        toneClassName={getAiEntityTone('coworker', coworker.name, coworker.avatarUrl)}
-        working={coworker.status === 'WORKING' || coworker.status === 'RUNNING_TASK'}
+        toneClassName={getAiEntityTone(
+          'coworker',
+          coworker.name,
+          coworker.avatarUrl,
+        )}
+        working={
+          coworker.status === 'WORKING' || coworker.status === 'RUNNING_TASK'
+        }
       />
       <span className="flex-1 truncate">{coworker.name}</span>
     </ResourceRowShell>
@@ -639,8 +668,7 @@ export function WorkflowNavRow({
       label: 'Run now',
       icon: Play,
       hidden: !onRun,
-      successMessage: `“${workflow.name}” triggered`,
-      errorMessage: false,
+      successMessage: `“${workflow.name}” started`,
       run: onRun,
     },
     {
@@ -669,7 +697,11 @@ export function WorkflowNavRow({
     <ResourceRowShell
       to={path}
       name={workflow.name}
-      title={workflow.detail ? `${workflow.name} — ${workflow.detail}` : workflow.name}
+      title={
+        workflow.detail
+          ? `${workflow.name} — ${workflow.detail}`
+          : workflow.name
+      }
       isSelected={isSelected}
       isFavorite={isFavorite}
       onToggleFavorite={onToggleFavorite}
@@ -1191,7 +1223,11 @@ export function AgentsSection({
             label={agent.name}
             image={agent.avatarUrl}
             glyph={getCoworkerGlyph(agent.avatarUrl)}
-            toneClassName={getAiEntityTone('agent', agent.name, agent.avatarUrl)}
+            toneClassName={getAiEntityTone(
+              'agent',
+              agent.name,
+              agent.avatarUrl,
+            )}
             size="sm"
           />
         ),
@@ -1631,7 +1667,12 @@ export function WorkflowsSection({
       id: workflow.id,
       name: workflow.name,
       icon: TRIGGER_ICON[workflow.triggerType] ?? 'Zap',
-      detail: workflow.triggerType,
+      detail: [
+        TRIGGER_LABEL[workflow.triggerType] ?? workflow.triggerType,
+        workflow.isActive ? null : 'Paused',
+      ]
+        .filter(Boolean)
+        .join(' · '),
       isActive: workflow.isActive,
     }),
   );
@@ -1704,9 +1745,7 @@ export function WorkflowsSection({
     <Section
       title="Automations"
       count={items.length}
-      emptyLabel={
-        workflows.isLoading ? 'Loading automations…' : undefined
-      }
+      emptyLabel={workflows.isLoading ? 'Loading automations…' : undefined}
       action={
         <Hint label="Add workflow">
           <Button
@@ -1716,7 +1755,9 @@ export function WorkflowsSection({
             aria-label="Add workflow"
             className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100"
           >
-            <NavLink to={`/w/${workspaceSlug}/marketplace?tab=workspace&type=automation`}>
+            <NavLink
+              to={`/w/${workspaceSlug}/marketplace?tab=workspace&type=automation`}
+            >
               <Plus className="size-3.5" />
             </NavLink>
           </Button>
@@ -1734,7 +1775,9 @@ export function WorkflowsSection({
           strategy={verticalListSortingStrategy}
         >
           {items.map((item) => {
-            const isSelected = location.pathname.endsWith(`/ai/workflows/${item.id}`);
+            const isSelected = location.pathname.endsWith(
+              `/ai/workflows/${item.id}`,
+            );
 
             return (
               <SortableWorkflowNavRow
@@ -1745,12 +1788,7 @@ export function WorkflowsSection({
                 isFavorite={isFavorite('workflow', item.id)}
                 onToggleFavorite={() => toggleFavorite('workflow', item.id)}
                 onDelete={() => void handleDelete(item)}
-                onRun={() =>
-                  mutations.trigger.mutateAsync({
-                    workflowId: item.id,
-                    payload: {},
-                  })
-                }
+                onRun={() => mutations.start.mutateAsync(item.id)}
                 onToggleActive={() =>
                   mutations.update.mutate({
                     workflowId: item.id,

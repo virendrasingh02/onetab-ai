@@ -1400,12 +1400,7 @@ export function ChannelNav({
               if (!confirmed) return;
               workflowMutations.remove.mutate(workflow.id);
             }}
-            onRun={() =>
-              workflowMutations.trigger.mutateAsync({
-                workflowId: workflow.id,
-                payload: {},
-              })
-            }
+            onRun={() => workflowMutations.start.mutateAsync(workflow.id)}
             onToggleActive={() =>
               workflowMutations.update.mutate({
                 workflowId: workflow.id,
