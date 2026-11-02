@@ -98,7 +98,7 @@ describe('AgentMatrixBridgeService', () => {
     });
     expect(runtime.executeTurn).toHaveBeenCalledTimes(1);
     expect(runtime.executeTurn.mock.calls[0][2]).toBe('what is up?');
-    expect(runtime.executeTurn.mock.calls[0][3]).toMatchObject({ threadRootId: '$ask' });
+    expect(runtime.executeTurn.mock.calls[0][3]).toMatchObject({ threadRootId: undefined });
   });
 
   it('does not replay a mention the entity already answered', async () => {

@@ -155,9 +155,8 @@ export class AgentMatrixBridgeService implements OnModuleInit {
           if (match) {
             target = e;
             cleanPrompt = match.prompt;
-            if (!threadRootId) {
-              threadRootId = event.event_id;
-            }
+            // Answer in place: a top-level mention gets a top-level reply, and
+            // a mention inside a thread stays in that thread.
             break;
           }
         }
@@ -234,7 +233,9 @@ export class AgentMatrixBridgeService implements OnModuleInit {
         if (msg.type !== 'm.room.message' || msg.origin_server_ts < cutoff) continue;
         if (msg.origin_server_ts > linkedAt) continue;
         if (msg.sender === entity.matrixUserId) return;
-        const relatesTo = msg.content['m.relates_to'] as { rel_type?: string } | undefined;
+        const relatesTo = msg.content['m.relates_to'] as
+          | { rel_type?: string; event_id?: string }
+          | undefined;
         if (relatesTo?.rel_type === 'm.replace') continue;
         const body = typeof msg.content['body'] === 'string' ? msg.content['body'] : '';
         const mentions = msg.content['m.mentions'] as { user_ids?: unknown } | undefined;
@@ -249,7 +250,8 @@ export class AgentMatrixBridgeService implements OnModuleInit {
           entity,
           channel.matrixRoomId,
           match.prompt || BARE_MENTION_PROMPT,
-          msg.event_id,
+          // Same rule as live mentions: only a mention inside a thread is answered there.
+          relatesTo?.rel_type === 'm.thread' ? relatesTo.event_id : undefined,
           channel.id,
           channel.name,
           requesterId,
