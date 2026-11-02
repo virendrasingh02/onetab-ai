@@ -217,6 +217,7 @@ export { NativeTitleTooltips } from './lib/components/native-title-tooltips.js';
 export {
   PromptComposer,
   type PromptComposerAction,
+  type PromptComposerQuickAction,
   type PromptComposerProps,
 } from './lib/components/prompt-composer.js';
 

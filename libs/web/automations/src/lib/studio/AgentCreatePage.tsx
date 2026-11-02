@@ -1,13 +1,38 @@
-import { blueprintBlockers, findAgentTemplate, type AgentBlueprint, type PlanUnderstanding } from '@org/types';
+import {
+  blueprintBlockers,
+  findAgentTemplate,
+  type AgentBlueprint,
+  type PlanUnderstanding,
+} from '@org/types';
 import { Button, Card, ErrorState, Hint, Skeleton, toast } from '@org/ui';
-import { aiWorkspacePath, errorText, studioAgentPath, useAIRunUpdates } from '@org/web-ai';
-import { useCurrentWorkspace, useWorkspacePermission } from '@org/web-workspace';
-import { ArrowLeft, FlaskConical, Play, Power, RotateCcw, Save, Sparkles } from 'lucide-react';
+import {
+  aiWorkspacePath,
+  errorText,
+  studioAgentPath,
+  useAIRunUpdates,
+} from '@org/web-ai';
+import {
+  useCurrentWorkspace,
+  useWorkspacePermission,
+} from '@org/web-workspace';
+import {
+  ArrowLeft,
+  FlaskConical,
+  Play,
+  Power,
+  RotateCcw,
+  Save,
+  Sparkles,
+} from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { AgentPromptComposer } from './StudioHome.js';
 import { PlanEditor } from './plan-editor/PlanEditor.js';
-import { usePlanAgent, useStudioCatalog, useStudioMutations } from './use-studio.js';
+import {
+  usePlanAgent,
+  useStudioCatalog,
+  useStudioMutations,
+} from './use-studio.js';
 
 type Finish = 'draft' | 'test' | 'run' | 'activate';
 
@@ -26,7 +51,9 @@ export function AgentCreatePage() {
   const { create, run } = useStudioMutations(workspaceId);
   const [request, setRequest] = useState(params.get('prompt') ?? '');
   const [blueprint, setBlueprint] = useState<AgentBlueprint | null>(null);
-  const [understanding, setUnderstanding] = useState<PlanUnderstanding | undefined>();
+  const [understanding, setUnderstanding] = useState<
+    PlanUnderstanding | undefined
+  >();
   const [busy, setBusy] = useState<Finish | null>(null);
   // The plan's progress lives here, not on the mutation: a plan started from
   // the mount effect loses its MutationObserver to StrictMode's re-subscribe,
@@ -41,9 +68,14 @@ export function AgentCreatePage() {
     const attempt = ++latestPlan.current;
     setBlueprint(null);
     setPlanError(null);
-    setPlanning(templateId ? findAgentTemplate(templateId)?.name ?? prompt : prompt);
+    setPlanning(
+      templateId ? (findAgentTemplate(templateId)?.name ?? prompt) : prompt,
+    );
     try {
-      const result = await plan.mutateAsync({ prompt, ...(templateId ? { templateId } : {}) });
+      const result = await plan.mutateAsync({
+        prompt,
+        ...(templateId ? { templateId } : {}),
+      });
       if (attempt !== latestPlan.current) return;
       setBlueprint(result.blueprint);
       setUnderstanding(result.understanding);
@@ -75,12 +107,24 @@ export function AgentCreatePage() {
     if (!blueprint) return;
     setBusy(how);
     try {
-      const saved = await create.mutateAsync({ blueprint, activate: how === 'activate' });
+      const saved = await create.mutateAsync({
+        blueprint,
+        activate: how === 'activate',
+      });
       if (how === 'test' || how === 'run') {
-        const started = await run.mutateAsync({ id: saved.id, mode: how === 'test' ? 'test' : 'live' });
-        navigate(`${studioAgentPath(slug, saved.id, 'runs')}&run=${started.runId}`);
+        const started = await run.mutateAsync({
+          id: saved.id,
+          mode: how === 'test' ? 'test' : 'live',
+        });
+        navigate(
+          `${studioAgentPath(slug, saved.id, 'runs')}&run=${started.runId}`,
+        );
       } else {
-        toast.success(how === 'activate' ? `“${saved.name}” is on` : `Saved “${saved.name}” as a draft`);
+        toast.success(
+          how === 'activate'
+            ? `“${saved.name}” is on`
+            : `Saved “${saved.name}” as a draft`,
+        );
         navigate(studioAgentPath(slug, saved.id));
       }
     } catch {
@@ -93,39 +137,59 @@ export function AgentCreatePage() {
   if (!can('create')) {
     return (
       <div className="p-6">
-        <ErrorState title="You can’t create agents in this workspace" description="Ask a workspace admin for access." />
+        <ErrorState
+          title="You can’t create agents in this workspace"
+          description="Ask a workspace admin for access."
+        />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <header className="sticky top-0 z-20 flex min-h-12 shrink-0 items-center gap-2 border-b border-border bg-background/95 px-3 py-1.5 backdrop-blur-md sm:px-6">
-        <Button variant="ghost" size="icon-sm" asChild aria-label="Back to AI Agent Studio">
+    <div className="min-h-0 flex flex-1 flex-col">
+      <header className="top-0 min-h-12 gap-2 px-3 py-1.5 backdrop-blur-md sm:px-6 sticky z-20 flex shrink-0 items-center border-b border-border bg-background/95">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          asChild
+          aria-label="Back to AI Agent Studio"
+        >
           <Link to={aiWorkspacePath(slug)}>
             <ArrowLeft />
           </Link>
         </Button>
         <Sparkles className="size-4 text-muted-foreground" aria-hidden />
-        <h1 className="truncate text-sm font-semibold text-foreground">{blueprint ? blueprint.name || 'New agent' : 'New agent'}</h1>
+        <h1 className="text-sm font-semibold truncate text-foreground">
+          {blueprint ? blueprint.name || 'New agent' : 'New agent'}
+        </h1>
         {blueprint ? (
-          <Button variant="ghost" size="sm" className="ml-auto" leadingIcon={<RotateCcw />} onClick={() => setBlueprint(null)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto"
+            leadingIcon={<RotateCcw />}
+            onClick={() => setBlueprint(null)}
+          >
             Start over
           </Button>
         ) : null}
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-4xl space-y-6 p-3 pb-32 sm:p-6 sm:pb-32">
+        <div className="max-w-4xl space-y-6 p-3 pb-32 sm:p-6 sm:pb-32 mx-auto w-full">
           {!blueprint && planning === null ? (
-            <div className="mx-auto w-full max-w-3xl space-y-6 pt-4 sm:pt-10">
+            <div className="max-w-3xl space-y-6 pt-4 sm:pt-10 mx-auto w-full">
               <div className="space-y-2 text-center">
-                <div className="mx-auto flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <div className="size-11 mx-auto flex items-center justify-center rounded-2xl bg-primary/10 text-primary">
                   <Sparkles className="size-5" aria-hidden />
                 </div>
-                <h2 className="text-2xl font-semibold tracking-tight text-foreground">What should this agent do?</h2>
-                <p className="mx-auto max-w-xl text-sm text-muted-foreground">
-                  Describe it the way you’d ask a colleague — what, when, and where the result should go. You’ll see the plan before anything is saved.
+                <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+                  What should this agent do?
+                </h2>
+                <p className="max-w-xl text-sm mx-auto text-muted-foreground">
+                  Describe it the way you’d ask a colleague — what, when, and
+                  where the result should go. You’ll see the plan before
+                  anything is saved.
                 </p>
               </div>
               <AgentPromptComposer
@@ -133,10 +197,16 @@ export function AgentCreatePage() {
                 autoFocus
                 value={request}
                 onChange={setRequest}
-                onSubmit={() => request.trim() && void startPlan(request.trim())}
+                onSubmit={(text) => void startPlan(text)}
               />
               {planError ? (
-                <ErrorState title="Couldn’t plan that" description={errorText(planError)} onRetry={() => request.trim() && void startPlan(request.trim())} />
+                <ErrorState
+                  title="Couldn’t plan that"
+                  description={errorText(planError)}
+                  onRetry={() =>
+                    request.trim() && void startPlan(request.trim())
+                  }
+                />
               ) : null}
             </div>
           ) : null}
@@ -144,31 +214,64 @@ export function AgentCreatePage() {
           {planning !== null ? <Planning request={planning} /> : null}
 
           {blueprint ? (
-            <PlanEditor workspaceId={workspaceId} value={blueprint} onChange={setBlueprint} catalog={catalog.data} understanding={understanding} />
+            <PlanEditor
+              workspaceId={workspaceId}
+              value={blueprint}
+              onChange={setBlueprint}
+              catalog={catalog.data}
+              understanding={understanding}
+            />
           ) : null}
         </div>
       </div>
 
       {blueprint ? (
-        <footer className="sticky bottom-0 z-20 border-t border-border bg-background/95 px-3 py-3 backdrop-blur-md sm:px-6">
-          <div className="mx-auto flex w-full max-w-4xl flex-wrap items-center gap-2">
-            <p className="mr-auto min-w-0 text-xs text-muted-foreground" aria-live="polite">
-              {blockers.length ? `Before it can run: ${blockers.join(' ')}` : 'Nothing is saved until you choose.'}
+        <footer className="bottom-0 px-3 py-3 backdrop-blur-md sm:px-6 sticky z-20 border-t border-border bg-background/95">
+          <div className="max-w-4xl gap-2 mx-auto flex w-full flex-wrap items-center">
+            <p
+              className="min-w-0 text-xs mr-auto text-muted-foreground"
+              aria-live="polite"
+            >
+              {blockers.length
+                ? `Before it can run: ${blockers.join(' ')}`
+                : 'Nothing is saved until you choose.'}
             </p>
-            <Button variant="ghost" leadingIcon={<Save />} loading={busy === 'draft'} disabled={!!busy} onClick={() => void finish('draft')}>
+            <Button
+              variant="ghost"
+              leadingIcon={<Save />}
+              loading={busy === 'draft'}
+              disabled={!!busy}
+              onClick={() => void finish('draft')}
+            >
               Save draft
             </Button>
             <Hint label="Runs the plan for real reads but simulates every change and approval">
-              <Button variant="outline" leadingIcon={<FlaskConical />} loading={busy === 'test'} disabled={!!busy} onClick={() => void finish('test')}>
+              <Button
+                variant="outline"
+                leadingIcon={<FlaskConical />}
+                loading={busy === 'test'}
+                disabled={!!busy}
+                onClick={() => void finish('test')}
+              >
                 Save &amp; test
               </Button>
             </Hint>
             {blueprint.trigger.kind === 'manual' ? (
-              <Button leadingIcon={<Play />} loading={busy === 'run'} disabled={!!busy || blockers.length > 0} onClick={() => void finish('run')}>
+              <Button
+                leadingIcon={<Play />}
+                loading={busy === 'run'}
+                disabled={!!busy || blockers.length > 0}
+                onClick={() => void finish('run')}
+              >
                 Save &amp; run now
               </Button>
             ) : (
-              <Button leadingIcon={<Power />} loading={busy === 'activate'} disabled={!!busy || blockers.length > 0} onClick={() => void finish('activate')}>
+              <Button
+                leadingIcon={<Power />}
+                loading={busy === 'activate'}
+                disabled={!!busy || blockers.length > 0}
+                onClick={() => void finish('activate')}
+              >
                 Save &amp; switch on
               </Button>
             )}
@@ -188,11 +291,18 @@ function Planning({ request }: { request: string }) {
   }, []);
   return (
     <Card className="space-y-4 p-5" aria-busy="true">
-      <div className="flex items-start gap-3">
-        <Sparkles className="mt-0.5 size-5 shrink-0 text-primary motion-safe:animate-pulse" aria-hidden />
+      <div className="gap-3 flex items-start">
+        <Sparkles
+          className="mt-0.5 size-5 motion-safe:animate-pulse shrink-0 text-primary"
+          aria-hidden
+        />
         <div className="min-w-0" role="status">
-          <p className="text-sm font-semibold text-foreground">Planning with your workspace’s tools and connected apps…</p>
-          <p className="mt-0.5 truncate text-xs text-muted-foreground">“{request}” · {seconds}s</p>
+          <p className="text-sm font-semibold text-foreground">
+            Planning with your workspace’s tools and connected apps…
+          </p>
+          <p className="mt-0.5 text-xs truncate text-muted-foreground">
+            “{request}” · {seconds}s
+          </p>
         </div>
       </div>
       <div className="space-y-2">
