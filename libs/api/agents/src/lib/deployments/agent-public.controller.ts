@@ -39,7 +39,10 @@ const MAX_WIDGET_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 /** Whether a deployment's widget lets visitors attach files (on unless turned off). */
 export function widgetAllowsAttachments(widgetConfig: unknown): boolean {
-  return (widgetConfig as { behavior?: { allowAttachments?: unknown } } | null)?.behavior?.allowAttachments !== false;
+  return (
+    (widgetConfig as { behavior?: { allowAttachments?: unknown } } | null)
+      ?.behavior?.allowAttachments !== false
+  );
 }
 
 /**
@@ -63,21 +66,32 @@ export class AgentPublicController {
   }
 
   /** The session behind a request, only for a caller holding that session's own token. */
-  private async requireSession(sessionId: string, sessionTokenHeader?: string, authHeader?: string) {
+  private async requireSession(
+    sessionId: string,
+    sessionTokenHeader?: string,
+    authHeader?: string,
+  ) {
     const token = sessionTokenHeader || this.bearer(authHeader);
     if (!token || !token.startsWith('ot_sess_')) {
       throw new UnauthorizedException('A session token is required.');
     }
     const session = await this.sessionService.getSessionByToken(token);
-    if (session.id !== sessionId) throw new ForbiddenException('Session token mismatch.');
+    if (session.id !== sessionId)
+      throw new ForbiddenException('Session token mismatch.');
     return session;
   }
 
   /** The workspace a workspace API key belongs to. */
-  private async requireApiKeyWorkspace(apiKeyHeader?: string, authHeader?: string): Promise<string> {
+  private async requireApiKeyWorkspace(
+    apiKeyHeader?: string,
+    authHeader?: string,
+  ): Promise<string> {
     const key = apiKeyHeader || this.bearer(authHeader);
-    const record = key ? await this.deploymentService.validateApiKey(key) : null;
-    if (!record) throw new UnauthorizedException('A valid API key is required.');
+    const record = key
+      ? await this.deploymentService.validateApiKey(key)
+      : null;
+    if (!record)
+      throw new UnauthorizedException('A valid API key is required.');
     return record.workspaceId;
   }
 
@@ -95,15 +109,21 @@ export class AgentPublicController {
     let effectiveOrigin = origin;
     if (body.embedOrigin) {
       try {
-        if (!origin || new URL(origin).host === host) effectiveOrigin = body.embedOrigin;
+        if (!origin || new URL(origin).host === host)
+          effectiveOrigin = body.embedOrigin;
       } catch {
         /* a malformed Origin keeps its own value */
       }
     }
-    return this.sessionService.initSession(body.publicKey, body.userContext, effectiveOrigin, {
-      visitorKey: body.visitorKey,
-      resumeSessionId: body.resumeSessionId,
-    });
+    return this.sessionService.initSession(
+      body.publicKey,
+      body.userContext,
+      effectiveOrigin,
+      {
+        visitorKey: body.visitorKey,
+        resumeSessionId: body.resumeSessionId,
+      },
+    );
   }
 
   @Get('agent-sessions/:sessionId')
@@ -112,7 +132,11 @@ export class AgentPublicController {
     @Headers('x-session-token') sessionTokenHeader?: string,
     @Headers('authorization') authHeader?: string,
   ) {
-    const session = await this.requireSession(sessionId, sessionTokenHeader, authHeader);
+    const session = await this.requireSession(
+      sessionId,
+      sessionTokenHeader,
+      authHeader,
+    );
     return {
       id: session.id,
       deploymentId: session.deploymentId,
@@ -121,7 +145,9 @@ export class AgentPublicController {
       status: session.status,
       title: session.title,
       expiresAt: session.expiresAt.toISOString(),
-      messagesCount: Array.isArray(session.messages) ? session.messages.length : 0,
+      messagesCount: Array.isArray(session.messages)
+        ? session.messages.length
+        : 0,
     };
   }
 
@@ -133,7 +159,11 @@ export class AgentPublicController {
     @Headers('x-session-token') sessionTokenHeader: string | undefined,
     @Body(zodBody(sendSessionMessageSchema)) body: SendSessionMessageInput,
   ) {
-    const session = await this.requireSession(sessionId, sessionTokenHeader, authHeader);
+    const session = await this.requireSession(
+      sessionId,
+      sessionTokenHeader,
+      authHeader,
+    );
     const attachments = body.attachmentIds.length
       ? this.sessionService.resolveAttachments(session, body.attachmentIds)
       : [];
@@ -156,25 +186,41 @@ export class AgentPublicController {
    */
   @Post('agent-sessions/:sessionId/attachments')
   @Throttle({ default: { limit: 12, ttl: 60_000 } })
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_WIDGET_UPLOAD_BYTES, files: 1 } }))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_WIDGET_UPLOAD_BYTES, files: 1 },
+    }),
+  )
   async uploadAttachment(
     @Param('sessionId') sessionId: string,
-    @UploadedFile() file: { originalname: string; buffer: Buffer; size: number } | undefined,
+    @UploadedFile()
+    file: { originalname: string; buffer: Buffer; size: number } | undefined,
     @Headers('x-session-token') sessionTokenHeader?: string,
     @Headers('authorization') authHeader?: string,
   ) {
-    const session = await this.requireSession(sessionId, sessionTokenHeader, authHeader);
+    const session = await this.requireSession(
+      sessionId,
+      sessionTokenHeader,
+      authHeader,
+    );
     if (!widgetAllowsAttachments(session.deployment.widgetConfig)) {
       throw new ForbiddenException('This assistant does not accept files.');
     }
-    if (!file) throw new BadRequestException('Attach a file in the "file" field.');
+    if (!file)
+      throw new BadRequestException('Attach a file in the "file" field.');
     // Browsers send the name as latin1 bytes; recover the UTF-8 the visitor sees.
     const name = Buffer.from(file.originalname, 'latin1').toString('utf8');
     try {
       const { text, mimeType } = await extractTextFromFile(file.buffer, name);
-      return await this.sessionService.addAttachment(session, { name, mimeType, size: file.size, text });
+      return await this.sessionService.addAttachment(session, {
+        name,
+        mimeType,
+        size: file.size,
+        text,
+      });
     } catch (err) {
-      if (err instanceof UnsupportedDocumentError) throw new BadRequestException(err.message);
+      if (err instanceof UnsupportedDocumentError)
+        throw new BadRequestException(err.message);
       throw err;
     }
   }
@@ -187,7 +233,11 @@ export class AgentPublicController {
     @Headers('x-session-token') sessionTokenHeader?: string,
     @Headers('authorization') authHeader?: string,
   ) {
-    const session = await this.requireSession(sessionId, sessionTokenHeader, authHeader);
+    const session = await this.requireSession(
+      sessionId,
+      sessionTokenHeader,
+      authHeader,
+    );
     return this.sessionService.listConversations(session);
   }
 
@@ -198,7 +248,11 @@ export class AgentPublicController {
     @Headers('x-session-token') sessionTokenHeader?: string,
     @Headers('authorization') authHeader?: string,
   ) {
-    const session = await this.requireSession(sessionId, sessionTokenHeader, authHeader);
+    const session = await this.requireSession(
+      sessionId,
+      sessionTokenHeader,
+      authHeader,
+    );
     return this.sessionService.createConversation(session);
   }
 
@@ -209,7 +263,11 @@ export class AgentPublicController {
     @Headers('x-session-token') sessionTokenHeader?: string,
     @Headers('authorization') authHeader?: string,
   ) {
-    const session = await this.requireSession(sessionId, sessionTokenHeader, authHeader);
+    const session = await this.requireSession(
+      sessionId,
+      sessionTokenHeader,
+      authHeader,
+    );
     return this.sessionService.openConversation(session, conversationId);
   }
 
@@ -221,7 +279,11 @@ export class AgentPublicController {
     @Headers('x-session-token') sessionTokenHeader?: string,
     @Headers('authorization') authHeader?: string,
   ) {
-    const session = await this.requireSession(sessionId, sessionTokenHeader, authHeader);
+    const session = await this.requireSession(
+      sessionId,
+      sessionTokenHeader,
+      authHeader,
+    );
     await this.sessionService.deleteConversation(session, conversationId);
   }
 
@@ -260,7 +322,9 @@ export class AgentPublicController {
     const prompt =
       body.prompt ||
       body.message ||
-      (typeof body.input === 'string' ? body.input : JSON.stringify(body.input || {})) ||
+      (typeof body.input === 'string'
+        ? body.input
+        : JSON.stringify(body.input || {})) ||
       '';
 
     if (!prompt) {
@@ -293,11 +357,16 @@ export class AgentPublicController {
     }
 
     // Option B: Public Key (ot_pub_...)
-    const publicKey = publicKeyHeader || (authHeader?.startsWith('Bearer ot_pub_') ? authHeader.slice(7) : null);
+    const publicKey =
+      publicKeyHeader ||
+      (authHeader?.startsWith('Bearer ot_pub_') ? authHeader.slice(7) : null);
     if (publicKey) {
-      const deployment = await this.deploymentService.getDeploymentByPublicKey(publicKey);
+      const deployment =
+        await this.deploymentService.getDeploymentByPublicKey(publicKey);
       if (deployment.agentId !== agentId) {
-        throw new ForbiddenException('Public key does not match the requested agent.');
+        throw new ForbiddenException(
+          'Public key does not match the requested agent.',
+        );
       }
 
       return this.runtimeBridge.execute({
@@ -323,12 +392,18 @@ export class AgentPublicController {
     @Headers('x-api-key') apiKeyHeader?: string,
     @Headers('authorization') authHeader?: string,
   ) {
-    const workspaceId = await this.requireApiKeyWorkspace(apiKeyHeader, authHeader);
+    const workspaceId = await this.requireApiKeyWorkspace(
+      apiKeyHeader,
+      authHeader,
+    );
 
     const live = this.runtimeBridge.getRunState(runId, workspaceId);
     if (live) return live;
 
-    const execution = await this.runtimeBridge.findExecution(runId, workspaceId);
+    const execution = await this.runtimeBridge.findExecution(
+      runId,
+      workspaceId,
+    );
     if (!execution) throw new NotFoundException('Run not found.');
     return {
       runId: execution.id,
@@ -347,7 +422,10 @@ export class AgentPublicController {
     @Headers('x-api-key') apiKeyHeader?: string,
     @Headers('authorization') authHeader?: string,
   ) {
-    const workspaceId = await this.requireApiKeyWorkspace(apiKeyHeader, authHeader);
+    const workspaceId = await this.requireApiKeyWorkspace(
+      apiKeyHeader,
+      authHeader,
+    );
     const cancelled = await this.runtimeBridge.cancelRun(runId, workspaceId);
     if (!cancelled) throw new NotFoundException('No running run with that id.');
     return { success: true, runId };
@@ -373,7 +451,9 @@ export class AgentPublicController {
     // These come straight off the URL and end up inside HTML attributes, so
     // anything that is not a plain identifier is refused rather than escaped.
     if (!IDENTIFIER.test(agentId ?? '') || !IDENTIFIER.test(publicKey ?? '')) {
-      throw new BadRequestException('agentId and publicKey must be plain identifiers.');
+      throw new BadRequestException(
+        'agentId and publicKey must be plain identifiers.',
+      );
     }
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -382,7 +462,13 @@ export class AgentPublicController {
     // still origin-checked by the API itself.
     res.setHeader('Content-Security-Policy', EMBED_PAGE_CSP);
     res.removeHeader('X-Frame-Options');
-    res.send(generateEmbedHtmlPage(agentId, publicKey, theme === 'light' ? 'light' : 'dark'));
+    res.send(
+      generateEmbedHtmlPage(
+        agentId,
+        publicKey,
+        theme === 'light' ? 'light' : 'dark',
+      ),
+    );
   }
 }
 
@@ -570,6 +656,7 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
       historyLoading: false,
       historyError: '',
       conversations: null,
+      connectError: '',
     };
 
     // This browser's visitor key and last conversation, so a reload picks up where it was.
@@ -618,35 +705,45 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
 
     render();
 
-    var storedVisitor = lsGet(visitorStoreKey);
-    fetch(options.baseUrl + '/agent-sessions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        publicKey: options.publicKey,
-        embedOrigin: EMBED_ORIGIN || undefined,
-        visitorKey: storedVisitor || undefined,
-        resumeSessionId: (storedVisitor && lsGet(sessionStoreKey)) || undefined,
-      }),
-    })
-      .then(function (res) { return res.json(); })
-      .then(function (data) {
-        state.ready = true;
-        if (!data.sessionId) {
-          render();
-          return;
-        }
-        useSession(data);
-        if (data.visitorKey) lsSet(visitorStoreKey, data.visitorKey);
-        if (data.deployment) applyConfig(data.deployment);
-        render();
-        loadMessages();
+    connect();
+
+    function connect() {
+      var storedVisitor = lsGet(visitorStoreKey);
+      state.connectError = '';
+      fetch(options.baseUrl + '/agent-sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          publicKey: options.publicKey,
+          embedOrigin: EMBED_ORIGIN || undefined,
+          visitorKey: storedVisitor || undefined,
+          resumeSessionId: (storedVisitor && lsGet(sessionStoreKey)) || undefined,
+        }),
       })
-      .catch(function (err) {
-        state.ready = true;
-        render();
-        console.error('[Onetab Agent Widget] Session initialization failed:', err);
-      });
+        .then(function (res) { return res.json().catch(function () { return {}; }); })
+        .then(function (data) {
+          state.ready = true;
+          if (!data || !data.sessionId) {
+            // The API's own reason (suspended, origin not allowed, unknown key) is the useful one.
+            var reason = data && data.message ? String(data.message) : '';
+            state.connectError = reason || 'This assistant is unavailable right now.';
+            console.error('[Onetab Agent Widget] Session was refused:', reason || data);
+            render();
+            return;
+          }
+          useSession(data);
+          if (data.visitorKey) lsSet(visitorStoreKey, data.visitorKey);
+          if (data.deployment) applyConfig(data.deployment);
+          render();
+          loadMessages();
+        })
+        .catch(function (err) {
+          state.ready = true;
+          state.connectError = 'Could not reach the assistant. Check your connection and try again.';
+          render();
+          console.error('[Onetab Agent Widget] Session initialization failed (network or CORS):', err);
+        });
+    }
 
     function useSession(handle) {
       state.sessionId = handle.sessionId;
@@ -951,7 +1048,7 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
     function buildComposer() {
       var box = el('div', 'ot-composer');
       function canSend(text) {
-        return (!!str(text) || readyAttachments().length > 0) && !state.isLoading && !uploading();
+        return !!state.sessionId && (!!str(text) || readyAttachments().length > 0) && !state.isLoading && !uploading();
       }
       if (state.attachments.length) {
         var files = el('div', 'ot-files');
@@ -1032,6 +1129,23 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
     function buildMessages() {
       var list = el('div', 'ot-messages');
       list.setAttribute('aria-live', 'polite');
+      if (state.connectError && !state.sessionId) {
+        var notice = el('div', 'ot-connect-error');
+        notice.setAttribute('role', 'alert');
+        var icon = el('span', 'ot-connect-error-icon');
+        icon.innerHTML = svg(P_ALERT, 16);
+        notice.appendChild(icon);
+        notice.appendChild(el('p', null, state.connectError));
+        var retry = el('button', 'ot-link ot-link-brand', 'Try again');
+        retry.type = 'button';
+        retry.onclick = function () {
+          state.connectError = '';
+          render();
+          connect();
+        };
+        notice.appendChild(retry);
+        list.appendChild(notice);
+      }
       for (var i = 0; i < state.messages.length; i++) {
         var m = state.messages[i];
         if (m.role === 'user' && m.attachments && m.attachments.length) {
@@ -1194,6 +1308,12 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
   function renderMarkdown(str) {
     if (!str) return '';
     var safe = escapeHtml(str);
+    // Headings and list items are block lines; the newline after one is dropped
+    // (escaped text holds no real tags, so every </span> here is one of these).
+    safe = safe.replace(/^#{1,6} +(.+)$/gm, '<span class="ot-md-h">$1</span>');
+    safe = safe.replace(/^ *[-*] +(.+)$/gm, '<span class="ot-md-li">$1</span>');
+    safe = safe.replace(/^ *(\\d+)\\. +(.+)$/gm, '<span class="ot-md-li ot-md-ol" data-n="$1.">$2</span>');
+    safe = safe.replace(/<\\/span>\\n/g, '</span>');
     safe = safe.replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>');
     safe = safe.replace(/\\*(.*?)\\*/g, '<em>$1</em>');
     safe = safe.replace(new RegExp('\\x60\\x60\\x60([\\\\s\\\\S]*?)\\x60\\x60\\x60', 'g'), '<pre><code>$1</code></pre>');
@@ -1204,7 +1324,8 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
 
   function escapeHtml(text) {
     var div = document.createElement('div');
-    div.innerText = text || '';
+    // textContent keeps newlines, so renderMarkdown can still see line starts.
+    div.textContent = text || '';
     return div.innerHTML;
   }
 
@@ -1294,6 +1415,14 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
       '.ot-history-delete:hover { background: var(--ot-bg); color: #ef4444; }',
       '.ot-history-empty { margin: 40px 24px; text-align: center; font-size: 13px; color: var(--ot-muted); }',
       '.ot-history-error { margin: 4px 8px 8px; font-size: 12px; color: #ef4444; }',
+      '.ot-md-h { display: block; margin: 10px 0 4px; font-weight: 600; font-size: 1.02em; }',
+      '.ot-md-h:first-child { margin-top: 0; }',
+      '.ot-md-li { display: block; position: relative; padding-left: 16px; margin: 2px 0; }',
+      '.ot-md-li::before { content: "\\\\2022"; position: absolute; left: 4px; color: var(--ot-muted); }',
+      '.ot-md-ol::before { content: attr(data-n); left: 0; }',
+      '.ot-connect-error { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: auto 0; padding: 24px 12px; text-align: center; font-size: 13px; color: var(--ot-muted); }',
+      '.ot-connect-error p { margin: 0; line-height: 1.5; }',
+      '.ot-connect-error-icon { color: #ef4444; display: flex; }',
       '.ot-skeleton { height: 44px; margin: 4px 8px 8px; border-radius: 8px; background: var(--ot-soft); animation: otBlink 1.4s infinite both; }',
       '@media (hover: none) { .ot-history-delete { opacity: 1; } }',
       '.ot-panel .ot-composer, .ot-composer:focus-within { border-color: var(--ot-brand); }',
@@ -1350,7 +1479,11 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
 })();
 `;
 
-function generateEmbedHtmlPage(agentId: string, publicKey: string, theme = 'dark'): string {
+function generateEmbedHtmlPage(
+  agentId: string,
+  publicKey: string,
+  theme = 'dark',
+): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>

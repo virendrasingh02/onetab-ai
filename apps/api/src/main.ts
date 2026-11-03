@@ -1,11 +1,15 @@
 import { Logger, type INestApplication, VersioningType } from '@nestjs/common';
+import type {
+  CorsOptions,
+  CorsOptionsDelegate,
+} from '@nestjs/common/interfaces/external/cors-options.interface';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { buildHelmetOptions, httpsRedirect } from '@org/api-common';
 import { parseCorsOrigins } from '@org/config';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
-import { json, urlencoded } from 'express';
+import { json, urlencoded, type Request } from 'express';
 import helmet from 'helmet';
 import { createServer } from 'node:net';
 import { AppModule } from './app/app.module';
@@ -79,6 +83,39 @@ function getCorsOrigins(configuredOrigins: string[], isProduction: boolean) {
   ];
 }
 
+/**
+ * The embeddable agent widget runs on customers' own sites, so its routes
+ * answer any origin — without cookies. Each deployment's allowed-origins list
+ * is what decides who may start a session.
+ */
+const PUBLIC_EMBED_PATH =
+  /^\/api\/v\d+\/(agent-sessions|deployments\/sdk)(\/|\?|$)/;
+
+function corsFor(origins: string[]): CorsOptionsDelegate<Request> {
+  const appCors: CorsOptions = {
+    // `credentials` requires an explicit origin list — `*` is rejected by
+    // browsers once cookies are involved.
+    origin: origins.length > 0 ? origins : false,
+    credentials: true,
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+    maxAge: 600,
+  };
+  const embedCors: CorsOptions = {
+    origin: true,
+    credentials: false,
+    methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+    maxAge: 600,
+  };
+  return (req, callback) => {
+    const origin = req.headers.origin;
+    // The app's own pages keep credentialed CORS on these routes too.
+    const embed =
+      PUBLIC_EMBED_PATH.test(req.url ?? '') &&
+      !(origin && origins.includes(origin));
+    callback(null, embed ? embedCors : appCors);
+  };
+}
+
 async function listen(
   app: INestApplication,
   port: number,
@@ -136,14 +173,7 @@ async function bootstrap() {
     parseCorsOrigins(config.get<string>('CORS_ORIGINS', '')),
     isProduction,
   );
-  app.enableCors({
-    // `credentials` requires an explicit origin list — `*` is rejected by
-    // browsers once cookies are involved.
-    origin: origins.length > 0 ? origins : false,
-    credentials: true,
-    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-    maxAge: 600,
-  });
+  app.enableCors(corsFor(origins));
 
   // Lets Nest run onModuleDestroy hooks (closing DB pool & Redis) on SIGTERM.
   app.enableShutdownHooks();
@@ -164,7 +194,9 @@ async function bootstrap() {
   const signals: NodeJS.Signals[] = ['SIGTERM', 'SIGINT'];
   for (const signal of signals) {
     process.once(signal, async () => {
-      Logger.log(`Received ${signal}. Draining connections and initiating graceful shutdown...`);
+      Logger.log(
+        `Received ${signal}. Draining connections and initiating graceful shutdown...`,
+      );
       try {
         await app.close();
         Logger.log('Graceful shutdown completed successfully.');
@@ -176,7 +208,9 @@ async function bootstrap() {
     });
   }
 
-  Logger.log(`Onetab AI API listening on http://${host}:${actualPort}/api/v1 (PID: ${process.pid})`);
+  Logger.log(
+    `Onetab AI API listening on http://${host}:${actualPort}/api/v1 (PID: ${process.pid})`,
+  );
   if (!isProduction) {
     Logger.log(`CORS origins: ${origins.join(', ') || '(none configured)'}`);
   }
