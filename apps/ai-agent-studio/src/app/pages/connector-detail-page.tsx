@@ -1,4 +1,9 @@
-import { AGENT_CAPABILITY_LABELS, CONNECTOR_CATEGORIES, type ConnectorCapability, type ConnectorConnection } from '@org/types';
+import {
+  AGENT_CAPABILITY_LABELS,
+  CONNECTOR_CATEGORIES,
+  type ConnectorCapability,
+  type ConnectorConnection,
+} from '@org/types';
 import {
   Badge,
   Button,
@@ -21,13 +26,34 @@ import {
   confirm,
   toast,
 } from '@org/ui';
-import { ArrowLeft, Bot, Pencil, CheckCircle2, Copy, Eye, KeyRound, Play, RefreshCw, ShieldAlert, Trash2, Workflow, Wrench, XCircle, Zap } from 'lucide-react';
+import {
+  ArrowLeft,
+  Bot,
+  Pencil,
+  CheckCircle2,
+  Copy,
+  Eye,
+  KeyRound,
+  Play,
+  RefreshCw,
+  ShieldAlert,
+  Trash2,
+  Workflow,
+  Wrench,
+  XCircle,
+  Zap,
+} from 'lucide-react';
 import { useCallback, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from '../router.js';
 import { AddToAgentDialog } from '../components/connectors/add-to-agent-dialog.js';
 import { OAuthAppsDialog } from '@org/web-integrations';
 import { ConnectDialog } from '../components/connectors/connect-dialog.js';
-import { SchemaFields, coerceSchemaInput, missingRequired, schemaProperties } from '../components/connectors/schema-fields.js';
+import {
+  SchemaFields,
+  coerceSchemaInput,
+  missingRequired,
+  schemaProperties,
+} from '../components/connectors/schema-fields.js';
 import { AppConnectorIcon } from '../components/common/app-connector-icon.jsx';
 import {
   AUTH_LABELS,
@@ -44,8 +70,14 @@ import {
 } from '../services/connectors.js';
 import { useStudioSession } from '../session-guard.js';
 
-const CATEGORY_LABEL = new Map<string, string>(CONNECTOR_CATEGORIES.map((c) => [c.id, c.label]));
-const PERMISSION_LABEL: Record<string, string> = { read: 'Reads', write: 'Writes', destructive: 'Deletes' };
+const CATEGORY_LABEL = new Map<string, string>(
+  CONNECTOR_CATEGORIES.map((c) => [c.id, c.label]),
+);
+const PERMISSION_LABEL: Record<string, string> = {
+  read: 'Reads',
+  write: 'Writes',
+  destructive: 'Deletes',
+};
 
 /** One connector: what it can do, its connections, a real action runner and its history. */
 export function ConnectorDetailPage() {
@@ -62,16 +94,24 @@ export function ConnectorDetailPage() {
   const refresh = useCallback(() => void invalidate(), [invalidate]);
   useOAuthCompletion(refresh);
 
-  if (detail.isLoading) return <LoadingState fullPage label="Loading connector…" />;
+  if (detail.isLoading)
+    return <LoadingState fullPage label="Loading connector…" />;
   if (detail.isError || !detail.data) {
     return (
       <Page width="full">
         <ErrorState
           title="Couldn’t load this connector"
-          description={errorMessage(detail.error, 'It may not exist on this server.')}
+          description={errorMessage(
+            detail.error,
+            'It may not exist on this server.',
+          )}
           onRetry={() => detail.refetch()}
           action={
-            <Button variant="outline" size="sm" onClick={() => navigate('/connectors')}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/connectors')}
+            >
               All connectors
             </Button>
           }
@@ -87,20 +127,27 @@ export function ConnectorDetailPage() {
 
   return (
     <Page width="full">
-      <Button
-        variant="link"
-        size="xs"
-        type="button"
-        onClick={() => navigate('/connectors')}
-        className="mb-3 h-auto gap-1 text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="size-3.5" aria-hidden="true" /> App Connectors
-      </Button>
+      <div className="mb-3 flex">
+        <Button
+          variant="link"
+          size="xs"
+          type="button"
+          onClick={() => navigate('/connectors')}
+          className="gap-1 px-0 h-auto text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="size-3.5" aria-hidden="true" /> App Connectors
+        </Button>
+      </div>
       <PageHeader
         title={
-          <span className="flex items-center gap-3">
-            <span className="flex size-11 items-center justify-center rounded-xl border border-border bg-surface-raised">
-              <AppConnectorIcon connectorId={c.slug} name={c.name} category={c.category} size={26} />
+          <span className="gap-3 flex items-center">
+            <span className="size-11 flex items-center justify-center rounded-xl border border-border bg-surface-raised">
+              <AppConnectorIcon
+                connectorId={c.slug}
+                name={c.name}
+                category={c.category}
+                size={26}
+              />
             </span>
             <span>{c.name}</span>
             <Badge variant={meta.variant}>{meta.label}</Badge>
@@ -108,20 +155,34 @@ export function ConnectorDetailPage() {
         }
         description={c.description}
         actions={
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="gap-2 flex flex-wrap items-center">
             {c.custom && c.customIntegrationId && (
-              <Button size="sm" variant="outline" onClick={() => navigate(`/connectors/${c.slug}/edit`)} leadingIcon={<Pencil />}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => navigate(`/connectors/${c.slug}/edit`)}
+                leadingIcon={<Pencil />}
+              >
                 Edit connector
               </Button>
             )}
             {c.status !== 'unavailable' && !c.custom && (
-              <Button size="sm" variant={c.status === 'connected' ? 'outline' : 'primary'} onClick={() => setConnectOpen(true)}>
-                {c.status === 'connected' ? 'Add a connection' : c.status === 'needs_attention' ? 'Reconnect' : 'Connect'}
+              <Button
+                size="sm"
+                variant={c.status === 'connected' ? 'outline' : 'primary'}
+                onClick={() => setConnectOpen(true)}
+              >
+                {c.status === 'connected'
+                  ? 'Add a connection'
+                  : c.status === 'needs_attention'
+                    ? 'Reconnect'
+                    : 'Connect'}
               </Button>
             )}
             {c.status === 'connected' && (
               <Button size="sm" onClick={() => setAgentOpen(true)}>
-                <Bot className="mr-1 size-3.5" aria-hidden="true" /> Use in an agent
+                <Bot className="mr-1 size-3.5" aria-hidden="true" /> Use in an
+                agent
               </Button>
             )}
           </div>
@@ -129,11 +190,19 @@ export function ConnectorDetailPage() {
       />
 
       {c.status === 'unavailable' && (
-        <div role="status" className="mb-4 flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-xs text-warning-text">
+        <div
+          role="status"
+          className="mb-4 gap-2 p-3 text-xs flex items-start rounded-lg border border-warning/30 bg-warning/10 text-warning-text"
+        >
           <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           <span className="min-w-0 flex-1">{c.unavailableReason}</span>
           {c.authType === 'OAUTH2' && (
-            <Button size="sm" variant="outline" onClick={() => setOauthOpen(true)} leadingIcon={<KeyRound />}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setOauthOpen(true)}
+              leadingIcon={<KeyRound />}
+            >
               Set up OAuth app
             </Button>
           )}
@@ -143,67 +212,217 @@ export function ConnectorDetailPage() {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="actions">Actions ({c.capabilities.length})</TabsTrigger>
-          <TabsTrigger value="triggers">Triggers ({c.triggers.length})</TabsTrigger>
-          <TabsTrigger value="connections">Connections ({c.connections.length})</TabsTrigger>
+          <TabsTrigger value="actions">
+            Actions ({c.capabilities.length})
+          </TabsTrigger>
+          <TabsTrigger value="triggers">
+            Triggers ({c.triggers.length})
+          </TabsTrigger>
+          <TabsTrigger value="connections">
+            Connections ({c.connections.length})
+          </TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-4 space-y-4">
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Fact label="Calls, 30 days" value={c.usage.calls} />
-            <Fact label="Succeeded" value={c.usage.calls ? `${Math.round(((c.usage.calls - c.usage.failures) / c.usage.calls) * 100)}%` : '—'} />
-            <Fact label="Average time" value={c.usage.avgDurationMs !== null ? `${c.usage.avgDurationMs} ms` : '—'} />
-            <Fact label="Most used" value={c.usage.topAction ?? '—'} />
-          </div>
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Section title="What agents can do with it" icon={<Bot className="size-4 text-primary" aria-hidden="true" />}>
-              {c.agentCapabilities.length ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {c.agentCapabilities.map((tag) => (
-                    <span key={tag} className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary-text">
-                      {AGENT_CAPABILITY_LABELS[tag]}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">No agent actions yet.</p>
-              )}
-              <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
-                <li>
-                  <Eye className="mr-1 inline size-3.5" aria-hidden="true" />
-                  {queries.length} read{queries.length === 1 ? '' : 's'} an agent can use to look things up
-                </li>
-                <li>
-                  <Wrench className="mr-1 inline size-3.5" aria-hidden="true" />
-                  {actions.length} action{actions.length === 1 ? '' : 's'} that change things in {c.name}
-                </li>
-                <li>
-                  <Zap className="mr-1 inline size-3.5" aria-hidden="true" />
-                  {c.triggers.length} event{c.triggers.length === 1 ? '' : 's'} that can start an agent
-                </li>
-              </ul>
-            </Section>
-            <Section title="Sign-in & security" icon={<KeyRound className="size-4 text-muted-foreground" aria-hidden="true" />}>
-              <dl className="grid grid-cols-[auto,1fr] gap-x-4 gap-y-1.5 text-xs">
-                <dt className="text-muted-foreground">Category</dt>
-                <dd>{CATEGORY_LABEL.get(c.category) ?? c.category}</dd>
-                <dt className="text-muted-foreground">Sign-in</dt>
-                <dd>{AUTH_LABELS[c.authType] ?? c.authType}</dd>
-                <dt className="text-muted-foreground">Acts as</dt>
-                <dd>The person who connected it — agents never get more access than that connection.</dd>
-                <dt className="text-muted-foreground">Writes</dt>
-                <dd>{actions.filter((a) => a.requiresConfirmation).length} of {actions.length} need confirmation before they run</dd>
-              </dl>
-              {c.scopes.length > 0 && (
-                <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
-                  {c.scopes.map((s) => (
-                    <li key={s.scope}>
-                      <code className="mr-1 rounded-md bg-surface-raised px-1 py-0.5 text-2xs">{s.scope}</code>
-                      {s.description}
+          {c.connections.length === 0 &&
+          c.status !== 'unavailable' &&
+          !c.custom ? (
+            <div className="gap-4 p-5 md:flex-row md:items-center md:justify-between flex flex-col rounded-xl border border-primary/25 bg-primary/5">
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold text-foreground">
+                  Connect {c.name} to get started
+                </h2>
+                <ol className="mt-2 gap-1.5 text-xs sm:grid-cols-3 sm:gap-4 grid text-muted-foreground">
+                  <Step n={1}>
+                    Sign in with{' '}
+                    {(AUTH_LABELS[c.authType] ?? c.authType).toLowerCase()}
+                  </Step>
+                  <Step n={2}>Try an action to check it works</Step>
+                  <Step n={3}>Add it to an agent or workflow</Step>
+                </ol>
+              </div>
+              <Button
+                size="sm"
+                className="shrink-0"
+                onClick={() => setConnectOpen(true)}
+              >
+                Connect {c.name}
+              </Button>
+            </div>
+          ) : (
+            <div className="gap-3 lg:grid-cols-4 grid grid-cols-2">
+              <Fact label="Calls, 30 days" value={c.usage.calls} />
+              <Fact
+                label="Succeeded"
+                value={
+                  c.usage.calls
+                    ? `${Math.round(((c.usage.calls - c.usage.failures) / c.usage.calls) * 100)}%`
+                    : '—'
+                }
+              />
+              <Fact
+                label="Average time"
+                value={
+                  c.usage.avgDurationMs !== null
+                    ? `${c.usage.avgDurationMs} ms`
+                    : '—'
+                }
+              />
+              <Fact label="Most used" value={c.usage.topAction ?? '—'} />
+            </div>
+          )}
+          <div className="gap-4 lg:grid-cols-5 grid">
+            <Section
+              className="lg:col-span-3"
+              title="What agents can do with it"
+              icon={<Bot className="size-4 text-primary" aria-hidden="true" />}
+              aside={
+                c.agentCapabilities.length > 0 && (
+                  <div className="gap-1.5 flex flex-wrap justify-end">
+                    {c.agentCapabilities.map((tag) => (
+                      <span
+                        key={tag}
+                        className="px-2 py-0.5 font-medium rounded-md bg-primary/10 text-2xs text-primary-text"
+                      >
+                        {AGENT_CAPABILITY_LABELS[tag]}
+                      </span>
+                    ))}
+                  </div>
+                )
+              }
+            >
+              <div className="gap-2 grid grid-cols-3">
+                <CountTile
+                  icon={<Eye />}
+                  count={queries.length}
+                  label={queries.length === 1 ? 'Read' : 'Reads'}
+                  hint="Look things up"
+                  onClick={() => setTab('actions')}
+                />
+                <CountTile
+                  icon={<Wrench />}
+                  count={actions.length}
+                  label={actions.length === 1 ? 'Action' : 'Actions'}
+                  hint={`Change ${c.name}`}
+                  onClick={() => setTab('actions')}
+                />
+                <CountTile
+                  icon={<Zap />}
+                  count={c.triggers.length}
+                  label={c.triggers.length === 1 ? 'Event' : 'Events'}
+                  hint="Start an agent"
+                  onClick={() => setTab('triggers')}
+                />
+              </div>
+              {c.capabilities.length > 0 ? (
+                <ul className="mt-4 divide-y divide-border rounded-lg border border-border">
+                  {[...queries, ...actions].slice(0, 5).map((cap) => (
+                    <li
+                      key={cap.id}
+                      className="gap-3 px-3 py-2 flex items-center"
+                    >
+                      {cap.kind === 'query' ? (
+                        <Eye
+                          className="size-3.5 shrink-0 text-muted-foreground"
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <Wrench
+                          className="size-3.5 shrink-0 text-muted-foreground"
+                          aria-hidden="true"
+                        />
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <span className="text-xs font-medium block truncate text-foreground">
+                          {cap.label}
+                        </span>
+                        {cap.description && (
+                          <span className="block truncate text-2xs text-muted-foreground">
+                            {cap.description}
+                          </span>
+                        )}
+                      </span>
+                      <span className="gap-1 flex shrink-0 items-center">
+                        {cap.requiresConfirmation && (
+                          <Badge variant="outline">Asks first</Badge>
+                        )}
+                        <Badge
+                          variant={
+                            cap.permissionLevel === 'read'
+                              ? 'neutral'
+                              : cap.permissionLevel === 'destructive'
+                                ? 'destructive'
+                                : 'warning'
+                          }
+                        >
+                          {PERMISSION_LABEL[cap.permissionLevel]}
+                        </Badge>
+                      </span>
                     </li>
                   ))}
                 </ul>
+              ) : (
+                <p className="mt-4 text-xs text-muted-foreground">
+                  No agent actions yet.
+                </p>
+              )}
+              {c.capabilities.length > 5 && (
+                <Button
+                  variant="link"
+                  size="xs"
+                  className="mt-2 px-0 h-auto"
+                  onClick={() => setTab('actions')}
+                >
+                  See all {c.capabilities.length} actions
+                </Button>
+              )}
+            </Section>
+            <Section
+              className="lg:col-span-2"
+              title="Sign-in & security"
+              icon={
+                <KeyRound
+                  className="size-4 text-muted-foreground"
+                  aria-hidden="true"
+                />
+              }
+            >
+              <dl className="text-xs divide-y divide-border">
+                <SecurityRow label="Category">
+                  {CATEGORY_LABEL.get(c.category) ?? c.category}
+                </SecurityRow>
+                <SecurityRow label="Sign-in">
+                  {AUTH_LABELS[c.authType] ?? c.authType}
+                </SecurityRow>
+                <SecurityRow label="Acts as">
+                  The person who connected it — agents never get more access
+                  than that connection.
+                </SecurityRow>
+                <SecurityRow label="Writes">
+                  {actions.length === 0
+                    ? 'None — read only'
+                    : `${actions.filter((a) => a.requiresConfirmation).length} of ${actions.length} ask for confirmation before they run`}
+                </SecurityRow>
+              </dl>
+              {c.scopes.length > 0 && (
+                <div className="mt-4">
+                  <h3 className="mb-2 font-medium tracking-wider text-2xs text-muted-foreground uppercase">
+                    Permissions requested
+                  </h3>
+                  <ul className="space-y-1.5 text-xs">
+                    {c.scopes.map((s) => (
+                      <li key={s.scope} className="gap-2 flex items-start">
+                        <code className="px-1.5 py-0.5 shrink-0 rounded-md bg-surface-raised font-mono text-2xs text-foreground">
+                          {s.scope}
+                        </code>
+                        <span className="text-muted-foreground">
+                          {s.description}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </Section>
           </div>
@@ -211,7 +430,11 @@ export function ConnectorDetailPage() {
 
         <TabsContent value="actions" className="mt-4">
           {c.capabilities.length === 0 ? (
-            <EmptyState icon={<Wrench />} title="No actions" description={`${c.name} doesn’t offer actions yet.`} />
+            <EmptyState
+              icon={<Wrench />}
+              title="No actions"
+              description={`${c.name} doesn’t offer actions yet.`}
+            />
           ) : (
             <div className="space-y-3">
               {[...queries, ...actions].map((cap) => (
@@ -238,21 +461,42 @@ export function ConnectorDetailPage() {
           ) : (
             <div className="space-y-3">
               {c.triggers.map((t) => {
-                const watches = c.capabilities.find((x) => x.id === t.pollActionId);
+                const watches = c.capabilities.find(
+                  (x) => x.id === t.pollActionId,
+                );
                 return (
-                  <div key={t.id} className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 md:flex-row md:items-center md:justify-between">
+                  <div
+                    key={t.id}
+                    className="gap-3 p-4 md:flex-row md:items-center md:justify-between flex flex-col rounded-xl border border-border bg-surface"
+                  >
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                        <Zap className="size-4 text-warning" aria-hidden="true" /> {t.label}
+                      <div className="gap-2 text-sm font-medium flex items-center text-foreground">
+                        <Zap
+                          className="size-4 text-warning"
+                          aria-hidden="true"
+                        />{' '}
+                        {t.label}
                       </div>
-                      <p className="mt-0.5 text-xs text-muted-foreground">{t.description}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {t.description}
+                      </p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Checked every 2 minutes through “{watches?.label ?? t.pollActionId}”. Each new item starts one run, and is available to the agent as{' '}
-                        <code className="rounded-md bg-surface-raised px-1">{'{{event}}'}</code>.
+                        Checked every 2 minutes through “
+                        {watches?.label ?? t.pollActionId}”. Each new item
+                        starts one run, and is available to the agent as{' '}
+                        <code className="px-1 rounded-md bg-surface-raised">
+                          {'{{event}}'}
+                        </code>
+                        .
                       </p>
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => navigate('/workflows')}>
-                      <Workflow className="mr-1 size-3.5" aria-hidden="true" /> Start an agent with it
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => navigate('/workflows')}
+                    >
+                      <Workflow className="mr-1 size-3.5" aria-hidden="true" />{' '}
+                      Start an agent with it
                     </Button>
                   </div>
                 );
@@ -262,12 +506,21 @@ export function ConnectorDetailPage() {
         </TabsContent>
 
         <TabsContent value="connections" className="mt-4">
-          <ConnectionsList connections={c.connections} appName={c.name} onChanged={refresh} onReconnect={() => setConnectOpen(true)} />
+          <ConnectionsList
+            connections={c.connections}
+            appName={c.name}
+            onChanged={refresh}
+            onReconnect={() => setConnectOpen(true)}
+          />
         </TabsContent>
 
         <TabsContent value="activity" className="mt-4">
           {c.activity.length === 0 ? (
-            <EmptyState icon={<RefreshCw />} title="No activity yet" description={`Actions run through ${c.name}, tests and connection changes show up here.`} />
+            <EmptyState
+              icon={<RefreshCw />}
+              title="No activity yet"
+              description={`Actions run through ${c.name}, tests and connection changes show up here.`}
+            />
           ) : (
             <div className="overflow-x-auto rounded-xl border border-border">
               <Table>
@@ -285,7 +538,14 @@ export function ConnectorDetailPage() {
                     <TableRow key={a.id}>
                       <TableCell className="text-xs font-medium">
                         {a.label}
-                        {a.error && <div className="mt-0.5 max-w-md truncate text-xs font-normal text-destructive-text" title={a.error}>{a.error}</div>}
+                        {a.error && (
+                          <div
+                            className="mt-0.5 max-w-md text-xs font-normal truncate text-destructive-text"
+                            title={a.error}
+                          >
+                            {a.error}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         {a.status === 'SUCCESS' ? (
@@ -294,9 +554,16 @@ export function ConnectorDetailPage() {
                           <Badge variant="destructive">Failed</Badge>
                         )}
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{a.userName ?? 'System'}</TableCell>
-                      <TableCell className="text-right text-xs tabular-nums text-muted-foreground">{a.durationMs !== null ? `${a.durationMs} ms` : '—'}</TableCell>
-                      <TableCell className="text-right text-xs text-muted-foreground" title={new Date(a.at).toLocaleString()}>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {a.userName ?? 'System'}
+                      </TableCell>
+                      <TableCell className="text-xs text-right text-muted-foreground tabular-nums">
+                        {a.durationMs !== null ? `${a.durationMs} ms` : '—'}
+                      </TableCell>
+                      <TableCell
+                        className="text-xs text-right text-muted-foreground"
+                        title={new Date(a.at).toLocaleString()}
+                      >
                         {timeAgo(a.at)}
                       </TableCell>
                     </TableRow>
@@ -308,36 +575,127 @@ export function ConnectorDetailPage() {
         </TabsContent>
       </Tabs>
 
-      <ConnectDialog connector={c} open={connectOpen} onOpenChange={setConnectOpen} onConnected={refresh} />
+      <ConnectDialog
+        connector={c}
+        open={connectOpen}
+        onOpenChange={setConnectOpen}
+        onConnected={refresh}
+      />
       <OAuthAppsDialog
         workspaceId={activeWorkspace?.id}
         open={oauthOpen}
         onOpenChange={setOauthOpen}
         initialProvider={c.provider}
       />
-      <AddToAgentDialog connector={c} open={agentOpen} onOpenChange={setAgentOpen} />
+      <AddToAgentDialog
+        connector={c}
+        open={agentOpen}
+        onOpenChange={setAgentOpen}
+      />
     </Page>
   );
 }
 
 function Fact({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-xl border border-border bg-surface p-3.5">
-      <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="mt-1 truncate text-lg font-semibold tabular-nums text-foreground">{value}</div>
+    <div className="p-3.5 rounded-xl border border-border bg-surface">
+      <div className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+        {label}
+      </div>
+      <div className="mt-1 text-lg font-semibold truncate text-foreground tabular-nums">
+        {value}
+      </div>
     </div>
   );
 }
 
-function Section({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
+function Section({
+  title,
+  icon,
+  aside,
+  className,
+  children,
+}: {
+  title: string;
+  icon: ReactNode;
+  aside?: ReactNode;
+  className?: string;
+  children: ReactNode;
+}) {
   return (
-    <section className="rounded-xl border border-border bg-surface p-4">
-      <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
-        {icon}
-        {title}
-      </h2>
+    <section
+      className={`min-w-0 p-4 rounded-xl border border-border bg-surface ${className ?? ''}`}
+    >
+      <div className="mb-3 gap-2 flex flex-wrap items-center justify-between">
+        <h2 className="gap-2 text-sm font-semibold flex items-center text-foreground">
+          {icon}
+          {title}
+        </h2>
+        {aside}
+      </div>
       {children}
     </section>
+  );
+}
+
+function Step({ n, children }: { n: number; children: ReactNode }) {
+  return (
+    <li className="gap-2 flex items-center">
+      <span className="size-5 font-semibold flex shrink-0 items-center justify-center rounded-full bg-primary/15 text-2xs text-primary-text">
+        {n}
+      </span>
+      {children}
+    </li>
+  );
+}
+
+function CountTile({
+  icon,
+  count,
+  label,
+  hint,
+  onClick,
+}: {
+  icon: ReactNode;
+  count: number;
+  label: string;
+  hint: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="min-w-0 p-3 rounded-lg border border-border bg-surface-raised text-left transition-colors hover:border-primary/40 hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+    >
+      <span className="gap-1.5 [&>svg]:size-3.5 flex items-center text-muted-foreground">
+        {icon}
+        <span className="font-medium tracking-wider text-2xs uppercase">
+          {label}
+        </span>
+      </span>
+      <span className="mt-1 text-xl font-semibold block text-foreground tabular-nums">
+        {count}
+      </span>
+      <span className="block truncate text-2xs text-muted-foreground">
+        {hint}
+      </span>
+    </button>
+  );
+}
+
+function SecurityRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="gap-3 py-2 first:pt-0 last:pb-0 grid grid-cols-[5.5rem_1fr]">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="text-foreground">{children}</dd>
+    </div>
   );
 }
 
@@ -358,7 +716,11 @@ function ActionRow({
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState<Record<string, string>>({});
   const [running, setRunning] = useState(false);
-  const [result, setResult] = useState<{ ok: boolean; message: string; data?: unknown } | null>(null);
+  const [result, setResult] = useState<{
+    ok: boolean;
+    message: string;
+    data?: unknown;
+  } | null>(null);
   const missing = missingRequired(capability.inputSchema, values);
 
   const run = async () => {
@@ -375,12 +737,26 @@ function ActionRow({
     setRunning(true);
     setResult(null);
     try {
-      const res = await runConnectorAction(workspaceId, connectionId, capability, coerceSchemaInput(capability.inputSchema, values));
-      setResult({ ok: res.success, message: res.message ?? (res.success ? 'Done.' : 'It didn’t work.'), data: res.data });
+      const res = await runConnectorAction(
+        workspaceId,
+        connectionId,
+        capability,
+        coerceSchemaInput(capability.inputSchema, values),
+      );
+      setResult({
+        ok: res.success,
+        message: res.message ?? (res.success ? 'Done.' : 'It didn’t work.'),
+        data: res.data,
+      });
     } catch (error) {
-      const message = errorMessage(error, `${appName} → ${capability.label} failed.`);
+      const message = errorMessage(
+        error,
+        `${appName} → ${capability.label} failed.`,
+      );
       setResult({ ok: false, message });
-      toast.error(`${appName} → ${capability.label} failed`, { description: message });
+      toast.error(`${appName} → ${capability.label} failed`, {
+        description: message,
+      });
     } finally {
       setRunning(false);
       onRan();
@@ -393,53 +769,111 @@ function ActionRow({
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-start justify-between gap-3 p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl"
+        className="gap-3 p-4 flex w-full items-start justify-between rounded-xl text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       >
         <span className="min-w-0">
-          <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-            {capability.kind === 'query' ? <Eye className="size-4 text-muted-foreground" aria-hidden="true" /> : <Wrench className="size-4 text-muted-foreground" aria-hidden="true" />}
+          <span className="gap-2 text-sm font-medium flex items-center text-foreground">
+            {capability.kind === 'query' ? (
+              <Eye
+                className="size-4 text-muted-foreground"
+                aria-hidden="true"
+              />
+            ) : (
+              <Wrench
+                className="size-4 text-muted-foreground"
+                aria-hidden="true"
+              />
+            )}
             {capability.label}
           </span>
-          {capability.description && <span className="mt-0.5 block text-xs text-muted-foreground">{capability.description}</span>}
+          {capability.description && (
+            <span className="mt-0.5 text-xs block text-muted-foreground">
+              {capability.description}
+            </span>
+          )}
         </span>
-        <span className="flex shrink-0 items-center gap-1.5">
-          <Badge variant={capability.permissionLevel === 'read' ? 'neutral' : capability.permissionLevel === 'destructive' ? 'destructive' : 'warning'}>
+        <span className="gap-1.5 flex shrink-0 items-center">
+          <Badge
+            variant={
+              capability.permissionLevel === 'read'
+                ? 'neutral'
+                : capability.permissionLevel === 'destructive'
+                  ? 'destructive'
+                  : 'warning'
+            }
+          >
             {PERMISSION_LABEL[capability.permissionLevel]}
           </Badge>
-          {capability.requiresConfirmation && <Badge variant="outline">Asks first</Badge>}
+          {capability.requiresConfirmation && (
+            <Badge variant="outline">Asks first</Badge>
+          )}
         </span>
       </button>
       {open && (
-        <div className="space-y-3 border-t border-border p-4">
+        <div className="space-y-3 p-4 border-t border-border">
           <div className="text-xs text-muted-foreground">
-            Tool name <code className="rounded-md bg-surface-raised px-1">{capability.toolName}</code> · Workflow step{' '}
-            <code className="rounded-md bg-surface-raised px-1">{capability.actionRef}</code>
+            Tool name{' '}
+            <code className="px-1 rounded-md bg-surface-raised">
+              {capability.toolName}
+            </code>{' '}
+            · Workflow step{' '}
+            <code className="px-1 rounded-md bg-surface-raised">
+              {capability.actionRef}
+            </code>
           </div>
           {schemaProperties(capability.inputSchema).length > 0 && (
-            <SchemaFields schema={capability.inputSchema} values={values} onChange={setValues} idPrefix={`run-${capability.id}`} />
+            <SchemaFields
+              schema={capability.inputSchema}
+              values={values}
+              onChange={setValues}
+              idPrefix={`run-${capability.id}`}
+            />
           )}
-          <div className="flex items-center gap-2">
-            <Button size="sm" onClick={run} loading={running} disabled={!connectionId || missing.length > 0}>
-              <Play className="mr-1 size-3.5" aria-hidden="true" /> {capability.kind === 'query' ? 'Try it' : 'Run it'}
+          <div className="gap-2 flex items-center">
+            <Button
+              size="sm"
+              onClick={run}
+              loading={running}
+              disabled={!connectionId || missing.length > 0}
+            >
+              <Play className="mr-1 size-3.5" aria-hidden="true" />{' '}
+              {capability.kind === 'query' ? 'Try it' : 'Run it'}
             </Button>
-            {!connectionId && <span className="text-xs text-muted-foreground">Connect {appName} to try it.</span>}
-            {connectionId && missing.length > 0 && <span className="text-xs text-muted-foreground">Fill in {missing.join(', ')}.</span>}
+            {!connectionId && (
+              <span className="text-xs text-muted-foreground">
+                Connect {appName} to try it.
+              </span>
+            )}
+            {connectionId && missing.length > 0 && (
+              <span className="text-xs text-muted-foreground">
+                Fill in {missing.join(', ')}.
+              </span>
+            )}
           </div>
           {result && (
             <div
               role="status"
               className={
                 result.ok
-                  ? 'rounded-lg border border-success/30 bg-success/10 p-3 text-xs text-success-text'
-                  : 'rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive-text'
+                  ? 'p-3 text-xs rounded-lg border border-success/30 bg-success/10 text-success-text'
+                  : 'p-3 text-xs rounded-lg border border-destructive/30 bg-destructive/10 text-destructive-text'
               }
             >
-              <div className="flex items-center gap-1.5 font-medium">
-                {result.ok ? <CheckCircle2 className="size-3.5" aria-hidden="true" /> : <XCircle className="size-3.5" aria-hidden="true" />}
+              <div className="gap-1.5 font-medium flex items-center">
+                {result.ok ? (
+                  <CheckCircle2 className="size-3.5" aria-hidden="true" />
+                ) : (
+                  <XCircle className="size-3.5" aria-hidden="true" />
+                )}
                 {result.message}
               </div>
               {result.data !== undefined && (
-                <CodeBlock variant="compact" className="mt-2 max-h-72 overflow-auto" language="json" code={JSON.stringify(result.data, null, 2).slice(0, 20_000)} />
+                <CodeBlock
+                  variant="compact"
+                  className="mt-2 max-h-72 overflow-auto"
+                  language="json"
+                  code={JSON.stringify(result.data, null, 2).slice(0, 20_000)}
+                />
               )}
             </div>
           )}
@@ -464,7 +898,13 @@ function ConnectionsList({
   const [busy, setBusy] = useState<string | null>(null);
 
   if (connections.length === 0) {
-    return <EmptyState icon={<KeyRound />} title="Not connected" description={`Connect ${appName} to let agents and workflows use it.`} />;
+    return (
+      <EmptyState
+        icon={<KeyRound />}
+        title="Not connected"
+        description={`Connect ${appName} to let agents and workflows use it.`}
+      />
+    );
   }
 
   const test = async (id: string) => {
@@ -473,7 +913,10 @@ function ConnectionsList({
     try {
       const res = await testConnection(activeWorkspace.id, id);
       if (res.success) toast.success(res.message);
-      else toast.error(`${appName} connection failed`, { description: res.message });
+      else
+        toast.error(`${appName} connection failed`, {
+          description: res.message,
+        });
     } catch (error) {
       toast.error(errorMessage(error, 'The test didn’t run.'));
     } finally {
@@ -508,31 +951,64 @@ function ConnectionsList({
       {connections.map((conn) => {
         const healthy = conn.status === 'CONNECTED';
         return (
-          <div key={conn.id} className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 md:flex-row md:items-center md:justify-between">
+          <div
+            key={conn.id}
+            className="gap-3 p-4 md:flex-row md:items-center md:justify-between flex flex-col rounded-xl border border-border bg-surface"
+          >
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-foreground">
-                {conn.accountEmail ?? conn.accountName ?? conn.displayName ?? appName}
-                <Badge variant={healthy ? 'success' : conn.status === 'DISCONNECTED' ? 'neutral' : 'warning'}>{conn.status.toLowerCase()}</Badge>
-                <Badge variant="outline">{conn.scopeType === 'USER' ? (conn.mine ? 'Yours' : 'Personal') : 'Whole workspace'}</Badge>
+              <div className="gap-2 text-sm font-medium flex flex-wrap items-center text-foreground">
+                {conn.accountEmail ??
+                  conn.accountName ??
+                  conn.displayName ??
+                  appName}
+                <Badge
+                  variant={
+                    healthy
+                      ? 'success'
+                      : conn.status === 'DISCONNECTED'
+                        ? 'neutral'
+                        : 'warning'
+                  }
+                >
+                  {conn.status.toLowerCase()}
+                </Badge>
+                <Badge variant="outline">
+                  {conn.scopeType === 'USER'
+                    ? conn.mine
+                      ? 'Yours'
+                      : 'Personal'
+                    : 'Whole workspace'}
+                </Badge>
               </div>
               <div className="mt-0.5 text-xs text-muted-foreground">
                 Connected {timeAgo(conn.createdAt)}
                 {conn.lastSyncAt && ` · synced ${timeAgo(conn.lastSyncAt)}`}
               </div>
-              {conn.lastErrorMessage && <div className="mt-1 text-xs text-destructive-text">{conn.lastErrorMessage}</div>}
+              {conn.lastErrorMessage && (
+                <div className="mt-1 text-xs text-destructive-text">
+                  {conn.lastErrorMessage}
+                </div>
+              )}
               {conn.webhookUrl && (
-                <div className="mt-2 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                <div className="mt-2 min-w-0 gap-1.5 text-xs flex items-center text-muted-foreground">
                   <span className="shrink-0">Webhook address</span>
-                  <code className="min-w-0 truncate rounded-md bg-surface-muted px-1.5 py-0.5 font-mono text-foreground">{conn.webhookUrl}</code>
+                  <code className="min-w-0 px-1.5 py-0.5 truncate rounded-md bg-surface-muted font-mono text-foreground">
+                    {conn.webhookUrl}
+                  </code>
                   <Button
                     size="xs"
                     variant="ghost"
                     aria-label="Copy webhook address"
                     onClick={() => {
-                      void navigator.clipboard?.writeText(conn.webhookUrl as string).then(
-                        () => toast.success('Webhook address copied.'),
-                        () => toast.error('Couldn’t copy. Select the address and copy it by hand.'),
-                      );
+                      void navigator.clipboard
+                        ?.writeText(conn.webhookUrl as string)
+                        .then(
+                          () => toast.success('Webhook address copied.'),
+                          () =>
+                            toast.error(
+                              'Couldn’t copy. Select the address and copy it by hand.',
+                            ),
+                        );
                     }}
                   >
                     <Copy className="size-3" aria-hidden="true" />
@@ -540,17 +1016,32 @@ function ConnectionsList({
                 </div>
               )}
             </div>
-            <div className="flex shrink-0 items-center gap-1.5">
+            <div className="gap-1.5 flex shrink-0 items-center">
               {!healthy && (
                 <Button size="xs" onClick={onReconnect}>
                   Reconnect
                 </Button>
               )}
-              <Button size="xs" variant="outline" onClick={() => test(conn.id)} loading={busy === conn.id} disabled={!!busy}>
+              <Button
+                size="xs"
+                variant="outline"
+                onClick={() => test(conn.id)}
+                loading={busy === conn.id}
+                disabled={!!busy}
+              >
                 Test
               </Button>
-              <Button size="xs" variant="ghost" onClick={() => remove(conn)} disabled={!!busy} aria-label={`Disconnect ${appName}`}>
-                <Trash2 className="size-3.5 text-destructive" aria-hidden="true" />
+              <Button
+                size="xs"
+                variant="ghost"
+                onClick={() => remove(conn)}
+                disabled={!!busy}
+                aria-label={`Disconnect ${appName}`}
+              >
+                <Trash2
+                  className="size-3.5 text-destructive"
+                  aria-hidden="true"
+                />
               </Button>
             </div>
           </div>
