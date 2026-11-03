@@ -1,6 +1,16 @@
 import { AIModelBadge, Badge, UserAvatar } from '@org/ui';
 import { cn } from '@org/utils';
-import { Activity, AlertTriangle, Archive, CheckCircle2, Pause, PenLine, Trash2, Zap, type LucideIcon } from 'lucide-react';
+import {
+  Activity,
+  AlertTriangle,
+  Archive,
+  CheckCircle2,
+  Pause,
+  PenLine,
+  Trash2,
+  Zap,
+  type LucideIcon,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 
 /**
@@ -12,9 +22,26 @@ import type { ReactNode } from 'react';
  * a disclosure `<button>` as well as a plain card. Actions go beside it.
  */
 
-export type AIEntityStatus = 'live' | 'working' | 'error' | 'published' | 'testing' | 'draft' | 'paused' | 'archived' | 'trash';
+export type AIEntityStatus =
+  | 'live'
+  | 'working'
+  | 'error'
+  | 'published'
+  | 'testing'
+  | 'draft'
+  | 'paused'
+  | 'archived'
+  | 'trash';
 
-const STATUS: Record<AIEntityStatus, { label: string; variant: 'success' | 'info' | 'warning' | 'destructive' | 'neutral' | 'outline'; icon: LucideIcon }> = {
+const STATUS: Record<
+  AIEntityStatus,
+  {
+    label: string;
+    variant:
+      'success' | 'info' | 'warning' | 'destructive' | 'neutral' | 'outline';
+    icon: LucideIcon;
+  }
+> = {
   live: { label: 'Live', variant: 'success', icon: CheckCircle2 },
   published: { label: 'Published', variant: 'success', icon: CheckCircle2 },
   working: { label: 'Working', variant: 'info', icon: Activity },
@@ -30,7 +57,13 @@ export function aiEntityStatusLabel(status: AIEntityStatus): string {
   return STATUS[status].label;
 }
 
-export function AIEntityStatusBadge({ status, className }: { status: AIEntityStatus; className?: string }) {
+export function AIEntityStatusBadge({
+  status,
+  className,
+}: {
+  status: AIEntityStatus;
+  className?: string;
+}) {
   const s = STATUS[status];
   const Icon = s.icon;
   return (
@@ -42,15 +75,37 @@ export function AIEntityStatusBadge({ status, className }: { status: AIEntitySta
 }
 
 /** The entity's model, or the workspace default when it names none. */
-export function AIEntityModel({ model, provider }: { model: string | null | undefined; provider?: string | null }) {
+export function AIEntityModel({
+  model,
+  provider,
+  className,
+}: {
+  model: string | null | undefined;
+  provider?: string | null;
+  className?: string;
+}) {
   if (!model) {
     return (
-      <span className="inline-flex h-5 items-center rounded-md border border-border px-1.5 text-[10px] font-medium text-muted-foreground">
+      <span
+        className={cn(
+          'h-5 px-1.5 font-medium inline-flex items-center rounded-md border border-border text-[10px] text-muted-foreground',
+          className,
+        )}
+      >
         {provider ? `${provider} default` : 'Workspace default'}
       </span>
     );
   }
-  return <AIModelBadge modelId={model} provider={provider ?? undefined} variant="subtle" size="xs" />;
+  return (
+    <AIModelBadge
+      modelId={model}
+      provider={provider ?? undefined}
+      variant="subtle"
+      size="xs"
+      title={model}
+      className={className}
+    />
+  );
 }
 
 export function AIEntityHeader({
@@ -84,16 +139,18 @@ export function AIEntityHeader({
 }) {
   const extras = (meta ?? []).filter(Boolean) as string[];
   return (
-    <span className="flex min-w-0 flex-1 items-start gap-3">
+    <span className="min-w-0 gap-3 flex flex-1 items-start">
       <span className="shrink-0">{avatar}</span>
-      <span className="block min-w-0 flex-1">
-        <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="truncate text-sm font-semibold text-foreground">{name}</span>
+      <span className="min-w-0 block flex-1">
+        <span className="min-w-0 gap-x-2 gap-y-1 flex flex-wrap items-center">
+          <span className="text-sm font-semibold truncate text-foreground">
+            {name}
+          </span>
           {nameSlot}
           <AIEntityStatusBadge status={status} />
           {badges}
         </span>
-        <span className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+        <span className="mt-1 min-w-0 gap-x-1.5 gap-y-1 text-xs flex flex-wrap items-center text-muted-foreground">
           <span className="font-medium text-foreground/80">{kind}</span>
           {role ? (
             <>
@@ -114,7 +171,9 @@ export function AIEntityHeader({
             </>
           ) : null}
         </span>
-        {children ? <span className="mt-2 block space-y-2">{children}</span> : null}
+        {children ? (
+          <span className="mt-2 space-y-2 block">{children}</span>
+        ) : null}
       </span>
     </span>
   );
@@ -128,12 +187,26 @@ export interface AIEntityFact {
 }
 
 /** One row of key numbers, same order and look for agents and coworkers. */
-export function AIEntityFacts({ facts, className }: { facts: AIEntityFact[]; className?: string }) {
+export function AIEntityFacts({
+  facts,
+  className,
+}: {
+  facts: AIEntityFact[];
+  className?: string;
+}) {
   return (
-    <span className={cn('flex flex-wrap gap-x-4 gap-y-1 text-xs', className)}>
+    <span className={cn('gap-x-4 gap-y-1 text-xs flex flex-wrap', className)}>
       {facts.map((f) => (
-        <span key={f.label} className={cn('inline-flex items-baseline gap-1', f.muted && 'opacity-60')}>
-          <span className="font-semibold tabular-nums text-foreground">{f.value}</span>
+        <span
+          key={f.label}
+          className={cn(
+            'gap-1 inline-flex items-baseline',
+            f.muted && 'opacity-60',
+          )}
+        >
+          <span className="font-semibold text-foreground tabular-nums">
+            {f.value}
+          </span>
           <span className="text-muted-foreground">{f.label}</span>
         </span>
       ))}
@@ -142,14 +215,30 @@ export function AIEntityFacts({ facts, className }: { facts: AIEntityFact[]; cla
 }
 
 /** The person who owns an entity: their avatar and name, or "Unassigned" when no one does. */
-export function AIEntityOwner({ owner }: { owner?: { id?: string | null; name: string; avatarUrl?: string | null } | null }) {
+export function AIEntityOwner({
+  owner,
+}: {
+  owner?: {
+    id?: string | null;
+    name: string;
+    avatarUrl?: string | null;
+  } | null;
+}) {
   if (!owner?.name) {
     return <span className="text-muted-foreground">Unassigned owner</span>;
   }
   return (
-    <span className="inline-flex min-w-0 items-center gap-1.5">
-      <UserAvatar name={owner.name} src={owner.avatarUrl ?? undefined} seed={owner.id ?? undefined} indicator={false} size="xs" />
-      <span className="truncate font-semibold text-foreground">{owner.name}</span>
+    <span className="min-w-0 gap-1.5 inline-flex items-center">
+      <UserAvatar
+        name={owner.name}
+        src={owner.avatarUrl ?? undefined}
+        seed={owner.id ?? undefined}
+        indicator={false}
+        size="xs"
+      />
+      <span className="font-semibold truncate text-foreground">
+        {owner.name}
+      </span>
       <span className="text-muted-foreground">owner</span>
     </span>
   );
