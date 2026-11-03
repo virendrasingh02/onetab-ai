@@ -933,8 +933,8 @@ export function EditableNodeHeader({
         />
       )}
       {customIcon || (
-        <div className="size-9 shadow-2xs flex shrink-0 items-center justify-center rounded-lg border border-border bg-surface">
-          {Icon && <Icon className={cn('size-[18px]', iconTone)} />}
+        <div className="size-11 shadow-2xs flex shrink-0 items-center justify-center rounded-xl border border-border bg-surface">
+          {Icon && <Icon className={cn('size-[22px]', iconTone)} />}
         </div>
       )}
 
@@ -1308,7 +1308,7 @@ export const StartNode = memo(({ id, type, data, selected }: NodeProps) => {
         customIcon:
           isConnectorTrigger && meta ? (
             <div
-              className="size-10 p-1.5 shadow-2xs flex shrink-0 items-center justify-center rounded-xl border border-border/60 bg-surface-raised"
+              className="size-11 p-1.5 shadow-2xs flex shrink-0 items-center justify-center rounded-xl border border-border/60 bg-surface-raised"
               style={{
                 borderColor: meta?.color ? `${meta.color}40` : undefined,
               }}
@@ -1318,7 +1318,7 @@ export const StartNode = memo(({ id, type, data, selected }: NodeProps) => {
                 name={meta.name}
                 category={meta.category}
                 customIconUrl={cfg.customIconUrl}
-                size={24}
+                size={30}
               />
             </div>
           ) : undefined,
@@ -2055,11 +2055,11 @@ export const LlmNode = memo(({ id, data, selected }: NodeProps) => {
         defaultTitle: 'LLM',
         defaultDescription: 'Chat model',
         customIcon: (
-          <div className="size-10 flex shrink-0 items-center justify-center rounded-xl border border-border/80 bg-surface-raised">
+          <div className="size-11 p-1.5 shadow-2xs flex shrink-0 items-center justify-center rounded-xl border border-border/60 bg-surface-raised">
             {model ? (
-              <AIModelIcon modelId={model} size={18} />
+              <AIModelIcon modelId={model} size={30} />
             ) : (
-              <Cpu className="size-[18px] text-muted-foreground" />
+              <Cpu className="size-[22px] text-muted-foreground" />
             )}
           </div>
         ),
@@ -2315,12 +2315,12 @@ export const AppConnectorNode = memo(
           defaultTitle,
           defaultDescription: defaultDesc,
           customIcon: (
-            <div className="size-10 p-1.5 shadow-2xs flex shrink-0 items-center justify-center rounded-xl border border-border/60 bg-surface-raised">
+            <div className="size-11 p-1.5 shadow-2xs flex shrink-0 items-center justify-center rounded-xl border border-border/60 bg-surface-raised">
               <AppConnectorIcon
                 connectorId={app.slug}
                 name={app.connector?.name}
                 category={app.connector?.category}
-                size={24}
+                size={30}
               />
             </div>
           ),
@@ -2328,7 +2328,7 @@ export const AppConnectorNode = memo(
       >
         <div
           className={cn(
-            '-mt-0.5 gap-1.5 font-medium ml-[50px] flex items-center text-2xs',
+            '-mt-0.5 gap-1.5 font-medium ml-[54px] flex items-center text-2xs',
             connection.text,
           )}
         >
@@ -2988,7 +2988,8 @@ export const TeamMemberNode = memo(
                 name={member.name}
                 kind={meta.entity}
                 avatarUrl={member.avatarUrl}
-                size="sm"
+                size="lg"
+                className="size-11"
               />
             ) : undefined,
           badge:
