@@ -288,6 +288,8 @@ export const createMCPConnectionSchema = z.object({
     .max(2_000),
   transport: z.enum(['HTTP', 'SSE']).optional(),
   token: z.string().trim().max(8_192).optional(),
+  oauthClientId: z.string().trim().max(512).optional(),
+  oauthClientSecret: z.string().trim().max(2_048).optional(),
 });
 
 /** Every field optional. `token: ''` removes the stored token. */
@@ -301,6 +303,8 @@ export const updateMCPConnectionSchema = z.object({
     .optional(),
   token: z.string().trim().max(8_192).optional(),
   isEnabled: z.boolean().optional(),
+  oauthClientId: z.string().trim().max(512).optional(),
+  oauthClientSecret: z.string().trim().max(2_048).optional(),
 });
 
 export const testMcpToolSchema = z.object({

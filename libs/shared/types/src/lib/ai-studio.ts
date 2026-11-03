@@ -411,7 +411,9 @@ export interface AIMemoryEntry {
 }
 
 export type MCPTransport = 'HTTP' | 'SSE' | 'STDIO';
-export type MCPConnectionStatus = 'CONNECTED' | 'DISCONNECTED' | 'ERROR';
+/** NEEDS_AUTH: the server answered 401 — sign in (OAuth) or fix the token. */
+export type MCPConnectionStatus =
+  'CONNECTED' | 'DISCONNECTED' | 'ERROR' | 'NEEDS_AUTH';
 
 /** A tool an MCP server advertised during its last successful handshake. */
 export interface MCPDiscoveredTool {
@@ -439,6 +441,15 @@ export interface MCPConnection {
   status: MCPConnectionStatus;
   hasToken: boolean;
   maskedToken: string | null;
+  /** NONE, a pasted bearer TOKEN, or an OAUTH sign-in. */
+  authMode: 'NONE' | 'TOKEN' | 'OAUTH';
+  /** Signed in through OAuth and holding an access token. */
+  oauthConnected: boolean;
+  /** The OAuth client in use — entered by a member or registered automatically. */
+  oauthClientId: string | null;
+  oauthClientSource: 'MANUAL' | 'DYNAMIC' | null;
+  /** Register this as the redirect URI when creating an OAuth app by hand. */
+  oauthRedirectUri: string;
   discoveredToolsJson: MCPDiscoveredTool[];
   lastError: string | null;
   lastSyncedAt: IsoDateString | null;
@@ -462,6 +473,9 @@ export interface CreateMCPConnectionInput {
   transport?: MCPTransport;
   headers?: Record<string, string>;
   token?: string;
+  /** For servers without dynamic client registration (e.g. Asana's v2 MCP). */
+  oauthClientId?: string;
+  oauthClientSecret?: string;
 }
 
 /** A changed URL or token re-runs the handshake. `token: ''` removes it. */
@@ -470,6 +484,10 @@ export interface UpdateMCPConnectionInput {
   serverUrl?: string;
   token?: string;
   isEnabled?: boolean;
+  /** `''` removes the client (and its sign-in). */
+  oauthClientId?: string;
+  /** Blank keeps the stored secret. */
+  oauthClientSecret?: string;
 }
 
 /** One `tools/call` against a connected server. */

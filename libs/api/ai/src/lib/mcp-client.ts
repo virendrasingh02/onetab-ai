@@ -14,6 +14,7 @@
  */
 
 import { safeFetch } from '@org/api-common';
+import { parseWwwAuthenticate, type MCPAuthHint } from './mcp-oauth.js';
 
 export const MCP_PROTOCOL_VERSION = '2025-06-18';
 const CLIENT_INFO = { name: 'Onetab AI', version: '1.0.0' };
@@ -24,7 +25,11 @@ export interface MCPToolDescriptor {
   description?: string;
   inputSchema?: Record<string, unknown>;
   /** The server's behaviour hints (MCP tool annotations). Hints, not guarantees. */
-  annotations?: { title?: string; readOnlyHint?: boolean; destructiveHint?: boolean };
+  annotations?: {
+    title?: string;
+    readOnlyHint?: boolean;
+    destructiveHint?: boolean;
+  };
 }
 
 /**
@@ -112,7 +117,10 @@ async function post(
  * The JSON-RPC message with `id` out of a reply, whether the server answered
  * with a JSON body or an SSE stream (`data:` lines, possibly several events).
  */
-export function extractRpcResponse(reply: RpcReply, id: number): Record<string, unknown> {
+export function extractRpcResponse(
+  reply: RpcReply,
+  id: number,
+): Record<string, unknown> {
   const contentType = reply.headers['content-type'] ?? '';
   const candidates: unknown[] = [];
 
@@ -141,19 +149,51 @@ export function extractRpcResponse(reply: RpcReply, id: number): Record<string, 
 
   const match = candidates.find(
     (m): m is Record<string, unknown> =>
-      !!m && typeof m === 'object' && (m as Record<string, unknown>)['id'] === id,
+      !!m &&
+      typeof m === 'object' &&
+      (m as Record<string, unknown>)['id'] === id,
   );
-  if (!match) throw new MCPClientError('The server did not answer the request.');
-  const error = match['error'] as { message?: string; code?: number } | undefined;
+  if (!match)
+    throw new MCPClientError('The server did not answer the request.');
+  const error = match['error'] as
+    { message?: string; code?: number } | undefined;
   if (error) {
-    throw new MCPClientError(`The server returned an error: ${error.message ?? `code ${error.code}`}.`);
+    throw new MCPClientError(
+      `The server returned an error: ${error.message ?? `code ${error.code}`}.`,
+    );
   }
   return (match['result'] as Record<string, unknown>) ?? {};
 }
 
+/**
+ * The server wants (different) credentials. `hint` carries what its
+ * `WWW-Authenticate` header said, which starts the OAuth flow (mcp-oauth.ts).
+ */
+export class MCPAuthRequiredError extends MCPClientError {
+  constructor(
+    message: string,
+    readonly hint: MCPAuthHint,
+  ) {
+    super(message);
+    this.name = 'MCPAuthRequiredError';
+  }
+}
+
 function assertOk(reply: RpcReply, step: string) {
-  if (reply.status === 401 || reply.status === 403) {
-    throw new MCPClientError(`The server refused the credentials during ${step} (HTTP ${reply.status}).`);
+  const challenge = reply.headers['www-authenticate'];
+  if (
+    reply.status === 401 ||
+    (reply.status === 403 && /insufficient_scope/i.test(challenge ?? ''))
+  ) {
+    throw new MCPAuthRequiredError(
+      `The server refused the credentials during ${step} (HTTP ${reply.status}).`,
+      parseWwwAuthenticate(challenge),
+    );
+  }
+  if (reply.status === 403) {
+    throw new MCPClientError(
+      `The server refused the credentials during ${step} (HTTP 403).`,
+    );
   }
   if (reply.status === 404 || reply.status === 405) {
     throw new MCPClientError(
@@ -161,7 +201,9 @@ function assertOk(reply: RpcReply, step: string) {
     );
   }
   if (reply.status < 200 || reply.status >= 300) {
-    throw new MCPClientError(`The server answered HTTP ${reply.status} during ${step}.`);
+    throw new MCPClientError(
+      `The server answered HTTP ${reply.status} during ${step}.`,
+    );
   }
 }
 
@@ -177,7 +219,11 @@ async function openSession(endpoint: MCPEndpoint): Promise<Session> {
       jsonrpc: '2.0',
       id: 1,
       method: 'initialize',
-      params: { protocolVersion: MCP_PROTOCOL_VERSION, capabilities: {}, clientInfo: CLIENT_INFO },
+      params: {
+        protocolVersion: MCP_PROTOCOL_VERSION,
+        capabilities: {},
+        clientInfo: CLIENT_INFO,
+      },
     },
     {},
   );
@@ -185,7 +231,9 @@ async function openSession(endpoint: MCPEndpoint): Promise<Session> {
   const result = extractRpcResponse(reply, 1);
   const sessionId = reply.headers['mcp-session-id'];
   const version =
-    typeof result['protocolVersion'] === 'string' ? (result['protocolVersion'] as string) : MCP_PROTOCOL_VERSION;
+    typeof result['protocolVersion'] === 'string'
+      ? (result['protocolVersion'] as string)
+      : MCP_PROTOCOL_VERSION;
   const headers: Record<string, string> = {
     'mcp-protocol-version': version,
     ...(sessionId ? { 'mcp-session-id': sessionId } : {}),
@@ -193,7 +241,11 @@ async function openSession(endpoint: MCPEndpoint): Promise<Session> {
 
   // The spec requires this notification before other requests; servers
   // answer 202 with no body.
-  const ack = await post(endpoint, { jsonrpc: '2.0', method: 'notifications/initialized' }, headers);
+  const ack = await post(
+    endpoint,
+    { jsonrpc: '2.0', method: 'notifications/initialized' },
+    headers,
+  );
   if (ack.status >= 400) assertOk(ack, 'initialized notification');
 
   const serverInfo = result['serverInfo'] as { name?: string } | undefined;
@@ -210,7 +262,12 @@ export async function discoverMCPTools(
   for (let page = 0, id = 2; page < 10; page++, id++) {
     const reply = await post(
       endpoint,
-      { jsonrpc: '2.0', id, method: 'tools/list', params: cursor ? { cursor } : {} },
+      {
+        jsonrpc: '2.0',
+        id,
+        method: 'tools/list',
+        params: cursor ? { cursor } : {},
+      },
       session.headers,
     );
     assertOk(reply, 'tools/list');
@@ -220,26 +277,41 @@ export async function discoverMCPTools(
       if (typeof tool['name'] !== 'string') continue;
       tools.push({
         name: tool['name'],
-        ...(typeof tool['description'] === 'string' ? { description: tool['description'] } : {}),
+        ...(typeof tool['description'] === 'string'
+          ? { description: tool['description'] }
+          : {}),
         ...(tool['inputSchema'] && typeof tool['inputSchema'] === 'object'
           ? { inputSchema: tool['inputSchema'] as Record<string, unknown> }
           : {}),
         ...(tool['annotations'] && typeof tool['annotations'] === 'object'
-          ? { annotations: pickAnnotations(tool['annotations'] as Record<string, unknown>) }
+          ? {
+              annotations: pickAnnotations(
+                tool['annotations'] as Record<string, unknown>,
+              ),
+            }
           : {}),
       });
     }
-    cursor = typeof result['nextCursor'] === 'string' ? (result['nextCursor'] as string) : undefined;
+    cursor =
+      typeof result['nextCursor'] === 'string'
+        ? (result['nextCursor'] as string)
+        : undefined;
     if (!cursor) break;
   }
   return { serverName: session.serverName, tools };
 }
 
-function pickAnnotations(raw: Record<string, unknown>): MCPToolDescriptor['annotations'] {
+function pickAnnotations(
+  raw: Record<string, unknown>,
+): MCPToolDescriptor['annotations'] {
   return {
     ...(typeof raw['title'] === 'string' ? { title: raw['title'] } : {}),
-    ...(typeof raw['readOnlyHint'] === 'boolean' ? { readOnlyHint: raw['readOnlyHint'] } : {}),
-    ...(typeof raw['destructiveHint'] === 'boolean' ? { destructiveHint: raw['destructiveHint'] } : {}),
+    ...(typeof raw['readOnlyHint'] === 'boolean'
+      ? { readOnlyHint: raw['readOnlyHint'] }
+      : {}),
+    ...(typeof raw['destructiveHint'] === 'boolean'
+      ? { destructiveHint: raw['destructiveHint'] }
+      : {}),
   };
 }
 
@@ -252,12 +324,19 @@ export async function callMCPTool(
   const session = await openSession(endpoint);
   const reply = await post(
     endpoint,
-    { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name, arguments: args } },
+    {
+      jsonrpc: '2.0',
+      id: 2,
+      method: 'tools/call',
+      params: { name, arguments: args },
+    },
     session.headers,
   );
   assertOk(reply, 'tools/call');
   const result = extractRpcResponse(reply, 2);
-  const content = Array.isArray(result['content']) ? (result['content'] as unknown[]) : [];
+  const content = Array.isArray(result['content'])
+    ? (result['content'] as unknown[])
+    : [];
   const text = content
     .map((part) => {
       const p = part as { type?: string; text?: string };

@@ -6746,6 +6746,19 @@ export const mcpApi = {
       http.patch(`/workspaces/${workspaceId}/mcp-connections/${id}`, data),
     ),
 
+  /** Starts the MCP OAuth sign-in; open `authorizeUrl` in a popup. */
+  startOAuth: (workspaceId: string, id: string) =>
+    request<{ authorizeUrl: string }>(
+      http.post(`/workspaces/${workspaceId}/mcp-connections/${id}/oauth/start`),
+    ),
+
+  signOutOAuth: (workspaceId: string, id: string) =>
+    request<MCPConnection>(
+      http.post(
+        `/workspaces/${workspaceId}/mcp-connections/${id}/oauth/sign-out`,
+      ),
+    ),
+
   testTool: (
     workspaceId: string,
     id: string,

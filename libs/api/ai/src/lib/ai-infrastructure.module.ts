@@ -25,7 +25,7 @@ import { ApprovalsController } from './approvals.controller.js';
 import { AISecretsService } from './ai-secrets.service.js';
 import { AISecretsController } from './ai-secrets.controller.js';
 import { MCPService } from './mcp.service.js';
-import { MCPController } from './mcp.controller.js';
+import { MCPController, MCPOAuthCallbackController } from './mcp.controller.js';
 import { AIFeedbackService } from './ai-feedback.service.js';
 import { AIFeedbackController } from './ai-feedback.controller.js';
 import { AIExecutionsService } from './ai-executions.service.js';
@@ -44,6 +44,7 @@ import { AIMemoryController } from './ai-memory.controller.js';
     ApprovalsController,
     AISecretsController,
     MCPController,
+    MCPOAuthCallbackController,
     AIFeedbackController,
     AIExecutionsController,
     AIMemoryController,

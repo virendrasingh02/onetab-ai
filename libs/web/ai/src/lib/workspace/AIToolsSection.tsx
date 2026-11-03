@@ -30,9 +30,22 @@ import {
 import { formatRelative } from '@org/utils';
 import { useWorkspacePermission } from '@org/web-workspace';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { KeyRound, Play, Plug, Plus, RefreshCw, Trash2, Wrench } from 'lucide-react';
+import {
+  KeyRound,
+  Play,
+  Plug,
+  Plus,
+  RefreshCw,
+  Trash2,
+  Wrench,
+} from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
-import { errorText, useBuiltinTools, useMcpConnections, useWorkspaceIds } from './use-ai-workspace.js';
+import {
+  errorText,
+  useBuiltinTools,
+  useMcpConnections,
+  useWorkspaceIds,
+} from './use-ai-workspace.js';
 
 /**
  * Everything an agent can act with: the built-in workspace tools, tools from
@@ -59,7 +72,10 @@ function BuiltinToolsPanel({ canRun }: { canRun: boolean }) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [result, setResult] = useState<unknown>(undefined);
 
-  const tool = useMemo(() => (tools.data ?? []).find((t) => t.name === selected), [tools.data, selected]);
+  const tool = useMemo(
+    () => (tools.data ?? []).find((t) => t.name === selected),
+    [tools.data, selected],
+  );
   const params = Object.entries(tool?.parameters ?? {});
 
   const run = useMutation({
@@ -68,7 +84,8 @@ function BuiltinToolsPanel({ canRun }: { canRun: boolean }) {
       for (const [key, spec] of params) {
         const raw = values[key]?.trim();
         if (!raw) continue;
-        input[key] = spec.type === 'number' || spec.type === 'integer' ? Number(raw) : raw;
+        input[key] =
+          spec.type === 'number' || spec.type === 'integer' ? Number(raw) : raw;
       }
       return agentsApi.testMcpTool(workspaceId as string, selected, input);
     },
@@ -85,7 +102,8 @@ function BuiltinToolsPanel({ canRun }: { canRun: boolean }) {
     if (!READ_ONLY_AGENT_TOOLS.includes(selected)) {
       const ok = await confirm({
         title: `Run ${selected} for real?`,
-        description: 'This tool changes things in the workspace (it is not a dry run), and it runs as you.',
+        description:
+          'This tool changes things in the workspace (it is not a dry run), and it runs as you.',
         confirmLabel: 'Run it',
       });
       if (!ok) return;
@@ -101,8 +119,8 @@ function BuiltinToolsPanel({ canRun }: { canRun: boolean }) {
       {tools.isLoading ? (
         <LoadingState label="Loading tools…" />
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card className="divide-y divide-border p-0">
+        <div className="gap-4 lg:grid-cols-2 grid">
+          <Card className="p-0 divide-y divide-border">
             {(tools.data ?? []).map((t) => (
               <button
                 key={t.name}
@@ -113,13 +131,24 @@ function BuiltinToolsPanel({ canRun }: { canRun: boolean }) {
                   setResult(undefined);
                 }}
                 aria-pressed={selected === t.name}
-                className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/40 focus-visible:bg-accent/40 focus-visible:outline-none aria-pressed:bg-primary/5"
+                className="gap-3 px-4 py-3 flex w-full items-start justify-between text-left transition-colors hover:bg-accent/40 focus-visible:bg-accent/40 focus-visible:outline-none aria-pressed:bg-primary/5"
               >
                 <div className="min-w-0">
-                  <span className="font-mono text-xs font-semibold text-foreground">{t.name}</span>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{t.description}</p>
+                  <span className="text-xs font-semibold font-mono text-foreground">
+                    {t.name}
+                  </span>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {t.description}
+                  </p>
                 </div>
-                <Badge variant={READ_ONLY_AGENT_TOOLS.includes(t.name) ? 'neutral' : 'warning'} className="shrink-0 text-[10px]">
+                <Badge
+                  variant={
+                    READ_ONLY_AGENT_TOOLS.includes(t.name)
+                      ? 'neutral'
+                      : 'warning'
+                  }
+                  className="shrink-0 text-[10px]"
+                >
                   {READ_ONLY_AGENT_TOOLS.includes(t.name) ? 'reads' : 'writes'}
                 </Badge>
               </button>
@@ -136,32 +165,53 @@ function BuiltinToolsPanel({ canRun }: { canRun: boolean }) {
               />
             ) : (
               <form onSubmit={onSubmit} className="space-y-3">
-                <p className="font-mono text-sm font-semibold text-foreground">{tool.name}</p>
+                <p className="text-sm font-semibold font-mono text-foreground">
+                  {tool.name}
+                </p>
                 {params.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">This tool takes no input.</p>
+                  <p className="text-xs text-muted-foreground">
+                    This tool takes no input.
+                  </p>
                 ) : (
                   params.map(([key, spec]) => (
                     <Field key={key} label={key} hint={spec.description}>
                       <Input
                         value={values[key] ?? ''}
-                        inputMode={spec.type === 'number' || spec.type === 'integer' ? 'numeric' : undefined}
-                        onChange={(e) => setValues((v) => ({ ...v, [key]: e.target.value }))}
+                        inputMode={
+                          spec.type === 'number' || spec.type === 'integer'
+                            ? 'numeric'
+                            : undefined
+                        }
+                        onChange={(e) =>
+                          setValues((v) => ({ ...v, [key]: e.target.value }))
+                        }
                       />
                     </Field>
                   ))
                 )}
                 {canRun ? (
-                  <Button type="submit" size="sm" leadingIcon={<Play />} loading={run.isPending}>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    leadingIcon={<Play />}
+                    loading={run.isPending}
+                  >
                     Run
                   </Button>
                 ) : (
-                  <p className="text-xs text-muted-foreground">Guests can't run tools.</p>
+                  <p className="text-xs text-muted-foreground">
+                    Guests can't run tools.
+                  </p>
                 )}
                 {result !== undefined ? (
                   <CodeBlock
                     variant="compact"
                     language="json"
-                    code={typeof result === 'string' ? result : JSON.stringify(result, null, 2)}
+                    code={
+                      typeof result === 'string'
+                        ? result
+                        : JSON.stringify(result, null, 2)
+                    }
                   />
                 ) : null}
               </form>
@@ -180,7 +230,10 @@ function McpServersPanel({ canManage }: { canManage: boolean }) {
   const queryClient = useQueryClient();
   const connections = useMcpConnections(workspaceId);
   const [open, setOpen] = useState(false);
-  const refresh = () => queryClient.invalidateQueries({ queryKey: queryKeys.mcp.all(workspaceId ?? '') });
+  const refresh = () =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.mcp.all(workspaceId ?? ''),
+    });
 
   const sync = useMutation({
     mutationFn: (id: string) => mcpApi.syncTools(workspaceId as string, id),
@@ -190,19 +243,24 @@ function McpServersPanel({ canManage }: { canManage: boolean }) {
           description: `${conn.discoveredToolsJson.length} tool(s) available.`,
         });
       } else {
-        toast.error(`${conn.name} didn't connect`, { description: conn.lastError ?? undefined });
+        toast.error(`${conn.name} didn't connect`, {
+          description: conn.lastError ?? undefined,
+        });
       }
       void refresh();
     },
-    onError: (err) => toast.error('Sync failed', { description: errorText(err) }),
+    onError: (err) =>
+      toast.error('Sync failed', { description: errorText(err) }),
   });
   const remove = useMutation({
-    mutationFn: (id: string) => mcpApi.deleteConnection(workspaceId as string, id),
+    mutationFn: (id: string) =>
+      mcpApi.deleteConnection(workspaceId as string, id),
     onSuccess: () => {
       toast.success('MCP server removed');
       void refresh();
     },
-    onError: (err) => toast.error('Could not remove it', { description: errorText(err) }),
+    onError: (err) =>
+      toast.error('Could not remove it', { description: errorText(err) }),
   });
 
   return (
@@ -211,7 +269,12 @@ function McpServersPanel({ canManage }: { canManage: boolean }) {
       description="Connect a Model Context Protocol server (Streamable HTTP). Its tools become available to agents; ones the server doesn't mark read-only ask for approval before running."
       actions={
         canManage ? (
-          <Button size="sm" variant="outline" leadingIcon={<Plus />} onClick={() => setOpen(true)}>
+          <Button
+            size="sm"
+            variant="outline"
+            leadingIcon={<Plus />}
+            onClick={() => setOpen(true)}
+          >
             Connect server
           </Button>
         ) : undefined
@@ -224,10 +287,14 @@ function McpServersPanel({ canManage }: { canManage: boolean }) {
           size="sm"
           icon={<Plug />}
           title="No MCP servers connected"
-          description={canManage ? 'Connect one to give agents its tools.' : 'An admin can connect one.'}
+          description={
+            canManage
+              ? 'Connect one to give agents its tools.'
+              : 'An admin can connect one.'
+          }
         />
       ) : (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="gap-3 md:grid-cols-2 grid">
           {(connections.data ?? []).map((conn) => (
             <McpServerCard
               key={conn.id}
@@ -238,7 +305,8 @@ function McpServersPanel({ canManage }: { canManage: boolean }) {
               onRemove={async () => {
                 const ok = await confirm({
                   title: `Disconnect ${conn.name}?`,
-                  description: 'Agents using its tools lose them. You can reconnect later.',
+                  description:
+                    'Agents using its tools lose them. You can reconnect later.',
                   destructive: true,
                   confirmLabel: 'Disconnect',
                 });
@@ -248,7 +316,12 @@ function McpServersPanel({ canManage }: { canManage: boolean }) {
           ))}
         </div>
       )}
-      <ConnectMcpDialog open={open} onOpenChange={setOpen} workspaceId={workspaceId as string} onDone={refresh} />
+      <ConnectMcpDialog
+        open={open}
+        onOpenChange={setOpen}
+        workspaceId={workspaceId as string}
+        onDone={refresh}
+      />
     </PageSection>
   );
 }
@@ -266,19 +339,34 @@ function McpServerCard({
   onSync: () => void;
   onRemove: () => void;
 }) {
-  const statusVariant = conn.status === 'CONNECTED' ? 'success' : conn.status === 'ERROR' ? 'destructive' : 'neutral';
+  const statusVariant =
+    conn.status === 'CONNECTED'
+      ? 'success'
+      : conn.status === 'ERROR'
+        ? 'destructive'
+        : 'neutral';
   const statusLabel =
-    conn.status === 'CONNECTED' ? 'Connected' : conn.status === 'ERROR' ? 'Not reachable' : 'Not verified';
+    conn.status === 'CONNECTED'
+      ? 'Connected'
+      : conn.status === 'ERROR'
+        ? 'Not reachable'
+        : conn.status === 'NEEDS_AUTH'
+          ? 'Sign-in required (Studio)'
+          : 'Not verified';
   return (
     <Card className="space-y-3 p-4">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="flex size-7 items-center justify-center rounded-lg bg-surface-raised border border-border shrink-0">
+      <div className="gap-2 flex items-start justify-between">
+        <div className="gap-2.5 min-w-0 flex items-center">
+          <div className="size-7 flex shrink-0 items-center justify-center rounded-lg border border-border bg-surface-raised">
             <AIProviderIcon provider="mcp" size={16} />
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-foreground">{conn.name}</p>
-            <p className="truncate font-mono text-[11px] text-muted-foreground">{conn.serverUrl}</p>
+            <p className="text-sm font-semibold truncate text-foreground">
+              {conn.name}
+            </p>
+            <p className="truncate font-mono text-[11px] text-muted-foreground">
+              {conn.serverUrl}
+            </p>
           </div>
         </div>
         <Badge variant={statusVariant} className="shrink-0 text-[10px]">
@@ -286,32 +374,53 @@ function McpServerCard({
         </Badge>
       </div>
       {conn.lastError ? (
-        <p role="status" className="rounded-md bg-destructive/5 p-2 text-xs text-destructive">
+        <p
+          role="status"
+          className="p-2 text-xs rounded-md bg-destructive/5 text-destructive"
+        >
           {conn.lastError}
         </p>
       ) : null}
       {conn.discoveredToolsJson.length > 0 ? (
-        <div className="flex flex-wrap gap-1">
+        <div className="gap-1 flex flex-wrap">
           {conn.discoveredToolsJson.map((tool) => (
-            <Badge key={tool.name} variant="outline" className="font-mono text-[10px]" title={tool.description}>
+            <Badge
+              key={tool.name}
+              variant="outline"
+              className="font-mono text-[10px]"
+              title={tool.description}
+            >
               {tool.name}
               {tool.annotations?.readOnlyHint ? '' : ' ·approval'}
             </Badge>
           ))}
         </div>
       ) : null}
-      <div className="flex items-center justify-between gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
+      <div className="gap-2 pt-3 text-xs flex items-center justify-between border-t border-border text-muted-foreground">
         <span>
-          {conn.lastSyncedAt ? `Checked ${formatRelative(conn.lastSyncedAt)}` : 'Never checked'}
+          {conn.lastSyncedAt
+            ? `Checked ${formatRelative(conn.lastSyncedAt)}`
+            : 'Never checked'}
           {conn.hasToken ? ` · token ${conn.maskedToken ?? 'set'}` : ''}
         </span>
         {canManage ? (
-          <div className="flex gap-1">
-            <Button variant="outline" size="sm" leadingIcon={<RefreshCw />} loading={syncing} onClick={onSync}>
+          <div className="gap-1 flex">
+            <Button
+              variant="outline"
+              size="sm"
+              leadingIcon={<RefreshCw />}
+              loading={syncing}
+              onClick={onSync}
+            >
               Sync
             </Button>
             <Hint label="Disconnect">
-              <Button variant="ghost" size="icon-sm" aria-label={`Disconnect ${conn.name}`} onClick={onRemove}>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`Disconnect ${conn.name}`}
+                onClick={onRemove}
+              >
                 <Trash2 className="size-3.5" />
               </Button>
             </Hint>
@@ -349,7 +458,9 @@ function ConnectMcpDialog({
           description: `${conn.discoveredToolsJson.length} tool(s) discovered.`,
         });
       } else {
-        toast.warning(`Saved, but ${conn.name} didn't answer`, { description: conn.lastError ?? undefined });
+        toast.warning(`Saved, but ${conn.name} didn't answer`, {
+          description: conn.lastError ?? undefined,
+        });
       }
       onDone();
       setName('');
@@ -357,7 +468,8 @@ function ConnectMcpDialog({
       setToken('');
       onOpenChange(false);
     },
-    onError: (err) => toast.error('Could not add the server', { description: errorText(err) }),
+    onError: (err) =>
+      toast.error('Could not add the server', { description: errorText(err) }),
   });
 
   return (
@@ -372,14 +484,23 @@ function ConnectMcpDialog({
           <DialogHeader>
             <DialogTitle>Connect an MCP server</DialogTitle>
             <DialogDescription>
-              We connect right away to list its tools. The token is encrypted and never shown again.
+              We connect right away to list its tools. The token is encrypted
+              and never shown again.
             </DialogDescription>
           </DialogHeader>
           <DialogBody className="space-y-3">
             <Field label="Name" required>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Docs search" />
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Docs search"
+              />
             </Field>
-            <Field label="Server URL" required hint="The server's Streamable HTTP endpoint, usually ending in /mcp.">
+            <Field
+              label="Server URL"
+              required
+              hint="The server's Streamable HTTP endpoint, usually ending in /mcp."
+            >
               <Input
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
@@ -388,14 +509,27 @@ function ConnectMcpDialog({
               />
             </Field>
             <Field label="Bearer token" optional>
-              <Input value={token} onChange={(e) => setToken(e.target.value)} type="password" autoComplete="off" />
+              <Input
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                type="password"
+                autoComplete="off"
+              />
             </Field>
           </DialogBody>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
               Cancel
             </Button>
-            <Button type="submit" loading={create.isPending} disabled={!name.trim() || !url.trim()}>
+            <Button
+              type="submit"
+              loading={create.isPending}
+              disabled={!name.trim() || !url.trim()}
+            >
               Connect
             </Button>
           </DialogFooter>
@@ -407,7 +541,12 @@ function ConnectMcpDialog({
 
 /* ------------------------------------------------------------ secrets ---- */
 
-const KNOWN_SECRETS = [{ key: 'FIRECRAWL_API_KEY', label: 'Firecrawl API key (web search and scraping tools)' }];
+const KNOWN_SECRETS = [
+  {
+    key: 'FIRECRAWL_API_KEY',
+    label: 'Firecrawl API key (web search and scraping tools)',
+  },
+];
 
 function SecretsPanel({ canManage }: { canManage: boolean }) {
   const { workspaceId } = useWorkspaceIds();
@@ -420,43 +559,68 @@ function SecretsPanel({ canManage }: { canManage: boolean }) {
   const [key, setKey] = useState(KNOWN_SECRETS[0]!.key);
   const [value, setValue] = useState('');
   const refresh = () =>
-    queryClient.invalidateQueries({ queryKey: queryKeys.aiSecrets.all(workspaceId ?? '') });
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.aiSecrets.all(workspaceId ?? ''),
+    });
 
   const save = useMutation({
-    mutationFn: () => aiSecretsApi.create(workspaceId as string, { key, value }),
+    mutationFn: () =>
+      aiSecretsApi.create(workspaceId as string, { key, value }),
     onSuccess: () => {
-      toast.success(`${key} saved`, { description: 'Stored encrypted; only its last 4 characters are shown.' });
+      toast.success(`${key} saved`, {
+        description: 'Stored encrypted; only its last 4 characters are shown.',
+      });
       setValue('');
       void refresh();
     },
-    onError: (err) => toast.error('Could not save the secret', { description: errorText(err) }),
+    onError: (err) =>
+      toast.error('Could not save the secret', { description: errorText(err) }),
   });
   const remove = useMutation({
-    mutationFn: (secretKey: string) => aiSecretsApi.delete(workspaceId as string, secretKey),
+    mutationFn: (secretKey: string) =>
+      aiSecretsApi.delete(workspaceId as string, secretKey),
     onSuccess: () => {
       toast.success('Secret removed');
       void refresh();
     },
-    onError: (err) => toast.error('Could not remove it', { description: errorText(err) }),
+    onError: (err) =>
+      toast.error('Could not remove it', { description: errorText(err) }),
   });
 
   if (!canManage) return null;
 
   return (
-    <PageSection title="Secrets" description="Keys tools read at run time. Encrypted at rest; never sent back to the browser.">
+    <PageSection
+      title="Secrets"
+      description="Keys tools read at run time. Encrypted at rest; never sent back to the browser."
+    >
       <Card className="space-y-4 p-4">
         {(secrets.data ?? []).length > 0 ? (
           <ul className="divide-y divide-border rounded-lg border border-border">
             {(secrets.data ?? []).map((secret) => (
-              <li key={secret.key} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
-                <span className="flex items-center gap-2">
+              <li
+                key={secret.key}
+                className="gap-3 px-3 py-2 text-sm flex items-center justify-between"
+              >
+                <span className="gap-2 flex items-center">
                   {secret.key.includes('FIRECRAWL') ? (
-                    <AIProviderIcon provider="firecrawl" size={15} className="shrink-0" />
+                    <AIProviderIcon
+                      provider="firecrawl"
+                      size={15}
+                      className="shrink-0"
+                    />
                   ) : (
-                    <KeyRound className="size-4 text-muted-foreground" aria-hidden />
+                    <KeyRound
+                      className="size-4 text-muted-foreground"
+                      aria-hidden
+                    />
                   )}
-                  <span className="font-mono text-xs text-foreground">{secret.key}</span>
-                  <span className="font-mono text-xs text-muted-foreground">{secret.maskedValue}</span>
+                  <span className="text-xs font-mono text-foreground">
+                    {secret.key}
+                  </span>
+                  <span className="text-xs font-mono text-muted-foreground">
+                    {secret.maskedValue}
+                  </span>
                 </span>
                 <Button
                   variant="ghost"
@@ -465,7 +629,8 @@ function SecretsPanel({ canManage }: { canManage: boolean }) {
                   onClick={async () => {
                     const ok = await confirm({
                       title: `Remove ${secret.key}?`,
-                      description: 'Tools that need it fall back to the server default or stop working.',
+                      description:
+                        'Tools that need it fall back to the server default or stop working.',
                       destructive: true,
                       confirmLabel: 'Remove',
                     });
@@ -481,7 +646,7 @@ function SecretsPanel({ canManage }: { canManage: boolean }) {
           <p className="text-sm text-muted-foreground">No secrets stored.</p>
         )}
         <form
-          className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+          className="gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end grid"
           onSubmit={(e) => {
             e.preventDefault();
             if (value.trim()) save.mutate();
@@ -502,9 +667,18 @@ function SecretsPanel({ canManage }: { canManage: boolean }) {
             </Select>
           </Field>
           <Field label="Value">
-            <Input value={value} onChange={(e) => setValue(e.target.value)} type="password" autoComplete="off" />
+            <Input
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              type="password"
+              autoComplete="off"
+            />
           </Field>
-          <Button type="submit" loading={save.isPending} disabled={!value.trim()}>
+          <Button
+            type="submit"
+            loading={save.isPending}
+            disabled={!value.trim()}
+          >
             Save
           </Button>
         </form>
