@@ -160,13 +160,13 @@ const STEP_SR_STATE: Record<StepState, string> = {
 function StepIcon({ state }: { state: StepState }) {
   return (
     <span
-      className="size-4 relative flex shrink-0 items-center justify-center"
+      className="size-5 relative flex shrink-0 items-center justify-center"
       aria-hidden
     >
       {state === 'done' ? (
-        <Check className="size-3 text-muted-foreground" strokeWidth={2.5} />
+        <Check className="size-3.5 text-muted-foreground" strokeWidth={2.5} />
       ) : state === 'failed' ? (
-        <X className="size-3 text-destructive" strokeWidth={2.5} />
+        <X className="size-3.5 text-destructive" strokeWidth={2.5} />
       ) : state === 'active' ? (
         <>
           <span className="size-2.5 animate-ping absolute rounded-full bg-primary/40 motion-reduce:hidden" />
@@ -185,7 +185,7 @@ const asCode = (value: unknown) =>
 /** A tool call's input / output / error, opened from its step. */
 function ToolDetails({ id, tool }: { id: string; tool: AgentToolExecution }) {
   return (
-    <div id={id} className="mt-1 mb-2 ml-6 space-y-2 min-w-0">
+    <div id={id} className="mt-1 mb-2 ml-6 space-y-2 min-w-0 text-xs">
       {Boolean(tool.input) && (
         <div>
           <span className="font-bold mb-1 block text-2xs text-muted-foreground uppercase">
@@ -252,9 +252,9 @@ export interface AgentRunProgressProps {
 
 /**
  * The agent's process steps — the one place a run's progress and tool calls
- * live. While it works they're open under a live "Working on it · 12s"
- * header; once the reply lands they fold into a "Worked for 14s · 3 steps"
- * line above it that opens again on click.
+ * live. While it works a folded "Writing the reply · 12s" header shows the
+ * current step; once the reply lands it becomes "Worked for 14s · 3 steps".
+ * Either opens on click to show every step.
  */
 export function AgentRunProgress({
   event,
@@ -277,7 +277,7 @@ export function AgentRunProgress({
   const expanded =
     toggle && toggle.pending === pending
       ? toggle.open
-      : pending || openWhenDone;
+      : !pending && openWhenDone;
 
   const [inspecting, setInspecting] = useState<ReadonlySet<string>>(
     () => new Set(),
@@ -340,7 +340,7 @@ export function AgentRunProgress({
   }
 
   return (
-    <div className={cn('text-xs', pending ? 'mt-1.5' : 'mt-0.5 mb-1')}>
+    <div className={cn('text-message', pending ? 'mt-1' : 'mb-1')}>
       {pending && <style>{SHIMMER_CSS}</style>}
       {/* Announces step changes only — never the ticking timer. */}
       {pending && (
@@ -361,13 +361,13 @@ export function AgentRunProgress({
         className="gap-1.5 px-1.5 py-0.5 -ml-1.5 inline-flex max-w-full cursor-pointer items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
       >
         <span
-          className="size-4 flex shrink-0 items-center justify-center"
+          className="size-5 flex shrink-0 items-center justify-center"
           aria-hidden
         >
           {pending ? (
-            <Loader2 className="size-3.5 animate-spin text-primary motion-reduce:animate-none" />
+            <Loader2 className="size-4 animate-spin text-primary motion-reduce:animate-none" />
           ) : (
-            <Check className="size-3.5" strokeWidth={2.5} />
+            <Check className="size-4" strokeWidth={2.5} />
           )}
         </span>
         <span
@@ -380,14 +380,14 @@ export function AgentRunProgress({
         {timer && (
           <>
             {' '}
-            <span className="shrink-0 font-mono text-2xs tabular-nums">
+            <span className="shrink-0 font-mono text-xs tabular-nums">
               · {timer}
             </span>
           </>
         )}
         <ChevronDown
           className={cn(
-            'size-3 shrink-0 transition-transform duration-200',
+            'size-3.5 shrink-0 transition-transform duration-200',
             expanded && 'rotate-180',
           )}
           aria-hidden
@@ -397,7 +397,7 @@ export function AgentRunProgress({
       {expanded && (
         <ol
           id={listId}
-          className="mt-1 ml-2 pl-3 space-y-0.5 animate-in fade-in-0 slide-in-from-top-1 border-l border-border duration-200"
+          className="mt-0.5 ml-2 pl-3 animate-in fade-in-0 slide-in-from-top-1 border-l border-border duration-200"
         >
           {steps.map((step, idx) => {
             const tool = step.tool;
@@ -408,7 +408,7 @@ export function AgentRunProgress({
             const detailsId = `${listId}-tool-${idx}`;
             return (
               <li key={step.key}>
-                <div className="gap-2 min-h-5 flex items-center">
+                <div className="gap-2 min-h-6 flex items-center">
                   <StepIcon state={step.state} />
                   <span
                     className={cn('min-w-0 truncate', STEP_TEXT[step.state])}
@@ -421,7 +421,7 @@ export function AgentRunProgress({
                     )}
                   </span>
                   {step.meta && (
-                    <span className="shrink-0 font-mono text-2xs text-muted-foreground">
+                    <span className="shrink-0 font-mono text-xs text-muted-foreground">
                       {step.meta}
                     </span>
                   )}
@@ -433,7 +433,7 @@ export function AgentRunProgress({
                       aria-controls={detailsId}
                       aria-label={`${open ? 'Hide' : 'Inspect'} ${toolLabel(tool.name)}`}
                       onClick={() => toggleInspect(step.key)}
-                      className="h-5 px-1.5 shrink-0 text-2xs text-muted-foreground hover:text-foreground"
+                      className="h-6 px-2 shrink-0 text-xs text-muted-foreground hover:text-foreground"
                     >
                       {open ? 'Hide' : 'Inspect'}
                     </Button>

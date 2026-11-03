@@ -145,6 +145,29 @@ describe('sanitizePasteDom', () => {
   });
 });
 
+describe('web page layout paste', () => {
+  it('turns inline-only layout <div>s into paragraphs instead of one run-on line', () => {
+    const dom = sanitize(
+      '<div style="font-family:Georgia;color:#333"><div class="row">First line</div>\n<div>Second <span style="color:red">line</span></div></div>',
+    );
+    expect(dom.body.innerHTML).toBe('<p>First line</p>\n<p>Second line</p>');
+  });
+
+  it('unwraps a container that already holds real blocks', () => {
+    const dom = sanitize('<section><h2>Title</h2><p>Body</p></section>');
+    expect(dom.body.innerHTML).toBe('<h2>Title</h2><p>Body</p>');
+  });
+
+  it('puts each table row on its own line with cells kept apart', () => {
+    const markdown = pasteToMarkdown(
+      '<table style="border:1px solid"><tbody><tr><td>Name</td><td>Role</td></tr><tr><td>Ada</td><td>Engineer</td></tr></tbody></table>',
+    );
+    expect(markdown).toContain('Name Role');
+    expect(markdown).toContain('Ada Engineer');
+    expect(markdown).not.toContain('NameRole');
+  });
+});
+
 describe('Google Docs paste → message markdown', () => {
   const markdown = pasteToMarkdown(GOOGLE_DOCS_HTML);
 

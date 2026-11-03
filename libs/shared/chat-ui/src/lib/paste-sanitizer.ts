@@ -6,8 +6,8 @@
  */
 
 /** Tags the sanitizer keeps. Anything else is unwrapped — its text survives,
- *  the wrapper doesn't — which is what flattens layout `<div>`s, `<span>`s,
- *  `<font>` tags and table markup (`table/tr/td/…` aren't here) alike. */
+ *  the wrapper doesn't — which is what flattens `<span>`s, `<font>` tags and
+ *  table markup alike (layout blocks become `<p>`, see PASTE_BLOCK_TAGS). */
 const PASTE_ALLOWED_TAGS = new Set([
   'p',
   'h1',
@@ -51,6 +51,38 @@ const PASTE_DROPPED_TAGS = new Set([
   'video',
   'audio',
 ]);
+
+/** Layout containers a web page uses for what reads as a line or paragraph.
+ *  Simply unwrapping them would run every `<div>` of a page together into a
+ *  single line, so one that holds only inline content becomes a `<p>`. */
+const PASTE_BLOCK_TAGS = new Set([
+  'div',
+  'section',
+  'article',
+  'header',
+  'footer',
+  'main',
+  'aside',
+  'nav',
+  'figure',
+  'figcaption',
+  'address',
+  'center',
+  'details',
+  'summary',
+  'dt',
+  'dd',
+  'tr',
+  'caption',
+]);
+
+/** Table cells: unwrapped, but kept apart from the next cell by a space. */
+const PASTE_CELL_TAGS = new Set(['td', 'th']);
+
+/** Kept blocks — a layout container holding one of these is unwrapped instead
+ *  of becoming a `<p>`, since a paragraph can't contain them. */
+const PASTE_KEPT_BLOCK_SELECTOR =
+  'p, h1, h2, h3, h4, h5, h6, ul, ol, li, pre, blockquote';
 
 /** Font stacks that mean "this is code" — Google Docs has no inline-code
  *  mark, so people fake one with a monospace font (often coloured too). */
@@ -166,6 +198,22 @@ export function sanitizePasteDom(doc: Document, node: Node): void {
     // Recurse first so nested disallowed content is already cleaned up
     // whether this element ends up kept or unwrapped.
     sanitizePasteDom(doc, child);
+
+    if (unwrap && PASTE_CELL_TAGS.has(tag) && child.nextElementSibling) {
+      child.appendChild(doc.createTextNode(' '));
+    }
+
+    if (
+      unwrap &&
+      PASTE_BLOCK_TAGS.has(tag) &&
+      !child.querySelector(PASTE_KEPT_BLOCK_SELECTOR) &&
+      (child.textContent ?? '').trim() !== ''
+    ) {
+      const paragraph = doc.createElement('p');
+      while (child.firstChild) paragraph.appendChild(child.firstChild);
+      node.replaceChild(paragraph, child);
+      continue;
+    }
 
     if (unwrap) {
       while (child.firstChild) node.insertBefore(child.firstChild, child);

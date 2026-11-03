@@ -148,10 +148,14 @@ function linkLabelOptions(options: InlineOptions): InlineOptions {
 const CHIP_BASE_CLASS =
   'rounded-[0.3em] px-[0.3em] py-px font-medium box-decoration-clone align-baseline transition-colors';
 
+/**
+ * Links read as plain underlined text — no chip tint — so every link type
+ * (bare URL, markdown `[label](url)`) looks the same inside the sentence.
+ */
 const LINK_CHIP_CLASS = cn(
-  CHIP_BASE_CLASS,
-  'bg-info/10 [overflow-wrap:anywhere] text-info-text no-underline [&_span]:text-inherit [&_strong]:text-inherit',
-  'hover:bg-info/20 hover:no-underline',
+  'rounded-[0.2em] font-medium align-baseline transition-colors',
+  '[overflow-wrap:anywhere] text-info-text underline decoration-info-text/40 underline-offset-[0.2em] [&_span]:text-inherit [&_strong]:text-inherit',
+  'hover:decoration-info-text',
   'focus-visible:ring-1 focus-visible:ring-info focus-visible:outline-none',
 );
 

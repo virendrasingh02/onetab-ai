@@ -1,5 +1,5 @@
 import type { AIAgentMessageContent } from '@org/types';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { AgentRunProgress } from './agent-run-progress.js';
 
@@ -33,6 +33,8 @@ describe('AgentRunProgress', () => {
       />,
     );
 
+    fireEvent.click(screen.getByRole('button', { expanded: false }));
+
     const steps = within(screen.getByRole('list'));
     expect(steps.getByText('Using tools')).toBeInTheDocument();
     expect(screen.queryByText(/gmail/i)).not.toBeInTheDocument();
@@ -50,7 +52,7 @@ describe('AgentRunProgress', () => {
     );
 
     expect(
-      screen.getByRole('button', { name: /working on it · 12s/i }),
+      screen.getByRole('button', { name: /understanding your request · 12s/i }),
     ).toBeInTheDocument();
     expect(screen.getByRole('status').textContent).toBe(
       'Understanding your request',

@@ -184,7 +184,7 @@ describe('AgentMessageCard — apps to connect', () => {
 });
 
 describe('AgentMessageCard — process steps', () => {
-  it('shows the steps open while the agent works, current step live', () => {
+  it('keeps the steps folded while the agent works, current step in the header', () => {
     renderCard(
       createEvent({
         status: 'running',
@@ -196,20 +196,21 @@ describe('AgentMessageCard — process steps', () => {
       }),
     );
 
-    const header = screen.getByRole('button', { name: /working on it/i });
-    expect(header).toHaveAttribute('aria-expanded', 'true');
+    // Folded by default, the header carries the current step.
+    const header = screen.getByRole('button', { name: /using collect sources/i });
+    expect(header).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Got your message')).not.toBeInTheDocument();
+
+    // Opened on click, every step shows, the current one live.
+    fireEvent.click(header);
+    expect(
+      screen.getByRole('button', { name: /working on it/i }),
+    ).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText('Got your message')).toBeInTheDocument();
     expect(screen.getByText('Gmail search messages')).toBeInTheDocument();
     expect(screen.getByText('850ms')).toBeInTheDocument();
-    expect(screen.getByText(/\(in progress\)/)).toBeInTheDocument();
+    expect(screen.getByText(/(in progress)/)).toBeInTheDocument();
     expect(screen.getByText('Writing the reply')).toBeInTheDocument();
-
-    // Collapsed mid-run, the header carries the current step instead.
-    fireEvent.click(header);
-    expect(screen.queryByText('Got your message')).not.toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /using collect sources/i }),
-    ).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('folds a finished run into "Worked for …" above the reply', () => {

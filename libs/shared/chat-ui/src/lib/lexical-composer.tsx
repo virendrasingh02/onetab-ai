@@ -71,13 +71,18 @@ import {
   COMMAND_PRIORITY_CRITICAL,
   COMMAND_PRIORITY_HIGH,
   COMMAND_PRIORITY_NORMAL,
+  CONTROLLED_TEXT_INSERTION_COMMAND,
+  ElementNode,
+  type Klass,
   FORMAT_TEXT_COMMAND,
   IS_APPLE,
   KEY_DOWN_COMMAND,
   KEY_ENTER_COMMAND,
   KEY_ESCAPE_COMMAND,
   PASTE_COMMAND,
+  ParagraphNode,
   SELECTION_CHANGE_COMMAND,
+  TextNode,
   createCommand,
 } from 'lexical';
 import {
@@ -186,7 +191,7 @@ const EDITOR_THEME = {
   code: 'block rounded-lg bg-surface-inset p-2.5 font-mono text-xs text-success-text border border-border my-1 whitespace-pre-wrap',
   hr: 'my-2 h-px border-0 bg-border',
   // Inline chips mirror MarkdownMessage so a draft looks like the sent message.
-  link: 'rounded-[0.3em] px-[0.3em] py-px font-medium box-decoration-clone cursor-pointer bg-info/10 text-info-text no-underline hover:bg-info/20',
+  link: 'font-medium cursor-pointer text-info-text underline decoration-info-text/40 underline-offset-[0.2em] hover:decoration-info-text',
   hashtag: 'rounded-[0.3em] px-[0.3em] py-px font-medium box-decoration-clone bg-info/10 text-info-text',
   mention: 'rounded-[0.3em] px-[0.3em] py-px font-medium box-decoration-clone bg-primary/15 text-primary-text',
   // Same warm chip the sent message draws for @everyone / @channel / @here.
@@ -798,49 +803,92 @@ function FormattingShortcutsPlugin() {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Rich HTML paste from a website, Google Docs, Word or Notion must not carry
- * that source's typography into the message — but plain-looking formatting
- * (bold, lists, links, headings) should survive. Plain-text paste and our own
- * composer-to-composer copy/paste (`application/x-lexical-editor`, which
- * Lexical's own default handler already reconstructs with full node fidelity,
- * chips included) are left alone entirely — this only intercepts genuine
- * external `text/html`.
+ * External rich HTML on a clipboard/drag payload, cut down to the composer's
+ * tags — or `null` when there's none to handle. Our own composer-to-composer
+ * copy (`application/x-lexical-editor`, which Lexical's default handler
+ * reconstructs with full node fidelity, chips included) and plain text are
+ * left to Lexical.
+ */
+function readSanitizedHtml(data: DataTransfer | null): Document | null {
+  if (!data || data.getData('application/x-lexical-editor')) return null;
+  const html = data.getData('text/html');
+  if (!html || !html.trim()) return null;
+  const dom = new DOMParser().parseFromString(html, 'text/html');
+  sanitizePasteDom(dom, dom.body);
+  return dom.body.childNodes.length > 0 ? dom : null;
+}
+
+/**
+ * Text and blocks only ever take their look from EDITOR_THEME. Lexical can
+ * still carry inline CSS in from routes the HTML sanitizer never sees — a
+ * Lexical-JSON clipboard copied from another site's editor, or a block's
+ * text alignment — so any that lands is cleared.
+ */
+const STYLED_BLOCK_NODES: Array<Klass<ElementNode>> = [
+  ParagraphNode,
+  HeadingNode,
+  QuoteNode,
+  ListItemNode,
+];
+
+/**
+ * Rich HTML pasted or dropped from a website, Google Docs, Word or Notion
+ * must not carry that source's typography into the message — but
+ * plain-looking formatting (bold, lists, links, headings) should survive.
  */
 function HtmlPastePlugin() {
   const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
-    return editor.registerCommand(
-      PASTE_COMMAND,
-      (event) => {
-        if (!(event instanceof ClipboardEvent) || !event.clipboardData) {
-          return false;
+    const insertHtml = (dom: Document) => {
+      editor.update(() => {
+        const nodes = $generateNodesFromDOM(editor, dom);
+        if (nodes.length === 0) return;
+
+        const selection = $getSelection();
+        if ($isRangeSelection(selection)) {
+          selection.insertNodes(nodes);
+        } else {
+          $insertNodes(nodes);
         }
-        const clipboardData = event.clipboardData;
-        if (clipboardData.getData('application/x-lexical-editor')) return false;
+      });
+    };
 
-        const html = clipboardData.getData('text/html');
-        if (!html || !html.trim()) return false;
-
-        const dom = new DOMParser().parseFromString(html, 'text/html');
-        sanitizePasteDom(dom, dom.body);
-        if (dom.body.childNodes.length === 0) return false;
-
-        event.preventDefault();
-        editor.update(() => {
-          const nodes = $generateNodesFromDOM(editor, dom);
-          if (nodes.length === 0) return;
-
-          const selection = $getSelection();
-          if ($isRangeSelection(selection)) {
-            selection.insertNodes(nodes);
-          } else {
-            $insertNodes(nodes);
-          }
-        });
-        return true;
-      },
-      COMMAND_PRIORITY_HIGH,
+    return mergeRegister(
+      editor.registerCommand(
+        PASTE_COMMAND,
+        (event) => {
+          if (!(event instanceof ClipboardEvent)) return false;
+          const dom = readSanitizedHtml(event.clipboardData);
+          if (!dom) return false;
+          event.preventDefault();
+          insertHtml(dom);
+          return true;
+        },
+        COMMAND_PRIORITY_HIGH,
+      ),
+      // A drag from another page arrives as `beforeinput` insertFromDrop,
+      // with the caret already at the drop point — never as a paste.
+      editor.registerCommand(
+        CONTROLLED_TEXT_INSERTION_COMMAND,
+        (eventOrText) => {
+          if (typeof eventOrText === 'string') return false;
+          const dom = readSanitizedHtml(eventOrText.dataTransfer);
+          if (!dom) return false;
+          insertHtml(dom);
+          return true;
+        },
+        COMMAND_PRIORITY_HIGH,
+      ),
+      editor.registerNodeTransform(TextNode, (node) => {
+        if (node.getStyle() !== '') node.setStyle('');
+      }),
+      ...STYLED_BLOCK_NODES.map((klass) =>
+        editor.registerNodeTransform(klass, (node) => {
+          if (node.getFormatType() !== '') node.setFormat('');
+          if (node.getTextStyle() !== '') node.setTextStyle('');
+        }),
+      ),
     );
   }, [editor]);
 
