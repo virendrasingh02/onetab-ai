@@ -10,6 +10,10 @@ export interface RoomFile {
   roomName: string;
   /** `channel` vs `direct`/`group`, so the hub can badge it as a channel or DM. */
   roomKind: RoomKind;
+  /** The other person in a 1:1 room — routes the file to `/dms/:peerId`. */
+  directUserId?: string;
+  /** Set when the file was shared as a thread reply. */
+  threadRootId?: string;
   senderId: string;
   senderName: string;
   senderAvatarUrl?: string;
@@ -50,6 +54,8 @@ function collectRoomFiles(client: any): RoomFile[] {
         roomId: room.id,
         roomName: room.name,
         roomKind: room.kind,
+        directUserId: room.directUserId,
+        threadRootId: message.threadRootId,
         senderId: message.senderId,
         senderName: message.senderName,
         senderAvatarUrl: message.senderAvatarUrl,

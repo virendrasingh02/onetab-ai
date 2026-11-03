@@ -286,6 +286,11 @@ export {
   type AppConnector,
 } from './lib/cards/app-connect-context.js';
 export {
+  SavedItemsLinkProvider,
+  useSavedItemsOpener,
+  type SavedItemsOpener,
+} from './lib/saved-items-link-context.js';
+export {
   AgentConnectNotice,
   ConnectAppsBlock,
   type AgentConnectNoticeProps,

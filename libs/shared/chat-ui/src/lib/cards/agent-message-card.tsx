@@ -651,7 +651,7 @@ export function AgentMessageCard({
           isHighlighted && 'border-l-2 border-l-primary bg-primary/5',
         )}
       >
-        {isSaved ? <SavedForLaterLabel /> : null}
+        {isSaved ? <SavedForLaterLabel messageId={message.id} /> : null}
 
         <div className="w-10 relative shrink-0">
           {profileCard(

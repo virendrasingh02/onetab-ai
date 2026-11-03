@@ -5,7 +5,11 @@ import {
   useMediaPreview,
   type MediaItem,
 } from '@org/media-preview';
-import type { Upload, UploadContextType } from '@org/types';
+import {
+  toPlatformUserId,
+  type Upload,
+  type UploadContextType,
+} from '@org/types';
 import {
   copyToClipboard,
   entityUrl,
@@ -51,7 +55,7 @@ import {
   type UploadListItem,
   type UploadTarget,
 } from '@org/web-upload';
-import { useWorkspaceRoomFiles } from '@org/web-chat';
+import { useWorkspaceRoomFiles, type RoomFile } from '@org/web-chat';
 import { useSaveForLater } from '@org/web-chat/bookmarks';
 import {
   Check,
@@ -63,7 +67,10 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useCurrentWorkspace } from './use-work-tools.js';
+import {
+  useCurrentWorkspace,
+  useWorkspaceChannels,
+} from './use-work-tools.js';
 
 type OwnerTab = 'all' | 'created' | 'shared';
 
@@ -105,6 +112,32 @@ interface HubRow {
   directUrl: string | null;
 }
 
+/** The route that opens a chat file's conversation, or null if unknown. */
+function roomFileConversationHref(
+  slug: string | undefined,
+  file: RoomFile,
+  channelSlugByRoomId: Map<string, string>,
+): string | null {
+  if (!slug) return null;
+  if (file.roomKind === 'channel') {
+    const channelSlug = channelSlugByRoomId.get(file.roomId);
+    return channelSlug ? `/w/${slug}/c/${channelSlug}` : null;
+  }
+  if (file.roomKind === 'direct' && file.directUserId) {
+    return `/w/${slug}/dms/${toPlatformUserId(file.directUserId)}`;
+  }
+  return `/w/${slug}/dms?room=${encodeURIComponent(file.roomId)}`;
+}
+
+/** The conversation URL with `?msg=` (and `?thread=`) — ChatPanel jumps there. */
+function withMessageParams(href: string, file: RoomFile): string {
+  const [path, query = ''] = href.split('?');
+  const params = new URLSearchParams(query);
+  if (file.threadRootId) params.set('thread', file.threadRootId);
+  params.set('msg', file.id);
+  return `${path}?${params.toString()}`;
+}
+
 export function FileManagerView() {
   const user = useCurrentUser();
   const navigate = useNavigate();
@@ -112,6 +145,16 @@ export function FileManagerView() {
 
   const uploads = useInfiniteUploads(workspaceId);
   const roomFiles = useWorkspaceRoomFiles();
+  const channels = useWorkspaceChannels(workspaceId);
+  const channelSlugByRoomId = useMemo(
+    () =>
+      new Map(
+        (channels.data ?? []).flatMap((c) =>
+          c.matrixRoomId ? [[c.matrixRoomId, c.slug] as const] : [],
+        ),
+      ),
+    [channels.data],
+  );
   const { groups: destinationGroups, isLoading: destsLoading } =
     useDestinationOptions(workspaceId);
   const { remove, download, update } = useUploadMutations(workspaceId);
@@ -197,6 +240,11 @@ export function FileManagerView() {
     const fromRooms: HubRow[] = roomFiles.files.map((f) => {
       const sourceType: UploadContextType =
         f.roomKind === 'channel' ? 'CHANNEL' : 'DIRECT';
+      const conversationHref = roomFileConversationHref(
+        slug,
+        f,
+        channelSlugByRoomId,
+      );
       return {
         item: {
           id: f.id,
@@ -213,12 +261,12 @@ export function FileManagerView() {
           source: {
             type: sourceType,
             label: f.roomName,
-            href:
-              sourceType === 'DIRECT' && slug
-                ? `/w/${slug}/dms?room=${encodeURIComponent(f.roomId)}`
-                : null,
+            href: conversationHref,
           },
           manageable: false,
+          messageHref: conversationHref
+            ? withMessageParams(conversationHref, f)
+            : null,
         },
         createdAtMs: f.timestamp,
         kind: kindOf(f.mimeType),
@@ -244,7 +292,14 @@ export function FileManagerView() {
     });
 
     return [...fromUploads, ...fromRooms];
-  }, [uploads.items, roomFiles.files, user?.id, toMediaItem, slug]);
+  }, [
+    uploads.items,
+    roomFiles.files,
+    user?.id,
+    toMediaItem,
+    slug,
+    channelSlugByRoomId,
+  ]);
 
   const visibleRows = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -508,10 +563,10 @@ export function FileManagerView() {
                 onMove={(item) => setDetailsId(item.id)}
                 onCopyLink={(item) => {
                   const row = visibleRows.find((r) => r.item.id === item.id);
-                  // Chat files live in their conversation; hub files open here.
+                  // Chat files link to their message; hub files open here.
                   const path = row?.upload
                     ? `/w/${slug}/files?file=${item.id}`
-                    : (row?.item.source?.href ?? null);
+                    : (row?.item.messageHref ?? row?.item.source?.href ?? null);
                   if (!path) throw new Error('This file has no shareable link');
                   return copyToClipboard(entityUrl(path));
                 }}

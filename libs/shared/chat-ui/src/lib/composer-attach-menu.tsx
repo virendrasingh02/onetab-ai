@@ -5,6 +5,9 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
   Hint,
 } from '@org/ui';
@@ -12,11 +15,13 @@ import {
   AtSign,
   BarChart3,
   Blocks,
+  Bot,
   Loader2,
   Paperclip,
   Plug,
   Plus,
   Settings2,
+  Sparkles,
 } from 'lucide-react';
 import { useEffect, type ReactNode } from 'react';
 
@@ -50,6 +55,17 @@ const KIND_LABEL: Record<ComposerConnectorKind, string> = {
 };
 
 const KIND_ORDER: ComposerConnectorKind[] = ['agent', 'coworker', 'app'];
+
+const KIND_ICON: Record<ComposerConnectorKind, typeof Bot> = {
+  agent: Bot,
+  coworker: Sparkles,
+  app: Blocks,
+};
+
+function KindIcon({ kind }: { kind: ComposerConnectorKind }) {
+  const Icon = KIND_ICON[kind];
+  return <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />;
+}
 
 interface ComposerAttachMenuProps {
   /** Opens the native file picker; omitted when the surface can't take uploads. */
@@ -85,9 +101,11 @@ function ConnectorIcon({ item }: { item: ComposerConnectorItem }) {
 }
 
 /**
- * The composer's "+" menu: Upload files and Create poll first, then the
- * agents, coworkers and apps connected to this conversation grouped by kind
- * (picking one @mentions it), and a "Manage connectors" footer for the rest.
+ * The composer's "+" menu: Upload files and Create poll first, then one
+ * submenu row per kind (AI agents, AI coworkers, Apps) listing what is
+ * connected to this conversation (picking one @mentions it), and a
+ * "Manage connectors" footer. Submenus keep the top level short however many
+ * connectors a conversation has.
  */
 export function ComposerAttachMenu({
   onUpload,
@@ -166,14 +184,23 @@ export function ComposerAttachMenu({
           <>
             {onUpload || onCreatePoll ? <DropdownMenuSeparator /> : null}
             {items.length > 0 ? (
-              <div className="max-h-64 overflow-y-auto">
-                {KIND_ORDER.map((kind) => {
-                  const group = items.filter((item) => item.kind === kind);
-                  if (group.length === 0) return null;
-                  return (
-                    <div key={kind}>
-                      <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
+              KIND_ORDER.map((kind) => {
+                const group = items.filter((item) => item.kind === kind);
+                if (group.length === 0) return null;
+                return (
+                  <DropdownMenuSub key={kind}>
+                    <DropdownMenuSubTrigger className="gap-2.5">
+                      <KindIcon kind={kind} />
+                      <span className="min-w-0 flex-1 truncate">
                         {KIND_LABEL[kind]}
+                      </span>
+                      <span className="text-xs tabular-nums text-muted-foreground">
+                        {group.length}
+                      </span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="w-64 p-1 max-h-72 overflow-y-auto">
+                      <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
+                        Mention in message
                       </DropdownMenuLabel>
                       {group.map((item) => (
                         <DropdownMenuItem
@@ -191,12 +218,12 @@ export function ComposerAttachMenu({
                           />
                         </DropdownMenuItem>
                       ))}
-                    </div>
-                  );
-                })}
-              </div>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                );
+              })
             ) : (
-              <div className="gap-2 px-2 py-3 flex items-center text-muted-foreground">
+              <div className="gap-2 px-2 py-2 flex items-center text-muted-foreground">
                 {connectors.loading ? (
                   <>
                     <Loader2 className="size-4 animate-spin" aria-hidden />

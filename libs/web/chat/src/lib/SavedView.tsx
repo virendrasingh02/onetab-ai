@@ -1,11 +1,10 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { MessagePreview } from '@org/chat-ui';
 import type { BookmarkDto, CreateBookmarkInput } from '@org/types';
 import {
   Badge,
   Button,
-  Card,
   EmptyState,
   Hint,
   Input,
@@ -17,8 +16,9 @@ import {
   Tabs,
   TabsTrigger,
   toast,
+  UserAvatar,
 } from '@org/ui';
-import { formatRelative } from '@org/utils';
+import { cn, formatListTimestamp, formatRelative } from '@org/utils';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Bookmark,
@@ -69,7 +69,17 @@ interface SavedItem {
   /** Where the object lives — the conversation for a message. */
   context?: string;
   href?: string;
+  /** When the object itself happened (a message's send time), else the save. */
+  timestamp: number | string;
+  sender?: { id?: string; name: string; avatarUrl?: string };
 }
+
+const TYPE_LABELS: Record<string, string> = {
+  message: 'Message',
+  task: 'Task',
+  doc: 'Document',
+  file: 'File',
+};
 
 /** Workspace-relative `href` from metadata, else the type's canonical link. */
 function itemHref(bookmark: BookmarkDto, slug: string | undefined): string | undefined {
@@ -112,6 +122,12 @@ function toSavedItem(bookmark: BookmarkDto, slug: string | undefined): SavedItem
           : message.channelName
         : undefined,
       href,
+      timestamp: message.sentAt || bookmark.createdAt,
+      sender: {
+        id: message.senderId,
+        name: message.senderName || 'Someone',
+        avatarUrl: message.senderAvatarUrl,
+      },
     };
   }
   return {
@@ -120,6 +136,7 @@ function toSavedItem(bookmark: BookmarkDto, slug: string | undefined): SavedItem
     title: bookmark.title,
     snippet: bookmark.snippet ?? null,
     href,
+    timestamp: bookmark.createdAt,
   };
 }
 
@@ -139,6 +156,10 @@ export function SavedView() {
   const { workspaceId, slug: workspaceSlug } = useCurrentWorkspace();
   const [activeFilter, setActiveFilter] = useState<BookmarkFilter>('all');
   const [query, setQuery] = useState('');
+  // `?item=<targetId>` — "View Saved" on a chat message lands here on it.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const focusId = searchParams.get('item');
+  const [flashId, setFlashId] = useState<string | null>(null);
 
   // Saves from before bookmarks lived on the server are uploaded once.
   useLegacySavedMessagesImport();
@@ -179,6 +200,36 @@ export function SavedView() {
         : searchedItems.filter((item) => item.type === activeFilter),
     [searchedItems, activeFilter],
   );
+
+  useEffect(() => {
+    if (!focusId || isLoading) return;
+    const hit = allItems.some((item) => item.bookmark.targetId === focusId);
+    if (hit) {
+      setActiveFilter('all');
+      setQuery('');
+      setFlashId(focusId);
+      requestAnimationFrame(() => {
+        document
+          .querySelector(`[data-saved-id="${CSS.escape(focusId)}"]`)
+          ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      });
+    }
+    // Consume the param so a refresh or a later save doesn't jump again.
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('item');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [focusId, isLoading, allItems, setSearchParams]);
+
+  useEffect(() => {
+    if (!flashId) return;
+    const timer = window.setTimeout(() => setFlashId(null), 2400);
+    return () => window.clearTimeout(timer);
+  }, [flashId]);
 
   const handleRemove = (item: SavedItem) => {
     const input = toInput(item.bookmark);
@@ -240,8 +291,8 @@ export function SavedView() {
       </Tabs>
 
       {/* Content Area */}
-      <div className="min-h-0 p-3 sm:p-6 flex-1 overflow-y-auto">
-        <div className="max-w-5xl mx-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div>
           {isLoading ? (
             <div className="h-48 flex items-center justify-center">
               <Spinner className="size-6 text-primary" />
@@ -274,9 +325,13 @@ export function SavedView() {
               }
             />
           ) : (
-            <ul className="space-y-2.5">
+            <ul className="divide-y divide-border border-b border-border">
               {filteredItems.map((item) => {
                 const ItemIcon = getTypeIcon(item.type);
+                const isMessage = item.type === MESSAGE_BOOKMARK_TYPE;
+                const open = item.href
+                  ? () => navigate(item.href as string)
+                  : undefined;
                 const target = {
                   type: item.type,
                   id: item.bookmark.targetId,
@@ -284,7 +339,10 @@ export function SavedView() {
                   href: item.href,
                 };
                 return (
-                  <li key={`${item.type}-${item.bookmark.targetId}`}>
+                  <li
+                    key={`${item.type}-${item.bookmark.targetId}`}
+                    data-saved-id={item.bookmark.targetId}
+                  >
                     <EntityContextMenu
                       actions={() =>
                         buildObjectActions(target, {
@@ -298,85 +356,115 @@ export function SavedView() {
                       entity={item}
                       label={item.title}
                     >
-                      <Card className="p-4 gap-4 group flex items-start justify-between bg-card transition-colors hover:border-border-strong">
-                        <div className="gap-3 min-w-0 flex flex-1 items-start">
+                      <div
+                        role={open ? 'link' : undefined}
+                        tabIndex={open ? 0 : undefined}
+                        aria-label={open ? `Open ${item.title}` : undefined}
+                        onClick={open}
+                        onKeyDown={(event) => {
+                          if (open && event.key === 'Enter' && event.target === event.currentTarget) {
+                            open();
+                          }
+                        }}
+                        className={cn(
+                          'group relative gap-3 px-3 sm:px-6 py-3 flex items-start transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none',
+                          open && 'cursor-pointer',
+                          flashId === item.bookmark.targetId && 'message-flash',
+                        )}
+                      >
+                        {item.sender ? (
+                          <UserAvatar
+                            name={item.sender.name}
+                            src={item.sender.avatarUrl}
+                            seed={item.sender.id}
+                            size="md"
+                            className="mt-0.5 shrink-0"
+                          />
+                        ) : (
                           <div className="size-8 mt-0.5 flex shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                             <ItemIcon className="size-4" />
                           </div>
+                        )}
 
-                          <div className="min-w-0 flex-1">
-                            <div className="gap-2 flex flex-wrap items-center">
-                              {item.href ? (
-                                <button
-                                  type="button"
-                                  onClick={() => navigate(item.href as string)}
-                                  className="text-xs sm:text-sm font-semibold text-left text-foreground hover:text-primary hover:underline"
-                                >
-                                  {item.title}
-                                </button>
-                              ) : (
-                                <span className="text-xs sm:text-sm font-semibold text-foreground">
-                                  {item.title}
-                                </span>
-                              )}
-                              {item.context && (
-                                <span className="text-xs text-muted-foreground">
-                                  in {item.context}
-                                </span>
-                              )}
-                              <Badge
-                                variant="outline"
-                                className="px-1 py-0 h-4.5 text-[10px] uppercase"
-                              >
-                                {item.type}
-                              </Badge>
-                              <span className="font-mono text-[11px] text-muted-foreground">
-                                · saved {formatRelative(item.bookmark.createdAt)}
-                              </span>
-                            </div>
-
-                            {item.snippet && (
-                              <p className="mt-2 text-xs sm:text-sm leading-relaxed line-clamp-3 text-muted-foreground">
+                        <div className="min-w-0 flex-1">
+                          {isMessage ? (
+                            <p className="text-sm leading-relaxed line-clamp-2 text-foreground break-words">
+                              {item.snippet ? (
                                 <MessagePreview text={item.snippet} />
+                              ) : (
+                                <span className="italic text-muted-foreground">
+                                  Attachment
+                                </span>
+                              )}
+                            </p>
+                          ) : (
+                            <>
+                              <p className="text-sm font-medium truncate text-foreground">
+                                {item.title}
                               </p>
-                            )}
+                              {item.snippet && (
+                                <p className="mt-0.5 text-sm line-clamp-1 text-muted-foreground">
+                                  <MessagePreview text={item.snippet} />
+                                </p>
+                              )}
+                            </>
+                          )}
 
-                            {item.bookmark.tags.length > 0 && (
-                              <div className="mt-2 gap-1 flex flex-wrap">
-                                {item.bookmark.tags.map((tag) => (
-                                  <span
-                                    key={tag}
-                                    className="rounded px-1.5 py-0.5 bg-muted text-[10px] text-muted-foreground"
-                                  >
-                                    #{tag}
+                          <div className="mt-1 gap-x-2 gap-y-0.5 flex flex-wrap items-center text-xs text-muted-foreground">
+                            <span className="min-w-0 truncate">
+                              {isMessage ? (
+                                <>
+                                  <span className="font-medium text-foreground/80">
+                                    {item.sender?.name}
                                   </span>
-                                ))}
-                              </div>
-                            )}
+                                  {item.context && <> in {item.context}</>}
+                                </>
+                              ) : (
+                                TYPE_LABELS[item.type] ?? item.type
+                              )}
+                            </span>
+                            <span aria-hidden className="h-3 w-px bg-border" />
+                            <time
+                              dateTime={new Date(item.timestamp).toISOString()}
+                              title={`Saved ${formatRelative(item.bookmark.createdAt)}`}
+                            >
+                              {formatListTimestamp(item.timestamp)}
+                            </time>
+                            {item.bookmark.tags.map((tag) => (
+                              <span
+                                key={tag}
+                                className="rounded px-1.5 py-0.5 bg-muted text-[10px]"
+                              >
+                                #{tag}
+                              </span>
+                            ))}
                           </div>
                         </div>
 
-                        <div className="gap-1 flex shrink-0 items-center">
-                          <ObjectActionMenu
-                            target={target}
-                            isBookmarked={true}
-                            onBookmarkToggle={() => handleRemove(item)}
-                            onOpen={(href) => navigate(href)}
-                          />
-
+                        {/* Floating actions, Slack-style, on hover/focus. */}
+                        <div
+                          onClick={(event) => event.stopPropagation()}
+                          className="top-2 right-3 sm:right-6 gap-0.5 p-0.5 absolute flex items-center rounded-md border border-border bg-popover shadow-sm opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 has-[[data-state=open]]:opacity-100"
+                        >
                           <Hint label="Remove from saved">
                             <Button
                               variant="ghost"
                               size="icon-xs"
                               aria-label={`Remove ${item.title} from saved`}
                               onClick={() => handleRemove(item)}
-                              className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100"
+                              className="text-muted-foreground hover:text-destructive"
                             >
                               <BookmarkX className="size-3.5" />
                             </Button>
                           </Hint>
+                          <ObjectActionMenu
+                            target={target}
+                            isBookmarked={true}
+                            onBookmarkToggle={() => handleRemove(item)}
+                            onOpen={(href) => navigate(href)}
+                          />
                         </div>
-                      </Card>
+                      </div>
                     </EntityContextMenu>
                   </li>
                 );

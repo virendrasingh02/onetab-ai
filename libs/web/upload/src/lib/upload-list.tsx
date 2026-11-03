@@ -223,6 +223,11 @@ export interface UploadListItem {
    * can be previewed and downloaded but not renamed or deleted from here.
    */
   manageable?: boolean;
+  /**
+   * App-relative link to the chat message the file was shared in (`?msg=`).
+   * When set (and `onNavigateSource` is provided), a row click jumps there.
+   */
+  messageHref?: string | null;
 }
 
 export interface UploadListProps {
@@ -421,6 +426,7 @@ function UploadRow({
   const manageable = item.manageable !== false;
   const canDelete = manageable && !!onDelete;
   const sourceHref = item.source?.href ?? null;
+  const messageHref = onNavigateSource ? (item.messageHref ?? null) : null;
 
   /* One list for the "⋯" menu, right-click and the touch sheet. Chat files
      (not manageable here) keep only what works on them: view and download. */
@@ -443,6 +449,14 @@ function UploadRow({
       shortcut: 'I',
       hidden: !onOpenDetails,
       run: () => onOpenDetails?.(item, index),
+    },
+    {
+      id: 'message',
+      group: 'open',
+      label: 'Go to message',
+      icon: MessageSquare,
+      hidden: !messageHref,
+      run: () => messageHref && onNavigateSource?.(messageHref),
     },
     {
       id: 'source',
@@ -499,7 +513,10 @@ function UploadRow({
       run: () => onDelete?.(item),
     },
   ];
-  const primary = onOpenDetails ?? onPreview;
+  // A chat file opens the message it was shared in; others open details.
+  const primary = messageHref
+    ? () => onNavigateSource?.(messageHref)
+    : (onOpenDetails ?? onPreview);
   const edited =
     item.updatedAt &&
     Math.abs(Date.parse(item.updatedAt) - Date.parse(item.createdAt)) > 60_000;
@@ -530,7 +547,7 @@ function UploadRow({
             primary(item, index);
           }
         }}
-        aria-label={`${onOpenDetails ? 'Details for' : 'Preview'} ${item.filename}`}
+        aria-label={`${messageHref ? 'Open the message with' : onOpenDetails ? 'Details for' : 'Preview'} ${item.filename}`}
         className="gap-3 min-w-0 flex flex-1 cursor-pointer items-center text-left focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none rounded-md"
       >
         <FileTypeBadge
@@ -576,7 +593,15 @@ function UploadRow({
             {item.manageable === false ? (
               <>
                 <span>·</span>
-                <span className="text-subtle">in chat</span>
+                <span
+                  className={cn(
+                    'text-subtle',
+                    messageHref &&
+                      'transition-colors group-hover:text-primary group-hover:underline',
+                  )}
+                >
+                  {messageHref ? 'view in chat' : 'in chat'}
+                </span>
               </>
             ) : null}
           </div>

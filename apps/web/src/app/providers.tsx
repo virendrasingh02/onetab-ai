@@ -51,6 +51,8 @@ import {
   type AppEntityResolver,
   MemberProfileProvider,
   type MemberProfileResolver,
+  SavedItemsLinkProvider,
+  type SavedItemsOpener,
 } from '@org/chat-ui';
 import {
   getAppDisplayName,
@@ -462,7 +464,22 @@ function AppConnectBridge({
     };
   }, [integrations, providers, slug, workspaceId, navigate, queryClient]);
 
-  return <AppConnectProvider value={value}>{children}</AppConnectProvider>;
+  const openSaved = useCallback<SavedItemsOpener>(
+    (messageId) => {
+      if (!slug) return;
+      navigate(`/w/${slug}/saved?item=${encodeURIComponent(messageId)}`);
+    },
+    [slug, navigate],
+  );
+
+  return (
+    <AppConnectProvider value={value}>
+      {/* "Saved for later · View Saved" on a message opens Saved Items on it. */}
+      <SavedItemsLinkProvider value={slug ? openSaved : null}>
+        {children}
+      </SavedItemsLinkProvider>
+    </AppConnectProvider>
+  );
 }
 
 /**

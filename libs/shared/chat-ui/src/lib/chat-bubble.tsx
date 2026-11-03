@@ -1202,7 +1202,7 @@ export function ChatBubble({
         ) : null}
 
         {/* Shown for grouped messages too — saving is per message. */}
-        {isSaved ? <SavedForLaterLabel density={density} /> : null}
+        {isSaved ? <SavedForLaterLabel messageId={message.id} density={density} /> : null}
 
         <div
           ref={avatarRef}
