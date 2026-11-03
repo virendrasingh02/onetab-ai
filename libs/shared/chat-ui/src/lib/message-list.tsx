@@ -561,10 +561,30 @@ export function MessageList({
      * them into one paint.
      */
     useFlushSync: false,
+    /*
+     * …but a queued re-render lands a frame late. When a row measures while
+     * the reader scrolls (rows mounting above them on the way up), the
+     * virtualizer corrects `scrollTop` at once while every row still sat at
+     * its old `translateY` until that render: one painted frame where the
+     * timeline jumped by the size delta and neighbouring rows overlapped.
+     * Writing row positions and the container height straight to the DOM in
+     * the same tick keeps them in step with the scroll correction; React only
+     * re-renders when the visible range changes.
+     */
+    directDomUpdates: true,
   });
   virtualizerRef.current = virtualizer;
 
   const totalSize = virtualizer.getTotalSize();
+
+  /** Our own handle on the size container, plus the virtualizer's. */
+  const setVirtualContainer = useCallback(
+    (node: HTMLDivElement | null) => {
+      virtualContainerRef.current = node;
+      virtualizer.containerRef(node);
+    },
+    [virtualizer],
+  );
 
   const isAtBottom = useCallback(() => {
     const element = scrollRef.current;
@@ -1291,7 +1311,12 @@ export function MessageList({
   }
 
   return (
-    <div className="min-h-0 relative flex flex-1 flex-col overflow-hidden">
+    <div
+      className="min-h-0 relative flex flex-1 flex-col overflow-hidden"
+      // The custom scrollbar sits outside the viewport, so grabbing it never
+      // reaches the viewport's wheel/touch/key handlers below.
+      onPointerDownCapture={yieldSettleToReader}
+    >
       <ScrollArea
         className={cn(
           // `h-full`, not just `flex-1`: SimpleBar's wrapper inherits the
@@ -1353,10 +1378,12 @@ export function MessageList({
         {/* Only once the history is exhausted is this actually the beginning. */}
         {introSlot && !hasMore && !isLoadingOlder ? introSlot : null}
 
+        {/* Height and row `transform`s are written by the virtualizer itself
+            (`directDomUpdates`), so they are deliberately absent here. */}
         <div
-          ref={virtualContainerRef}
+          ref={setVirtualContainer}
           className="shrink-0"
-          style={{ height: totalSize, position: 'relative' }}
+          style={{ position: 'relative' }}
         >
           {virtualizer.getVirtualItems().map((virtualRow) => {
             const row = rows[virtualRow.index];
@@ -1372,7 +1399,6 @@ export function MessageList({
                   top: 0,
                   left: 0,
                   width: '100%',
-                  transform: `translateY(${virtualRow.start}px)`,
                 }}
               >
                 {row.kind === 'separator' ? (
