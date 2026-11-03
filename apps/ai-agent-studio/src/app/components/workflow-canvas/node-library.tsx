@@ -82,7 +82,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'triggers',
     label: 'Manual Trigger',
     subtitle: 'Start on Demand',
-    description: 'Initial entry point for user prompts, testing runs, and manual invocations',
+    description:
+      'Initial entry point for user prompts, testing runs, and manual invocations',
     icon: Play,
     badge: 'Trigger',
     defaultConfig: { triggerType: 'MANUAL', allowCustomInput: true },
@@ -92,7 +93,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'triggers',
     label: 'Chat Message Trigger',
     subtitle: 'User Inbound Message',
-    description: 'Fired when a user sends a message via chat widget, Slack, or embed',
+    description:
+      'Fired when a user sends a message via chat widget, Slack, or embed',
     icon: MessageSquare,
     badge: 'Trigger',
     defaultConfig: { channel: 'all', streamResponses: true },
@@ -102,7 +104,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'triggers',
     label: 'Schedule Trigger',
     subtitle: 'Cron / Interval Timer',
-    description: 'Executes automatically on a predefined cron schedule or periodic timer',
+    description:
+      'Executes automatically on a predefined cron schedule or periodic timer',
     icon: Clock,
     badge: 'Trigger',
     defaultConfig: { cron: '0 9 * * 1-5', timezone: 'UTC' },
@@ -112,7 +115,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'triggers',
     label: 'Webhook Trigger',
     subtitle: 'Inbound HTTP POST/GET',
-    description: 'Receives external webhook payloads from Stripe, GitHub, or web forms',
+    description:
+      'Receives external webhook payloads from Stripe, GitHub, or web forms',
     icon: Globe,
     badge: 'Trigger',
     defaultConfig: { httpMethod: 'POST', authRequired: true },
@@ -122,7 +126,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'triggers',
     label: 'Connected App Event',
     subtitle: 'New email, issue, message…',
-    description: 'Starts when something new happens in a connected app, like a new email or issue — pick the app and event after adding',
+    description:
+      'Starts when something new happens in a connected app, like a new email or issue — pick the app and event after adding',
     icon: Zap,
     badge: 'Connector',
     defaultConfig: { input: {} },
@@ -132,7 +137,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'triggers',
     label: 'Workspace Event',
     subtitle: 'Tasks, docs, projects, meetings',
-    description: 'Starts when something happens in this workspace, like a task is created or a meeting ends',
+    description:
+      'Starts when something happens in this workspace, like a task is created or a meeting ends',
     icon: Zap,
     badge: 'Trigger',
     defaultConfig: { eventType: 'document.created' },
@@ -142,7 +148,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'triggers',
     label: 'Location Trigger',
     subtitle: 'Office arrival / departure',
-    description: 'Starts the agent when its owner arrives at or leaves an office, with GPS accuracy, dwell-time and cooldown safeguards',
+    description:
+      'Starts the agent when its owner arrives at or leaves an office, with GPS accuracy, dwell-time and cooldown safeguards',
     icon: Globe,
     badge: 'Location',
     defaultConfig: {
@@ -161,11 +168,13 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'ai',
     label: 'Autonomous AI Agent',
     subtitle: 'Goal-driven Reasoner',
-    description: 'Autonomous LLM agent with tools, planning instructions, and memory',
+    description:
+      'Autonomous LLM agent with tools, planning instructions, and memory',
     icon: Bot,
     badge: 'AI',
     defaultConfig: {
-      instructions: 'You are an intelligent autonomous AI employee. Execute your assigned tasks carefully.',
+      instructions:
+        'You are an intelligent autonomous AI employee. Execute your assigned tasks carefully.',
       temperature: 0.3,
       tools: ['firecrawl_search', 'kb_search'],
     },
@@ -175,11 +184,13 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'ai',
     label: 'Supervisor Agent',
     subtitle: 'Multi-agent Team Lead',
-    description: 'Leads a team: plug agents into its Sub-agents slot and it delegates work to them',
+    description:
+      'Leads a team: plug agents into its Sub-agents slot and it delegates work to them',
     icon: Network,
     badge: 'Team',
     defaultConfig: {
-      instructions: 'You lead a team of specialist agents. Break the request down, delegate each part to the right sub-agent and combine their results.',
+      instructions:
+        'You lead a team of specialist agents. Break the request down, delegate each part to the right sub-agent and combine their results.',
       temperature: 0.2,
       delegation: 'router',
     },
@@ -189,12 +200,14 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'ai',
     label: 'Specialist Sub-Agent',
     subtitle: 'Delegated Worker',
-    description: 'Specialized worker agent focused on narrow tasks like research or code review',
+    description:
+      'Specialized worker agent focused on narrow tasks like research or code review',
     icon: Sparkles,
     badge: 'AI',
     defaultConfig: {
       role: 'Researcher',
-      instructions: 'You are a specialist. Complete the part of the task you are given and report back clearly.',
+      instructions:
+        'You are a specialist. Complete the part of the task you are given and report back clearly.',
       temperature: 0.2,
     },
   },
@@ -205,7 +218,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'team',
     label: 'AI Coworker',
     subtitle: 'Hand work to a coworker',
-    description: 'One of your AI coworkers does this step with its own apps, specialists and approvals',
+    description:
+      'One of your AI coworkers does this step with its own apps, specialists and approvals',
     icon: Users,
     badge: 'Team',
     defaultConfig: {},
@@ -215,7 +229,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'team',
     label: 'Saved Agent',
     subtitle: 'Hand work to another agent',
-    description: 'Another agent from My Agents does this step and its answer flows on',
+    description:
+      'Another agent from My Agents does this step and its answer flows on',
     icon: Bot,
     badge: 'Team',
     defaultConfig: {},
@@ -225,7 +240,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'team',
     label: 'Run Automation',
     subtitle: 'Start an existing automation',
-    description: 'Runs one of your automations as a step and passes its result on',
+    description:
+      'Runs one of your automations as a step and passes its result on',
     icon: Workflow,
     badge: 'Team',
     defaultConfig: {},
@@ -235,7 +251,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'ai',
     label: 'LLM / Chat Model',
     subtitle: 'Direct Model Query',
-    description: 'Direct completion or chat model invocation without autonomous loop',
+    description:
+      'Direct completion or chat model invocation without autonomous loop',
     icon: Cpu,
     badge: 'AI',
     defaultConfig: { temperature: 0.7, maxTokens: 2048 },
@@ -245,11 +262,13 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'ai',
     label: 'Prompt',
     subtitle: 'System Prompt',
-    description: 'Role, scope and rules an agent follows; plug it into an agent’s Prompt slot',
+    description:
+      'Role, scope and rules an agent follows; plug it into an agent’s Prompt slot',
     icon: ScrollText,
     badge: 'AI',
     defaultConfig: {
-      prompt: '## Role\nYou are a helpful assistant.\n\n## Scope\nDescribe what you handle.\n\n## Rules\n- Be concise.',
+      prompt:
+        '## Role\nYou are a helpful assistant.\n\n## Scope\nDescribe what you handle.\n\n## Rules\n- Be concise.',
     },
   },
   {
@@ -257,7 +276,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'ai',
     label: 'Intent Classifier',
     subtitle: 'Route by User Intent',
-    description: 'Classifies input text into predefined categories for conditional routing',
+    description:
+      'Classifies input text into predefined categories for conditional routing',
     icon: Layers,
     badge: 'AI',
     defaultConfig: { categories: ['Support', 'Sales', 'Billing', 'General'] },
@@ -270,14 +290,18 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     description: 'Guarantees valid JSON output matching your defined schema',
     icon: Code2,
     badge: 'AI',
-    defaultConfig: { schemaName: 'ExtractedData', schemaDefinition: '{\n  "summary": "string",\n  "status": "string"\n}' },
+    defaultConfig: {
+      schemaName: 'ExtractedData',
+      schemaDefinition: '{\n  "summary": "string",\n  "status": "string"\n}',
+    },
   },
   {
     type: 'AI_SUMMARIZER',
     category: 'ai',
     label: 'Summarizer',
     subtitle: 'Long Content Brief',
-    description: 'Condenses documents and chat histories into bullet points or executive summaries',
+    description:
+      'Condenses documents and chat histories into bullet points or executive summaries',
     icon: AlignLeft,
     badge: 'AI',
     defaultConfig: { length: 'concise', format: 'bullet_points' },
@@ -287,7 +311,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'ai',
     label: 'AI Guardrails & Validator',
     subtitle: 'Safety & PII Redaction',
-    description: 'Scans prompts and outputs for prompt injection, toxic language, and PII leaks',
+    description:
+      'Scans prompts and outputs for prompt injection, toxic language, and PII leaks',
     icon: Shield,
     badge: 'AI',
     defaultConfig: { blockPromptInjection: true, redactPII: true },
@@ -297,10 +322,15 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'ai',
     label: 'Model Router & Fallback',
     subtitle: 'Dynamic Model Switching',
-    description: 'Routes simple prompts to cheap models and complex queries to flagship LLMs',
+    description:
+      'Routes simple prompts to cheap models and complex queries to flagship LLMs',
     icon: Split,
     badge: 'AI',
-    defaultConfig: { primaryModel: 'gpt-4o-mini', complexModel: 'gpt-4o', fallbackModel: 'claude-3-5-sonnet' },
+    defaultConfig: {
+      primaryModel: 'gpt-4o-mini',
+      complexModel: 'gpt-4o',
+      fallbackModel: 'claude-3-5-sonnet',
+    },
   },
 
   // 3. KNOWLEDGE & RETRIEVAL (Module 3.3)
@@ -309,7 +339,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'knowledge',
     label: 'Knowledge Base Search',
     subtitle: 'Semantic & Hybrid RAG',
-    description: 'Searches vector collections for top-k semantically relevant text chunks',
+    description:
+      'Searches vector collections for top-k semantically relevant text chunks',
     icon: Search,
     badge: 'RAG',
     defaultConfig: { knowledgeBaseId: 'default-kb', topK: 4, minScore: 0.75 },
@@ -319,7 +350,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'knowledge',
     label: 'Document Loader',
     subtitle: 'Parse PDF / DOCX / Web',
-    description: 'Loads document text from URLs or cloud drives for runtime parsing',
+    description:
+      'Loads document text from URLs or cloud drives for runtime parsing',
     icon: FileText,
     badge: 'RAG',
     defaultConfig: { extractTables: true },
@@ -329,7 +361,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'knowledge',
     label: 'Embedding Model',
     subtitle: 'Vectorize Text',
-    description: 'Turns text into vectors for semantic search over an agent’s knowledge',
+    description:
+      'Turns text into vectors for semantic search over an agent’s knowledge',
     icon: Binary,
     badge: 'RAG',
     defaultConfig: { model: 'text-embedding-3-small', dimensions: 1536 },
@@ -339,7 +372,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'knowledge',
     label: 'Context Reranker',
     subtitle: 'Cross-Encoder Reorder',
-    description: 'Reorders retrieved candidate chunks to surface the highest relevance passages',
+    description:
+      'Reorders retrieved candidate chunks to surface the highest relevance passages',
     icon: Layers,
     badge: 'RAG',
     defaultConfig: { topK: 3, model: 'cohere-rerank-v3' },
@@ -351,7 +385,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'logic',
     label: 'If / Else Branch',
     subtitle: 'Conditional Fork',
-    description: 'Evaluates expressions and forks execution to True or False handles',
+    description:
+      'Evaluates expressions and forks execution to True or False handles',
     icon: GitBranch,
     badge: 'Flow',
     defaultConfig: { operator: 'equals', valueA: '', valueB: '' },
@@ -361,7 +396,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'logic',
     label: 'Switch / Router',
     subtitle: 'Multi-Way Branch',
-    description: 'Matches variable against multiple case options and branches accordingly',
+    description:
+      'Matches variable against multiple case options and branches accordingly',
     icon: Split,
     badge: 'Flow',
     defaultConfig: { cases: ['High', 'Medium', 'Low'] },
@@ -381,7 +417,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'logic',
     label: 'Wait / Delay',
     subtitle: 'Execution Pause',
-    description: 'Pauses workflow execution for a given duration before continuing',
+    description:
+      'Pauses workflow execution for a given duration before continuing',
     icon: Hourglass,
     badge: 'Flow',
     defaultConfig: { delaySeconds: 5 },
@@ -391,7 +428,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'logic',
     label: 'Parallel Execution',
     subtitle: 'Concurrent Forks',
-    description: 'Forks execution into multiple simultaneous branches to speed up tasks',
+    description:
+      'Forks execution into multiple simultaneous branches to speed up tasks',
     icon: GitFork,
     badge: 'Flow',
     defaultConfig: { waitForAll: true },
@@ -403,7 +441,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'transform',
     label: 'Set Variable',
     subtitle: 'Store Workflow State',
-    description: 'Assigns values to workflow, session, or global state variables',
+    description:
+      'Assigns values to workflow, session, or global state variables',
     icon: Variable,
     badge: 'Data',
     defaultConfig: { variableName: 'myVar', scope: 'workflow' },
@@ -413,30 +452,39 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'transform',
     label: 'Map Data & Fields',
     subtitle: 'Object Transformer',
-    description: 'Transforms keys, parses nested structures, and standardizes payload schemas',
+    description:
+      'Transforms keys, parses nested structures, and standardizes payload schemas',
     icon: Sliders,
     badge: 'Data',
-    defaultConfig: { mappingRules: [{ sourceField: 'id', targetField: 'userId' }] },
+    defaultConfig: {
+      mappingRules: [{ sourceField: 'id', targetField: 'userId' }],
+    },
   },
   {
     type: 'CODE_JAVASCRIPT',
     category: 'transform',
     label: 'Code (JavaScript)',
     subtitle: 'Custom Script',
-    description: 'Executes lightweight sandboxed JavaScript for formatting, mapping, or math',
+    description:
+      'Executes lightweight sandboxed JavaScript for formatting, mapping, or math',
     icon: Code2,
     badge: 'Code',
-    defaultConfig: { code: '// Access input via input\nreturn {\n  success: true,\n  timestamp: Date.now()\n};' },
+    defaultConfig: {
+      code: '// Access input via input\nreturn {\n  success: true,\n  timestamp: Date.now()\n};',
+    },
   },
   {
     type: 'CODE_PYTHON',
     category: 'transform',
     label: 'Code (Python)',
     subtitle: 'Python 3 Script',
-    description: 'Executes sandboxed Python script for scientific computation, data cleansing, or Pandas tasks',
+    description:
+      'Executes sandboxed Python script for scientific computation, data cleansing, or Pandas tasks',
     icon: Terminal,
     badge: 'Code',
-    defaultConfig: { code: '# Access inputs via input_dict\nreturn {"processed": True, "count": len(input_dict.keys())}' },
+    defaultConfig: {
+      code: '# Access inputs via input_dict\nreturn {"processed": True, "count": len(input_dict.keys())}',
+    },
   },
 
   // 6. TOOLS & INTEGRATIONS (Module 3.6)
@@ -445,7 +493,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'tools',
     label: 'HTTP Request (REST)',
     subtitle: 'Generic API Call',
-    description: 'Invokes external REST API endpoints with custom headers, query, and payload',
+    description:
+      'Invokes external REST API endpoints with custom headers, query, and payload',
     icon: Globe,
     badge: 'Tools',
     defaultConfig: { method: 'GET', url: 'https://api.example.com/data' },
@@ -455,7 +504,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'tools',
     label: 'Firecrawl Search',
     subtitle: 'Live Web Search',
-    description: 'Searches live web indexes and retrieves sanitized markdown pages and citations',
+    description:
+      'Searches live web indexes and retrieves sanitized markdown pages and citations',
     icon: Flame,
     badge: 'Firecrawl',
     defaultConfig: { query: '{{input.query}}', limit: 3 },
@@ -465,7 +515,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'tools',
     label: 'Firecrawl Extract',
     subtitle: 'Schema Web Scraper',
-    description: 'Crawls a specific website URL and extracts structured JSON fields',
+    description:
+      'Crawls a specific website URL and extracts structured JSON fields',
     icon: Flame,
     badge: 'Firecrawl',
     defaultConfig: { prompt: 'Extract pricing and features' },
@@ -475,7 +526,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'tools',
     label: 'MCP Tool Action',
     subtitle: 'Model Context Protocol',
-    description: 'Calls a tool registered on a connected Model Context Protocol (MCP) server',
+    description:
+      'Calls a tool registered on a connected Model Context Protocol (MCP) server',
     icon: Plug,
     badge: 'MCP',
     defaultConfig: { serverName: 'Default MCP', toolName: 'search_database' },
@@ -485,17 +537,22 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'tools',
     label: 'Database Query (SQL)',
     subtitle: 'Postgres / MySQL / Mongo',
-    description: 'Executes a parameterized SQL query or Mongo find operation against a connected database',
+    description:
+      'Executes a parameterized SQL query or Mongo find operation against a connected database',
     icon: Database,
     badge: 'Tools',
-    defaultConfig: { connectionId: 'pg-prod', query: 'SELECT * FROM users LIMIT 10' },
+    defaultConfig: {
+      connectionId: 'pg-prod',
+      query: 'SELECT * FROM users LIMIT 10',
+    },
   },
   {
     type: 'SLACK_SEND',
     category: 'tools',
     label: 'Slack Notification',
     subtitle: 'Post Channel Alert',
-    description: 'Sends rich notifications or interactive blocks to Slack channels',
+    description:
+      'Sends rich notifications or interactive blocks to Slack channels',
     icon: MessageSquare,
     badge: 'Tools',
     defaultConfig: { channel: '#agent-alerts', asBot: true },
@@ -505,7 +562,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'tools',
     label: 'App Connector Action',
     subtitle: 'Connected SaaS Action',
-    description: 'Runs an action or read in any connected app — pick the app and the action in the inspector',
+    description:
+      'Runs an action or read in any connected app — pick the app and the action in the inspector',
     icon: Boxes,
     badge: 'Connector',
     defaultConfig: { input: {} },
@@ -515,7 +573,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'tools',
     label: 'Attendance',
     subtitle: 'Check-in / Check-out',
-    description: 'Check in, check out, or read attendance status — in the built-in ledger or your HR system',
+    description:
+      'Check in, check out, or read attendance status — in the built-in ledger or your HR system',
     icon: UserCheck,
     badge: 'Attendance',
     defaultConfig: {
@@ -531,7 +590,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'human',
     label: 'Human Approval',
     subtitle: 'Approval Checkpoint',
-    description: 'Pauses workflow execution and creates a review task in the Approval Center',
+    description:
+      'Pauses workflow execution and creates a review task in the Approval Center',
     icon: UserCheck,
     badge: 'Human',
     defaultConfig: { approverRole: 'Admin', timeoutHours: 24 },
@@ -541,7 +601,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'human',
     label: 'Ask User Question',
     subtitle: 'Clarification Prompt',
-    description: 'Prompts the human user to provide clarifying inputs before continuing',
+    description:
+      'Prompts the human user to provide clarifying inputs before continuing',
     icon: HelpCircle,
     badge: 'Human',
     defaultConfig: { question: 'Please confirm purchase order number:' },
@@ -551,7 +612,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'human',
     label: 'Escalate to Human Agent',
     subtitle: 'Support Handoff',
-    description: 'Transfers live chat session to Zendesk or human support team with context summary',
+    description:
+      'Transfers live chat session to Zendesk or human support team with context summary',
     icon: Headphones,
     badge: 'Human',
     defaultConfig: { priority: 'high', queue: 'Tier 2 Support' },
@@ -563,7 +625,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'output',
     label: 'Workflow Output',
     subtitle: 'Final Output Delivery',
-    description: 'Completes workflow execution and delivers final aggregated response',
+    description:
+      'Completes workflow execution and delivers final aggregated response',
     icon: StopCircle,
     badge: 'Output',
     defaultConfig: { format: 'markdown' },
@@ -573,7 +636,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'output',
     label: 'Chat Response Stream',
     subtitle: 'Stream to Chat UI',
-    description: 'Streams AI answer markdown, citations, and follow-up pills back to the user',
+    description:
+      'Streams AI answer markdown, citations, and follow-up pills back to the user',
     icon: MessageSquare,
     badge: 'Output',
     defaultConfig: { stream: true, renderMarkdown: true },
@@ -583,7 +647,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'output',
     label: 'Webhook Response',
     subtitle: 'Reply to HTTP Caller',
-    description: 'Returns a custom HTTP status code and response body to the webhook caller',
+    description:
+      'Returns a custom HTTP status code and response body to the webhook caller',
     icon: Globe,
     badge: 'Output',
     defaultConfig: { statusCode: 200, contentType: 'application/json' },
@@ -595,10 +660,11 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'annotations',
     label: 'Sticky Note',
     subtitle: 'Canvas Note',
-    description: 'Yellow sticky note for documentation, instructions, or team comments',
+    description:
+      'Yellow sticky note for documentation, instructions, or team comments',
     icon: StickyNote,
     badge: 'Canvas',
-    defaultConfig: { note: '### Workflow Notes\nDocument the workflow logic here.' },
+    defaultConfig: { note: '', color: 'yellow' },
   },
   {
     type: 'GROUP',
@@ -617,7 +683,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'widgets',
     label: 'Widget Trigger',
     subtitle: 'User Action / Interaction',
-    description: 'Triggers workflow on widget click, submission, or filter change',
+    description:
+      'Triggers workflow on widget click, submission, or filter change',
     icon: Play,
     badge: 'Widget',
     defaultConfig: { eventName: 'widget.action.requested' },
@@ -627,7 +694,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'widgets',
     label: 'Widget Renderer',
     subtitle: 'Render UI Component',
-    description: 'Renders KPI metric, chart, table, or custom component with data',
+    description:
+      'Renders KPI metric, chart, table, or custom component with data',
     icon: LayoutDashboard,
     badge: 'Widget',
     defaultConfig: { componentType: 'metric_card', title: 'Metric Card' },
@@ -637,7 +705,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'widgets',
     label: 'Widget Input',
     subtitle: 'Capture User Input',
-    description: 'Collects inputs from interactive form fields, dropdowns, or toggles',
+    description:
+      'Collects inputs from interactive form fields, dropdowns, or toggles',
     icon: Sliders,
     badge: 'Widget',
     defaultConfig: { action: 'Collect Input' },
@@ -647,7 +716,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'widgets',
     label: 'Widget Output',
     subtitle: 'Format Output Display',
-    description: 'Formats workflow results into a rich visual widget output card',
+    description:
+      'Formats workflow results into a rich visual widget output card',
     icon: FileText,
     badge: 'Widget',
     defaultConfig: { template: '{{__last}}' },
@@ -657,10 +727,14 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'widgets',
     label: 'Widget Data Source',
     subtitle: 'Live Data Provider',
-    description: 'Provides real-time or polled data from platform services or APIs',
+    description:
+      'Provides real-time or polled data from platform services or APIs',
     icon: Database,
     badge: 'Widget',
-    defaultConfig: { dataSourceType: 'platform_service', platformService: 'tasks' },
+    defaultConfig: {
+      dataSourceType: 'platform_service',
+      platformService: 'tasks',
+    },
   },
   {
     type: 'WIDGET_EVENT_HANDLER',
@@ -677,7 +751,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'widgets',
     label: 'Widget Action',
     subtitle: 'Dispatch Widget Action',
-    description: 'Triggers external or platform actions from inside widget components',
+    description:
+      'Triggers external or platform actions from inside widget components',
     icon: Boxes,
     badge: 'Widget',
     defaultConfig: { actionId: 'submit_action' },
@@ -687,7 +762,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'widgets',
     label: 'Widget Condition',
     subtitle: 'Branch on Widget State',
-    description: 'Evaluates widget form values or selected filters to route flow',
+    description:
+      'Evaluates widget form values or selected filters to route flow',
     icon: GitBranch,
     badge: 'Widget',
     defaultConfig: { operator: 'equals', value: '' },
@@ -707,7 +783,8 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'widgets',
     label: 'Widget Error Handler',
     subtitle: 'Fallback & Recovery',
-    description: 'Catches widget data fetch or rendering failures with fallback views',
+    description:
+      'Catches widget data fetch or rendering failures with fallback views',
     icon: Shield,
     badge: 'Widget',
     defaultConfig: { fallbackMessage: 'Failed to load widget' },
@@ -724,28 +801,85 @@ const stepSupportCache = new Map<string, string | null>();
 export function stepUnsupportedReason(type: string): string | undefined {
   const t = type.toUpperCase();
   if (!stepSupportCache.has(t)) {
-    const out = compileStudioGraph({ nodes: [{ id: 'probe', type: t, data: { config: {} } }], edges: [] }).nodes.find(
-      (n) => n.id === 'probe',
+    const out = compileStudioGraph({
+      nodes: [{ id: 'probe', type: t, data: { config: {} } }],
+      edges: [],
+    }).nodes.find((n) => n.id === 'probe');
+    stepSupportCache.set(
+      t,
+      out?.type === 'UNSUPPORTED' ? String(out.config['reason'] ?? '') : null,
     );
-    stepSupportCache.set(t, out?.type === 'UNSUPPORTED' ? String(out.config['reason'] ?? '') : null);
   }
   return stepSupportCache.get(t) ?? undefined;
 }
 
-export const CATEGORY_ITEMS: { id: NodeCategory; label: string; count: number }[] = [
+export const CATEGORY_ITEMS: {
+  id: NodeCategory;
+  label: string;
+  count: number;
+}[] = [
   { id: 'all', label: 'All Nodes', count: CATALOG_NODES.length },
-  { id: 'triggers', label: 'Triggers', count: CATALOG_NODES.filter((n) => n.category === 'triggers').length },
-  { id: 'widgets', label: 'UI Widgets', count: CATALOG_NODES.filter((n) => n.category === 'widgets').length },
-  { id: 'connectors', label: 'Apps & Connectors', count: CATALOG_NODES.filter((n) => n.type.startsWith('APP_CONNECTOR')).length },
-  { id: 'ai', label: 'AI & Reasoning', count: CATALOG_NODES.filter((n) => n.category === 'ai').length },
-  { id: 'team', label: 'Your Team', count: CATALOG_NODES.filter((n) => n.category === 'team').length },
-  { id: 'knowledge', label: 'Knowledge & RAG', count: CATALOG_NODES.filter((n) => n.category === 'knowledge').length },
-  { id: 'logic', label: 'Logic & Flow', count: CATALOG_NODES.filter((n) => n.category === 'logic').length },
-  { id: 'transform', label: 'Data & Transform', count: CATALOG_NODES.filter((n) => n.category === 'transform').length },
-  { id: 'tools', label: 'Tools & Integrations', count: CATALOG_NODES.filter((n) => n.category === 'tools').length },
-  { id: 'human', label: 'Human in the Loop', count: CATALOG_NODES.filter((n) => n.category === 'human').length },
-  { id: 'output', label: 'Outputs', count: CATALOG_NODES.filter((n) => n.category === 'output').length },
-  { id: 'annotations', label: 'Canvas Annotations', count: CATALOG_NODES.filter((n) => n.category === 'annotations').length },
+  {
+    id: 'triggers',
+    label: 'Triggers',
+    count: CATALOG_NODES.filter((n) => n.category === 'triggers').length,
+  },
+  {
+    id: 'widgets',
+    label: 'UI Widgets',
+    count: CATALOG_NODES.filter((n) => n.category === 'widgets').length,
+  },
+  {
+    id: 'connectors',
+    label: 'Apps & Connectors',
+    count: CATALOG_NODES.filter((n) => n.type.startsWith('APP_CONNECTOR'))
+      .length,
+  },
+  {
+    id: 'ai',
+    label: 'AI & Reasoning',
+    count: CATALOG_NODES.filter((n) => n.category === 'ai').length,
+  },
+  {
+    id: 'team',
+    label: 'Your Team',
+    count: CATALOG_NODES.filter((n) => n.category === 'team').length,
+  },
+  {
+    id: 'knowledge',
+    label: 'Knowledge & RAG',
+    count: CATALOG_NODES.filter((n) => n.category === 'knowledge').length,
+  },
+  {
+    id: 'logic',
+    label: 'Logic & Flow',
+    count: CATALOG_NODES.filter((n) => n.category === 'logic').length,
+  },
+  {
+    id: 'transform',
+    label: 'Data & Transform',
+    count: CATALOG_NODES.filter((n) => n.category === 'transform').length,
+  },
+  {
+    id: 'tools',
+    label: 'Tools & Integrations',
+    count: CATALOG_NODES.filter((n) => n.category === 'tools').length,
+  },
+  {
+    id: 'human',
+    label: 'Human in the Loop',
+    count: CATALOG_NODES.filter((n) => n.category === 'human').length,
+  },
+  {
+    id: 'output',
+    label: 'Outputs',
+    count: CATALOG_NODES.filter((n) => n.category === 'output').length,
+  },
+  {
+    id: 'annotations',
+    label: 'Canvas Annotations',
+    count: CATALOG_NODES.filter((n) => n.category === 'annotations').length,
+  },
 ];
 
 export function NodeLibrary({
@@ -761,37 +895,40 @@ export function NodeLibrary({
   const teamNodes = useTeamCatalogNodes();
 
   const filteredNodes = useMemo(() => {
-    return [...CATALOG_NODES, ...teamNodes, ...connectorNodes].filter((node) => {
-      const matchesCategory =
-        selectedCategory === 'all' ||
-        node.category === selectedCategory ||
-        (selectedCategory === 'connectors' && node.type.startsWith('APP_CONNECTOR'));
-      const matchesSearch =
-        search.trim() === '' ||
-        node.label.toLowerCase().includes(search.toLowerCase()) ||
-        node.subtitle.toLowerCase().includes(search.toLowerCase()) ||
-        node.description.toLowerCase().includes(search.toLowerCase());
-      return matchesCategory && matchesSearch;
-    });
+    return [...CATALOG_NODES, ...teamNodes, ...connectorNodes].filter(
+      (node) => {
+        const matchesCategory =
+          selectedCategory === 'all' ||
+          node.category === selectedCategory ||
+          (selectedCategory === 'connectors' &&
+            node.type.startsWith('APP_CONNECTOR'));
+        const matchesSearch =
+          search.trim() === '' ||
+          node.label.toLowerCase().includes(search.toLowerCase()) ||
+          node.subtitle.toLowerCase().includes(search.toLowerCase()) ||
+          node.description.toLowerCase().includes(search.toLowerCase());
+        return matchesCategory && matchesSearch;
+      },
+    );
   }, [selectedCategory, search, connectorNodes, teamNodes]);
 
-  const onDragStart = (
-    event: React.DragEvent,
-    nodeData: CatalogNodeItem,
-  ) => {
-    event.dataTransfer.setData('application/reactflow', JSON.stringify(nodeData));
+  const onDragStart = (event: React.DragEvent, nodeData: CatalogNodeItem) => {
+    event.dataTransfer.setData(
+      'application/reactflow',
+      JSON.stringify(nodeData),
+    );
     event.dataTransfer.effectAllowed = 'move';
   };
 
   return (
     <div
       className={cn(
-        'flex h-full w-76 flex-col border-r border-border bg-surface select-none overflow-hidden',
+        'w-76 flex h-full flex-col overflow-hidden border-r border-border bg-surface select-none',
         className,
       )}
     >
       {/* Header */}
-      <div className="border-b border-border p-3 space-y-2">
+      <div className="p-3 space-y-2 border-b border-border">
         {/* Search */}
         <Input
           inputSize="sm"
@@ -802,15 +939,15 @@ export function NodeLibrary({
         />
 
         {/* Categories Bar */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar text-xs">
+        <div className="gap-1 pb-1 text-xs no-scrollbar flex items-center overflow-x-auto">
           {CATEGORY_ITEMS.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
               className={cn(
-                'shrink-0 rounded-md px-2 py-1 font-medium transition-colors flex items-center gap-1',
+                'px-2 py-1 font-medium gap-1 flex shrink-0 items-center rounded-md transition-colors',
                 selectedCategory === cat.id
-                  ? 'bg-primary/10 text-primary font-semibold'
+                  ? 'font-semibold bg-primary/10 text-primary'
                   : 'text-muted-foreground hover:bg-surface-raised hover:text-foreground',
               )}
             >
@@ -822,13 +959,16 @@ export function NodeLibrary({
       </div>
 
       {/* Nodes List */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+      <div className="p-3 space-y-2 flex-1 overflow-y-auto">
         {filteredNodes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
-            <Search className="size-6 text-muted-foreground/40 mb-2" />
-            <div className="text-xs font-medium text-foreground">No nodes found</div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Try searching for different keywords or select a different category.
+          <div className="p-8 flex flex-col items-center justify-center text-center text-muted-foreground">
+            <Search className="size-6 mb-2 text-muted-foreground/40" />
+            <div className="text-xs font-medium text-foreground">
+              No nodes found
+            </div>
+            <p className="text-xs mt-0.5 text-muted-foreground">
+              Try searching for different keywords or select a different
+              category.
             </p>
           </div>
         ) : (
@@ -842,11 +982,11 @@ export function NodeLibrary({
                 key={item.key ?? item.type}
                 draggable
                 onDragStart={(e) => onDragStart(e, item)}
-                className="group relative flex cursor-grab flex-col rounded-xl border border-border bg-surface p-2.5 transition-all hover:border-border-strong hover:bg-surface-raised/40 hover:shadow-xs active:cursor-grabbing"
+                className="group p-2.5 relative flex cursor-grab flex-col rounded-xl border border-border bg-surface transition-all hover:border-border-strong hover:bg-surface-raised/40 hover:shadow-xs active:cursor-grabbing"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className="flex size-7 items-center justify-center rounded-lg bg-surface-raised text-primary group-hover:bg-primary/10 transition-colors p-1">
+                <div className="gap-2 flex items-start justify-between">
+                  <div className="gap-2 flex items-center">
+                    <div className="size-7 p-1 flex items-center justify-center rounded-lg bg-surface-raised text-primary transition-colors group-hover:bg-primary/10">
                       {isConnector && connectorId ? (
                         <AppConnectorIcon connectorId={connectorId} size={16} />
                       ) : (
@@ -854,7 +994,7 @@ export function NodeLibrary({
                       )}
                     </div>
                     <div>
-                      <div className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
+                      <div className="text-xs font-semibold text-foreground transition-colors group-hover:text-primary">
                         {item.label}
                       </div>
                       <div className="text-2xs text-muted-foreground">
@@ -863,9 +1003,9 @@ export function NodeLibrary({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1">
+                  <div className="gap-1 flex items-center">
                     {item.badge && (
-                      <span className="rounded-full bg-surface-raised px-1.5 py-0.5 text-2xs font-medium text-muted-foreground border border-border/50">
+                      <span className="px-1.5 py-0.5 font-medium rounded-full border border-border/50 bg-surface-raised text-2xs text-muted-foreground">
                         {item.badge}
                       </span>
                     )}
@@ -878,7 +1018,7 @@ export function NodeLibrary({
                           onAddNode(item);
                         }}
                         title={`Add ${item.label} to canvas`}
-                        className="opacity-0 group-hover:opacity-100 flex size-6 items-center justify-center rounded-md bg-foreground text-background hover:bg-foreground/85 transition-all shadow-xs"
+                        className="size-6 flex items-center justify-center rounded-md bg-foreground text-background opacity-0 shadow-xs transition-all group-hover:opacity-100 hover:bg-foreground/85"
                       >
                         <Plus className="size-3.5" />
                       </button>
@@ -886,7 +1026,7 @@ export function NodeLibrary({
                   </div>
                 </div>
 
-                <p className="mt-1.5 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                <p className="mt-1.5 text-xs leading-relaxed line-clamp-2 text-muted-foreground">
                   {item.description}
                 </p>
               </div>
@@ -894,7 +1034,6 @@ export function NodeLibrary({
           })
         )}
       </div>
-
     </div>
   );
 }

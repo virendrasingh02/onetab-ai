@@ -14,7 +14,14 @@ import {
 } from '@org/ui';
 import { AGENT_EVENTS } from '@org/types';
 import { cn } from '@org/utils';
-import { Handle, NodeResizer, NodeToolbar, Position, useNodesData, type NodeProps } from '@xyflow/react';
+import {
+  Handle,
+  NodeResizer,
+  NodeToolbar,
+  Position,
+  useNodesData,
+  type NodeProps,
+} from '@xyflow/react';
 import {
   AlertTriangle,
   BookOpen,
@@ -54,7 +61,14 @@ import {
   X,
   Zap,
 } from 'lucide-react';
-import React, { memo, useCallback, useState, useRef, useEffect, useMemo } from 'react';
+import React, {
+  memo,
+  useCallback,
+  useState,
+  useRef,
+  useEffect,
+  useMemo,
+} from 'react';
 import {
   AGENT_SLOTS,
   DELEGATION_MODES,
@@ -63,14 +77,37 @@ import {
   type AgentSlotDef,
   type AgentSlotId,
 } from './agent-slots.js';
-import { useModelLabel, useModelOptions } from './agent-config/use-agent-config-data.js';
-import { CATALOG_NODES,type CatalogNodeItem, type NodeCategory } from './node-library.js';
+import {
+  useModelLabel,
+  useModelOptions,
+} from './agent-config/use-agent-config-data.js';
+import {
+  CATALOG_NODES,
+  type CatalogNodeItem,
+  type NodeCategory,
+} from './node-library.js';
 import { AppConnectorIcon } from '../common/app-connector-icon.jsx';
-import { useConnectorCatalogNodes, useConnectorNode } from './connector-nodes.js';
-import { TEAM_REF_KEY, teamMemberFor, useWorkspaceTeam, type TeamStepType } from './team-nodes.js';
+import {
+  useConnectorCatalogNodes,
+  useConnectorNode,
+} from './connector-nodes.js';
+import {
+  TEAM_REF_KEY,
+  teamMemberFor,
+  useWorkspaceTeam,
+  type TeamStepType,
+} from './team-nodes.js';
 import { useNavigate } from '../../router.js';
-import { useWorkflowLayout, type WorkflowDirection, type WorkflowEdgeStyle } from './workflow-layout-context.js';
-import { firstIssue, type AgentModuleId, type ModuleSummary } from './agent-config/agent-module-model.js';
+import {
+  useWorkflowLayout,
+  type WorkflowDirection,
+  type WorkflowEdgeStyle,
+} from './workflow-layout-context.js';
+import {
+  firstIssue,
+  type AgentModuleId,
+  type ModuleSummary,
+} from './agent-config/agent-module-model.js';
 import {
   FormattedText,
   NodeRunFooter,
@@ -88,7 +125,12 @@ export interface WorkflowNodePayload {
   config?: Record<string, any>;
   direction?: WorkflowDirection;
   edgeStyle?: WorkflowEdgeStyle;
-  onUpdateMetadata?: (patch: { title?: string; label?: string; description?: string; subtitle?: string }) => void;
+  onUpdateMetadata?: (patch: {
+    title?: string;
+    label?: string;
+    description?: string;
+    subtitle?: string;
+  }) => void;
   /** Canvas lock state — hides mutating quick actions. */
   locked?: boolean;
   onTest?: (nodeId: string) => void;
@@ -112,7 +154,10 @@ export interface WorkflowNodePayload {
   /** Agents: apps whose actions are among its tools (cards and tool list). */
   toolApps?: string[];
   /** Agents: open a module's drawer, optionally at a problem. */
-  onOpenModule?: (id: AgentModuleId, target?: { section?: string; field?: string }) => void;
+  onOpenModule?: (
+    id: AgentModuleId,
+    target?: { section?: string; field?: string },
+  ) => void;
   /** Agents: the start of their instructions, for the card. */
   promptPreview?: string;
   /** Agents: built-in tool names in their tool list. */
@@ -158,7 +203,10 @@ const isGenericAppAction = (item: CatalogNodeItem) =>
 
 /** One row per app that has actions, for the app step of the drill-down. */
 function appActionApps(actions: readonly CatalogNodeItem[]): CatalogNodeItem[] {
-  const apps = new Map<string, { item: CatalogNodeItem; count: number; connected: boolean }>();
+  const apps = new Map<
+    string,
+    { item: CatalogNodeItem; count: number; connected: boolean }
+  >();
   for (const action of actions) {
     const provider = String(action.defaultConfig?.['provider'] ?? '');
     if (!provider) continue;
@@ -179,15 +227,24 @@ function appActionApps(actions: readonly CatalogNodeItem[]): CatalogNodeItem[] {
         subtitle: '',
         description: `${action.badge ?? provider} actions`,
         icon: action.icon,
-        defaultConfig: { provider, connectorId: action.defaultConfig?.['connectorId'] },
+        defaultConfig: {
+          provider,
+          connectorId: action.defaultConfig?.['connectorId'],
+        },
       },
     });
   }
   return [...apps.values()]
-    .sort((a, b) => Number(b.connected) - Number(a.connected) || a.item.label.localeCompare(b.item.label))
+    .sort(
+      (a, b) =>
+        Number(b.connected) - Number(a.connected) ||
+        a.item.label.localeCompare(b.item.label),
+    )
     .map(({ item, count, connected }) => ({
       ...item,
-      subtitle: connected ? `All ${count} action${count === 1 ? '' : 's'} included` : 'Not connected',
+      subtitle: connected
+        ? `All ${count} action${count === 1 ? '' : 's'} included`
+        : 'Not connected',
     }));
 }
 
@@ -229,28 +286,45 @@ function QuickAddMenu({
   const navigate = useNavigate();
   // Every connected app's actions and events, from the live connector manifests
   const connectorNodes = useConnectorCatalogNodes();
-  const rootSource = useMemo(() => items ?? [...CATALOG_NODES, ...connectorNodes], [items, connectorNodes]);
-  const appEntries = useMemo(() => appActionApps(appActions ?? []), [appActions]);
+  const rootSource = useMemo(
+    () => items ?? [...CATALOG_NODES, ...connectorNodes],
+    [items, connectorNodes],
+  );
+  const appEntries = useMemo(
+    () => appActionApps(appActions ?? []),
+    [appActions],
+  );
   const source = useMemo(() => {
     if (view.level === 'apps') return appEntries;
     if (view.level === 'actions') {
-      return (appActions ?? []).filter((n) => n.defaultConfig?.['provider'] === view.provider);
+      return (appActions ?? []).filter(
+        (n) => n.defaultConfig?.['provider'] === view.provider,
+      );
     }
     return rootSource;
   }, [view, appEntries, appActions, rootSource]);
   const offersApps = useMemo(
-    () => view.level !== 'root' || rootSource.some((n) => n.type.startsWith('APP_CONNECTOR')),
+    () =>
+      view.level !== 'root' ||
+      rootSource.some((n) => n.type.startsWith('APP_CONNECTOR')),
     [view.level, rootSource],
   );
 
   /** Root → apps → actions; only an action (or a plain node) is actually added. */
   const pick = useCallback(
     (item: CatalogNodeItem) => {
-      if (view.level === 'root' && appEntries.length > 0 && isGenericAppAction(item)) {
+      if (
+        view.level === 'root' &&
+        appEntries.length > 0 &&
+        isGenericAppAction(item)
+      ) {
         setView({ level: 'apps' });
       } else if (view.level === 'apps') {
         // One node per app: every action is available in the node's settings
-        const own = (appActions ?? []).filter((n) => n.defaultConfig?.['provider'] === item.defaultConfig?.['provider']);
+        const own = (appActions ?? []).filter(
+          (n) =>
+            n.defaultConfig?.['provider'] === item.defaultConfig?.['provider'],
+        );
         onSelect({
           ...item,
           label: item.label,
@@ -258,7 +332,9 @@ function QuickAddMenu({
           defaultConfig: {
             ...(own[0]?.defaultConfig ?? item.defaultConfig),
             // As an agent tool the card brings all of them; as a step it runs `actionId`
-            actionIds: own.map((n) => n.defaultConfig?.['actionId']).filter(Boolean),
+            actionIds: own
+              .map((n) => n.defaultConfig?.['actionId'])
+              .filter(Boolean),
           },
         });
         return;
@@ -280,7 +356,12 @@ function QuickAddMenu({
 
   const filteredNodes = useMemo(() => {
     return source.filter((n) => {
-      if (!items && view.level === 'root' && activeCategory !== 'all' && n.category !== activeCategory) {
+      if (
+        !items &&
+        view.level === 'root' &&
+        activeCategory !== 'all' &&
+        n.category !== activeCategory
+      ) {
         return false;
       }
       if (!search.trim()) return true;
@@ -303,14 +384,18 @@ function QuickAddMenu({
   // Scroll active item into view when navigating via keyboard
   useEffect(() => {
     if (activeIndex >= 0 && listRef.current) {
-      const activeEl = listRef.current.querySelector<HTMLElement>(`[data-node-index="${activeIndex}"]`);
+      const activeEl = listRef.current.querySelector<HTMLElement>(
+        `[data-node-index="${activeIndex}"]`,
+      );
       activeEl?.scrollIntoView({ block: 'nearest' });
     }
   }, [activeIndex]);
 
   useEffect(() => {
     // Elevate the parent ReactFlow node so this dropdown is ALWAYS in front of all other canvas nodes
-    const nodeEl = anchorRef.current?.closest('.react-flow__node') as HTMLElement | null;
+    const nodeEl = anchorRef.current?.closest(
+      '.react-flow__node',
+    ) as HTMLElement | null;
     if (nodeEl) {
       nodeEl.classList.add('quick-add-open');
       nodeEl.style.setProperty('z-index', '99999', 'important');
@@ -352,11 +437,17 @@ function QuickAddMenu({
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       e.stopPropagation();
-      setActiveIndex((prev) => (filteredNodes.length > 0 ? (prev + 1) % filteredNodes.length : 0));
+      setActiveIndex((prev) =>
+        filteredNodes.length > 0 ? (prev + 1) % filteredNodes.length : 0,
+      );
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       e.stopPropagation();
-      setActiveIndex((prev) => (filteredNodes.length > 0 ? (prev - 1 + filteredNodes.length) % filteredNodes.length : 0));
+      setActiveIndex((prev) =>
+        filteredNodes.length > 0
+          ? (prev - 1 + filteredNodes.length) % filteredNodes.length
+          : 0,
+      );
     } else if (e.key === 'Enter') {
       e.preventDefault();
       e.stopPropagation();
@@ -372,7 +463,7 @@ function QuickAddMenu({
   return (
     <div
       className={cn(
-        'nowheel nodrag nopan quick-add-open absolute w-80 rounded-xl border border-border bg-card/95 p-3 shadow-2xl backdrop-blur-md z-[99999] text-foreground cursor-default animate-in fade-in zoom-in-95 duration-150',
+        'nowheel nodrag nopan quick-add-open w-80 p-3 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 absolute z-[99999] cursor-default rounded-xl border border-border bg-card/95 text-foreground duration-150',
         className,
       )}
       onClick={(e) => e.stopPropagation()}
@@ -381,8 +472,8 @@ function QuickAddMenu({
       onWheel={(e) => e.stopPropagation()}
     >
       {/* Search Input */}
-      <div className="relative mb-2">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+      <div className="mb-2 relative">
+        <Search className="left-2.5 size-3.5 pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted-foreground" />
         <input
           ref={inputRef}
           type="text"
@@ -390,15 +481,19 @@ function QuickAddMenu({
           onChange={(e) => setSearch(e.target.value)}
           onKeyDown={handleInputKeyDown}
           placeholder={
-            view.level === 'apps' ? 'Search apps…' : view.level === 'actions' ? `Search ${view.app} actions…` : 'Search nodes…'
+            view.level === 'apps'
+              ? 'Search apps…'
+              : view.level === 'actions'
+                ? `Search ${view.app} actions…`
+                : 'Search nodes…'
           }
-          className="w-full rounded-md border border-border bg-surface pl-8 pr-7 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-hidden focus:ring-1 focus:ring-primary transition-colors"
+          className="pl-8 pr-7 py-1.5 text-xs w-full rounded-md border border-border bg-surface text-foreground transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-1 focus:ring-primary focus:outline-hidden"
         />
         {search ? (
           <button
             type="button"
             onClick={() => setSearch('')}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-md cursor-pointer"
+            className="right-2 p-0.5 absolute top-1/2 -translate-y-1/2 cursor-pointer rounded-md text-muted-foreground hover:text-foreground"
             title="Clear search"
           >
             <X className="size-3" />
@@ -410,7 +505,7 @@ function QuickAddMenu({
               e.stopPropagation();
               onClose();
             }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground p-0.5 rounded-md cursor-pointer"
+            className="right-2 p-0.5 absolute top-1/2 -translate-y-1/2 cursor-pointer rounded-md text-muted-foreground/50 hover:text-foreground"
             title="Close"
           >
             <X className="size-3" />
@@ -425,14 +520,14 @@ function QuickAddMenu({
             e.stopPropagation();
             goBack();
           }}
-          className="mb-2 flex items-center gap-1 rounded-md px-0.5 text-2xs font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground cursor-pointer"
+          className="mb-2 gap-1 px-0.5 font-semibold tracking-wide flex cursor-pointer items-center rounded-md text-2xs text-muted-foreground uppercase hover:text-foreground"
         >
           <ChevronLeft className="size-3.5" />
           {view.level === 'apps' ? 'Choose an app' : `${view.app} actions`}
         </button>
       ) : (
         title && (
-          <div className="mb-2 px-0.5 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <div className="mb-2 px-0.5 font-semibold tracking-wide text-2xs text-muted-foreground uppercase">
             {title}
           </div>
         )
@@ -441,7 +536,7 @@ function QuickAddMenu({
       {/* Category Filter Pills */}
       <div
         className={cn(
-          'nowheel gap-1 overflow-x-auto pb-1.5 mb-2 scrollbar-none text-2xs',
+          'nowheel gap-1 pb-1.5 mb-2 scrollbar-none overflow-x-auto text-2xs',
           items || view.level !== 'root' ? 'hidden' : 'flex',
         )}
         onWheel={(e) => e.stopPropagation()}
@@ -452,10 +547,10 @@ function QuickAddMenu({
             type="button"
             onClick={() => setActiveCategory(cat.id)}
             className={cn(
-              'shrink-0 rounded-md px-2 py-0.5 font-medium transition-colors cursor-pointer',
+              'px-2 py-0.5 font-medium shrink-0 cursor-pointer rounded-md transition-colors',
               activeCategory === cat.id
                 ? 'bg-foreground text-background'
-                : 'bg-surface-raised text-muted-foreground hover:text-foreground hover:bg-surface-raised/80',
+                : 'bg-surface-raised text-muted-foreground hover:bg-surface-raised/80 hover:text-foreground',
             )}
           >
             {cat.label}
@@ -467,11 +562,15 @@ function QuickAddMenu({
       <div
         ref={listRef}
         onWheel={(e) => e.stopPropagation()}
-        className="nowheel nodrag nopan max-h-72 overflow-y-auto overscroll-contain space-y-1 pr-1.5 scrollbar-subtle"
+        className="nowheel nodrag nopan max-h-72 space-y-1 pr-1.5 scrollbar-subtle overflow-y-auto overscroll-contain"
       >
         {filteredNodes.length === 0 ? (
-          <div className="py-6 text-center text-xs text-muted-foreground">
-            {view.level === 'apps' ? 'No apps found' : view.level === 'actions' ? 'No actions found' : 'No nodes found'}
+          <div className="py-6 text-xs text-center text-muted-foreground">
+            {view.level === 'apps'
+              ? 'No apps found'
+              : view.level === 'actions'
+                ? 'No actions found'
+                : 'No nodes found'}
           </div>
         ) : (
           filteredNodes.map((item, idx) => {
@@ -479,7 +578,10 @@ function QuickAddMenu({
             const isSelected = idx === activeIndex;
             const appId = item.defaultConfig?.connectorId as string | undefined;
             const drills =
-              view.level === 'apps' || (view.level === 'root' && appEntries.length > 0 && isGenericAppAction(item));
+              view.level === 'apps' ||
+              (view.level === 'root' &&
+                appEntries.length > 0 &&
+                isGenericAppAction(item));
             return (
               <button
                 key={item.key ?? item.type}
@@ -491,7 +593,7 @@ function QuickAddMenu({
                 }}
                 onMouseEnter={() => setActiveIndex(idx)}
                 className={cn(
-                  'group/item flex w-full items-center gap-2.5 rounded-lg border p-1.5 text-left transition-colors cursor-pointer',
+                  'group/item gap-2.5 p-1.5 flex w-full cursor-pointer items-center rounded-lg border text-left transition-colors',
                   isSelected
                     ? 'border-foreground/30 bg-selected text-foreground'
                     : 'border-transparent hover:border-primary/30 hover:bg-surface-raised/70',
@@ -499,13 +601,13 @@ function QuickAddMenu({
               >
                 {appId ? (
                   // App actions show the app's own logo
-                  <div className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border/60 bg-surface-raised">
+                  <div className="size-7 flex shrink-0 items-center justify-center rounded-md border border-border/60 bg-surface-raised">
                     <AppConnectorIcon connectorId={appId} size={16} />
                   </div>
                 ) : (
                   <div
                     className={cn(
-                      'flex size-7 shrink-0 items-center justify-center rounded-md transition-colors',
+                      'size-7 flex shrink-0 items-center justify-center rounded-md transition-colors',
                       isSelected
                         ? 'bg-foreground text-background'
                         : 'bg-surface-raised text-muted-foreground group-hover/item:bg-foreground group-hover/item:text-background',
@@ -514,16 +616,18 @@ function QuickAddMenu({
                     <Icon className="size-4" />
                   </div>
                 )}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1.5">
-                    <span className="truncate text-xs font-medium text-foreground">
+                <div className="min-w-0 flex-1">
+                  <div className="gap-1.5 flex items-center justify-between">
+                    <span className="text-xs font-medium truncate text-foreground">
                       {/* The logo and badge already name the app: show just the action */}
-                      {appId && item.badge && item.label.startsWith(`${item.badge} · `)
+                      {appId &&
+                      item.badge &&
+                      item.label.startsWith(`${item.badge} · `)
                         ? item.label.slice(item.badge.length + 3)
                         : item.label}
                     </span>
                     {item.badge && (
-                      <span className="shrink-0 rounded-md bg-surface-raised px-1.5 py-0.2 text-2xs font-medium text-muted-foreground">
+                      <span className="px-1.5 py-0.2 font-medium shrink-0 rounded-md bg-surface-raised text-2xs text-muted-foreground">
                         {item.badge}
                       </span>
                     )}
@@ -532,7 +636,9 @@ function QuickAddMenu({
                     {item.subtitle || item.description}
                   </p>
                 </div>
-                {drills && <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />}
+                {drills && (
+                  <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
+                )}
               </button>
             );
           })
@@ -547,9 +653,9 @@ function QuickAddMenu({
             onClose();
             navigate('/connectors');
           }}
-          className="mt-2 flex w-full items-center justify-between rounded-lg border border-dashed border-border px-2.5 py-2 text-xs font-medium text-muted-foreground hover:border-border-strong hover:text-foreground cursor-pointer"
+          className="mt-2 px-2.5 py-2 text-xs font-medium flex w-full cursor-pointer items-center justify-between rounded-lg border border-dashed border-border text-muted-foreground hover:border-border-strong hover:text-foreground"
         >
-          <span className="flex items-center gap-1.5">
+          <span className="gap-1.5 flex items-center">
             <Plus className="size-3.5" /> Connect another app
           </span>
           <ChevronRight className="size-3.5" />
@@ -596,8 +702,8 @@ export function WorkflowHandle({
         ? Position.Top
         : Position.Bottom
       : type === 'target'
-      ? Position.Left
-      : Position.Right);
+        ? Position.Left
+        : Position.Right);
 
   // Move handle out of the box so the circle floats clearly outside the card border
   const positionOffsetStyle = useMemo<React.CSSProperties>(() => {
@@ -633,7 +739,7 @@ export function WorkflowHandle({
       style={mergedStyle}
       className={cn(
         // 32px hit area centered outside the edge; transparent background with flex centering
-        'group/handle !size-8 !border-0 !bg-transparent !p-0 !m-0 !flex !items-center !justify-center !cursor-crosshair z-20',
+        'group/handle !size-8 !p-0 !m-0 z-20 !flex !cursor-crosshair !items-center !justify-center !border-0 !bg-transparent',
         className,
       )}
     >
@@ -641,14 +747,19 @@ export function WorkflowHandle({
         <span
           className={cn(
             // Larger hollow dot moved out of the box; accent fill & scale on hover
-            'relative size-3.5 rounded-full border-2 border-muted-foreground/70 bg-surface shadow-xs transition-all duration-150 pointer-events-none',
+            'size-3.5 pointer-events-none relative rounded-full border-2 border-muted-foreground/70 bg-surface shadow-xs transition-all duration-150',
             'group-hover/handle:scale-125 group-hover/handle:border-foreground group-hover/handle:ring-2 group-hover/handle:ring-primary/40',
             'group-[.connecting]/handle:scale-125 group-[.connecting]/handle:border-primary group-[.connecting]/handle:ring-2 group-[.connecting]/handle:ring-primary/60',
-            'group-[.valid]/handle:!bg-success group-[.valid]/handle:!border-success group-[.valid]/handle:ring-4 group-[.valid]/handle:ring-success/40 group-[.valid]/handle:scale-130',
-            'group-[.invalid]/handle:!bg-destructive group-[.invalid]/handle:!border-destructive group-[.invalid]/handle:ring-4 group-[.invalid]/handle:ring-destructive/40 group-[.invalid]/handle:scale-130',
+            'group-[.valid]/handle:scale-130 group-[.valid]/handle:!border-success group-[.valid]/handle:!bg-success group-[.valid]/handle:ring-4 group-[.valid]/handle:ring-success/40',
+            'group-[.invalid]/handle:scale-130 group-[.invalid]/handle:!border-destructive group-[.invalid]/handle:!bg-destructive group-[.invalid]/handle:ring-4 group-[.invalid]/handle:ring-destructive/40',
           )}
         >
-          <span className={cn('absolute inset-0 rounded-full opacity-0 transition-opacity group-hover/handle:opacity-100', colorClass)} />
+          <span
+            className={cn(
+              'inset-0 absolute rounded-full opacity-0 transition-opacity group-hover/handle:opacity-100',
+              colorClass,
+            )}
+          />
         </span>
       )}
     </Handle>
@@ -697,9 +808,9 @@ export function SourceHandleWithQuickAdd({
       <div
         ref={containerRef}
         className={cn(
-          'nodrag nopan nowheel absolute z-30 flex items-center pointer-events-auto',
+          'nodrag nopan nowheel pointer-events-auto absolute z-30 flex items-center',
           isVertical ? 'pt-1.5' : 'pl-2 -ml-2',
-          isOpen && 'z-[99999] quick-add-open',
+          isOpen && 'quick-add-open z-[99999]',
         )}
         style={
           isVertical
@@ -722,9 +833,9 @@ export function SourceHandleWithQuickAdd({
             setIsOpen((prev) => !prev);
           }}
           className={cn(
-            'flex size-5 items-center justify-center rounded-full bg-foreground text-background shadow-md transition-all duration-150',
-            'opacity-0 group-hover:opacity-100 hover:scale-110 active:scale-95 cursor-pointer',
-            isOpen && 'opacity-100 ring-2 ring-primary/40 scale-110',
+            'size-5 flex items-center justify-center rounded-full bg-foreground text-background shadow-md transition-all duration-150',
+            'cursor-pointer opacity-0 group-hover:opacity-100 hover:scale-110 active:scale-95',
+            isOpen && 'scale-110 opacity-100 ring-2 ring-primary/40',
           )}
           title="Add connected node"
         >
@@ -742,7 +853,7 @@ export function SourceHandleWithQuickAdd({
             className={
               isVertical
                 ? 'top-[calc(100%+8px)] left-1/2 -translate-x-1/2'
-                : 'left-[calc(100%+8px)] top-1/2 -translate-y-1/2'
+                : 'top-1/2 left-[calc(100%+8px)] -translate-y-1/2'
             }
           />
         )}
@@ -778,23 +889,34 @@ export function EditableNodeHeader({
   actions?: React.ReactNode;
   locked?: boolean;
   onEdit?: () => void;
-  onUpdateMetadata?: (patch: { title?: string; label?: string; description?: string; subtitle?: string }) => void;
+  onUpdateMetadata?: (patch: {
+    title?: string;
+    label?: string;
+    description?: string;
+    subtitle?: string;
+  }) => void;
 }) {
   const displayTitle = title || defaultTitle;
   // Descriptions stay off the card unless the step opts in (inspector toggle).
   const showDescription = useNodesData(id)?.data?.['showDescription'] === true;
-  const displayDescription = showDescription ? description || defaultDescription : undefined;
+  const displayDescription = showDescription
+    ? description || defaultDescription
+    : undefined;
 
   const rawNodeData = useNodesData(id)?.data as WorkflowNodePayload | undefined;
   const analytics = rawNodeData?.analytics;
   const onOpenNodeAnalytics = rawNodeData?.onOpenNodeAnalytics;
 
   // A neutral bordered tile; the icon keeps the node's accent colour.
-  const iconTone = iconBg.split(/\s+/).filter((c) => c.startsWith('text-')).join(' ') || 'text-foreground';
+  const iconTone =
+    iconBg
+      .split(/\s+/)
+      .filter((c) => c.startsWith('text-'))
+      .join(' ') || 'text-foreground';
   return (
     <div
       className={cn(
-        'flex items-center gap-2.5 relative',
+        'gap-2.5 relative flex items-center',
         onEdit && !locked && 'cursor-pointer',
       )}
       onDoubleClick={(e) => {
@@ -811,15 +933,15 @@ export function EditableNodeHeader({
         />
       )}
       {customIcon || (
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface shadow-2xs">
+        <div className="size-9 shadow-2xs flex shrink-0 items-center justify-center rounded-lg border border-border bg-surface">
           {Icon && <Icon className={cn('size-[18px]', iconTone)} />}
         </div>
       )}
 
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
+        <div className="gap-1.5 flex items-center">
           <span
-            className="truncate text-sm font-semibold text-foreground select-none"
+            className="text-sm font-semibold truncate text-foreground select-none"
             title={displayTitle}
           >
             {displayTitle}
@@ -828,7 +950,7 @@ export function EditableNodeHeader({
         </div>
         {displayDescription && (
           <div
-            className="mt-0.5 text-xs leading-snug text-muted-foreground select-none line-clamp-2"
+            className="mt-0.5 text-xs leading-snug line-clamp-2 text-muted-foreground select-none"
             title={displayDescription}
           >
             {displayDescription}
@@ -871,8 +993,8 @@ function ToolbarButton({
       }}
       className={cn(
         // Joined segments: outer corners rounded, shared borders collapsed
-        'relative flex size-7 items-center justify-center border border-border bg-surface transition-colors cursor-pointer',
-        'first:rounded-l-[10px] last:rounded-r-[10px] not-first:border-l-0',
+        'size-7 relative flex cursor-pointer items-center justify-center border border-border bg-surface transition-colors',
+        'not-first:border-l-0 first:rounded-l-[10px] last:rounded-r-[10px]',
         'focus:outline-none focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-primary/60',
         tone === 'danger'
           ? 'text-foreground hover:bg-destructive/15 hover:text-destructive'
@@ -927,7 +1049,8 @@ export function NodeActionToolbar({
   const showDuplicate = !locked && Boolean(data?.onDuplicate);
   const showDelete = !locked && Boolean(data?.onDelete);
 
-  if (!showAdd && !showPreview && !showEdit && !showDuplicate && !showDelete) return null;
+  if (!showAdd && !showPreview && !showEdit && !showDuplicate && !showDelete)
+    return null;
 
   return (
     <NodeToolbar
@@ -939,10 +1062,14 @@ export function NodeActionToolbar({
     >
       <div
         ref={containerRef}
-        className="relative animate-in fade-in zoom-in-95 duration-100"
+        className="animate-in fade-in zoom-in-95 relative duration-100"
         onDoubleClick={(e) => e.stopPropagation()}
       >
-        <div role="group" aria-label={`${name} actions`} className="flex items-stretch rounded-[10px] shadow-sm select-none">
+        <div
+          role="group"
+          aria-label={`${name} actions`}
+          className="flex items-stretch rounded-[10px] shadow-sm select-none"
+        >
           {showAdd && (
             <ToolbarButton
               label={`Add a step after ${name}`}
@@ -953,22 +1080,35 @@ export function NodeActionToolbar({
             </ToolbarButton>
           )}
           {showPreview && (
-            <ToolbarButton label={`Preview ${name} in a test run`} onClick={() => data.onTest?.(id)}>
+            <ToolbarButton
+              label={`Preview ${name} in a test run`}
+              onClick={() => data.onTest?.(id)}
+            >
               <Eye className="size-3.5" />
             </ToolbarButton>
           )}
           {showEdit && (
-            <ToolbarButton label={`Edit ${name}`} onClick={() => data.onEdit?.(id)}>
+            <ToolbarButton
+              label={`Edit ${name}`}
+              onClick={() => data.onEdit?.(id)}
+            >
               <Pencil className="size-3.5" />
             </ToolbarButton>
           )}
           {showDuplicate && (
-            <ToolbarButton label={`Duplicate ${name}`} onClick={() => data.onDuplicate?.(id)}>
+            <ToolbarButton
+              label={`Duplicate ${name}`}
+              onClick={() => data.onDuplicate?.(id)}
+            >
               <Copy className="size-3.5" />
             </ToolbarButton>
           )}
           {showDelete && (
-            <ToolbarButton label={`Delete ${name}`} tone="danger" onClick={() => data.onDelete?.(id)}>
+            <ToolbarButton
+              label={`Delete ${name}`}
+              tone="danger"
+              onClick={() => data.onDelete?.(id)}
+            >
               <Trash2 className="size-3.5" />
             </ToolbarButton>
           )}
@@ -995,16 +1135,43 @@ export function NodeActionToolbar({
 
 /** Accent per node family: selection ring, hover border and handle dot. */
 const NODE_TONES = {
-  neutral: { selected: 'ring-2 ring-foreground/60 border-foreground/60', hover: 'hover:border-border-strong', dot: 'bg-primary' },
-  success: { selected: 'ring-2 ring-success border-success', hover: 'hover:border-success/50', dot: 'bg-success' },
-  warning: { selected: 'ring-2 ring-warning/70 border-warning', hover: 'hover:border-warning/50', dot: 'bg-warning' },
-  indigo: { selected: 'ring-2 ring-accent-indigo border-accent-indigo', hover: 'hover:border-accent-indigo/50', dot: 'bg-accent-indigo' },
-  blue: { selected: 'ring-2 ring-accent-blue border-accent-blue', hover: 'hover:border-accent-blue/50', dot: 'bg-accent-blue' },
-  violet: { selected: 'ring-2 ring-accent-violet border-accent-violet', hover: 'hover:border-accent-violet/50', dot: 'bg-accent-violet' },
+  neutral: {
+    selected: 'ring-2 ring-foreground/60 border-foreground/60',
+    hover: 'hover:border-border-strong',
+    dot: 'bg-primary',
+  },
+  success: {
+    selected: 'ring-2 ring-success border-success',
+    hover: 'hover:border-success/50',
+    dot: 'bg-success',
+  },
+  warning: {
+    selected: 'ring-2 ring-warning/70 border-warning',
+    hover: 'hover:border-warning/50',
+    dot: 'bg-warning',
+  },
+  indigo: {
+    selected: 'ring-2 ring-accent-indigo border-accent-indigo',
+    hover: 'hover:border-accent-indigo/50',
+    dot: 'bg-accent-indigo',
+  },
+  blue: {
+    selected: 'ring-2 ring-accent-blue border-accent-blue',
+    hover: 'hover:border-accent-blue/50',
+    dot: 'bg-accent-blue',
+  },
+  violet: {
+    selected: 'ring-2 ring-accent-violet border-accent-violet',
+    hover: 'hover:border-accent-violet/50',
+    dot: 'bg-accent-violet',
+  },
 } as const;
 type NodeTone = keyof typeof NODE_TONES;
 
-type NodeShellHeader = Omit<React.ComponentProps<typeof EditableNodeHeader>, 'id' | 'title' | 'description' | 'locked' | 'onEdit' | 'onUpdateMetadata'> & {
+type NodeShellHeader = Omit<
+  React.ComponentProps<typeof EditableNodeHeader>,
+  'id' | 'title' | 'description' | 'locked' | 'onEdit' | 'onUpdateMetadata'
+> & {
   /** Overrides the saved title / description shown in the header. */
   title?: string;
   description?: string;
@@ -1046,13 +1213,19 @@ function NodeShell({
   return (
     <div
       className={cn(
-        'group relative rounded-xl border bg-surface p-3.5 shadow-sm transition-all motion-reduce:transition-none',
+        'group p-3.5 relative rounded-xl border bg-surface shadow-sm transition-all motion-reduce:transition-none',
         selected ? cn(accent.selected, 'shadow-md') : accent.hover,
         statusBorderClasses[data.status || 'idle'],
         className,
       )}
     >
-      <NodeActionToolbar id={id} data={data} selected={selected} addHandleId={toolbar?.addHandleId} canAddNext={toolbar?.canAddNext ?? source} />
+      <NodeActionToolbar
+        id={id}
+        data={data}
+        selected={selected}
+        addHandleId={toolbar?.addHandleId}
+        canAddNext={toolbar?.canAddNext ?? source}
+      />
       {target && <WorkflowHandle type="target" colorClass={accent.dot} />}
       <EditableNodeHeader
         id={id}
@@ -1066,7 +1239,12 @@ function NodeShell({
       <AttachedChip data={data} />
       {children}
       <NodeRunFooter run={data.run} />
-      {source && <SourceHandleWithQuickAdd colorClass={accent.dot} onConnectNext={data.onConnectNext} />}
+      {source && (
+        <SourceHandleWithQuickAdd
+          colorClass={accent.dot}
+          onConnectNext={data.onConnectNext}
+        />
+      )}
     </div>
   );
 }
@@ -1100,11 +1278,18 @@ export const StartNode = memo(({ id, type, data, selected }: NodeProps) => {
     Boolean(cfg.provider || cfg.connectorId);
   const app = useConnectorNode(type, cfg);
   const connectorId = isConnectorTrigger && app.provider ? app.slug : null;
-  const meta = connectorId ? { name: app.connector?.name ?? app.provider, category: app.connector?.category, color: undefined as string | undefined } : null;
+  const meta = connectorId
+    ? {
+        name: app.connector?.name ?? app.provider,
+        category: app.connector?.category,
+        color: undefined as string | undefined,
+      }
+    : null;
 
   const defaultTitle = meta ? `${meta.name} Trigger` : 'Start Entry';
   const defaultDesc = isConnectorTrigger
-    ? (app.trigger?.label ?? (app.provider ? 'Pick an event' : 'Pick an app and event'))
+    ? (app.trigger?.label ??
+      (app.provider ? 'Pick an event' : 'Pick an app and event'))
     : 'User prompt';
 
   return (
@@ -1114,7 +1299,7 @@ export const StartNode = memo(({ id, type, data, selected }: NodeProps) => {
       selected={selected}
       tone="success"
       target={false}
-      className="min-w-[220px] max-w-[290px]"
+      className="max-w-[290px] min-w-[220px]"
       header={{
         defaultTitle,
         defaultDescription: defaultDesc,
@@ -1123,8 +1308,10 @@ export const StartNode = memo(({ id, type, data, selected }: NodeProps) => {
         customIcon:
           isConnectorTrigger && meta ? (
             <div
-              className="flex size-10 items-center justify-center rounded-xl shrink-0 p-1.5 shadow-2xs border border-border/60 bg-surface-raised"
-              style={{ borderColor: meta?.color ? `${meta.color}40` : undefined }}
+              className="size-10 p-1.5 shadow-2xs flex shrink-0 items-center justify-center rounded-xl border border-border/60 bg-surface-raised"
+              style={{
+                borderColor: meta?.color ? `${meta.color}40` : undefined,
+              }}
             >
               <AppConnectorIcon
                 connectorId={connectorId}
@@ -1138,10 +1325,12 @@ export const StartNode = memo(({ id, type, data, selected }: NodeProps) => {
       }}
     >
       {!nodeData.run?.output && !isConnectorTrigger && (
-        <p className="mt-2 text-xs leading-snug text-muted-foreground">{startBlurb(String(type), cfg)}</p>
+        <p className="mt-2 text-xs leading-snug text-muted-foreground">
+          {startBlurb(String(type), cfg)}
+        </p>
       )}
       {nodeData.run?.output && (
-        <div className="nodrag nowheel mt-3 max-h-28 overflow-auto whitespace-pre-wrap [overflow-wrap:anywhere] rounded-lg bg-surface-raised px-2.5 py-2 text-xs leading-relaxed text-foreground">
+        <div className="nodrag nowheel mt-3 max-h-28 px-2.5 py-2 text-xs leading-relaxed overflow-auto rounded-lg bg-surface-raised [overflow-wrap:anywhere] whitespace-pre-wrap text-foreground">
           {nodeData.run.output}
         </div>
       )}
@@ -1151,25 +1340,33 @@ export const StartNode = memo(({ id, type, data, selected }: NodeProps) => {
 StartNode.displayName = 'StartNode';
 
 /** Slot summary the page passes to agent nodes: what's plugged into each slot. */
-export type AgentSlotSummary = Partial<Record<AgentSlotId, { id: string; label: string; connectorId?: string }[]>>;
+export type AgentSlotSummary = Partial<
+  Record<AgentSlotId, { id: string; label: string; connectorId?: string }[]>
+>;
 
 /** The apps plugged into an agent's Tools, as overlapping logos. */
 function AppLogoStack({ apps }: { apps: string[] }) {
   if (apps.length === 0) return null;
   const shown = apps.slice(0, 5);
   return (
-    <div className="flex shrink-0 items-center" aria-label={`Apps: ${apps.join(', ')}`}>
+    <div
+      className="flex shrink-0 items-center"
+      aria-label={`Apps: ${apps.join(', ')}`}
+    >
       {shown.map((app, i) => (
         <span
           key={app}
           title={app.replace(/_/g, ' ')}
-          className={cn('flex size-6 items-center justify-center rounded-full border-2 border-surface bg-surface-raised shadow-2xs', i > 0 && '-ml-1.5')}
+          className={cn(
+            'size-6 shadow-2xs flex items-center justify-center rounded-full border-2 border-surface bg-surface-raised',
+            i > 0 && '-ml-1.5',
+          )}
         >
           <AppConnectorIcon connectorId={app} size={14} />
         </span>
       ))}
       {apps.length > shown.length && (
-        <span className="-ml-1.5 flex size-6 items-center justify-center rounded-full border-2 border-surface bg-surface-raised text-2xs font-semibold text-muted-foreground">
+        <span className="-ml-1.5 size-6 font-semibold flex items-center justify-center rounded-full border-2 border-surface bg-surface-raised text-2xs text-muted-foreground">
           +{apps.length - shown.length}
         </span>
       )}
@@ -1203,18 +1400,32 @@ function SlotAddButton({
   // Tools list only the main tools; app actions sit behind "App Connector Action" (app → action)
   const items = useMemo(() => {
     // Single-app cards (Slack) are covered by the full app under App Connector Action
-    const catalog = slotCatalog(slot.id).filter((n) => !SUPERSEDED_BY_APP_CONNECTOR.has(n.type));
+    const catalog = slotCatalog(slot.id).filter(
+      (n) => !SUPERSEDED_BY_APP_CONNECTOR.has(n.type),
+    );
     // The app drill-down leads the list
-    return [...catalog.filter(isGenericAppAction), ...catalog.filter((n) => !isGenericAppAction(n))];
+    return [
+      ...catalog.filter(isGenericAppAction),
+      ...catalog.filter((n) => !isGenericAppAction(n)),
+    ];
   }, [slot.id]);
   const appActions = useMemo(
-    () => (slot.id === 'tools' ? connectorNodes.filter((n) => n.type === 'APP_CONNECTOR_ACTION') : undefined),
+    () =>
+      slot.id === 'tools'
+        ? connectorNodes.filter((n) => n.type === 'APP_CONNECTOR_ACTION')
+        : undefined,
     [slot.id, connectorNodes],
   );
   const label = slot.multiple ? `Add to ${slot.label}` : `Set ${slot.label}`;
 
   return (
-    <div ref={containerRef} className={cn('nodrag nopan nowheel relative', isOpen && 'z-[99999] quick-add-open')}>
+    <div
+      ref={containerRef}
+      className={cn(
+        'nodrag nopan nowheel relative',
+        isOpen && 'quick-add-open z-[99999]',
+      )}
+    >
       <Button
         type="button"
         variant="primary"
@@ -1223,7 +1434,10 @@ function SlotAddButton({
           e.stopPropagation();
           setIsOpen((prev) => !prev);
         }}
-        className={cn('size-5 rounded-full', isOpen && 'ring-2 ring-primary/40')}
+        className={cn(
+          'size-5 rounded-full',
+          isOpen && 'ring-2 ring-primary/40',
+        )}
         title={label}
         aria-label={label}
         aria-expanded={isOpen}
@@ -1241,7 +1455,7 @@ function SlotAddButton({
             onSelect(item);
             setIsOpen(false);
           }}
-          className="left-[calc(100%+24px)] top-1/2 -translate-y-1/2"
+          className="top-1/2 left-[calc(100%+24px)] -translate-y-1/2"
         />
       )}
     </div>
@@ -1254,7 +1468,10 @@ const DELEGATION_OPTIONS: AppSelectOption[] = DELEGATION_MODES.map((m) => ({
   description: m.hint,
 }));
 
-const ROLE_BADGE: Record<AgentTeamInfo['role'], { label: string; variant: 'neutral' | 'primary' | 'info' } | null> = {
+const ROLE_BADGE: Record<
+  AgentTeamInfo['role'],
+  { label: string; variant: 'neutral' | 'primary' | 'info' } | null
+> = {
   solo: null,
   supervisor: { label: 'Supervisor', variant: 'primary' },
   lead: { label: 'Team lead', variant: 'primary' },
@@ -1274,19 +1491,47 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
   const roleBadge = team ? ROLE_BADGE[team.role] : null;
   const modelLabel = useModelLabel();
 
-  const moduleOf = (id: AgentModuleId) => nodeData.moduleSummaries?.find((m) => m.id === id);
-  const open = (id: AgentModuleId, target?: { section?: string; field?: string }) => nodeData.onOpenModule?.(id, target);
+  const moduleOf = (id: AgentModuleId) =>
+    nodeData.moduleSummaries?.find((m) => m.id === id);
+  const open = (
+    id: AgentModuleId,
+    target?: { section?: string; field?: string },
+  ) => nodeData.onOpenModule?.(id, target);
   const addFor = (slotId: AgentSlotId) => {
     const slot = AGENT_SLOTS.find((x) => x.id === slotId);
-    return canAdd && slot ? <SlotAddButton slot={slot} onSelect={(item) => nodeData.onConnectNext?.(item, slot.id)} /> : null;
+    return canAdd && slot ? (
+      <SlotAddButton
+        slot={slot}
+        onSelect={(item) => nodeData.onConnectNext?.(item, slot.id)}
+      />
+    ) : null;
   };
-  const modelId = team?.model?.model ?? (cfg.model ? String(cfg.model) : undefined);
+  const modelId =
+    team?.model?.model ?? (cfg.model ? String(cfg.model) : undefined);
   const modelName = modelId ? modelLabel(modelId) : undefined;
-  const promptPreview = String(nodeData.promptPreview ?? cfg.instructions ?? '').trim();
-  const toolApps = [...new Set([...(slots.tools ?? []).map((t) => t.connectorId), ...(nodeData.toolApps ?? [])].filter((c): c is string => !!c))];
-  const builtinTools = nodeData.builtinTools ?? ((cfg.tools as string[] | undefined) ?? []).filter((t) => !t.includes('.'));
-  const toolCount = moduleOf('tools')?.count ?? builtinTools.length + (slots.tools ?? []).length;
-  const hiddenToolCount = Math.max(0, toolCount - toolApps.length - Math.min(builtinTools.length, toolApps.length ? 1 : 2));
+  const promptPreview = String(
+    nodeData.promptPreview ?? cfg.instructions ?? '',
+  ).trim();
+  const toolApps = [
+    ...new Set(
+      [
+        ...(slots.tools ?? []).map((t) => t.connectorId),
+        ...(nodeData.toolApps ?? []),
+      ].filter((c): c is string => !!c),
+    ),
+  ];
+  const builtinTools =
+    nodeData.builtinTools ??
+    ((cfg.tools as string[] | undefined) ?? []).filter((t) => !t.includes('.'));
+  const toolCount =
+    moduleOf('tools')?.count ??
+    builtinTools.length + (slots.tools ?? []).length;
+  const hiddenToolCount = Math.max(
+    0,
+    toolCount -
+      toolApps.length -
+      Math.min(builtinTools.length, toolApps.length ? 1 : 2),
+  );
 
   return (
     <NodeShell
@@ -1295,21 +1540,31 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
       selected={selected}
       source={false}
       toolbar={{ canAddNext: true }}
-      className={cn('w-[290px]', isCoordinator && !selected && 'border-primary/40')}
+      className={cn(
+        'w-[290px]',
+        isCoordinator && !selected && 'border-primary/40',
+      )}
       header={{
         defaultTitle: 'AI Agent',
         defaultDescription: 'AI-powered workflow agent',
         icon: isCoordinator || subAgents.length > 0 ? Network : Bot,
         iconBg: 'bg-primary/15 text-primary',
         badge: roleBadge ? (
-          <Badge variant={roleBadge.variant} className="h-4 shrink-0 px-1.5 text-2xs">
+          <Badge
+            variant={roleBadge.variant}
+            className="h-4 px-1.5 shrink-0 text-2xs"
+          >
             {roleBadge.label}
           </Badge>
         ) : undefined,
       }}
     >
       {/* Main output dot: Right (50%) in horizontal, Bottom (50%) in vertical */}
-      <WorkflowHandle type="source" colorClass="bg-primary" style={{ zIndex: 2 }} />
+      <WorkflowHandle
+        type="source"
+        colorClass="bg-primary"
+        style={{ zIndex: 2 }}
+      />
 
       {/* Slot handles share the dot's spot (invisible) so every attachment wire leaves from that one dot */}
       {AGENT_SLOTS.map((slot) => (
@@ -1319,117 +1574,198 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
           id={slot.id}
           isConnectableStart={false}
           style={{ zIndex: 1 }}
-          className="!pointer-events-none !size-7 !border-0 !opacity-0"
+          className="!size-7 !pointer-events-none !border-0 !opacity-0"
         />
       ))}
 
       <div className="mt-3 space-y-3">
-          {/* Model */}
-          <AgentSection summary={moduleOf('llm')} onOpen={open} addButton={addFor('llm')} hideLabel>
-            <button
-              type="button"
-              disabled={!nodeData.onOpenModule}
-              onClick={(e) => {
-                e.stopPropagation();
-                open('llm');
-              }}
-              className="nodrag flex w-full items-center gap-2 rounded-lg bg-surface-raised px-2.5 py-2 text-left text-xs font-medium text-foreground transition-colors hover:bg-surface-raised/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 motion-reduce:transition-none"
-              aria-label={`Model: ${modelName ?? 'none'}. Open LLM settings`}
-            >
-              {modelId ? <AIModelIcon modelId={modelId} size={14} /> : <Cpu className="size-3.5 text-muted-foreground" />}
-              <span className="min-w-0 flex-1 truncate">{modelName ?? 'Choose a model'}</span>
-              {team?.model?.inherited && <Badge variant="neutral" className="h-4 shrink-0 px-1 text-2xs">Inherited</Badge>}
-              <ChevronRight className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
-            </button>
-          </AgentSection>
+        {/* Model */}
+        <AgentSection
+          summary={moduleOf('llm')}
+          onOpen={open}
+          addButton={addFor('llm')}
+          hideLabel
+        >
+          <button
+            type="button"
+            disabled={!nodeData.onOpenModule}
+            onClick={(e) => {
+              e.stopPropagation();
+              open('llm');
+            }}
+            className="nodrag gap-2 px-2.5 py-2 text-xs font-medium flex w-full items-center rounded-lg bg-surface-raised text-left text-foreground transition-colors hover:bg-surface-raised/70 focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none motion-reduce:transition-none"
+            aria-label={`Model: ${modelName ?? 'none'}. Open LLM settings`}
+          >
+            {modelId ? (
+              <AIModelIcon modelId={modelId} size={14} />
+            ) : (
+              <Cpu className="size-3.5 text-muted-foreground" />
+            )}
+            <span className="min-w-0 flex-1 truncate">
+              {modelName ?? 'Choose a model'}
+            </span>
+            {team?.model?.inherited && (
+              <Badge variant="neutral" className="h-4 px-1 shrink-0 text-2xs">
+                Inherited
+              </Badge>
+            )}
+            <ChevronRight
+              className="size-3 shrink-0 text-muted-foreground"
+              aria-hidden="true"
+            />
+          </button>
+        </AgentSection>
 
-          {/* Instructions */}
-          <AgentSection label="Instructions" summary={moduleOf('prompt')} onOpen={open}>
+        {/* Instructions */}
+        <AgentSection
+          label="Instructions"
+          summary={moduleOf('prompt')}
+          onOpen={open}
+        >
+          <button
+            type="button"
+            disabled={!nodeData.onOpenModule}
+            onClick={(e) => {
+              e.stopPropagation();
+              open('prompt');
+            }}
+            className="nodrag px-2.5 py-1.5 text-xs leading-snug block w-full rounded-lg border border-border text-left transition-colors hover:border-border-strong focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none motion-reduce:transition-none"
+            aria-label="Open Prompt settings"
+          >
+            {promptPreview ? (
+              <span className="line-clamp-2 text-foreground/80">
+                {promptPreview}
+              </span>
+            ) : (
+              <span className="text-muted-foreground">Add instructions…</span>
+            )}
+            {moduleOf('prompt')?.detail && (
+              <span className="mt-0.5 block truncate text-2xs text-muted-foreground">
+                {moduleOf('prompt')?.detail}
+              </span>
+            )}
+          </button>
+        </AgentSection>
+
+        {/* Knowledge */}
+        <AgentSection
+          label="Knowledge Bases"
+          summary={moduleOf('knowledge')}
+          onOpen={open}
+          addButton={addFor('embedding')}
+        >
+          {(slots.embedding ?? []).length > 0 ? (
+            <ChipRow
+              items={(slots.embedding ?? []).map((k) => ({
+                key: k.id,
+                label: k.label,
+                icon: <BookOpen className="size-3 text-primary" />,
+              }))}
+              onClick={() => open('knowledge')}
+            />
+          ) : (
+            <OutlineAction
+              icon={<Database className="size-3.5" />}
+              label="Add Knowledge Bases"
+              onClick={() => open('knowledge', { section: 'sources' })}
+              disabled={!nodeData.onOpenModule}
+            />
+          )}
+        </AgentSection>
+
+        {/* Tools */}
+        <AgentSection
+          label="Tools"
+          summary={moduleOf('tools')}
+          onOpen={open}
+          addButton={addFor('tools')}
+        >
+          {toolCount > 0 ? (
             <button
               type="button"
               disabled={!nodeData.onOpenModule}
               onClick={(e) => {
                 e.stopPropagation();
-                open('prompt');
+                open('tools');
               }}
-              className="nodrag block w-full rounded-lg border border-border px-2.5 py-1.5 text-left text-xs leading-snug transition-colors hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 motion-reduce:transition-none"
-              aria-label="Open Prompt settings"
+              className="nodrag h-8 min-w-0 gap-1.5 flex w-full items-center rounded-md text-left focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none"
+              aria-label={`${toolCount} tool${toolCount === 1 ? '' : 's'}. Open Tools settings`}
             >
-              {promptPreview ? (
-                <span className="line-clamp-2 text-foreground/80">{promptPreview}</span>
-              ) : (
-                <span className="text-muted-foreground">Add instructions…</span>
+              <AppLogoStack apps={toolApps} />
+              {builtinTools.slice(0, toolApps.length ? 1 : 2).map((t) => (
+                <span
+                  key={t}
+                  title={t.replace(/_/g, ' ')}
+                  className="h-6 gap-1 px-1.5 inline-flex max-w-[110px] items-center truncate rounded-full border border-border bg-surface-raised text-2xs leading-none text-foreground"
+                >
+                  <Wrench className="size-2.5 shrink-0 text-muted-foreground" />
+                  <span className="truncate">{t.replace(/_/g, ' ')}</span>
+                </span>
+              ))}
+              {hiddenToolCount > 0 && (
+                <span className="text-2xs leading-none text-muted-foreground">
+                  +{hiddenToolCount}
+                </span>
               )}
-              {moduleOf('prompt')?.detail && <span className="mt-0.5 block truncate text-2xs text-muted-foreground">{moduleOf('prompt')?.detail}</span>}
             </button>
-          </AgentSection>
+          ) : (
+            <OutlineAction
+              icon={<Wrench className="size-3.5" />}
+              label="Add Tools"
+              onClick={() => open('tools', { section: 'builtin' })}
+              disabled={!nodeData.onOpenModule}
+            />
+          )}
+        </AgentSection>
 
-          {/* Knowledge */}
-          <AgentSection label="Knowledge Bases" summary={moduleOf('knowledge')} onOpen={open} addButton={addFor('embedding')}>
-            {(slots.embedding ?? []).length > 0 ? (
-              <ChipRow
-                items={(slots.embedding ?? []).map((k) => ({ key: k.id, label: k.label, icon: <BookOpen className="size-3 text-primary" /> }))}
-                onClick={() => open('knowledge')}
+        {/* Sub-agents */}
+        <AgentSection
+          label="Sub-agents"
+          summary={moduleOf('subAgents')}
+          onOpen={open}
+          addButton={addFor('agents')}
+        >
+          {subAgents.length > 0 ? (
+            <ChipRow
+              items={subAgents.map((a) => ({
+                key: a.id,
+                label: a.label,
+                icon: <Bot className="size-3 text-primary" />,
+              }))}
+              onClick={() => open('subAgents')}
+            />
+          ) : (
+            <OutlineAction
+              icon={<Network className="size-3.5" />}
+              label={
+                isCoordinator
+                  ? 'Add the agents this team uses'
+                  : 'Add sub-agents'
+              }
+              onClick={() => open('subAgents', { section: 'members' })}
+              disabled={!nodeData.onOpenModule}
+            />
+          )}
+          {(subAgents.length > 1 || isCoordinator) && (
+            <div
+              className="nodrag nopan mt-1.5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <AppSelect
+                size="sm"
+                aria-label="How this agent delegates"
+                value={String(cfg.delegation || 'router')}
+                options={DELEGATION_OPTIONS}
+                disabled={locked || !nodeData.onUpdateConfig}
+                onValueChange={(delegation) =>
+                  nodeData.onUpdateConfig?.({ delegation })
+                }
+                className="h-7 text-xs"
               />
-            ) : (
-              <OutlineAction icon={<Database className="size-3.5" />} label="Add Knowledge Bases" onClick={() => open('knowledge', { section: 'sources' })} disabled={!nodeData.onOpenModule} />
-            )}
-          </AgentSection>
-
-          {/* Tools */}
-          <AgentSection label="Tools" summary={moduleOf('tools')} onOpen={open} addButton={addFor('tools')}>
-            {toolCount > 0 ? (
-              <button
-                type="button"
-                disabled={!nodeData.onOpenModule}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  open('tools');
-                }}
-                className="nodrag flex h-8 w-full min-w-0 items-center gap-1.5 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-                aria-label={`${toolCount} tool${toolCount === 1 ? '' : 's'}. Open Tools settings`}
-              >
-                <AppLogoStack apps={toolApps} />
-                {builtinTools.slice(0, toolApps.length ? 1 : 2).map((t) => (
-                  <span key={t} title={t.replace(/_/g, ' ')} className="inline-flex h-6 max-w-[110px] items-center gap-1 truncate rounded-full border border-border bg-surface-raised px-1.5 text-2xs leading-none text-foreground">
-                    <Wrench className="size-2.5 shrink-0 text-muted-foreground" />
-                    <span className="truncate">{t.replace(/_/g, ' ')}</span>
-                  </span>
-                ))}
-                {hiddenToolCount > 0 && <span className="text-2xs leading-none text-muted-foreground">+{hiddenToolCount}</span>}
-              </button>
-            ) : (
-              <OutlineAction icon={<Wrench className="size-3.5" />} label="Add Tools" onClick={() => open('tools', { section: 'builtin' })} disabled={!nodeData.onOpenModule} />
-            )}
-          </AgentSection>
-
-          {/* Sub-agents */}
-          <AgentSection label="Sub-agents" summary={moduleOf('subAgents')} onOpen={open} addButton={addFor('agents')}>
-            {subAgents.length > 0 ? (
-              <ChipRow items={subAgents.map((a) => ({ key: a.id, label: a.label, icon: <Bot className="size-3 text-primary" /> }))} onClick={() => open('subAgents')} />
-            ) : (
-              <OutlineAction
-                icon={<Network className="size-3.5" />}
-                label={isCoordinator ? 'Add the agents this team uses' : 'Add sub-agents'}
-                onClick={() => open('subAgents', { section: 'members' })}
-                disabled={!nodeData.onOpenModule}
-              />
-            )}
-            {(subAgents.length > 1 || isCoordinator) && (
-              <div className="nodrag nopan mt-1.5" onClick={(e) => e.stopPropagation()}>
-                <AppSelect
-                  size="sm"
-                  aria-label="How this agent delegates"
-                  value={String(cfg.delegation || 'router')}
-                  options={DELEGATION_OPTIONS}
-                  disabled={locked || !nodeData.onUpdateConfig}
-                  onValueChange={(delegation) => nodeData.onUpdateConfig?.({ delegation })}
-                  className="h-7 text-xs"
-                />
-              </div>
-            )}
-          </AgentSection>
-        </div>
+            </div>
+          )}
+        </AgentSection>
+      </div>
     </NodeShell>
   );
 }
@@ -1449,32 +1785,38 @@ function AgentSection({
 }: {
   label?: string;
   summary?: ModuleSummary;
-  onOpen: (id: AgentModuleId, target?: { section?: string; field?: string }) => void;
+  onOpen: (
+    id: AgentModuleId,
+    target?: { section?: string; field?: string },
+  ) => void;
   addButton?: React.ReactNode;
   hideLabel?: boolean;
   children: React.ReactNode;
 }) {
   const issue = summary ? firstIssue(summary) : undefined;
-  const warning = issue && summary ? (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.stopPropagation();
-        onOpen(summary.id, { section: issue.section, field: issue.field });
-      }}
-      className={cn(
-        'nodrag flex size-5 shrink-0 items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
-        issue.level === 'error' ? 'text-destructive hover:bg-destructive/10' : 'text-warning hover:bg-warning/10',
-      )}
-      title={issue.message}
-      aria-label={`Fix: ${issue.message}`}
-    >
-      <AlertTriangle className="size-3" />
-    </button>
-  ) : null;
+  const warning =
+    issue && summary ? (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onOpen(summary.id, { section: issue.section, field: issue.field });
+        }}
+        className={cn(
+          'nodrag size-5 flex shrink-0 items-center justify-center rounded-md focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none',
+          issue.level === 'error'
+            ? 'text-destructive hover:bg-destructive/10'
+            : 'text-warning hover:bg-warning/10',
+        )}
+        title={issue.message}
+        aria-label={`Fix: ${issue.message}`}
+      >
+        <AlertTriangle className="size-3" />
+      </button>
+    ) : null;
   if (hideLabel) {
     return (
-      <div className="flex items-center gap-1.5">
+      <div className="gap-1.5 flex items-center">
         <div className="min-w-0 flex-1">{children}</div>
         {warning}
         {addButton && <span className={QUICK_ADD_REVEAL}>{addButton}</span>}
@@ -1483,9 +1825,11 @@ function AgentSection({
   }
   return (
     <section aria-label={label}>
-      <div className="mb-1 flex items-center gap-1.5">
-        <span className="text-xs font-medium text-muted-foreground">{label}</span>
-        <span className="ml-auto flex items-center gap-1">
+      <div className="mb-1 gap-1.5 flex items-center">
+        <span className="text-xs font-medium text-muted-foreground">
+          {label}
+        </span>
+        <span className="gap-1 ml-auto flex items-center">
           {warning}
           {addButton && <span className={QUICK_ADD_REVEAL}>{addButton}</span>}
         </span>
@@ -1496,7 +1840,17 @@ function AgentSection({
 }
 
 /** Full-width outline button for an empty section ("Add Knowledge Bases"). */
-function OutlineAction({ icon, label, onClick, disabled }: { icon: React.ReactNode; label: string; onClick: () => void; disabled?: boolean }) {
+function OutlineAction({
+  icon,
+  label,
+  onClick,
+  disabled,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
   return (
     <button
       type="button"
@@ -1505,7 +1859,7 @@ function OutlineAction({ icon, label, onClick, disabled }: { icon: React.ReactNo
         e.stopPropagation();
         onClick();
       }}
-      className="nodrag flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-surface text-xs font-medium text-foreground shadow-2xs transition-colors hover:border-border-strong hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-60 motion-reduce:transition-none"
+      className="nodrag h-8 gap-1.5 text-xs font-medium shadow-2xs flex w-full items-center justify-center rounded-lg border border-border bg-surface text-foreground transition-colors hover:border-border-strong hover:bg-surface-raised focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none disabled:opacity-60 motion-reduce:transition-none"
     >
       {icon}
       {label}
@@ -1514,7 +1868,13 @@ function OutlineAction({ icon, label, onClick, disabled }: { icon: React.ReactNo
 }
 
 /** What is plugged in, as chips; the row opens the module. */
-function ChipRow({ items, onClick }: { items: Array<{ key: string; label: string; icon: React.ReactNode }>; onClick: () => void }) {
+function ChipRow({
+  items,
+  onClick,
+}: {
+  items: Array<{ key: string; label: string; icon: React.ReactNode }>;
+  onClick: () => void;
+}) {
   const shown = items.slice(0, 3);
   return (
     <button
@@ -1523,15 +1883,22 @@ function ChipRow({ items, onClick }: { items: Array<{ key: string; label: string
         e.stopPropagation();
         onClick();
       }}
-      className="nodrag flex w-full flex-wrap items-center gap-1 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+      className="nodrag gap-1 flex w-full flex-wrap items-center rounded-md text-left focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none"
     >
       {shown.map((item) => (
-        <span key={item.key} className="inline-flex max-w-[130px] items-center gap-1 rounded-full border border-border bg-surface-raised px-1.5 py-0.5 text-2xs text-foreground">
+        <span
+          key={item.key}
+          className="gap-1 px-1.5 py-0.5 inline-flex max-w-[130px] items-center rounded-full border border-border bg-surface-raised text-2xs text-foreground"
+        >
           {item.icon}
           <span className="truncate">{item.label}</span>
         </span>
       ))}
-      {items.length > shown.length && <span className="text-2xs text-muted-foreground">+{items.length - shown.length}</span>}
+      {items.length > shown.length && (
+        <span className="text-2xs text-muted-foreground">
+          +{items.length - shown.length}
+        </span>
+      )}
     </button>
   );
 }
@@ -1541,7 +1908,10 @@ function AttachedChip({ data }: { data: WorkflowNodePayload }) {
   const attachedTo = data.attachedTo;
   if (!attachedTo) return null;
   return (
-    <Badge variant="primary" className="mt-2 h-5 max-w-full gap-1 px-1.5 text-2xs">
+    <Badge
+      variant="primary"
+      className="mt-2 h-5 gap-1 px-1.5 max-w-full text-2xs"
+    >
       <Link2 className="size-2.5 shrink-0" />
       <span className="truncate">
         {attachedTo.slot} · {attachedTo.label}
@@ -1570,13 +1940,16 @@ function ConfigureButton({
       type="button"
       variant="outline"
       size="xs"
-      className={cn('nodrag mt-2.5 h-7 w-full justify-between text-muted-foreground hover:text-foreground', className)}
+      className={cn(
+        'nodrag mt-2.5 h-7 w-full justify-between text-muted-foreground hover:text-foreground',
+        className,
+      )}
       onClick={(e) => {
         e.stopPropagation();
         data.onEdit?.(id);
       }}
     >
-      <span className="inline-flex items-center gap-1.5">
+      <span className="gap-1.5 inline-flex items-center">
         {icon}
         {label}
       </span>
@@ -1620,8 +1993,9 @@ export const PromptNode = memo(({ id, data, selected }: NodeProps) => {
   const nodeData = data as WorkflowNodePayload;
   const cfg = nodeData.config || {};
   const locked = Boolean(nodeData.locked) || !nodeData.onUpdateConfig;
-  const { draft, change, flush } = useDraftValue(String(cfg.prompt ?? ''), (prompt) =>
-    nodeData.onUpdateConfig?.({ prompt }),
+  const { draft, change, flush } = useDraftValue(
+    String(cfg.prompt ?? ''),
+    (prompt) => nodeData.onUpdateConfig?.({ prompt }),
   );
   return (
     <NodeShell
@@ -1629,9 +2003,17 @@ export const PromptNode = memo(({ id, data, selected }: NodeProps) => {
       data={nodeData}
       selected={selected}
       className="w-[270px]"
-      header={{ defaultTitle: 'Prompt', defaultDescription: 'System prompt', icon: ScrollText, iconBg: 'bg-primary/15 text-primary' }}
+      header={{
+        defaultTitle: 'Prompt',
+        defaultDescription: 'System prompt',
+        icon: ScrollText,
+        iconBg: 'bg-primary/15 text-primary',
+      }}
     >
-      <Label className={cn(fieldLabelClass, 'mt-3 block')} htmlFor={`${id}-prompt`}>
+      <Label
+        className={cn(fieldLabelClass, 'mt-3 block')}
+        htmlFor={`${id}-prompt`}
+      >
         Prompt <span className="text-destructive">*</span>
       </Label>
       <Textarea
@@ -1644,7 +2026,7 @@ export const PromptNode = memo(({ id, data, selected }: NodeProps) => {
         minRows={5}
         maxRows={12}
         placeholder={'## Role\nYou are…\n\n## Scope\n…'}
-        className="nodrag nopan nowheel mt-1 font-mono text-xs leading-relaxed"
+        className="nodrag nopan nowheel mt-1 text-xs leading-relaxed font-mono"
       />
     </NodeShell>
   );
@@ -1656,10 +2038,13 @@ export const LlmNode = memo(({ id, data, selected }: NodeProps) => {
   const nodeData = data as WorkflowNodePayload;
   const cfg = nodeData.config || {};
   const locked = Boolean(nodeData.locked) || !nodeData.onUpdateConfig;
-  const update = (patch: Record<string, unknown>) => nodeData.onUpdateConfig?.(patch);
+  const update = (patch: Record<string, unknown>) =>
+    nodeData.onUpdateConfig?.(patch);
   // No model set → the run uses the workspace default, so don't show one.
   const model = cfg.model ? String(cfg.model) : '';
-  const { groups: options, isLoading: modelsLoading } = useModelOptions(model || undefined);
+  const { groups: options, isLoading: modelsLoading } = useModelOptions(
+    model || undefined,
+  );
   return (
     <NodeShell
       id={id}
@@ -1670,8 +2055,12 @@ export const LlmNode = memo(({ id, data, selected }: NodeProps) => {
         defaultTitle: 'LLM',
         defaultDescription: 'Chat model',
         customIcon: (
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-raised border border-border/80">
-            {model ? <AIModelIcon modelId={model} size={18} /> : <Cpu className="size-[18px] text-muted-foreground" />}
+          <div className="size-10 flex shrink-0 items-center justify-center rounded-xl border border-border/80 bg-surface-raised">
+            {model ? (
+              <AIModelIcon modelId={model} size={18} />
+            ) : (
+              <Cpu className="size-[18px] text-muted-foreground" />
+            )}
           </div>
         ),
       }}
@@ -1692,7 +2081,7 @@ export const LlmNode = memo(({ id, data, selected }: NodeProps) => {
             className="h-7 text-xs"
           />
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="gap-2 grid grid-cols-2">
           <div className="space-y-1">
             <Label className={fieldLabelClass} htmlFor={`${id}-temp`}>
               Temperature
@@ -1708,7 +2097,8 @@ export const LlmNode = memo(({ id, data, selected }: NodeProps) => {
               value={cfg.temperature ?? 0.7}
               onChange={(e) => {
                 const v = e.target.valueAsNumber;
-                if (Number.isFinite(v)) update({ temperature: Math.min(2, Math.max(0, v)) });
+                if (Number.isFinite(v))
+                  update({ temperature: Math.min(2, Math.max(0, v)) });
               }}
               className="text-xs"
             />
@@ -1727,7 +2117,8 @@ export const LlmNode = memo(({ id, data, selected }: NodeProps) => {
               value={cfg.maxTokens ?? 2048}
               onChange={(e) => {
                 const v = e.target.valueAsNumber;
-                if (Number.isFinite(v) && v >= 1) update({ maxTokens: Math.round(v) });
+                if (Number.isFinite(v) && v >= 1)
+                  update({ maxTokens: Math.round(v) });
               }}
               className="text-xs"
             />
@@ -1750,16 +2141,21 @@ export const AgentNode = memo((props: NodeProps) => {
       id={id}
       data={nodeData}
       selected={selected}
-      className="min-w-[240px] max-w-[280px]"
-      header={{ defaultTitle: 'AI Agent', defaultDescription: 'AI-powered workflow agent', icon: Bot, iconBg: 'bg-primary/15 text-primary' }}
+      className="max-w-[280px] min-w-[240px]"
+      header={{
+        defaultTitle: 'AI Agent',
+        defaultDescription: 'AI-powered workflow agent',
+        icon: Bot,
+        iconBg: 'bg-primary/15 text-primary',
+      }}
     >
       {cfg.instructions && (
-        <div className="mt-2.5 rounded-md bg-surface-raised/70 p-1.5 text-2xs text-muted-foreground line-clamp-2">
+        <div className="mt-2.5 p-1.5 line-clamp-2 rounded-md bg-surface-raised/70 text-2xs text-muted-foreground">
           {String(cfg.instructions)}
         </div>
       )}
 
-      <div className="mt-2.5 flex items-center justify-between border-t border-border/60 pt-2 text-2xs text-muted-foreground">
+      <div className="mt-2.5 pt-2 flex items-center justify-between border-t border-border/60 text-2xs text-muted-foreground">
         <span>Tools: {(cfg.tools as string[])?.length || 0} attached</span>
         <span>Temp: {cfg.temperature ?? 0.7}</span>
       </div>
@@ -1784,11 +2180,15 @@ export const FirecrawlNode = memo(({ id, data, selected }: NodeProps) => {
         defaultDescription: 'Web Extraction',
         icon: Flame,
         iconBg: 'bg-warning/15 text-warning',
-        badge: <span className="rounded-full bg-warning/10 px-1.5 py-0.5 text-2xs font-semibold text-warning">Firecrawl</span>,
+        badge: (
+          <span className="px-1.5 py-0.5 font-semibold rounded-full bg-warning/10 text-2xs text-warning">
+            Firecrawl
+          </span>
+        ),
       }}
     >
       {(cfg.query || cfg.url) && (
-        <div className="mt-2 rounded-md bg-surface-raised px-2 py-1 font-mono text-2xs text-muted-foreground truncate">
+        <div className="mt-2 px-2 py-1 truncate rounded-md bg-surface-raised font-mono text-2xs text-muted-foreground">
           {String(cfg.query || cfg.url)}
         </div>
       )}
@@ -1824,118 +2224,200 @@ export const MCPToolNode = memo(({ id, data, selected }: NodeProps) => {
 MCPToolNode.displayName = 'MCPToolNode';
 
 // 4b. App action card — any connector capability, resolved against the live manifests.
-export const AppConnectorNode = memo(({ id, type, data, selected }: NodeProps) => {
-  const nodeData = data as WorkflowNodePayload;
-  const cfg = nodeData.config || {};
-  const app = useConnectorNode(type, cfg);
-  const input = (cfg.input && typeof cfg.input === 'object' ? cfg.input : {}) as Record<string, unknown>;
-  const preview = Object.entries(input).filter(([, v]) => v !== '' && v !== undefined).slice(0, 2);
-  const picked = Boolean(app.provider && app.label);
-  const needsConnect = picked && !app.loading && !app.connected && !!app.connector;
-  // Run states win; an unconnected app gets a quiet amber edge (the issue badge + status line say why)
-  const status = nodeData.status || 'idle';
-  // An app card (one per app) carries every action it has switched on; as an agent tool it brings all of them
-  const actionIds = Array.isArray(cfg.actionIds) ? (cfg.actionIds as unknown[]).filter((a) => typeof a === 'string') : null;
-  const asTool = !!nodeData.attachedTo;
-  const totalActions = app.connector?.capabilities.length ?? actionIds?.length ?? 0;
-  const kind: { label: string; className: string } | null =
-    !app.capability || (actionIds && asTool)
-      ? null
-      : app.capability.kind === 'query'
-        ? { label: 'Reads', className: 'border-border bg-surface-raised text-muted-foreground' }
-        : app.capability.permissionLevel === 'destructive'
-          ? { label: 'Deletes', className: 'border-destructive/25 bg-destructive/10 text-destructive' }
-          : { label: 'Writes', className: 'border-primary/25 bg-primary/10 text-primary' };
-  const sensitive = Boolean(app.capability?.requiresConfirmation) && !(actionIds && asTool);
+export const AppConnectorNode = memo(
+  ({ id, type, data, selected }: NodeProps) => {
+    const nodeData = data as WorkflowNodePayload;
+    const cfg = nodeData.config || {};
+    const app = useConnectorNode(type, cfg);
+    const input = (
+      cfg.input && typeof cfg.input === 'object' ? cfg.input : {}
+    ) as Record<string, unknown>;
+    const preview = Object.entries(input)
+      .filter(([, v]) => v !== '' && v !== undefined)
+      .slice(0, 2);
+    const picked = Boolean(app.provider && app.label);
+    const needsConnect =
+      picked && !app.loading && !app.connected && !!app.connector;
+    // Run states win; an unconnected app gets a quiet amber edge (the issue badge + status line say why)
+    const status = nodeData.status || 'idle';
+    // An app card (one per app) carries every action it has switched on; as an agent tool it brings all of them
+    const actionIds = Array.isArray(cfg.actionIds)
+      ? (cfg.actionIds as unknown[]).filter((a) => typeof a === 'string')
+      : null;
+    const asTool = !!nodeData.attachedTo;
+    const totalActions =
+      app.connector?.capabilities.length ?? actionIds?.length ?? 0;
+    const kind: { label: string; className: string } | null =
+      !app.capability || (actionIds && asTool)
+        ? null
+        : app.capability.kind === 'query'
+          ? {
+              label: 'Reads',
+              className:
+                'border-border bg-surface-raised text-muted-foreground',
+            }
+          : app.capability.permissionLevel === 'destructive'
+            ? {
+                label: 'Deletes',
+                className:
+                  'border-destructive/25 bg-destructive/10 text-destructive',
+              }
+            : {
+                label: 'Writes',
+                className: 'border-primary/25 bg-primary/10 text-primary',
+              };
+    const sensitive =
+      Boolean(app.capability?.requiresConfirmation) && !(actionIds && asTool);
 
-  const defaultTitle = app.connector?.name ?? (app.provider ? app.provider : 'App Connector');
-  const defaultDesc = app.label || nodeData.subtitle || 'Execute app action';
-  const connection = !picked
-    ? { label: 'Pick an action', dot: 'bg-muted-foreground/50', text: 'text-muted-foreground' }
-    : app.loading
-      ? { label: 'Checking connection…', dot: 'bg-muted-foreground/50 animate-pulse', text: 'text-muted-foreground' }
-      : app.connected
-        ? { label: 'Connected', dot: 'bg-success', text: 'text-success-text' }
-        : app.connector
-          ? { label: 'Not connected', dot: 'bg-warning', text: 'text-warning-text' }
-          : { label: 'Unknown app', dot: 'bg-destructive', text: 'text-destructive' };
-  const actionText = asTool && actionIds ? `${actionIds.length} of ${totalActions} actions enabled` : app.label || 'Pick an action';
+    const defaultTitle =
+      app.connector?.name ?? (app.provider ? app.provider : 'App Connector');
+    const defaultDesc = app.label || nodeData.subtitle || 'Execute app action';
+    const connection = !picked
+      ? {
+          label: 'Pick an action',
+          dot: 'bg-muted-foreground/50',
+          text: 'text-muted-foreground',
+        }
+      : app.loading
+        ? {
+            label: 'Checking connection…',
+            dot: 'bg-muted-foreground/50 animate-pulse',
+            text: 'text-muted-foreground',
+          }
+        : app.connected
+          ? { label: 'Connected', dot: 'bg-success', text: 'text-success-text' }
+          : app.connector
+            ? {
+                label: 'Not connected',
+                dot: 'bg-warning',
+                text: 'text-warning-text',
+              }
+            : {
+                label: 'Unknown app',
+                dot: 'bg-destructive',
+                text: 'text-destructive',
+              };
+    const actionText =
+      asTool && actionIds
+        ? `${actionIds.length} of ${totalActions} actions enabled`
+        : app.label || 'Pick an action';
 
-  return (
-    <NodeShell
-      id={id}
-      data={nodeData}
-      selected={selected}
-      className={cn('w-[280px]', status === 'idle' && needsConnect && !selected && 'border-warning/50')}
-      header={{
-        defaultTitle,
-        defaultDescription: defaultDesc,
-        customIcon: (
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-surface-raised p-1.5 shadow-2xs">
-            <AppConnectorIcon connectorId={app.slug} name={app.connector?.name} category={app.connector?.category} size={24} />
-          </div>
-        ),
-      }}
-    >
-      <div className={cn('-mt-0.5 ml-[50px] flex items-center gap-1.5 text-2xs font-medium', connection.text)}>
-        <span className={cn('size-1.5 shrink-0 rounded-full', connection.dot)} aria-hidden="true" />
-        {connection.label}
-      </div>
-
-      <div className="mt-3 rounded-lg border border-border/60 bg-surface-raised/60 px-2.5 py-2">
-        <div className="flex items-center gap-2">
-          <Zap className="size-3.5 shrink-0 text-primary" aria-hidden="true" />
-          <span
-            className={cn('min-w-0 flex-1 truncate text-xs font-medium', picked || asTool ? 'text-foreground' : 'text-muted-foreground')}
-            title={actionText}
-          >
-            {actionText}
-          </span>
-          {!asTool && totalActions > 0 && (
-            <span className="shrink-0 text-2xs text-muted-foreground tabular-nums">
-              {totalActions} action{totalActions === 1 ? '' : 's'}
-            </span>
-          )}
-        </div>
-        {(!actionIds || !asTool) && preview.length > 0 && (
-          <div className="mt-1.5 space-y-0.5 border-t border-border/50 pt-1.5">
-            {preview.map(([k, v]) => (
-              <div key={k} className="truncate font-mono text-2xs text-muted-foreground/90">
-                <span className="text-muted-foreground/60">{k}:</span> {typeof v === 'object' ? JSON.stringify(v) : String(v)}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {(kind || sensitive) && (
-        <div className="mt-2 flex flex-wrap items-center gap-1">
-          {kind && (
-            <span className={cn('inline-flex h-5 items-center rounded-md border px-1.5 text-2xs font-medium', kind.className)}>
-              {kind.label}
-            </span>
-          )}
-          {sensitive && (
-            <span
-              className="inline-flex h-5 items-center gap-1 rounded-md border border-warning/30 bg-warning/10 px-1.5 text-2xs font-medium text-warning-text"
-              title={`${app.connector?.name ?? 'This app'} asks for confirmation before running this action`}
-            >
-              <Shield className="size-2.5" aria-hidden="true" /> Needs approval
-            </span>
-          )}
-        </div>
-      )}
-
-      <ConfigureButton
+    return (
+      <NodeShell
         id={id}
         data={nodeData}
-        label={needsConnect ? `Connect ${app.connector?.name ?? 'app'}` : 'Configure'}
-        icon={needsConnect ? <Plug /> : undefined}
-        className={cn('mt-3', needsConnect && 'border-warning/40 text-warning-text hover:text-warning-text hover:bg-warning/10')}
-      />
-    </NodeShell>
-  );
-});
+        selected={selected}
+        className={cn(
+          'w-[280px]',
+          status === 'idle' && needsConnect && !selected && 'border-warning/50',
+        )}
+        header={{
+          defaultTitle,
+          defaultDescription: defaultDesc,
+          customIcon: (
+            <div className="size-10 p-1.5 shadow-2xs flex shrink-0 items-center justify-center rounded-xl border border-border/60 bg-surface-raised">
+              <AppConnectorIcon
+                connectorId={app.slug}
+                name={app.connector?.name}
+                category={app.connector?.category}
+                size={24}
+              />
+            </div>
+          ),
+        }}
+      >
+        <div
+          className={cn(
+            '-mt-0.5 gap-1.5 font-medium ml-[50px] flex items-center text-2xs',
+            connection.text,
+          )}
+        >
+          <span
+            className={cn('size-1.5 shrink-0 rounded-full', connection.dot)}
+            aria-hidden="true"
+          />
+          {connection.label}
+        </div>
+
+        <div className="mt-3 px-2.5 py-2 rounded-lg border border-border/60 bg-surface-raised/60">
+          <div className="gap-2 flex items-center">
+            <Zap
+              className="size-3.5 shrink-0 text-primary"
+              aria-hidden="true"
+            />
+            <span
+              className={cn(
+                'min-w-0 text-xs font-medium flex-1 truncate',
+                picked || asTool ? 'text-foreground' : 'text-muted-foreground',
+              )}
+              title={actionText}
+            >
+              {actionText}
+            </span>
+            {!asTool && totalActions > 0 && (
+              <span className="shrink-0 text-2xs text-muted-foreground tabular-nums">
+                {totalActions} action{totalActions === 1 ? '' : 's'}
+              </span>
+            )}
+          </div>
+          {(!actionIds || !asTool) && preview.length > 0 && (
+            <div className="mt-1.5 space-y-0.5 pt-1.5 border-t border-border/50">
+              {preview.map(([k, v]) => (
+                <div
+                  key={k}
+                  className="truncate font-mono text-2xs text-muted-foreground/90"
+                >
+                  <span className="text-muted-foreground/60">{k}:</span>{' '}
+                  {typeof v === 'object' ? JSON.stringify(v) : String(v)}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {(kind || sensitive) && (
+          <div className="mt-2 gap-1 flex flex-wrap items-center">
+            {kind && (
+              <span
+                className={cn(
+                  'h-5 px-1.5 font-medium inline-flex items-center rounded-md border text-2xs',
+                  kind.className,
+                )}
+              >
+                {kind.label}
+              </span>
+            )}
+            {sensitive && (
+              <span
+                className="h-5 gap-1 px-1.5 font-medium inline-flex items-center rounded-md border border-warning/30 bg-warning/10 text-2xs text-warning-text"
+                title={`${app.connector?.name ?? 'This app'} asks for confirmation before running this action`}
+              >
+                <Shield className="size-2.5" aria-hidden="true" /> Needs
+                approval
+              </span>
+            )}
+          </div>
+        )}
+
+        <ConfigureButton
+          id={id}
+          data={nodeData}
+          label={
+            needsConnect
+              ? `Connect ${app.connector?.name ?? 'app'}`
+              : 'Configure'
+          }
+          icon={needsConnect ? <Plug /> : undefined}
+          className={cn(
+            'mt-3',
+            needsConnect &&
+              'border-warning/40 text-warning-text hover:bg-warning/10 hover:text-warning-text',
+          )}
+        />
+      </NodeShell>
+    );
+  },
+);
 AppConnectorNode.displayName = 'AppConnectorNode';
 
 // 5. Transform Node
@@ -1948,7 +2430,12 @@ export const TransformNode = memo(({ id, data, selected }: NodeProps) => {
       selected={selected}
       tone="blue"
       className="min-w-[210px]"
-      header={{ defaultTitle: 'Transform', defaultDescription: 'Map / Template', icon: Code2, iconBg: 'bg-accent-blue/15 text-accent-blue' }}
+      header={{
+        defaultTitle: 'Transform',
+        defaultDescription: 'Map / Template',
+        icon: Code2,
+        iconBg: 'bg-accent-blue/15 text-accent-blue',
+      }}
     >
       <ConfigureButton id={id} data={nodeData} />
     </NodeShell>
@@ -1990,17 +2477,28 @@ function BranchOutputs({
   return (
     <div
       className={cn(
-        'mt-3 text-2xs font-semibold',
-        vertical ? 'flex items-center justify-between border-t border-border/50 pt-2' : cn('flex gap-1.5', reverse ? 'flex-col-reverse' : 'flex-col'),
+        'mt-3 font-semibold text-2xs',
+        vertical
+          ? 'pt-2 flex items-center justify-between border-t border-border/50'
+          : cn('gap-1.5 flex', reverse ? 'flex-col-reverse' : 'flex-col'),
       )}
     >
       {outputs.map((o) => (
-        <div key={o.label} className={cn('relative flex items-center gap-1', !vertical && 'justify-end pr-2', o.text)}>
+        <div
+          key={o.label}
+          className={cn(
+            'gap-1 relative flex items-center',
+            !vertical && 'pr-2 justify-end',
+            o.text,
+          )}
+        >
           <span>{o.label}</span>
           <SourceHandleWithQuickAdd
             id={o.id}
             position={vertical ? Position.Bottom : Position.Right}
-            style={vertical ? { left: o.at.vertical } : { top: o.at.horizontal }}
+            style={
+              vertical ? { left: o.at.vertical } : { top: o.at.horizontal }
+            }
             colorClass={o.dot}
             onConnectNext={onConnectNext}
           />
@@ -2026,7 +2524,11 @@ export const ConditionNode = memo(({ id, data, selected }: NodeProps) => {
       toolbar={{ addHandleId: 'true', canAddNext: true }}
       className="min-w-[220px]"
       header={{
-        description: nodeData.description || (cfg.variable ? `${cfg.variable} ${cfg.operator || '=='} ${cfg.value || ''}` : nodeData.subtitle),
+        description:
+          nodeData.description ||
+          (cfg.variable
+            ? `${cfg.variable} ${cfg.operator || '=='} ${cfg.value || ''}`
+            : nodeData.subtitle),
         defaultTitle: 'If / Else',
         defaultDescription: 'Branching Logic',
         icon: GitBranch,
@@ -2034,8 +2536,15 @@ export const ConditionNode = memo(({ id, data, selected }: NodeProps) => {
       }}
     >
       {cfg.variable ? (
-        <div className="mt-2.5 truncate rounded-md bg-surface-raised px-2 py-1 font-mono text-2xs text-foreground" title={`${cfg.variable} ${cfg.operator || '=='} ${cfg.value ?? ''}`}>
-          {String(cfg.variable)} <span className="text-accent-violet">{String(cfg.operator || '==')}</span> {String(cfg.value ?? '')}
+        <div
+          className="mt-2.5 px-2 py-1 truncate rounded-md bg-surface-raised font-mono text-2xs text-foreground"
+          title={`${cfg.variable} ${cfg.operator || '=='} ${cfg.value ?? ''}`}
+        >
+          {String(cfg.variable)}{' '}
+          <span className="text-accent-violet">
+            {String(cfg.operator || '==')}
+          </span>{' '}
+          {String(cfg.value ?? '')}
         </div>
       ) : (
         <button
@@ -2045,7 +2554,7 @@ export const ConditionNode = memo(({ id, data, selected }: NodeProps) => {
             e.stopPropagation();
             nodeData.onEdit?.(id);
           }}
-          className="nodrag mt-2.5 w-full rounded-md border border-dashed border-border px-2 py-1 text-left text-xs text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-default"
+          className="nodrag mt-2.5 px-2 py-1 text-xs w-full rounded-md border border-dashed border-border text-left text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none disabled:cursor-default"
         >
           Set a condition…
         </button>
@@ -2055,8 +2564,20 @@ export const ConditionNode = memo(({ id, data, selected }: NodeProps) => {
         vertical={vertical}
         onConnectNext={nodeData.onConnectNext}
         outputs={[
-          { id: 'true', label: 'True', text: 'text-success', dot: 'bg-success', at: { horizontal: '38%', vertical: '30%' } },
-          { id: 'false', label: 'False', text: 'text-destructive', dot: 'bg-destructive', at: { horizontal: '78%', vertical: '70%' } },
+          {
+            id: 'true',
+            label: 'True',
+            text: 'text-success',
+            dot: 'bg-success',
+            at: { horizontal: '38%', vertical: '30%' },
+          },
+          {
+            id: 'false',
+            label: 'False',
+            text: 'text-destructive',
+            dot: 'bg-destructive',
+            at: { horizontal: '78%', vertical: '70%' },
+          },
         ]}
       />
     </NodeShell>
@@ -2068,7 +2589,8 @@ ConditionNode.displayName = 'ConditionNode';
 export const WhileLoopNode = memo(({ id, type, data, selected }: NodeProps) => {
   const nodeData = data as WorkflowNodePayload;
   const isLoop = ['LOOP', 'WHILE_LOOP'].includes(String(type).toUpperCase());
-  if (isLoop) return <LoopNode id={id} nodeData={nodeData} selected={!!selected} />;
+  if (isLoop)
+    return <LoopNode id={id} nodeData={nodeData} selected={!!selected} />;
   return (
     <NodeShell
       id={id}
@@ -2076,7 +2598,12 @@ export const WhileLoopNode = memo(({ id, type, data, selected }: NodeProps) => {
       selected={selected}
       tone="violet"
       className="min-w-[210px]"
-      header={{ defaultTitle: 'While Loop', defaultDescription: 'Iterative batching', icon: Repeat, iconBg: 'bg-accent-violet/15 text-accent-violet' }}
+      header={{
+        defaultTitle: 'While Loop',
+        defaultDescription: 'Iterative batching',
+        icon: Repeat,
+        iconBg: 'bg-accent-violet/15 text-accent-violet',
+      }}
     />
   );
 });
@@ -2087,8 +2614,18 @@ WhileLoopNode.displayName = 'WhileLoopNode';
  * `{{item}}` and `{{index}}`), then "When done" continues with every item's
  * result in `{{loopResults}}`.
  */
-function LoopNode({ id, nodeData, selected }: { id: string; nodeData: WorkflowNodePayload; selected: boolean }) {
-  const itemsKey = String((nodeData.config as { itemsKey?: string } | undefined)?.itemsKey || 'items');
+function LoopNode({
+  id,
+  nodeData,
+  selected,
+}: {
+  id: string;
+  nodeData: WorkflowNodePayload;
+  selected: boolean;
+}) {
+  const itemsKey = String(
+    (nodeData.config as { itemsKey?: string } | undefined)?.itemsKey || 'items',
+  );
   const vertical = useVerticalLayout(nodeData);
 
   return (
@@ -2101,7 +2638,10 @@ function LoopNode({ id, nodeData, selected }: { id: string; nodeData: WorkflowNo
       toolbar={{ canAddNext: true }}
       className="min-w-[220px]"
       header={{
-        description: nodeData.description || nodeData.subtitle || `For each in {{${itemsKey}}}`,
+        description:
+          nodeData.description ||
+          nodeData.subtitle ||
+          `For each in {{${itemsKey}}}`,
         defaultTitle: 'Loop',
         defaultDescription: `For each in {{${itemsKey}}}`,
         icon: Repeat,
@@ -2113,8 +2653,19 @@ function LoopNode({ id, nodeData, selected }: { id: string; nodeData: WorkflowNo
         reverse
         onConnectNext={nodeData.onConnectNext}
         outputs={[
-          { label: 'When done', text: 'text-muted-foreground', dot: 'bg-accent-violet', at: { horizontal: '42%', vertical: '30%' } },
-          { id: 'each', label: 'Each item', text: 'text-accent-violet', dot: 'bg-accent-violet', at: { horizontal: '78%', vertical: '70%' } },
+          {
+            label: 'When done',
+            text: 'text-muted-foreground',
+            dot: 'bg-accent-violet',
+            at: { horizontal: '42%', vertical: '30%' },
+          },
+          {
+            id: 'each',
+            label: 'Each item',
+            text: 'text-accent-violet',
+            dot: 'bg-accent-violet',
+            at: { horizontal: '78%', vertical: '70%' },
+          },
         ]}
       />
     </NodeShell>
@@ -2132,28 +2683,47 @@ export const UserApprovalNode = memo(({ id, data, selected }: NodeProps) => {
       selected={selected}
       tone="warning"
       className="min-w-[230px]"
-      header={{ defaultTitle: 'User Approval', defaultDescription: 'Human signoff gate', icon: UserCheck, iconBg: 'bg-warning/15 text-warning' }}
+      header={{
+        defaultTitle: 'User Approval',
+        defaultDescription: 'Human signoff gate',
+        icon: UserCheck,
+        iconBg: 'bg-warning/15 text-warning',
+      }}
     >
-      <div className="mt-2.5 flex items-center gap-1.5 rounded-lg border border-warning/25 bg-warning/10 px-2 py-1.5 text-xs text-warning-text">
+      <div className="mt-2.5 gap-1.5 px-2 py-1.5 text-xs flex items-center rounded-lg border border-warning/25 bg-warning/10 text-warning-text">
         <Pause className="size-3 shrink-0" />
         <span className="font-medium">Waits for a person to approve</span>
       </div>
-      {cfg.action && String(cfg.action) !== (nodeData.title || nodeData.label) && (
-        <p className="mt-1.5 line-clamp-2 text-xs leading-snug text-muted-foreground" title={String(cfg.action)}>
-          {String(cfg.action)}
-        </p>
-      )}
+      {cfg.action &&
+        String(cfg.action) !== (nodeData.title || nodeData.label) && (
+          <p
+            className="mt-1.5 text-xs leading-snug line-clamp-2 text-muted-foreground"
+            title={String(cfg.action)}
+          >
+            {String(cfg.action)}
+          </p>
+        )}
     </NodeShell>
   );
 });
 UserApprovalNode.displayName = 'UserApprovalNode';
 
 /** Small icon button in a card's own action row (Output card: copy / download / clear). */
-function CardIconButton({ label, onClick, disabled, children }: { label: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
+function CardIconButton({
+  label,
+  onClick,
+  disabled,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <button
       type="button"
-      className="flex h-6 items-center gap-1 rounded-md border border-border bg-surface px-1.5 text-2xs text-muted-foreground hover:bg-surface-raised hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-40"
+      className="h-6 gap-1 px-1.5 flex items-center rounded-md border border-border bg-surface text-2xs text-muted-foreground hover:bg-surface-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none disabled:opacity-40"
       disabled={disabled}
       onClick={onClick}
       aria-label={label}
@@ -2186,10 +2756,16 @@ export const EndNode = memo(({ id, data, selected }: NodeProps) => {
     }
   };
   const download = () => {
-    const url = URL.createObjectURL(new Blob([text], { type: view === 'formatted' ? 'text/markdown' : 'text/plain' }));
+    const url = URL.createObjectURL(
+      new Blob([text], {
+        type: view === 'formatted' ? 'text/markdown' : 'text/plain',
+      }),
+    );
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${String(nodeData.label || 'output').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.${view === 'formatted' ? 'md' : 'txt'}`;
+    a.download = `${String(nodeData.label || 'output')
+      .replace(/[^a-z0-9]+/gi, '-')
+      .toLowerCase()}.${view === 'formatted' ? 'md' : 'txt'}`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -2201,10 +2777,22 @@ export const EndNode = memo(({ id, data, selected }: NodeProps) => {
       tone="success"
       source={false}
       className="w-[300px]"
-      header={{ defaultTitle: 'Output', defaultDescription: 'The agent’s final answer', icon: CheckCircle2, iconBg: 'bg-success/15 text-success' }}
+      header={{
+        defaultTitle: 'Output',
+        defaultDescription: 'The agent’s final answer',
+        icon: CheckCircle2,
+        iconBg: 'bg-success/15 text-success',
+      }}
     >
-      <div className="nodrag nopan mt-3 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-        <div role="radiogroup" aria-label="Output view" className="flex rounded-md border border-border bg-surface-raised p-0.5">
+      <div
+        className="nodrag nopan mt-3 gap-1 flex items-center"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          role="radiogroup"
+          aria-label="Output view"
+          className="p-0.5 flex rounded-md border border-border bg-surface-raised"
+        >
           {(['text', 'formatted'] as const).map((v) => (
             <button
               key={v}
@@ -2213,20 +2801,41 @@ export const EndNode = memo(({ id, data, selected }: NodeProps) => {
               aria-checked={view === v}
               disabled={!text}
               onClick={() => setView(v)}
-              className={cn('rounded-md px-1.5 py-0.5 text-2xs font-medium capitalize disabled:opacity-50', view === v ? 'bg-surface text-foreground shadow-2xs' : 'text-muted-foreground hover:text-foreground')}
+              className={cn(
+                'px-1.5 py-0.5 font-medium rounded-md text-2xs capitalize disabled:opacity-50',
+                view === v
+                  ? 'shadow-2xs bg-surface text-foreground'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
             >
               {v}
             </button>
           ))}
         </div>
-        <span className="ml-auto flex items-center gap-1">
-          <CardIconButton label={copied ? 'Copied' : 'Copy output'} disabled={!text} onClick={() => void copy()}>
-            {copied ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
+        <span className="gap-1 ml-auto flex items-center">
+          <CardIconButton
+            label={copied ? 'Copied' : 'Copy output'}
+            disabled={!text}
+            onClick={() => void copy()}
+          >
+            {copied ? (
+              <Check className="size-3 text-success" />
+            ) : (
+              <Copy className="size-3" />
+            )}
           </CardIconButton>
-          <CardIconButton label="Download output" disabled={!text} onClick={download}>
+          <CardIconButton
+            label="Download output"
+            disabled={!text}
+            onClick={download}
+          >
             <Download className="size-3" />
           </CardIconButton>
-          <CardIconButton label="Clear output" disabled={!text || running || !nodeData.onClearRun} onClick={() => nodeData.onClearRun?.()}>
+          <CardIconButton
+            label="Clear output"
+            disabled={!text || running || !nodeData.onClearRun}
+            onClick={() => nodeData.onClearRun?.()}
+          >
             <Trash2 className="size-3" />
           </CardIconButton>
         </span>
@@ -2236,14 +2845,22 @@ export const EndNode = memo(({ id, data, selected }: NodeProps) => {
         aria-label="Output"
         aria-live="polite"
         className={cn(
-          'nodrag nowheel mt-2 max-h-56 min-h-16 overflow-auto rounded-lg border px-3 py-2',
-          run?.error ? 'border-destructive/30 bg-destructive/5' : 'border-border bg-surface',
+          'nodrag nowheel mt-2 max-h-56 min-h-16 px-3 py-2 overflow-auto rounded-lg border',
+          run?.error
+            ? 'border-destructive/30 bg-destructive/5'
+            : 'border-border bg-surface',
         )}
       >
         {!text ? (
-          <div className="flex flex-col items-center gap-1.5 py-3 text-center text-muted-foreground">
-            <CheckCircle2 className={cn('size-4', running && 'animate-pulse text-primary')} />
-            <p className="text-xs">{running ? 'Waiting for the agent…' : 'Run a test to see the final answer here.'}</p>
+          <div className="gap-1.5 py-3 flex flex-col items-center text-center text-muted-foreground">
+            <CheckCircle2
+              className={cn('size-4', running && 'animate-pulse text-primary')}
+            />
+            <p className="text-xs">
+              {running
+                ? 'Waiting for the agent…'
+                : 'Run a test to see the final answer here.'}
+            </p>
             {!running && nodeData.onTest && (
               <Button
                 type="button"
@@ -2261,11 +2878,15 @@ export const EndNode = memo(({ id, data, selected }: NodeProps) => {
             )}
           </div>
         ) : run?.error ? (
-          <p className="whitespace-pre-wrap text-xs text-destructive">{run.error}</p>
+          <p className="text-xs whitespace-pre-wrap text-destructive">
+            {run.error}
+          </p>
         ) : view === 'formatted' ? (
           <FormattedText text={text} />
         ) : (
-          <pre className="whitespace-pre-wrap [overflow-wrap:anywhere] font-mono text-xs leading-relaxed text-foreground">{text}</pre>
+          <pre className="text-xs leading-relaxed font-mono [overflow-wrap:anywhere] whitespace-pre-wrap text-foreground">
+            {text}
+          </pre>
         )}
       </div>
     </NodeShell>
@@ -2282,114 +2903,265 @@ export const GenericStudioNode = memo(({ id, data, selected }: NodeProps) => {
       id={id}
       data={nodeData}
       selected={selected}
-      className="min-w-[220px] max-w-[280px]"
+      className="max-w-[280px] min-w-[220px]"
       header={{
         defaultTitle: 'Studio Node',
         defaultDescription: 'Step Execution',
         icon: Cpu,
         iconBg: 'bg-primary/10 text-primary',
         badge: nodeData.badge ? (
-          <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-2xs font-semibold text-primary">{nodeData.badge}</span>
+          <span className="px-1.5 py-0.5 font-semibold rounded-full bg-primary/10 text-2xs text-primary">
+            {nodeData.badge}
+          </span>
         ) : undefined,
       }}
     >
-      {cfg.action && <div className="mt-2 text-2xs text-muted-foreground font-mono truncate">{String(cfg.action)}</div>}
+      {cfg.action && (
+        <div className="mt-2 truncate font-mono text-2xs text-muted-foreground">
+          {String(cfg.action)}
+        </div>
+      )}
     </NodeShell>
   );
 });
 GenericStudioNode.displayName = 'GenericStudioNode';
 
-const TEAM_NODE: Record<string, { kind: string; entity: 'coworker' | 'agent' | null; icon: typeof Bot; verb: string }> = {
-  AI_COWORKER: { kind: 'AI Coworker', entity: 'coworker', icon: Users, verb: 'coworker' },
-  CALL_AGENT: { kind: 'Saved Agent', entity: 'agent', icon: Bot, verb: 'agent' },
-  RUN_WORKFLOW: { kind: 'Automation', entity: null, icon: Workflow, verb: 'automation' },
+const TEAM_NODE: Record<
+  string,
+  {
+    kind: string;
+    entity: 'coworker' | 'agent' | null;
+    icon: typeof Bot;
+    verb: string;
+  }
+> = {
+  AI_COWORKER: {
+    kind: 'AI Coworker',
+    entity: 'coworker',
+    icon: Users,
+    verb: 'coworker',
+  },
+  CALL_AGENT: {
+    kind: 'Saved Agent',
+    entity: 'agent',
+    icon: Bot,
+    verb: 'agent',
+  },
+  RUN_WORKFLOW: {
+    kind: 'Automation',
+    entity: null,
+    icon: Workflow,
+    verb: 'automation',
+  },
 };
 
 // 10b. Team member — a coworker, saved agent or automation the workspace already has, run as itself.
-export const TeamMemberNode = memo(({ id, type, data, selected }: NodeProps) => {
-  const nodeData = data as WorkflowNodePayload;
-  const cfg = nodeData.config || {};
-  const meta = TEAM_NODE[String(type)] ?? TEAM_NODE['AI_COWORKER'];
-  const team = useWorkspaceTeam();
-  const refId = cfg[TEAM_REF_KEY[String(type) as TeamStepType] ?? 'coworkerId'];
-  const member = teamMemberFor(team, String(type), refId);
-  const missing = !!refId && !team.loading && !member;
-  const task = typeof cfg.task === 'string' && cfg.task.trim() ? cfg.task.trim() : '';
-  return (
-    <NodeShell
-      id={id}
-      data={nodeData}
-      selected={selected}
-      tone="violet"
-      className="min-w-[230px] max-w-[290px]"
-      header={{
-        title: member?.name ?? nodeData.label,
-        description: meta.kind,
-        defaultTitle: meta.kind,
-        defaultDescription: `Hand work to a ${meta.verb}`,
-        icon: meta.icon,
-        iconBg: 'bg-accent-violet/15 text-accent-violet',
-        customIcon:
-          member && meta.entity ? <AiEntityAvatar name={member.name} kind={meta.entity} avatarUrl={member.avatarUrl} size="sm" /> : undefined,
-        badge: member && !member.isActive ? (
-          <span className="rounded-full bg-warning/15 px-1.5 py-0.5 text-2xs font-semibold text-warning">{meta.entity ? 'Paused' : 'Off'}</span>
-        ) : undefined,
-      }}
-    >
-      <div className="mt-2 space-y-1 text-2xs">
-        {!refId ? (
-          <p className="text-warning">Pick which {meta.verb} does this step.</p>
-        ) : missing ? (
-          <p className="text-destructive">This {meta.verb} no longer exists in this workspace.</p>
-        ) : member?.detail ? (
-          <p className="truncate text-muted-foreground">{member.detail}</p>
-        ) : null}
-        <p className="line-clamp-2 text-muted-foreground">
-          <span className="font-medium text-foreground">Task: </span>
-          {task || 'Whatever the previous step produced'}
-        </p>
-      </div>
-    </NodeShell>
-  );
-});
+export const TeamMemberNode = memo(
+  ({ id, type, data, selected }: NodeProps) => {
+    const nodeData = data as WorkflowNodePayload;
+    const cfg = nodeData.config || {};
+    const meta = TEAM_NODE[String(type)] ?? TEAM_NODE['AI_COWORKER'];
+    const team = useWorkspaceTeam();
+    const refId =
+      cfg[TEAM_REF_KEY[String(type) as TeamStepType] ?? 'coworkerId'];
+    const member = teamMemberFor(team, String(type), refId);
+    const missing = !!refId && !team.loading && !member;
+    const task =
+      typeof cfg.task === 'string' && cfg.task.trim() ? cfg.task.trim() : '';
+    return (
+      <NodeShell
+        id={id}
+        data={nodeData}
+        selected={selected}
+        tone="violet"
+        className="max-w-[290px] min-w-[230px]"
+        header={{
+          title: member?.name ?? nodeData.label,
+          description: meta.kind,
+          defaultTitle: meta.kind,
+          defaultDescription: `Hand work to a ${meta.verb}`,
+          icon: meta.icon,
+          iconBg: 'bg-accent-violet/15 text-accent-violet',
+          customIcon:
+            member && meta.entity ? (
+              <AiEntityAvatar
+                name={member.name}
+                kind={meta.entity}
+                avatarUrl={member.avatarUrl}
+                size="sm"
+              />
+            ) : undefined,
+          badge:
+            member && !member.isActive ? (
+              <span className="px-1.5 py-0.5 font-semibold rounded-full bg-warning/15 text-2xs text-warning">
+                {meta.entity ? 'Paused' : 'Off'}
+              </span>
+            ) : undefined,
+        }}
+      >
+        <div className="mt-2 space-y-1 text-2xs">
+          {!refId ? (
+            <p className="text-warning">
+              Pick which {meta.verb} does this step.
+            </p>
+          ) : missing ? (
+            <p className="text-destructive">
+              This {meta.verb} no longer exists in this workspace.
+            </p>
+          ) : member?.detail ? (
+            <p className="truncate text-muted-foreground">{member.detail}</p>
+          ) : null}
+          <p className="line-clamp-2 text-muted-foreground">
+            <span className="font-medium text-foreground">Task: </span>
+            {task || 'Whatever the previous step produced'}
+          </p>
+        </div>
+      </NodeShell>
+    );
+  },
+);
 TeamMemberNode.displayName = 'TeamMemberNode';
 // 11. Sticky Note / Documentation Node
+const STICKY_COLORS = {
+  yellow: {
+    border: 'border-warning/30',
+    tint: 'bg-warning/10',
+    text: 'text-warning-text',
+    swatch: 'bg-warning',
+  },
+  blue: {
+    border: 'border-accent-blue/30',
+    tint: 'bg-accent-blue/10',
+    text: 'text-sky-950 dark:text-sky-200',
+    swatch: 'bg-accent-blue',
+  },
+  purple: {
+    border: 'border-accent-violet/30',
+    tint: 'bg-accent-violet/10',
+    text: 'text-purple-950 dark:text-purple-200',
+    swatch: 'bg-accent-violet',
+  },
+  green: {
+    border: 'border-success/30',
+    tint: 'bg-success/10',
+    text: 'text-success-text',
+    swatch: 'bg-success',
+  },
+} as const;
+type StickyColor = keyof typeof STICKY_COLORS;
+
+/** The saved note text: `config.note`, falling back to where older notes kept it. */
+const stickyText = (data: WorkflowNodePayload): string => {
+  const cfg = data.config || {};
+  for (const v of [cfg.note, cfg.text, data.text])
+    if (typeof v === 'string') return v;
+  return '';
+};
+
 export const StickyNoteNode = memo(({ id, data, selected }: NodeProps) => {
   const nodeData = data as WorkflowNodePayload;
-  const [text, setText] = React.useState(nodeData.text || nodeData.label || 'Workflow documentation note…');
-  const color = nodeData.color || 'yellow';
+  const cfg = nodeData.config || {};
+  const readOnly = Boolean(nodeData.locked) || !nodeData.onUpdateConfig;
+  const saved = stickyText(nodeData);
+  const rawColor = String(cfg.color || nodeData.color || 'yellow');
+  const color: StickyColor =
+    rawColor in STICKY_COLORS ? (rawColor as StickyColor) : 'yellow';
+  const tone = STICKY_COLORS[color];
 
-  const colorStyles: Record<string, string> = {
-    yellow: 'bg-warning/10 border-warning/30 text-warning-text',
-    blue: 'bg-accent-blue/10 border-accent-blue/30 text-sky-950 dark:text-sky-200',
-    purple: 'bg-accent-violet/10 border-accent-violet/30 text-purple-950 dark:text-purple-200',
-    green: 'bg-success/10 border-success/30 text-success-text',
-  };
+  // Typed text goes straight into the graph (config.note), so the canvas's
+  // save / auto-save picks it up; a local draft only keeps the caret steady.
+  const [draft, setDraft] = React.useState(saved);
+  const focused = React.useRef(false);
+  React.useEffect(() => {
+    if (!focused.current) setDraft(saved);
+  }, [saved]);
 
   return (
     <div
       className={cn(
-        'group relative min-w-[190px] h-full w-full rounded-xl border p-3 shadow-xs transition-all backdrop-blur-xs',
-        colorStyles[color] || colorStyles.yellow,
-        selected ? 'ring-2 ring-foreground/60 shadow-md' : 'hover:border-border-strong',
+        // Opaque surface under the tint, so steps behind a note don't show through
+        'group p-3 relative flex h-full w-full min-w-[190px] flex-col rounded-xl border bg-surface shadow-xs transition-all',
+        tone.border,
+        selected
+          ? 'shadow-md ring-2 ring-foreground/60'
+          : 'hover:border-border-strong',
       )}
     >
+      <div
+        aria-hidden
+        className={cn(
+          'inset-0 pointer-events-none absolute rounded-[inherit]',
+          tone.tint,
+        )}
+      />
       <NodeResizer
         minWidth={180}
         minHeight={90}
-        isVisible={selected}
+        isVisible={selected && !readOnly}
         lineClassName="!border-warning/60"
         handleClassName="!size-2 !bg-warning !border-background rounded-xs"
       />
-      <NodeActionToolbar id={id} data={nodeData} selected={selected} canAddNext={false} />
-      <div className="flex items-center gap-1.5 font-bold text-xs mb-1.5 opacity-80">
-        <StickyNote className="size-3.5" />
-        <span>{nodeData.label || 'Note'}</span>
+      <NodeActionToolbar
+        id={id}
+        data={nodeData}
+        selected={selected}
+        canAddNext={false}
+      />
+      <div
+        className={cn(
+          'mb-1.5 gap-1.5 text-xs font-bold relative flex items-center',
+          tone.text,
+        )}
+      >
+        <StickyNote className="size-3.5 shrink-0" />
+        <span className="min-w-0 flex-1 truncate">
+          {nodeData.title || nodeData.label || 'Note'}
+        </span>
+        {selected && !readOnly && (
+          <div
+            className="nodrag nopan gap-1 flex items-center"
+            role="radiogroup"
+            aria-label="Note color"
+          >
+            {(Object.keys(STICKY_COLORS) as StickyColor[]).map((c) => (
+              <button
+                key={c}
+                type="button"
+                role="radio"
+                aria-checked={c === color}
+                aria-label={`${c[0].toUpperCase()}${c.slice(1)} note`}
+                onClick={() => nodeData.onUpdateConfig?.({ color: c })}
+                className={cn(
+                  'size-3 rounded-full transition-transform hover:scale-110',
+                  STICKY_COLORS[c].swatch,
+                  c === color &&
+                    'ring-2 ring-foreground/50 ring-offset-1 ring-offset-background',
+                )}
+              />
+            ))}
+          </div>
+        )}
       </div>
-      <Textarea value={text} onChange={(e) => {
-          setText(e.target.value);
-          if (nodeData.onChange) nodeData.onChange(e.target.value);
-        }} rows={3} className="text-xs resize-none leading-relaxed" placeholder="Type note…" />
+      <textarea
+        value={draft}
+        readOnly={readOnly}
+        aria-label="Note text"
+        placeholder={readOnly ? '' : 'Write a note…'}
+        onFocus={() => (focused.current = true)}
+        onBlur={() => {
+          focused.current = false;
+          setDraft(stickyText(nodeData));
+        }}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          nodeData.onUpdateConfig?.({ note: e.target.value });
+        }}
+        className={cn(
+          'nodrag nowheel nopan text-xs leading-relaxed relative min-h-[56px] w-full flex-1 resize-none bg-transparent outline-none placeholder:opacity-50',
+          tone.text,
+          readOnly ? 'cursor-default' : 'cursor-text',
+        )}
+      />
     </div>
   );
 });
@@ -2401,8 +3173,10 @@ export const GroupNode = memo(({ id, data, selected }: NodeProps) => {
   return (
     <div
       className={cn(
-        'group relative min-w-[340px] min-h-[220px] h-full w-full rounded-xl border-2 border-dashed border-border/80 bg-surface/30 p-4 transition-all',
-        selected ? 'border-foreground/60 ring-2 ring-foreground/10' : 'hover:border-border-strong',
+        'group p-4 relative h-full min-h-[220px] w-full min-w-[340px] rounded-xl border-2 border-dashed border-border/80 bg-surface/30 transition-all',
+        selected
+          ? 'border-foreground/60 ring-2 ring-foreground/10'
+          : 'hover:border-border-strong',
       )}
     >
       <NodeResizer
@@ -2412,12 +3186,17 @@ export const GroupNode = memo(({ id, data, selected }: NodeProps) => {
         lineClassName="!border-primary/60"
         handleClassName="!size-2.5 !bg-primary !border-background rounded-xs"
       />
-      <NodeActionToolbar id={id} data={nodeData} selected={selected} canAddNext={false} />
-      <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground mb-2">
+      <NodeActionToolbar
+        id={id}
+        data={nodeData}
+        selected={selected}
+        canAddNext={false}
+      />
+      <div className="gap-2 text-sm font-semibold mb-2 flex items-center text-muted-foreground">
         <Folder className="size-4 text-primary" />
         <span>{nodeData.label || 'Stage Group'}</span>
         {nodeData.subtitle && nodeData.showDescription === true && (
-          <span className="text-2xs text-muted-foreground font-normal">
+          <span className="font-normal text-2xs text-muted-foreground">
             ({nodeData.subtitle})
           </span>
         )}
@@ -2444,62 +3223,82 @@ export const WidgetNode = memo(({ id, type, data, selected }: NodeProps) => {
       selected={selected}
       target={!isTrigger}
       source={!isOutput}
-      className="min-w-[240px] max-w-[280px]"
+      className="max-w-[280px] min-w-[240px]"
       header={{
         defaultTitle: 'UI Widget',
         defaultDescription: 'Interactive UI Component',
         icon: LayoutDashboard,
         iconBg: 'bg-primary/15 text-primary',
-        badge: <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-2xs font-semibold text-primary">{type.replace('WIDGET_', '')}</span>,
+        badge: (
+          <span className="px-1.5 py-0.5 font-semibold rounded-full bg-primary/10 text-2xs text-primary">
+            {type.replace('WIDGET_', '')}
+          </span>
+        ),
       }}
     >
       {/* Mini preview tile */}
-      <div className="mt-2.5 rounded-lg border border-border/80 bg-surface-raised p-2 text-xs">
+      <div className="mt-2.5 p-2 text-xs rounded-lg border border-border/80 bg-surface-raised">
         {componentType === 'metric_card' && (
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-2xs text-muted-foreground uppercase tracking-wider font-semibold">Preview KPI</div>
-              <div className="text-base font-bold text-foreground mt-0.5">128,450</div>
+              <div className="tracking-wider font-semibold text-2xs text-muted-foreground uppercase">
+                Preview KPI
+              </div>
+              <div className="text-base font-bold mt-0.5 text-foreground">
+                128,450
+              </div>
             </div>
-            <span className="text-2xs font-semibold text-success bg-success/10 px-1.5 py-0.5 rounded-md">+14.2%</span>
+            <span className="font-semibold px-1.5 py-0.5 rounded-md bg-success/10 text-2xs text-success">
+              +14.2%
+            </span>
           </div>
         )}
         {componentType.includes('chart') && (
           <div className="space-y-1">
             <div className="flex items-center justify-between text-2xs text-muted-foreground">
               <span>{componentType.replace('_', ' ')}</span>
-              <span className="font-mono text-2xs text-muted-foreground">Sample</span>
+              <span className="font-mono text-2xs text-muted-foreground">
+                Sample
+              </span>
             </div>
-            <div className="flex items-end gap-1.5 h-6 pt-1">
-              <div className="w-1/5 bg-primary/40 rounded-t h-3/6" />
-              <div className="w-1/5 bg-primary/60 rounded-t h-4/6" />
-              <div className="w-1/5 bg-primary rounded-t h-full" />
-              <div className="w-1/5 bg-primary/70 rounded-t h-5/6" />
-              <div className="w-1/5 bg-primary/50 rounded-t h-3/6" />
+            <div className="gap-1.5 h-6 pt-1 flex items-end">
+              <div className="rounded-t h-3/6 w-1/5 bg-primary/40" />
+              <div className="rounded-t h-4/6 w-1/5 bg-primary/60" />
+              <div className="rounded-t h-full w-1/5 bg-primary" />
+              <div className="rounded-t h-5/6 w-1/5 bg-primary/70" />
+              <div className="rounded-t h-3/6 w-1/5 bg-primary/50" />
             </div>
           </div>
         )}
         {isInput && (
           <div className="space-y-1">
-            <div className="text-2xs text-muted-foreground">Form Field Input</div>
-            <div className="rounded-md border border-dashed border-border bg-background px-2 py-1 text-2xs text-muted-foreground">
+            <div className="text-2xs text-muted-foreground">
+              Form Field Input
+            </div>
+            <div className="px-2 py-1 rounded-md border border-dashed border-border bg-background text-2xs text-muted-foreground">
               [ Collects user values ]
             </div>
           </div>
         )}
         {isApproval && (
-          <div className="flex items-center gap-1.5 pt-0.5">
-            <span className="rounded-md bg-success/15 text-success px-2 py-0.5 text-2xs font-semibold">Approve</span>
-            <span className="rounded-md bg-destructive/15 text-destructive px-2 py-0.5 text-2xs font-semibold">Reject</span>
+          <div className="gap-1.5 pt-0.5 flex items-center">
+            <span className="px-2 py-0.5 font-semibold rounded-md bg-success/15 text-2xs text-success">
+              Approve
+            </span>
+            <span className="px-2 py-0.5 font-semibold rounded-md bg-destructive/15 text-2xs text-destructive">
+              Reject
+            </span>
           </div>
         )}
-        {!['metric_card'].includes(componentType) && !componentType.includes('chart') && !isInput && !isApproval && (
-          <div className="text-xs text-muted-foreground truncate">
-            {cfg.title || cfg.action || 'Ready for data binding'}
-          </div>
-        )}
+        {!['metric_card'].includes(componentType) &&
+          !componentType.includes('chart') &&
+          !isInput &&
+          !isApproval && (
+            <div className="text-xs truncate text-muted-foreground">
+              {cfg.title || cfg.action || 'Ready for data binding'}
+            </div>
+          )}
       </div>
-
     </NodeShell>
   );
 });
@@ -2673,7 +3472,13 @@ const BASE_NODE_TYPES: Record<string, any> = {
  * `compileStudioGraph` the server runs): red for problems that stop a run,
  * amber for steps that will be skipped or behave differently than they look.
  */
-function IssueBadge({ issues, label }: { issues: Array<{ level: string; message: string }>; label: string }) {
+function IssueBadge({
+  issues,
+  label,
+}: {
+  issues: Array<{ level: string; message: string }>;
+  label: string;
+}) {
   const errors = issues.filter((i) => i.level === 'error');
   const tone = errors.length ? 'error' : 'warning';
   return (
@@ -2683,8 +3488,10 @@ function IssueBadge({ issues, label }: { issues: Array<{ level: string; message:
           type="button"
           aria-label={`${label}: ${issues.length} problem${issues.length === 1 ? '' : 's'} — ${issues.map((i) => i.message).join(' ')}`}
           className={cn(
-            'nodrag nopan absolute -right-2 -top-2 z-10 flex h-5 min-w-5 items-center justify-center gap-0.5 rounded-full border-2 border-background px-1 text-2xs font-bold shadow-sm',
-            tone === 'error' ? 'bg-destructive text-destructive-foreground' : 'bg-warning text-warning-foreground',
+            'nodrag nopan -right-2 -top-2 h-5 min-w-5 gap-0.5 px-1 font-bold absolute z-10 flex items-center justify-center rounded-full border-2 border-background text-2xs shadow-sm',
+            tone === 'error'
+              ? 'bg-destructive text-destructive-foreground'
+              : 'bg-warning text-warning-foreground',
           )}
         >
           <AlertTriangle className="size-2.5" aria-hidden="true" />
@@ -2694,8 +3501,13 @@ function IssueBadge({ issues, label }: { issues: Array<{ level: string; message:
       <TooltipContent side="top" className="max-w-72">
         <ul className="space-y-1 text-xs">
           {issues.map((i, k) => (
-            <li key={k} className="flex gap-1.5">
-              <span className={cn('mt-1 size-1.5 shrink-0 rounded-full', i.level === 'error' ? 'bg-destructive' : 'bg-warning')} />
+            <li key={k} className="gap-1.5 flex">
+              <span
+                className={cn(
+                  'mt-1 size-1.5 shrink-0 rounded-full',
+                  i.level === 'error' ? 'bg-destructive' : 'bg-warning',
+                )}
+              />
               <span>{i.message}</span>
             </li>
           ))}
@@ -2711,7 +3523,9 @@ function mergeIssues(
   team: string[] | undefined,
 ): Array<{ level: string; message: string }> {
   const out = [...(compiled ?? [])];
-  for (const message of team ?? []) if (!out.some((i) => i.message === message)) out.push({ level: 'warning', message });
+  for (const message of team ?? [])
+    if (!out.some((i) => i.message === message))
+      out.push({ level: 'warning', message });
   return out;
 }
 
@@ -2722,7 +3536,9 @@ const withIssues = (Component: any) => {
     return (
       <>
         <Component {...props} />
-        {issues.length > 0 && <IssueBadge issues={issues} label={String(data?.label ?? 'Step')} />}
+        {issues.length > 0 && (
+          <IssueBadge issues={issues} label={String(data?.label ?? 'Step')} />
+        )}
       </>
     );
   });
@@ -2731,7 +3547,8 @@ const withIssues = (Component: any) => {
 };
 const wrappedTypes = new Map<unknown, unknown>();
 const wrapped = (Component: unknown) => {
-  if (!wrappedTypes.has(Component)) wrappedTypes.set(Component, withIssues(Component));
+  if (!wrappedTypes.has(Component))
+    wrappedTypes.set(Component, withIssues(Component));
   return wrappedTypes.get(Component);
 };
 
