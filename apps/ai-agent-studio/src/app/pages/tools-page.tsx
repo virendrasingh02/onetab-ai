@@ -12,8 +12,6 @@ import {
   Field,
   Input,
   LoadingState,
-  Page,
-  PageHeader,
   CodeInput,
   toast,
 } from '@org/ui';
@@ -23,7 +21,7 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate } from '../router.js';
 import { useConnectors } from '../services/connectors.js';
 import { useStudioSession } from '../session-guard.js';
-import { SectionTabs } from '../components/section-tabs.js';
+import { SectionHeader } from '../components/section-tabs.js';
 
 /** These mutations report their own errors, so the app-wide error toast stays quiet. */
 const QUIET = { disableToast: true } as const;
@@ -203,14 +201,12 @@ export function ToolsPage() {
   const result = runMutation.data;
 
   return (
-    <Page width="full" className="space-y-6">
-      <PageHeader
-        title="Tools"
-        description="Everything agents can call: built-in tools, connected apps, your own APIs and MCP servers. Try the built-in ones in the sandbox."
-        icon={<Wrench className="size-5" />}
-        toolbar={<SectionTabs section="tools" />}
-        accent="cyan"
+    <div className="min-h-0 flex flex-1 flex-col">
+      <SectionHeader
+        section="tools"
       />
+      <div className="flex-1 p-4 sm:p-6 space-y-6">
+        <p className="max-w-3xl text-sm text-muted-foreground">Everything agents can call: built-in tools, connected apps, your own APIs and MCP servers. Try the built-in ones in the sandbox.</p>
 
       <section className="space-y-3" aria-labelledby="add-tool">
         <div className="flex items-center gap-2">
@@ -438,6 +434,7 @@ export function ToolsPage() {
           </section>
         </>
       )}
-    </Page>
+      </div>
+    </div>
   );
 }

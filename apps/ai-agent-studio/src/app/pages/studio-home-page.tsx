@@ -10,8 +10,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  Page,
-  PageHeader,
   PageSection,
   StatCard,
   AIModelBadge,
@@ -57,6 +55,7 @@ import React, { useState, useMemo } from 'react';
 import { formatRelative } from '@org/utils';
 import { Link, useNavigate } from '../router.js';
 import { useStudioSession } from '../session-guard.js';
+import { StudioPage } from '../components/studio-page.js';
 
 /** Tools arrive as an array once normalized, or as the API's JSON string. */
 function countTools(tools: string | unknown[] | null | undefined): number {
@@ -90,13 +89,11 @@ export function StudioHomePage() {
   const { activeWorkspace } = useStudioSession();
   const navigate = useNavigate();
   return (
-    <Page width="full" className="space-y-8">
-      <PageHeader
+    <StudioPage
+        icon={<Home />}
         title="Studio Home"
         description={`What your agents are doing in ${activeWorkspace.name} — and what to build next.`}
-        icon={<Home className="size-5" />}
-        accent="violet"
-        className="mb-0"
+        className="space-y-8"
         actions={
           <>
             <Button
@@ -116,9 +113,9 @@ export function StudioHomePage() {
             </Button>
           </>
         }
-      />
+      >
       <StudioInsights home={<StudioHome showComposer={false} />} />
-    </Page>
+    </StudioPage>
   );
 }
 

@@ -16,16 +16,15 @@ import {
   Input,
   LoadingState,
   Page,
-  PageHeader,
   toast,
 } from '@org/ui';
 import { useWorkspacePermission } from '@org/web-workspace';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, ChevronRight, Info, Search, Wrench } from 'lucide-react';
+import { ChevronDown, ChevronRight, Info, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useConnectors } from '../services/connectors.js';
 import { useStudioSession } from '../session-guard.js';
-import { SectionTabs } from '../components/section-tabs.js';
+import { SectionHeader } from '../components/section-tabs.js';
 
 const MODE_OPTIONS: { value: WorkspaceToolMode; label: string; description: string }[] = [
   { value: 'allow', label: 'Allowed', description: 'Each agent’s own autonomy rules decide' },
@@ -165,13 +164,9 @@ export function ToolAccessPage() {
   const restrictedApps = (connectors.data ?? []).filter((c) => appMode(c) !== 'allow').length;
 
   return (
-    <Page width="full" className="space-y-6">
-      <PageHeader
-        title="Tools"
-        description="Decide which tools and connected apps agents may use in this workspace. These rules sit over every agent’s own settings and apply on its next run."
-        icon={<Wrench className="size-5" />}
-        toolbar={<SectionTabs section="tools" />}
-        accent="cyan"
+    <div className="min-h-0 flex flex-1 flex-col">
+      <SectionHeader
+        section="tools"
         actions={
           canEdit ? (
             <div className="flex items-center gap-2">
@@ -194,6 +189,8 @@ export function ToolAccessPage() {
           ) : null
         }
       />
+      <div className="flex-1 p-4 sm:p-6 space-y-6">
+        <p className="max-w-3xl text-sm text-muted-foreground">Decide which tools and connected apps agents may use in this workspace. These rules sit over every agent’s own settings and apply on its next run.</p>
 
       {!canEdit ? (
         <p role="status" className="rounded-lg border border-border bg-surface-raised px-3 py-2 text-xs text-muted-foreground">
@@ -340,6 +337,7 @@ export function ToolAccessPage() {
           </Card>
         )}
       </section>
-    </Page>
+      </div>
+    </div>
   );
 }

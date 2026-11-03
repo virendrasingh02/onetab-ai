@@ -7,8 +7,6 @@ import {
   ErrorState,
   Input,
   LoadingState,
-  Page,
-  PageHeader,
   SegmentedControl,
   Tooltip,
   TooltipContent,
@@ -33,6 +31,7 @@ import {
   useStarredConnectors,
   type ConnectorSummary,
 } from '../services/connectors.js';
+import { StudioPage } from '../components/studio-page.js';
 
 type StatusFilter = 'all' | 'connected' | 'available';
 
@@ -97,12 +96,10 @@ export function ConnectorsPage() {
   );
 
   return (
-    <Page width="full">
-      <PageHeader
+    <StudioPage
+        icon={<Boxes />}
         title="App Connectors"
         description="Connect the apps your agents work in. Every action, read and event a connector offers becomes a tool, a workflow step or a trigger in the Studio."
-        icon={<Boxes />}
-        accent="cyan"
         actions={
           <div className="flex items-center gap-2">
             <Button size="sm" variant="outline" onClick={() => setOauthOpen(true)} leadingIcon={<KeyRound />}>
@@ -119,7 +116,7 @@ export function ConnectorsPage() {
             </Button>
           </div>
         }
-      />
+      >
 
       {connectors.isLoading ? (
         <LoadingState label="Loading connectors…" />
@@ -238,7 +235,7 @@ export function ConnectorsPage() {
       />
       <OAuthAppsDialog workspaceId={activeWorkspace?.id} open={oauthOpen} onOpenChange={setOauthOpen} />
       <AddToAgentDialog connector={addingToAgent} open={!!addingToAgent} onOpenChange={(o) => !o && setAddingToAgent(null)} />
-    </Page>
+    </StudioPage>
   );
 }
 

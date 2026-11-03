@@ -12,8 +12,6 @@ import {
   Input,
   ErrorState,
   LoadingState,
-  Page,
-  PageHeader,
   Panel,
   Table,
   TableBody,
@@ -37,6 +35,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { useStudioSession } from '../session-guard.js';
+import { StudioPage } from '../components/studio-page.js';
 
 /**
  * Agent chat turns. Workflow and canvas-agent runs live in the Runs page
@@ -145,13 +144,10 @@ export function ExecutionsPage() {
   });
 
   return (
-    <Page width="full" className="space-y-6">
-      {/* Header matching Admin PageHeader */}
-      <PageHeader
+    <StudioPage
+        icon={<MessageSquare />}
         title="Agent Chat Logs"
         description={`Prompts, answers, latency and token use for agent conversations in ${activeWorkspace.name}.`}
-        icon={<MessageSquare className="size-5" />}
-        accent="amber"
         actions={
           <Button
             variant="outline"
@@ -166,7 +162,7 @@ export function ExecutionsPage() {
             Refresh Runs
           </Button>
         }
-      />
+      >
 
       {/* Filter and Search Bar matching Admin toolbar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -446,6 +442,6 @@ export function ExecutionsPage() {
           )}
         </DialogContent>
       </Dialog>
-    </Page>
+    </StudioPage>
   );
 }

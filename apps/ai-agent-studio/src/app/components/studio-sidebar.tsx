@@ -3,19 +3,11 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
   Hint,
   ScrollArea,
   Sheet,
   SheetContent,
   SheetTitle,
-  UserAvatar,
-  WorkspaceAvatar,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -24,22 +16,17 @@ import {
   BookOpen,
   Bot,
   Boxes,
-  Check,
   ChevronDown,
-  ChevronsUpDown,
   Code2,
-  ExternalLink,
   Home,
-  MessageSquare,
   Layers,
   LayoutDashboard,
-  MoreHorizontal,
+  MessageSquare,
   Settings,
   ShieldAlert,
   UserPlus,
   Wand2,
   Wrench,
-  LogOut,
 } from 'lucide-react';
 import type { ComponentType, ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -52,10 +39,6 @@ import {
 import { useStudioSession } from '../session-guard.js';
 import { studioCorePath } from '../studio-core-bridge.js';
 import { studioSectionPaths } from './section-tabs.js';
-
-const WEB_APP_URL =
-  (import.meta.env?.['VITE_WEB_APP_URL'] as string | undefined) ??
-  'http://localhost:4200';
 
 export interface NavItem {
   to: string;
@@ -79,100 +62,100 @@ export interface NavGroup {
 /**
  * Navigation groups matching the studio architecture with authentic nav names.
  */
-function buildNavGroups(slug: string): NavGroup[] {
+export function buildNavGroups(slug: string): NavGroup[] {
   const groups: NavGroup[] = [
-  {
-    id: 'plan-run',
-    title: 'Plan, Run & Approve',
-    showsPendingApprovals: true,
-    items: [
-      { to: studioCorePath(slug), label: 'Studio Home', icon: Home, end: true },
-      { to: studioCorePath(slug, 'runs'), label: 'Runs', icon: Activity },
-      {
-        to: studioCorePath(slug, 'approvals'),
-        label: 'Human Approvals',
-        icon: ShieldAlert,
-        showsPendingApprovals: true,
-      },
-    ],
-  },
-  {
-    id: 'build-orchestrate',
-    title: 'Build & Orchestrate',
-    items: [
-      {
-        to: '/agents',
-        label: 'Agents & Workflows',
-        icon: Bot,
-        match: studioSectionPaths(slug, 'agents'),
-      },
-      {
-        to: '/templates',
-        label: 'Templates',
-        icon: Layers,
-      },
-    ],
-  },
-  {
-    id: 'intelligence-tools',
-    title: 'Intelligence & Tools',
-    items: [
-      {
-        to: '/connectors',
-        label: 'App Connectors',
-        icon: Boxes,
-      },
-      {
-        to: '/widgets',
-        label: 'Widget Center',
-        icon: LayoutDashboard,
-      },
-      {
-        to: '/knowledge',
-        label: 'Knowledge & RAG',
-        icon: BookOpen,
-      },
-      {
-        to: '/tools',
-        label: 'Tools',
-        icon: Wrench,
-        match: studioSectionPaths(slug, 'tools'),
-      },
-    ],
-  },
-  {
-    id: 'operations-governance',
-    title: 'Operations & Governance',
-    showsPendingApprovals: true,
-    items: [
-      {
-        to: '/executions',
-        label: 'Agent Chat Logs',
-        icon: MessageSquare,
-      },
-      {
-        to: '/analytics',
-        label: 'Studio Analytics',
-        icon: BarChart3,
-      },
-    ],
-  },
-  {
-    id: 'platform-config',
-    title: 'Platform & Config',
-    items: [
-      {
-        to: '/settings',
-        label: 'Settings & Security',
-        icon: Settings,
-      },
-      {
-        to: '/developer',
-        label: 'Developer Hub',
-        icon: Code2,
-      },
-    ],
-  },
+    {
+      id: 'plan-run',
+      title: 'Plan, Run & Approve',
+      showsPendingApprovals: true,
+      items: [
+        { to: studioCorePath(slug), label: 'Studio Home', icon: Home, end: true },
+        { to: studioCorePath(slug, 'runs'), label: 'Runs', icon: Activity },
+        {
+          to: studioCorePath(slug, 'approvals'),
+          label: 'Human Approvals',
+          icon: ShieldAlert,
+          showsPendingApprovals: true,
+        },
+      ],
+    },
+    {
+      id: 'build-orchestrate',
+      title: 'Build & Orchestrate',
+      items: [
+        {
+          to: '/agents',
+          label: 'Agents & Workflows',
+          icon: Bot,
+          match: studioSectionPaths(slug, 'agents'),
+        },
+        {
+          to: '/templates',
+          label: 'Templates',
+          icon: Layers,
+        },
+      ],
+    },
+    {
+      id: 'intelligence-tools',
+      title: 'Intelligence & Tools',
+      items: [
+        {
+          to: '/connectors',
+          label: 'App Connectors',
+          icon: Boxes,
+        },
+        {
+          to: '/widgets',
+          label: 'Widget Center',
+          icon: LayoutDashboard,
+        },
+        {
+          to: '/knowledge',
+          label: 'Knowledge & RAG',
+          icon: BookOpen,
+        },
+        {
+          to: '/tools',
+          label: 'Tools',
+          icon: Wrench,
+          match: studioSectionPaths(slug, 'tools'),
+        },
+      ],
+    },
+    {
+      id: 'operations-governance',
+      title: 'Operations & Governance',
+      showsPendingApprovals: true,
+      items: [
+        {
+          to: '/executions',
+          label: 'Agent Chat Logs',
+          icon: MessageSquare,
+        },
+        {
+          to: '/analytics',
+          label: 'Studio Analytics',
+          icon: BarChart3,
+        },
+      ],
+    },
+    {
+      id: 'platform-config',
+      title: 'Platform & Config',
+      items: [
+        {
+          to: '/settings',
+          label: 'Settings & Security',
+          icon: Settings,
+        },
+        {
+          to: '/developer',
+          label: 'Developer Hub',
+          icon: Code2,
+        },
+      ],
+    },
   ];
   return groups.map((g) => ({
     ...g,
@@ -299,8 +282,8 @@ function StudioNavSection({
 }) {
   return (
     <Collapsible open={open} onOpenChange={onOpenChange} asChild>
-      <section aria-label={title} className="mt-3">
-        <div className="group/section flex items-center px-2.5 py-1 select-none">
+      <section aria-label={title} className="mt-3.5 first:mt-1">
+        <div className="group/section flex items-center px-2 py-1 select-none">
           <CollapsibleTrigger
             aria-label={`Toggle ${title} section`}
             className="flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded-md text-xs font-semibold uppercase tracking-wide text-foreground/75 outline-none transition-colors duration-(--duration-fast) hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
@@ -335,6 +318,12 @@ function readLastRoutes(): Record<string, string> {
   }
 }
 
+/** Where to land when switching to `slug`: its last Studio page, else its Studio home. */
+export function lastStudioRoute(slug: string): string {
+  const saved = readLastRoutes()[slug];
+  return saved?.startsWith(`/w/${slug}/ai`) ? saved : `/w/${slug}/ai`;
+}
+
 function persistExpanded(value: Record<string, boolean>) {
   try {
     localStorage.setItem(EXPANDED_GROUPS_KEY, JSON.stringify(value));
@@ -352,8 +341,10 @@ export interface StudioSidebarProps {
 }
 
 /**
- * Full-height Studio sidebar: workspace switcher header, Overview, collapsible
- * nav sections, and a pinned footer (Invite Team + profile menu).
+ * Clean floating card Studio sidebar matching the main platform shell layout:
+ * - Top CTA: Create with AI button
+ * - Scrollable Navigation: Authentic categorized sections with collapsible state
+ * - Pinned Footer: Invite Team button
  */
 export function StudioSidebar({
   className,
@@ -361,7 +352,7 @@ export function StudioSidebar({
   mobileOpen = false,
   onCloseMobile,
 }: StudioSidebarProps) {
-  const { user, activeWorkspace, workspaces, setActiveWorkspace, signOut } = useStudioSession();
+  const { activeWorkspace } = useStudioSession();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -411,7 +402,7 @@ export function StudioSidebar({
       persistExpanded(next);
       return next;
     });
-  }, [location.pathname]);
+  }, [location.pathname, navGroups]);
 
   // Remember where the user was in each workspace so switching back resumes it.
   useEffect(() => {
@@ -430,117 +421,37 @@ export function StudioSidebar({
     }
   }, [activeWorkspace.slug, location.pathname, location.search]);
 
-  // The URL owns the workspace: go to the target workspace's URL (its last page,
-  // else its Studio home) and the route guard swaps the session to match.
-  const switchWorkspace = (ws: (typeof workspaces)[number]) => {
-    if (ws.id === activeWorkspace.id) return;
-    const saved = readLastRoutes()[ws.slug];
-    const target = saved?.startsWith(`/w/${ws.slug}/ai`) ? saved : `/w/${ws.slug}/ai`;
-    setActiveWorkspace(ws);
-    onCloseMobile?.();
-    navigate(target);
-  };
-
-  const displayName = user.name || user.email || 'Studio user';
-  const displayEmail = user.email || '';
-
-  // Same shared avatars the main platform renders, so a workspace keeps its
-  // logo/icon/tint and a person keeps their photo/gradient across both apps.
-  const workspaceMark = (
-    <WorkspaceAvatar
-      name={activeWorkspace.name || 'Workspace'}
-      src={activeWorkspace.avatarUrl}
-      icon={activeWorkspace.icon}
-      iconColor={activeWorkspace.iconColor}
-      avatarColor={activeWorkspace.avatarColor}
-      seed={activeWorkspace.id}
-      size="md"
-      className="shrink-0"
-    />
-  );
-
   /** The navigation panel, shared by the desktop rail and the mobile sheet. */
   const renderPanel = (collapsed: boolean) => (
     <>
-      {/* Header: workspace switcher */}
-      <div className="h-14 px-2.5 flex items-center border-b border-border/40 shrink-0">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className={cn(
-                'flex w-full min-w-0 items-center gap-2.5 rounded-xl p-1.5 text-left transition-colors hover:bg-accent/70 cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring',
-                collapsed && 'justify-center',
-              )}
-              aria-label="Switch workspace"
-            >
-              {workspaceMark}
-              {!collapsed && (
-                <>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold leading-tight text-foreground">
-                      {activeWorkspace.name}
-                    </div>
-                    <div className="truncate text-xs text-muted-foreground">AI Agent Studio</div>
-                  </div>
-                  <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
-                </>
-              )}
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-60">
-            <DropdownMenuLabel className="text-xs text-muted-foreground">Workspaces</DropdownMenuLabel>
-            {workspaces.map((ws) => (
-              <DropdownMenuItem
-                key={ws.id}
-                onClick={() => switchWorkspace(ws)}
-                className="gap-2 text-sm"
-              >
-                <WorkspaceAvatar
-                  name={ws.name || 'Workspace'}
-                  src={ws.avatarUrl}
-                  icon={ws.icon}
-                  iconColor={ws.iconColor}
-                  avatarColor={ws.avatarColor}
-                  seed={ws.id}
-                  size="xs"
-                />
-                <span className="truncate">{ws.name}</span>
-                {ws.id === activeWorkspace.id && <Check className="size-4 ml-auto text-primary" />}
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild className="gap-2 text-sm">
-              <a href={`${WEB_APP_URL}/w/${activeWorkspace.slug}`}>
-                <ExternalLink className="size-4" />
-                <span>Open main platform</span>
-              </a>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
       {/* Primary journey entry: describe → plan → build */}
-      <div className="shrink-0 px-2.5 pt-3">
+      <div className="shrink-0 p-2.5 pb-2.5 border-b border-border/40">
         {collapsed ? (
-          <Hint side="right" label="Create with AI">
-            <Button asChild size="icon-lg" className="mx-auto flex">
-              <NavLink to="/create" onClick={onCloseMobile} aria-label="Create with AI">
-                <Wand2 />
-              </NavLink>
-            </Button>
-          </Hint>
+          <div className="flex justify-center">
+            <Hint side="right" label="Create with AI">
+              <Button asChild size="icon-lg" className="size-9 rounded-xl shadow-xs cursor-pointer">
+                <NavLink to="/create" onClick={onCloseMobile} aria-label="Create with AI">
+                  <Wand2 className="size-4 shrink-0" />
+                </NavLink>
+              </Button>
+            </Hint>
+          </div>
         ) : (
-          <Button asChild size="lg" className="w-full pointer-coarse:min-h-11">
+          <Button
+            asChild
+            size="lg"
+            className="w-full gap-2 rounded-xl font-semibold shadow-xs cursor-pointer pointer-coarse:min-h-11"
+          >
             <NavLink to="/create" onClick={onCloseMobile}>
-              <Wand2 /> Create with AI
+              <Wand2 className="size-4 shrink-0" />
+              <span>Create with AI</span>
             </NavLink>
           </Button>
         )}
       </div>
 
       {/* Scrollable Navigation Body */}
-      <ScrollArea className="flex-1 px-2.5 py-3">
+      <ScrollArea className="flex-1 min-h-0" contentClassName="p-2.5 pt-3 pb-3 space-y-2">
         <nav className="space-y-0.5" aria-label="Studio">
           {navGroups.map((group) => {
             const rows = group.items.map((item) => (
@@ -584,102 +495,45 @@ export function StudioSidebar({
         </nav>
       </ScrollArea>
 
-      {/* Pinned Footer: Invite Team + profile */}
-      <div className="p-2.5 border-t border-border/40 space-y-1 shrink-0">
+      {/* Pinned Footer: Invite Team */}
+      <div className="p-2.5 border-t border-border/40 shrink-0">
         {collapsed ? (
-          <Hint side="right" label="Invite Team">
-            <button
-              type="button"
-              onClick={() => openInvite()}
-              aria-label="Invite Team"
-              className={cn(ICON_ROW, ICON_IDLE)}
-            >
-              <UserPlus className="size-4 shrink-0" />
-            </button>
-          </Hint>
+          <div className="flex justify-center">
+            <Hint side="right" label="Invite Team">
+              <button
+                type="button"
+                onClick={() => openInvite()}
+                aria-label="Invite Team"
+                className={cn(ICON_ROW, ICON_IDLE)}
+              >
+                <UserPlus className="size-4 shrink-0" />
+              </button>
+            </Hint>
+          </div>
         ) : (
-          <button type="button" onClick={() => openInvite()} className={cn(ROW_BASE, ROW_IDLE)}>
-            <UserPlus className="size-4 shrink-0" />
+          <button
+            type="button"
+            onClick={() => openInvite()}
+            className={cn(ROW_BASE, ROW_IDLE)}
+          >
+            <UserPlus className="size-4 shrink-0 text-muted-foreground" />
             <span className="flex-1 truncate">Invite Team</span>
           </button>
         )}
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className={cn(
-                'group flex w-full items-center gap-2.5 rounded-xl p-1.5 text-left transition-colors hover:bg-accent/70 cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring',
-                collapsed && 'justify-center',
-              )}
-              aria-label="Account menu"
-            >
-              <UserAvatar
-                name={displayName}
-                src={user.avatarUrl ?? undefined}
-                seed={user.id}
-                size="md"
-                indicator={false}
-              />
-
-              {!collapsed && (
-                <>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold leading-tight text-foreground">
-                      {displayName}
-                    </div>
-                    {displayEmail ? (
-                      <div className="truncate text-xs text-muted-foreground">{displayEmail}</div>
-                    ) : null}
-                  </div>
-                  <MoreHorizontal className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground" />
-                </>
-              )}
-            </button>
-          </DropdownMenuTrigger>
-
-          <DropdownMenuContent align="start" side="top" className="w-60">
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col gap-1">
-                <p className="text-sm font-semibold leading-none text-foreground">{displayName}</p>
-                {displayEmail ? (
-                  <p className="text-xs leading-none text-muted-foreground">{displayEmail}</p>
-                ) : null}
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate('/settings')} className="gap-2 text-sm">
-              <Settings className="size-4 text-muted-foreground" />
-              <span>Studio Settings</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate('/developer')} className="gap-2 text-sm">
-              <BookOpen className="size-4 text-muted-foreground" />
-              <span>Documentation</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              variant="destructive"
-              onSelect={() => void signOut()}
-              className="gap-2 text-sm"
-            >
-              <LogOut className="size-4" />
-              <span>Sign out</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
     </>
   );
 
   return (
     <>
-      {/* Desktop rail */}
+      {/* Desktop floating card rail */}
       <aside
         className={cn(
-          'hidden md:flex flex-col border-r border-border/70 bg-card transition-all duration-200 select-none shrink-0 h-dvh',
-          collapsedProp ? 'w-[68px]' : 'w-[272px]',
+          'group/sidebar hidden md:flex flex-col h-full shrink-0 overflow-hidden rounded-xl border border-border bg-surface-muted text-sidebar-foreground transition-[width] duration-150',
+          collapsedProp ? 'w-[68px]' : 'w-[260px]',
           className,
         )}
+        aria-label="Studio navigation"
       >
         {renderPanel(collapsedProp)}
       </aside>
@@ -690,7 +544,7 @@ export function StudioSidebar({
           side="left"
           hideCloseButton
           aria-describedby={undefined}
-          className="w-[272px] max-w-[272px] gap-0 border-r border-border/70 bg-card p-0 select-none md:hidden"
+          className="w-[260px] max-w-[85vw] gap-0 border-r border-border bg-surface-muted p-0 select-none md:hidden"
         >
           <SheetTitle className="sr-only">Studio navigation</SheetTitle>
           {renderPanel(false)}

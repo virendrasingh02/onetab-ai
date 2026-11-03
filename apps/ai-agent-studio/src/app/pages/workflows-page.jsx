@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from '../router.js';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
+  FilterChips,
   Badge,
   confirm,
   Button,
@@ -11,11 +12,11 @@ import {
   DialogTitle,
   DialogFooter,
   DialogBody,
+  EmptyState,
   ErrorState,
   LoadingState,
   Input,
-  Page,
-  PageHeader,
+  SearchInput,
   AIModelBadge,
   toast,
   Label,
@@ -37,13 +38,13 @@ import {
   GitBranch,
   Play,
   Plus,
-  Search,
   Sparkles,
   Trash2,
   Zap,
 } from 'lucide-react';
 import { agentService } from '../services/agentService.js';
-import { SectionTabs } from '../components/section-tabs.js';
+import { SectionHeader } from '../components/section-tabs.js';
+import { ListToolbar } from '../components/list-toolbar.js';
 import { useStudioSession } from '../session-guard.js';
 
 export function WorkflowsPage() {
@@ -52,7 +53,7 @@ export function WorkflowsPage() {
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState('');
-  const [filterTrigger, setFilterTrigger] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [viewMode, setViewMode] = useState('grid');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isAiCreateOpen, setIsAiCreateOpen] = useState(false);
@@ -123,69 +124,33 @@ export function WorkflowsPage() {
         !search.trim() ||
         w.name.toLowerCase().includes(q) ||
         (w.description && w.description.toLowerCase().includes(q));
-      return matchesSearch;
+      const isPub = w.status === 'published';
+      const matchesStatus = statusFilter === 'all' || (statusFilter === 'published' ? isPub : !isPub);
+      return matchesSearch && matchesStatus;
     });
-  }, [agents, search]);
+  }, [agents, search, statusFilter]);
 
   return (
-    <Page width="full" className="space-y-6">
-      {/* Header bar matching Admin */}
-      <PageHeader
-        title="Workflows"
-        description="Multi-step automations with triggers, branches and approval steps."
-        icon={<GitBranch className="size-5" />}
-        toolbar={<SectionTabs section="agents" />}
-        accent="blue"
+    <div className="min-h-0 flex flex-1 flex-col">
+      <SectionHeader
+        section="agents"
+        counts={{ workflows: agents.length }}
         actions={
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsAiCreateOpen(true)}
-              className="gap-1.5 text-xs text-primary border-primary/30 bg-primary/5 hover:bg-primary/10"
-            >
-              <Sparkles className="size-3.5" />
-              Build with AI Prompt
+          <>
+            <Button size="sm" variant="outline" leadingIcon={<Sparkles />} onClick={() => setIsAiCreateOpen(true)}>
+              Build with AI
             </Button>
-
-            <Button
-              size="sm"
-              variant="primary"
-              onClick={() => setIsCreateOpen(true)}
-              className="gap-1.5 text-xs font-semibold"
-            >
-              <Plus className="size-3.5" />
-              New Workflow
+            <Button size="sm" variant="primary" leadingIcon={<Plus />} onClick={() => setIsCreateOpen(true)}>
+              New workflow
             </Button>
-          </div>
+          </>
         }
       />
 
-      {/* Search & Filter Bar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
-          <Input
-            placeholder="Search workflows by name or description..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 text-xs"
-          />
-        </div>
-
-        <div className="flex items-center gap-2">
-          <SegmentedControl
-            aria-label="Filter by trigger"
-            value={filterTrigger}
-            onChange={setFilterTrigger}
-            options={[
-              { value: 'ALL', label: 'All Triggers' },
-              { value: 'SCHEDULE', label: 'SCHEDULE' },
-              { value: 'WEBHOOK', label: 'WEBHOOK' },
-              { value: 'CHAT', label: 'CHAT' },
-            ]}
-          />
-
+      <div className="flex-1 p-4 sm:p-6 space-y-4">
+      <ListToolbar
+        aria-label="Filter workflows"
+        end={
           <SegmentedControl
             aria-label="View mode"
             value={viewMode}
@@ -195,14 +160,38 @@ export function WorkflowsPage() {
               { value: 'list', label: 'List' },
             ]}
           />
-        </div>
-      </div>
+        }
+      >
+        <SearchInput
+          value={search}
+          onValueChange={setSearch}
+          placeholder="Search by name or description…"
+          aria-label="Search workflows"
+          wrapperClassName="w-full sm:w-64"
+        />
+        <FilterChips
+          aria-label="Filter by status"
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={[
+            { value: 'all', label: 'All', count: agents.length },
+            { value: 'published', label: 'Published', count: agents.filter((w) => w.status === 'published').length },
+            { value: 'draft', label: 'Draft', count: agents.filter((w) => w.status !== 'published').length },
+          ]}
+        />
+      </ListToolbar>
 
       {/* Grid View */}
       {isLoading ? (
         <LoadingState label="Loading workflows..." />
       ) : isError ? (
         <ErrorState title="Couldn’t load workflows" description="The platform didn’t answer. Try again in a moment." onRetry={() => void refetch()} />
+      ) : filteredWorkflows.length === 0 ? (
+        <EmptyState
+          icon={<GitBranch />}
+          title={agents.length ? 'No workflows match' : 'No workflows yet'}
+          description={agents.length ? 'Try another search or status.' : 'Build one on the canvas, or describe it and let AI draft it.'}
+        />
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredWorkflows.map((workflow) => {
@@ -224,12 +213,12 @@ export function WorkflowsPage() {
               >
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2.5">
-                      <div className="flex size-9 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
                         <GitBranch className="size-4.5" />
                       </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                      <div className="min-w-0">
+                        <h3 className="truncate text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
                           {workflow.name}
                         </h3>
                         <div className="flex items-center gap-2 pt-0.5">
@@ -242,7 +231,7 @@ export function WorkflowsPage() {
                     <Badge
                       variant={isPub ? 'default' : 'outline'}
                       className={cn(
-                        'text-2xs px-1.5 py-0.2 uppercase tracking-wide',
+                        'shrink-0 text-2xs px-1.5 py-0.2 uppercase tracking-wide',
                         isPub ? 'bg-success/15 text-success border-success/30' : 'text-muted-foreground',
                       )}
                     >
@@ -483,6 +472,7 @@ export function WorkflowsPage() {
           </form>
         </DialogContent>
       </Dialog>
-    </Page>
+      </div>
+    </div>
   );
 }

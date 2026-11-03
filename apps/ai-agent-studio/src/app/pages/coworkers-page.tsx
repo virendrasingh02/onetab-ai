@@ -12,8 +12,6 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
-  Page,
-  PageHeader,
   Progress,
   confirm,
   toast,
@@ -26,6 +24,8 @@ import {
   Activity,
   Bot,
   ChevronDown,
+  ChevronsDownUp,
+  ChevronsUpDown,
   Cpu,
   ExternalLink,
   GitBranch,
@@ -55,7 +55,7 @@ import {
 import { AppConnectorIcon } from '../components/common/app-connector-icon.jsx';
 import { useNavigate } from '../router.js';
 import { agentService } from '../services/agentService.js';
-import { SectionTabs } from '../components/section-tabs.js';
+import { SectionHeader } from '../components/section-tabs.js';
 import { useStudioSession } from '../session-guard.js';
 
 const STATE_LABEL: Record<RosterConnector['state'], string> = {
@@ -110,28 +110,32 @@ export function CoworkersPage() {
   const allOpen = coworkers.length > 0 && coworkers.every((c) => expanded.has(c.id));
 
   return (
-    <Page width="full">
-      <PageHeader
-        title="AI Coworkers"
-        description="Coworkers plan the work, hand it to their specialist agents and act through connected apps. Writes, sends and payments wait for your approval."
-        icon={<Users />}
-        accent="blue"
-        toolbar={<SectionTabs section="agents" />}
+    <div className="min-h-0 flex flex-1 flex-col">
+      <SectionHeader
+        section="agents"
+        counts={{ coworkers: coworkers.length }}
         actions={
-          <div className="flex flex-wrap items-center gap-2">
+          <>
             {coworkers.length ? (
-              <Button size="sm" variant="outline" onClick={() => setExpanded(allOpen ? new Set() : new Set(coworkers.map((c) => c.id)))}>
+              <Button
+                size="sm"
+                variant="outline"
+                leadingIcon={allOpen ? <ChevronsDownUp /> : <ChevronsUpDown />}
+                onClick={() => setExpanded(allOpen ? new Set() : new Set(coworkers.map((c) => c.id)))}
+              >
                 {allOpen ? 'Collapse all' : 'Expand all'}
               </Button>
             ) : null}
             {canCreate ? (
-              <Button size="sm" leadingIcon={<Plus />} onClick={() => setCreateOpen(true)}>
+              <Button size="sm" variant="primary" leadingIcon={<Plus />} onClick={() => setCreateOpen(true)}>
                 New coworker
               </Button>
             ) : null}
-          </div>
+          </>
         }
       />
+
+      <div className="flex-1 p-4 sm:p-6 space-y-4">
       <CoworkerCreateDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
@@ -168,7 +172,8 @@ export function CoworkersPage() {
           ) : null}
         </div>
       )}
-    </Page>
+      </div>
+    </div>
   );
 }
 

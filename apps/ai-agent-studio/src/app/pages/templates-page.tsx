@@ -1,5 +1,5 @@
 import { agentsApi } from '@org/api-client';
-import { Badge, Button, Card, Input, Page, PageHeader, ResponsiveTabs, toast } from '@org/ui';
+import { Badge, Button, Card, SearchInput, toast } from '@org/ui';
 import { TemplateGallery } from '@org/web-automations';
 import { cn } from '@org/utils';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -15,7 +15,6 @@ import {
   Inbox,
   Layers,
   MapPin,
-  Search,
   Target,
   Users,
   Zap,
@@ -27,6 +26,7 @@ import type { StudioTemplate } from '@org/types';
 import { useStudioTemplates } from '../services/templates.js';
 import { useConnectors } from '../services/connectors.js';
 import { useStudioSession } from '../session-guard.js';
+import { StudioPage } from '../components/studio-page.js';
 
 /** The icons templates name in `StudioTemplate.icon`. */
 const TEMPLATE_ICONS: Record<string, LucideIcon> = {
@@ -139,36 +139,25 @@ export function TemplatesPage() {
   });
 
   return (
-    <Page width="full" className="space-y-6">
-      {/* Header bar matching Admin */}
-      <PageHeader
+    <StudioPage
+        icon={<Layers />}
         title="Agent Templates"
         description="Ready-made agents and workflows. Pick one and adjust it before you save."
-        icon={<Layers className="size-5" />}
-        accent="blue"
-        toolbar={
-          <ResponsiveTabs
-            aria-label="Kind of template"
-            variant="underline"
-            size="sm"
-            value={kind}
-            onValueChange={setKind}
-            items={TEMPLATE_KINDS.map((k) => ({ value: k.value, label: k.label }))}
+        tabs={{
+          value: kind,
+          onValueChange: setKind,
+          items: TEMPLATE_KINDS,
+        }}
+        actions={
+          <SearchInput
+            value={search}
+            onValueChange={setSearch}
+            placeholder="Search templates & tags…"
+            aria-label="Search templates"
+            wrapperClassName="w-full sm:w-72"
           />
         }
-        actions={
-          <div className="relative w-full sm:w-72">
-            <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground pointer-events-none" />
-            <Input
-              type="text"
-              placeholder="Search templates & tags…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-8 pl-8 text-xs"
-            />
-          </div>
-        }
-      />
+      >
 
       {kind === 'planned' ? (
         <TemplateGallery slug={activeWorkspace.slug} query={search.trim().toLowerCase()} />
@@ -305,6 +294,6 @@ export function TemplatesPage() {
       </div>
       </>
       )}
-    </Page>
+    </StudioPage>
   );
 }

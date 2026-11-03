@@ -25,6 +25,12 @@ import {
   DialogBody,
   DialogHeader,
   DialogTitle,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuTrigger,
   EmptyState,
   Field,
   Hint,
@@ -47,28 +53,36 @@ import { useCanManageAIResource, useCurrentWorkspace, useWorkspacePermission } f
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Background,
-  Controls,
+  BaseEdge,
+  getSmoothStepPath,
   Handle,
   MiniMap,
+  Panel,
   Position,
   ReactFlow,
   ReactFlowProvider,
+  useReactFlow,
+  useViewport,
   addEdge,
   useEdgesState,
   useNodesState,
   type Connection,
   type Edge,
+  type EdgeProps,
   type Node,
   type NodeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import {
   ArrowLeft,
+  Check,
   ClipboardCopy,
   Clock,
   CopyPlus,
   Cpu,
   ExternalLink,
+  Maximize2,
+  Minus,
   Play,
   Plus,
   Power,
@@ -101,20 +115,280 @@ function aiPath(slug: string | undefined, ...rest: string[]) {
   return [`/w/${slug ?? ''}/ai`, ...rest].join('/');
 }
 
-export const CATEGORY_STYLE: Record<NodeCategory, { border: string; bg: string; text: string; handle: string; hex: string }> = {
-  triggers: { border: 'border-accent-amber/50', bg: 'bg-accent-amber/10', text: 'text-accent-amber', handle: '!bg-accent-amber', hex: '#f59e0b' },
-  ai: { border: 'border-accent-violet/50', bg: 'bg-accent-violet/10', text: 'text-accent-violet', handle: '!bg-accent-violet', hex: '#8b5cf6' },
-  knowledge: { border: 'border-accent-blue/50', bg: 'bg-accent-blue/10', text: 'text-accent-blue', handle: '!bg-accent-blue', hex: '#3b82f6' },
-  logic: { border: 'border-accent-cyan/50', bg: 'bg-accent-cyan/10', text: 'text-accent-cyan', handle: '!bg-accent-cyan', hex: '#06b6d4' },
-  tools: { border: 'border-accent-green/50', bg: 'bg-accent-green/10', text: 'text-accent-green', handle: '!bg-accent-green', hex: '#10b981' },
+/** Cards are neutral; a category only tints the step's glyph and its minimap dot. */
+export const CATEGORY_STYLE: Record<NodeCategory, { text: string; hex: string }> = {
+  triggers: { text: 'text-accent-amber', hex: '#f59e0b' },
+  ai: { text: 'text-accent-violet', hex: '#8b5cf6' },
+  knowledge: { text: 'text-accent-blue', hex: '#3b82f6' },
+  logic: { text: 'text-accent-cyan', hex: '#06b6d4' },
+  tools: { text: 'text-accent-green', hex: '#10b981' },
 };
 
 /** Per-step outcome of the last test run, painted onto the cards. */
 const RunStatusContext = createContext<Record<string, string>>({});
 
+function WorkflowHandle({
+  type,
+  position,
+  id,
+  style,
+  className,
+}: {
+  type: 'source' | 'target';
+  position: Position;
+  id?: string;
+  style?: React.CSSProperties;
+  className?: string;
+}) {
+  const isTop = position === Position.Top;
+  const isBottom = position === Position.Bottom;
+  const isLeft = position === Position.Left;
+  const isRight = position === Position.Right;
+
+  const positionOffsetStyle: React.CSSProperties = isTop
+    ? { top: -11 }
+    : isBottom
+    ? { bottom: -11 }
+    : isLeft
+    ? { left: -11 }
+    : isRight
+    ? { right: -11 }
+    : {};
+
+  return (
+    <Handle
+      type={type}
+      id={id}
+      position={position}
+      style={{ ...positionOffsetStyle, ...style }}
+      className={cn(
+        'group/handle !size-8 !border-0 !bg-transparent !p-0 !m-0 !flex !items-center !justify-center !cursor-crosshair z-20',
+        className,
+      )}
+    >
+      <span
+        className={cn(
+          'relative size-3.5 rounded-full border-2 border-muted-foreground/70 bg-surface shadow-xs transition-all duration-150 pointer-events-none',
+          'group-hover/handle:scale-125 group-hover/handle:border-foreground group-hover/handle:ring-2 group-hover/handle:ring-primary/40',
+        )}
+      />
+    </Handle>
+  );
+}
+
+/** Arrowhead drawn at the target handle, pointing into the card. */
+function EdgeArrowhead({
+  x: endX,
+  y: endY,
+  position = Position.Top,
+  color,
+  inset = 9,
+}: {
+  x: number;
+  y: number;
+  position?: Position;
+  color: string;
+  inset?: number;
+}) {
+  const OUTWARD: Record<string, [number, number]> = {
+    [Position.Left]: [-1, 0],
+    [Position.Right]: [1, 0],
+    [Position.Top]: [0, -1],
+    [Position.Bottom]: [0, 1],
+  };
+  const [ox, oy] = OUTWARD[position] ?? [0, -1];
+  const [dx, dy] = [-ox, -oy];
+  const x = endX + dx * inset;
+  const y = endY + dy * inset;
+  const baseX = x - dx * 8;
+  const baseY = y - dy * 8;
+  const px = -dy * 4.5;
+  const py = dx * 4.5;
+  return (
+    <path
+      d={`M${x},${y} L${baseX + px},${baseY + py} L${baseX - px},${baseY - py} Z`}
+      fill={color}
+      style={{ transition: 'fill 150ms ease', pointerEvents: 'none' }}
+    />
+  );
+}
+
+function WorkflowEdge(props: EdgeProps) {
+  const {
+    id,
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition = Position.Bottom,
+    targetPosition = Position.Top,
+    style = {},
+    markerEnd,
+    data = {},
+    selected,
+    animated,
+  } = props;
+  const [isHovered, setIsHovered] = useState(false);
+
+  const [edgePath] = getSmoothStepPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+    borderRadius: 14,
+  });
+
+  const isFlowAnimated = animated || Boolean((data as Record<string, unknown>)?.['animated']);
+  const defaultStroke = selected || isHovered
+    ? 'var(--color-primary, #6366f1)'
+    : 'var(--color-border-strong, #cbd5e1)';
+
+  return (
+    <>
+      <BaseEdge
+        id={id}
+        path={edgePath}
+        markerEnd={markerEnd}
+        style={{
+          ...style,
+          strokeWidth: selected || isHovered ? 2 : 1.5,
+          stroke: defaultStroke,
+          strokeDasharray: isFlowAnimated ? '6 6' : style?.strokeDasharray,
+          transition: 'stroke 150ms ease, stroke-width 150ms ease',
+        }}
+      />
+      {markerEnd ? null : (
+        <EdgeArrowhead x={targetX} y={targetY} position={targetPosition} color={defaultStroke} />
+      )}
+      <path
+        d={edgePath}
+        fill="none"
+        stroke="transparent"
+        strokeWidth={24}
+        className="cursor-pointer"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      />
+    </>
+  );
+}
+
+/** Replaces React Flow's built-ins, so saved edges (no `type`) render with it unchanged. */
+export const workflowEdgeTypes = {
+  default: WorkflowEdge,
+  smoothstep: WorkflowEdge,
+};
+
+export function WorkflowCanvasControls() {
+  const reactFlow = useReactFlow();
+  const { zoom } = useViewport();
+  const ZOOM_PRESETS = [0.5, 0.75, 1, 1.5, 2];
+
+  return (
+    <Panel position="bottom-left" className="!m-0 !p-0 !bottom-5 !left-5 z-20">
+      <div
+        role="group"
+        aria-label="Canvas controls"
+        className="flex h-9 items-center gap-1 rounded-[14px] border border-border bg-surface p-1 shadow-sm select-none"
+      >
+        <div className="flex items-center">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            type="button"
+            onClick={() => reactFlow.zoomOut({ duration: 200 })}
+            aria-label="Zoom out"
+            title="Zoom out (Ctrl -)"
+            className="rounded-lg disabled:opacity-40"
+          >
+            <Minus className="size-3.5" />
+          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                type="button"
+                aria-label={`Zoom level ${Math.round(zoom * 100)}%`}
+                title="Zoom options"
+                className="rounded-lg disabled:opacity-40 w-12 text-xs font-semibold tabular-nums text-foreground data-[state=open]:bg-surface-raised"
+              >
+                {Math.round(zoom * 100)}%
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="top" align="start" sideOffset={8} className="min-w-44">
+              <DropdownMenuItem onSelect={() => reactFlow.fitView({ padding: 0.2, duration: 250 })}>
+                Zoom to fit
+                <DropdownMenuShortcut keys={['Shift', '1']} />
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {ZOOM_PRESETS.map((preset) => {
+                const isCurrent = Math.round(zoom * 100) === preset * 100;
+                return (
+                  <DropdownMenuItem
+                    key={preset}
+                    onSelect={() => reactFlow.zoomTo(preset, { duration: 250 })}
+                    className={cn(isCurrent && 'font-semibold')}
+                  >
+                    Zoom to {preset * 100}%
+                    {preset === 1 && <DropdownMenuShortcut keys={['Shift', '0']} />}
+                    {isCurrent && (
+                      <Check className={cn('size-3.5 text-primary', preset !== 1 && 'ml-auto')} />
+                    )}
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            type="button"
+            onClick={() => reactFlow.zoomIn({ duration: 200 })}
+            aria-label="Zoom in"
+            title="Zoom in (Ctrl +)"
+            className="rounded-lg disabled:opacity-40"
+          >
+            <Plus className="size-3.5" />
+          </Button>
+        </div>
+
+        <div className="h-4 w-px shrink-0 bg-border" />
+
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          type="button"
+          onClick={() => reactFlow.fitView({ padding: 0.2, duration: 250 })}
+          aria-label="Zoom to fit"
+          title="Zoom to fit (Shift+1)"
+          className="rounded-lg disabled:opacity-40"
+        >
+          <Maximize2 className="size-3.5" />
+        </Button>
+      </div>
+    </Panel>
+  );
+}
+
+export function WorkflowMiniMap() {
+  return (
+    <MiniMap
+      nodeColor={(node) => CATEGORY_STYLE[catalogItem(String(node.type))?.category ?? 'tools'].hex}
+      nodeStrokeWidth={3}
+      className="!hidden !rounded-xl !border-border !bg-surface !shadow-sm sm:!block"
+      maskColor="color-mix(in oklab, var(--color-background) 65%, transparent)"
+    />
+  );
+}
+
 function nodeSummary(item: NodeCatalogItem | undefined, data: Record<string, unknown>): string {
   if (!item) return String(data['subtitle'] ?? '');
-  if (item.type === 'TRIGGER') {
+  if (item.type === 'TRIGGER' || item.type === 'START') {
     const kind = String(data['triggerKind'] ?? 'MANUAL');
     if (kind === 'CRON') return `Schedule · ${String(data['cron'] ?? '')}`;
     if (kind === 'EVENT') return WORKFLOW_EVENTS.find((e) => e.value === data['event'])?.label ?? 'On an event';
@@ -138,62 +412,74 @@ function StepNode({ data, selected, id }: NodeProps) {
   const isEnd = type === 'OUTPUT';
   const disabled = record['disabled'] === true;
   const runStatus = useContext(RunStatusContext)[id];
+  const summary = nodeSummary(item, record);
+
+  const title = String(record['label'] || item?.label || 'Step');
+  // Studio's card header: title over one muted line saying what the step does
+  const subtitle = summary || item?.description || item?.label || type;
 
   return (
-    <Card
+    <div
       aria-disabled={disabled || undefined}
       className={cn(
-        'w-[240px] cursor-pointer select-none rounded-xl border-2 bg-surface p-3 shadow-md transition-shadow',
-        selected ? 'border-primary shadow-lg ring-2 ring-primary/25' : style.border,
+        'group relative w-[260px] rounded-xl border border-border bg-surface p-3.5 shadow-sm transition-all select-none motion-reduce:transition-none',
+        selected ? 'border-foreground/60 ring-2 ring-foreground/60 shadow-md' : 'hover:border-border-strong',
         disabled && 'border-dashed opacity-50',
-        runStatus === 'SUCCESS' && 'ring-2 ring-success/60',
-        runStatus === 'FAILED' && 'ring-2 ring-destructive/70',
-        runStatus === 'WAITING' && 'ring-2 ring-warning/70',
+        runStatus === 'SUCCESS' && 'ring-2 ring-success/60 border-success/60',
+        runStatus === 'FAILED' && 'ring-2 ring-destructive/70 border-destructive/70',
+        runStatus === 'WAITING' && 'ring-2 ring-warning/70 border-warning/70',
       )}
     >
-      {!isTrigger ? (
-        <Handle type="target" position={Position.Top} className={cn('h-3 w-3 rounded-full border-2 border-surface', style.handle)} />
-      ) : null}
-      <div className="flex items-center gap-2.5">
-        <span className={cn('shrink-0 rounded-lg p-1.5', style.bg, style.text)}>
-          <Icon className="size-4" aria-hidden />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className={cn('text-[10px] font-semibold uppercase tracking-wider', style.text)}>{item?.label ?? type}</p>
-          <p className="truncate text-xs font-semibold text-foreground">{String(record['label'] || item?.label || 'Step')}</p>
+      {!isTrigger ? <WorkflowHandle type="target" position={Position.Top} /> : null}
+
+      <div className="relative flex items-center gap-2.5">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface shadow-2xs">
+          <Icon className={cn('size-[18px]', style.text)} aria-hidden />
         </div>
-        {runStatus ? (
-          <span className="sr-only">Last run: {runStatus.toLowerCase()}</span>
-        ) : null}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-foreground" title={title}>
+            {title}
+          </p>
+          <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-muted-foreground" title={subtitle}>
+            {subtitle}
+          </p>
+        </div>
+        {runStatus ? <span className="sr-only">Last run: {runStatus.toLowerCase()}</span> : null}
       </div>
-      <p className="mt-1.5 truncate rounded border border-border/50 bg-background/60 px-2 py-1 font-mono text-[10px] text-muted-foreground">
-        {nodeSummary(item, record)}
-      </p>
+
       {branches ? (
-        <div className="relative mt-2 flex justify-between gap-1 border-t border-border/50 pt-1 font-mono text-[9px] text-muted-foreground">
+        <div className="relative mt-3 flex justify-between gap-1 border-t border-border/60 pt-1.5 text-2xs font-medium text-muted-foreground">
           {branches.map((branch, index) => (
             <span key={branch} className="relative flex-1 truncate text-center">
               {branch}
-              <Handle
+              <WorkflowHandle
                 type="source"
                 id={branch}
                 position={Position.Bottom}
                 style={{ left: `${((index + 0.5) / branches.length) * 100}%` }}
-                className={cn('h-2.5 w-2.5 rounded-full border-2 border-surface', style.handle)}
               />
             </span>
           ))}
         </div>
       ) : !isEnd ? (
-        <Handle type="source" position={Position.Bottom} className={cn('h-3 w-3 rounded-full border-2 border-surface', style.handle)} />
+        <WorkflowHandle type="source" position={Position.Bottom} />
       ) : null}
-    </Card>
+    </div>
   );
 }
 
-export const nodeTypes = Object.fromEntries(
+const BASE_NODE_TYPES = Object.fromEntries(
   [...new Set([...PALETTE.map((i) => i.type), ...['START', 'USER_INPUT', 'HUMAN_INPUT', 'PARALLEL', 'SWITCH', 'STRUCTURED_OUTPUT', 'CODE', 'triggerNode', 'conditionNode', 'aiActionNode', 'apiActionNode', 'ACTION']])].map((t) => [t, StepNode]),
 );
+
+export const nodeTypes: Record<string, typeof StepNode> = new Proxy(BASE_NODE_TYPES, {
+  get(target, prop) {
+    if (typeof prop === 'string' && prop in target) {
+      return target[prop];
+    }
+    return StepNode;
+  },
+});
 
 function starterGraph(): { nodes: Node[]; edges: Edge[] } {
   return {
@@ -584,14 +870,13 @@ function WorkflowEditor({
                 setNodeMenu({ node, x: event.clientX, y: event.clientY });
               }}
               nodeTypes={nodeTypes}
+              edgeTypes={workflowEdgeTypes}
+              proOptions={{ hideAttribution: true }}
               fitView
             >
-              <Controls className="!rounded-lg !border-border !bg-surface !shadow-md" />
-              <MiniMap
-                className="!hidden !rounded-lg !border-border !bg-surface !shadow-md sm:!block"
-                nodeColor={(node) => CATEGORY_STYLE[catalogItem(String(node.type))?.category ?? 'tools'].hex}
-              />
-              <Background gap={18} size={1} color="currentColor" className="text-border/40" />
+              <WorkflowCanvasControls />
+              <WorkflowMiniMap />
+              <Background gap={18} size={1} color="color-mix(in oklab, var(--color-muted-foreground) 30%, transparent)" />
             </ReactFlow>
           </RunStatusContext.Provider>
           <ActionContextMenu

@@ -1,6 +1,7 @@
 import { agentsApi } from '@org/api-client';
 import { agentService, DEFAULT_AGENT_MODEL } from '../services/agentService.js';
 import {
+  FilterChips,
   Button,
   Dialog,
   DialogContent,
@@ -16,8 +17,7 @@ import {
   DropdownMenuTrigger,
   Input,
   LoadingState,
-  Page,
-  PageHeader,
+  SearchInput,
   toast,
   AppSelect,
   Label,
@@ -38,7 +38,6 @@ import {
   MoreVertical,
   Plus,
   RotateCcw,
-  Search,
   Tag,
   Trash2,
   Upload,
@@ -50,7 +49,10 @@ import { AgentAvatar, DEFAULT_CATEGORIES } from '../data/agent-metadata.js';
 import { useStudioSession } from '../session-guard.js';
 import { AIEntityFacts, AIEntityHeader, AIEntityOwner, plural } from '../components/common/ai-entity-summary.js';
 import { useAiModels, useModelOptions } from '../components/workflow-canvas/agent-config/use-agent-config-data.js';
-import { SectionTabs } from '../components/section-tabs.js';
+import { SectionHeader } from '../components/section-tabs.js';
+import { ListToolbar } from '../components/list-toolbar.js';
+
+const STATUS_FILTERS = ['all', 'published', 'testing', 'draft', 'paused', 'archived'] as const;
 
 
 type AgentStatus = 'draft' | 'testing' | 'published' | 'paused' | 'archived';
@@ -405,131 +407,94 @@ export function AgentsListPage() {
   }, [rawAgents]);
 
   const deletedAgentsCount = rawAgents.filter((a: any) => Boolean(a.deletedAt) || a.configuration?.status === 'deleted').length;
+  const liveAgents = rawAgents.filter((a: any) => !a.deletedAt);
 
   if (isLoading) {
     return <LoadingState label="Loading workspace agents…" />;
   }
 
   return (
-    <Page width="full" className="space-y-6">
-      {/* Header bar matching Admin */}
-      <PageHeader
-        title="Agents"
-        description={`Build, test and publish the agents that work in ${activeWorkspace.name}.`}
-        icon={<Bot className="size-5" />}
-        toolbar={<SectionTabs section="agents" />}
-        accent="blue"
+    <div className="min-h-0 flex flex-1 flex-col">
+      <SectionHeader
+        section="agents"
+        counts={{ 'my-agents': liveAgents.length }}
         actions={
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              onClick={() => navigate('/create')}
-              className="gap-1.5 text-xs font-semibold shadow-sm"
-            >
-              <Wand2 className="size-3.5" /> Create with one prompt
+          <>
+            <Button size="sm" variant="outline" leadingIcon={<Wand2 />} onClick={() => navigate('/create')}>
+              Build with AI
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsImportOpen(true)}
-              className="gap-1.5 text-xs"
-            >
-              <Upload className="size-3.5" /> Import JSON
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="icon-sm" variant="outline" aria-label="More ways to add an agent" title="More">
+                  <MoreVertical className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem onSelect={() => setIsImportOpen(true)} className="gap-2 text-xs">
+                  <Upload className="size-3.5" /> Import JSON
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button size="sm" variant="primary" leadingIcon={<Plus />} onClick={() => setIsCreateOpen(true)}>
+              New agent
             </Button>
-            <Button
-              size="sm"
-              variant="primary"
-              onClick={() => setIsCreateOpen(true)}
-              className="gap-1.5 text-xs font-semibold"
-            >
-              <Plus className="size-4" /> Create New AI Agent
-            </Button>
-          </div>
+          </>
         }
       />
 
-      {/* Filter and Search Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3">
-        {/* Status Filter Tabs (Draft, Testing, Published, Paused, Archived, Trash) */}
-        <div className="flex flex-wrap items-center gap-1">
-          {(['all', 'published', 'testing', 'draft', 'paused', 'archived'] as const).map((tab) => {
-            const count = rawAgents.filter((a: any) => {
-              if (a.deletedAt) return false;
-              if (tab === 'all') return true;
-              return (a.configuration?.status || 'draft') === tab;
-            }).length;
-
-            return (
-              <Button
-                key={tab}
-                type="button"
-                variant={filterTab === tab ? 'secondary' : 'ghost'}
-                size="sm"
-                aria-pressed={filterTab === tab}
-                onClick={() => setFilterTab(tab)}
-                className="rounded-lg capitalize"
-              >
-                {tab} ({count})
-              </Button>
-            );
-          })}
-
-          <div className="h-4 w-px bg-border mx-1" />
-
-          {/* Trash / Deleted Tab */}
-          <button
-            type="button"
-            onClick={() => setFilterTab('trash')}
-            className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors flex items-center gap-1 ${
-              filterTab === 'trash'
-                ? 'bg-destructive/15 text-destructive font-semibold'
-                : 'text-muted-foreground hover:bg-surface-raised hover:text-foreground'
-            }`}
-          >
-            <Trash2 className="size-3" />
-            <span>Trash ({deletedAgentsCount})</span>
-          </button>
-        </div>
-
-        {/* Filters: Category & Environment & Search */}
-        <div className="flex items-center gap-2">
-          {/* Environment */}
-          <AppSelect
-            value={environmentFilter}
-            onValueChange={(v) => setEnvironmentFilter(v as any)}
+      <div className="flex-1 p-4 sm:p-6 space-y-4">
+        <ListToolbar
+          aria-label="Filter agents"
+          end={
+            <>
+              <AppSelect
+                value={environmentFilter}
+                onValueChange={(v) => setEnvironmentFilter(v as any)}
+                aria-label="Filter by environment"
+                className="w-auto min-w-36"
+                options={[
+                  { value: 'all', label: 'All environments' },
+                  { value: 'development', label: 'Development' },
+                  { value: 'staging', label: 'Staging' },
+                  { value: 'production', label: 'Production' },
+                ]}
+              />
+              <AppSelect
+                value={categoryFilter}
+                onValueChange={setCategoryFilter}
+                aria-label="Filter by category"
+                className="w-auto min-w-36"
+                options={[
+                  { value: 'all', label: 'All categories' },
+                  ...availableCategories.map((cat) => ({ value: cat, label: cat })),
+                ]}
+              />
+            </>
+          }
+        >
+          <SearchInput
+            value={search}
+            onValueChange={setSearch}
+            placeholder="Search by name, tag or role…"
+            aria-label="Search agents"
+            wrapperClassName="w-full sm:w-64"
+          />
+          <FilterChips
+            aria-label="Filter by status"
+            value={filterTab}
+            onChange={setFilterTab}
             options={[
-              { value: 'all', label: 'All Environments' },
-              { value: 'development', label: 'Development' },
-              { value: 'staging', label: 'Staging' },
-              { value: 'production', label: 'Production' },
+              ...STATUS_FILTERS.map((tab) => ({
+                value: tab,
+                label: tab === 'all' ? 'All' : tab[0].toUpperCase() + tab.slice(1),
+                count: tab === 'all' ? liveAgents.length : liveAgents.filter((a: any) => (a.configuration?.status || 'draft') === tab).length,
+              })),
+              ...(deletedAgentsCount > 0 || filterTab === 'trash'
+                ? [{ value: 'trash' as const, label: 'Trash', count: deletedAgentsCount, icon: <Trash2 />, tone: 'destructive' as const }]
+                : []),
             ]}
           />
-
-          {/* Category */}
-          <AppSelect
-            value={categoryFilter}
-            onValueChange={setCategoryFilter}
-            aria-label="Filter by category"
-            className="w-auto min-w-40"
-            options={[
-              { value: 'all', label: 'All Categories' },
-              ...availableCategories.map((cat) => ({ value: cat, label: cat })),
-            ]}
-          />
-
-          {/* Search Input */}
-          <div className="relative w-56">
-            <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Search by name, tags, role…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-8 pl-8 pr-3 text-xs"
-            />
-          </div>
-        </div>
-      </div>
+        </ListToolbar>
 
       {/* Grid of Agent Cards */}
       {filteredAgents.length === 0 ? (
@@ -546,12 +511,8 @@ export function AgentsListPage() {
               : 'Create your first autonomous agent from scratch, templates, or natural language.'}
           </p>
           {filterTab !== 'trash' && (
-            <Button
-              size="sm"
-              onClick={() => setIsCreateOpen(true)}
-              className="mt-4 gap-1.5 bg-success hover:bg-success/90 text-success-foreground"
-            >
-              <Plus className="size-3.5" /> Create New AI Agent
+            <Button size="sm" variant="primary" leadingIcon={<Plus />} onClick={() => setIsCreateOpen(true)} className="mt-4">
+              New agent
             </Button>
           )}
         </div>
@@ -1062,6 +1023,7 @@ export function AgentsListPage() {
         </DialogContent>
       </Dialog>
 
-    </Page>
+      </div>
+    </div>
   );
 }

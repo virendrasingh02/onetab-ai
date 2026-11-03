@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Badge, Button, Card, CodeBlock, Page, PageHeader, toast, Label, Textarea, Input, AppSelect, SegmentedControl } from '@org/ui';
+import { Badge, Button, Card, CodeBlock, toast, Label, Textarea, Input, AppSelect, SegmentedControl } from '@org/ui';
+import { StudioPage } from '../components/studio-page.js';
 import { cn } from '@org/utils';
 import {
   Code2,
@@ -138,13 +139,10 @@ print("Result:", data.get("result"))`,
   };
 
   return (
-    <Page width="full" className="space-y-6">
-      {/* Header */}
-      <PageHeader
+    <StudioPage
+        icon={<Code2 />}
         title="Developer Hub"
         description="Call published agents and workflows from your own apps, pipelines and services."
-        icon={<Code2 className="size-5" />}
-        accent="indigo"
         actions={
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-xs font-mono">
@@ -164,7 +162,7 @@ print("Result:", data.get("result"))`,
             )}
           </div>
         }
-      />
+      >
 
       {/* Quick Specs Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -322,6 +320,6 @@ print("Result:", data.get("result"))`,
           )}
         </div>
       </div>
-    </Page>
+    </StudioPage>
   );
 }

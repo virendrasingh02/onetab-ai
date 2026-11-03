@@ -12,8 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
   Input,
-  Page,
-  PageHeader,
   AIProviderIcon,
   AIModelBadge,
   toast,
@@ -21,7 +19,6 @@ import {
   Label,
 
 
-  ResponsiveTabs,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -46,6 +43,7 @@ import { useAiModels } from '../components/workflow-canvas/agent-config/use-agen
 import { MembersTab } from './settings/members-tab.js';
 import { UsageTab } from './settings/usage-tab.js';
 import { useStudioSession } from '../session-guard.js';
+import { StudioPage } from '../components/studio-page.js';
 
 interface ProviderConfigState {
   provider: AIProvider;
@@ -222,27 +220,22 @@ export function SettingsPage() {
   };
 
   return (
-    <Page width="full" className="space-y-6">
-      {/* Header matching Admin */}
-      <PageHeader
+    <StudioPage
+        icon={<Settings />}
         title="Settings & Security"
         description={`Model provider credentials, the team, agent API keys and usage for ${activeWorkspace.name}.`}
-        icon={<Settings className="size-5" />}
-        accent="indigo"
-      />
+        tabs={{
+          value: activeTab,
+          onValueChange: (tab) => setActiveTab(tab as SettingsTab),
+          items: [
+            { value: 'providers', label: 'Model providers', icon: <Cpu className="size-4" /> },
+            { value: 'members', label: 'Team & roles', icon: <Users className="size-4" /> },
+            { value: 'api-keys', label: 'API keys', icon: <Key className="size-4" /> },
+            { value: 'usage', label: 'Usage & credits', icon: <Coins className="size-4" /> },
+          ],
+        }}
+      >
 
-      {/* Tabs */}
-      <ResponsiveTabs
-        variant="underline"
-        value={activeTab}
-        onValueChange={(tab) => setActiveTab(tab as any)}
-        items={[
-          { value: 'providers', label: 'Model Providers & LLMs', icon: <Cpu className="size-4" /> },
-          { value: 'members', label: 'Team & roles', icon: <Users className="size-4" /> },
-          { value: 'api-keys', label: 'API keys', icon: <Key className="size-4" /> },
-          { value: 'usage', label: 'Usage & credits', icon: <Coins className="size-4" /> },
-        ]}
-      />
 
       {/* TAB 1: MODEL PROVIDERS (MODULE 18.1) */}
       {activeTab === 'providers' && (
@@ -463,6 +456,6 @@ export function SettingsPage() {
         </DialogContent>
       </Dialog>
 
-    </Page>
+    </StudioPage>
   );
 }

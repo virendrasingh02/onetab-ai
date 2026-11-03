@@ -1,9 +1,10 @@
-import { Card, Page, PageHeader, type PageHeaderProps } from '@org/ui';
+import { Card } from '@org/ui';
 import { cn } from '@org/utils';
-import type { ReactNode } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
+import { StudioPage } from '../studio-page.js';
 
 export interface AgentTabPageProps
-  extends Pick<PageHeaderProps, 'title' | 'description' | 'icon' | 'actions' | 'toolbar'> {
+  extends Pick<ComponentProps<typeof StudioPage>, 'title' | 'description' | 'icon' | 'actions' | 'tabs'> {
   children?: ReactNode;
   className?: string;
 }
@@ -11,25 +12,16 @@ export interface AgentTabPageProps
 /**
  * The frame every agent section beside the canvas renders in (Connectors,
  * Memory, Secrets, Executions, Evaluation, Versions, Deploy, Marketplace,
- * Settings): its own scroll area, a full-width column with the Studio's page
- * gutters, and the standard page header. Sections used to pick their own
- * max-width and heading style, so the layout jumped as you switched between them.
+ * Settings): its own scroll area and the same sticky bar and tab row as every
+ * Studio page. Sections used to pick their own max-width and heading style,
+ * so the layout jumped as you switched between them.
  */
-export function AgentTabPage({ title, description, icon, actions, toolbar, className, children }: AgentTabPageProps) {
+export function AgentTabPage({ className, children, ...header }: AgentTabPageProps) {
   return (
     <div className="h-full overflow-y-auto bg-background">
-      <Page width="full" className={cn('gap-6 pb-12', className)}>
-        <PageHeader
-          title={title}
-          description={description}
-          icon={icon}
-          accent="mint"
-          actions={actions}
-          toolbar={toolbar}
-          className="mb-0"
-        />
+      <StudioPage {...header} className={cn('pb-12', className)}>
         {children}
-      </Page>
+      </StudioPage>
     </div>
   );
 }

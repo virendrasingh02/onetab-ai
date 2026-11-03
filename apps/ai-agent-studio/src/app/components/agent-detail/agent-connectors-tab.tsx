@@ -1,4 +1,5 @@
 import {
+  FilterChips,
   Badge,
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +12,6 @@ import {
   confirm,
   toast,
   Input,
-  ResponsiveTabs,
   Button,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -178,14 +178,11 @@ export function AgentConnectorsTab({ agent, onChanged }: { agent: AgentWithApps;
             wrapperClassName="lg:w-80 lg:shrink-0"
             className="text-sm"
           />
-          <ResponsiveTabs
+          <FilterChips
             aria-label="App categories"
-            variant="pill"
-            size="sm"
             value={tab}
-            onValueChange={setTab}
-            items={tabs.map((t) => ({ value: t.id, label: t.label }))}
-            className="flex-1"
+            onChange={setTab}
+            options={tabs.map((t) => ({ value: t.id, label: t.label }))}
           />
         </div>
 

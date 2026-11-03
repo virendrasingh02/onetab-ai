@@ -1,29 +1,18 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
+  FilterChips,
   Button,
   ErrorState,
   LoadingState,
-  Page,
-  PageHeader,
-  ResponsiveTabs,
 } from '@org/ui';
 import {
-  AlertTriangle,
   BarChart3,
-  Bell,
-  Bot,
   Coins,
-  Cpu,
   Download,
-  GitBranch,
-  GitCompare,
   History,
-  Layers,
-  Plug,
   RefreshCw,
   Settings,
-  Sparkles,
   Star,
 } from 'lucide-react';
 import { analyticsService } from '../services/analyticsService.js';
@@ -45,6 +34,7 @@ import { VersionComparisonView } from './analytics/version-comparison-view.js';
 import { AlertsAnomaliesView } from './analytics/alerts-anomalies-view.js';
 import { ReportsExportsView } from './analytics/reports-exports-view.js';
 import { AnalyticsSettingsView } from './analytics/analytics-settings-view.js';
+import { StudioPage } from '../components/studio-page.js';
 
 export type AnalyticsTabId =
   | 'overview'
@@ -63,33 +53,57 @@ export type AnalyticsTabId =
   | 'reports'
   | 'settings';
 
-interface TabItem {
-  id: AnalyticsTabId;
+/** The header tabs: each groups related views, picked with chips below it. */
+const GROUPS: ReadonlyArray<{
+  id: string;
   label: string;
-  icon: any;
-}
-
-const TABS: TabItem[] = [
-  { id: 'overview', label: 'Overview', icon: BarChart3 },
-  { id: 'agents', label: 'Agent Analytics', icon: Bot },
-  { id: 'workflows', label: 'Workflow Analytics', icon: GitBranch },
-  { id: 'executions', label: 'Execution Explorer', icon: History },
-  { id: 'traces', label: 'Traces & Timeline', icon: Sparkles },
-  { id: 'nodes', label: 'Node Analytics', icon: Layers },
-  { id: 'tools', label: 'Tool & Connectors', icon: Plug },
-  { id: 'models', label: 'Model & Tokens', icon: Cpu },
-  { id: 'cost', label: 'Cost & Usage', icon: Coins },
-  { id: 'errors', label: 'Errors & Reliability', icon: AlertTriangle },
-  { id: 'evaluations', label: 'Evaluations & Quality', icon: Star },
-  { id: 'versions', label: 'Version Comparison', icon: GitCompare },
-  { id: 'alerts', label: 'Alerts & Anomalies', icon: Bell },
-  { id: 'reports', label: 'Reports & Exports', icon: Download },
-  { id: 'settings', label: 'Settings', icon: Settings },
+  icon: typeof BarChart3;
+  views: ReadonlyArray<{ id: AnalyticsTabId; label: string }>;
+}> = [
+  { id: 'overview', label: 'Overview', icon: BarChart3, views: [{ id: 'overview', label: 'Overview' }] },
+  {
+    id: 'activity',
+    label: 'Activity',
+    icon: History,
+    views: [
+      { id: 'agents', label: 'Agents' },
+      { id: 'workflows', label: 'Workflows' },
+      { id: 'executions', label: 'Executions' },
+      { id: 'traces', label: 'Traces' },
+      { id: 'nodes', label: 'Nodes' },
+    ],
+  },
+  {
+    id: 'usage',
+    label: 'Usage & cost',
+    icon: Coins,
+    views: [
+      { id: 'cost', label: 'Cost' },
+      { id: 'models', label: 'Models & tokens' },
+      { id: 'tools', label: 'Tools & connectors' },
+    ],
+  },
+  {
+    id: 'quality',
+    label: 'Quality',
+    icon: Star,
+    views: [
+      { id: 'errors', label: 'Errors' },
+      { id: 'evaluations', label: 'Evaluations' },
+      { id: 'versions', label: 'Versions' },
+      { id: 'alerts', label: 'Alerts' },
+    ],
+  },
+  { id: 'reports', label: 'Reports', icon: Download, views: [{ id: 'reports', label: 'Reports' }] },
+  { id: 'settings', label: 'Settings', icon: Settings, views: [{ id: 'settings', label: 'Settings' }] },
 ];
+
+const groupOf = (tab: AnalyticsTabId) => GROUPS.find((g) => g.views.some((v) => v.id === tab)) ?? GROUPS[0];
 
 export function AnalyticsPage() {
   const { activeWorkspace } = useStudioSession();
   const [activeTab, setActiveTab] = useState<AnalyticsTabId>('overview');
+  const activeGroup = groupOf(activeTab);
   const [dateRange, setDateRange] = useState('7D');
   const [selectedTraceId, setSelectedTraceId] = useState<string>('');
 
@@ -279,13 +293,10 @@ export function AnalyticsPage() {
   };
 
   return (
-    <Page width="full" className="space-y-6">
-      {/* Top Header */}
-      <PageHeader
+    <StudioPage
+        icon={<BarChart3 />}
         title="Studio Analytics"
         description={`Runs, cost, tokens and latency for the agents in ${activeWorkspace.name}.`}
-        icon={<BarChart3 className="size-5" />}
-        accent="amber"
         actions={
           <div className="flex items-center gap-2">
             {/* Date Range Selector */}
@@ -315,19 +326,21 @@ export function AnalyticsPage() {
             </Button>
           </div>
         }
-      />
+        tabs={{
+          value: activeGroup.id,
+          onValueChange: (id) => setActiveTab(GROUPS.find((g) => g.id === id)?.views[0].id ?? 'overview'),
+          items: GROUPS.map(({ id, label, icon: Icon }) => ({ value: id, label, icon: <Icon className="size-4" /> })),
+        }}
+      >
+      {activeGroup.views.length > 1 ? (
+        <FilterChips
+          aria-label={`${activeGroup.label} views`}
+          value={activeTab}
+          onChange={setActiveTab}
+          options={activeGroup.views.map((v) => ({ value: v.id, label: v.label }))}
+        />
+      ) : null}
 
-      {/* Navigation Sub-Tabs Bar */}
-      <ResponsiveTabs
-        variant="pill"
-        size="sm"
-        value={activeTab}
-        onValueChange={(tab) => setActiveTab(tab as typeof activeTab)}
-        items={TABS.map((tab) => {
-          const Icon = tab.icon;
-          return { value: tab.id, label: tab.label, icon: <Icon className="size-3.5" /> };
-        })}
-      />
 
       {/* View Content Rendering */}
       <div>
@@ -464,7 +477,7 @@ export function AnalyticsPage() {
         )}
         </>)}
       </div>
-    </Page>
+    </StudioPage>
   );
 }
 export default AnalyticsPage;

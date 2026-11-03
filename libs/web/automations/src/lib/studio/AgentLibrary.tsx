@@ -13,20 +13,18 @@ import {
   Card,
   EmptyState,
   ErrorState,
+  FilterChips,
   LoadingState,
-  ResponsiveTabsList,
   SearchInput,
-  Tabs,
-  TabsTrigger,
   toast,
 } from '@org/ui';
-import { formatRelative } from '@org/utils';
+import { cn, formatRelative } from '@org/utils';
 import { aiWorkspacePath, studioAgentPath } from '@org/web-ai';
 import { AIEntityAvatar, useAgents } from '@org/web-agents';
 import { CoworkerCreateDialog, useCoworkers } from '@org/web-coworkers';
 import { useCanManageAIResource, useCreationPolicies, useCurrentWorkspace, useWorkspacePermission } from '@org/web-workspace';
 import { Bot, LayoutTemplate, Plus, Sparkles, UserCheck } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { buildAgentActions } from './agent-actions.js';
 import { AgentCard } from './AgentCard.js';
@@ -62,7 +60,15 @@ const TYPES = [
  * workflows, chat assistants and coworkers — with views for what is yours,
  * what is on, what is failing and favorites. Templates have a page of their own.
  */
-export function AgentLibrary() {
+export function AgentLibrary({
+  header,
+}: {
+  /**
+   * Renders the host page's header with the library's create buttons, so they
+   * sit in the header instead of the filter row. The content is then padded.
+   */
+  header?: (actions: ReactNode) => ReactNode;
+} = {}) {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const { workspaceId, slug } = useCurrentWorkspace();
@@ -181,40 +187,42 @@ export function AgentLibrary() {
   const loading = studio.isLoading || (assistants.isLoading && coworkers.isLoading);
   const total = (studio.data?.length ?? 0) + (assistants.data?.length ?? 0) + (coworkers.data?.length ?? 0);
 
+  const createActions =
+    canCreateCoworkers || can('create') ? (
+      <>
+        {canCreateCoworkers ? (
+          <Button size="sm" variant="outline" leadingIcon={<UserCheck />} onClick={() => setCoworkerOpen(true)}>
+            New coworker
+          </Button>
+        ) : null}
+        {can('create') ? (
+          <Button size="sm" variant="primary" leadingIcon={<Sparkles />} onClick={() => navigate(aiWorkspacePath(slug, 'studio', 'new'))}>
+            Describe an agent
+          </Button>
+        ) : null}
+      </>
+    ) : null;
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput value={query} onValueChange={setQuery} placeholder="Search agents" aria-label="Search agents" className="w-full sm:w-64" />
-        <AppSelect
-          className="w-full sm:w-48"
-          aria-label="Kind of agent"
-          value={type}
-          onValueChange={(v) => setParam('type', v)}
-          options={TYPES.map((t) => ({ value: t.value, label: t.label }))}
-        />
-        <div className="ml-auto flex gap-2">
-          {canCreateCoworkers ? (
-            <Button variant="outline" leadingIcon={<UserCheck />} onClick={() => setCoworkerOpen(true)}>
-              New coworker
-            </Button>
-          ) : null}
-          {can('create') ? (
-            <Button leadingIcon={<Sparkles />} onClick={() => navigate(aiWorkspacePath(slug, 'studio', 'new'))}>
-              Describe an agent
-            </Button>
-          ) : null}
+    <>
+    {header?.(createActions)}
+    <div className={cn('space-y-4', header && 'p-4 sm:p-6')}>
+      <div role="toolbar" aria-label="Filter agents" className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <SearchInput value={query} onValueChange={setQuery} placeholder="Search agents" aria-label="Search agents" wrapperClassName="w-full sm:w-64" />
+          <FilterChips aria-label="Library views" value={view} onChange={(v) => setParam('view', v)} options={VIEWS.map((v) => ({ value: v.id, label: v.label }))} />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <AppSelect
+            className="w-auto min-w-40"
+            aria-label="Kind of agent"
+            value={type}
+            onValueChange={(v) => setParam('type', v)}
+            options={TYPES.map((t) => ({ value: t.value, label: t.label }))}
+          />
+          {header ? null : createActions}
         </div>
       </div>
-
-      <Tabs value={view} onValueChange={(v) => setParam('view', v)}>
-        <ResponsiveTabsList variant="underline" size="sm" aria-label="Library views" className="w-full">
-          {VIEWS.map((v) => (
-            <TabsTrigger key={v.id} value={v.id}>
-              {v.label}
-            </TabsTrigger>
-          ))}
-        </ResponsiveTabsList>
-      </Tabs>
 
       {loading ? (
         <LoadingState label="Loading agents…" />
@@ -263,6 +271,7 @@ export function AgentLibrary() {
 
       {workspaceId ? <CoworkerCreateDialog open={coworkerOpen} onOpenChange={setCoworkerOpen} workspaceId={workspaceId} /> : null}
     </div>
+    </>
   );
 }
 

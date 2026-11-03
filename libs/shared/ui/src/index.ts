@@ -437,6 +437,7 @@ export {
   type SegmentedControlProps,
   type SegmentedOption,
 } from './lib/components/segmented-control.js';
+export { FilterChips, type FilterChipOption } from './lib/components/filter-chips.js';
 
 export {
   Breadcrumb,

@@ -15,9 +15,7 @@
 /* Register library sources explicitly for Tailwind v4 scanner */
 @source '../../../libs/shared/ui/src';
 @source '../../../libs/shared/design-system/src';
-@source '../../../libs/web/agents/src';
-@source '../../../libs/web/automations/src';
-@source '../../../libs/web/workspace/src';
+@source '../../../libs/web';
 @source './**/*.{ts,tsx,js,jsx}';
 
 /* Ensure quick-add dropdown on workflow nodes always renders above all other canvas nodes */

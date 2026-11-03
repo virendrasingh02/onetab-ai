@@ -24,8 +24,6 @@ import {
   Input,
   Label,
   LoadingState,
-  Page,
-  PageHeader,
   SegmentedControl,
   Slider,
   Switch,
@@ -38,6 +36,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useAiModels, useAiProviders } from '../components/workflow-canvas/agent-config/use-agent-config-data.js';
 import { knowledgeService, type NewSource } from '../services/knowledgeService.js';
 import { useStudioSession } from '../session-guard.js';
+import { StudioPage } from '../components/studio-page.js';
 
 type SourceKind = NewSource['kind'];
 
@@ -335,12 +334,10 @@ export function KnowledgePage() {
   }
 
   return (
-    <Page width="full" className="space-y-6">
-      <PageHeader
+    <StudioPage
+        icon={<BookOpen />}
         title="Knowledge & RAG"
         description={`Documents your agents can search and cite in ${activeWorkspace.name}.`}
-        icon={<BookOpen className="size-5" />}
-        accent="cyan"
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -357,7 +354,7 @@ export function KnowledgePage() {
             </Button>
           </div>
         }
-      />
+      >
 
       {bases.length === 0 ? (
         <EmptyState
@@ -1101,6 +1098,6 @@ export function KnowledgePage() {
           </form>
         </DialogContent>
       </Dialog>
-    </Page>
+    </StudioPage>
   );
 }

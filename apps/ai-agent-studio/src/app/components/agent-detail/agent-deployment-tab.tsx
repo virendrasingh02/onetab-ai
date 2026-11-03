@@ -1,5 +1,5 @@
 import type { AIAgentDetail } from '@org/types';
-import { Badge, Button, EmptyState, ErrorState, LoadingState, ResponsiveTabs } from '@org/ui';
+import { Badge, Button, EmptyState, ErrorState, LoadingState } from '@org/ui';
 import { Activity, CheckCircle2, Globe, History, KeyRound, Minus, Palette, Radio, Rocket, Settings2, Sparkles, Zap } from 'lucide-react';
 import { useState } from 'react';
 import { AgentTabPage } from './agent-tab-page.js';
@@ -133,23 +133,19 @@ export function AgentDeploymentTab({ agent }: { agent: AIAgentDetail }) {
           </Button>
         </>
       }
-      toolbar={
-        <ResponsiveTabs
-          aria-label="Deployment sections"
-          variant="underline"
-          value={section}
-          onValueChange={(value) => setSection(value as DeploymentSection)}
-          items={[
-            { value: 'overview', label: 'Overview', icon: <Activity className="size-3.5" /> },
-            { value: 'targets', label: 'Install & call', icon: <Globe className="size-3.5" /> },
-            { value: 'widget', label: widgetDirty ? 'Widget Studio •' : 'Widget Studio', icon: <Palette className="size-3.5" /> },
-            { value: 'webhooks', label: 'Webhooks', icon: <Zap className="size-3.5" />, count: api.webhooksQuery.data?.length || undefined },
-            { value: 'api-keys', label: 'API keys', icon: <KeyRound className="size-3.5" /> },
-            { value: 'versions', label: 'Versions', icon: <History className="size-3.5" /> },
-            { value: 'settings', label: 'Settings', icon: <Settings2 className="size-3.5" /> },
-          ]}
-        />
-      }
+      tabs={{
+        value: section,
+        onValueChange: (value) => setSection(value as DeploymentSection),
+        items: [
+            { value: 'overview', label: 'Overview', icon: <Activity className="size-4" /> },
+            { value: 'targets', label: 'Install & call', icon: <Globe className="size-4" /> },
+            { value: 'widget', label: widgetDirty ? 'Widget Studio •' : 'Widget Studio', icon: <Palette className="size-4" /> },
+            { value: 'webhooks', label: 'Webhooks', icon: <Zap className="size-4" />, count: api.webhooksQuery.data?.length || undefined },
+            { value: 'api-keys', label: 'API keys', icon: <KeyRound className="size-4" /> },
+            { value: 'versions', label: 'Versions', icon: <History className="size-4" /> },
+            { value: 'settings', label: 'Settings', icon: <Settings2 className="size-4" /> },
+          ],
+      }}
     >
       {section === 'overview' && (
         <OverviewPanel api={api} deployment={deployment} toolCount={countTools(agent.tools)} onNavigate={setSection} />

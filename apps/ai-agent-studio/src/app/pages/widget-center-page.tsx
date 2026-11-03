@@ -2,8 +2,6 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from '../router.js';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Page,
-  PageHeader,
   Button,
   Input,
   Badge,
@@ -21,7 +19,6 @@ import {
   toast,
   AppSelect,
   LoadingState,
-  ResponsiveTabs,
   confirm,
   Table,
   TableBody,
@@ -61,6 +58,7 @@ import {
   Loader2,
   ChevronRight,
 } from 'lucide-react';
+import { StudioPage } from '../components/studio-page.js';
 
 /** What the quick-preview dialog shows, and where "Open Builder" goes. */
 interface WidgetPreview {
@@ -188,39 +186,32 @@ export function WidgetCenterPage() {
   };
 
   return (
-    <Page width="full" className="space-y-6">
-      <PageHeader
+    <StudioPage
+        icon={<LayoutDashboard />}
         title="Widget Center"
         description="Design the interactive cards agents show in chat, workflows and dashboards."
-        icon={<LayoutDashboard className="size-5" />}
-        accent="cyan"
         actions={
           <div className="flex items-center gap-2">
-            <Button
-              onClick={() => navigate('/widgets/new')}
-              className="text-xs h-9 font-medium shadow-xs"
-            >
-              <Plus className="mr-1.5 size-4" /> Create Widget
+            <Button size="sm" variant="primary" leadingIcon={<Plus />} onClick={() => navigate('/widgets/new')}>
+              New widget
             </Button>
           </div>
         }
-      />
+        tabs={{
+          value: activeTab,
+          onValueChange: (tab) => setActiveTab(tab as typeof activeTab),
+          items: [
+            { value: 'library', label: 'Library', count: widgets.length },
+            { value: 'my_widgets', label: 'My widgets' },
+            { value: 'templates', label: 'Templates', count: templates.length },
+            { value: 'instances', label: 'Instances' },
+            { value: 'executions', label: 'Run history' },
+            { value: 'versions', label: 'Versions' },
+            { value: 'settings', label: 'Settings' },
+          ],
+        }}
+      >
 
-      {/* Main Tabs Navigation */}
-      <ResponsiveTabs
-        variant="underline"
-        value={activeTab}
-        onValueChange={(tab) => setActiveTab(tab as any)}
-        items={[
-          { value: 'library', label: 'Widget Library', count: widgets.length },
-          { value: 'my_widgets', label: 'My Widgets' },
-          { value: 'templates', label: 'Templates', count: templates.length },
-          { value: 'instances', label: 'Widget Instances' },
-          { value: 'executions', label: 'Execution History' },
-          { value: 'versions', label: 'Versions' },
-          { value: 'settings', label: 'Settings' },
-        ]}
-      />
 
       {/* 1. WIDGET LIBRARY & 2. MY WIDGETS TAB */}
       {(activeTab === 'library' || activeTab === 'my_widgets') && (
@@ -681,6 +672,6 @@ export function WidgetCenterPage() {
           </DialogContent>
         </Dialog>
       )}
-    </Page>
+    </StudioPage>
   );
 }

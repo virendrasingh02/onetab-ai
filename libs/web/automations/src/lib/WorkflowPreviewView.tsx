@@ -32,7 +32,7 @@ import {
   useWorkspacePermission,
 } from '@org/web-workspace';
 import { useQuery } from '@tanstack/react-query';
-import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider } from '@xyflow/react';
+import { Background, Panel, ReactFlow, ReactFlowProvider } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import {
   Activity,
@@ -48,9 +48,14 @@ import {
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useWorkflowExecutions, useWorkflowMutations } from './use-automations.js';
-import { CATEGORY_STYLE, loadGraph, nodeTypes } from './WorkflowCanvasView.js';
+import {
+  loadGraph,
+  nodeTypes,
+  workflowEdgeTypes,
+  WorkflowCanvasControls,
+  WorkflowMiniMap,
+} from './WorkflowCanvasView.js';
 import { buildWorkflowActions, downloadWorkflowConfig } from './workflow-actions.js';
-import { catalogItem } from './workflow-catalog.js';
 
 /** Same glyphs and words the sidebar row uses for the trigger. */
 const TRIGGER: Record<string, { label: string; icon: ReactNode }> = {
@@ -225,30 +230,38 @@ export function WorkflowPreviewView({ editUrl }: { editUrl: (workflowId: string)
         </PageTabBar>
 
         <TabsContent value="steps" className="relative mt-0 min-h-0 flex-1">
-          {workflow.description ? (
-            <p className="absolute left-3 top-3 z-10 max-w-md rounded-lg border border-border bg-surface/95 px-3 py-2 text-xs text-muted-foreground shadow-sm backdrop-blur max-md:right-3">
-              {workflow.description}
-            </p>
-          ) : null}
           <div role="region" aria-label="Automation steps" className="absolute inset-0">
-            <ReactFlowProvider key={workflow.id}>
+            {/* Uncontrolled, so React Flow keeps the measured sizes the minimap needs; a save remounts it */}
+            <ReactFlowProvider key={`${workflow.id}:${workflow.updatedAt}`}>
               <ReactFlow
-                nodes={graph.nodes}
-                edges={graph.edges}
+                defaultNodes={graph.nodes}
+                defaultEdges={graph.edges}
                 nodeTypes={nodeTypes}
+                edgeTypes={workflowEdgeTypes}
                 nodesDraggable={false}
                 nodesConnectable={false}
                 elementsSelectable={false}
                 minZoom={0.2}
+                proOptions={{ hideAttribution: true }}
                 fitView
-                fitViewOptions={{ maxZoom: 1, minZoom: 0.3, padding: 0.15 }}
+                // Same opening framing as the Studio canvas: small graphs stay at a readable 100%
+                // (extra top room keeps the description panel off the first step)
+                fitViewOptions={{
+                  maxZoom: 1,
+                  minZoom: 0.3,
+                  padding: workflow.description ? { top: '96px', bottom: '72px', x: '48px' } : 0.2,
+                }}
               >
-                <Controls showInteractive={false} className="!rounded-lg !border-border !bg-surface !shadow-md" />
-                <MiniMap
-                  className="!hidden !rounded-lg !border-border !bg-surface !shadow-md sm:!block"
-                  nodeColor={(node) => CATEGORY_STYLE[catalogItem(String(node.type))?.category ?? 'tools'].hex}
-                />
-                <Background gap={18} size={1} color="currentColor" className="text-border/40" />
+                {workflow.description ? (
+                  <Panel position="top-left" className="!m-0 !left-5 !top-5 max-md:!right-5">
+                    <p className="max-w-sm rounded-[14px] border border-border bg-surface px-3 py-2 text-xs leading-snug text-muted-foreground shadow-sm">
+                      {workflow.description}
+                    </p>
+                  </Panel>
+                ) : null}
+                <WorkflowCanvasControls />
+                <WorkflowMiniMap />
+                <Background gap={18} size={1} color="color-mix(in oklab, var(--color-muted-foreground) 30%, transparent)" />
               </ReactFlow>
             </ReactFlowProvider>
           </div>

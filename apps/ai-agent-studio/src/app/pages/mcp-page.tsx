@@ -15,8 +15,6 @@ import {
   EmptyState,
   Input,
   LoadingState,
-  Page,
-  PageHeader,
   toast,
   ErrorState,
   Label,
@@ -34,11 +32,10 @@ import {
   RefreshCw,
   Server,
   Trash2,
-  Wrench,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useStudioSession } from '../session-guard.js';
-import { SectionTabs } from '../components/section-tabs.js';
+import { SectionHeader } from '../components/section-tabs.js';
 
 const STATUS_BADGE = {
   CONNECTED: { variant: 'success', label: 'Connected' },
@@ -424,13 +421,9 @@ export function McpPage() {
     : null;
 
   return (
-    <Page width="full" className="space-y-6">
-      <PageHeader
-        title="Tools"
-        description="Connect remote MCP servers over HTTP to give your agents more tools and data."
-        icon={<Wrench className="size-5" />}
-        toolbar={<SectionTabs section="tools" />}
-        accent="cyan"
+    <div className="min-h-0 flex flex-1 flex-col">
+      <SectionHeader
+        section="tools"
         actions={
           <div className="gap-2 flex items-center">
             <Button
@@ -459,6 +452,8 @@ export function McpPage() {
           </div>
         }
       />
+      <div className="flex-1 p-4 sm:p-6 space-y-6">
+        <p className="max-w-3xl text-sm text-muted-foreground">Connect remote MCP servers over HTTP to give your agents more tools and data.</p>
 
       {/* Summary */}
       <div className="gap-3 grid grid-cols-3">
@@ -887,6 +882,7 @@ export function McpPage() {
         workspaceId={workspaceId}
         onClose={() => setToolUnderTest(null)}
       />
-    </Page>
+      </div>
+    </div>
   );
 }
