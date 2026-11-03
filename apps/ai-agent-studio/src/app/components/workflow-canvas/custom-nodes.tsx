@@ -3157,7 +3157,7 @@ export const StickyNoteNode = memo(({ id, data, selected }: NodeProps) => {
           nodeData.onUpdateConfig?.({ note: e.target.value });
         }}
         className={cn(
-          'nodrag nowheel nopan text-xs leading-relaxed relative min-h-[56px] w-full flex-1 resize-none bg-transparent outline-none placeholder:opacity-50',
+          'nodrag nowheel nopan scrollbar-subtle text-xs leading-relaxed relative min-h-[56px] w-full flex-1 resize-none bg-transparent outline-none placeholder:opacity-50',
           tone.text,
           readOnly ? 'cursor-default' : 'cursor-text',
         )}

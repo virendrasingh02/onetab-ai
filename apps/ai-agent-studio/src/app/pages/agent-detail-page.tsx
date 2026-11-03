@@ -282,8 +282,8 @@ const INITIAL_EDGES: Edge[] = [
   { id: 'e2-3', source: 'agent-1', target: 'end-1' },
 ];
 
-/** A node as saved: without the status ring a run painted on it. */
-function withoutRunStatus(node: Node): Node {
+/** A node as saved: without the status ring a run painted on it (or a resize in progress). */
+function withoutRunStatus({ resizing: _resizing, ...node }: Node): Node {
   const { status: _status, ...data } = (node.data ?? {}) as Record<
     string,
     unknown
@@ -571,7 +571,8 @@ function toGraphSnapshot(
   layout?: CanvasLayout,
 ): GraphSnapshot {
   const cleanNodes = nodes.map(
-    ({ selected: _s, dragging: _d, measured: _m, ...n }) => n as Node,
+    ({ selected: _s, dragging: _d, resizing: _r, measured: _m, ...n }) =>
+      n as Node,
   );
   const cleanEdges = edges.map(({ selected: _s, ...e }) => e as Edge);
   return {
@@ -2110,7 +2111,7 @@ export function AgentDetailPage() {
   }, []);
 
   useEffect(() => {
-    if (nodes.some((n) => n.dragging)) return; // record once the drag ends
+    if (nodes.some((n) => n.dragging || n.resizing)) return; // record once the drag / resize ends
     const timer = setTimeout(() => {
       const snapshot = toGraphSnapshot(nodes, edges, {
         direction: workflowDirection,
@@ -3026,7 +3027,7 @@ export function AgentDetailPage() {
       isCanvasLocked
     )
       return;
-    if (nodes.some((n) => n.dragging)) return;
+    if (nodes.some((n) => n.dragging || n.resizing)) return;
     if (autoSaveFailedAt !== null && autoSaveFailedAt === saveKey) return;
 
     const timer = setTimeout(() => {
@@ -3220,11 +3221,19 @@ export function AgentDetailPage() {
 
   // ReactFlow Event Handlers
   // React Flow also reports selection and measured sizes as "changes"; only
-  // real edits (move, add, remove…) should light the unsaved indicator.
+  // real edits (move, add, remove, a finished resize…) should light the
+  // unsaved indicator. A resize ends with `resizing: false`; plain
+  // measurements never carry `resizing`.
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
       setNodes((nds) => applyNodeChanges(changes, nds));
-      if (changes.some((c) => c.type !== 'select' && c.type !== 'dimensions')) {
+      if (
+        changes.some(
+          (c) =>
+            (c.type !== 'select' && c.type !== 'dimensions') ||
+            (c.type === 'dimensions' && c.resizing === false),
+        )
+      ) {
         setIsDirty(true);
       }
       // Keyboard Delete / Backspace goes through here rather than handleDeleteNodes
