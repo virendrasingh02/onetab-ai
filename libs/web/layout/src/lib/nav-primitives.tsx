@@ -32,7 +32,12 @@ import {
   type ComponentProps,
   type ReactNode,
 } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import {
+  NavLink,
+  useLocation,
+  useMatch,
+  useResolvedPath,
+} from 'react-router-dom';
 import { useSplitViewAction } from './split-view/use-split-view-action.js';
 
 export interface NavEntry {
@@ -272,6 +277,11 @@ export function IconOnlyNavRow({
     : `/w/${workspaceSlug}`;
 
   const splitAction = useSplitViewAction();
+  // Resolved here, not via NavLink's function className: under `Hint` (Radix
+  // Slot) a function className is stringified and every style is lost.
+  const { pathname } = useResolvedPath(to);
+  const linkActive = useMatch({ path: pathname, end: entry.end ?? false });
+  const active = isActive ?? linkActive !== null;
   const count = activity?.unreadCount ?? entry.badge;
   const tooltipText =
     count !== undefined && count !== 0
@@ -289,16 +299,13 @@ export function IconOnlyNavRow({
           to={to}
           end={entry.end}
           onClick={onClick}
-          className={({ isActive: linkActive }) => {
-            const active = isActive ?? linkActive;
-            return cn(
-              'size-9 relative flex items-center justify-center rounded-xl transition-all duration-150',
-              'cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring',
-              active
-                ? 'shadow-2xs font-semibold bg-primary/12 text-primary-text ring-1 ring-primary/20 ring-inset'
-                : 'text-muted-foreground hover:bg-accent/70 hover:text-foreground',
-            );
-          }}
+          className={cn(
+            'size-9 relative flex items-center justify-center rounded-xl transition-all duration-150',
+            'cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring',
+            active
+              ? 'shadow-2xs font-semibold bg-primary/12 text-primary-text ring-1 ring-primary/20 ring-inset'
+              : 'text-muted-foreground hover:bg-accent/70 hover:text-foreground',
+          )}
         >
           <Icon className="size-4 shrink-0" aria-hidden />
           <SidebarActivityIndicator

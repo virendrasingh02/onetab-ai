@@ -245,7 +245,9 @@ function StudioNavRow({
   const hasCount = count !== undefined && count > 0;
   const { pathname } = useLocation();
   // NavLink's own matching only knows `to`; a section row is also active on its siblings.
-  const active = (isActive: boolean) => isActive || isNavItemActive({ to, end, match }, pathname);
+  // Resolved here as a plain string: under `Hint` (Radix Slot) a function className is
+  // stringified into the class attribute, which silently drops every style.
+  const active = isNavItemActive({ to, end, match }, pathname);
 
   if (collapsed) {
     return (
@@ -255,7 +257,7 @@ function StudioNavRow({
           end={end}
           onClick={onNavigate}
           aria-label={label}
-          className={({ isActive }) => cn(ICON_ROW, active(isActive) ? ICON_ACTIVE : ICON_IDLE)}
+          className={cn(ICON_ROW, active ? ICON_ACTIVE : ICON_IDLE)}
         >
           <Icon className="size-4 shrink-0" />
           {hasCount ? (
@@ -271,7 +273,7 @@ function StudioNavRow({
       to={to}
       end={end}
       onClick={onNavigate}
-      className={({ isActive }) => cn(ROW_BASE, active(isActive) ? ROW_ACTIVE : ROW_IDLE)}
+      className={cn(ROW_BASE, active ? ROW_ACTIVE : ROW_IDLE)}
     >
       <Icon className="size-4 shrink-0" />
       <span className="flex-1 truncate">{label}</span>

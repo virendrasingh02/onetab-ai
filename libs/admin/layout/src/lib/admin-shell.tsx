@@ -97,7 +97,15 @@ import {
 } from 'lucide-react';
 import type { ComponentType, ReactNode, SVGProps } from 'react';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import {
+  NavLink,
+  Outlet,
+  useLocation,
+  useMatch,
+  useNavigate,
+  useResolvedPath,
+  type NavLinkProps,
+} from 'react-router-dom';
 
 const WEB_APP_URL =
   (import.meta.env?.['VITE_WEB_APP_URL'] as string | undefined) ??
@@ -280,6 +288,17 @@ const ICON_ACTIVE =
 
 const ICON_IDLE = 'text-muted-foreground hover:bg-accent/70 hover:text-foreground';
 
+/**
+ * Icon-only rail tile. Resolves its active style itself: under `Hint` (Radix
+ * Slot) a function `className` is stringified into the class attribute, which
+ * silently drops every style and collapses the tiles.
+ */
+function RailNavLink({ to, end, ...props }: Omit<NavLinkProps, 'className' | 'to'> & { to: string }) {
+  const { pathname } = useResolvedPath(to);
+  const active = useMatch({ path: pathname, end: end ?? false }) !== null;
+  return <NavLink to={to} end={end} {...props} className={cn(ICON_ROW, active ? ICON_ACTIVE : ICON_IDLE)} />;
+}
+
 /** One navigation row; renders an icon-only tile with a tooltip when collapsed. */
 function AdminNavRow({
   to,
@@ -301,18 +320,12 @@ function AdminNavRow({
   if (collapsed) {
     return (
       <Hint side="right" label={badge ? `${label} (${badge})` : label}>
-        <NavLink
-          to={to}
-          end={end}
-          onClick={onNavigate}
-          aria-label={label}
-          className={({ isActive }) => cn(ICON_ROW, isActive ? ICON_ACTIVE : ICON_IDLE)}
-        >
+        <RailNavLink to={to} end={end} onClick={onNavigate} aria-label={label}>
           <Icon className="size-4 shrink-0" />
           {badge ? (
             <span className="absolute right-1 top-1 size-2 rounded-full bg-primary ring-2 ring-card" />
           ) : null}
-        </NavLink>
+        </RailNavLink>
       </Hint>
     );
   }
@@ -1188,15 +1201,10 @@ export function AdminShell() {
 
           {isCollapsed ? (
             <Hint side="right" label="Live Activity (Streaming)">
-              <NavLink
-                to="/analytics/live"
-                onClick={onCloseMobile}
-                aria-label="Live Activity"
-                className={({ isActive }) => cn(ICON_ROW, isActive ? ICON_ACTIVE : ICON_IDLE)}
-              >
+              <RailNavLink to="/analytics/live" onClick={onCloseMobile} aria-label="Live Activity">
                 <Radio className="size-4 shrink-0 text-emerald-500" />
                 <span className="absolute right-1 top-1 size-2 rounded-full bg-emerald-500 animate-pulse ring-2 ring-card" />
-              </NavLink>
+              </RailNavLink>
             </Hint>
           ) : (
             <NavLink
@@ -1255,14 +1263,9 @@ export function AdminShell() {
             <div className="mt-2 space-y-0.5 border-t border-border/40 pt-2" aria-label="Infrastructure">
               {liveResources.map((res) => (
                 <Hint side="right" key={res.id} label={`${res.name} (${res.badge})`}>
-                  <NavLink
-                    to={res.to}
-                    onClick={onCloseMobile}
-                    aria-label={res.name}
-                    className={({ isActive }) => cn(ICON_ROW, isActive ? ICON_ACTIVE : ICON_IDLE)}
-                  >
+                  <RailNavLink to={res.to} onClick={onCloseMobile} aria-label={res.name}>
                     <span className={cn('size-2.5 rounded-full shrink-0', res.color)} />
-                  </NavLink>
+                  </RailNavLink>
                 </Hint>
               ))}
             </div>
