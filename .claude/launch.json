@@ -5,25 +5,29 @@
       "name": "api",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["exec", "nx", "--", "run", "@org/api:serve"],
-      "port": 3000
+      "port": 3000,
+      "autoPort": false
     },
     {
       "name": "web",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["exec", "nx", "--", "run", "@org/web:serve"],
-      "port": 4200
+      "port": 4200,
+      "autoPort": false
     },
     {
       "name": "admin",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["exec", "nx", "--", "run", "@org/admin:serve"],
-      "port": 4201
+      "port": 4201,
+      "autoPort": false
     },
     {
       "name": "studio",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["exec", "nx", "--", "run", "@org/ai-agent-studio:serve"],
-      "port": 4202
+      "port": 4202,
+      "autoPort": false
     },
     {
       "name": "mobile-web",

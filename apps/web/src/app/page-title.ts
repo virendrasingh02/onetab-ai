@@ -151,6 +151,7 @@ const WORKSPACE_STATIC_TITLES: Record<string, string> = {
   '/docs': 'Docs & Notes',
   '/files': 'Files',
   '/meetings': 'Meetings',
+  '/calls': 'Calls',
   '/automations': 'Automations',
   '/automations/builder': 'Workflow builder',
   '/automations/logs': 'Automation runs',

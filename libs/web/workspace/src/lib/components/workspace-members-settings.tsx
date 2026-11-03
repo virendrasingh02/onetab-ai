@@ -1,8 +1,4 @@
-import {
-  invitationApi,
-  memberApi,
-  queryKeys,
-} from '@org/api-client';
+import { invitationApi, memberApi, queryKeys } from '@org/api-client';
 import { useCurrentUser } from '@org/auth';
 import {
   WorkspaceRole,
@@ -59,6 +55,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { usePlanEntitlements } from '../hooks/use-plan-entitlements.js';
 import { useTransferOwnership } from '../use-workspaces.js';
 import { useWorkspaceStore, type WorkspaceState } from '../workspace.store.js';
 import { UpgradePlanBanner } from './upgrade-plan-banner.js';
@@ -101,11 +98,19 @@ export function WorkspaceMembersSettings({
     enabled: !!workspaceId,
   });
 
+  const isAdmin =
+    !!workspaceRole && hasWorkspaceRole(workspaceRole, WorkspaceRole.ADMIN);
+
+  // Invitations are admin-only on the API; members would just get a 403.
   const invitationsQuery = useQuery({
     queryKey: queryKeys.invitations.list(workspaceId ?? ''),
     queryFn: () => invitationApi.list(workspaceId as string),
-    enabled: !!workspaceId,
+    enabled: !!workspaceId && isAdmin,
   });
+
+  const { plan, getLimit, canManageBilling } = usePlanEntitlements(
+    workspaceId ?? undefined,
+  );
 
   // Mutations
   const updateRoleMutation = useMutation({
@@ -115,8 +120,7 @@ export function WorkspaceMembersSettings({
     }: {
       userId: string;
       role: 'ADMIN' | 'MEMBER' | 'GUEST';
-    }) =>
-      memberApi.updateRole(workspaceId as string, userId, { role }),
+    }) => memberApi.updateRole(workspaceId as string, userId, { role }),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.members.all(workspaceId ?? ''),
@@ -175,8 +179,7 @@ export function WorkspaceMembersSettings({
     }: {
       invitationId: string;
       role: WorkspaceRole;
-    }) =>
-      invitationApi.updateRole(workspaceId as string, invitationId, role),
+    }) => invitationApi.updateRole(workspaceId as string, invitationId, role),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.invitations.all(workspaceId ?? ''),
@@ -217,8 +220,6 @@ export function WorkspaceMembersSettings({
     useState<WorkspaceMember | null>(null);
 
   const isOwner = workspaceRole === WorkspaceRole.OWNER;
-  const isAdmin =
-    workspaceRole && hasWorkspaceRole(workspaceRole, WorkspaceRole.ADMIN);
 
   const membersList = membersQuery.data ?? [];
   const invitationsList = invitationsQuery.data ?? [];
@@ -231,7 +232,7 @@ export function WorkspaceMembersSettings({
   const adminCount = membersList.filter(
     (m) => m.role === WorkspaceRole.ADMIN || m.role === WorkspaceRole.OWNER,
   ).length;
-  const maxFreeSeats = 5;
+  const maxSeats = getLimit('max_members');
 
   // Filtered members
   const filteredMembers = useMemo(() => {
@@ -240,7 +241,8 @@ export function WorkspaceMembersSettings({
       const username = member.user.name.toLowerCase();
       const query = searchQuery.trim().toLowerCase();
 
-      const matchesSearch = !query || name.includes(query) || username.includes(query);
+      const matchesSearch =
+        !query || name.includes(query) || username.includes(query);
       const matchesRole =
         roleFilter === 'ALL' ||
         member.role.toUpperCase() === roleFilter.toUpperCase();
@@ -275,22 +277,23 @@ export function WorkspaceMembersSettings({
   return (
     <div className="space-y-6">
       {/* Header & Quick Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="sm:flex-row sm:items-center gap-4 flex flex-col justify-between">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+          <h2 className="text-xl font-bold tracking-tight gap-2 flex items-center text-foreground">
             <span>Members & Team Directory</span>
             <Badge variant="neutral" className="text-xs px-2 font-semibold">
               {totalCount} {totalCount === 1 ? 'member' : 'members'}
             </Badge>
           </h2>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            Manage who has access to {workspaceName}, assign administrative roles,
-            and send invitations.
+          <p className="text-xs sm:text-sm mt-0.5 text-muted-foreground">
+            {isAdmin
+              ? `Manage who has access to ${workspaceName}, assign administrative roles, and send invitations.`
+              : `Everyone who has access to ${workspaceName}.`}
           </p>
         </div>
 
         {isAdmin ? (
-          <div className="flex items-center gap-2.5 self-start sm:self-auto shrink-0">
+          <div className="gap-2.5 sm:self-auto flex shrink-0 items-center self-start">
             <Button
               variant="outline"
               size="sm"
@@ -322,89 +325,97 @@ export function WorkspaceMembersSettings({
         ) : null}
       </div>
 
-      {/* Upgrade Plan Hero Banner */}
-      <UpgradePlanBanner
-        totalMembers={totalCount}
-        maxSeats={maxFreeSeats}
-        currentPlan="free"
-        onUpgradeClick={() => {
-          if (onNavigateToTab) {
-            onNavigateToTab('billing');
-          }
-        }}
-      />
+      {/* Upgrade Plan Hero Banner — only for people who can act on it */}
+      {canManageBilling ? (
+        <UpgradePlanBanner
+          totalMembers={totalCount}
+          maxSeats={maxSeats}
+          currentPlan={plan}
+          onUpgradeClick={() => {
+            if (onNavigateToTab) {
+              onNavigateToTab('billing');
+            }
+          }}
+        />
+      ) : null}
 
       {/* Overview Metric Cards Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-        <div className="rounded-xl border border-border bg-surface p-3.5 space-y-1">
-          <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
+      <div
+        className={`gap-3.5 grid grid-cols-2 ${isAdmin ? 'sm:grid-cols-4' : 'sm:grid-cols-3'}`}
+      >
+        <div className="p-3.5 space-y-1 rounded-xl border border-border bg-surface">
+          <span className="font-medium gap-1.5 flex items-center text-[11px] text-muted-foreground">
             <Users className="size-3.5 text-primary" />
             Total Members
           </span>
           <p className="text-xl font-bold text-foreground">{totalCount}</p>
         </div>
 
-        <div className="rounded-xl border border-border bg-surface p-3.5 space-y-1">
-          <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
-            <span className="size-2 rounded-full bg-success animate-pulse" />
+        <div className="p-3.5 space-y-1 rounded-xl border border-border bg-surface">
+          <span className="font-medium gap-1.5 flex items-center text-[11px] text-muted-foreground">
+            <span className="size-2 animate-pulse rounded-full bg-success" />
             Active Online
           </span>
           <p className="text-xl font-bold text-foreground">{activeCount}</p>
         </div>
 
-        <div className="rounded-xl border border-border bg-surface p-3.5 space-y-1">
-          <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
+        <div className="p-3.5 space-y-1 rounded-xl border border-border bg-surface">
+          <span className="font-medium gap-1.5 flex items-center text-[11px] text-muted-foreground">
             <Shield className="size-3.5 text-accent-indigo" />
             Admins & Owners
           </span>
           <p className="text-xl font-bold text-foreground">{adminCount}</p>
         </div>
 
-        <div className="rounded-xl border border-border bg-surface p-3.5 space-y-1">
-          <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
-            <Mail className="size-3.5 text-accent-amber" />
-            Pending Invites
-          </span>
-          <p className="text-xl font-bold text-foreground">
-            {invitationsList.length}
-          </p>
-        </div>
+        {isAdmin ? (
+          <div className="p-3.5 space-y-1 rounded-xl border border-border bg-surface">
+            <span className="font-medium gap-1.5 flex items-center text-[11px] text-muted-foreground">
+              <Mail className="size-3.5 text-accent-amber" />
+              Pending Invites
+            </span>
+            <p className="text-xl font-bold text-foreground">
+              {invitationsList.length}
+            </p>
+          </div>
+        ) : null}
       </div>
 
       {/* Section Sub-tabs */}
-      <div className="flex items-center justify-between border-b border-border pb-3">
-        <div className="flex items-center gap-1">
+      <div className="pb-3 flex items-center justify-between border-b border-border">
+        <div className="gap-1 flex items-center">
           <button
             type="button"
             onClick={() => setActiveSubTab('members')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
               activeSubTab === 'members'
                 ? 'bg-accent text-foreground'
-                : 'text-muted-foreground hover:text-foreground hover:bg-accent/40'
+                : 'text-muted-foreground hover:bg-accent/40 hover:text-foreground'
             }`}
           >
             Active Directory ({totalCount})
           </button>
-          <button
-            type="button"
-            onClick={() => setActiveSubTab('invitations')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-              activeSubTab === 'invitations'
-                ? 'bg-accent text-foreground'
-                : 'text-muted-foreground hover:text-foreground hover:bg-accent/40'
-            }`}
-          >
-            <span>Pending Invitations</span>
-            {invitationsList.length > 0 ? (
-              <Badge variant="info" className="text-[10px] px-1.5 py-0">
-                {invitationsList.length}
-              </Badge>
-            ) : null}
-          </button>
+          {isAdmin ? (
+            <button
+              type="button"
+              onClick={() => setActiveSubTab('invitations')}
+              className={`px-3 py-1.5 text-xs font-semibold gap-1.5 flex items-center rounded-lg transition-colors ${
+                activeSubTab === 'invitations'
+                  ? 'bg-accent text-foreground'
+                  : 'text-muted-foreground hover:bg-accent/40 hover:text-foreground'
+              }`}
+            >
+              <span>Pending Invitations</span>
+              {invitationsList.length > 0 ? (
+                <Badge variant="info" className="px-1.5 py-0 text-[10px]">
+                  {invitationsList.length}
+                </Badge>
+              ) : null}
+            </button>
+          ) : null}
         </div>
 
         {activeSubTab === 'members' ? (
-          <div className="flex items-center gap-2">
+          <div className="gap-2 flex items-center">
             <Select value={roleFilter} onValueChange={setRoleFilter}>
               <SelectTrigger className="h-8 text-xs w-[130px] bg-surface">
                 <SelectValue placeholder="All Roles" />
@@ -423,7 +434,7 @@ export function WorkspaceMembersSettings({
 
       {/* Feedback Toast Banner */}
       {inviteSuccessMessage ? (
-        <div className="flex items-center gap-2 rounded-xl border border-success/30 bg-success/10 p-3 text-xs text-success-text">
+        <div className="gap-2 p-3 text-xs flex items-center rounded-xl border border-success/30 bg-success/10 text-success-text">
           <CheckCircle2 className="size-4 shrink-0 text-success-text" />
           <span>{inviteSuccessMessage}</span>
         </div>
@@ -453,7 +464,7 @@ export function WorkspaceMembersSettings({
               }
             />
           ) : (
-            <div className="rounded-xl border border-border bg-surface divide-y divide-border/60 overflow-hidden shadow-2xs">
+            <div className="shadow-2xs divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-surface">
               {filteredMembers.map((member) => {
                 const isSelf = member.user.id === currentUser?.id;
                 const isMemberOwner = member.role === WorkspaceRole.OWNER;
@@ -463,9 +474,9 @@ export function WorkspaceMembersSettings({
                 return (
                   <div
                     key={member.id}
-                    className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-accent/25 transition-colors"
+                    className="p-4 sm:flex-row sm:items-center gap-3 flex flex-col justify-between transition-colors hover:bg-accent/25"
                   >
-                    <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="gap-3.5 min-w-0 flex items-center">
                       <UserAvatar
                         name={member.user.displayName ?? member.user.name}
                         src={member.user.avatarUrl}
@@ -476,20 +487,20 @@ export function WorkspaceMembersSettings({
                         className="size-9"
                       />
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-xs text-foreground truncate">
+                        <div className="gap-2 flex items-center">
+                          <span className="font-semibold text-xs truncate text-foreground">
                             {member.user.displayName ?? member.user.name}
                           </span>
                           {isSelf ? (
                             <Badge
                               variant="neutral"
-                              className="text-[10px] px-1.5 py-0 font-medium"
+                              className="px-1.5 py-0 font-medium text-[10px]"
                             >
                               You
                             </Badge>
                           ) : null}
                         </div>
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground mt-0.5">
+                        <div className="gap-x-2 gap-y-0.5 mt-0.5 flex flex-wrap items-center text-[11px] text-muted-foreground">
                           <span>@{member.user.name}</span>
                           {member.email ? (
                             <>
@@ -502,7 +513,9 @@ export function WorkspaceMembersSettings({
                           {member.lastActiveAt ? (
                             <>
                               <span>·</span>
-                              <span>Active {formatRelative(member.lastActiveAt)}</span>
+                              <span>
+                                Active {formatRelative(member.lastActiveAt)}
+                              </span>
                             </>
                           ) : null}
                           <span>·</span>
@@ -518,21 +531,27 @@ export function WorkspaceMembersSettings({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 self-end sm:self-auto shrink-0">
+                    <div className="gap-3 sm:self-auto flex shrink-0 items-center self-end">
                       {member.status && member.status !== 'ACTIVE' ? (
                         <Badge
-                          variant={member.status === 'SUSPENDED' ? 'destructive' : 'neutral'}
-                          className="text-[10px] font-semibold px-2 py-0.5 capitalize"
+                          variant={
+                            member.status === 'SUSPENDED'
+                              ? 'destructive'
+                              : 'neutral'
+                          }
+                          className="font-semibold px-2 py-0.5 text-[10px] capitalize"
                         >
-                          {member.status === 'SUSPENDED' ? 'Suspended' : 'Removed'}
+                          {member.status === 'SUSPENDED'
+                            ? 'Suspended'
+                            : 'Removed'}
                         </Badge>
                       ) : null}
                       <Badge
                         variant={badgeConfig.variant}
-                        className="text-[11px] font-semibold px-2 py-0.5 capitalize"
+                        className="font-semibold px-2 py-0.5 text-[11px] capitalize"
                       >
                         {isMemberOwner ? (
-                          <span className="flex items-center gap-1">
+                          <span className="gap-1 flex items-center">
                             <Crown className="size-3 text-accent-amber" />
                             Owner
                           </span>
@@ -554,7 +573,10 @@ export function WorkspaceMembersSettings({
                               <MoreHorizontal className="size-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48 text-xs">
+                          <DropdownMenuContent
+                            align="end"
+                            className="w-48 text-xs"
+                          >
                             <DropdownMenuLabel>Change Role</DropdownMenuLabel>
                             {[
                               WorkspaceRole.ADMIN,
@@ -587,7 +609,11 @@ export function WorkspaceMembersSettings({
                             <DropdownMenuSeparator />
                             {member.status === 'SUSPENDED' ? (
                               <DropdownMenuItem
-                                onClick={() => reactivateMemberMutation.mutate(member.user.id)}
+                                onClick={() =>
+                                  reactivateMemberMutation.mutate(
+                                    member.user.id,
+                                  )
+                                }
                                 className="text-success-text"
                               >
                                 <RotateCcw className="size-3.5 mr-2 text-success-text" />
@@ -665,19 +691,19 @@ export function WorkspaceMembersSettings({
               description="Invite team members to collaborate in this workspace."
             />
           ) : (
-            <div className="rounded-xl border border-border bg-surface divide-y divide-border/60 overflow-hidden shadow-2xs">
+            <div className="shadow-2xs divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-surface">
               {invitationsList.map((invitation) => (
                 <div
                   key={invitation.id}
-                  className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-accent/25 transition-colors"
+                  className="p-4 sm:flex-row sm:items-center gap-3 flex flex-col justify-between transition-colors hover:bg-accent/25"
                 >
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="size-9 rounded-full bg-accent flex items-center justify-center text-muted-foreground shrink-0">
+                  <div className="gap-3.5 min-w-0 flex items-center">
+                    <div className="size-9 flex shrink-0 items-center justify-center rounded-full bg-accent text-muted-foreground">
                       <Mail className="size-4 text-primary" />
                     </div>
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-xs text-foreground truncate">
+                      <div className="gap-2 flex items-center">
+                        <span className="font-semibold text-xs truncate text-foreground">
                           {invitation.email}
                         </span>
                         {isAdmin ? (
@@ -690,36 +716,44 @@ export function WorkspaceMembersSettings({
                               })
                             }
                           >
-                            <SelectTrigger className="h-6 text-[10px] w-[88px] px-1.5 py-0 bg-surface">
+                            <SelectTrigger className="h-6 px-1.5 py-0 w-[88px] bg-surface text-[10px]">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value={WorkspaceRole.ADMIN}>Admin</SelectItem>
-                              <SelectItem value={WorkspaceRole.MEMBER}>Member</SelectItem>
-                              <SelectItem value={WorkspaceRole.GUEST}>Guest</SelectItem>
+                              <SelectItem value={WorkspaceRole.ADMIN}>
+                                Admin
+                              </SelectItem>
+                              <SelectItem value={WorkspaceRole.MEMBER}>
+                                Member
+                              </SelectItem>
+                              <SelectItem value={WorkspaceRole.GUEST}>
+                                Guest
+                              </SelectItem>
                             </SelectContent>
                           </Select>
                         ) : (
                           <Badge
                             variant="neutral"
-                            className="text-[10px] px-1.5 py-0 font-medium capitalize"
+                            className="px-1.5 py-0 font-medium text-[10px] capitalize"
                           >
                             {invitation.role.toLowerCase()}
                           </Badge>
                         )}
                       </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
                         Sent {formatRelative(invitation.createdAt)}
                       </p>
                     </div>
                   </div>
 
                   {isAdmin ? (
-                    <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                    <div className="gap-2 sm:self-auto flex shrink-0 items-center self-end">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => resendInvitationMutation.mutate(invitation.id)}
+                        onClick={() =>
+                          resendInvitationMutation.mutate(invitation.id)
+                        }
                         disabled={resendInvitationMutation.isPending}
                         className="text-xs h-7.5 px-2.5"
                       >
@@ -759,7 +793,7 @@ export function WorkspaceMembersSettings({
                               revokeInvitationMutation.mutate(invitation.id);
                           });
                         }}
-                        className="text-xs h-7.5 text-destructive hover:bg-destructive/10 px-2.5"
+                        className="text-xs h-7.5 px-2.5 text-destructive hover:bg-destructive/10"
                       >
                         <Trash2 className="size-3.5 mr-1" />
                         Revoke
@@ -782,7 +816,7 @@ export function WorkspaceMembersSettings({
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
+            <DialogTitle className="gap-2 flex items-center text-destructive">
               <UserMinus className="size-5" />
               Remove Member from Workspace
             </DialogTitle>
@@ -791,8 +825,8 @@ export function WorkspaceMembersSettings({
               <strong>
                 {memberToRemove?.user.displayName ?? memberToRemove?.user.name}
               </strong>{' '}
-              from {workspaceName}? They will lose access to all channels, documents,
-              and workspace data immediately.
+              from {workspaceName}? They will lose access to all channels,
+              documents, and workspace data immediately.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
@@ -826,18 +860,20 @@ export function WorkspaceMembersSettings({
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-warning-text">
+            <DialogTitle className="gap-2 flex items-center text-warning-text">
               <Ban className="size-5" />
               Suspend Member
             </DialogTitle>
             <DialogDescription>
               Are you sure you want to suspend{' '}
               <strong>
-                {memberToSuspend?.user.displayName ?? memberToSuspend?.user.name}
+                {memberToSuspend?.user.displayName ??
+                  memberToSuspend?.user.name}
               </strong>{' '}
-              from {workspaceName}? While suspended, they will be prevented from accessing
-              workspace channels, documents, or data. Their messages and history remain preserved,
-              and you can reactivate them at any time.
+              from {workspaceName}? While suspended, they will be prevented from
+              accessing workspace channels, documents, or data. Their messages
+              and history remain preserved, and you can reactivate them at any
+              time.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
@@ -856,7 +892,9 @@ export function WorkspaceMembersSettings({
               }}
               disabled={suspendMemberMutation.isPending}
             >
-              {suspendMemberMutation.isPending ? 'Suspending...' : 'Suspend Member'}
+              {suspendMemberMutation.isPending
+                ? 'Suspending...'
+                : 'Suspend Member'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -871,14 +909,15 @@ export function WorkspaceMembersSettings({
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-accent-amber">
+            <DialogTitle className="gap-2 flex items-center text-accent-amber">
               <Crown className="size-5" />
               Transfer Workspace Ownership
             </DialogTitle>
             <DialogDescription>
               You are transferring full ownership of {workspaceName} to{' '}
               <strong>
-                {memberToTransfer?.user.displayName ?? memberToTransfer?.user.name}
+                {memberToTransfer?.user.displayName ??
+                  memberToTransfer?.user.name}
               </strong>
               . You will remain an Admin in the workspace.
             </DialogDescription>

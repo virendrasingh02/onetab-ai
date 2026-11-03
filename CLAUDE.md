@@ -21,3 +21,7 @@
 - The `nx-generate` skill handles generator discovery internally - don't call nx_docs just to look up generator syntax
 
 <!-- nx configuration end-->
+
+# End-to-end testing
+
+- For any "test the flows / check it works end to end / what's missing" request, and after feature work touching the web app or the AI Agent Studio, use the `e2e-tester` agent (`.claude/agents/e2e-tester.md`). Follow its checklist and report format whether you run it as a subagent or inline, and keep that file updated when new routes/flows or test gotchas appear.

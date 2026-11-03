@@ -133,6 +133,7 @@ import {
   useDeleteWebAuthn,
   useDisconnectIdentity,
 } from '../use-workspaces.js';
+import { usePlanEntitlements } from '../hooks/use-plan-entitlements.js';
 import { SettingsLayout } from '../settings-layout.js';
 import { useRegisterSettingsDirty } from '../settings-dirty.store.js';
 import { useWorkspacePreference } from '../settings-preferences.store.js';
@@ -202,6 +203,7 @@ export function WorkspaceSettingsPage({
   encryptionSecurityPanel,
 }: WorkspaceSettingsPageProps = {}) {
   const { workspace, workspaceId, isLoading } = useCurrentWorkspace();
+  const planEntitlements = usePlanEntitlements(workspaceId ?? undefined);
   const updateWorkspace = useUpdateWorkspace(workspaceId);
   const uploadLogo = useUploadWorkspaceLogo(workspaceId);
   const removeLogo = useRemoveWorkspaceLogo(workspaceId);
@@ -2223,9 +2225,16 @@ export function WorkspaceSettingsPage({
             }
           />
 
-          <div className="p-5 rounded-xl border border-border bg-surface shadow-xs">
-            {importPanel}
-          </div>
+          {isAdmin ? (
+            <div className="p-5 rounded-xl border border-border bg-surface shadow-xs">
+              {importPanel}
+            </div>
+          ) : (
+            <p className="p-5 text-sm rounded-xl border border-border bg-surface text-muted-foreground">
+              Only workspace admins can import or export workspace data. Ask an
+              admin if you need a migration or a backup.
+            </p>
+          )}
         </div>
       )}
 
@@ -2295,13 +2304,15 @@ export function WorkspaceSettingsPage({
 
       {currentTab === 'general' && (
         <div className="space-y-8">
-          <UpgradePlanBanner
-            variant="compact"
-            totalMembers={workspace?.memberCount ?? 1}
-            maxSeats={5}
-            currentPlan="free"
-            onUpgradeClick={() => handleTabChange('billing')}
-          />
+          {planEntitlements.canManageBilling ? (
+            <UpgradePlanBanner
+              variant="compact"
+              totalMembers={workspace?.memberCount ?? 1}
+              maxSeats={planEntitlements.getLimit('max_members')}
+              currentPlan={planEntitlements.plan}
+              onUpgradeClick={() => handleTabChange('billing')}
+            />
+          ) : null}
           <SettingsSectionHeader
             title={<>Workspace General Settings</>}
             description={

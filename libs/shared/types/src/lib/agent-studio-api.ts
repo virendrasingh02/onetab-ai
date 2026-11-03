@@ -34,7 +34,13 @@ export interface StudioAgentSummary {
   templateId: string | null;
   stepCount: number;
   scopes: string[] | null;
-  lastRun: { id: string; status: string; startedAt: string; finishedAt: string | null; test: boolean } | null;
+  lastRun: {
+    id: string;
+    status: string;
+    startedAt: string;
+    finishedAt: string | null;
+    test: boolean;
+  } | null;
   runCount: number;
   /** Failed runs in the last 24 hours. */
   recentFailures: number;
@@ -96,7 +102,11 @@ export interface StudioCatalogApp {
 export interface StudioCatalog {
   tools: StudioCatalogTool[];
   apps: StudioCatalogApp[];
-  events: ReadonlyArray<{ value: AgentEventName; label: string; filter?: 'channel' | 'project' }>;
+  events: ReadonlyArray<{
+    value: AgentEventName;
+    label: string;
+    filter?: 'channel' | 'project';
+  }>;
 }
 
 /** What the planner understood — shown above a new plan. */
@@ -137,10 +147,33 @@ export interface StudioHome {
     name: string | null;
     currentStep: { stepId: string; status: string; nodeType: string } | null;
   }>;
-  approvals: Array<{ id: string; runId: string | null; action: string; createdAt: string; agentName: string | null }>;
-  recentlyCompleted: Array<{ id: string; entityId: string; name: string | null; finishedAt: string | null }>;
-  failed: Array<{ id: string; entityId: string; name: string | null; startedAt: string }>;
-  scheduled: Array<{ id: string; name: string; nextRunAt: string | null; trigger: AgentBlueprintTrigger }>;
+  approvals: Array<{
+    id: string;
+    runId: string | null;
+    action: string;
+    createdAt: string;
+    agentName: string | null;
+  }>;
+  recentlyCompleted: Array<{
+    id: string;
+    entityType: string;
+    entityId: string;
+    name: string | null;
+    finishedAt: string | null;
+  }>;
+  failed: Array<{
+    id: string;
+    entityType: string;
+    entityId: string;
+    name: string | null;
+    startedAt: string;
+  }>;
+  scheduled: Array<{
+    id: string;
+    name: string;
+    nextRunAt: string | null;
+    trigger: AgentBlueprintTrigger;
+  }>;
   /** Template ids not yet used in this workspace. */
   recommended: string[];
 }

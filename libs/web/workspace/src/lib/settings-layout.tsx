@@ -198,6 +198,7 @@ const NAV_GROUPS: NavGroup[] = [
         id: 'import-export',
         label: 'Import & Export',
         icon: UploadCloud,
+        minRole: WorkspaceRole.ADMIN,
         keywords: 'migrate backup data slack',
       },
       {

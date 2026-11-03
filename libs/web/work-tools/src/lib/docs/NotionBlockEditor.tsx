@@ -44,10 +44,14 @@ interface NotionBlockEditorProps {
 }
 
 const AI_ACTION_PROMPTS = {
-  summarize: "Summarize the user's text in one or two concise sentences. Reply with the summary only.",
-  expand: "Expand the user's text with relevant detail, keeping its meaning and tone. Reply with the expanded text only.",
-  formal: "Rewrite the user's text in a professional tone without changing its meaning. Reply with the rewritten text only.",
-  action_items: "Extract the action items from the user's text as a short list, one per line, each starting with '• '. If there are none, reply 'No action items found.'",
+  summarize:
+    "Summarize the user's text in one or two concise sentences. Reply with the summary only.",
+  expand:
+    "Expand the user's text with relevant detail, keeping its meaning and tone. Reply with the expanded text only.",
+  formal:
+    "Rewrite the user's text in a professional tone without changing its meaning. Reply with the rewritten text only.",
+  action_items:
+    "Extract the action items from the user's text as a short list, one per line, each starting with '• '. If there are none, reply 'No action items found.'",
 } as const;
 
 const BLOCK_TYPES_CONFIG: {
@@ -136,13 +140,33 @@ const BLOCK_TYPES_CONFIG: {
   },
 ];
 
-export function NotionBlockEditor({ blocks, onUpdateBlocks, workspaceId }: NotionBlockEditorProps) {
+export function NotionBlockEditor({
+  blocks,
+  onUpdateBlocks,
+  workspaceId,
+}: NotionBlockEditorProps) {
   const [slashMenuIndex, setSlashMenuIndex] = useState<number | null>(null);
   const [slashSearch, setSlashSearch] = useState('');
 
-  const handleBlockChange = (id: string, updatedFields: Partial<NotionBlock>) => {
-    const updated = blocks.map((b) => (b.id === id ? { ...b, ...updatedFields } : b));
+  const handleBlockChange = (
+    id: string,
+    updatedFields: Partial<NotionBlock>,
+  ) => {
+    const updated = blocks.map((b) =>
+      b.id === id ? { ...b, ...updatedFields } : b,
+    );
     onUpdateBlocks(updated);
+  };
+
+  // Only a lone "/" typed into an empty block opens the block menu. Matching
+  // any "/" stripped it from URLs, dates and "and/or" on every keystroke.
+  const handleTextInput = (id: string, index: number, value: string) => {
+    if (value === '/') {
+      setSlashMenuIndex(index);
+      handleBlockChange(id, { content: '' });
+      return;
+    }
+    handleBlockChange(id, { content: value });
   };
 
   const handleAddBlock = (index: number, type: BlockType = 'paragraph') => {
@@ -228,20 +252,20 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks, workspaceId }: Notio
   );
 
   return (
-    <div className="w-full space-y-3 py-2">
+    <div className="space-y-3 py-2 w-full">
       {blocks.map((block, index) => {
         return (
           <div
             key={block.id}
-            className="group relative flex items-start gap-2 rounded-lg p-1.5 hover:bg-accent/20 transition-colors"
+            className="group gap-2 p-1.5 relative flex items-start rounded-lg transition-colors hover:bg-accent/20"
           >
             {/* Notion Drag & Action Handle Controls */}
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 pt-1.5 shrink-0 select-none">
+            <div className="gap-0.5 pt-1.5 flex shrink-0 items-center opacity-0 transition-opacity select-none group-hover:opacity-100">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className="p-1 rounded text-subtle hover:text-foreground hover:bg-accent cursor-pointer"
+                    className="p-1 rounded cursor-pointer text-subtle hover:bg-accent hover:text-foreground"
                     title="Block options"
                   >
                     <GripVertical className="size-3.5" />
@@ -282,7 +306,7 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks, workspaceId }: Notio
                   <button
                     type="button"
                     onClick={() => setSlashMenuIndex(index)}
-                    className="p-1 rounded text-subtle hover:text-accent-blue hover:bg-accent cursor-pointer"
+                    className="p-1 rounded cursor-pointer text-subtle hover:bg-accent hover:text-accent-blue"
                     title="Insert block below"
                   >
                     <Plus className="size-3.5" />
@@ -303,22 +327,25 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks, workspaceId }: Notio
                     is what the old `overflow-y-auto` on the whole popover did,
                     and it left you typing into a field you could no longer see.
                   */}
-                  <ScrollArea className="max-h-72" contentClassName="space-y-0.5">
+                  <ScrollArea
+                    className="max-h-72"
+                    contentClassName="space-y-0.5"
+                  >
                     {filteredBlockTypes.map((item) => (
                       <button
                         key={item.type}
                         type="button"
                         onClick={() => handleAddBlock(index, item.type)}
-                        className="w-full flex items-start gap-2.5 p-2 rounded-md hover:bg-accent text-left transition-colors cursor-pointer"
+                        className="gap-2.5 p-2 flex w-full cursor-pointer items-start rounded-md text-left transition-colors hover:bg-accent"
                       >
-                        <div className="mt-0.5 p-1 rounded bg-surface-raised border border-border">
+                        <div className="mt-0.5 p-1 rounded border border-border bg-surface-raised">
                           {item.icon}
                         </div>
                         <div>
                           <p className="text-xs font-semibold text-foreground">
                             {item.label}
                           </p>
-                          <p className="text-[11px] text-subtle line-clamp-1">
+                          <p className="line-clamp-1 text-[11px] text-subtle">
                             {item.description}
                           </p>
                         </div>
@@ -330,18 +357,17 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks, workspaceId }: Notio
             </div>
 
             {/* Block Body Rendering */}
-            <div className="flex-1 min-w-0">
+            <div className="min-w-0 flex-1">
               {/* Heading 1 */}
               {block.type === 'h1' && (
                 <Textarea
                   value={block.content}
-                  onChange={(e) => {
-                    if (e.target.value.includes('/')) setSlashMenuIndex(index);
-                    handleBlockChange(block.id, { content: e.target.value.replace('/', '') });
-                  }}
+                  onChange={(e) =>
+                    handleTextInput(block.id, index, e.target.value)
+                  }
                   placeholder="Heading 1..."
                   rows={1}
-                  className="text-2xl font-extrabold tracking-tight text-foreground bg-transparent border-none focus-visible:ring-0 p-0 shadow-none resize-none overflow-hidden h-auto min-h-9"
+                  className="text-2xl font-extrabold tracking-tight p-0 min-h-9 h-auto resize-none overflow-hidden border-none bg-transparent text-foreground shadow-none focus-visible:ring-0"
                 />
               )}
 
@@ -349,13 +375,12 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks, workspaceId }: Notio
               {block.type === 'h2' && (
                 <Textarea
                   value={block.content}
-                  onChange={(e) => {
-                    if (e.target.value.includes('/')) setSlashMenuIndex(index);
-                    handleBlockChange(block.id, { content: e.target.value.replace('/', '') });
-                  }}
+                  onChange={(e) =>
+                    handleTextInput(block.id, index, e.target.value)
+                  }
                   placeholder="Heading 2..."
                   rows={1}
-                  className="text-xl font-bold tracking-tight text-foreground bg-transparent border-none focus-visible:ring-0 p-0 shadow-none resize-none overflow-hidden h-auto min-h-8"
+                  className="text-xl font-bold tracking-tight p-0 min-h-8 h-auto resize-none overflow-hidden border-none bg-transparent text-foreground shadow-none focus-visible:ring-0"
                 />
               )}
 
@@ -363,13 +388,12 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks, workspaceId }: Notio
               {block.type === 'h3' && (
                 <Textarea
                   value={block.content}
-                  onChange={(e) => {
-                    if (e.target.value.includes('/')) setSlashMenuIndex(index);
-                    handleBlockChange(block.id, { content: e.target.value.replace('/', '') });
-                  }}
+                  onChange={(e) =>
+                    handleTextInput(block.id, index, e.target.value)
+                  }
                   placeholder="Heading 3..."
                   rows={1}
-                  className="text-lg font-semibold text-foreground bg-transparent border-none focus-visible:ring-0 p-0 shadow-none resize-none overflow-hidden h-auto min-h-7"
+                  className="text-lg font-semibold p-0 min-h-7 h-auto resize-none overflow-hidden border-none bg-transparent text-foreground shadow-none focus-visible:ring-0"
                 />
               )}
 
@@ -377,34 +401,36 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks, workspaceId }: Notio
               {block.type === 'paragraph' && (
                 <Textarea
                   value={block.content}
-                  onChange={(e) => {
-                    if (e.target.value.includes('/')) setSlashMenuIndex(index);
-                    handleBlockChange(block.id, { content: e.target.value.replace('/', '') });
-                  }}
+                  onChange={(e) =>
+                    handleTextInput(block.id, index, e.target.value)
+                  }
                   placeholder="Type '/' for commands..."
                   rows={1}
-                  className="text-sm leading-relaxed text-foreground bg-transparent border-none focus-visible:ring-0 p-0 shadow-none resize-none overflow-hidden h-auto min-h-6"
+                  className="text-sm leading-relaxed p-0 min-h-6 h-auto resize-none overflow-hidden border-none bg-transparent text-foreground shadow-none focus-visible:ring-0"
                 />
               )}
 
               {/* Checklist / Todo */}
               {block.type === 'checklist' && (
-                <div className="flex items-center gap-2 py-0.5">
+                <div className="gap-2 py-0.5 flex items-center">
                   <input
                     type="checkbox"
                     checked={block.checked || false}
                     onChange={(e) =>
                       handleBlockChange(block.id, { checked: e.target.checked })
                     }
-                    className="size-4 rounded border-border text-accent-blue focus:ring-accent-blue cursor-pointer"
+                    className="size-4 rounded cursor-pointer border-border text-accent-blue focus:ring-accent-blue"
                   />
                   <Input
                     value={block.content}
-                    onChange={(e) => handleBlockChange(block.id, { content: e.target.value })}
+                    onChange={(e) =>
+                      handleBlockChange(block.id, { content: e.target.value })
+                    }
                     placeholder="Task item..."
                     className={cn(
-                      'text-sm bg-transparent border-none shadow-none h-7 p-0 text-foreground focus-visible:ring-0',
-                      block.checked && 'line-through text-muted-foreground opacity-70',
+                      'text-sm h-7 p-0 border-none bg-transparent text-foreground shadow-none focus-visible:ring-0',
+                      block.checked &&
+                        'text-muted-foreground line-through opacity-70',
                     )}
                   />
                 </div>
@@ -412,59 +438,74 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks, workspaceId }: Notio
 
               {/* Bulleted List */}
               {block.type === 'bullet_list' && (
-                <div className="flex items-start gap-2">
-                  <span className="size-2 rounded-full bg-accent-blue mt-2 shrink-0" />
+                <div className="gap-2 flex items-start">
+                  <span className="size-2 mt-2 shrink-0 rounded-full bg-accent-blue" />
                   <Input
                     value={block.content}
-                    onChange={(e) => handleBlockChange(block.id, { content: e.target.value })}
+                    onChange={(e) =>
+                      handleBlockChange(block.id, { content: e.target.value })
+                    }
                     placeholder="List item..."
-                    className="text-sm bg-transparent border-none shadow-none h-7 p-0 text-foreground focus-visible:ring-0"
+                    className="text-sm h-7 p-0 border-none bg-transparent text-foreground shadow-none focus-visible:ring-0"
                   />
                 </div>
               )}
 
               {/* Numbered List */}
               {block.type === 'numbered_list' && (
-                <div className="flex items-start gap-2">
-                  <span className="text-xs font-semibold text-accent-blue mt-1 shrink-0">
+                <div className="gap-2 flex items-start">
+                  <span className="text-xs font-semibold mt-1 shrink-0 text-accent-blue">
                     {index + 1}.
                   </span>
                   <Input
                     value={block.content}
-                    onChange={(e) => handleBlockChange(block.id, { content: e.target.value })}
+                    onChange={(e) =>
+                      handleBlockChange(block.id, { content: e.target.value })
+                    }
                     placeholder="Ordered list item..."
-                    className="text-sm bg-transparent border-none shadow-none h-7 p-0 text-foreground focus-visible:ring-0"
+                    className="text-sm h-7 p-0 border-none bg-transparent text-foreground shadow-none focus-visible:ring-0"
                   />
                 </div>
               )}
 
               {/* Toggle Block */}
               {block.type === 'toggle' && (
-                <div className="rounded-lg border border-border bg-surface-raised/40 p-2.5 space-y-2">
-                  <div className="flex items-center gap-2">
+                <div className="p-2.5 space-y-2 rounded-lg border border-border bg-surface-raised/40">
+                  <div className="gap-2 flex items-center">
                     <button
                       type="button"
-                      onClick={() => handleBlockChange(block.id, { isOpen: !block.isOpen })}
-                      className="p-1 rounded hover:bg-accent text-muted-foreground transition-transform"
+                      onClick={() =>
+                        handleBlockChange(block.id, { isOpen: !block.isOpen })
+                      }
+                      className="p-1 rounded text-muted-foreground transition-transform hover:bg-accent"
                     >
                       <ChevronRight
-                        className={cn('size-4 transition-transform', block.isOpen && 'rotate-90')}
+                        className={cn(
+                          'size-4 transition-transform',
+                          block.isOpen && 'rotate-90',
+                        )}
                       />
                     </button>
                     <Input
                       value={block.content}
-                      onChange={(e) => handleBlockChange(block.id, { content: e.target.value })}
+                      onChange={(e) =>
+                        handleBlockChange(block.id, { content: e.target.value })
+                      }
                       placeholder="Toggle section title..."
-                      className="font-semibold text-sm bg-transparent border-none shadow-none p-0 h-6 text-foreground focus-visible:ring-0"
+                      className="font-semibold text-sm p-0 h-6 border-none bg-transparent text-foreground shadow-none focus-visible:ring-0"
                     />
                   </div>
                   {block.isOpen ? (
                     <div className="pl-6 pt-1">
                       <Textarea
                         value={block.aiPrompt || ''}
-                        onChange={(e) => handleBlockChange(block.id, { aiPrompt: e.target.value })}
+                        onChange={(e) =>
+                          handleBlockChange(block.id, {
+                            aiPrompt: e.target.value,
+                          })
+                        }
                         placeholder="Expanded toggle details content..."
-                        className="text-xs text-muted-foreground bg-surface p-2 rounded-md border border-border/80"
+                        className="text-xs p-2 rounded-md border border-border/80 bg-surface text-muted-foreground"
                       />
                     </div>
                   ) : null}
@@ -475,22 +516,26 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks, workspaceId }: Notio
               {block.type === 'callout' && (
                 <div
                   className={cn(
-                    'p-3 rounded-lg border flex items-start gap-3 transition-colors',
+                    'p-3 gap-3 flex items-start rounded-lg border transition-colors',
                     block.variant === 'warning'
-                      ? 'bg-accent-amber-soft border-accent-amber/30 text-accent-amber'
+                      ? 'border-accent-amber/30 bg-accent-amber-soft text-accent-amber'
                       : block.variant === 'tip'
-                      ? 'bg-accent-green-soft border-accent-green/30 text-accent-green'
-                      : 'bg-accent-blue/10 border-accent-blue/30 text-foreground',
+                        ? 'border-accent-green/30 bg-accent-green-soft text-accent-green'
+                        : 'border-accent-blue/30 bg-accent-blue/10 text-foreground',
                   )}
                 >
-                  <span className="text-xl select-none">{block.icon || '💡'}</span>
-                  <div className="flex-1 min-w-0">
+                  <span className="text-xl select-none">
+                    {block.icon || '💡'}
+                  </span>
+                  <div className="min-w-0 flex-1">
                     <Textarea
                       value={block.content}
-                      onChange={(e) => handleBlockChange(block.id, { content: e.target.value })}
+                      onChange={(e) =>
+                        handleBlockChange(block.id, { content: e.target.value })
+                      }
                       placeholder="Callout information message..."
                       rows={2}
-                      className="text-xs leading-relaxed bg-transparent border-none shadow-none p-0 focus-visible:ring-0 resize-none"
+                      className="text-xs leading-relaxed p-0 resize-none border-none bg-transparent shadow-none focus-visible:ring-0"
                     />
                   </div>
                 </div>
@@ -498,36 +543,42 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks, workspaceId }: Notio
 
               {/* Code Snippet */}
               {block.type === 'code' && (
-                <div className="w-full my-1">
+                <div className="my-1 w-full">
                   <CodeBlock
                     code={block.content || '// Write code snippet here...'}
                     language={block.language || 'typescript'}
                     editable={true}
                     showLineNumbers={true}
-                    onSave={(newCode) => handleBlockChange(block.id, { content: newCode })}
-                    onEdit={(newCode) => handleBlockChange(block.id, { content: newCode })}
+                    onSave={(newCode) =>
+                      handleBlockChange(block.id, { content: newCode })
+                    }
+                    onEdit={(newCode) =>
+                      handleBlockChange(block.id, { content: newCode })
+                    }
                   />
                 </div>
               )}
 
               {/* Quote Block */}
               {block.type === 'quote' && (
-                <div className="border-l-4 border-accent-blue pl-4 py-1 italic text-muted-foreground bg-surface-raised/40 rounded-r-md">
+                <div className="pl-4 py-1 rounded-r-md border-l-4 border-accent-blue bg-surface-raised/40 text-muted-foreground italic">
                   <Textarea
                     value={block.content}
-                    onChange={(e) => handleBlockChange(block.id, { content: e.target.value })}
+                    onChange={(e) =>
+                      handleBlockChange(block.id, { content: e.target.value })
+                    }
                     placeholder="Quote text..."
                     rows={1}
-                    className="text-sm bg-transparent border-none p-0 focus-visible:ring-0 shadow-none resize-none italic"
+                    className="text-sm p-0 resize-none border-none bg-transparent italic shadow-none focus-visible:ring-0"
                   />
                 </div>
               )}
 
               {/* Interactive Database Table Block */}
               {block.type === 'table' && (
-                <div className="rounded-lg border border-border bg-surface p-3 space-y-3 overflow-x-auto">
+                <div className="p-3 space-y-3 overflow-x-auto rounded-lg border border-border bg-surface">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <span className="text-xs font-bold gap-1.5 flex items-center text-foreground">
                       <TableIcon className="size-3.5 text-accent-blue" />
                       Notion Database Grid
                     </span>
@@ -536,38 +587,50 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks, workspaceId }: Notio
                       size="sm"
                       onClick={() => {
                         const newRows = [...(block.rows || [])];
-                        const colCount = block.headers ? block.headers.length : 3;
+                        const colCount = block.headers
+                          ? block.headers.length
+                          : 3;
                         newRows.push(Array(colCount).fill('New Value'));
                         handleBlockChange(block.id, { rows: newRows });
                       }}
-                      className="h-6 text-[11px] gap-1"
+                      className="h-6 gap-1 text-[11px]"
                     >
                       <Plus className="size-3" />
                       <span>Add Row</span>
                     </Button>
                   </div>
 
-                  <table className="w-full text-xs border-collapse">
+                  <table className="text-xs w-full border-collapse">
                     <thead>
                       <tr className="border-b border-border bg-surface-raised">
-                        {(block.headers || ['Col 1', 'Col 2', 'Col 3']).map((h, colIdx) => (
-                          <th key={colIdx} className="p-2 text-left font-semibold text-foreground">
-                            <Input
-                              value={h}
-                              onChange={(e) => {
-                                const newHeaders = [...(block.headers || [])];
-                                newHeaders[colIdx] = e.target.value;
-                                handleBlockChange(block.id, { headers: newHeaders });
-                              }}
-                              className="h-6 text-xs bg-transparent border-none font-bold p-0 shadow-none focus-visible:ring-0"
-                            />
-                          </th>
-                        ))}
+                        {(block.headers || ['Col 1', 'Col 2', 'Col 3']).map(
+                          (h, colIdx) => (
+                            <th
+                              key={colIdx}
+                              className="p-2 font-semibold text-left text-foreground"
+                            >
+                              <Input
+                                value={h}
+                                onChange={(e) => {
+                                  const newHeaders = [...(block.headers || [])];
+                                  newHeaders[colIdx] = e.target.value;
+                                  handleBlockChange(block.id, {
+                                    headers: newHeaders,
+                                  });
+                                }}
+                                className="h-6 text-xs font-bold p-0 border-none bg-transparent shadow-none focus-visible:ring-0"
+                              />
+                            </th>
+                          ),
+                        )}
                       </tr>
                     </thead>
                     <tbody>
                       {(block.rows || []).map((row, rowIdx) => (
-                        <tr key={rowIdx} className="border-b border-border/50 hover:bg-accent/30">
+                        <tr
+                          key={rowIdx}
+                          className="border-b border-border/50 hover:bg-accent/30"
+                        >
                           {row.map((cell, cellIdx) => (
                             <td key={cellIdx} className="p-2">
                               <Input
@@ -575,9 +638,11 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks, workspaceId }: Notio
                                 onChange={(e) => {
                                   const newRows = [...(block.rows || [])];
                                   newRows[rowIdx][cellIdx] = e.target.value;
-                                  handleBlockChange(block.id, { rows: newRows });
+                                  handleBlockChange(block.id, {
+                                    rows: newRows,
+                                  });
                                 }}
-                                className="h-6 text-xs bg-transparent border-none p-0 shadow-none focus-visible:ring-0 text-muted-foreground hover:text-foreground"
+                                className="h-6 text-xs p-0 border-none bg-transparent text-muted-foreground shadow-none hover:text-foreground focus-visible:ring-0"
                               />
                             </td>
                           ))}
@@ -590,24 +655,29 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks, workspaceId }: Notio
 
               {/* AI Writer & Copilot Assistant Block */}
               {block.type === 'ai_prompt' && (
-                <div className="rounded-xl border border-accent-violet/30 bg-gradient-to-r from-accent-violet-soft to-accent-indigo-soft p-3 space-y-2">
+                <div className="p-3 space-y-2 rounded-xl border border-accent-violet/30 bg-gradient-to-r from-accent-violet-soft to-accent-indigo-soft">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-accent-violet flex items-center gap-1.5">
+                    <span className="text-xs font-bold gap-1.5 flex items-center text-accent-violet">
                       <Sparkles className="size-3.5 text-accent-violet" />
                       AI Copilot Assistant
                     </span>
-                    <Badge variant="outline" className="text-[10px] border-accent-violet/30 text-accent-violet">
+                    <Badge
+                      variant="outline"
+                      className="border-accent-violet/30 text-[10px] text-accent-violet"
+                    >
                       GPT-4o Ready
                     </Badge>
                   </div>
                   <Textarea
                     value={block.content}
-                    onChange={(e) => handleBlockChange(block.id, { content: e.target.value })}
+                    onChange={(e) =>
+                      handleBlockChange(block.id, { content: e.target.value })
+                    }
                     placeholder="AI generated content or prompt result..."
                     rows={2}
-                    className="text-xs text-foreground bg-surface/60 p-2 rounded-lg border border-accent-violet/30"
+                    className="text-xs p-2 rounded-lg border border-accent-violet/30 bg-surface/60 text-foreground"
                   />
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <div className="gap-1.5 pt-1 flex flex-wrap items-center">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -658,7 +728,7 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks, workspaceId }: Notio
           variant="ghost"
           size="sm"
           onClick={() => handleAddBlock(blocks.length - 1, 'paragraph')}
-          className="w-full text-xs text-subtle hover:text-foreground justify-start gap-2 border border-dashed border-border/60 rounded-lg h-9"
+          className="text-xs gap-2 h-9 w-full justify-start rounded-lg border border-dashed border-border/60 text-subtle hover:text-foreground"
         >
           <Plus className="size-3.5" />
           <span>Click to add block or type '/'...</span>

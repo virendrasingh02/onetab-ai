@@ -39,7 +39,16 @@ import {
   formatAiEntityIconAvatar,
   parseAiEntityAvatar,
 } from '@org/ui';
-import { agentVersionLabel, canManageOwnedAIResource, compileStudioGraph, nextAgentVersionTag, isStudioGraph, diffStudioGraphs, type StudioCanvasGraph, type StudioGraphIssue } from '@org/types';
+import {
+  agentVersionLabel,
+  canManageOwnedAIResource,
+  compileStudioGraph,
+  nextAgentVersionTag,
+  isStudioGraph,
+  diffStudioGraphs,
+  type StudioCanvasGraph,
+  type StudioGraphIssue,
+} from '@org/types';
 import { cn, generateId } from '@org/utils';
 import {
   addEdge,
@@ -127,20 +136,37 @@ import {
   Rows3,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { scopeStudioPath, useNavigate, useParams, useSearchParams } from '../router.js';
+import {
+  scopeStudioPath,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from '../router.js';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AgentAvatar, DEFAULT_CATEGORIES } from '../data/agent-metadata.js';
 import { useMemberPreference } from '../hooks/use-member-preference.js';
 import { useStudioSession } from '../session-guard.js';
-import { AgentRuntimeSettings, type AgentRuntimeDraft } from '../components/agent-detail/agent-runtime-settings.js';
+import {
+  AgentRuntimeSettings,
+  type AgentRuntimeDraft,
+} from '../components/agent-detail/agent-runtime-settings.js';
 import { STUDIO_NODE_TYPES } from '../components/workflow-canvas/custom-nodes.js';
 import { useModelLabel } from '../components/workflow-canvas/agent-config/use-agent-config-data.js';
-import { STUDIO_EDGE_TYPES, WorkflowConnectionLine } from '../components/workflow-canvas/custom-edges.jsx';
+import {
+  STUDIO_EDGE_TYPES,
+  WorkflowConnectionLine,
+} from '../components/workflow-canvas/custom-edges.jsx';
 import { CanvasContextMenu } from '../components/workflow-canvas/canvas-context-menu.jsx';
 import { NodeCatalogModal } from '../components/workflow-canvas/node-catalog-modal.js';
-import { NodeInspector, type NodeSnapshot } from '../components/workflow-canvas/node-inspector.js';
+import {
+  NodeInspector,
+  type NodeSnapshot,
+} from '../components/workflow-canvas/node-inspector.js';
 import { ValidationModal } from '../components/workflow-canvas/validation-modal.js';
-import { RunConsoleDrawer, type CanvasNodeStatus } from '../components/workflow-canvas/run-console-drawer.js';
+import {
+  RunConsoleDrawer,
+  type CanvasNodeStatus,
+} from '../components/workflow-canvas/run-console-drawer.js';
 import { AgentCopilotPanel } from '../components/agent-architect/agent-copilot-panel.js';
 import { AgentConnectorsTab } from '../components/agent-detail/agent-connectors-tab.js';
 import { MemoryTab } from '../components/agent-detail/memory-tab.jsx';
@@ -149,9 +175,15 @@ import { EvaluationsTab } from '../components/agent-detail/evaluations-tab.jsx';
 import { AgentVersionsList } from '../components/agent-detail/agent-versions-list.js';
 import { AgentDeploymentTab } from '../components/agent-detail/agent-deployment-tab.js';
 import { AgentMarketplaceTab } from '../components/agent-detail/agent-marketplace-tab.js';
-import { AgentTabPage, AgentTabSection } from '../components/agent-detail/agent-tab-page.js';
+import {
+  AgentTabPage,
+  AgentTabSection,
+} from '../components/agent-detail/agent-tab-page.js';
 import { apiBase as deploymentApiBase } from '../components/agent-detail/deployment/use-deployment.js';
-import { AgentSettingsLayout, type SettingsNavItem } from '../components/agent-detail/agent-settings-layout.js';
+import {
+  AgentSettingsLayout,
+  type SettingsNavItem,
+} from '../components/agent-detail/agent-settings-layout.js';
 import { agentService } from '../services/agentService.js';
 import { analyticsService } from '../services/analyticsService.js';
 import {
@@ -159,7 +191,11 @@ import {
   type LayoutArrange,
   type LayoutSpacing,
 } from '../components/workflow-canvas/auto-layout.js';
-import { EDGE_ROUTING_HINTS, EDGE_ROUTING_LABELS, isEdgeRouting } from '../components/workflow-canvas/edge-routing.js';
+import {
+  EDGE_ROUTING_HINTS,
+  EDGE_ROUTING_LABELS,
+  isEdgeRouting,
+} from '../components/workflow-canvas/edge-routing.js';
 import {
   WorkflowLayoutContext,
   type WorkflowDirection,
@@ -181,7 +217,10 @@ import { AgentOutlinePanel } from '../components/workflow-canvas/agent-outline-p
 import { validateWorkflowConnection } from '../components/workflow-canvas/connection-validator.js';
 import { EdgeDataInspector } from '../components/workflow-canvas/edge-data-inspector.js';
 import { CanvasCommandPalette } from '../components/workflow-canvas/canvas-command-palette.js';
-import { WorkflowHealthBadge, type WorkflowIssue } from '../components/workflow-canvas/workflow-health-badge.js';
+import {
+  WorkflowHealthBadge,
+  type WorkflowIssue,
+} from '../components/workflow-canvas/workflow-health-badge.js';
 import { TemplateExportModal } from '../components/workflow-canvas/template-export-modal.js';
 import {
   readAgentModules,
@@ -190,7 +229,10 @@ import {
   type ModuleDraft,
 } from '../components/workflow-canvas/agent-config/agent-module-model.js';
 import type { ModuleActions } from '../components/workflow-canvas/agent-config/module-drawer.js';
-import type { NodeAnalyticsOverlayData, NodeRunResult } from '../components/workflow-canvas/node-chrome.js';
+import type {
+  NodeAnalyticsOverlayData,
+  NodeRunResult,
+} from '../components/workflow-canvas/node-chrome.js';
 
 const INITIAL_NODES: Node[] = [
   {
@@ -217,7 +259,8 @@ const INITIAL_NODES: Node[] = [
       config: {
         model: 'gpt-4o',
         temperature: 0.4,
-        instructions: 'Analyze the given task and execute the required sub-workflows.',
+        instructions:
+          'Analyze the given task and execute the required sub-workflows.',
       },
     },
   },
@@ -241,7 +284,10 @@ const INITIAL_EDGES: Edge[] = [
 
 /** A node as saved: without the status ring a run painted on it. */
 function withoutRunStatus(node: Node): Node {
-  const { status: _status, ...data } = (node.data ?? {}) as Record<string, unknown>;
+  const { status: _status, ...data } = (node.data ?? {}) as Record<
+    string,
+    unknown
+  >;
   return { ...node, data };
 }
 
@@ -261,19 +307,39 @@ interface LayoutPrefs {
   arrange: LayoutArrange;
   spacing: LayoutSpacing;
 }
-const DEFAULT_LAYOUT_PREFS: LayoutPrefs = { arrange: 'layered', spacing: 'comfortable' };
+const DEFAULT_LAYOUT_PREFS: LayoutPrefs = {
+  arrange: 'layered',
+  spacing: 'comfortable',
+};
 
-const LAYOUT_ARRANGE_MENU: { value: LayoutArrange; label: string; hint: string; Icon: typeof Spline }[] = [
-  { value: 'layered', label: 'Layered flow', hint: 'Columns by step order, fewest crossing wires', Icon: Rows3 },
-  { value: 'tree', label: 'Tree', hint: 'Tidy tree: each step centred over the branches it starts', Icon: Network },
+const LAYOUT_ARRANGE_MENU: {
+  value: LayoutArrange;
+  label: string;
+  hint: string;
+  Icon: typeof Spline;
+}[] = [
+  {
+    value: 'layered',
+    label: 'Layered flow',
+    hint: 'Columns by step order, fewest crossing wires',
+    Icon: Rows3,
+  },
+  {
+    value: 'tree',
+    label: 'Tree',
+    hint: 'Tidy tree: each step centred over the branches it starts',
+    Icon: Network,
+  },
 ];
 const LAYOUT_SPACING_MENU: { value: LayoutSpacing; label: string }[] = [
   { value: 'compact', label: 'Compact' },
   { value: 'comfortable', label: 'Comfortable' },
   { value: 'spacious', label: 'Spacious' },
 ];
-const isLayoutArrange = (v: unknown): v is LayoutArrange => v === 'layered' || v === 'tree';
-const isLayoutSpacing = (v: unknown): v is LayoutSpacing => v === 'compact' || v === 'comfortable' || v === 'spacious';
+const isLayoutArrange = (v: unknown): v is LayoutArrange =>
+  v === 'layered' || v === 'tree';
+const isLayoutSpacing = (v: unknown): v is LayoutSpacing =>
+  v === 'compact' || v === 'comfortable' || v === 'spacious';
 
 /** Canvas-wide routing choices, in menu order. */
 const EDGE_ROUTING_MENU: { value: WorkflowEdgeStyle; Icon: typeof Spline }[] = [
@@ -284,27 +350,43 @@ const EDGE_ROUTING_MENU: { value: WorkflowEdgeStyle; Icon: typeof Spline }[] = [
 ];
 
 /** The canvas graph as the API stores it: JSON in `graphJson`. */
-function parseGraph(graphJson: string | null | undefined): ParsedStudioGraph | null {
+function parseGraph(
+  graphJson: string | null | undefined,
+): ParsedStudioGraph | null {
   if (!graphJson) return null;
   try {
     const graph = JSON.parse(graphJson) as {
       nodes?: unknown;
       edges?: unknown;
       settings?: unknown;
-      layout?: { direction?: string; edgeStyle?: string; arrange?: string; spacing?: string };
+      layout?: {
+        direction?: string;
+        edgeStyle?: string;
+        arrange?: string;
+        spacing?: string;
+      };
     };
     if (!Array.isArray(graph.nodes) || graph.nodes.length === 0) return null;
     return {
       nodes: graph.nodes as Node[],
       edges: Array.isArray(graph.edges) ? (graph.edges as Edge[]) : [],
-      ...(graph.settings && typeof graph.settings === 'object' && !Array.isArray(graph.settings)
+      ...(graph.settings &&
+      typeof graph.settings === 'object' &&
+      !Array.isArray(graph.settings)
         ? { settings: graph.settings as Record<string, unknown> }
         : {}),
       layout: {
-        direction: graph.layout?.direction === 'vertical' ? 'vertical' : 'horizontal',
-        edgeStyle: isEdgeRouting(graph.layout?.edgeStyle) ? graph.layout.edgeStyle : 'smooth',
-        arrange: isLayoutArrange(graph.layout?.arrange) ? graph.layout.arrange : DEFAULT_LAYOUT_PREFS.arrange,
-        spacing: isLayoutSpacing(graph.layout?.spacing) ? graph.layout.spacing : DEFAULT_LAYOUT_PREFS.spacing,
+        direction:
+          graph.layout?.direction === 'vertical' ? 'vertical' : 'horizontal',
+        edgeStyle: isEdgeRouting(graph.layout?.edgeStyle)
+          ? graph.layout.edgeStyle
+          : 'smooth',
+        arrange: isLayoutArrange(graph.layout?.arrange)
+          ? graph.layout.arrange
+          : DEFAULT_LAYOUT_PREFS.arrange,
+        spacing: isLayoutSpacing(graph.layout?.spacing)
+          ? graph.layout.spacing
+          : DEFAULT_LAYOUT_PREFS.spacing,
       },
     };
   } catch {
@@ -343,7 +425,8 @@ const LAYOUT_ANIMATION_MS = 420;
 /** Quiet time after the last edit before the draft saves itself. */
 const AUTO_SAVE_DELAY_MS = 2000;
 const AUTO_SAVE_PREF_KEY = 'studioAutosave';
-const isAutoSave = (opts: unknown) => !!(opts as { auto?: boolean } | undefined)?.auto;
+const isAutoSave = (opts: unknown) =>
+  !!(opts as { auto?: boolean } | undefined)?.auto;
 
 /** "just now", "12s ago", "4m ago", then the time. */
 function savedAgo(at: number, now: number): string {
@@ -374,13 +457,24 @@ function useNow(since: number | null): number {
 
 /** What an agent's slot row says about the node plugged into it — the prompt's first real line for a prompt. */
 function slotRowLabel(slotId: string, n: Node): string {
-  const data = (n.data ?? {}) as { label?: unknown; config?: Record<string, unknown> };
+  const data = (n.data ?? {}) as {
+    label?: unknown;
+    config?: Record<string, unknown>;
+  };
   if (slotId === 'prompt') {
-    const text = String(data.config?.['prompt'] ?? data.config?.['template'] ?? data.config?.['systemPrompt'] ?? '');
+    const text = String(
+      data.config?.['prompt'] ??
+        data.config?.['template'] ??
+        data.config?.['systemPrompt'] ??
+        '',
+    );
     const line = text
       .split('\n')
       .map((l) => l.replace(/^[#>*\-\s]+/, '').trim())
-      .find((l) => l.length > 0 && !/^(role|scope|rules|goal|instructions)$/i.test(l));
+      .find(
+        (l) =>
+          l.length > 0 && !/^(role|scope|rules|goal|instructions)$/i.test(l),
+      );
     if (line) return line.length > 48 ? `${line.slice(0, 47)}…` : line;
   }
   return String(data.label || n.type);
@@ -400,7 +494,11 @@ const AGENT_TABS = [
 ] as const;
 type AgentTab = (typeof AGENT_TABS)[number]['id'];
 /** Short header items; multi-section groups open a menu. */
-const AGENT_TAB_GROUPS: readonly { label: string; icon: typeof Plug; tabs: readonly AgentTab[] }[] = [
+const AGENT_TAB_GROUPS: readonly {
+  label: string;
+  icon: typeof Plug;
+  tabs: readonly AgentTab[];
+}[] = [
   { label: 'Canvas', icon: GitBranch, tabs: ['build'] },
   { label: 'Setup', icon: Plug, tabs: ['connectors', 'memory', 'variables'] },
   { label: 'Runs', icon: Activity, tabs: ['executions', 'evaluations'] },
@@ -423,12 +521,24 @@ const SETTINGS_NAV: readonly SettingsNavItem[] = [
   { id: 'settings-api', label: 'API endpoint', icon: <Code2 /> },
 ];
 
-const SELECTION_ALIGN_ACTIONS: { type: AlignType; label: string; icon: typeof AlignStartVertical }[] = [
+const SELECTION_ALIGN_ACTIONS: {
+  type: AlignType;
+  label: string;
+  icon: typeof AlignStartVertical;
+}[] = [
   { type: 'left', label: 'Align left edges', icon: AlignStartVertical },
-  { type: 'center', label: 'Align horizontal centers', icon: AlignCenterVertical },
+  {
+    type: 'center',
+    label: 'Align horizontal centers',
+    icon: AlignCenterVertical,
+  },
   { type: 'right', label: 'Align right edges', icon: AlignEndVertical },
   { type: 'top', label: 'Align top edges', icon: AlignStartHorizontal },
-  { type: 'middle', label: 'Align vertical centers', icon: AlignCenterHorizontal },
+  {
+    type: 'middle',
+    label: 'Align vertical centers',
+    icon: AlignCenterHorizontal,
+  },
   { type: 'bottom', label: 'Align bottom edges', icon: AlignEndHorizontal },
 ];
 
@@ -455,11 +565,21 @@ interface GraphSnapshot {
  * size), plus — for history entries — the canvas layout, so switching edge
  * routing or layout direction is an undoable step like any graph edit.
  */
-function toGraphSnapshot(nodes: Node[], edges: Edge[], layout?: CanvasLayout): GraphSnapshot {
-  const cleanNodes = nodes.map(({ selected: _s, dragging: _d, measured: _m, ...n }) => n as Node);
+function toGraphSnapshot(
+  nodes: Node[],
+  edges: Edge[],
+  layout?: CanvasLayout,
+): GraphSnapshot {
+  const cleanNodes = nodes.map(
+    ({ selected: _s, dragging: _d, measured: _m, ...n }) => n as Node,
+  );
   const cleanEdges = edges.map(({ selected: _s, ...e }) => e as Edge);
   return {
-    key: JSON.stringify(layout ? [cleanNodes, cleanEdges, layout.direction, layout.edgeStyle] : [cleanNodes, cleanEdges]),
+    key: JSON.stringify(
+      layout
+        ? [cleanNodes, cleanEdges, layout.direction, layout.edgeStyle]
+        : [cleanNodes, cleanEdges],
+    ),
     nodes: cleanNodes,
     edges: cleanEdges,
     ...(layout ? { layout } : {}),
@@ -468,13 +588,21 @@ function toGraphSnapshot(nodes: Node[], edges: Edge[], layout?: CanvasLayout): G
 
 const isTypingTarget = (target: EventTarget | null) => {
   const el = target as HTMLElement | null;
-  return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
+  return (
+    !!el &&
+    (el.tagName === 'INPUT' ||
+      el.tagName === 'TEXTAREA' ||
+      el.tagName === 'SELECT' ||
+      el.isContentEditable)
+  );
 };
 
 /** Extra classes on top of `<Button variant="ghost" size="icon-sm">` for the canvas toolbar. */
 const canvasControlClass = 'rounded-lg disabled:opacity-40';
 
-type MeasuredSizeReader = (id: string) => { width?: number; height?: number } | undefined;
+type MeasuredSizeReader = (
+  id: string,
+) => { width?: number; height?: number } | undefined;
 
 /**
  * Nodes in page state lose `measured` whenever they're replaced (load, undo,
@@ -482,11 +610,16 @@ type MeasuredSizeReader = (id: string) => { width?: number; height?: number } | 
  * layout fell back to a default size for every card and lined up their tops
  * instead of their handles. Fill sizes in from what React Flow has measured.
  */
-function withMeasuredSizes(nodes: Node[], read: MeasuredSizeReader | null | undefined): Node[] {
+function withMeasuredSizes(
+  nodes: Node[],
+  read: MeasuredSizeReader | null | undefined,
+): Node[] {
   if (!read) return nodes;
   return nodes.map((n) => {
     const size = read(n.id);
-    return size?.width && size.height ? { ...n, measured: { width: size.width, height: size.height } } : n;
+    return size?.width && size.height
+      ? { ...n, measured: { width: size.width, height: size.height } }
+      : n;
   });
 }
 
@@ -581,7 +714,11 @@ function WorkflowCanvasInner({
   hasClipboard?: boolean;
   onSelectAll?: () => void;
   onOpenCommandPalette?: () => void;
-  onConnectEndDrop?: (pos: { x: number; y: number }, fromNode: Node, fromHandle?: string) => void;
+  onConnectEndDrop?: (
+    pos: { x: number; y: number },
+    fromNode: Node,
+    fromHandle?: string,
+  ) => void;
   direction?: WorkflowDirection;
   onChangeDirection?: (dir: WorkflowDirection) => void;
   edgeStyle?: WorkflowEdgeStyle;
@@ -594,7 +731,12 @@ function WorkflowCanvasInner({
   onToggleCopilot?: () => void;
   onUpdateNodeMetadata?: (
     nodeId: string,
-    patch: { title?: string; label?: string; description?: string; subtitle?: string },
+    patch: {
+      title?: string;
+      label?: string;
+      description?: string;
+      subtitle?: string;
+    },
   ) => void;
   /** Filled with a reader for each card's rendered size, for layouts run by the page. */
   measuredSizeRef?: { current: MeasuredSizeReader | null };
@@ -606,12 +748,18 @@ function WorkflowCanvasInner({
       if (measured?.width && measured.height) return measured;
       // React Flow's record can be empty (state replaced, resize observer idle): use the
       // rendered card, whose offset size is unaffected by the canvas zoom
-      const el = canvasRef.current?.querySelector<HTMLElement>(`.react-flow__node[data-id="${CSS.escape(id)}"]`);
-      return el ? { width: el.offsetWidth, height: el.offsetHeight } : undefined;
+      const el = canvasRef.current?.querySelector<HTMLElement>(
+        `.react-flow__node[data-id="${CSS.escape(id)}"]`,
+      );
+      return el
+        ? { width: el.offsetWidth, height: el.offsetHeight }
+        : undefined;
     };
   }
   const { zoom } = useViewport();
-  const [interactionMode, setInteractionMode] = useState<'select' | 'pan'>('select');
+  const [interactionMode, setInteractionMode] = useState<'select' | 'pan'>(
+    'select',
+  );
   const canvasRef = useRef<HTMLDivElement>(null);
   const edgeReconnectSuccessful = useRef(true);
 
@@ -665,7 +813,10 @@ function WorkflowCanvasInner({
   // Bottom Node Catalog Modal State
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   // Agent outline (teams, attachments, setup issues); opens on its own once the flow has agents
-  const agentCount = useMemo(() => nodes.filter((n) => isSlotHost(n.type)).length, [nodes]);
+  const agentCount = useMemo(
+    () => nodes.filter((n) => isSlotHost(n.type)).length,
+    [nodes],
+  );
   const [isOutlineOpen, setIsOutlineOpen] = useState(false);
 
   const handleDragOver = useCallback((event: React.DragEvent) => {
@@ -732,9 +883,14 @@ function WorkflowCanvasInner({
   const onConnectEnd = useCallback(
     (event: any, connectionState: any) => {
       if (!connectionState?.isValid && connectionState?.fromNode) {
-        const clientX = event?.clientX ?? event?.changedTouches?.[0]?.clientX ?? 0;
-        const clientY = event?.clientY ?? event?.changedTouches?.[0]?.clientY ?? 0;
-        const position = reactFlowInstance.screenToFlowPosition({ x: clientX, y: clientY });
+        const clientX =
+          event?.clientX ?? event?.changedTouches?.[0]?.clientX ?? 0;
+        const clientY =
+          event?.clientY ?? event?.changedTouches?.[0]?.clientY ?? 0;
+        const position = reactFlowInstance.screenToFlowPosition({
+          x: clientX,
+          y: clientY,
+        });
         onConnectEndDrop?.(
           position,
           connectionState.fromNode,
@@ -746,61 +902,83 @@ function WorkflowCanvasInner({
   );
 
   // Canvas Right-Click
-  const handlePaneContextMenu = useCallback((event: React.MouseEvent | MouseEvent) => {
-    event.preventDefault();
-    setContextMenu({
-      isOpen: true,
-      x: event.clientX,
-      y: event.clientY,
-      targetNode: null,
-      targetEdge: null,
-    });
-  }, []);
+  const handlePaneContextMenu = useCallback(
+    (event: React.MouseEvent | MouseEvent) => {
+      event.preventDefault();
+      setContextMenu({
+        isOpen: true,
+        x: event.clientX,
+        y: event.clientY,
+        targetNode: null,
+        targetEdge: null,
+      });
+    },
+    [],
+  );
 
   // Node Right-Click
-  const handleNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setContextMenu({
-      isOpen: true,
-      x: event.clientX,
-      y: event.clientY,
-      targetNode: node,
-      targetEdge: null,
-    });
-  }, []);
+  const handleNodeContextMenu = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setContextMenu({
+        isOpen: true,
+        x: event.clientX,
+        y: event.clientY,
+        targetNode: node,
+        targetEdge: null,
+      });
+    },
+    [],
+  );
 
   // Edge Right-Click
-  const handleEdgeContextMenu = useCallback((event: React.MouseEvent, edge: Edge) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setContextMenu({
-      isOpen: true,
-      x: event.clientX,
-      y: event.clientY,
-      targetNode: null,
-      targetEdge: edge,
-    });
-  }, []);
+  const handleEdgeContextMenu = useCallback(
+    (event: React.MouseEvent, edge: Edge) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setContextMenu({
+        isOpen: true,
+        x: event.clientX,
+        y: event.clientY,
+        targetNode: null,
+        targetEdge: edge,
+      });
+    },
+    [],
+  );
 
   // Analytics Overlay State
   const [isAnalyticsOverlayOpen, setIsAnalyticsOverlayOpen] = useState(false);
-  const [overlayMetric, setOverlayMetric] = useState<'duration' | 'cost' | 'runs' | 'errors'>('duration');
+  const [overlayMetric, setOverlayMetric] = useState<
+    'duration' | 'cost' | 'runs' | 'errors'
+  >('duration');
   const [overlayRange, setOverlayRange] = useState<'24H' | '7D' | '30D'>('7D');
   const { activeWorkspace } = useStudioSession();
   const { agentId } = useParams();
 
   // Query workflow analytics for overlay metrics
   const { data: workflowAnalytics } = useQuery({
-    queryKey: ['workflow-analytics-overlay', activeWorkspace?.id, agentId, overlayRange],
-    queryFn: () => analyticsService.getWorkflowDetail(activeWorkspace.id, agentId!, overlayRange),
+    queryKey: [
+      'workflow-analytics-overlay',
+      activeWorkspace?.id,
+      agentId,
+      overlayRange,
+    ],
+    queryFn: () =>
+      analyticsService.getWorkflowDetail(
+        activeWorkspace.id,
+        agentId!,
+        overlayRange,
+      ),
     enabled: Boolean(isAnalyticsOverlayOpen && activeWorkspace?.id && agentId),
   });
 
   // Also query node analytics across workspace for node fallback
   const { data: nodesAnalytics = [] } = useQuery({
     queryKey: ['nodes-analytics-overlay', activeWorkspace?.id, overlayRange],
-    queryFn: () => analyticsService.getNodeAnalytics(activeWorkspace.id, overlayRange),
+    queryFn: () =>
+      analyticsService.getNodeAnalytics(activeWorkspace.id, overlayRange),
     enabled: Boolean(isAnalyticsOverlayOpen && activeWorkspace?.id),
   });
 
@@ -841,7 +1019,10 @@ function WorkflowCanvasInner({
           avgDurationMs: byType.avgDurationMs,
           totalTokens: byType.totalTokens,
           estimatedCost: byType.costUsd,
-          errorRate: byType.invocations > 0 ? (byType.errorCount / byType.invocations) * 100 : 0,
+          errorRate:
+            byType.invocations > 0
+              ? (byType.errorCount / byType.invocations) * 100
+              : 0,
           retryCount: byType.retryCount,
         };
       }
@@ -852,10 +1033,10 @@ function WorkflowCanvasInner({
       overlayMetric === 'duration'
         ? m.avgDurationMs
         : overlayMetric === 'cost'
-        ? m.estimatedCost
-        : overlayMetric === 'runs'
-        ? m.executionCount
-        : m.errorRate;
+          ? m.estimatedCost
+          : overlayMetric === 'runs'
+            ? m.executionCount
+            : m.errorRate;
 
     let maxVal = 0;
     if (isAnalyticsOverlayOpen) {
@@ -871,15 +1052,21 @@ function WorkflowCanvasInner({
 
       if (m) {
         const metricLabel =
-          overlayMetric === 'cost' ? 'Cost' : overlayMetric === 'runs' ? 'Runs' : overlayMetric === 'errors' ? 'Errors' : 'Latency';
+          overlayMetric === 'cost'
+            ? 'Cost'
+            : overlayMetric === 'runs'
+              ? 'Runs'
+              : overlayMetric === 'errors'
+                ? 'Errors'
+                : 'Latency';
         const metricValue =
           overlayMetric === 'cost'
             ? `$${m.estimatedCost.toFixed(4)}`
             : overlayMetric === 'runs'
-            ? `${m.executionCount}`
-            : overlayMetric === 'errors'
-            ? `${m.errorRate.toFixed(1)}%`
-            : `${Math.round(m.avgDurationMs)}ms`;
+              ? `${m.executionCount}`
+              : overlayMetric === 'errors'
+                ? `${m.errorRate.toFixed(1)}%`
+                : `${Math.round(m.avgDurationMs)}ms`;
 
         nodeAnalyticsData = {
           ...m,
@@ -901,28 +1088,41 @@ function WorkflowCanvasInner({
         },
       };
     });
-  }, [nodes, isLocked, isAnalyticsOverlayOpen, overlayMetric, workflowAnalytics, nodesAnalytics, onNodeClick]);
+  }, [
+    nodes,
+    isLocked,
+    isAnalyticsOverlayOpen,
+    overlayMetric,
+    workflowAnalytics,
+    nodesAnalytics,
+    onNodeClick,
+  ]);
 
-  autoLayoutRef.current = (dir: 'LR' | 'TB' = direction === 'vertical' ? 'TB' : 'LR') => handleAutoLayoutClick(dir);
-  const handleAutoLayoutClick = useCallback((dir: 'LR' | 'TB' = direction === 'vertical' ? 'TB' : 'LR') => {
-    if (isLocked) return;
-    const duration = onAutoLayout(dir);
-    if (duration === null) return;
-    // Frame the tidied graph once the nodes have settled
-    setTimeout(() => {
-      reactFlowInstance.fitView({ padding: 0.2, duration: 450 });
-    }, duration + 40);
-  }, [isLocked, onAutoLayout, reactFlowInstance, direction]);
+  autoLayoutRef.current = (
+    dir: 'LR' | 'TB' = direction === 'vertical' ? 'TB' : 'LR',
+  ) => handleAutoLayoutClick(dir);
+  const handleAutoLayoutClick = useCallback(
+    (dir: 'LR' | 'TB' = direction === 'vertical' ? 'TB' : 'LR') => {
+      if (isLocked) return;
+      const duration = onAutoLayout(dir);
+      if (duration === null) return;
+      // Frame the tidied graph once the nodes have settled
+      setTimeout(() => {
+        reactFlowInstance.fitView({ padding: 0.2, duration: 450 });
+      }, duration + 40);
+    },
+    [isLocked, onAutoLayout, reactFlowInstance, direction],
+  );
 
   return (
     <div
       ref={canvasRef}
-      className="relative flex-1 h-full w-full bg-surface/50 select-none overflow-hidden"
+      className="relative h-full w-full flex-1 overflow-hidden bg-surface/50 select-none"
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
       {/* Floating Canvas Quick Toolbar (Docked at Bottom Center) */}
-      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-xl border border-border bg-surface p-1.5 shadow-lg select-none">
+      <div className="bottom-5 gap-1.5 p-1.5 absolute left-1/2 z-20 flex -translate-x-1/2 items-center rounded-xl border border-border bg-surface shadow-lg select-none">
         {onToggleCopilot && (
           <>
             <button
@@ -930,18 +1130,22 @@ function WorkflowCanvasInner({
               onClick={onToggleCopilot}
               data-open={isCopilotOpen}
               aria-pressed={isCopilotOpen}
-              title={isCopilotOpen ? 'Close Agent Copilot' : 'Ask Agent Copilot to change this agent'}
+              title={
+                isCopilotOpen
+                  ? 'Close Agent Copilot'
+                  : 'Ask Agent Copilot to change this agent'
+              }
               className={cn(
-                'copilot-shine h-8.5 rounded-full pl-2.5 pr-3 flex items-center gap-1.5 shrink-0 cursor-pointer',
+                'copilot-shine h-8.5 pl-2.5 pr-3 gap-1.5 flex shrink-0 cursor-pointer items-center rounded-full',
                 'text-xs font-semibold text-primary-foreground transition-transform duration-200',
-                'hover:scale-105 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                'hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-95',
               )}
             >
               <Sparkles className="size-4" />
               <span>Copilot</span>
             </button>
 
-            <div className="h-4 w-px bg-border mx-0.5" />
+            <div className="h-4 mx-0.5 w-px bg-border" />
           </>
         )}
 
@@ -950,36 +1154,47 @@ function WorkflowCanvasInner({
           type="button"
           onClick={() => setIsCatalogOpen((prev) => !prev)}
           disabled={isLocked}
-          title={isLocked ? 'Unlock the canvas to add steps' : 'Add Node to Workflow (Ctrl+K)'}
+          title={
+            isLocked
+              ? 'Unlock the canvas to add steps'
+              : 'Add Node to Workflow (Ctrl+K)'
+          }
           className={cn(
-            'size-8.5 rounded-full transition-all duration-200 cursor-pointer flex items-center justify-center shrink-0',
+            'size-8.5 flex shrink-0 cursor-pointer items-center justify-center rounded-full transition-all duration-200',
             'disabled:pointer-events-none disabled:opacity-40',
             'bg-foreground text-background shadow-md shadow-foreground/15',
-            'hover:bg-foreground/85 hover:scale-110 hover:shadow-lg hover:shadow-foreground/15 active:scale-95',
+            'hover:scale-110 hover:bg-foreground/85 hover:shadow-lg hover:shadow-foreground/15 active:scale-95',
             'ring-2 ring-foreground/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/55',
-            isCatalogOpen && 'ring-4 ring-foreground/20 scale-105 shadow-foreground/15',
+            isCatalogOpen &&
+              'scale-105 ring-4 shadow-foreground/15 ring-foreground/20',
           )}
         >
           <Plus className="size-5 stroke-[2.5]" />
         </button>
 
-        <div className="h-4 w-px bg-border mx-0.5" />
+        <div className="h-4 mx-0.5 w-px bg-border" />
 
         <Button
           variant="ghost"
           size="xs"
-          onClick={() => handleAutoLayoutClick(direction === 'vertical' ? 'TB' : 'LR')}
+          onClick={() =>
+            handleAutoLayoutClick(direction === 'vertical' ? 'TB' : 'LR')
+          }
           disabled={isLocked}
-          title={isLocked ? 'Unlock the canvas to tidy the layout' : 'Tidy the layout (Shift+L)'}
+          title={
+            isLocked
+              ? 'Unlock the canvas to tidy the layout'
+              : 'Tidy the layout (Shift+L)'
+          }
           aria-keyshortcuts="Shift+L"
-          className="gap-1.5 text-xs font-semibold text-foreground hover:text-primary h-8 px-2.5 rounded-xl cursor-pointer"
+          className="gap-1.5 text-xs font-semibold h-8 px-2.5 cursor-pointer rounded-xl text-foreground hover:text-primary"
         >
           <Wand2 className="size-3.5 text-primary" />
           <span>Auto Layout</span>
         </Button>
 
         {/* Layout direction + connection style live in one overflow menu */}
-        <div className="h-4 w-px bg-border mx-0.5" />
+        <div className="h-4 mx-0.5 w-px bg-border" />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -994,12 +1209,19 @@ function WorkflowCanvasInner({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="top" align="center" className="w-52">
-            <DropdownMenuLabel className="text-xs text-muted-foreground">Layout direction</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-xs text-muted-foreground">
+              Layout direction
+            </DropdownMenuLabel>
             <DropdownMenuRadioGroup
               value={direction}
-              onValueChange={(value) => onChangeDirection?.(value as WorkflowDirection)}
+              onValueChange={(value) =>
+                onChangeDirection?.(value as WorkflowDirection)
+              }
             >
-              <DropdownMenuRadioItem value="horizontal" className="gap-2 text-xs">
+              <DropdownMenuRadioItem
+                value="horizontal"
+                className="gap-2 text-xs"
+              >
                 <MoveHorizontal className="size-3.5" />
                 Horizontal
               </DropdownMenuRadioItem>
@@ -1009,21 +1231,37 @@ function WorkflowCanvasInner({
               </DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs text-muted-foreground">Arrangement</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-xs text-muted-foreground">
+              Arrangement
+            </DropdownMenuLabel>
             <DropdownMenuRadioGroup
               value={layoutPrefs.arrange}
-              onValueChange={(value) => onChangeLayoutPrefs?.({ arrange: value as LayoutArrange })}
+              onValueChange={(value) =>
+                onChangeLayoutPrefs?.({ arrange: value as LayoutArrange })
+              }
             >
               {LAYOUT_ARRANGE_MENU.map(({ value, label, hint, Icon }) => (
-                <DropdownMenuRadioItem key={value} value={value} disabled={isLocked} className="gap-2 text-xs" title={hint}>
+                <DropdownMenuRadioItem
+                  key={value}
+                  value={value}
+                  disabled={isLocked}
+                  className="gap-2 text-xs"
+                  title={hint}
+                >
                   <Icon className="size-3.5" />
                   {label}
                 </DropdownMenuRadioItem>
               ))}
             </DropdownMenuRadioGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs text-muted-foreground">Spacing</DropdownMenuLabel>
-            <div role="radiogroup" aria-label="Spacing" className="mx-1 mb-1 grid grid-cols-3 gap-0.5 rounded-lg bg-surface-raised p-0.5">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">
+              Spacing
+            </DropdownMenuLabel>
+            <div
+              role="radiogroup"
+              aria-label="Spacing"
+              className="mx-1 mb-1 gap-0.5 p-0.5 grid grid-cols-3 rounded-lg bg-surface-raised"
+            >
               {LAYOUT_SPACING_MENU.map(({ value, label }) => (
                 <button
                   key={value}
@@ -1033,7 +1271,7 @@ function WorkflowCanvasInner({
                   disabled={isLocked}
                   onClick={() => onChangeLayoutPrefs?.({ spacing: value })}
                   className={cn(
-                    'h-6 rounded-md text-xs font-medium transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50',
+                    'h-6 text-xs font-medium cursor-pointer rounded-md transition-colors disabled:cursor-not-allowed disabled:opacity-50',
                     layoutPrefs.spacing === value
                       ? 'bg-surface text-foreground shadow-sm'
                       : 'text-muted-foreground hover:text-foreground',
@@ -1044,13 +1282,22 @@ function WorkflowCanvasInner({
               ))}
             </div>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs text-muted-foreground">Edge routing</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-xs text-muted-foreground">
+              Edge routing
+            </DropdownMenuLabel>
             <DropdownMenuRadioGroup
               value={edgeStyle}
-              onValueChange={(value) => onChangeEdgeStyle?.(value as WorkflowEdgeStyle)}
+              onValueChange={(value) =>
+                onChangeEdgeStyle?.(value as WorkflowEdgeStyle)
+              }
             >
               {EDGE_ROUTING_MENU.map(({ value, Icon }) => (
-                <DropdownMenuRadioItem key={value} value={value} className="gap-2 text-xs" title={EDGE_ROUTING_HINTS[value]}>
+                <DropdownMenuRadioItem
+                  key={value}
+                  value={value}
+                  className="gap-2 text-xs"
+                  title={EDGE_ROUTING_HINTS[value]}
+                >
                   <Icon className="size-3.5" />
                   {EDGE_ROUTING_LABELS[value]}
                 </DropdownMenuRadioItem>
@@ -1061,7 +1308,7 @@ function WorkflowCanvasInner({
 
         {onOpenCommandPalette && (
           <>
-            <div className="h-4 w-px bg-border mx-0.5" />
+            <div className="h-4 mx-0.5 w-px bg-border" />
             <Button
               type="button"
               variant="ghost"
@@ -1083,7 +1330,7 @@ function WorkflowCanvasInner({
           edges={edges}
           onFocusNode={onFocusNodeById}
           onClose={() => setIsOutlineOpen(false)}
-          className="absolute left-5 top-5 z-20"
+          className="left-5 top-5 absolute z-20"
         />
       )}
 
@@ -1091,10 +1338,14 @@ function WorkflowCanvasInner({
       <div
         role="group"
         aria-label="Canvas controls"
-        className="absolute bottom-5 left-5 z-20 flex h-9 items-center gap-1 rounded-[14px] border border-border bg-surface p-1 shadow-sm select-none"
+        className="bottom-5 left-5 h-9 gap-1 p-1 absolute z-20 flex items-center rounded-[14px] border border-border bg-surface shadow-sm select-none"
       >
         {/* SECTION 1: Mode Switch (Select / Pan) */}
-        <div role="group" aria-label="Canvas tool" className="flex items-center gap-0.5">
+        <div
+          role="group"
+          aria-label="Canvas tool"
+          className="gap-0.5 flex items-center"
+        >
           <Button
             variant="ghost"
             size="icon-sm"
@@ -1105,7 +1356,8 @@ function WorkflowCanvasInner({
             title="Select (V) - Click and drag to box-select"
             className={cn(
               canvasControlClass,
-              interactionMode === 'select' && 'bg-surface-raised text-foreground',
+              interactionMode === 'select' &&
+                'bg-surface-raised text-foreground',
             )}
           >
             <MousePointer2 className="size-3.5" />
@@ -1154,14 +1406,23 @@ function WorkflowCanvasInner({
                 title="Zoom options"
                 className={cn(
                   canvasControlClass,
-                  'w-12 text-xs font-semibold tabular-nums text-foreground data-[state=open]:bg-surface-raised',
+                  'w-12 text-xs font-semibold text-foreground tabular-nums data-[state=open]:bg-surface-raised',
                 )}
               >
                 {Math.round(zoom * 100)}%
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent side="top" align="start" sideOffset={8} className="min-w-44">
-              <DropdownMenuItem onSelect={() => reactFlowInstance.fitView({ padding: 0.2, duration: 250 })}>
+            <DropdownMenuContent
+              side="top"
+              align="start"
+              sideOffset={8}
+              className="min-w-44"
+            >
+              <DropdownMenuItem
+                onSelect={() =>
+                  reactFlowInstance.fitView({ padding: 0.2, duration: 250 })
+                }
+              >
                 Zoom to fit
                 <DropdownMenuShortcut keys={['Shift', '1']} />
               </DropdownMenuItem>
@@ -1171,7 +1432,9 @@ function WorkflowCanvasInner({
                 return (
                   <DropdownMenuItem
                     key={preset}
-                    onSelect={() => reactFlowInstance.zoomTo(preset, { duration: 250 })}
+                    onSelect={() =>
+                      reactFlowInstance.zoomTo(preset, { duration: 250 })
+                    }
                     className={cn(isCurrent && 'font-semibold')}
                   >
                     Zoom to {preset * 100}%
@@ -1179,7 +1442,12 @@ function WorkflowCanvasInner({
                       <DropdownMenuShortcut keys={['Shift', '0']} />
                     ) : null}
                     {isCurrent && (
-                      <Check className={cn('size-3.5 text-primary', preset !== 1 && 'ml-auto')} />
+                      <Check
+                        className={cn(
+                          'size-3.5 text-primary',
+                          preset !== 1 && 'ml-auto',
+                        )}
+                      />
                     )}
                   </DropdownMenuItem>
                 );
@@ -1241,8 +1509,13 @@ function WorkflowCanvasInner({
           onClick={() => setIsOutlineOpen((v) => !v)}
           aria-label="Agent outline"
           aria-pressed={isOutlineOpen}
-          title={agentCount > 0 ? `Agents & teams (${agentCount})` : 'Agents & teams'}
-          className={cn(canvasControlClass, isOutlineOpen && 'bg-surface-raised text-primary')}
+          title={
+            agentCount > 0 ? `Agents & teams (${agentCount})` : 'Agents & teams'
+          }
+          className={cn(
+            canvasControlClass,
+            isOutlineOpen && 'bg-surface-raised text-primary',
+          )}
         >
           <Network className="size-3.5" />
         </Button>
@@ -1257,8 +1530,16 @@ function WorkflowCanvasInner({
           onClick={onToggleLock}
           aria-label="Lock canvas"
           aria-pressed={isLocked}
-          title={isLocked ? 'Canvas locked (click to unlock)' : 'Lock canvas (prevent changes)'}
-          className={cn(canvasControlClass, isLocked && 'bg-warning/15 text-warning hover:bg-warning/20 hover:text-warning')}
+          title={
+            isLocked
+              ? 'Canvas locked (click to unlock)'
+              : 'Lock canvas (prevent changes)'
+          }
+          className={cn(
+            canvasControlClass,
+            isLocked &&
+              'bg-warning/15 text-warning hover:bg-warning/20 hover:text-warning',
+          )}
         >
           <Lock className="size-3.5" />
         </Button>
@@ -1273,10 +1554,15 @@ function WorkflowCanvasInner({
           onClick={() => setIsAnalyticsOverlayOpen((v) => !v)}
           aria-label="Toggle Analytics Overlay"
           aria-pressed={isAnalyticsOverlayOpen}
-          title={isAnalyticsOverlayOpen ? 'Hide Analytics Overlay' : 'Show Analytics Overlay'}
+          title={
+            isAnalyticsOverlayOpen
+              ? 'Hide Analytics Overlay'
+              : 'Show Analytics Overlay'
+          }
           className={cn(
             canvasControlClass,
-            isAnalyticsOverlayOpen && 'bg-primary/20 text-primary font-semibold',
+            isAnalyticsOverlayOpen &&
+              'font-semibold bg-primary/20 text-primary',
           )}
         >
           <BarChart3 className="size-3.5" />
@@ -1288,14 +1574,14 @@ function WorkflowCanvasInner({
         <div
           role="region"
           aria-label="Workflow Analytics Overlay Controls"
-          className="absolute top-4 left-4 z-30 flex items-center gap-2 rounded-xl border border-border-strong bg-surface p-2 shadow-lg text-xs select-none"
+          className="top-4 left-4 gap-2 p-2 text-xs absolute z-30 flex items-center rounded-xl border border-border-strong bg-surface shadow-lg select-none"
         >
-          <div className="flex items-center gap-1.5 font-semibold text-foreground px-1">
+          <div className="gap-1.5 font-semibold px-1 flex items-center text-foreground">
             <BarChart3 className="size-4 text-primary" />
             <span>Overlay:</span>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="gap-1 flex items-center">
             {(
               [
                 { id: 'duration', label: 'Latency' },
@@ -1320,7 +1606,7 @@ function WorkflowCanvasInner({
 
           <div className="h-3 w-px bg-border" />
 
-          <div className="flex items-center gap-1">
+          <div className="gap-1 flex items-center">
             {(['24H', '7D', '30D'] as const).map((r) => (
               <Button
                 key={r}
@@ -1329,7 +1615,7 @@ function WorkflowCanvasInner({
                 size="xs"
                 aria-pressed={overlayRange === r}
                 onClick={() => setOverlayRange(r)}
-                className="h-5 rounded-md px-1.5 text-2xs"
+                className="h-5 px-1.5 rounded-md text-2xs"
               >
                 {r}
               </Button>
@@ -1339,16 +1625,16 @@ function WorkflowCanvasInner({
           <div className="h-3 w-px bg-border" />
 
           {/* Color Legend */}
-          <div className="flex items-center gap-2 text-2xs text-muted-foreground px-1">
-            <span className="flex items-center gap-1">
+          <div className="gap-2 px-1 flex items-center text-2xs text-muted-foreground">
+            <span className="gap-1 flex items-center">
               <span className="size-2 rounded-full bg-success" />
               Optimal
             </span>
-            <span className="flex items-center gap-1">
+            <span className="gap-1 flex items-center">
               <span className="size-2 rounded-full bg-warning" />
               Elevated
             </span>
-            <span className="flex items-center gap-1">
+            <span className="gap-1 flex items-center">
               <span className="size-2 rounded-full bg-destructive" />
               Hotspot
             </span>
@@ -1411,7 +1697,10 @@ function WorkflowCanvasInner({
           onConnect={isLocked ? undefined : onConnect}
           onConnectEnd={isLocked ? undefined : onConnectEnd}
           // Agent slots and type-safe connection validator
-          isValidConnection={(connection) => validateWorkflowConnection(connection as Connection, nodes, edges).valid}
+          isValidConnection={(connection) =>
+            validateWorkflowConnection(connection as Connection, nodes, edges)
+              .valid
+          }
           onReconnect={isLocked ? undefined : onReconnect}
           onReconnectStart={onReconnectStart}
           onReconnectEnd={onReconnectEnd}
@@ -1425,127 +1714,153 @@ function WorkflowCanvasInner({
           edgeTypes={STUDIO_EDGE_TYPES}
           connectionMode={ConnectionMode.Loose}
           connectionLineComponent={connectionLine}
-        selectionMode={SelectionMode.Partial}
-        panOnDrag={interactionMode === 'pan' ? true : [1, 2]}
-        selectionOnDrag={interactionMode === 'select'}
-        // Wheel zooms toward the cursor; pan by dragging (Pan tool) or with middle/right mouse
-        panOnScroll={false}
-        zoomOnScroll={true}
-        zoomOnPinch={true}
-        nodesDraggable={!isLocked}
-        nodesConnectable={!isLocked}
-        elementsSelectable={true}
-        defaultEdgeOptions={{
-          animated: false,
-          type: 'workflow',
-        }}
-        snapToGrid={true}
-        snapGrid={[16, 16]}
-        deleteKeyCode={isLocked ? [] : ['Backspace', 'Delete']}
-        proOptions={{ hideAttribution: true }}
-        fitView
-        // Small graphs open at a readable size instead of being blown up to fill the pane
-        fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
-        className={cn(
-          'bg-dot-pattern',
-          interactionMode === 'pan' && 'cursor-grab active:cursor-grabbing',
-        )}
-      >
-        {/* Multi-Node Selection Toolbar */}
-        {selectedNodes.length >= 2 && (
-          <Panel position="top-center" className="!mt-3">
-            <div
-              role="toolbar"
-              aria-label="Selection actions"
-              className="flex h-9 items-center gap-1 rounded-[14px] border border-border bg-surface p-1 shadow-sm select-none animate-in fade-in slide-in-from-top-1 duration-150"
-            >
-              <span className="px-2 text-xs font-semibold text-foreground tabular-nums">
-                {selectedNodes.length} selected
-              </span>
+          selectionMode={SelectionMode.Partial}
+          panOnDrag={interactionMode === 'pan' ? true : [1, 2]}
+          selectionOnDrag={interactionMode === 'select'}
+          // Wheel zooms toward the cursor; pan by dragging (Pan tool) or with middle/right mouse
+          panOnScroll={false}
+          zoomOnScroll={true}
+          zoomOnPinch={true}
+          nodesDraggable={!isLocked}
+          nodesConnectable={!isLocked}
+          elementsSelectable={true}
+          defaultEdgeOptions={{
+            animated: false,
+            type: 'workflow',
+          }}
+          snapToGrid={true}
+          snapGrid={[16, 16]}
+          deleteKeyCode={isLocked ? [] : ['Backspace', 'Delete']}
+          proOptions={{ hideAttribution: true }}
+          fitView
+          // Small graphs open at a readable size instead of being blown up to fill the pane
+          fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
+          className={cn(
+            'bg-dot-pattern',
+            interactionMode === 'pan' && 'cursor-grab active:cursor-grabbing',
+          )}
+        >
+          {/* Multi-Node Selection Toolbar */}
+          {selectedNodes.length >= 2 && (
+            <Panel position="top-center" className="!mt-3">
+              <div
+                role="toolbar"
+                aria-label="Selection actions"
+                className="h-9 gap-1 p-1 animate-in fade-in slide-in-from-top-1 flex items-center rounded-[14px] border border-border bg-surface shadow-sm duration-150 select-none"
+              >
+                <span className="px-2 text-xs font-semibold text-foreground tabular-nums">
+                  {selectedNodes.length} selected
+                </span>
 
-              {!isLocked && (
-                <>
-                  <div className="h-4 w-px shrink-0 bg-border" />
-                  {SELECTION_ALIGN_ACTIONS.map(({ type, label, icon: Icon }) => (
+                {!isLocked && (
+                  <>
+                    <div className="h-4 w-px shrink-0 bg-border" />
+                    {SELECTION_ALIGN_ACTIONS.map(
+                      ({ type, label, icon: Icon }) => (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          key={type}
+                          type="button"
+                          onClick={() =>
+                            onBatchAlign(
+                              type,
+                              selectedNodes.map((n) => n.id),
+                            )
+                          }
+                          aria-label={label}
+                          title={label}
+                          className={canvasControlClass}
+                        >
+                          <Icon className="size-3.5" />
+                        </Button>
+                      ),
+                    )}
+
+                    <div className="h-4 w-px shrink-0 bg-border" />
+
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      key={type}
                       type="button"
-                      onClick={() => onBatchAlign(type, selectedNodes.map((n) => n.id))}
-                      aria-label={label}
-                      title={label}
+                      onClick={() =>
+                        onBatchDuplicate(selectedNodes.map((n) => n.id))
+                      }
+                      aria-label="Duplicate selected"
+                      title="Duplicate selected"
                       className={canvasControlClass}
                     >
-                      <Icon className="size-3.5" />
+                      <Copy className="size-3.5" />
                     </Button>
-                  ))}
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      type="button"
+                      onClick={() =>
+                        onBatchGroup(selectedNodes.map((n) => n.id))
+                      }
+                      aria-label="Group into stage"
+                      title="Group into stage"
+                      className={canvasControlClass}
+                    >
+                      <Layers className="size-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      type="button"
+                      onClick={() =>
+                        onDeleteNodes(selectedNodes.map((n) => n.id))
+                      }
+                      aria-label="Delete selected"
+                      title="Delete selected (Del)"
+                      className={cn(
+                        canvasControlClass,
+                        'hover:bg-destructive/15 hover:text-destructive',
+                      )}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </>
+                )}
+              </div>
+            </Panel>
+          )}
 
-                  <div className="h-4 w-px shrink-0 bg-border" />
-
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    type="button"
-                    onClick={() => onBatchDuplicate(selectedNodes.map((n) => n.id))}
-                    aria-label="Duplicate selected"
-                    title="Duplicate selected"
-                    className={canvasControlClass}
-                  >
-                    <Copy className="size-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    type="button"
-                    onClick={() => onBatchGroup(selectedNodes.map((n) => n.id))}
-                    aria-label="Group into stage"
-                    title="Group into stage"
-                    className={canvasControlClass}
-                  >
-                    <Layers className="size-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    type="button"
-                    onClick={() => onDeleteNodes(selectedNodes.map((n) => n.id))}
-                    aria-label="Delete selected"
-                    title="Delete selected (Del)"
-                    className={cn(canvasControlClass, 'hover:bg-destructive/15 hover:text-destructive')}
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
-                </>
-              )}
-            </div>
-          </Panel>
-        )}
-
-        <Background gap={18} size={1} color="color-mix(in oklab, var(--muted-foreground) 30%, transparent)" />
-        <MiniMap
-          nodeColor={(n) => {
-            const t = n.type || '';
-            if (t.includes('START') || t.includes('TRIGGER')) return 'var(--success)';
-            if (t.includes('AGENT')) return 'var(--primary)';
-            if (t.includes('FIRECRAWL')) return 'var(--warning)';
-            if (t.includes('TOOL') || t.includes('MCP')) return 'var(--primary)';
-            if (t.includes('TRANSFORM') || t.includes('CODE')) return 'var(--accent-cyan)';
-            if (t.includes('IF') || t.includes('CONDITION')) return 'var(--accent-violet)';
-            if (t.includes('USER') || t.includes('APPROVAL')) return 'var(--destructive)';
-            if (t.includes('NOTE')) return 'var(--accent-amber)';
-            if (t.includes('GROUP')) return 'var(--muted-foreground)';
-            if (t.includes('APP_CONNECTOR')) return 'var(--accent-cyan)';
-            if (t.includes('END') || t.includes('OUTPUT')) return 'var(--success)';
-            // Prompt / LLM / knowledge cards plugged into an agent, and anything else: quiet grey
-            return 'var(--border-strong)';
-          }}
-          nodeStrokeWidth={3}
-          className="!bg-surface !border-border !rounded-xl !shadow-sm"
-          maskColor="rgba(0, 0, 0, 0.4)"
-        />
-        <RemeasureHandlesOnDirection direction={direction} />
-      </ReactFlow>
+          <Background
+            gap={18}
+            size={1}
+            color="color-mix(in oklab, var(--muted-foreground) 30%, transparent)"
+          />
+          <MiniMap
+            nodeColor={(n) => {
+              const t = n.type || '';
+              if (t.includes('START') || t.includes('TRIGGER'))
+                return 'var(--success)';
+              if (t.includes('AGENT')) return 'var(--primary)';
+              if (t.includes('FIRECRAWL')) return 'var(--warning)';
+              if (t.includes('TOOL') || t.includes('MCP'))
+                return 'var(--primary)';
+              if (t.includes('TRANSFORM') || t.includes('CODE'))
+                return 'var(--accent-cyan)';
+              if (t.includes('IF') || t.includes('CONDITION'))
+                return 'var(--accent-violet)';
+              if (t.includes('USER') || t.includes('APPROVAL'))
+                return 'var(--destructive)';
+              if (t.includes('NOTE')) return 'var(--accent-amber)';
+              if (t.includes('GROUP')) return 'var(--muted-foreground)';
+              if (t.includes('APP_CONNECTOR')) return 'var(--accent-cyan)';
+              if (t.includes('END') || t.includes('OUTPUT'))
+                return 'var(--success)';
+              // Prompt / LLM / knowledge cards plugged into an agent, and anything else: quiet grey
+              return 'var(--border-strong)';
+            }}
+            nodeStrokeWidth={3}
+            className="!rounded-xl !border-border !bg-surface !shadow-sm"
+            maskColor="rgba(0, 0, 0, 0.4)"
+          />
+          <RemeasureHandlesOnDirection direction={direction} />
+        </ReactFlow>
       </WorkflowLayoutContext.Provider>
 
       {/* Right Click Context Menu */}
@@ -1556,16 +1871,29 @@ function WorkflowCanvasInner({
         targetNode={contextMenu.targetNode}
         targetEdge={contextMenu.targetEdge}
         hasClipboard={hasClipboard}
-        onClose={() => setContextMenu((prev) => ({ ...prev, isOpen: false, targetNode: null, targetEdge: null }))}
+        onClose={() =>
+          setContextMenu((prev) => ({
+            ...prev,
+            isOpen: false,
+            targetNode: null,
+            targetEdge: null,
+          }))
+        }
         onAutoLayout={handleAutoLayoutClick}
-        onFitView={() => reactFlowInstance.fitView({ padding: 0.2, duration: 300 })}
+        onFitView={() =>
+          reactFlowInstance.fitView({ padding: 0.2, duration: 300 })
+        }
         onAddNode={(pos) => {
           const flowPos = reactFlowInstance.screenToFlowPosition(pos);
           onAddNode({
             id: `agent-${Date.now().toString(36)}`,
             type: 'AGENT',
             position: flowPos,
-            data: { label: 'AI Agent', subtitle: 'Autonomous Reasoning', config: {} },
+            data: {
+              label: 'AI Agent',
+              subtitle: 'Autonomous Reasoning',
+              config: {},
+            },
           });
         }}
         onDuplicateNode={(node) => onDuplicateNode(node)}
@@ -1592,7 +1920,11 @@ function WorkflowCanvasInner({
  * changes, but React Flow keeps the handle positions it measured earlier, so
  * wires kept leaving the old sides. Re-measure every card once it has redrawn.
  */
-function RemeasureHandlesOnDirection({ direction }: { direction: WorkflowDirection }) {
+function RemeasureHandlesOnDirection({
+  direction,
+}: {
+  direction: WorkflowDirection;
+}) {
   const updateNodeInternals = useUpdateNodeInternals();
   const nodeIds = useStore((s) => s.nodes.map((n) => n.id).join('|'));
   useEffect(() => {
@@ -1631,19 +1963,26 @@ export function AgentDetailPage() {
     [setSearchParams],
   );
   // `?copilot=1` (an agent fresh from "Create with one prompt") opens the Copilot.
-  const [showAiPanel, setShowAiPanel] = useState(() => searchParams.get('copilot') === '1');
+  const [showAiPanel, setShowAiPanel] = useState(
+    () => searchParams.get('copilot') === '1',
+  );
   const copilotWelcome = useRef(searchParams.get('copilot') === '1').current;
   const [canvasLockToggled, setIsCanvasLocked] = useState(false);
   // Bumped when a different graph is loaded, remounting the canvas so it fits the new graph
   const [canvasEpoch, setCanvasEpoch] = useState(0);
-  const [workflowDirection, setWorkflowDirection] = useState<WorkflowDirection>('horizontal');
-  const [workflowEdgeStyle, setWorkflowEdgeStyle] = useState<WorkflowEdgeStyle>('smooth');
-  const [layoutPrefs, setLayoutPrefs] = useState<LayoutPrefs>(DEFAULT_LAYOUT_PREFS);
+  const [workflowDirection, setWorkflowDirection] =
+    useState<WorkflowDirection>('horizontal');
+  const [workflowEdgeStyle, setWorkflowEdgeStyle] =
+    useState<WorkflowEdgeStyle>('smooth');
+  const [layoutPrefs, setLayoutPrefs] =
+    useState<LayoutPrefs>(DEFAULT_LAYOUT_PREFS);
   const [nodes, setNodes] = useState<Node[]>(INITIAL_NODES);
   const measuredSizeRef = useRef<MeasuredSizeReader | null>(null);
   const [edges, setEdges] = useState<Edge[]>(INITIAL_EDGES);
   // Graph-level settings saved with the canvas (`settings.limits` caps a run).
-  const [graphSettings, setGraphSettings] = useState<Record<string, unknown> | undefined>(undefined);
+  const [graphSettings, setGraphSettings] = useState<
+    Record<string, unknown> | undefined
+  >(undefined);
   const graphSettingsRef = useRef(graphSettings);
   graphSettingsRef.current = graphSettings;
   // "Save" in a drawer persists right after the draft is in state (not the render before it).
@@ -1653,10 +1992,16 @@ export function AgentDetailPage() {
   // inspector never shows a stale copy (after a drag, undo, or keyboard delete).
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const selectedNode = useMemo(
-    () => (selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) ?? null : null),
+    () =>
+      selectedNodeId
+        ? (nodes.find((n) => n.id === selectedNodeId) ?? null)
+        : null,
     [nodes, selectedNodeId],
   );
-  const setSelectedNode = useCallback((node: Node | null) => setSelectedNodeId(node?.id ?? null), []);
+  const setSelectedNode = useCallback(
+    (node: Node | null) => setSelectedNodeId(node?.id ?? null),
+    [],
+  );
   // Forget a deleted node, so undoing the delete doesn't silently reopen its inspector
   useEffect(() => {
     if (selectedNodeId && !selectedNode) setSelectedNodeId(null);
@@ -1664,19 +2009,30 @@ export function AgentDetailPage() {
 
   // The agent capability module open in the inspector (Prompt, LLM, …). Opening
   // another node closes it, unless that node was opened *at* a module.
-  const [activeModule, setActiveModule] = useState<{ id: AgentModuleId; section?: string; field?: string } | null>(null);
+  const [activeModule, setActiveModule] = useState<{
+    id: AgentModuleId;
+    section?: string;
+    field?: string;
+  } | null>(null);
   const pendingModuleRef = useRef<string | null>(null);
   const clearEdgeSelectionRef = useRef<() => void>(() => undefined);
   useEffect(() => {
-    if (pendingModuleRef.current === selectedNodeId) pendingModuleRef.current = null;
+    if (pendingModuleRef.current === selectedNodeId)
+      pendingModuleRef.current = null;
     else setActiveModule(null);
   }, [selectedNodeId]);
-  const openModuleFor = useCallback((agentId: string, module: { id: AgentModuleId; section?: string; field?: string } | null) => {
-    pendingModuleRef.current = agentId;
-    setSelectedNodeId(agentId);
-    clearEdgeSelectionRef.current();
-    setActiveModule(module);
-  }, []);
+  const openModuleFor = useCallback(
+    (
+      agentId: string,
+      module: { id: AgentModuleId; section?: string; field?: string } | null,
+    ) => {
+      pendingModuleRef.current = agentId;
+      setSelectedNodeId(agentId);
+      clearEdgeSelectionRef.current();
+      setActiveModule(module);
+    },
+    [],
+  );
   // Unsaved module edits: clicks that would close the drawer ask first.
   const moduleDirtyRef = useRef(false);
   const handleModuleDirtyChange = useCallback((dirty: boolean) => {
@@ -1701,13 +2057,18 @@ export function AgentDetailPage() {
     true,
     (raw) => (typeof raw === 'boolean' ? raw : undefined),
   );
-  const [lastSaved, setLastSaved] = useState<{ at: number; auto: boolean } | null>(null);
+  const [lastSaved, setLastSaved] = useState<{
+    at: number;
+    auto: boolean;
+  } | null>(null);
   /** The edit an auto-save failed on; it waits for a new edit before trying again. */
   const [autoSaveFailedAt, setAutoSaveFailedAt] = useState<string | null>(null);
   const saveKeyRef = useRef('');
   const reactFlowRef = useRef<any>(null);
   // What each step produced in the latest test run — shown on the cards, never saved.
-  const [runResults, setRunResults] = useState<Record<string, NodeRunResult>>({});
+  const [runResults, setRunResults] = useState<Record<string, NodeRunResult>>(
+    {},
+  );
 
   const focusNode = useCallback((node: Node) => {
     setTimeout(() => {
@@ -1716,7 +2077,10 @@ export function AgentDetailPage() {
         const y = node.position.y + 60;
         try {
           // Keep the user's zoom level; just bring the node into view
-          reactFlowRef.current.setCenter(x, y, { zoom: reactFlowRef.current.getZoom(), duration: 400 });
+          reactFlowRef.current.setCenter(x, y, {
+            zoom: reactFlowRef.current.getZoom(),
+            duration: 400,
+          });
         } catch (err) {
           console.warn('Could not focus on node', err);
         }
@@ -1727,12 +2091,19 @@ export function AgentDetailPage() {
   // History & Undo / Redo
   // Every graph change is recorded automatically once it settles (no handler has to
   // remember to push). Selection, drag-in-progress and measured sizes are ignored.
-  const historyRef = useRef<{ stack: GraphSnapshot[]; index: number; reset: boolean }>({
+  const historyRef = useRef<{
+    stack: GraphSnapshot[];
+    index: number;
+    reset: boolean;
+  }>({
     stack: [],
     index: -1,
     reset: true,
   });
-  const [historyFlags, setHistoryFlags] = useState({ canUndo: false, canRedo: false });
+  const [historyFlags, setHistoryFlags] = useState({
+    canUndo: false,
+    canRedo: false,
+  });
   const syncHistoryFlags = useCallback(() => {
     const { stack, index } = historyRef.current;
     setHistoryFlags({ canUndo: index > 0, canRedo: index < stack.length - 1 });
@@ -1741,13 +2112,18 @@ export function AgentDetailPage() {
   useEffect(() => {
     if (nodes.some((n) => n.dragging)) return; // record once the drag ends
     const timer = setTimeout(() => {
-      const snapshot = toGraphSnapshot(nodes, edges, { direction: workflowDirection, edgeStyle: workflowEdgeStyle });
+      const snapshot = toGraphSnapshot(nodes, edges, {
+        direction: workflowDirection,
+        edgeStyle: workflowEdgeStyle,
+      });
       const h = historyRef.current;
       if (h.reset) {
         // Fresh load / restored version: this graph is the new baseline
         historyRef.current = { stack: [snapshot], index: 0, reset: false };
       } else if (h.stack[h.index]?.key !== snapshot.key) {
-        const stack = [...h.stack.slice(0, h.index + 1), snapshot].slice(-HISTORY_LIMIT);
+        const stack = [...h.stack.slice(0, h.index + 1), snapshot].slice(
+          -HISTORY_LIMIT,
+        );
         historyRef.current = { stack, index: stack.length - 1, reset: false };
       } else {
         return;
@@ -1759,16 +2135,32 @@ export function AgentDetailPage() {
 
   const graphRef = useRef({ nodes, edges });
   graphRef.current = { nodes, edges };
-  const layoutRef = useRef<CanvasLayout>({ direction: workflowDirection, edgeStyle: workflowEdgeStyle });
-  layoutRef.current = { direction: workflowDirection, edgeStyle: workflowEdgeStyle };
+  const layoutRef = useRef<CanvasLayout>({
+    direction: workflowDirection,
+    edgeStyle: workflowEdgeStyle,
+  });
+  layoutRef.current = {
+    direction: workflowDirection,
+    edgeStyle: workflowEdgeStyle,
+  };
 
   const stepHistory = useCallback(
     (direction: -1 | 1) => {
       const h = historyRef.current;
       // Commit an edit that hasn't settled yet, so Undo right after it reverts *it*
-      const current = toGraphSnapshot(graphRef.current.nodes, graphRef.current.edges, layoutRef.current);
-      if (!h.reset && h.stack[h.index] && h.stack[h.index].key !== current.key) {
-        h.stack = [...h.stack.slice(0, h.index + 1), current].slice(-HISTORY_LIMIT);
+      const current = toGraphSnapshot(
+        graphRef.current.nodes,
+        graphRef.current.edges,
+        layoutRef.current,
+      );
+      if (
+        !h.reset &&
+        h.stack[h.index] &&
+        h.stack[h.index].key !== current.key
+      ) {
+        h.stack = [...h.stack.slice(0, h.index + 1), current].slice(
+          -HISTORY_LIMIT,
+        );
         h.index = h.stack.length - 1;
       }
       const target = h.stack[h.index + direction];
@@ -1793,7 +2185,10 @@ export function AgentDetailPage() {
   // Toast "Undo" buttons outlive the render that created them; always call the latest undo
   const undoRef = useRef(undo);
   undoRef.current = undo;
-  const undoAction = useMemo(() => ({ label: 'Undo', onClick: () => undoRef.current() }), []);
+  const undoAction = useMemo(
+    () => ({ label: 'Undo', onClick: () => undoRef.current() }),
+    [],
+  );
 
   // Modals & Drawers
   const [isValidationOpen, setIsValidationOpen] = useState(false);
@@ -1801,8 +2196,12 @@ export function AgentDetailPage() {
   const [isTestDrawerOpen, setIsTestDrawerOpen] = useState(false);
   const [isSnapshotDialogOpen, setIsSnapshotDialogOpen] = useState(false);
   const [snapshotChangelog, setSnapshotChangelog] = useState('');
-  const [diffModalTarget, setDiffModalTarget] = useState<AgentVersion | null>(null);
-  const [settingsDraft, setSettingsDraft] = useState<AgentSettingsDraft | null>(null);
+  const [diffModalTarget, setDiffModalTarget] = useState<AgentVersion | null>(
+    null,
+  );
+  const [settingsDraft, setSettingsDraft] = useState<AgentSettingsDraft | null>(
+    null,
+  );
   const [isPublishPopoverOpen, setIsPublishPopoverOpen] = useState(false);
   const [publishSummary, setPublishSummary] = useState('');
   /** Which header tab menu is open — only one at a time. */
@@ -1821,7 +2220,10 @@ export function AgentDetailPage() {
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   clearEdgeSelectionRef.current = () => setSelectedEdgeId(null);
   const selectedEdge = useMemo(
-    () => (selectedEdgeId ? edges.find((e) => e.id === selectedEdgeId) ?? null : null),
+    () =>
+      selectedEdgeId
+        ? (edges.find((e) => e.id === selectedEdgeId) ?? null)
+        : null,
     [edges, selectedEdgeId],
   );
 
@@ -1842,7 +2244,8 @@ export function AgentDetailPage() {
   const [headerNameInput, setHeaderNameInput] = useState('');
 
   // Settings category, tag input & avatar mode state
-  const [isCreatingCustomCategory, setIsCreatingCustomCategory] = useState(false);
+  const [isCreatingCustomCategory, setIsCreatingCustomCategory] =
+    useState(false);
   const [customCategoryInput, setCustomCategoryInput] = useState('');
   const [tagInput, setTagInput] = useState('');
 
@@ -1866,13 +2269,19 @@ export function AgentDetailPage() {
 
   // The server only lets an agent's creator or a workspace admin change it. Mirror
   // that here so everyone else gets a read-only canvas up front, not a 403 on save.
-  const canManage = !agent || canManageOwnedAIResource(agent.creatorId, { userId: user.id, permissions: activeWorkspace.permissions });
+  const canManage =
+    !agent ||
+    canManageOwnedAIResource(agent.creatorId, {
+      userId: user.id,
+      permissions: activeWorkspace.permissions,
+    });
   const isCanvasLocked = canvasLockToggled || !canManage;
 
   // Fetch Agent Executions
   const { data: executions = [] } = useQuery({
     queryKey: ['agent-executions', activeWorkspace.id, agentId],
-    queryFn: async () => (agentId ? agentsApi.logs(activeWorkspace.id, agentId) : []),
+    queryFn: async () =>
+      agentId ? agentsApi.logs(activeWorkspace.id, agentId) : [],
     enabled: activeTab === 'executions' && !!agentId,
   });
 
@@ -1887,16 +2296,26 @@ export function AgentDetailPage() {
   });
 
   const isPublished =
-    (agent?.configuration as { status?: string } | undefined)?.status === 'published';
+    (agent?.configuration as { status?: string } | undefined)?.status ===
+    'published';
 
   // The tag the next publish will get — same rule the API uses to assign it
-  const targetPublishVersion = useMemo(() => nextAgentVersionTag(versions, 'minor'), [versions]);
+  const targetPublishVersion = useMemo(
+    () => nextAgentVersionTag(versions, 'minor'),
+    [versions],
+  );
 
   // The version that is actually live (not the one the next publish would create)
   const liveVersionTag = useMemo(() => {
-    const published = versions.filter((v) => v.status?.toUpperCase() === 'PUBLISHED');
+    const published = versions.filter(
+      (v) => v.status?.toUpperCase() === 'PUBLISHED',
+    );
     if (published.length === 0) return null;
-    return agentVersionLabel(published.reduce((a, b) => (Number(b.version) > Number(a.version) ? b : a)));
+    return agentVersionLabel(
+      published.reduce((a, b) =>
+        Number(b.version) > Number(a.version) ? b : a,
+      ),
+    );
   }, [versions]);
 
   // `curl` for the execute endpoint, built from the API base URL the app is really using
@@ -1921,7 +2340,9 @@ export function AgentDetailPage() {
     if (!agent) return;
     if (isDirtyRef.current && !forceHydrateRef.current) {
       // Keep local edits; still reflect a name change made from the header
-      setSettingsDraft((draft) => (draft ? { ...draft, name: agent.name } : draft));
+      setSettingsDraft((draft) =>
+        draft ? { ...draft, name: agent.name } : draft,
+      );
       return;
     }
     forceHydrateRef.current = false;
@@ -1942,7 +2363,10 @@ export function AgentDetailPage() {
       // undo history) alone. Only a different graph (first load, restored version)
       // replaces the canvas and becomes the new undo baseline.
       const incoming = toGraphSnapshot(graph.nodes, graph.edges);
-      const onCanvas = toGraphSnapshot(graphRef.current.nodes, graphRef.current.edges);
+      const onCanvas = toGraphSnapshot(
+        graphRef.current.nodes,
+        graphRef.current.edges,
+      );
       if (incoming.key !== onCanvas.key) {
         setNodes(graph.nodes);
         setEdges(graph.edges);
@@ -1960,8 +2384,15 @@ export function AgentDetailPage() {
       theme: config.theme || 'emerald',
       icon: config.icon || 'Bot',
       // One identity value — a photo or `icon:<icon>:<color>` — folding in what older agents kept in configuration.
-      avatar: aiEntityAvatarFromLegacy(agent.avatarUrl, config) ?? formatAiEntityIconAvatar(config.icon || 'bot', config.theme || 'emerald'),
-      tags: Array.isArray(config.tags) ? config.tags : ['support', 'autonomous'],
+      avatar:
+        aiEntityAvatarFromLegacy(agent.avatarUrl, config) ??
+        formatAiEntityIconAvatar(
+          config.icon || 'bot',
+          config.theme || 'emerald',
+        ),
+      tags: Array.isArray(config.tags)
+        ? config.tags
+        : ['support', 'autonomous'],
       ownerName: config.owner?.name || '',
       ownerEmail: config.owner?.email || '',
       runtime: {
@@ -2002,10 +2433,14 @@ export function AgentDetailPage() {
     try {
       await agentsApi.update(activeWorkspace.id, agentId, { name: trimmed });
       queryClient.invalidateQueries({ queryKey: agentQueryKey });
-      queryClient.invalidateQueries({ queryKey: ['agents', activeWorkspace.id] });
+      queryClient.invalidateQueries({
+        queryKey: ['agents', activeWorkspace.id],
+      });
       toast.success('Agent renamed');
     } catch (err) {
-      setSettingsDraft((draft) => (draft ? { ...draft, name: current ?? draft.name } : draft));
+      setSettingsDraft((draft) =>
+        draft ? { ...draft, name: current ?? draft.name } : draft,
+      );
       setHeaderNameInput(current ?? '');
       toast.error(errorMessage(err, 'Could not rename the agent'));
     }
@@ -2046,7 +2481,15 @@ export function AgentDetailPage() {
         workflowEdgeStyle,
         layoutPrefs,
       ]),
-    [nodes, edges, settingsDraft, graphSettings, workflowDirection, workflowEdgeStyle, layoutPrefs],
+    [
+      nodes,
+      edges,
+      settingsDraft,
+      graphSettings,
+      workflowDirection,
+      workflowEdgeStyle,
+      layoutPrefs,
+    ],
   );
   saveKeyRef.current = saveKey;
 
@@ -2060,7 +2503,9 @@ export function AgentDetailPage() {
       graphJson: JSON.stringify({
         nodes: current.nodes.map(withoutRunStatus),
         edges: current.edges,
-        ...(graphSettingsRef.current ? { settings: graphSettingsRef.current } : {}),
+        ...(graphSettingsRef.current
+          ? { settings: graphSettingsRef.current }
+          : {}),
         layout: {
           direction: workflowDirection,
           edgeStyle: workflowEdgeStyle,
@@ -2084,7 +2529,9 @@ export function AgentDetailPage() {
         category: settingsDraft.category,
         theme: settingsDraft.theme,
         icon: settingsDraft.icon,
-        avatar: settingsDraft.avatar.startsWith('icon:') ? '' : settingsDraft.avatar,
+        avatar: settingsDraft.avatar.startsWith('icon:')
+          ? ''
+          : settingsDraft.avatar,
         tags: settingsDraft.tags,
         owner: {
           name: settingsDraft.ownerName,
@@ -2093,13 +2540,19 @@ export function AgentDetailPage() {
       };
       const runtimeEdit = settingsDraft.runtime;
       const baseline = settingsBaselineRef.current;
-      if (!baseline || JSON.stringify(runtimeEdit) !== JSON.stringify(baseline.runtime)) {
+      if (
+        !baseline ||
+        JSON.stringify(runtimeEdit) !== JSON.stringify(baseline.runtime)
+      ) {
         // Only what the form owns is overwritten; the rest of the saved runtime stays.
-        const savedRuntime = (config.runtime ?? {}) as { guardrails?: Record<string, unknown> } & Record<string, unknown>;
+        const savedRuntime = (config.runtime ?? {}) as {
+          guardrails?: Record<string, unknown>;
+        } & Record<string, unknown>;
         const guardrails = { ...(savedRuntime.guardrails ?? {}) };
         if (runtimeEdit.pii) guardrails.pii = runtimeEdit.pii;
         else delete guardrails.pii;
-        if (runtimeEdit.maxTokensPerRun) guardrails.maxTokensPerRun = runtimeEdit.maxTokensPerRun;
+        if (runtimeEdit.maxTokensPerRun)
+          guardrails.maxTokensPerRun = runtimeEdit.maxTokensPerRun;
         else delete guardrails.maxTokensPerRun;
         configuration.runtime = {
           ...savedRuntime,
@@ -2108,9 +2561,25 @@ export function AgentDetailPage() {
           guardrails,
         };
       }
-      if (!baseline || settingsDraft.model !== baseline.model) patch.model = settingsDraft.model;
-      const configKeys = ['category', 'theme', 'icon', 'avatar', 'tags', 'ownerName', 'ownerEmail', 'runtime'] as const;
-      if (!baseline || configKeys.some((k) => JSON.stringify(settingsDraft[k]) !== JSON.stringify(baseline[k]))) {
+      if (!baseline || settingsDraft.model !== baseline.model)
+        patch.model = settingsDraft.model;
+      const configKeys = [
+        'category',
+        'theme',
+        'icon',
+        'avatar',
+        'tags',
+        'ownerName',
+        'ownerEmail',
+        'runtime',
+      ] as const;
+      if (
+        !baseline ||
+        configKeys.some(
+          (k) =>
+            JSON.stringify(settingsDraft[k]) !== JSON.stringify(baseline[k]),
+        )
+      ) {
         patch.configuration = configuration;
       }
     }
@@ -2133,10 +2602,23 @@ export function AgentDetailPage() {
           id: clean.id,
           type: String(clean.type ?? ''),
           position: clean.position,
-          data: { ...data, label: typeof data['label'] === 'string' ? data['label'] : String(clean.type ?? ''), config: (data['config'] as Record<string, unknown>) ?? {} },
+          data: {
+            ...data,
+            label:
+              typeof data['label'] === 'string'
+                ? data['label']
+                : String(clean.type ?? ''),
+            config: (data['config'] as Record<string, unknown>) ?? {},
+          },
         };
       }),
-      edges: edges.map((e) => ({ id: e.id, source: e.source, target: e.target, sourceHandle: e.sourceHandle ?? null, ...(typeof e.label === 'string' ? { label: e.label } : {}) })),
+      edges: edges.map((e) => ({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        sourceHandle: e.sourceHandle ?? null,
+        ...(typeof e.label === 'string' ? { label: e.label } : {}),
+      })),
     }),
     [nodes, edges],
   );
@@ -2146,7 +2628,10 @@ export function AgentDetailPage() {
    * after it. A change that adds or removes steps is laid out again.
    */
   const applyCopilotGraph = useCallback(
-    async (graph: StudioCanvasGraph, summary: string): Promise<number | undefined> => {
+    async (
+      graph: StudioCanvasGraph,
+      summary: string,
+    ): Promise<number | undefined> => {
       if (!agentId) return undefined;
       const diff = diffStudioGraphs(copilotGraph, graph);
       const nextEdges = graph.edges as unknown as Edge[];
@@ -2154,9 +2639,16 @@ export function AgentDetailPage() {
       const layoutDir = workflowDirection === 'vertical' ? 'TB' : 'LR';
       const nextNodes =
         diff.added.length || diff.removed.length
-          ? layoutWorkflow(withMeasuredSizes(placed, measuredSizeRef.current), nextEdges, { direction: layoutDir, ...layoutPrefs })
+          ? layoutWorkflow(
+              withMeasuredSizes(placed, measuredSizeRef.current),
+              nextEdges,
+              { direction: layoutDir, ...layoutPrefs },
+            )
           : placed;
-      const previous = { nodes: graphRef.current.nodes, edges: graphRef.current.edges };
+      const previous = {
+        nodes: graphRef.current.nodes,
+        edges: graphRef.current.edges,
+      };
       setNodes(nextNodes);
       setEdges(nextEdges);
       try {
@@ -2166,8 +2658,14 @@ export function AgentDetailPage() {
           graphJson: JSON.stringify({
             nodes: nextNodes.map(withoutRunStatus),
             edges: nextEdges,
-            ...(graphSettingsRef.current ? { settings: graphSettingsRef.current } : {}),
-            layout: { direction: workflowDirection, edgeStyle: workflowEdgeStyle, ...layoutPrefs },
+            ...(graphSettingsRef.current
+              ? { settings: graphSettingsRef.current }
+              : {}),
+            layout: {
+              direction: workflowDirection,
+              edgeStyle: workflowEdgeStyle,
+              ...layoutPrefs,
+            },
           }),
         });
       } catch (err) {
@@ -2177,19 +2675,34 @@ export function AgentDetailPage() {
         throw err;
       }
       queryClient.invalidateQueries({ queryKey: agentQueryKey });
-      const version = await agentsApi.createVersion(activeWorkspace.id, agentId, summary);
-      queryClient.invalidateQueries({ queryKey: ['agent-versions', activeWorkspace.id, agentId] });
+      const version = await agentsApi.createVersion(
+        activeWorkspace.id,
+        agentId,
+        summary,
+      );
+      queryClient.invalidateQueries({
+        queryKey: ['agent-versions', activeWorkspace.id, agentId],
+      });
       return (version as { version?: number } | undefined)?.version;
     },
     // agentQueryKey is rebuilt every render from these same ids.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [agentId, activeWorkspace.id, copilotGraph, queryClient, workflowDirection, workflowEdgeStyle, layoutPrefs],
+    [
+      agentId,
+      activeWorkspace.id,
+      copilotGraph,
+      queryClient,
+      workflowDirection,
+      workflowEdgeStyle,
+      layoutPrefs,
+    ],
   );
 
   // `?test=1` (from "Create with one prompt") opens the run console once the agent is loaded.
   const openedTest = useRef(false);
   useEffect(() => {
-    if (openedTest.current || !agent || searchParams.get('test') !== '1') return;
+    if (openedTest.current || !agent || searchParams.get('test') !== '1')
+      return;
     openedTest.current = true;
     setIsTestDrawerOpen(true);
   }, [agent, searchParams]);
@@ -2201,30 +2714,54 @@ export function AgentDetailPage() {
    */
   const resultFor = (n: Node): NodeRunResult | undefined => {
     const own = runResults[n.id];
-    if (String(n.type).toUpperCase() !== 'END' || (own && (own.output || own.error || own.cleared))) return own;
-    const upstream = runResults[edges.find((e) => e.target === n.id && !isAttachmentEdge(e))?.source ?? ''];
+    if (
+      String(n.type).toUpperCase() !== 'END' ||
+      (own && (own.output || own.error || own.cleared))
+    )
+      return own;
+    const upstream =
+      runResults[
+        edges.find((e) => e.target === n.id && !isAttachmentEdge(e))?.source ??
+          ''
+      ];
     if (!upstream) return own;
-    return { ...upstream, status: own?.status ?? upstream.status, latencyMs: own?.latencyMs ?? 0, tokens: own?.tokens ?? 0 };
+    return {
+      ...upstream,
+      status: own?.status ?? upstream.status,
+      latencyMs: own?.latencyMs ?? 0,
+      tokens: own?.tokens ?? 0,
+    };
   };
 
-  const showRunStatuses = useCallback((statuses: Record<string, CanvasNodeStatus> | null) => {
-    // The console stopped watching (closed): don't leave cards saying "Running…".
-    if (!statuses) {
-      setRunResults((r) =>
-        Object.values(r).some((x) => x.status === 'running')
-          ? Object.fromEntries(Object.entries(r).map(([k, x]) => [k, x.status === 'running' ? { ...x, status: 'idle' as const } : x]))
-          : r,
+  const showRunStatuses = useCallback(
+    (statuses: Record<string, CanvasNodeStatus> | null) => {
+      // The console stopped watching (closed): don't leave cards saying "Running…".
+      if (!statuses) {
+        setRunResults((r) =>
+          Object.values(r).some((x) => x.status === 'running')
+            ? Object.fromEntries(
+                Object.entries(r).map(([k, x]) => [
+                  k,
+                  x.status === 'running'
+                    ? { ...x, status: 'idle' as const }
+                    : x,
+                ]),
+              )
+            : r,
+        );
+      }
+      setNodes((current) =>
+        current.map((n) => {
+          const status = statuses?.[n.id] ?? 'idle';
+          return (n.data as { status?: string }).status === status ||
+            (!statuses && !(n.data as { status?: string }).status)
+            ? n
+            : { ...n, data: { ...n.data, status } };
+        }),
       );
-    }
-    setNodes((current) =>
-      current.map((n) => {
-        const status = statuses?.[n.id] ?? 'idle';
-        return (n.data as { status?: string }).status === status || (!statuses && !(n.data as { status?: string }).status)
-          ? n
-          : { ...n, data: { ...n.data, status } };
-      }),
-    );
-  }, []);
+    },
+    [],
+  );
 
   const errorMessage = (err: unknown, fallback: string) =>
     err instanceof Error && err.message ? err.message : fallback;
@@ -2268,14 +2805,19 @@ export function AgentDetailPage() {
       return agentsApi.publish(
         activeWorkspace.id,
         agentId,
-        (typeof summary === 'string' && summary.trim()) || `Published version ${targetPublishVersion}`,
+        (typeof summary === 'string' && summary.trim()) ||
+          `Published version ${targetPublishVersion}`,
       );
     },
     onSuccess: (result) => {
       const tag = (result as { version?: AgentVersion } | undefined)?.version;
-      toast.success(`Published ${tag ? agentVersionLabel(tag) : targetPublishVersion}`);
+      toast.success(
+        `Published ${tag ? agentVersionLabel(tag) : targetPublishVersion}`,
+      );
       queryClient.invalidateQueries({ queryKey: agentQueryKey });
-      queryClient.invalidateQueries({ queryKey: ['agent-versions', activeWorkspace.id, agentId] });
+      queryClient.invalidateQueries({
+        queryKey: ['agent-versions', activeWorkspace.id, agentId],
+      });
       queryClient.invalidateQueries({ queryKey: ['workspace-agents'] });
       refetchVersions();
     },
@@ -2292,7 +2834,9 @@ export function AgentDetailPage() {
     onSuccess: () => {
       toast.success('Agent unpublished');
       queryClient.invalidateQueries({ queryKey: agentQueryKey });
-      queryClient.invalidateQueries({ queryKey: ['agent-versions', activeWorkspace.id, agentId] });
+      queryClient.invalidateQueries({
+        queryKey: ['agent-versions', activeWorkspace.id, agentId],
+      });
       queryClient.invalidateQueries({ queryKey: ['workspace-agents'] });
       refetchVersions();
     },
@@ -2326,7 +2870,11 @@ export function AgentDetailPage() {
   const restoreVersionMutation = useMutation({
     mutationFn: async (versionNumber: number) => {
       if (!agentId) return;
-      return agentsApi.restoreVersion(activeWorkspace.id, agentId, versionNumber);
+      return agentsApi.restoreVersion(
+        activeWorkspace.id,
+        agentId,
+        versionNumber,
+      );
     },
     onSuccess: () => {
       toast.success('Version restored');
@@ -2346,8 +2894,21 @@ export function AgentDetailPage() {
   const readinessGraph = useMemo(
     () =>
       JSON.stringify({
-        nodes: nodes.map((n) => ({ id: n.id, type: n.type, position: { x: 0, y: 0 }, data: { label: (n.data as any)?.label, config: (n.data as any)?.config ?? {} } })),
-        edges: edges.map((e) => ({ id: e.id, source: e.source, target: e.target, sourceHandle: e.sourceHandle ?? null })),
+        nodes: nodes.map((n) => ({
+          id: n.id,
+          type: n.type,
+          position: { x: 0, y: 0 },
+          data: {
+            label: (n.data as any)?.label,
+            config: (n.data as any)?.config ?? {},
+          },
+        })),
+        edges: edges.map((e) => ({
+          id: e.id,
+          source: e.source,
+          target: e.target,
+          sourceHandle: e.sourceHandle ?? null,
+        })),
       }),
     [nodes, edges],
   );
@@ -2358,14 +2919,26 @@ export function AgentDetailPage() {
   }, [readinessGraph]);
   const { data: readiness } = useQuery({
     queryKey: ['agent-readiness', activeWorkspace.id, agentId, settledGraph],
-    queryFn: async () => (await agentsApi.validate(activeWorkspace.id, agentId as string, settledGraph)).checks ?? [],
+    queryFn: async () =>
+      (
+        await agentsApi.validate(
+          activeWorkspace.id,
+          agentId as string,
+          settledGraph,
+        )
+      ).checks ?? [],
     enabled: !!agentId && nodes.length > 0,
     refetchOnWindowFocus: true,
     staleTime: 30_000,
     placeholderData: (prev) => prev,
   });
   const readinessIssues = useMemo<StudioGraphIssue[]>(
-    () => (readiness ?? []).map((c) => ({ nodeId: c.nodeId, level: c.level, message: c.message })),
+    () =>
+      (readiness ?? []).map((c) => ({
+        nodeId: c.nodeId,
+        level: c.level,
+        message: c.message,
+      })),
     [readiness],
   );
 
@@ -2374,12 +2947,26 @@ export function AgentDetailPage() {
   const issuesByNode = useMemo(() => {
     const out = new Map<string, StudioGraphIssue[]>();
     for (const issue of readinessIssues) {
-      if (issue.nodeId) out.set(issue.nodeId, [...(out.get(issue.nodeId) ?? []), issue]);
+      if (issue.nodeId)
+        out.set(issue.nodeId, [...(out.get(issue.nodeId) ?? []), issue]);
     }
     try {
       const compiled = compileStudioGraph({
-        nodes: nodes.map((n) => ({ id: n.id, type: n.type, position: n.position, data: { label: (n.data as any)?.label, config: (n.data as any)?.config ?? {} } })),
-        edges: edges.map((e) => ({ id: e.id, source: e.source, target: e.target, sourceHandle: e.sourceHandle ?? null })),
+        nodes: nodes.map((n) => ({
+          id: n.id,
+          type: n.type,
+          position: n.position,
+          data: {
+            label: (n.data as any)?.label,
+            config: (n.data as any)?.config ?? {},
+          },
+        })),
+        edges: edges.map((e) => ({
+          id: e.id,
+          source: e.source,
+          target: e.target,
+          sourceHandle: e.sourceHandle ?? null,
+        })),
       } as unknown as Record<string, unknown>);
       for (const issue of compiled.issues) {
         if (!issue.nodeId) continue;
@@ -2395,8 +2982,21 @@ export function AgentDetailPage() {
   const allWorkflowIssues = useMemo<WorkflowIssue[]>(() => {
     try {
       const compiled = compileStudioGraph({
-        nodes: nodes.map((n) => ({ id: n.id, type: n.type, position: n.position, data: { label: (n.data as any)?.label, config: (n.data as any)?.config ?? {} } })),
-        edges: edges.map((e) => ({ id: e.id, source: e.source, target: e.target, sourceHandle: e.sourceHandle ?? null })),
+        nodes: nodes.map((n) => ({
+          id: n.id,
+          type: n.type,
+          position: n.position,
+          data: {
+            label: (n.data as any)?.label,
+            config: (n.data as any)?.config ?? {},
+          },
+        })),
+        edges: edges.map((e) => ({
+          id: e.id,
+          source: e.source,
+          target: e.target,
+          sourceHandle: e.sourceHandle ?? null,
+        })),
       } as unknown as Record<string, unknown>);
       return [...compiled.issues, ...readinessIssues].map((iss) => ({
         level: iss.level === 'error' ? 'error' : 'warning',
@@ -2418,7 +3018,14 @@ export function AgentDetailPage() {
   // Auto-save the draft once edits settle (not mid-drag, not while locked, not
   // again after a failure until something changes)
   useEffect(() => {
-    if (!autoSaveEnabled || !isDirty || saveMutation.isPending || publishMutation.isPending || isCanvasLocked) return;
+    if (
+      !autoSaveEnabled ||
+      !isDirty ||
+      saveMutation.isPending ||
+      publishMutation.isPending ||
+      isCanvasLocked
+    )
+      return;
     if (nodes.some((n) => n.dragging)) return;
     if (autoSaveFailedAt !== null && autoSaveFailedAt === saveKey) return;
 
@@ -2429,17 +3036,30 @@ export function AgentDetailPage() {
     return () => clearTimeout(timer);
     // saveMutation is a new object each render; its pending flag is what matters
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoSaveEnabled, isDirty, saveKey, saveMutation.isPending, publishMutation.isPending, isCanvasLocked, autoSaveFailedAt]);
+  }, [
+    autoSaveEnabled,
+    isDirty,
+    saveKey,
+    saveMutation.isPending,
+    publishMutation.isPending,
+    isCanvasLocked,
+    autoSaveFailedAt,
+  ]);
 
   // The server's last write, until this visit saves for itself
-  const agentUpdatedAt = (agent as { updatedAt?: string } | undefined)?.updatedAt;
+  const agentUpdatedAt = (agent as { updatedAt?: string } | undefined)
+    ?.updatedAt;
   useEffect(() => {
     const at = agentUpdatedAt ? Date.parse(agentUpdatedAt) : NaN;
     if (!Number.isNaN(at)) setLastSaved((prev) => prev ?? { at, auto: false });
   }, [agentUpdatedAt]);
 
   const now = useNow(lastSaved?.at ?? null);
-  const saveFailed = isDirty && !saveMutation.isPending && (saveMutation.isError || (autoSaveFailedAt !== null && autoSaveFailedAt === saveKey));
+  const saveFailed =
+    isDirty &&
+    !saveMutation.isPending &&
+    (saveMutation.isError ||
+      (autoSaveFailedAt !== null && autoSaveFailedAt === saveKey));
   const saveStatusText = saveMutation.isPending
     ? 'Saving your changes…'
     : saveFailed
@@ -2456,28 +3076,40 @@ export function AgentDetailPage() {
 
   // What's plugged into each agent slot: agents get per-slot summaries for their
   // rows, attached nodes get an "LLM · Agent 1" chip.
-  const hostModel = (agent as { model?: string | null } | undefined)?.model || undefined;
+  const hostModel =
+    (agent as { model?: string | null } | undefined)?.model || undefined;
   const modelLabel = useModelLabel();
   const slotDecorations = useMemo(() => {
     const out = new Map<string, Record<string, unknown>>();
     for (const host of nodes) {
       if (!isSlotHost(host.type)) continue;
       const attached = slotAttachments(host.id, nodes, edges);
-      const slots: Record<string, { id: string; label: string; connectorId?: string }[]> = {};
+      const slots: Record<
+        string,
+        { id: string; label: string; connectorId?: string }[]
+      > = {};
       for (const [slotId, list] of Object.entries(attached)) {
         slots[slotId] = list.map((n) => {
-          const cfg = ((n.data as any)?.config ?? {}) as Record<string, unknown>;
+          const cfg = ((n.data as any)?.config ?? {}) as Record<
+            string,
+            unknown
+          >;
           const app = cfg['connectorId'] ?? cfg['provider'];
           return {
             id: n.id,
             label: slotRowLabel(slotId, n),
             // App actions show their app's logo on the agent's Tools row
-            ...(typeof app === 'string' && app ? { connectorId: app.toLowerCase().replace(/-/g, '_') } : {}),
+            ...(typeof app === 'string' && app
+              ? { connectorId: app.toLowerCase().replace(/-/g, '_') }
+              : {}),
           };
         });
         for (const n of list) {
           out.set(n.id, {
-            attachedTo: { label: String(host.data?.label || 'Agent'), slot: getSlot(slotId)?.label ?? slotId },
+            attachedTo: {
+              label: String(host.data?.label || 'Agent'),
+              slot: getSlot(slotId)?.label ?? slotId,
+            },
           });
         }
       }
@@ -2487,36 +3119,71 @@ export function AgentDetailPage() {
       out.set(host.id, {
         ...out.get(host.id),
         slots,
-        moduleSummaries: summarizeAgentModules(modules, { issuesByNode, stepIds, modelLabel }),
+        moduleSummaries: summarizeAgentModules(modules, {
+          issuesByNode,
+          stepIds,
+          modelLabel,
+        }),
         promptPreview: modules.prompt.text.slice(0, 240),
-        builtinTools: modules.tools.entries.filter((t) => t.kind === 'builtin').map((t) => t.toolName),
+        builtinTools: modules.tools.entries
+          .filter((t) => t.kind === 'builtin')
+          .map((t) => t.toolName),
         // Apps given as tool-list entries (no card on the canvas) still show their logo.
-        toolApps: [...new Set(modules.tools.entries.filter((t) => t.kind === 'connector' && !t.nodeId && t.provider).map((t) => t.provider!.toLowerCase()))],
+        toolApps: [
+          ...new Set(
+            modules.tools.entries
+              .filter((t) => t.kind === 'connector' && !t.nodeId && t.provider)
+              .map((t) => t.provider!.toLowerCase()),
+          ),
+        ],
         team: {
-          role: leads && supervised ? 'lead' : leads ? 'supervisor' : supervised ? 'member' : 'solo',
+          role:
+            leads && supervised
+              ? 'lead'
+              : leads
+                ? 'supervisor'
+                : supervised
+                  ? 'member'
+                  : 'solo',
           issues: agentIssues(host, nodes, edges),
           // A step with no model runs on the saved agent's own, so show that rather than "Choose a model".
-          model: resolveAgentModel(host.id, nodes, edges) ?? (hostModel ? { model: hostModel, inherited: true } : null),
+          model:
+            resolveAgentModel(host.id, nodes, edges) ??
+            (hostModel ? { model: hostModel, inherited: true } : null),
         },
       });
     }
     return out;
-  }, [nodes, edges, graphSettings, issuesByNode, stepIds, hostModel, modelLabel]);
+  }, [
+    nodes,
+    edges,
+    graphSettings,
+    issuesByNode,
+    stepIds,
+    hostModel,
+    modelLabel,
+  ]);
 
   // Connection labels and the "flowing" animation are saved on the edge's data
-  const [editingEdgeLabelId, setEditingEdgeLabelId] = useState<string | null>(null);
+  const [editingEdgeLabelId, setEditingEdgeLabelId] = useState<string | null>(
+    null,
+  );
 
-  const updateEdgeData = useCallback((edgeId: string, patch: Record<string, unknown>) => {
-    setEdges((eds) =>
-      eds.map((e) => {
-        if (e.id !== edgeId) return e;
-        const data = { ...(e.data ?? {}), ...patch };
-        for (const key of Object.keys(patch)) if (patch[key] === undefined) delete data[key];
-        return { ...e, data };
-      }),
-    );
-    setIsDirty(true);
-  }, []);
+  const updateEdgeData = useCallback(
+    (edgeId: string, patch: Record<string, unknown>) => {
+      setEdges((eds) =>
+        eds.map((e) => {
+          if (e.id !== edgeId) return e;
+          const data = { ...(e.data ?? {}), ...patch };
+          for (const key of Object.keys(patch))
+            if (patch[key] === undefined) delete data[key];
+          return { ...e, data };
+        }),
+      );
+      setIsDirty(true);
+    },
+    [],
+  );
 
   const handleRenameEdgeLabel = useCallback(
     (edgeId: string, label: string) => {
@@ -2527,14 +3194,28 @@ export function AgentDetailPage() {
   );
 
   const handleToggleEdgeAnimated = useCallback(
-    (edge: Edge) => updateEdgeData(edge.id, { animated: (edge.data as any)?.animated === true ? undefined : true }),
+    (edge: Edge) =>
+      updateEdgeData(edge.id, {
+        animated: (edge.data as any)?.animated === true ? undefined : true,
+      }),
     [updateEdgeData],
   );
 
   /** Jump to a node from the agent outline. */
   const handleFocusNodeById = useCallback((nodeId: string) => {
-    setNodes((nds) => nds.map((n) => (n.selected === (n.id === nodeId) ? n : { ...n, selected: n.id === nodeId })));
-    reactFlowRef.current?.fitView({ nodes: [{ id: nodeId }], duration: 350, maxZoom: 1.1, padding: 0.6 });
+    setNodes((nds) =>
+      nds.map((n) =>
+        n.selected === (n.id === nodeId)
+          ? n
+          : { ...n, selected: n.id === nodeId },
+      ),
+    );
+    reactFlowRef.current?.fitView({
+      nodes: [{ id: nodeId }],
+      duration: 350,
+      maxZoom: 1.1,
+      padding: 0.6,
+    });
   }, []);
 
   // ReactFlow Event Handlers
@@ -2549,7 +3230,9 @@ export function AgentDetailPage() {
       // Keyboard Delete / Backspace goes through here rather than handleDeleteNodes
       const removed = changes.filter((c) => c.type === 'remove').length;
       if (removed > 0) {
-        toast(removed === 1 ? 'Node deleted' : `${removed} nodes deleted`, { action: undoAction });
+        toast(removed === 1 ? 'Node deleted' : `${removed} nodes deleted`, {
+          action: undoAction,
+        });
       }
     },
     [undoAction],
@@ -2561,7 +3244,11 @@ export function AgentDetailPage() {
   }, []);
 
   const onConnect = useCallback((connection: Connection) => {
-    const refusal = slotConnectionError(connection, graphRef.current.nodes, graphRef.current.edges);
+    const refusal = slotConnectionError(
+      connection,
+      graphRef.current.nodes,
+      graphRef.current.edges,
+    );
     if (refusal) {
       toast.error(refusal);
       return;
@@ -2579,11 +3266,14 @@ export function AgentDetailPage() {
     setIsDirty(true);
   }, []);
 
-  const onNodeClick = useCallback(async (_: React.MouseEvent, node: Node) => {
-    if (node.id !== selectedNodeId && !(await confirmLeaveModule())) return;
-    setSelectedNode(node);
-    setSelectedEdgeId(null);
-  }, [setSelectedNode, selectedNodeId, confirmLeaveModule]);
+  const onNodeClick = useCallback(
+    async (_: React.MouseEvent, node: Node) => {
+      if (node.id !== selectedNodeId && !(await confirmLeaveModule())) return;
+      setSelectedNode(node);
+      setSelectedEdgeId(null);
+    },
+    [setSelectedNode, selectedNodeId, confirmLeaveModule],
+  );
 
   const onPaneClick = useCallback(async () => {
     if (!(await confirmLeaveModule())) return;
@@ -2593,31 +3283,47 @@ export function AgentDetailPage() {
 
   const handleUpdateNode = useCallback((nodeId: string, updatedData: any) => {
     setNodes((nds) =>
-      nds.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, ...updatedData } } : n)),
-    );
-    setIsDirty(true);
-  }, []);
-
-  /** Merge into a node's config from the latest state (inline editors fire in quick succession). */
-  const handleUpdateNodeConfig = useCallback((nodeId: string, patch: Record<string, unknown>) => {
-    setNodes((nds) =>
       nds.map((n) =>
-        n.id === nodeId
-          ? { ...n, data: { ...n.data, config: { ...((n.data as any)?.config || {}), ...patch } } }
-          : n,
+        n.id === nodeId ? { ...n, data: { ...n.data, ...updatedData } } : n,
       ),
     );
     setIsDirty(true);
   }, []);
 
+  /** Merge into a node's config from the latest state (inline editors fire in quick succession). */
+  const handleUpdateNodeConfig = useCallback(
+    (nodeId: string, patch: Record<string, unknown>) => {
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === nodeId
+            ? {
+                ...n,
+                data: {
+                  ...n.data,
+                  config: { ...((n.data as any)?.config || {}), ...patch },
+                },
+              }
+            : n,
+        ),
+      );
+      setIsDirty(true);
+    },
+    [],
+  );
+
   /** A module drawer's Save: its draft configs (and run limits) into the graph. */
   const handleApplyModuleDraft = useCallback((draft: ModuleDraft) => {
     if (Object.keys(draft.configs).length > 0) {
       setNodes((nds) =>
-        nds.map((n) => (draft.configs[n.id] ? { ...n, data: { ...n.data, config: draft.configs[n.id] } } : n)),
+        nds.map((n) =>
+          draft.configs[n.id]
+            ? { ...n, data: { ...n.data, config: draft.configs[n.id] } }
+            : n,
+        ),
       );
     }
-    if (draft.graphSettings !== undefined) setGraphSettings(draft.graphSettings);
+    if (draft.graphSettings !== undefined)
+      setGraphSettings(draft.graphSettings);
     setIsDirty(true);
   }, []);
 
@@ -2626,40 +3332,63 @@ export function AgentDetailPage() {
       if (nodeIds.length === 0) return;
       const ids = new Set(nodeIds);
       setNodes((nds) => nds.filter((n) => !ids.has(n.id)));
-      setEdges((eds) => eds.filter((e) => !ids.has(e.source) && !ids.has(e.target)));
+      setEdges((eds) =>
+        eds.filter((e) => !ids.has(e.source) && !ids.has(e.target)),
+      );
       // The inspector closes on its own: selectedNode is derived from `nodes`
       setIsDirty(true);
-      toast(nodeIds.length === 1 ? 'Node deleted' : `${nodeIds.length} nodes deleted`, {
-        action: undoAction,
-      });
+      toast(
+        nodeIds.length === 1
+          ? 'Node deleted'
+          : `${nodeIds.length} nodes deleted`,
+        {
+          action: undoAction,
+        },
+      );
     },
     [undoAction],
   );
-  const handleDeleteNode = useCallback((nodeId: string) => handleDeleteNodes([nodeId]), [handleDeleteNodes]);
+  const handleDeleteNode = useCallback(
+    (nodeId: string) => handleDeleteNodes([nodeId]),
+    [handleDeleteNodes],
+  );
 
   const handleAddNode = useCallback(
     (node: Node, options?: { silent?: boolean }) => {
       // Every add path (library, Ctrl+K, right-click, paste, edge split) lands
       // here, so this is where a locked or view-only canvas refuses changes.
       if (isCanvasLocked) {
-        toast.error(canManage ? 'Unlock the canvas to add steps' : 'You can view this agent but not edit it');
+        toast.error(
+          canManage
+            ? 'Unlock the canvas to add steps'
+            : 'You can view this agent but not edit it',
+        );
         return;
       }
       const withSelected: Node = {
         ...node,
         selected: true,
       };
-      setNodes((nds) => [...nds.map((n) => ({ ...n, selected: false })), withSelected]);
+      setNodes((nds) => [
+        ...nds.map((n) => ({ ...n, selected: false })),
+        withSelected,
+      ]);
       setSelectedNode(withSelected);
       setIsDirty(true);
       focusNode(node);
-      if (!options?.silent) toast.success(`Added "${node.data?.label || 'Node'}"`);
+      if (!options?.silent)
+        toast.success(`Added "${node.data?.label || 'Node'}"`);
     },
     [focusNode, setSelectedNode, isCanvasLocked, canManage],
   );
 
   const handleConnectNextNode = useCallback(
-    (sourceNode: Node, item: any, handleId?: string, options?: { select?: boolean }) => {
+    (
+      sourceNode: Node,
+      item: any,
+      handleId?: string,
+      options?: { select?: boolean },
+    ) => {
       if (isCanvasLocked) return;
       const select = options?.select !== false;
       const newNodeId = `${item.type.toLowerCase()}-${Date.now().toString(36)}`;
@@ -2671,10 +3400,12 @@ export function AgentDetailPage() {
       } else if (isSlotHost(sourceNode.type)) {
         if (workflowDirection === 'vertical') {
           xPos = sourceNode.position.x;
-          yPos = sourceNode.position.y + (sourceNode.measured?.height ?? 300) + 100;
+          yPos =
+            sourceNode.position.y + (sourceNode.measured?.height ?? 300) + 100;
         } else {
           // Attachments hang below an agent, so its next step simply goes to its right
-          xPos = sourceNode.position.x + (sourceNode.measured?.width ?? 290) + 120;
+          xPos =
+            sourceNode.position.x + (sourceNode.measured?.width ?? 290) + 120;
         }
       } else if (workflowDirection === 'vertical') {
         if (handleId === 'false') {
@@ -2722,7 +3453,11 @@ export function AgentDetailPage() {
         }),
         newNode,
       ]);
-      setEdges((eds) => (slot ? withSlotConnection(eds, { ...newEdge, animated: false }) : [...eds, newEdge]));
+      setEdges((eds) =>
+        slot
+          ? withSlotConnection(eds, { ...newEdge, animated: false })
+          : [...eds, newEdge],
+      );
       if (select) {
         setSelectedNode(newNode);
         focusNode(newNode);
@@ -2734,12 +3469,22 @@ export function AgentDetailPage() {
           : `Connected "${item.label}" to "${sourceNode.data?.label || 'Node'}"`,
       );
     },
-    [focusNode, nodes, edges, workflowDirection, setSelectedNode, isCanvasLocked],
+    [
+      focusNode,
+      nodes,
+      edges,
+      workflowDirection,
+      setSelectedNode,
+      isCanvasLocked,
+    ],
   );
 
   /** Opens a node's panel (optionally at one of its modules), asking first if a drawer has unsaved edits. */
   const requestOpenModule = useCallback(
-    async (nodeId: string, module: { id: AgentModuleId; section?: string; field?: string } | null) => {
+    async (
+      nodeId: string,
+      module: { id: AgentModuleId; section?: string; field?: string } | null,
+    ) => {
       if (nodeId !== selectedNodeId && !(await confirmLeaveModule())) return;
       openModuleFor(nodeId, module);
     },
@@ -2751,35 +3496,72 @@ export function AgentDetailPage() {
     if (!selectedNode || !isSlotHost(selectedNode.type)) return undefined;
     const agentNode = selectedNode;
     return {
-      attach: (item, slot) => handleConnectNextNode(agentNode, item, slot, { select: false }),
+      attach: (item, slot) =>
+        handleConnectNextNode(agentNode, item, slot, { select: false }),
       deleteNode: (nodeId) => handleDeleteNode(nodeId),
       detach: (targetId, slot) => {
-        setEdges((eds) => eds.filter((e) => !(e.source === agentNode.id && e.target === targetId && e.sourceHandle === slot)));
+        setEdges((eds) =>
+          eds.filter(
+            (e) =>
+              !(
+                e.source === agentNode.id &&
+                e.target === targetId &&
+                e.sourceHandle === slot
+              ),
+          ),
+        );
         setIsDirty(true);
         toast('Unplugged from the agent', { action: undoAction });
       },
-      connect: (targetId, slot) => onConnect({ source: agentNode.id, sourceHandle: slot, target: targetId, targetHandle: null }),
+      connect: (targetId, slot) =>
+        onConnect({
+          source: agentNode.id,
+          sourceHandle: slot,
+          target: targetId,
+          targetHandle: null,
+        }),
       selectNode: (nodeId, module) => {
-        void requestOpenModule(nodeId, module ? { id: module } : null).then(() => {
-          const target = graphRef.current.nodes.find((n) => n.id === nodeId);
-          if (target) focusNode(target);
-        });
+        void requestOpenModule(nodeId, module ? { id: module } : null).then(
+          () => {
+            const target = graphRef.current.nodes.find((n) => n.id === nodeId);
+            if (target) focusNode(target);
+          },
+        );
       },
       runAgentTest: () => setIsTestDrawerOpen(true),
     };
-  }, [selectedNode, handleConnectNextNode, handleDeleteNode, undoAction, onConnect, requestOpenModule, focusNode]);
+  }, [
+    selectedNode,
+    handleConnectNextNode,
+    handleDeleteNode,
+    undoAction,
+    onConnect,
+    requestOpenModule,
+    focusNode,
+  ]);
 
   // Auto layout glides nodes to their new spots (edges follow, since positions are
   // interpolated in state rather than with CSS). Returns how long the move takes,
   // or null when the graph is already tidy.
-  const layoutAnimationRef = useRef<{ frame: number | null; timer: ReturnType<typeof setTimeout> | null }>({
+  const layoutAnimationRef = useRef<{
+    frame: number | null;
+    timer: ReturnType<typeof setTimeout> | null;
+  }>({
     frame: null,
     timer: null,
   });
   const handleAutoLayout = useCallback(
-    (explicitDir?: 'LR' | 'TB', prefs: LayoutPrefs = layoutPrefs): number | null => {
-      const dir = explicitDir || (workflowDirection === 'vertical' ? 'TB' : 'LR');
-      const target = layoutWorkflow(withMeasuredSizes(nodes, measuredSizeRef.current), edges, { direction: dir, ...prefs });
+    (
+      explicitDir?: 'LR' | 'TB',
+      prefs: LayoutPrefs = layoutPrefs,
+    ): number | null => {
+      const dir =
+        explicitDir || (workflowDirection === 'vertical' ? 'TB' : 'LR');
+      const target = layoutWorkflow(
+        withMeasuredSizes(nodes, measuredSizeRef.current),
+        edges,
+        { direction: dir, ...prefs },
+      );
       const targetById = new Map(target.map((n) => [n.id, n]));
       const moved = nodes.some((n) => {
         const t = targetById.get(n.id);
@@ -2801,7 +3583,8 @@ export function AgentDetailPage() {
       if (anim.timer !== null) clearTimeout(anim.timer);
 
       const reduceMotion =
-        typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        typeof window !== 'undefined' &&
+        window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
       const duration = reduceMotion ? 0 : LAYOUT_ANIMATION_MS;
       const start = new Map(nodes.map((n) => [n.id, n.position]));
 
@@ -2830,7 +3613,13 @@ export function AgentDetailPage() {
               const from = start.get(n.id);
               const to = targetById.get(n.id)?.position;
               if (!from || !to) return n;
-              return { ...n, position: { x: from.x + (to.x - from.x) * ease, y: from.y + (to.y - from.y) * ease } };
+              return {
+                ...n,
+                position: {
+                  x: from.x + (to.x - from.x) * ease,
+                  y: from.y + (to.y - from.y) * ease,
+                },
+              };
             }),
           );
           anim.frame = requestAnimationFrame(step);
@@ -2854,12 +3643,19 @@ export function AgentDetailPage() {
     (patch: Partial<LayoutPrefs>) => {
       if (isCanvasLocked) return;
       const next = { ...layoutPrefs, ...patch };
-      if (next.arrange === layoutPrefs.arrange && next.spacing === layoutPrefs.spacing) return;
+      if (
+        next.arrange === layoutPrefs.arrange &&
+        next.spacing === layoutPrefs.spacing
+      )
+        return;
       setLayoutPrefs(next);
       setIsDirty(true);
       const duration = handleAutoLayout(undefined, next);
       if (duration !== null) {
-        setTimeout(() => reactFlowRef.current?.fitView({ padding: 0.2, duration: 450 }), duration + 40);
+        setTimeout(
+          () => reactFlowRef.current?.fitView({ padding: 0.2, duration: 450 }),
+          duration + 40,
+        );
       }
     },
     [isCanvasLocked, layoutPrefs, handleAutoLayout],
@@ -2881,24 +3677,38 @@ export function AgentDetailPage() {
     const previous = lastAttachmentSignature.current;
     lastAttachmentSignature.current = attachmentSignature;
     // First sight of a graph keeps its saved positions
-    if (previous === null || previous === attachmentSignature || isCanvasLocked) return;
+    if (previous === null || previous === attachmentSignature || isCanvasLocked)
+      return;
     const timer = setTimeout(() => {
       const { nodes: current, edges: currentEdges } = graphRef.current;
-      const target = layoutWorkflow(withMeasuredSizes(current, measuredSizeRef.current), currentEdges, {
-        direction: workflowDirection === 'vertical' ? 'TB' : 'LR',
-        spacing: layoutPrefs.spacing,
-        attachmentsOnly: true,
-      });
+      const target = layoutWorkflow(
+        withMeasuredSizes(current, measuredSizeRef.current),
+        currentEdges,
+        {
+          direction: workflowDirection === 'vertical' ? 'TB' : 'LR',
+          spacing: layoutPrefs.spacing,
+          attachmentsOnly: true,
+        },
+      );
       const targetById = new Map(target.map((n) => [n.id, n.position]));
       setNodes((cur) =>
         cur.map((n) => {
           const to = targetById.get(n.id);
-          return to && (Math.abs(to.x - n.position.x) > 1 || Math.abs(to.y - n.position.y) > 1) ? { ...n, position: to } : n;
+          return to &&
+            (Math.abs(to.x - n.position.x) > 1 ||
+              Math.abs(to.y - n.position.y) > 1)
+            ? { ...n, position: to }
+            : n;
         }),
       );
     }, 180);
     return () => clearTimeout(timer);
-  }, [attachmentSignature, isCanvasLocked, workflowDirection, layoutPrefs.spacing]);
+  }, [
+    attachmentSignature,
+    isCanvasLocked,
+    workflowDirection,
+    layoutPrefs.spacing,
+  ]);
 
   const handleChangeDirection = useCallback(
     (newDir: WorkflowDirection) => {
@@ -2907,7 +3717,11 @@ export function AgentDetailPage() {
       setIsDirty(true);
       // Run auto layout in the new direction
       const layoutDir = newDir === 'vertical' ? 'TB' : 'LR';
-      const target = layoutWorkflow(withMeasuredSizes(nodes, measuredSizeRef.current), edges, { direction: layoutDir, ...layoutPrefs });
+      const target = layoutWorkflow(
+        withMeasuredSizes(nodes, measuredSizeRef.current),
+        edges,
+        { direction: layoutDir, ...layoutPrefs },
+      );
       const targetById = new Map(target.map((n) => [n.id, n]));
       setNodes((cur) =>
         cur.map((n) => {
@@ -2931,7 +3745,9 @@ export function AgentDetailPage() {
               };
         }),
       );
-      toast.success(`Workflow layout changed to ${newDir}`, { action: undoAction });
+      toast.success(`Workflow layout changed to ${newDir}`, {
+        action: undoAction,
+      });
       setTimeout(() => {
         reactFlowRef.current?.fitView({ padding: 0.2, duration: 400 });
       }, 50);
@@ -2944,19 +3760,37 @@ export function AgentDetailPage() {
       if (newStyle === workflowEdgeStyle) return;
       setWorkflowEdgeStyle(newStyle);
       setIsDirty(true);
-      toast.success(`Edge routing: ${EDGE_ROUTING_LABELS[newStyle]}`, { action: undoAction });
+      toast.success(`Edge routing: ${EDGE_ROUTING_LABELS[newStyle]}`, {
+        action: undoAction,
+      });
     },
     [workflowEdgeStyle, undoAction],
   );
 
   const handleUpdateNodeMetadata = useCallback(
-    (nodeId: string, patch: { title?: string; label?: string; description?: string; subtitle?: string }) => {
+    (
+      nodeId: string,
+      patch: {
+        title?: string;
+        label?: string;
+        description?: string;
+        subtitle?: string;
+      },
+    ) => {
       setNodes((nds) =>
         nds.map((n) => {
           if (n.id !== nodeId) return n;
           const currentData = (n.data ?? {}) as Record<string, unknown>;
-          const updatedTitle = patch.title ?? patch.label ?? currentData.title ?? currentData.label;
-          const updatedDesc = patch.description ?? patch.subtitle ?? currentData.description ?? currentData.subtitle;
+          const updatedTitle =
+            patch.title ??
+            patch.label ??
+            currentData.title ??
+            currentData.label;
+          const updatedDesc =
+            patch.description ??
+            patch.subtitle ??
+            currentData.description ??
+            currentData.subtitle;
           return {
             ...n,
             data: {
@@ -3013,14 +3847,26 @@ export function AgentDetailPage() {
 
   /** Re-point one end of an edge (from the node panel's Wiring tab). */
   const handleRewireEdge = useCallback(
-    (edgeId: string, patch: Partial<Pick<Edge, 'source' | 'target' | 'sourceHandle' | 'targetHandle'>>) => {
+    (
+      edgeId: string,
+      patch: Partial<
+        Pick<Edge, 'source' | 'target' | 'sourceHandle' | 'targetHandle'>
+      >,
+    ) => {
       setEdges((eds) => {
         const edge = eds.find((e) => e.id === edgeId);
         if (!edge) return eds;
         const next = { ...edge, ...patch };
         if (next.source === next.target) return eds;
         // Don't create a second copy of a connection that already exists
-        if (eds.some((e) => e.id !== edgeId && e.source === next.source && e.target === next.target)) {
+        if (
+          eds.some(
+            (e) =>
+              e.id !== edgeId &&
+              e.source === next.source &&
+              e.target === next.target,
+          )
+        ) {
           toast.info('Those steps are already connected');
           return eds;
         }
@@ -3032,81 +3878,193 @@ export function AgentDetailPage() {
   );
 
   /** Node panel "Cancel": put back the node's data and every edge touching it. */
-  const handleRestoreNode = useCallback((nodeId: string, snapshot: NodeSnapshot) => {
-    setNodes((nds) => nds.map((n) => (n.id === nodeId ? { ...n, data: snapshot.data } : n)));
-    setEdges((eds) => [
-      ...eds.filter((e) => e.source !== nodeId && e.target !== nodeId),
-      ...snapshot.edges,
-    ]);
-    setIsDirty(true);
-  }, []);
+  const handleRestoreNode = useCallback(
+    (nodeId: string, snapshot: NodeSnapshot) => {
+      setNodes((nds) =>
+        nds.map((n) => (n.id === nodeId ? { ...n, data: snapshot.data } : n)),
+      );
+      setEdges((eds) => [
+        ...eds.filter((e) => e.source !== nodeId && e.target !== nodeId),
+        ...snapshot.edges,
+      ]);
+      setIsDirty(true);
+    },
+    [],
+  );
 
-  const handleReconnectEdge = useCallback((oldEdge: Edge, newConnection: Connection) => {
-    setEdges((els) => {
-      const next = reconnectEdge(oldEdge, newConnection, els);
-      const moved = next.find((e) => !els.includes(e));
-      return moved && getSlot(moved.sourceHandle) ? withSlotConnection(next.filter((e) => e !== moved), moved) : next;
-    });
-    setIsDirty(true);
-    toast.success('Connection reconnected');
-  }, []);
+  const handleReconnectEdge = useCallback(
+    (oldEdge: Edge, newConnection: Connection) => {
+      setEdges((els) => {
+        const next = reconnectEdge(oldEdge, newConnection, els);
+        const moved = next.find((e) => !els.includes(e));
+        return moved && getSlot(moved.sourceHandle)
+          ? withSlotConnection(
+              next.filter((e) => e !== moved),
+              moved,
+            )
+          : next;
+      });
+      setIsDirty(true);
+      toast.success('Connection reconnected');
+    },
+    [],
+  );
 
   const handleInspectEdge = useCallback((edge: Edge) => {
     setSelectedEdgeId(edge.id);
     setSelectedNodeId(null);
   }, []);
 
-  const handleUpdateEdge = useCallback((edgeId: string, patch: Partial<Edge>) => {
-    setEdges((eds) =>
-      eds.map((e) => {
-        if (e.id !== edgeId) return e;
-        return {
-          ...e,
-          ...patch,
+  const handleUpdateEdge = useCallback(
+    (edgeId: string, patch: Partial<Edge>) => {
+      setEdges((eds) =>
+        eds.map((e) => {
+          if (e.id !== edgeId) return e;
+          return {
+            ...e,
+            ...patch,
+            data: {
+              ...e.data,
+              ...(patch.data ?? {}),
+            },
+          };
+        }),
+      );
+      setIsDirty(true);
+    },
+    [],
+  );
+
+  const handleInsertNodeOnEdge = useCallback(
+    (edge: Edge) => {
+      const sourceNode = nodes.find((n) => n.id === edge.source);
+      const targetNode = nodes.find((n) => n.id === edge.target);
+      if (!sourceNode || !targetNode) return;
+
+      const midX = Math.round(
+        (sourceNode.position.x + targetNode.position.x) / 2,
+      );
+      const midY = Math.round(
+        (sourceNode.position.y + targetNode.position.y) / 2,
+      );
+
+      setEdgeSplitContext({
+        edge,
+        position: { x: midX, y: midY },
+      });
+      setIsCatalogModalOpen(true);
+    },
+    [nodes],
+  );
+
+  const handleConnectEndDrop = useCallback(
+    (pos: { x: number; y: number }, fromNode: Node, fromHandle?: string) => {
+      setDropContext({
+        position: pos,
+        fromNode,
+        fromHandle,
+      });
+      setIsCatalogModalOpen(true);
+    },
+    [],
+  );
+
+  const handleSelectCatalogItem = useCallback(
+    (item: any) => {
+      setIsCatalogModalOpen(false);
+
+      if (edgeSplitContext) {
+        const { edge, position } = edgeSplitContext;
+        setEdgeSplitContext(null);
+
+        const newNodeId = `${item.type.toLowerCase()}-${Date.now().toString(36)}`;
+        const newNode: Node = {
+          id: newNodeId,
+          type: item.type,
+          position,
           data: {
-            ...e.data,
-            ...(patch.data ?? {}),
+            label: item.label,
+            subtitle: item.subtitle,
+            config: item.defaultConfig || {},
           },
+          selected: true,
         };
-      }),
-    );
-    setIsDirty(true);
-  }, []);
 
-  const handleInsertNodeOnEdge = useCallback((edge: Edge) => {
-    const sourceNode = nodes.find((n) => n.id === edge.source);
-    const targetNode = nodes.find((n) => n.id === edge.target);
-    if (!sourceNode || !targetNode) return;
+        const edgeIn: Edge = {
+          id: `e-${edge.source}-${newNodeId}-${Date.now().toString(36)}`,
+          source: edge.source,
+          sourceHandle: edge.sourceHandle,
+          target: newNodeId,
+          animated: true,
+        };
+        const edgeOut: Edge = {
+          id: `e-${newNodeId}-${edge.target}-${Date.now().toString(36)}`,
+          source: newNodeId,
+          target: edge.target,
+          targetHandle: edge.targetHandle,
+          animated: true,
+        };
 
-    const midX = Math.round((sourceNode.position.x + targetNode.position.x) / 2);
-    const midY = Math.round((sourceNode.position.y + targetNode.position.y) / 2);
+        setNodes((nds) => [
+          ...nds.map((n) => ({ ...n, selected: false })),
+          newNode,
+        ]);
+        setEdges((eds) => [
+          ...eds.filter((e) => e.id !== edge.id),
+          edgeIn,
+          edgeOut,
+        ]);
+        setSelectedNode(newNode);
+        setIsDirty(true);
+        toast.success(`Inserted "${item.label}" between steps`);
+        return;
+      }
 
-    setEdgeSplitContext({
-      edge,
-      position: { x: midX, y: midY },
-    });
-    setIsCatalogModalOpen(true);
-  }, [nodes]);
+      if (dropContext) {
+        const { position, fromNode, fromHandle } = dropContext;
+        setDropContext(null);
 
-  const handleConnectEndDrop = useCallback((pos: { x: number; y: number }, fromNode: Node, fromHandle?: string) => {
-    setDropContext({
-      position: pos,
-      fromNode,
-      fromHandle,
-    });
-    setIsCatalogModalOpen(true);
-  }, []);
+        const newNodeId = `${item.type.toLowerCase()}-${Date.now().toString(36)}`;
+        const newNode: Node = {
+          id: newNodeId,
+          type: item.type,
+          position,
+          data: {
+            label: item.label,
+            subtitle: item.subtitle,
+            config: item.defaultConfig || {},
+          },
+          selected: true,
+        };
 
-  const handleSelectCatalogItem = useCallback((item: any) => {
-    setIsCatalogModalOpen(false);
+        const newEdge: Edge = {
+          id: `e-${fromNode.id}-${newNodeId}-${Date.now().toString(36)}`,
+          source: fromNode.id,
+          sourceHandle: fromHandle,
+          target: newNodeId,
+          animated: true,
+        };
 
-    if (edgeSplitContext) {
-      const { edge, position } = edgeSplitContext;
-      setEdgeSplitContext(null);
+        setNodes((nds) => [
+          ...nds.map((n) => ({ ...n, selected: false })),
+          newNode,
+        ]);
+        setEdges((eds) => [...eds, newEdge]);
+        setSelectedNode(newNode);
+        setIsDirty(true);
+        toast.success(
+          `Connected "${item.label}" to "${fromNode.data?.label || 'step'}"`,
+        );
+        return;
+      }
 
-      const newNodeId = `${item.type.toLowerCase()}-${Date.now().toString(36)}`;
+      // Default addition (e.g. from Command Palette)
+      const position = {
+        x: window.innerWidth / 2 - 120,
+        y: window.innerHeight / 2 - 40,
+      };
       const newNode: Node = {
-        id: newNodeId,
+        id: `${item.type.toLowerCase()}-${Date.now().toString(36)}`,
         type: item.type,
         position,
         data: {
@@ -3116,119 +4074,61 @@ export function AgentDetailPage() {
         },
         selected: true,
       };
+      handleAddNode(newNode);
+    },
+    [edgeSplitContext, dropContext, handleAddNode, setSelectedNode],
+  );
 
-      const edgeIn: Edge = {
-        id: `e-${edge.source}-${newNodeId}-${Date.now().toString(36)}`,
-        source: edge.source,
-        sourceHandle: edge.sourceHandle,
-        target: newNodeId,
-        animated: true,
+  const handleCopySelected = useCallback(
+    (nodeToCopy?: Node) => {
+      let selected = nodes.filter((n) => n.selected);
+      if (selected.length === 0 && nodeToCopy) {
+        selected = [nodeToCopy];
+      }
+      if (selected.length === 0 && selectedNode) {
+        selected = [selectedNode];
+      }
+      if (selected.length === 0) return;
+
+      const selIds = new Set(selected.map((n) => n.id));
+      const selEdges = edges.filter(
+        (e) => selIds.has(e.source) && selIds.has(e.target),
+      );
+      clipboardRef.current = {
+        nodes: selected.map((n) => ({ ...n })),
+        edges: selEdges.map((e) => ({ ...e })),
       };
-      const edgeOut: Edge = {
-        id: `e-${newNodeId}-${edge.target}-${Date.now().toString(36)}`,
-        source: newNodeId,
-        target: edge.target,
-        targetHandle: edge.targetHandle,
-        animated: true,
-      };
+      setHasClipboard(true);
+      toast.success(
+        selected.length === 1
+          ? `Copied "${selected[0].data?.label || 'Node'}"`
+          : `Copied ${selected.length} steps`,
+      );
+    },
+    [nodes, edges, selectedNode],
+  );
 
-      setNodes((nds) => [...nds.map((n) => ({ ...n, selected: false })), newNode]);
-      setEdges((eds) => [...eds.filter((e) => e.id !== edge.id), edgeIn, edgeOut]);
-      setSelectedNode(newNode);
-      setIsDirty(true);
-      toast.success(`Inserted "${item.label}" between steps`);
-      return;
-    }
-
-    if (dropContext) {
-      const { position, fromNode, fromHandle } = dropContext;
-      setDropContext(null);
-
-      const newNodeId = `${item.type.toLowerCase()}-${Date.now().toString(36)}`;
-      const newNode: Node = {
-        id: newNodeId,
-        type: item.type,
-        position,
-        data: {
-          label: item.label,
-          subtitle: item.subtitle,
-          config: item.defaultConfig || {},
-        },
-        selected: true,
-      };
-
-      const newEdge: Edge = {
-        id: `e-${fromNode.id}-${newNodeId}-${Date.now().toString(36)}`,
-        source: fromNode.id,
-        sourceHandle: fromHandle,
-        target: newNodeId,
-        animated: true,
-      };
-
-      setNodes((nds) => [...nds.map((n) => ({ ...n, selected: false })), newNode]);
-      setEdges((eds) => [...eds, newEdge]);
-      setSelectedNode(newNode);
-      setIsDirty(true);
-      toast.success(`Connected "${item.label}" to "${fromNode.data?.label || 'step'}"`);
-      return;
-    }
-
-    // Default addition (e.g. from Command Palette)
-    const position = {
-      x: window.innerWidth / 2 - 120,
-      y: window.innerHeight / 2 - 40,
-    };
-    const newNode: Node = {
-      id: `${item.type.toLowerCase()}-${Date.now().toString(36)}`,
-      type: item.type,
-      position,
-      data: {
-        label: item.label,
-        subtitle: item.subtitle,
-        config: item.defaultConfig || {},
-      },
-      selected: true,
-    };
-    handleAddNode(newNode);
-  }, [edgeSplitContext, dropContext, handleAddNode, setSelectedNode]);
-
-  const handleCopySelected = useCallback((nodeToCopy?: Node) => {
-    let selected = nodes.filter((n) => n.selected);
-    if (selected.length === 0 && nodeToCopy) {
-      selected = [nodeToCopy];
-    }
-    if (selected.length === 0 && selectedNode) {
-      selected = [selectedNode];
-    }
-    if (selected.length === 0) return;
-
-    const selIds = new Set(selected.map((n) => n.id));
-    const selEdges = edges.filter((e) => selIds.has(e.source) && selIds.has(e.target));
-    clipboardRef.current = {
-      nodes: selected.map((n) => ({ ...n })),
-      edges: selEdges.map((e) => ({ ...e })),
-    };
-    setHasClipboard(true);
-    toast.success(selected.length === 1 ? `Copied "${selected[0].data?.label || 'Node'}"` : `Copied ${selected.length} steps`);
-  }, [nodes, edges, selectedNode]);
-
-  const handleCutSelected = useCallback((nodeToCut?: Node) => {
-    handleCopySelected(nodeToCut);
-    let targets = nodes.filter((n) => n.selected).map((n) => n.id);
-    if (targets.length === 0 && nodeToCut) targets = [nodeToCut.id];
-    if (targets.length === 0 && selectedNode) targets = [selectedNode.id];
-    if (targets.length > 0) {
-      handleDeleteNodes(targets);
-    }
-  }, [handleCopySelected, nodes, selectedNode, handleDeleteNodes]);
+  const handleCutSelected = useCallback(
+    (nodeToCut?: Node) => {
+      handleCopySelected(nodeToCut);
+      let targets = nodes.filter((n) => n.selected).map((n) => n.id);
+      if (targets.length === 0 && nodeToCut) targets = [nodeToCut.id];
+      if (targets.length === 0 && selectedNode) targets = [selectedNode.id];
+      if (targets.length > 0) {
+        handleDeleteNodes(targets);
+      }
+    },
+    [handleCopySelected, nodes, selectedNode, handleDeleteNodes],
+  );
 
   const handlePaste = useCallback(() => {
-    if (!clipboardRef.current || clipboardRef.current.nodes.length === 0) return;
+    if (!clipboardRef.current || clipboardRef.current.nodes.length === 0)
+      return;
     const { nodes: clipNodes, edges: clipEdges } = clipboardRef.current;
 
     const idMap = new Map<string, string>();
     const newNodes: Node[] = clipNodes.map((n) => {
-      const newId = generateId((n.type?.toLowerCase() || 'node'));
+      const newId = generateId(n.type?.toLowerCase() || 'node');
       idMap.set(n.id, newId);
       return {
         ...n,
@@ -3249,14 +4149,20 @@ export function AgentDetailPage() {
       target: idMap.get(e.target) || e.target,
     }));
 
-    setNodes((nds) => [...nds.map((n) => ({ ...n, selected: false })), ...newNodes]);
+    setNodes((nds) => [
+      ...nds.map((n) => ({ ...n, selected: false })),
+      ...newNodes,
+    ]);
     setEdges((eds) => [...eds, ...newEdges]);
     setIsDirty(true);
     if (newNodes.length > 0) {
       setSelectedNode(newNodes[0]);
       focusNode(newNodes[0]);
     }
-    toast.success(newNodes.length === 1 ? 'Pasted step' : `Pasted ${newNodes.length} steps`, { action: undoAction });
+    toast.success(
+      newNodes.length === 1 ? 'Pasted step' : `Pasted ${newNodes.length} steps`,
+      { action: undoAction },
+    );
   }, [focusNode, setSelectedNode, undoAction]);
 
   const handleSelectAll = useCallback(() => {
@@ -3264,21 +4170,32 @@ export function AgentDetailPage() {
   }, []);
 
   const handleBatchAlign = useCallback(
-    (type: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom', selectedIds: string[]) => {
+    (
+      type: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom',
+      selectedIds: string[],
+    ) => {
       if (selectedIds.length < 2) return;
       setNodes((nds) => {
         const selected = nds.filter((n) => selectedIds.includes(n.id));
         if (selected.length < 2) return nds;
 
         let targetVal = 0;
-        if (type === 'left') targetVal = Math.min(...selected.map((n) => n.position.x));
-        else if (type === 'right') targetVal = Math.max(...selected.map((n) => n.position.x));
+        if (type === 'left')
+          targetVal = Math.min(...selected.map((n) => n.position.x));
+        else if (type === 'right')
+          targetVal = Math.max(...selected.map((n) => n.position.x));
         else if (type === 'center')
-          targetVal = Math.round(selected.reduce((a, n) => a + n.position.x, 0) / selected.length);
-        else if (type === 'top') targetVal = Math.min(...selected.map((n) => n.position.y));
-        else if (type === 'bottom') targetVal = Math.max(...selected.map((n) => n.position.y));
+          targetVal = Math.round(
+            selected.reduce((a, n) => a + n.position.x, 0) / selected.length,
+          );
+        else if (type === 'top')
+          targetVal = Math.min(...selected.map((n) => n.position.y));
+        else if (type === 'bottom')
+          targetVal = Math.max(...selected.map((n) => n.position.y));
         else if (type === 'middle')
-          targetVal = Math.round(selected.reduce((a, n) => a + n.position.y, 0) / selected.length);
+          targetVal = Math.round(
+            selected.reduce((a, n) => a + n.position.y, 0) / selected.length,
+          );
 
         return nds.map((n) => {
           if (!selectedIds.includes(n.id)) return n;
@@ -3301,7 +4218,7 @@ export function AgentDetailPage() {
     setNodes((prev) => {
       const selected = prev.filter((n) => selectedIds.includes(n.id));
       selected.forEach((n) => {
-        const newId = generateId((n.type?.toLowerCase() || 'node'));
+        const newId = generateId(n.type?.toLowerCase() || 'node');
         newNodes.push({
           ...n,
           id: newId,
@@ -3326,14 +4243,23 @@ export function AgentDetailPage() {
       if (selected.length < 2) return prev;
       const minX = Math.min(...selected.map((n) => n.position.x)) - 24;
       const minY = Math.min(...selected.map((n) => n.position.y)) - 48;
-      const maxX = Math.max(...selected.map((n) => n.position.x + (n.measured?.width || 240))) + 24;
-      const maxY = Math.max(...selected.map((n) => n.position.y + (n.measured?.height || 120))) + 24;
+      const maxX =
+        Math.max(
+          ...selected.map((n) => n.position.x + (n.measured?.width || 240)),
+        ) + 24;
+      const maxY =
+        Math.max(
+          ...selected.map((n) => n.position.y + (n.measured?.height || 120)),
+        ) + 24;
 
       const groupNode: Node = {
         id: `group-${Date.now().toString(36)}`,
         type: 'GROUP',
         position: { x: minX, y: minY },
-        style: { width: Math.max(340, maxX - minX), height: Math.max(220, maxY - minY) },
+        style: {
+          width: Math.max(340, maxX - minX),
+          height: Math.max(220, maxY - minY),
+        },
         data: {
           label: 'Stage Group',
           subtitle: `${selected.length} grouped steps`,
@@ -3354,7 +4280,9 @@ export function AgentDetailPage() {
       nodes,
       edges,
     };
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+      type: 'application/json',
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -3405,7 +4333,11 @@ export function AgentDetailPage() {
       }
       setSelectedNodeId(null);
       setSelectedEdgeId(null);
-      setNodes((nds) => (nds.some((n) => n.selected) ? nds.map((n) => (n.selected ? { ...n, selected: false } : n)) : nds));
+      setNodes((nds) =>
+        nds.some((n) => n.selected)
+          ? nds.map((n) => (n.selected ? { ...n, selected: false } : n))
+          : nds,
+      );
     },
     canEditGraph: activeTab === 'build' && !isCanvasLocked,
   };
@@ -3485,7 +4417,8 @@ export function AgentDetailPage() {
       isDirty &&
       !(await confirm({
         title: 'Leave without saving?',
-        description: 'You have unsaved changes to this agent. They will be lost if you leave now.',
+        description:
+          'You have unsaved changes to this agent. They will be lost if you leave now.',
         confirmLabel: 'Leave',
         destructive: true,
       }))
@@ -3515,7 +4448,11 @@ export function AgentDetailPage() {
       const res = await agentsApi.validate(
         activeWorkspace.id,
         agentId,
-        JSON.stringify({ nodes, edges, ...(graphSettings ? { settings: graphSettings } : {}) }),
+        JSON.stringify({
+          nodes,
+          edges,
+          ...(graphSettings ? { settings: graphSettings } : {}),
+        }),
       );
       setValidationResult(res);
       setIsValidationOpen(true);
@@ -3540,7 +4477,11 @@ export function AgentDetailPage() {
         description={errorMessage(agentError, 'Request failed')}
         onRetry={() => void refetchAgent()}
         action={
-          <Button variant="outline" size="sm" onClick={() => navigate('/agents')}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/agents')}
+          >
             Back to Agents
           </Button>
         }
@@ -3550,9 +4491,11 @@ export function AgentDetailPage() {
 
   if (!agent) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center gap-3">
+      <div className="gap-3 flex h-screen flex-col items-center justify-center">
         <AlertCircle className="h-10 w-10 text-destructive" />
-        <h2 className="text-base font-semibold text-foreground">Agent Not Found</h2>
+        <h2 className="text-base font-semibold text-foreground">
+          Agent Not Found
+        </h2>
         <Button variant="outline" size="sm" onClick={() => navigate('/agents')}>
           Back to Agents
         </Button>
@@ -3564,15 +4507,17 @@ export function AgentDetailPage() {
     <div className="flex h-screen w-full flex-col overflow-hidden bg-background">
       {/* Presentation Mode Float Bar */}
       {isPresentationMode && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full border border-border bg-surface px-3.5 py-1.5 shadow-lg animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="top-4 gap-2 px-3.5 py-1.5 animate-in fade-in slide-in-from-top-2 absolute left-1/2 z-50 flex -translate-x-1/2 items-center rounded-full border border-border bg-surface shadow-lg duration-200">
           <Eye className="size-4 text-primary" />
-          <span className="text-xs font-semibold text-foreground">Presentation Mode</span>
-          <div className="h-3 w-px bg-border mx-1" />
+          <span className="text-xs font-semibold text-foreground">
+            Presentation Mode
+          </span>
+          <div className="h-3 mx-1 w-px bg-border" />
           <Button
             variant="ghost"
             size="xs"
             onClick={() => setIsPresentationMode(false)}
-            className="h-6 px-2.5 rounded-full text-xs text-muted-foreground hover:text-foreground hover:bg-surface-raised cursor-pointer"
+            className="h-6 px-2.5 text-xs cursor-pointer rounded-full text-muted-foreground hover:bg-surface-raised hover:text-foreground"
           >
             Exit (Esc)
           </Button>
@@ -3581,466 +4526,601 @@ export function AgentDetailPage() {
 
       {/* Top Navbar */}
       {!isPresentationMode && (
-        <header className="relative flex h-13 shrink-0 items-center justify-between gap-2 border-b border-border bg-background px-3.5 z-30 select-none">
-        {/* Left: Back, Identity, Status */}
-        <div className="flex h-13 items-center gap-2 shrink-0 min-w-0">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleBack}
-            aria-label="Back to agents"
-            className="h-8 w-8 p-0 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent shrink-0"
-            title="Back to agents"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-
-          <div className="flex items-center gap-2 min-w-0">
-            <AgentAvatar
-              agent={agent}
-              icon={settingsDraft?.icon}
-              avatarUrl={settingsDraft?.avatar}
-              theme={settingsDraft?.theme}
+        <header className="h-13 gap-2 px-3.5 relative z-30 flex shrink-0 items-center justify-between border-b border-border bg-background select-none">
+          {/* Left: Back, Identity, Status */}
+          <div className="h-13 gap-2 min-w-0 flex shrink-0 items-center">
+            <Button
+              variant="ghost"
               size="sm"
-            />
+              onClick={handleBack}
+              aria-label="Back to agents"
+              className="h-8 w-8 p-0 shrink-0 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+              title="Back to agents"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
 
-            {isEditingHeaderName ? (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleSaveHeaderName();
-                }}
-                className="flex items-center gap-1 shrink-0"
-              >
-                <Input
-                  value={headerNameInput}
-                  onChange={(e) => setHeaderNameInput(e.target.value)}
-                  className="h-7 text-xs font-semibold w-36 bg-background"
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
+            <div className="gap-2 min-w-0 flex items-center">
+              <AgentAvatar
+                agent={agent}
+                icon={settingsDraft?.icon}
+                avatarUrl={settingsDraft?.avatar}
+                theme={settingsDraft?.theme}
+                size="sm"
+              />
+
+              {isEditingHeaderName ? (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSaveHeaderName();
+                  }}
+                  className="gap-1 flex shrink-0 items-center"
+                >
+                  <Input
+                    value={headerNameInput}
+                    onChange={(e) => setHeaderNameInput(e.target.value)}
+                    className="h-7 text-xs font-semibold w-36 bg-background"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        setHeaderNameInput(agent.name);
+                        setIsEditingHeaderName(false);
+                      }
+                    }}
+                  />
+                  <Button
+                    type="submit"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0 text-success hover:text-success"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
                       setHeaderNameInput(agent.name);
                       setIsEditingHeaderName(false);
-                    }
+                    }}
+                    className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </form>
+              ) : (
+                <div
+                  className="gap-1.5 group min-w-0 flex cursor-pointer items-center"
+                  onClick={() => {
+                    setHeaderNameInput(settingsDraft?.name ?? agent.name);
+                    setIsEditingHeaderName(true);
                   }}
-                />
-                <Button
-                  type="submit"
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 w-7 p-0 text-success hover:text-success"
+                  title="Click to rename agent"
                 >
-                  <Check className="h-3.5 w-3.5" />
-                </Button>
+                  <span className="text-sm font-semibold sm:max-w-[180px] lg:max-w-[220px] max-w-[140px] truncate whitespace-nowrap text-foreground transition-colors hover:text-primary">
+                    {settingsDraft?.name ?? agent.name}
+                  </span>
+                  <Edit2 className="h-3 w-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                </div>
+              )}
+
+              {/* One chip: lifecycle (Draft / Published) + live save state; opens save options */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="xs"
+                    aria-label={`${isPublished ? 'Published' : 'Draft'} — ${saveStatusText}. Save options`}
+                    className={cn(
+                      'shrink-0 rounded-full',
+                      isPublished
+                        ? 'border-success/30 bg-success/10 text-success hover:bg-success/15'
+                        : 'text-muted-foreground',
+                    )}
+                  >
+                    <span>{isPublished ? 'Published' : 'Draft'}</span>
+                    <span className="h-3 w-px bg-current opacity-30" />
+                    {saveMutation.isPending ? (
+                      <span className="gap-1 flex items-center">
+                        <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+                        <span className="md:inline hidden">Saving…</span>
+                      </span>
+                    ) : saveFailed ? (
+                      <span className="gap-1 flex items-center text-destructive">
+                        <AlertTriangle className="h-3 w-3" aria-hidden />
+                        <span className="md:inline hidden">Not saved</span>
+                      </span>
+                    ) : isDirty ? (
+                      <span className="gap-1 flex items-center text-warning">
+                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-warning" />
+                        <span className="md:inline hidden">
+                          {autoSaveEnabled ? 'Editing…' : 'Unsaved'}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="gap-1 flex items-center text-success/90">
+                        <Check className="h-3 w-3" aria-hidden />
+                        <span className="md:inline hidden tabular-nums">
+                          {lastSaved
+                            ? `${lastSaved.auto ? 'Auto-saved' : 'Saved'} ${savedAgo(lastSaved.at, now)}`
+                            : 'Saved'}
+                        </span>
+                      </span>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-64">
+                  <div className="px-2 py-1.5">
+                    <p className="text-xs font-medium text-foreground">
+                      {saveStatusText}
+                    </p>
+                    <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
+                      {autoSaveEnabled
+                        ? `Your draft saves itself ${AUTO_SAVE_DELAY_MS / 1000}s after you stop editing. Publishing makes it live.`
+                        : 'Auto-save is off — save with Ctrl+S. Publishing makes it live.'}
+                    </p>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={autoSaveEnabled}
+                    onCheckedChange={(v) => toggleAutoSave(!!v)}
+                    className="text-xs"
+                  >
+                    Auto-save draft
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuItem
+                    disabled={!isDirty || saveMutation.isPending}
+                    onSelect={() => saveMutation.mutate()}
+                    className="gap-2 text-xs"
+                  >
+                    <Save className="h-3.5 w-3.5" />{' '}
+                    {saveFailed ? 'Try saving again' : 'Save now'}
+                    <DropdownMenuShortcut>Ctrl+S</DropdownMenuShortcut>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => setActiveTab('versions')}
+                    className="gap-2 text-xs"
+                  >
+                    <Clock className="h-3.5 w-3.5" /> Version history
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+
+          <nav
+            aria-label="Agent sections"
+            className="min-w-0 gap-1 xl:pointer-events-none xl:absolute xl:inset-x-0 xl:top-0 xl:h-13 xl:flex-none [&>*]:xl:pointer-events-auto flex flex-1 items-center justify-center"
+          >
+            {AGENT_TAB_GROUPS.map((group) => {
+              const GroupIcon = group.icon;
+              const isActive = group.tabs.includes(activeTab);
+              const triggerClass = cn(
+                'h-8 gap-1.5 px-3.5 text-sm font-semibold relative flex shrink-0 items-center rounded-md whitespace-nowrap transition-colors',
+                'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                isActive
+                  ? 'bg-accent text-foreground'
+                  : 'text-foreground/70 hover:bg-accent/60 hover:text-foreground',
+              );
+              const inner = (
+                <>
+                  <GroupIcon
+                    className={cn(
+                      'h-3.5 w-3.5 shrink-0',
+                      isActive && 'text-primary',
+                    )}
+                  />
+                  <span>{group.label}</span>
+                </>
+              );
+              if (group.tabs.length === 1) {
+                return (
+                  <button
+                    key={group.label}
+                    type="button"
+                    onClick={() => setActiveTab(group.tabs[0])}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={triggerClass}
+                  >
+                    {inner}
+                  </button>
+                );
+              }
+              return (
+                <DropdownMenu
+                  key={group.label}
+                  modal={false}
+                  open={openTabMenu === group.label}
+                  onOpenChange={(open) =>
+                    setOpenTabMenu(open ? group.label : null)
+                  }
+                >
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      aria-current={isActive ? 'page' : undefined}
+                      className={triggerClass}
+                    >
+                      {inner}
+                      <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="start"
+                    sideOffset={6}
+                    className="w-48"
+                  >
+                    {group.tabs.map((id) => {
+                      const tab = AGENT_TABS.find((t) => t.id === id)!;
+                      return (
+                        <DropdownMenuItem
+                          key={id}
+                          onSelect={() => setActiveTab(id)}
+                          className={cn(
+                            'gap-2 text-xs',
+                            activeTab === id && 'font-semibold text-foreground',
+                          )}
+                        >
+                          <tab.icon className="h-3.5 w-3.5" />
+                          {tab.label}
+                          {activeTab === id && (
+                            <Check className="h-3.5 w-3.5 ml-auto text-primary" />
+                          )}
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            })}
+          </nav>
+
+          {/* Right: Actions */}
+          <div className="h-13 gap-1.5 flex shrink-0 items-center">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsTestDrawerOpen(true)}
+              className="h-8 gap-1.5 text-xs font-medium rounded-md border-success/30 bg-success/10 text-success hover:bg-success/20"
+              title="Test run this agent workflow"
+            >
+              <Play className="h-3.5 w-3.5 fill-success" />
+              <span className="md:inline hidden">Test Run</span>
+            </Button>
+
+            {/* Save Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => saveMutation.mutate()}
+              disabled={saveMutation.isPending || !isDirty}
+              aria-keyshortcuts="Control+S"
+              aria-label={isDirty ? 'Save changes' : 'All changes saved'}
+              className={cn(
+                'h-8 gap-1.5 text-xs rounded-md transition-all',
+                !isDirty && !saveMutation.isPending && 'w-8 px-0',
+                isDirty
+                  ? 'font-medium border-warning/40 bg-warning/10 text-warning hover:bg-warning/20'
+                  : 'border-border/60 text-muted-foreground hover:text-foreground',
+              )}
+              title={isDirty ? 'Save changes (Ctrl+S)' : 'All changes saved'}
+            >
+              {saveMutation.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Save className="h-3.5 w-3.5" />
+              )}
+              {/* Label only while there is something to save */}
+              {(isDirty || saveMutation.isPending) && (
+                <span className="sm:inline hidden">
+                  {saveMutation.isPending ? 'Saving…' : 'Save'}
+                </span>
+              )}
+            </Button>
+
+            {/* Publish confirmation — what goes live, what happens first, then one clear action */}
+            <Popover
+              open={isPublishPopoverOpen}
+              onOpenChange={(open) => {
+                setIsPublishPopoverOpen(open);
+                if (!open && !publishMutation.isPending) setPublishSummary('');
+              }}
+            >
+              <PopoverTrigger asChild>
                 <Button
                   type="button"
                   size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    setHeaderNameInput(agent.name);
-                    setIsEditingHeaderName(false);
-                  }}
-                  className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                  // Viewers can't publish (the API answers 403) — don't offer it.
+                  disabled={!canManage}
+                  title={
+                    canManage
+                      ? undefined
+                      : 'Only this agent’s creator or a workspace admin can publish it'
+                  }
+                  className={cn(
+                    'h-8 gap-1.5 font-semibold rounded-md',
+                    isPublishPopoverOpen && 'ring-2 ring-primary/40',
+                  )}
                 >
-                  <X className="h-3.5 w-3.5" />
+                  <Rocket className="size-3.5" />
+                  <span>Publish</span>
+                  <ChevronDown
+                    className={cn(
+                      'size-3.5 transition-transform duration-200',
+                      isPublishPopoverOpen && 'rotate-180',
+                    )}
+                  />
                 </Button>
-              </form>
-            ) : (
-              <div
-                className="flex items-center gap-1.5 group cursor-pointer min-w-0"
-                onClick={() => {
-                  setHeaderNameInput(settingsDraft?.name ?? agent.name);
-                  setIsEditingHeaderName(true);
-                }}
-                title="Click to rename agent"
+              </PopoverTrigger>
+              <PopoverContent
+                align="end"
+                sideOffset={8}
+                className="p-0 w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-border bg-surface text-foreground shadow-lg"
               >
-                <span className="text-sm font-semibold text-foreground hover:text-primary transition-colors whitespace-nowrap truncate max-w-[140px] sm:max-w-[180px] lg:max-w-[220px]">
-                  {settingsDraft?.name ?? agent.name}
-                </span>
-                <Edit2 className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-              </div>
-            )}
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (publishMutation.isPending) return;
+                    publishMutation.mutate(publishSummary, {
+                      onSuccess: () => {
+                        setIsPublishPopoverOpen(false);
+                        setPublishSummary('');
+                      },
+                    });
+                  }}
+                >
+                  {/* Header */}
+                  <div className="gap-3 p-4 flex items-start border-b border-border/70">
+                    <span className="size-9 flex shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Rocket className="size-4.5" />
+                    </span>
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-semibold leading-tight">
+                        {isPublished
+                          ? 'Publish an update'
+                          : 'Publish this agent'}
+                      </h3>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {isPublished
+                          ? 'Every embed, API call and webhook switches to the new version straight away.'
+                          : 'Makes the agent available to embeds, the API and webhooks.'}
+                      </p>
+                    </div>
+                  </div>
 
-            {/* One chip: lifecycle (Draft / Published) + live save state; opens save options */}
+                  <div className="space-y-3.5 p-4">
+                    {/* Version transition: live → next */}
+                    <div className="gap-2 px-3 py-2.5 flex items-center justify-between rounded-lg border border-border/70 bg-surface-raised">
+                      <div className="min-w-0">
+                        <p className="font-medium tracking-wide text-2xs text-muted-foreground uppercase">
+                          Live now
+                        </p>
+                        <p
+                          className={cn(
+                            'mt-0.5 text-xs font-semibold truncate font-mono',
+                            liveVersionTag
+                              ? 'text-foreground'
+                              : 'text-muted-foreground',
+                          )}
+                        >
+                          {isPublished && liveVersionTag
+                            ? liveVersionTag
+                            : 'Nothing yet'}
+                        </p>
+                      </div>
+                      <CornerDownRight
+                        className="size-4 shrink-0 -rotate-90 text-muted-foreground/70"
+                        aria-hidden
+                      />
+                      <div className="min-w-0 text-right">
+                        <p className="font-medium tracking-wide text-2xs text-muted-foreground uppercase">
+                          After publishing
+                        </p>
+                        <p className="mt-0.5 text-xs font-semibold font-mono text-primary">
+                          {targetPublishVersion}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* What happens first */}
+                    {saveFailed ? (
+                      <p className="gap-2 px-3 py-2 text-xs flex items-start rounded-lg border border-destructive/30 bg-destructive/10 text-destructive">
+                        <AlertCircle className="size-3.5 mt-px shrink-0" />
+                        Your last changes didn’t save. Publishing tries to save
+                        them again first.
+                      </p>
+                    ) : isDirty ? (
+                      <p className="gap-2 px-3 py-2 text-xs flex items-start rounded-lg border border-warning/30 bg-warning/10 text-warning">
+                        <Save className="size-3.5 mt-px shrink-0" />
+                        Your unsaved edits are saved first, so they’re included.
+                      </p>
+                    ) : (
+                      <p className="gap-2 text-xs flex items-center text-muted-foreground">
+                        <Check className="size-3.5 shrink-0 text-success" />
+                        All changes saved
+                      </p>
+                    )}
+
+                    {/* Change summary — becomes the version's note */}
+                    <Field
+                      label="What changed?"
+                      hint="Optional. Shown in the version history."
+                    >
+                      <Textarea
+                        autoFocus
+                        rows={2}
+                        value={publishSummary}
+                        onChange={(e) => setPublishSummary(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                            e.preventDefault();
+                            e.currentTarget.form?.requestSubmit();
+                          }
+                        }}
+                        placeholder="e.g. Added the refund approval step"
+                        className="min-h-0 text-xs resize-none"
+                        maxLength={280}
+                      />
+                    </Field>
+
+                    <Button
+                      type="submit"
+                      size="lg"
+                      loading={publishMutation.isPending}
+                      className="gap-2 font-semibold w-full rounded-lg"
+                    >
+                      {isPublished ? 'Publish update' : 'Publish'}
+                      <span className="rounded px-1.5 py-0.5 font-bold bg-primary-foreground/20 font-mono text-2xs">
+                        {targetPublishVersion}
+                      </span>
+                    </Button>
+                    <p className="gap-1.5 flex items-center justify-center text-2xs text-muted-foreground">
+                      <KbdShortcut keys={['mod', 'Enter']} size="xs" /> to
+                      publish
+                      <span aria-hidden>·</span>
+                      <KbdShortcut
+                        keys={['mod', 'shift', 'P']}
+                        size="xs"
+                      />{' '}
+                      opens this
+                    </p>
+                  </div>
+
+                  {/* Links & endpoints */}
+                  <div className="space-y-0.5 p-2 border-t border-border/70 bg-surface-raised/50">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        setIsPublishPopoverOpen(false);
+                        // The Studio's own end-user chat page for this agent
+                        window.open(
+                          `${window.location.origin}${scopeStudioPath(activeWorkspace.slug, `/chat/${agent.id}`)}`,
+                          '_blank',
+                          'noopener',
+                        );
+                      }}
+                      className="group h-9 px-2.5 text-xs font-medium w-full justify-between rounded-lg text-foreground"
+                    >
+                      <span className="gap-2.5 flex items-center">
+                        <Globe className="size-4 text-muted-foreground group-hover:text-primary" />
+                        Open web app
+                      </span>
+                      <ArrowUpRight className="size-3.5 text-muted-foreground/70 group-hover:text-foreground" />
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        setIsPublishPopoverOpen(false);
+                        navigator.clipboard
+                          .writeText(apiCurlSnippet('Execute task'))
+                          .then(() =>
+                            toast.success('API request copied as cURL'),
+                          )
+                          .catch(() =>
+                            toast.error('Could not copy to the clipboard'),
+                          );
+                      }}
+                      className="group h-9 px-2.5 text-xs font-medium w-full justify-between rounded-lg text-foreground"
+                    >
+                      <span className="gap-2.5 flex items-center">
+                        <Copy className="size-4 text-muted-foreground group-hover:text-primary" />
+                        Copy API request
+                      </span>
+                      <span className="font-normal text-2xs text-muted-foreground">
+                        cURL
+                      </span>
+                    </Button>
+
+                    {isPublished && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={async () => {
+                          setIsPublishPopoverOpen(false);
+                          const ok = await confirm({
+                            title: 'Unpublish this agent?',
+                            description:
+                              'It goes back to Draft. Embeds, API calls and webhooks stop answering until you publish again. Your versions are kept.',
+                            confirmLabel: 'Unpublish',
+                            destructive: true,
+                          });
+                          if (ok) unpublishMutation.mutate();
+                        }}
+                        disabled={unpublishMutation.isPending}
+                        className="group h-9 px-2.5 text-xs font-medium w-full justify-between rounded-lg text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <span className="gap-2.5 flex items-center">
+                          <RotateCcw className="size-4" />
+                          Unpublish
+                        </span>
+                        <span className="font-normal text-2xs text-destructive/80">
+                          Back to Draft
+                        </span>
+                      </Button>
+                    )}
+                  </div>
+                </form>
+              </PopoverContent>
+            </Popover>
+
+            {/* Secondary actions */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
-                  type="button"
-                  variant="outline"
-                  size="xs"
-                  aria-label={`${isPublished ? 'Published' : 'Draft'} — ${saveStatusText}. Save options`}
-                  className={cn(
-                    'shrink-0 rounded-full',
-                    isPublished ? 'border-success/30 bg-success/10 text-success hover:bg-success/15' : 'text-muted-foreground',
-                  )}
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 shrink-0 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                  title="More actions"
+                  aria-label="More actions"
                 >
-                  <span>{isPublished ? 'Published' : 'Draft'}</span>
-                  <span className="h-3 w-px bg-current opacity-30" />
-                  {saveMutation.isPending ? (
-                    <span className="flex items-center gap-1">
-                      <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
-                      <span className="hidden md:inline">Saving…</span>
-                    </span>
-                  ) : saveFailed ? (
-                    <span className="flex items-center gap-1 text-destructive">
-                      <AlertTriangle className="h-3 w-3" aria-hidden />
-                      <span className="hidden md:inline">Not saved</span>
-                    </span>
-                  ) : isDirty ? (
-                    <span className="flex items-center gap-1 text-warning">
-                      <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse" />
-                      <span className="hidden md:inline">{autoSaveEnabled ? 'Editing…' : 'Unsaved'}</span>
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-success/90">
-                      <Check className="h-3 w-3" aria-hidden />
-                      <span className="hidden md:inline tabular-nums">
-                        {lastSaved ? `${lastSaved.auto ? 'Auto-saved' : 'Saved'} ${savedAgo(lastSaved.at, now)}` : 'Saved'}
-                      </span>
-                    </span>
-                  )}
+                  <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-64">
-                <div className="px-2 py-1.5">
-                  <p className="text-xs font-medium text-foreground">{saveStatusText}</p>
-                  <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
-                    {autoSaveEnabled
-                      ? `Your draft saves itself ${AUTO_SAVE_DELAY_MS / 1000}s after you stop editing. Publishing makes it live.`
-                      : 'Auto-save is off — save with Ctrl+S. Publishing makes it live.'}
-                  </p>
-                </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuCheckboxItem checked={autoSaveEnabled} onCheckedChange={(v) => toggleAutoSave(!!v)} className="text-xs">
-                  Auto-save draft
-                </DropdownMenuCheckboxItem>
+              <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuItem
-                  disabled={!isDirty || saveMutation.isPending}
-                  onSelect={() => saveMutation.mutate()}
+                  onSelect={() => void handleValidateGraph()}
                   className="gap-2 text-xs"
                 >
-                  <Save className="h-3.5 w-3.5" /> {saveFailed ? 'Try saving again' : 'Save now'}
-                  <DropdownMenuShortcut>Ctrl+S</DropdownMenuShortcut>
+                  <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                  Validate workflow
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setActiveTab('versions')} className="gap-2 text-xs">
-                  <Clock className="h-3.5 w-3.5" /> Version history
+                <DropdownMenuItem
+                  onSelect={() => setIsTemplateExportOpen(true)}
+                  className="gap-2 text-xs"
+                >
+                  <Layers className="h-3.5 w-3.5 text-primary" />
+                  Export as template
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => setIsPresentationMode(true)}
+                  className="gap-2 text-xs"
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  Presentation mode
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </div>
-
-        <nav aria-label="Agent sections" className="flex min-w-0 flex-1 items-center justify-center gap-1 xl:pointer-events-none xl:absolute xl:inset-x-0 xl:top-0 xl:h-13 xl:flex-none [&>*]:xl:pointer-events-auto">
-          {AGENT_TAB_GROUPS.map((group) => {
-            const GroupIcon = group.icon;
-            const isActive = group.tabs.includes(activeTab);
-            const triggerClass = cn(
-              'relative flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3.5 text-sm font-semibold transition-colors',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              isActive ? 'bg-accent text-foreground' : 'text-foreground/70 hover:bg-accent/60 hover:text-foreground',
-            );
-            const inner = (
-              <>
-                <GroupIcon className={cn('h-3.5 w-3.5 shrink-0', isActive && 'text-primary')} />
-                <span>{group.label}</span>
-              </>
-            );
-            if (group.tabs.length === 1) {
-              return (
-                <button key={group.label} type="button" onClick={() => setActiveTab(group.tabs[0])} aria-current={isActive ? 'page' : undefined} className={triggerClass}>
-                  {inner}
-                </button>
-              );
-            }
-            return (
-              <DropdownMenu key={group.label} modal={false} open={openTabMenu === group.label} onOpenChange={(open) => setOpenTabMenu(open ? group.label : null)}>
-                <DropdownMenuTrigger asChild>
-                  <button type="button" aria-current={isActive ? 'page' : undefined} className={triggerClass}>
-                    {inner}
-                    <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" sideOffset={6} className="w-48">
-                  {group.tabs.map((id) => {
-                    const tab = AGENT_TABS.find((t) => t.id === id)!;
-                    return (
-                      <DropdownMenuItem key={id} onSelect={() => setActiveTab(id)} className={cn('gap-2 text-xs', activeTab === id && 'font-semibold text-foreground')}>
-                        <tab.icon className="h-3.5 w-3.5" />
-                        {tab.label}
-                        {activeTab === id && <Check className="ml-auto h-3.5 w-3.5 text-primary" />}
-                      </DropdownMenuItem>
-                    );
-                  })}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            );
-          })}
-        </nav>
-
-        {/* Right: Actions */}
-        <div className="flex h-13 items-center gap-1.5 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsTestDrawerOpen(true)}
-            className="h-8 gap-1.5 text-xs font-medium rounded-md border-success/30 bg-success/10 text-success hover:bg-success/20"
-            title="Test run this agent workflow"
-          >
-            <Play className="h-3.5 w-3.5 fill-success" />
-            <span className="hidden md:inline">Test Run</span>
-          </Button>
-
-          {/* Save Button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending || !isDirty}
-            aria-keyshortcuts="Control+S"
-            aria-label={isDirty ? 'Save changes' : 'All changes saved'}
-            className={cn(
-              "h-8 gap-1.5 text-xs rounded-md transition-all",
-              !isDirty && !saveMutation.isPending && "w-8 px-0",
-              isDirty
-                ? "border-warning/40 text-warning bg-warning/10 hover:bg-warning/20 font-medium"
-                : "border-border/60 text-muted-foreground hover:text-foreground"
-            )}
-            title={isDirty ? 'Save changes (Ctrl+S)' : 'All changes saved'}
-          >
-            {saveMutation.isPending ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Save className="h-3.5 w-3.5" />
-            )}
-            {/* Label only while there is something to save */}
-            {(isDirty || saveMutation.isPending) && (
-              <span className="hidden sm:inline">{saveMutation.isPending ? 'Saving…' : 'Save'}</span>
-            )}
-          </Button>
-
-          {/* Publish confirmation — what goes live, what happens first, then one clear action */}
-          <Popover
-            open={isPublishPopoverOpen}
-            onOpenChange={(open) => {
-              setIsPublishPopoverOpen(open);
-              if (!open && !publishMutation.isPending) setPublishSummary('');
-            }}
-          >
-            <PopoverTrigger asChild>
-              <Button
-                type="button"
-                size="sm"
-                className={cn('h-8 gap-1.5 rounded-md font-semibold', isPublishPopoverOpen && 'ring-2 ring-primary/40')}
-              >
-                <Rocket className="size-3.5" />
-                <span>Publish</span>
-                <ChevronDown className={cn('size-3.5 transition-transform duration-200', isPublishPopoverOpen && 'rotate-180')} />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              align="end"
-              sideOffset={8}
-              className="w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-border bg-surface p-0 text-foreground shadow-lg"
-            >
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (publishMutation.isPending) return;
-                  publishMutation.mutate(publishSummary, {
-                    onSuccess: () => {
-                      setIsPublishPopoverOpen(false);
-                      setPublishSummary('');
-                    },
-                  });
-                }}
-              >
-                {/* Header */}
-                <div className="flex items-start gap-3 border-b border-border/70 p-4">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <Rocket className="size-4.5" />
-                  </span>
-                  <div className="min-w-0">
-                    <h3 className="text-sm font-semibold leading-tight">
-                      {isPublished ? 'Publish an update' : 'Publish this agent'}
-                    </h3>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {isPublished
-                        ? 'Every embed, API call and webhook switches to the new version straight away.'
-                        : 'Makes the agent available to embeds, the API and webhooks.'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-3.5 p-4">
-                  {/* Version transition: live → next */}
-                  <div className="flex items-center justify-between gap-2 rounded-lg border border-border/70 bg-surface-raised px-3 py-2.5">
-                    <div className="min-w-0">
-                      <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">Live now</p>
-                      <p className={cn('mt-0.5 truncate font-mono text-xs font-semibold', liveVersionTag ? 'text-foreground' : 'text-muted-foreground')}>
-                        {isPublished && liveVersionTag ? liveVersionTag : 'Nothing yet'}
-                      </p>
-                    </div>
-                    <CornerDownRight className="size-4 shrink-0 -rotate-90 text-muted-foreground/70" aria-hidden />
-                    <div className="min-w-0 text-right">
-                      <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">After publishing</p>
-                      <p className="mt-0.5 font-mono text-xs font-semibold text-primary">{targetPublishVersion}</p>
-                    </div>
-                  </div>
-
-                  {/* What happens first */}
-                  {saveFailed ? (
-                    <p className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                      <AlertCircle className="mt-px size-3.5 shrink-0" />
-                      Your last changes didn’t save. Publishing tries to save them again first.
-                    </p>
-                  ) : isDirty ? (
-                    <p className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
-                      <Save className="mt-px size-3.5 shrink-0" />
-                      Your unsaved edits are saved first, so they’re included.
-                    </p>
-                  ) : (
-                    <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Check className="size-3.5 shrink-0 text-success" />
-                      All changes saved
-                    </p>
-                  )}
-
-                  {/* Change summary — becomes the version's note */}
-                  <Field label="What changed?" hint="Optional. Shown in the version history.">
-                    <Textarea
-                      autoFocus
-                      rows={2}
-                      value={publishSummary}
-                      onChange={(e) => setPublishSummary(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                          e.preventDefault();
-                          e.currentTarget.form?.requestSubmit();
-                        }
-                      }}
-                      placeholder="e.g. Added the refund approval step"
-                      className="min-h-0 resize-none text-xs"
-                      maxLength={280}
-                    />
-                  </Field>
-
-                  <Button type="submit" size="lg" loading={publishMutation.isPending} className="w-full gap-2 rounded-lg font-semibold">
-                    {isPublished ? 'Publish update' : 'Publish'}
-                    <span className="rounded bg-primary-foreground/20 px-1.5 py-0.5 font-mono text-2xs font-bold">
-                      {targetPublishVersion}
-                    </span>
-                  </Button>
-                  <p className="flex items-center justify-center gap-1.5 text-2xs text-muted-foreground">
-                    <KbdShortcut keys={['mod', 'Enter']} size="xs" /> to publish
-                    <span aria-hidden>·</span>
-                    <KbdShortcut keys={['mod', 'shift', 'P']} size="xs" /> opens this
-                  </p>
-                </div>
-
-                {/* Links & endpoints */}
-                <div className="space-y-0.5 border-t border-border/70 bg-surface-raised/50 p-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => {
-                      setIsPublishPopoverOpen(false);
-                      // The Studio's own end-user chat page for this agent
-                      window.open(`${window.location.origin}${scopeStudioPath(activeWorkspace.slug, `/chat/${agent.id}`)}`, '_blank', 'noopener');
-                    }}
-                    className="group h-9 w-full justify-between rounded-lg px-2.5 text-xs font-medium text-foreground"
-                  >
-                    <span className="flex items-center gap-2.5">
-                      <Globe className="size-4 text-muted-foreground group-hover:text-primary" />
-                      Open web app
-                    </span>
-                    <ArrowUpRight className="size-3.5 text-muted-foreground/70 group-hover:text-foreground" />
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => {
-                      setIsPublishPopoverOpen(false);
-                      navigator.clipboard
-                        .writeText(apiCurlSnippet('Execute task'))
-                        .then(() => toast.success('API request copied as cURL'))
-                        .catch(() => toast.error('Could not copy to the clipboard'));
-                    }}
-                    className="group h-9 w-full justify-between rounded-lg px-2.5 text-xs font-medium text-foreground"
-                  >
-                    <span className="flex items-center gap-2.5">
-                      <Copy className="size-4 text-muted-foreground group-hover:text-primary" />
-                      Copy API request
-                    </span>
-                    <span className="text-2xs font-normal text-muted-foreground">cURL</span>
-                  </Button>
-
-                  {isPublished && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={async () => {
-                        setIsPublishPopoverOpen(false);
-                        const ok = await confirm({
-                          title: 'Unpublish this agent?',
-                          description: 'It goes back to Draft. Embeds, API calls and webhooks stop answering until you publish again. Your versions are kept.',
-                          confirmLabel: 'Unpublish',
-                          destructive: true,
-                        });
-                        if (ok) unpublishMutation.mutate();
-                      }}
-                      disabled={unpublishMutation.isPending}
-                      className="group h-9 w-full justify-between rounded-lg px-2.5 text-xs font-medium text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    >
-                      <span className="flex items-center gap-2.5">
-                        <RotateCcw className="size-4" />
-                        Unpublish
-                      </span>
-                      <span className="text-2xs font-normal text-destructive/80">Back to Draft</span>
-                    </Button>
-                  )}
-                </div>
-              </form>
-            </PopoverContent>
-          </Popover>
-
-          {/* Secondary actions */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent shrink-0"
-                title="More actions"
-                aria-label="More actions"
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem onSelect={() => void handleValidateGraph()} className="gap-2 text-xs">
-                <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-                Validate workflow
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setIsTemplateExportOpen(true)} className="gap-2 text-xs">
-                <Layers className="h-3.5 w-3.5 text-primary" />
-                Export as template
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setIsPresentationMode(true)} className="gap-2 text-xs">
-                <Eye className="h-3.5 w-3.5" />
-                Presentation mode
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </header>
+        </header>
       )}
 
       {!canManage && (
-        <div role="status" className="flex shrink-0 items-center gap-2 border-b border-border bg-surface-raised px-4 py-2 text-xs text-muted-foreground">
+        <div
+          role="status"
+          className="gap-2 px-4 py-2 text-xs flex shrink-0 items-center border-b border-border bg-surface-raised text-muted-foreground"
+        >
           <Lock className="size-3.5 shrink-0" aria-hidden />
           <span>
-            <strong className="font-semibold text-foreground">View only.</strong> Only this agent’s creator or a workspace admin can edit it.
+            <strong className="font-semibold text-foreground">
+              View only.
+            </strong>{' '}
+            Only this agent’s creator or a workspace admin can edit it.
           </span>
         </div>
       )}
@@ -4051,165 +5131,208 @@ export function AgentDetailPage() {
         {activeTab === 'build' && (
           <div className="flex h-full w-full overflow-hidden">
             {/* Canvas, with the node panel floating over its right edge */}
-            <div className="relative min-w-0 flex-1">
-            <ReactFlowProvider key={canvasEpoch}>
-              <WorkflowCanvasInner
-                measuredSizeRef={measuredSizeRef}
-                direction={workflowDirection}
-                onChangeDirection={handleChangeDirection}
-                edgeStyle={workflowEdgeStyle}
-                onChangeEdgeStyle={handleChangeEdgeStyle}
-                layoutPrefs={layoutPrefs}
-                onChangeLayoutPrefs={handleChangeLayoutPrefs}
-                isCopilotOpen={showAiPanel}
-                onToggleCopilot={agentId && settingsDraft ? () => setShowAiPanel((open) => !open) : undefined}
-                onUpdateNodeMetadata={handleUpdateNodeMetadata}
-                nodes={nodes.map((n) => ({
-                  ...n,
-                  data: {
-                    ...n.data,
-                    direction: workflowDirection,
-                    edgeStyle: workflowEdgeStyle,
-                    onUpdateMetadata: (patch: any) => handleUpdateNodeMetadata(n.id, patch),
-                    ...slotDecorations.get(n.id),
-                    issues: issuesByNode.get(n.id),
-                    run: resultFor(n),
-                    onClearRun: () =>
-                      setRunResults((r) => ({ ...r, [n.id]: { status: 'idle', output: '', tokens: 0, latencyMs: 0, cleared: true } })),
-                    ...(isSlotHost(n.type)
-                      ? {
-                          onOpenModule: (id: AgentModuleId, target?: { section?: string; field?: string }) =>
-                            void requestOpenModule(n.id, { id, ...target }),
-                        }
-                      : {}),
-                    onUpdateConfig: (patch: Record<string, unknown>) => handleUpdateNodeConfig(n.id, patch),
-                    onTest: () => setIsTestDrawerOpen(true),
-                    onEdit: () => void requestOpenModule(n.id, null),
-                    onDuplicate: () => handleDuplicateNode(n),
-                    onDelete: () => handleDeleteNode(n.id),
-                    onConnectNext: (item: any, handleId?: string) =>
-                      handleConnectNextNode(n, item, handleId),
-                  },
-                }))}
-                edges={edges.map((e) => {
-                  const attachment = isAttachmentEdge(e);
-                  const sourceStatus = runResults[e.source]?.status;
-                  return {
-                    ...e,
-                    type: 'workflow',
-                    // Saved edges may carry `animated`; flow only animates while its step runs
-                    animated: false,
-                    markerEnd: undefined,
-                    // Things plugged into an agent slot are drawn dashed; the run order stays solid
-                    ...(attachment ? { style: { ...e.style, strokeDasharray: '5 5' } } : {}),
+            <div className="min-w-0 relative flex-1">
+              <ReactFlowProvider key={canvasEpoch}>
+                <WorkflowCanvasInner
+                  measuredSizeRef={measuredSizeRef}
+                  direction={workflowDirection}
+                  onChangeDirection={handleChangeDirection}
+                  edgeStyle={workflowEdgeStyle}
+                  onChangeEdgeStyle={handleChangeEdgeStyle}
+                  layoutPrefs={layoutPrefs}
+                  onChangeLayoutPrefs={handleChangeLayoutPrefs}
+                  isCopilotOpen={showAiPanel}
+                  onToggleCopilot={
+                    agentId && settingsDraft
+                      ? () => setShowAiPanel((open) => !open)
+                      : undefined
+                  }
+                  onUpdateNodeMetadata={handleUpdateNodeMetadata}
+                  nodes={nodes.map((n) => ({
+                    ...n,
                     data: {
-                      ...e.data,
+                      ...n.data,
+                      direction: workflowDirection,
                       edgeStyle: workflowEdgeStyle,
-                      status: sourceStatus === 'running' ? 'running' : sourceStatus === 'success' && !attachment ? 'done' : undefined,
-                      attachment,
-                      onDelete: (id: string) => handleDeleteEdge(id),
-                      isEditingLabel: editingEdgeLabelId === e.id,
-                      onStartLabelEdit: isCanvasLocked ? undefined : (id: string) => setEditingEdgeLabelId(id),
-                      onRenameLabel: handleRenameEdgeLabel,
-                      onCancelLabelEdit: () => setEditingEdgeLabelId(null),
+                      onUpdateMetadata: (patch: any) =>
+                        handleUpdateNodeMetadata(n.id, patch),
+                      ...slotDecorations.get(n.id),
+                      issues: issuesByNode.get(n.id),
+                      run: resultFor(n),
+                      onClearRun: () =>
+                        setRunResults((r) => ({
+                          ...r,
+                          [n.id]: {
+                            status: 'idle',
+                            output: '',
+                            tokens: 0,
+                            latencyMs: 0,
+                            cleared: true,
+                          },
+                        })),
+                      ...(isSlotHost(n.type)
+                        ? {
+                            onOpenModule: (
+                              id: AgentModuleId,
+                              target?: { section?: string; field?: string },
+                            ) =>
+                              void requestOpenModule(n.id, { id, ...target }),
+                          }
+                        : {}),
+                      onUpdateConfig: (patch: Record<string, unknown>) =>
+                        handleUpdateNodeConfig(n.id, patch),
+                      onTest: () => setIsTestDrawerOpen(true),
+                      onEdit: () => void requestOpenModule(n.id, null),
+                      onDuplicate: () => handleDuplicateNode(n),
+                      onDelete: () => handleDeleteNode(n.id),
+                      onConnectNext: (item: any, handleId?: string) =>
+                        handleConnectNextNode(n, item, handleId),
                     },
-                  };
-                })}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                onConnect={onConnect}
-                onNodeClick={onNodeClick}
-                onPaneClick={onPaneClick}
-                onAddNode={handleAddNode}
-                onAutoLayout={handleAutoLayout}
-                onDeleteNodes={handleDeleteNodes}
-                onDuplicateNode={handleDuplicateNode}
-                onTestNode={() => setIsTestDrawerOpen(true)}
-                onInspectNode={(node) => setSelectedNode(node)}
-                onDeleteEdge={handleDeleteEdge}
-                onReconnectEdge={handleReconnectEdge}
-                canUndo={historyFlags.canUndo}
-                canRedo={historyFlags.canRedo}
-                onUndo={undo}
-                onRedo={redo}
-                onExportJson={handleExportJson}
-                onBatchAlign={handleBatchAlign}
-                onBatchDuplicate={handleBatchDuplicate}
-                onBatchGroup={handleBatchGroup}
-                onInitFlow={(instance) => {
-                  reactFlowRef.current = instance;
-                }}
-                onEdgeClick={(_, edge) => handleInspectEdge(edge)}
-                onInspectEdge={handleInspectEdge}
-                onInsertNodeOnEdge={handleInsertNodeOnEdge}
-                onEditEdgeLabel={isCanvasLocked ? undefined : (edge) => setEditingEdgeLabelId(edge.id)}
-                onToggleEdgeAnimated={isCanvasLocked ? undefined : handleToggleEdgeAnimated}
-                onCopyNode={(node) => handleCopySelected(node)}
-                onCutNode={(node) => handleCutSelected(node)}
-                onPaste={handlePaste}
-                hasClipboard={hasClipboard}
-                onSelectAll={handleSelectAll}
-                onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
-                onConnectEndDrop={handleConnectEndDrop}
-                onFocusNodeById={handleFocusNodeById}
-                isLocked={isCanvasLocked}
-                onToggleLock={() => {
-                  const next = !isCanvasLocked;
-                  setIsCanvasLocked(next);
-                  toast(next ? 'Canvas locked — editing is paused' : 'Canvas unlocked');
-                }}
-              />
-            </ReactFlowProvider>
+                  }))}
+                  edges={edges.map((e) => {
+                    const attachment = isAttachmentEdge(e);
+                    const sourceStatus = runResults[e.source]?.status;
+                    return {
+                      ...e,
+                      type: 'workflow',
+                      // Saved edges may carry `animated`; flow only animates while its step runs
+                      animated: false,
+                      markerEnd: undefined,
+                      // Things plugged into an agent slot are drawn dashed; the run order stays solid
+                      ...(attachment
+                        ? { style: { ...e.style, strokeDasharray: '5 5' } }
+                        : {}),
+                      data: {
+                        ...e.data,
+                        edgeStyle: workflowEdgeStyle,
+                        status:
+                          sourceStatus === 'running'
+                            ? 'running'
+                            : sourceStatus === 'success' && !attachment
+                              ? 'done'
+                              : undefined,
+                        attachment,
+                        onDelete: (id: string) => handleDeleteEdge(id),
+                        isEditingLabel: editingEdgeLabelId === e.id,
+                        onStartLabelEdit: isCanvasLocked
+                          ? undefined
+                          : (id: string) => setEditingEdgeLabelId(id),
+                        onRenameLabel: handleRenameEdgeLabel,
+                        onCancelLabelEdit: () => setEditingEdgeLabelId(null),
+                      },
+                    };
+                  })}
+                  onNodesChange={onNodesChange}
+                  onEdgesChange={onEdgesChange}
+                  onConnect={onConnect}
+                  onNodeClick={onNodeClick}
+                  onPaneClick={onPaneClick}
+                  onAddNode={handleAddNode}
+                  onAutoLayout={handleAutoLayout}
+                  onDeleteNodes={handleDeleteNodes}
+                  onDuplicateNode={handleDuplicateNode}
+                  onTestNode={() => setIsTestDrawerOpen(true)}
+                  onInspectNode={(node) => setSelectedNode(node)}
+                  onDeleteEdge={handleDeleteEdge}
+                  onReconnectEdge={handleReconnectEdge}
+                  canUndo={historyFlags.canUndo}
+                  canRedo={historyFlags.canRedo}
+                  onUndo={undo}
+                  onRedo={redo}
+                  onExportJson={handleExportJson}
+                  onBatchAlign={handleBatchAlign}
+                  onBatchDuplicate={handleBatchDuplicate}
+                  onBatchGroup={handleBatchGroup}
+                  onInitFlow={(instance) => {
+                    reactFlowRef.current = instance;
+                  }}
+                  onEdgeClick={(_, edge) => handleInspectEdge(edge)}
+                  onInspectEdge={handleInspectEdge}
+                  onInsertNodeOnEdge={handleInsertNodeOnEdge}
+                  onEditEdgeLabel={
+                    isCanvasLocked
+                      ? undefined
+                      : (edge) => setEditingEdgeLabelId(edge.id)
+                  }
+                  onToggleEdgeAnimated={
+                    isCanvasLocked ? undefined : handleToggleEdgeAnimated
+                  }
+                  onCopyNode={(node) => handleCopySelected(node)}
+                  onCutNode={(node) => handleCutSelected(node)}
+                  onPaste={handlePaste}
+                  hasClipboard={hasClipboard}
+                  onSelectAll={handleSelectAll}
+                  onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+                  onConnectEndDrop={handleConnectEndDrop}
+                  onFocusNodeById={handleFocusNodeById}
+                  isLocked={isCanvasLocked}
+                  onToggleLock={() => {
+                    const next = !isCanvasLocked;
+                    setIsCanvasLocked(next);
+                    toast(
+                      next
+                        ? 'Canvas locked — editing is paused'
+                        : 'Canvas unlocked',
+                    );
+                  }}
+                />
+              </ReactFlowProvider>
 
-            {/* Floating node panel (opens when a node is clicked); agents open their capability modules in it */}
-            {selectedNode && (
-              <NodeInspector
-                key={selectedNode.id}
-                selectedNode={selectedNode}
-                nodes={nodes}
-                edges={edges}
-                readOnly={isCanvasLocked}
-                onUpdateNode={handleUpdateNode}
-                onDeleteNode={handleDeleteNode}
-                onRewireEdge={handleRewireEdge}
-                onDeleteEdge={handleDeleteEdge}
-                onConnect={onConnect}
-                onRestoreNode={handleRestoreNode}
-                onClose={() => setSelectedNode(null)}
-                graphSettings={graphSettings}
-                issuesByNode={issuesByNode}
-                activeModule={activeModule}
-                onOpenModule={setActiveModule}
-                onOpenAgentModule={(agentId, id) => void requestOpenModule(agentId, { id })}
-                onApplyModuleDraft={handleApplyModuleDraft}
-                onSaveNow={requestSaveNow}
-                moduleActions={moduleActions}
-                onModuleDirtyChange={handleModuleDirtyChange}
-                className="absolute top-3 right-3 bottom-3 z-30 max-w-[calc(100%-1.5rem)]"
-              />
-            )}
+              {/* Floating node panel (opens when a node is clicked); agents open their capability modules in it */}
+              {selectedNode && (
+                <NodeInspector
+                  key={selectedNode.id}
+                  selectedNode={selectedNode}
+                  nodes={nodes}
+                  edges={edges}
+                  readOnly={isCanvasLocked}
+                  onUpdateNode={handleUpdateNode}
+                  onDeleteNode={handleDeleteNode}
+                  onRewireEdge={handleRewireEdge}
+                  onDeleteEdge={handleDeleteEdge}
+                  onConnect={onConnect}
+                  onRestoreNode={handleRestoreNode}
+                  onClose={() => setSelectedNode(null)}
+                  graphSettings={graphSettings}
+                  issuesByNode={issuesByNode}
+                  activeModule={activeModule}
+                  onOpenModule={setActiveModule}
+                  onOpenAgentModule={(agentId, id) =>
+                    void requestOpenModule(agentId, { id })
+                  }
+                  onApplyModuleDraft={handleApplyModuleDraft}
+                  onSaveNow={requestSaveNow}
+                  moduleActions={moduleActions}
+                  onModuleDirtyChange={handleModuleDirtyChange}
+                  className="top-3 right-3 bottom-3 absolute z-30 max-w-[calc(100%-1.5rem)]"
+                />
+              )}
 
-            {/* Floating edge data inspector (opens when an edge is clicked) */}
-            {selectedEdge && !selectedNode && (
-              <EdgeDataInspector
-                key={selectedEdge.id}
-                selectedEdge={selectedEdge}
-                nodes={nodes}
-                canvasRouting={workflowEdgeStyle}
-                onUpdateEdge={handleUpdateEdge}
-                onDeleteEdge={handleDeleteEdge}
-                onInsertNodeOnEdge={handleInsertNodeOnEdge}
-                onClose={() => setSelectedEdgeId(null)}
-                className="absolute top-3 right-3 bottom-3 z-30 w-[360px] max-w-[calc(100%-1.5rem)]"
-              />
-            )}
+              {/* Floating edge data inspector (opens when an edge is clicked) */}
+              {selectedEdge && !selectedNode && (
+                <EdgeDataInspector
+                  key={selectedEdge.id}
+                  selectedEdge={selectedEdge}
+                  nodes={nodes}
+                  canvasRouting={workflowEdgeStyle}
+                  onUpdateEdge={handleUpdateEdge}
+                  onDeleteEdge={handleDeleteEdge}
+                  onInsertNodeOnEdge={handleInsertNodeOnEdge}
+                  onClose={() => setSelectedEdgeId(null)}
+                  className="top-3 right-3 bottom-3 absolute z-30 w-[360px] max-w-[calc(100%-1.5rem)]"
+                />
+              )}
 
-            {/* Workflow health, floating in the canvas corner; the inspectors take this spot while open */}
-            {!selectedNode && !selectedEdge && (
-              <div className="absolute top-3 right-3 z-20 rounded-xl bg-surface shadow-lg animate-in fade-in slide-in-from-top-1 duration-200">
-                <WorkflowHealthBadge issues={allWorkflowIssues} onClick={handleValidateGraph} className="h-8.5 rounded-xl" />
-              </div>
-            )}
+              {/* Workflow health, floating in the canvas corner; the inspectors take this spot while open */}
+              {!selectedNode && !selectedEdge && (
+                <div className="top-3 right-3 animate-in fade-in slide-in-from-top-1 absolute z-20 rounded-xl bg-surface shadow-lg duration-200">
+                  <WorkflowHealthBadge
+                    issues={allWorkflowIssues}
+                    onClick={handleValidateGraph}
+                    className="h-8.5 rounded-xl"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Right 4th Panel: AI Copilot Prompt Assistant (if open) */}
@@ -4225,7 +5348,9 @@ export function AgentDetailPage() {
                 onApply={applyCopilotGraph}
                 onRunTest={() => setIsTestDrawerOpen(true)}
                 onFocusNode={(nodeId) => {
-                  const target = graphRef.current.nodes.find((n) => n.id === nodeId);
+                  const target = graphRef.current.nodes.find(
+                    (n) => n.id === nodeId,
+                  );
                   if (target) focusNode(target);
                 }}
                 onBeforeRun={async () => {
@@ -4243,7 +5368,9 @@ export function AgentDetailPage() {
         {activeTab === 'connectors' && (
           <AgentConnectorsTab
             agent={agent}
-            onChanged={() => queryClient.invalidateQueries({ queryKey: agentQueryKey })}
+            onChanged={() =>
+              queryClient.invalidateQueries({ queryKey: agentQueryKey })
+            }
           />
         )}
 
@@ -4255,7 +5382,11 @@ export function AgentDetailPage() {
               if (!agentId) return false;
               // agentService merges partial configuration patches onto the saved one.
               try {
-                await agentService.updateAgent(activeWorkspace.id, agentId, patch);
+                await agentService.updateAgent(
+                  activeWorkspace.id,
+                  agentId,
+                  patch,
+                );
               } catch (err) {
                 toast.error(errorMessage(err, 'Could not save changes'));
                 return false;
@@ -4267,9 +5398,7 @@ export function AgentDetailPage() {
         )}
 
         {/* TAB 4: VARIABLES & EXPRESSIONS */}
-        {activeTab === 'variables' && (
-          <VariablesTab />
-        )}
+        {activeTab === 'variables' && <VariablesTab />}
 
         {/* TAB 3: EXECUTIONS */}
         {activeTab === 'executions' && (
@@ -4284,7 +5413,11 @@ export function AgentDetailPage() {
                 title="No executions yet"
                 description="Run a test execution from the canvas or trigger via API to see traces here."
                 action={
-                  <Button size="sm" onClick={() => setIsTestDrawerOpen(true)} className="gap-1.5 text-xs">
+                  <Button
+                    size="sm"
+                    onClick={() => setIsTestDrawerOpen(true)}
+                    className="gap-1.5 text-xs"
+                  >
                     <Play className="h-3.5 w-3.5" />
                     Run First Test
                   </Button>
@@ -4295,16 +5428,17 @@ export function AgentDetailPage() {
                 {executions.map((exec) => (
                   <div
                     key={exec.id}
-                    className="flex items-center justify-between gap-4 p-3.5 transition-colors hover:bg-surface-raised"
+                    className="gap-4 p-3.5 flex items-center justify-between transition-colors hover:bg-surface-raised"
                   >
                     <div className="min-w-0 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-semibold text-foreground">
+                      <div className="gap-2 flex items-center">
+                        <span className="text-xs font-semibold font-mono text-foreground">
                           {exec.id.slice(0, 8)}
                         </span>
                         <Badge
                           variant={
-                            exec.status === 'SUCCESS' || exec.status === 'COMPLETED'
+                            exec.status === 'SUCCESS' ||
+                            exec.status === 'COMPLETED'
                               ? 'success'
                               : exec.status === 'FAILED'
                                 ? 'destructive'
@@ -4315,12 +5449,12 @@ export function AgentDetailPage() {
                           {exec.status}
                         </Badge>
                       </div>
-                      <p className="text-xs text-muted-foreground line-clamp-1">
+                      <p className="text-xs line-clamp-1 text-muted-foreground">
                         {exec.promptText || 'Executed workflow task'}
                       </p>
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-4 text-xs text-muted-foreground">
+                    <div className="gap-4 text-xs flex shrink-0 items-center text-muted-foreground">
                       <span>{new Date(exec.executedAt).toLocaleString()}</span>
                       <span>{exec.tokensUsed.toLocaleString()} tokens</span>
                       <Button
@@ -4347,7 +5481,11 @@ export function AgentDetailPage() {
               if (!agentId) return;
               // agentService merges partial configuration patches onto the saved one.
               try {
-                await agentService.updateAgent(activeWorkspace.id, agentId, patch);
+                await agentService.updateAgent(
+                  activeWorkspace.id,
+                  agentId,
+                  patch,
+                );
               } catch (err) {
                 toast.error(errorMessage(err, 'Could not save changes'));
                 return;
@@ -4393,12 +5531,12 @@ export function AgentDetailPage() {
         )}
 
         {/* TAB: DEPLOY */}
-        {activeTab === 'deploy' && (
-          <AgentDeploymentTab agent={agent} />
-        )}
+        {activeTab === 'deploy' && <AgentDeploymentTab agent={agent} />}
 
         {/* TAB: MARKETPLACE */}
-        {activeTab === 'marketplace' && <AgentMarketplaceTab agent={agent} readOnly={!canManage} />}
+        {activeTab === 'marketplace' && (
+          <AgentMarketplaceTab agent={agent} readOnly={!canManage} />
+        )}
 
         {/* TAB 5: SETTINGS */}
         {activeTab === 'settings' && (
@@ -4413,245 +5551,298 @@ export function AgentDetailPage() {
               isSaving={saveMutation.isPending}
               onSave={() => saveMutation.mutate()}
             >
-            {/* 1. Identity & Persona (Module 5.1) */}
-            <AgentTabSection id="settings-identity" title="Agent Identity & Behavior" icon={<Bot />}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Field label="Agent Name">
-                  <Input
-                    value={settingsDraft?.name ?? agent.name}
-                    onChange={(e) => updateSettings({ name: e.target.value })}
-                  />
-                </Field>
-                <Field label="Specialist Role / Title">
-                  <Input
-                    value={settingsDraft?.role ?? agent.role ?? 'Autonomous Specialist'}
-                    onChange={(e) => updateSettings({ role: e.target.value })}
-                  />
-                </Field>
-              </div>
+              {/* 1. Identity & Persona (Module 5.1) */}
+              <AgentTabSection
+                id="settings-identity"
+                title="Agent Identity & Behavior"
+                icon={<Bot />}
+              >
+                <div className="sm:grid-cols-2 gap-3 grid grid-cols-1">
+                  <Field label="Agent Name">
+                    <Input
+                      value={settingsDraft?.name ?? agent.name}
+                      onChange={(e) => updateSettings({ name: e.target.value })}
+                    />
+                  </Field>
+                  <Field label="Specialist Role / Title">
+                    <Input
+                      value={
+                        settingsDraft?.role ??
+                        agent.role ??
+                        'Autonomous Specialist'
+                      }
+                      onChange={(e) => updateSettings({ role: e.target.value })}
+                    />
+                  </Field>
+                </div>
 
-              <Field label="Description & Task Objectives">
-                <Textarea
-                  rows={3}
-                  value={settingsDraft?.description ?? agent.description ?? ''}
-                  onChange={(e) => updateSettings({ description: e.target.value })}
+                <Field label="Description & Task Objectives">
+                  <Textarea
+                    rows={3}
+                    value={
+                      settingsDraft?.description ?? agent.description ?? ''
+                    }
+                    onChange={(e) =>
+                      updateSettings({ description: e.target.value })
+                    }
+                  />
+                </Field>
+              </AgentTabSection>
+
+              {/* Visual Branding & Appearance */}
+              <AgentTabSection
+                id="settings-appearance"
+                title="Icon & colour"
+                icon={<Palette />}
+              >
+                {/* The same picker coworkers use, so an agent looks the same everywhere it appears. */}
+                <AiEntityIdentityPicker
+                  name={settingsDraft?.name || agent.name}
+                  kind="agent"
+                  value={settingsDraft?.avatar}
+                  onChange={(avatar) => {
+                    const parsed = parseAiEntityAvatar(avatar);
+                    updateSettings(
+                      parsed.type === 'icon'
+                        ? {
+                            avatar,
+                            icon: parsed.icon,
+                            ...(parsed.color ? { theme: parsed.color } : {}),
+                          }
+                        : { avatar },
+                    );
+                  }}
+                  label="Avatar"
                 />
-              </Field>
-            </AgentTabSection>
+              </AgentTabSection>
 
-            {/* Visual Branding & Appearance */}
-            <AgentTabSection id="settings-appearance" title="Icon & colour" icon={<Palette />}>
-              {/* The same picker coworkers use, so an agent looks the same everywhere it appears. */}
-              <AiEntityIdentityPicker
-                name={settingsDraft?.name || agent.name}
-                kind="agent"
-                value={settingsDraft?.avatar}
-                onChange={(avatar) => {
-                  const parsed = parseAiEntityAvatar(avatar);
-                  updateSettings(
-                    parsed.type === 'icon'
-                      ? { avatar, icon: parsed.icon, ...(parsed.color ? { theme: parsed.color } : {}) }
-                      : { avatar },
-                  );
-                }}
-                label="Avatar"
-              />
-            </AgentTabSection>
+              {/* Categorization, Tags & Ownership */}
+              <AgentTabSection
+                id="settings-category"
+                title="Category, Tags & Ownership"
+                icon={<Tag />}
+              >
+                <div className="sm:grid-cols-2 gap-4 text-xs grid grid-cols-1">
+                  {/* Category with create custom */}
+                  <div>
+                    <Label htmlFor="agent-settings-cat" className="mb-1 block">
+                      Category
+                    </Label>
+                    {!isCreatingCustomCategory ? (
+                      <div className="gap-2 flex items-center">
+                        <AppSelect
+                          id="agent-settings-cat"
+                          value={settingsDraft?.category || 'Customer Support'}
+                          onValueChange={(category) =>
+                            updateSettings({ category })
+                          }
+                          options={availableCategories.map((c) => ({
+                            value: c,
+                            label: c,
+                          }))}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsCreatingCustomCategory(true)}
+                          className="h-8 text-xs gap-1 shrink-0"
+                          title="Create new category"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          New
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="gap-1.5 flex items-center">
+                        <Input
+                          placeholder="New category name..."
+                          value={customCategoryInput}
+                          onChange={(e) =>
+                            setCustomCategoryInput(e.target.value)
+                          }
+                          className="text-xs h-8"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleCreateCustomCategory();
+                            } else if (e.key === 'Escape') {
+                              setIsCreatingCustomCategory(false);
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleCreateCustomCategory}
+                          className="h-8 text-xs shrink-0"
+                        >
+                          Add
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIsCreatingCustomCategory(false)}
+                          className="h-8 w-8 p-0 shrink-0"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
 
-            {/* Categorization, Tags & Ownership */}
-            <AgentTabSection id="settings-category" title="Category, Tags & Ownership" icon={<Tag />}>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                {/* Category with create custom */}
-                <div>
-                  <Label htmlFor="agent-settings-cat" className="mb-1 block">
-                    Category
-                  </Label>
-                  {!isCreatingCustomCategory ? (
-                    <div className="flex items-center gap-2">
-                      <AppSelect
-                        id="agent-settings-cat"
-                        value={settingsDraft?.category || 'Customer Support'}
-                        onValueChange={(category) => updateSettings({ category })}
-                        options={availableCategories.map((c) => ({ value: c, label: c }))}
+                  {/* Tags Management */}
+                  <div>
+                    <Label htmlFor="agent-settings-tag" className="mb-1 block">
+                      Tags
+                    </Label>
+                    <div className="gap-1.5 mb-2 flex items-center">
+                      <Input
+                        id="agent-settings-tag"
+                        placeholder="Add tag (e.g. autonomous, triage)..."
+                        value={tagInput}
+                        onChange={(e) => setTagInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddTag();
+                          }
+                        }}
+                        className="text-xs h-8"
                       />
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => setIsCreatingCustomCategory(true)}
-                        className="h-8 shrink-0 text-xs gap-1"
-                        title="Create new category"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        New
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5">
-                      <Input
-                        placeholder="New category name..."
-                        value={customCategoryInput}
-                        onChange={(e) => setCustomCategoryInput(e.target.value)}
-                        className="text-xs h-8"
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleCreateCustomCategory();
-                          } else if (e.key === 'Escape') {
-                            setIsCreatingCustomCategory(false);
-                          }
-                        }}
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={handleCreateCustomCategory}
+                        onClick={handleAddTag}
                         className="h-8 text-xs shrink-0"
                       >
                         Add
                       </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setIsCreatingCustomCategory(false)}
-                        className="h-8 w-8 p-0 shrink-0"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
                     </div>
-                  )}
-                </div>
-
-                {/* Tags Management */}
-                <div>
-                  <Label htmlFor="agent-settings-tag" className="mb-1 block">
-                    Tags
-                  </Label>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <Input
-                      id="agent-settings-tag"
-                      placeholder="Add tag (e.g. autonomous, triage)..."
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddTag();
-                        }
-                      }}
-                      className="text-xs h-8"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleAddTag}
-                      className="h-8 text-xs shrink-0"
-                    >
-                      Add
-                    </Button>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 min-h-6">
-                    {(settingsDraft?.tags || []).map((t) => (
-                      <span
-                        key={t}
-                        className="inline-flex items-center gap-1 rounded-md bg-surface-raised px-2 py-0.5 text-xs font-medium text-foreground border border-border"
-                      >
-                        #{t}
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-xs"
-                          aria-label={`Remove tag ${t}`}
-                          onClick={() => handleRemoveTag(t)}
-                          className="size-4 rounded-sm"
+                    <div className="gap-1.5 min-h-6 flex flex-wrap">
+                      {(settingsDraft?.tags || []).map((t) => (
+                        <span
+                          key={t}
+                          className="gap-1 px-2 py-0.5 text-xs font-medium inline-flex items-center rounded-md border border-border bg-surface-raised text-foreground"
                         >
-                          <X className="size-2.5" />
-                        </Button>
-                      </span>
-                    ))}
-                    {(settingsDraft?.tags || []).length === 0 && (
-                      <span className="text-xs text-muted-foreground italic">No tags assigned</span>
-                    )}
+                          #{t}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label={`Remove tag ${t}`}
+                            onClick={() => handleRemoveTag(t)}
+                            className="size-4 rounded-sm"
+                          >
+                            <X className="size-2.5" />
+                          </Button>
+                        </span>
+                      ))}
+                      {(settingsDraft?.tags || []).length === 0 && (
+                        <span className="text-xs text-muted-foreground italic">
+                          No tags assigned
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Owner */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1 border-t border-border">
-                <div>
-                  <Label htmlFor="agent-settings-owner-name" className="mb-1 block">
-                    Agent Owner Name
-                  </Label>
-                  <Input
-                    id="agent-settings-owner-name"
-                    placeholder="e.g. Sarah Jenkins"
-                    value={settingsDraft?.ownerName || ''}
-                    onChange={(e) => updateSettings({ ownerName: e.target.value })}
-                    className="text-xs"
-                  />
+                {/* Owner */}
+                <div className="sm:grid-cols-2 gap-3 text-xs pt-1 grid grid-cols-1 border-t border-border">
+                  <div>
+                    <Label
+                      htmlFor="agent-settings-owner-name"
+                      className="mb-1 block"
+                    >
+                      Agent Owner Name
+                    </Label>
+                    <Input
+                      id="agent-settings-owner-name"
+                      placeholder="e.g. Sarah Jenkins"
+                      value={settingsDraft?.ownerName || ''}
+                      onChange={(e) =>
+                        updateSettings({ ownerName: e.target.value })
+                      }
+                      className="text-xs"
+                    />
+                  </div>
+                  <div>
+                    <Label
+                      htmlFor="agent-settings-owner-email"
+                      className="mb-1 block"
+                    >
+                      Owner Email
+                    </Label>
+                    <Input
+                      id="agent-settings-owner-email"
+                      type="email"
+                      placeholder="sarah@example.com"
+                      value={settingsDraft?.ownerEmail || ''}
+                      onChange={(e) =>
+                        updateSettings({ ownerEmail: e.target.value })
+                      }
+                      className="text-xs"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="agent-settings-owner-email" className="mb-1 block">
-                    Owner Email
-                  </Label>
-                  <Input
-                    id="agent-settings-owner-email"
-                    type="email"
-                    placeholder="sarah@example.com"
-                    value={settingsDraft?.ownerEmail || ''}
-                    onChange={(e) => updateSettings({ ownerEmail: e.target.value })}
-                    className="text-xs"
-                  />
-                </div>
-              </div>
-            </AgentTabSection>
+              </AgentTabSection>
 
-            {/* 2-4. Model, run limits and guardrails — all read and write real agent state */}
-            <AgentRuntimeSettings
-              nodes={nodes}
-              edges={edges}
-              graphSettings={graphSettings}
-              primaryModel={settingsDraft?.model ?? agent.model ?? 'gpt-4o'}
-              onPrimaryModelChange={(model) => updateSettings({ model })}
-              onUpdateNodeConfig={handleUpdateNodeConfig}
-              onGraphSettingsChange={(next) => {
-                setGraphSettings(next);
-                setIsDirty(true);
-              }}
-              runtime={settingsDraft?.runtime ?? {}}
-              onRuntimeChange={(patch) => updateSettings({ runtime: { ...(settingsDraft?.runtime ?? {}), ...patch } })}
-              readOnly={isCanvasLocked}
-              onOpenModule={(agentNodeId, module) => {
-                setActiveTab('build');
-                void requestOpenModule(agentNodeId, { id: module });
-              }}
-            />
-
-            {/* 5. API Trigger Snippet (Module 14.2 & 21.1) */}
-            <AgentTabSection
-              id="settings-api"
-              title="REST API Execution Endpoint"
-              description="Call this agent from your own code. Create and manage API keys in Deploy."
-              icon={<Code2 />}
-              className="gap-3"
-              actions={
-                <Button type="button" variant="outline" size="sm" onClick={() => setActiveTab('deploy')} className="gap-1.5 text-xs">
-                  <KeyRound className="size-3.5" />
-                  Manage API keys
-                </Button>
-              }
-            >
-              <CodeBlock
-                language="bash"
-                filename="curl-execute.sh"
-                code={apiCurlSnippet('Research AI developments and summarize')}
+              {/* 2-4. Model, run limits and guardrails — all read and write real agent state */}
+              <AgentRuntimeSettings
+                nodes={nodes}
+                edges={edges}
+                graphSettings={graphSettings}
+                primaryModel={settingsDraft?.model ?? agent.model ?? 'gpt-4o'}
+                onPrimaryModelChange={(model) => updateSettings({ model })}
+                onUpdateNodeConfig={handleUpdateNodeConfig}
+                onGraphSettingsChange={(next) => {
+                  setGraphSettings(next);
+                  setIsDirty(true);
+                }}
+                runtime={settingsDraft?.runtime ?? {}}
+                onRuntimeChange={(patch) =>
+                  updateSettings({
+                    runtime: { ...(settingsDraft?.runtime ?? {}), ...patch },
+                  })
+                }
+                readOnly={isCanvasLocked}
+                onOpenModule={(agentNodeId, module) => {
+                  setActiveTab('build');
+                  void requestOpenModule(agentNodeId, { id: module });
+                }}
               />
-            </AgentTabSection>
 
+              {/* 5. API Trigger Snippet (Module 14.2 & 21.1) */}
+              <AgentTabSection
+                id="settings-api"
+                title="REST API Execution Endpoint"
+                description="Call this agent from your own code. Create and manage API keys in Deploy."
+                icon={<Code2 />}
+                className="gap-3"
+                actions={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setActiveTab('deploy')}
+                    className="gap-1.5 text-xs"
+                  >
+                    <KeyRound className="size-3.5" />
+                    Manage API keys
+                  </Button>
+                }
+              >
+                <CodeBlock
+                  language="bash"
+                  filename="curl-execute.sh"
+                  code={apiCurlSnippet(
+                    'Research AI developments and summarize',
+                  )}
+                />
+              </AgentTabSection>
             </AgentSettingsLayout>
           </AgentTabPage>
         )}
@@ -4685,10 +5876,13 @@ export function AgentDetailPage() {
       )}
 
       {/* Snapshot Version Dialog */}
-      <Dialog open={isSnapshotDialogOpen} onOpenChange={setIsSnapshotDialogOpen}>
+      <Dialog
+        open={isSnapshotDialogOpen}
+        onOpenChange={setIsSnapshotDialogOpen}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-sm font-bold flex items-center gap-2">
+            <DialogTitle className="text-sm font-bold gap-2 flex items-center">
               <Clock className="h-4 w-4 text-primary" />
               Create Version Snapshot
             </DialogTitle>
@@ -4712,7 +5906,11 @@ export function AgentDetailPage() {
           </DialogBody>
 
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setIsSnapshotDialogOpen(false)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsSnapshotDialogOpen(false)}
+            >
               Cancel
             </Button>
             <Button
@@ -4727,102 +5925,147 @@ export function AgentDetailPage() {
       </Dialog>
 
       {/* VISUAL DIFF MODAL (MODULE 17.2) */}
-      <Dialog open={diffModalTarget !== null} onOpenChange={(open) => !open && setDiffModalTarget(null)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+      <Dialog
+        open={diffModalTarget !== null}
+        onOpenChange={(open) => !open && setDiffModalTarget(null)}
+      >
+        <DialogContent className="max-w-2xl flex max-h-[85vh] flex-col">
           <DialogHeader>
-            <DialogTitle className="text-sm font-bold flex items-center gap-2">
+            <DialogTitle className="text-sm font-bold gap-2 flex items-center">
               <GitBranch className="h-4 w-4 text-primary" />
-              Graph Diff: Current vs {diffModalTarget ? agentVersionLabel(diffModalTarget) : ''}
+              Graph Diff: Current vs{' '}
+              {diffModalTarget ? agentVersionLabel(diffModalTarget) : ''}
             </DialogTitle>
           </DialogHeader>
 
-          <DialogBody className="flex-1 overflow-y-auto space-y-4 text-xs">
+          <DialogBody className="space-y-4 text-xs flex-1 overflow-y-auto">
             {(() => {
               if (!diffModalTarget) return null;
-              const targetGraph = parseGraph((diffModalTarget as any).graphJson) || { nodes: [], edges: [] };
+              const targetGraph = parseGraph(
+                (diffModalTarget as any).graphJson,
+              ) || { nodes: [], edges: [] };
               const currentIds = new Set(nodes.map((n) => n.id));
               const targetIds = new Set(targetGraph.nodes.map((n) => n.id));
 
               const addedNodes = nodes.filter((n) => !targetIds.has(n.id));
-              const removedNodes = targetGraph.nodes.filter((n) => !currentIds.has(n.id));
+              const removedNodes = targetGraph.nodes.filter(
+                (n) => !currentIds.has(n.id),
+              );
               const commonNodes = nodes.filter((n) => targetIds.has(n.id));
               const modifiedNodes = commonNodes.filter((n) => {
                 const targetNode = targetGraph.nodes.find((t) => t.id === n.id);
                 return (
                   targetNode &&
                   (targetNode.data?.label !== n.data?.label ||
-                    JSON.stringify(targetNode.data?.config) !== JSON.stringify(n.data?.config))
+                    JSON.stringify(targetNode.data?.config) !==
+                      JSON.stringify(n.data?.config))
                 );
               });
 
               return (
                 <div className="space-y-4">
                   {/* Summary Metric Cards */}
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="rounded-lg border border-success/20 bg-success/5 p-3">
-                      <div className="text-2xs uppercase font-bold text-success-text">
+                  <div className="gap-3 grid grid-cols-3">
+                    <div className="p-3 rounded-lg border border-success/20 bg-success/5">
+                      <div className="font-bold text-2xs text-success-text uppercase">
                         Added Nodes
                       </div>
-                      <div className="text-xl font-bold text-success">+{addedNodes.length}</div>
+                      <div className="text-xl font-bold text-success">
+                        +{addedNodes.length}
+                      </div>
                     </div>
-                    <div className="rounded-lg border border-warning/20 bg-warning/5 p-3">
-                      <div className="text-2xs uppercase font-bold text-warning-text">
+                    <div className="p-3 rounded-lg border border-warning/20 bg-warning/5">
+                      <div className="font-bold text-2xs text-warning-text uppercase">
                         Modified Nodes
                       </div>
-                      <div className="text-xl font-bold text-warning">~{modifiedNodes.length}</div>
+                      <div className="text-xl font-bold text-warning">
+                        ~{modifiedNodes.length}
+                      </div>
                     </div>
-                    <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3">
-                      <div className="text-2xs uppercase font-bold text-destructive-text">
+                    <div className="p-3 rounded-lg border border-destructive/20 bg-destructive/5">
+                      <div className="font-bold text-2xs text-destructive-text uppercase">
                         Removed Nodes
                       </div>
-                      <div className="text-xl font-bold text-destructive">-{removedNodes.length}</div>
+                      <div className="text-xl font-bold text-destructive">
+                        -{removedNodes.length}
+                      </div>
                     </div>
                   </div>
 
                   {/* Node Diff Breakdown */}
-                  <div className="rounded-lg border border-border overflow-hidden">
-                    <div className="bg-surface-raised px-3 py-2 font-semibold text-xs border-b border-border">
+                  <div className="overflow-hidden rounded-lg border border-border">
+                    <div className="px-3 py-2 font-semibold text-xs border-b border-border bg-surface-raised">
                       Detailed Node Differences
                     </div>
-                    <div className="divide-y divide-border max-h-60 overflow-y-auto">
+                    <div className="max-h-60 divide-y divide-border overflow-y-auto">
                       {addedNodes.map((n) => (
-                        <div key={n.id} className="flex items-center justify-between p-2.5 bg-success/5">
-                          <div className="flex items-center gap-2">
+                        <div
+                          key={n.id}
+                          className="p-2.5 flex items-center justify-between bg-success/5"
+                        >
+                          <div className="gap-2 flex items-center">
                             <span className="size-2 rounded-full bg-success" />
-                            <span className="font-semibold text-foreground">{String(n.data?.label ?? n.id)}</span>
-                            <span className="font-mono text-2xs text-muted-foreground">({n.type})</span>
+                            <span className="font-semibold text-foreground">
+                              {String(n.data?.label ?? n.id)}
+                            </span>
+                            <span className="font-mono text-2xs text-muted-foreground">
+                              ({n.type})
+                            </span>
                           </div>
-                          <Badge variant="success" className="text-2xs">Added in Current</Badge>
+                          <Badge variant="success" className="text-2xs">
+                            Added in Current
+                          </Badge>
                         </div>
                       ))}
 
                       {modifiedNodes.map((n) => (
-                        <div key={n.id} className="flex items-center justify-between p-2.5 bg-warning/5">
-                          <div className="flex items-center gap-2">
+                        <div
+                          key={n.id}
+                          className="p-2.5 flex items-center justify-between bg-warning/5"
+                        >
+                          <div className="gap-2 flex items-center">
                             <span className="size-2 rounded-full bg-warning" />
-                            <span className="font-semibold text-foreground">{String(n.data?.label ?? n.id)}</span>
-                            <span className="font-mono text-2xs text-muted-foreground">({n.type})</span>
+                            <span className="font-semibold text-foreground">
+                              {String(n.data?.label ?? n.id)}
+                            </span>
+                            <span className="font-mono text-2xs text-muted-foreground">
+                              ({n.type})
+                            </span>
                           </div>
-                          <Badge variant="warning" className="text-2xs">Parameters Modified</Badge>
+                          <Badge variant="warning" className="text-2xs">
+                            Parameters Modified
+                          </Badge>
                         </div>
                       ))}
 
                       {removedNodes.map((n) => (
-                        <div key={n.id} className="flex items-center justify-between p-2.5 bg-destructive/5">
-                          <div className="flex items-center gap-2">
+                        <div
+                          key={n.id}
+                          className="p-2.5 flex items-center justify-between bg-destructive/5"
+                        >
+                          <div className="gap-2 flex items-center">
                             <span className="size-2 rounded-full bg-destructive" />
-                            <span className="font-semibold text-foreground">{String(n.data?.label ?? n.id)}</span>
-                            <span className="font-mono text-2xs text-muted-foreground">({n.type})</span>
+                            <span className="font-semibold text-foreground">
+                              {String(n.data?.label ?? n.id)}
+                            </span>
+                            <span className="font-mono text-2xs text-muted-foreground">
+                              ({n.type})
+                            </span>
                           </div>
-                          <Badge variant="destructive" className="text-2xs">Missing in Current</Badge>
+                          <Badge variant="destructive" className="text-2xs">
+                            Missing in Current
+                          </Badge>
                         </div>
                       ))}
 
-                      {addedNodes.length === 0 && modifiedNodes.length === 0 && removedNodes.length === 0 && (
-                        <div className="p-4 text-center text-muted-foreground">
-                          No structural differences detected between the graphs.
-                        </div>
-                      )}
+                      {addedNodes.length === 0 &&
+                        modifiedNodes.length === 0 &&
+                        removedNodes.length === 0 && (
+                          <div className="p-4 text-center text-muted-foreground">
+                            No structural differences detected between the
+                            graphs.
+                          </div>
+                        )}
                     </div>
                   </div>
                 </div>
@@ -4831,7 +6074,11 @@ export function AgentDetailPage() {
           </DialogBody>
 
           <DialogFooter className="gap-2">
-            <Button variant="outline" size="sm" onClick={() => setDiffModalTarget(null)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDiffModalTarget(null)}
+            >
               Close
             </Button>
             {diffModalTarget && (
@@ -4862,7 +6109,11 @@ export function AgentDetailPage() {
         }}
         onSelectNode={handleSelectCatalogItem}
         mode={edgeSplitContext || dropContext ? 'insert' : 'add'}
-        slot={isSlotHost(dropContext?.fromNode.type) ? getSlot(dropContext?.fromHandle) : undefined}
+        slot={
+          isSlotHost(dropContext?.fromNode.type)
+            ? getSlot(dropContext?.fromHandle)
+            : undefined
+        }
       />
 
       {/* Canvas Command Palette (Ctrl+K) */}
@@ -4883,7 +6134,9 @@ export function AgentDetailPage() {
         }}
         onUndo={undo}
         onRedo={redo}
-        onFitView={() => reactFlowRef.current?.fitView({ padding: 0.2, duration: 300 })}
+        onFitView={() =>
+          reactFlowRef.current?.fitView({ padding: 0.2, duration: 300 })
+        }
         isLocked={isCanvasLocked}
         onToggleLock={() => {
           const next = !isCanvasLocked;

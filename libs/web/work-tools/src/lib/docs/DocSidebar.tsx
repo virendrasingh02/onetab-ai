@@ -55,7 +55,13 @@ interface DocSidebarProps {
   onAddCompany?: () => void;
   onRenameCompany?: (companyId: string, currentName: string) => void;
   onDeleteCompany?: (companyId: string) => void;
-  onCreateDoc: (companyId?: string, title?: string, category?: DocCategory, template?: string, parentId?: string) => void;
+  onCreateDoc: (
+    companyId?: string,
+    title?: string,
+    category?: DocCategory,
+    template?: string,
+    parentId?: string,
+  ) => void;
   onMoveDocToCompany?: (docId: string, targetCompanyId: string) => void;
   onDuplicateDoc: (id: string) => void;
   onToggleFavorite: (id: string) => void;
@@ -82,9 +88,12 @@ export function DocSidebar({
      menu route through it instead of `prompt()` / no confirmation at all. */
   const prompts = usePromptDialog();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('All');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] =
+    useState<string>('All');
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
-  const [collapsedCompanies, setCollapsedCompanies] = useState<Record<string, boolean>>({});
+  const [collapsedCompanies, setCollapsedCompanies] = useState<
+    Record<string, boolean>
+  >({});
   const [expandedDocIds, setExpandedDocIds] = useState<Record<string, boolean>>(
     {},
   );
@@ -124,15 +133,15 @@ export function DocSidebar({
 
   return (
     <Panel
-      className="md:w-76 w-full shrink-0 flex flex-col justify-between"
+      className="md:w-76 flex w-full shrink-0 flex-col justify-between"
       title={
-        <span className="flex items-center gap-2 text-sm font-semibold">
+        <span className="gap-2 text-sm font-semibold flex items-center">
           <Folder className="size-4 text-accent-blue" aria-hidden />
           <span>Folders & Docs</span>
         </span>
       }
       actions={
-        <div className="flex items-center gap-1">
+        <div className="gap-1 flex items-center">
           {/* Add Folder Action Button */}
           {onAddCompany && (
             <Button
@@ -147,7 +156,10 @@ export function DocSidebar({
           )}
 
           {/* Templates Launcher Modal */}
-          <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
+          <Dialog
+            open={isTemplateDialogOpen}
+            onOpenChange={setIsTemplateDialogOpen}
+          >
             <DialogTrigger asChild>
               <Button
                 variant="ghost"
@@ -160,12 +172,13 @@ export function DocSidebar({
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
+                <DialogTitle className="gap-2 flex items-center">
                   <LayoutTemplate className="size-4 text-accent-blue" />
                   Starter Notion Templates
                 </DialogTitle>
                 <DialogDescription>
-                  Pick a pre-configured template with interactive Notion block layouts.
+                  Pick a pre-configured template with interactive Notion block
+                  layouts.
                 </DialogDescription>
               </DialogHeader>
 
@@ -173,20 +186,26 @@ export function DocSidebar({
                 <button
                   type="button"
                   onClick={() => {
-                    onCreateDoc(companies[0]?.id, 'Product Requirements Document', 'Engineering', 'prd');
+                    onCreateDoc(
+                      companies[0]?.id,
+                      'Product Requirements Document',
+                      'Engineering',
+                      'prd',
+                    );
                     setIsTemplateDialogOpen(false);
                   }}
-                  className="w-full p-3 rounded-lg border border-border bg-surface-raised hover:border-accent-blue hover:bg-accent/40 text-left transition-all group flex items-start gap-3 cursor-pointer"
+                  className="p-3 group gap-3 flex w-full cursor-pointer items-start rounded-lg border border-border bg-surface-raised text-left transition-all hover:border-accent-blue hover:bg-accent/40"
                 >
-                  <div className="size-8 rounded-lg bg-accent-blue/10 border border-accent-blue/30 flex items-center justify-center text-lg shrink-0">
+                  <div className="size-8 text-lg flex shrink-0 items-center justify-center rounded-lg border border-accent-blue/30 bg-accent-blue/10">
                     🚀
                   </div>
                   <div>
                     <p className="text-xs font-bold text-foreground group-hover:text-accent-blue">
                       Product Requirements Document (PRD)
                     </p>
-                    <p className="text-[11px] text-subtle line-clamp-1 mt-0.5">
-                      Problem statement, user stories, checklist & feature matrix grid.
+                    <p className="mt-0.5 line-clamp-1 text-[11px] text-subtle">
+                      Problem statement, user stories, checklist & feature
+                      matrix grid.
                     </p>
                   </div>
                 </button>
@@ -194,20 +213,26 @@ export function DocSidebar({
                 <button
                   type="button"
                   onClick={() => {
-                    onCreateDoc(companies[0]?.id, 'Sprint Sync Notes', 'General', 'meeting');
+                    onCreateDoc(
+                      companies[0]?.id,
+                      'Sprint Sync Notes',
+                      'General',
+                      'meeting',
+                    );
                     setIsTemplateDialogOpen(false);
                   }}
-                  className="w-full p-3 rounded-lg border border-border bg-surface-raised hover:border-accent-green/30 hover:bg-accent/40 text-left transition-all group flex items-start gap-3 cursor-pointer"
+                  className="p-3 group gap-3 flex w-full cursor-pointer items-start rounded-lg border border-border bg-surface-raised text-left transition-all hover:border-accent-green/30 hover:bg-accent/40"
                 >
-                  <div className="size-8 rounded-lg bg-accent-green-soft border border-accent-green/30 flex items-center justify-center text-lg shrink-0">
+                  <div className="size-8 text-lg flex shrink-0 items-center justify-center rounded-lg border border-accent-green/30 bg-accent-green-soft">
                     📊
                   </div>
                   <div>
                     <p className="text-xs font-bold text-foreground group-hover:text-accent-green">
                       Sprint Sync & Planning Notes
                     </p>
-                    <p className="text-[11px] text-subtle line-clamp-1 mt-0.5">
-                      Agenda bullet points, attendee list, and interactive task checkboxes.
+                    <p className="mt-0.5 line-clamp-1 text-[11px] text-subtle">
+                      Agenda bullet points, attendee list, and interactive task
+                      checkboxes.
                     </p>
                   </div>
                 </button>
@@ -239,12 +264,12 @@ export function DocSidebar({
         </div>
 
         {/* Category Pills Filter */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
+        <div className="gap-1 pb-1 flex scrollbar-none items-center overflow-x-auto">
           <button
             type="button"
             onClick={() => setSelectedCategoryFilter('All')}
             className={cn(
-              'px-2 py-0.5 rounded-md text-[10px] font-medium whitespace-nowrap transition-colors cursor-pointer',
+              'px-2 py-0.5 font-medium cursor-pointer rounded-md text-[10px] whitespace-nowrap transition-colors',
               selectedCategoryFilter === 'All'
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-surface-raised text-muted-foreground hover:bg-accent',
@@ -260,7 +285,7 @@ export function DocSidebar({
                 type="button"
                 onClick={() => setSelectedCategoryFilter(cat)}
                 className={cn(
-                  'px-2 py-0.5 rounded-md text-[10px] font-medium whitespace-nowrap transition-colors cursor-pointer',
+                  'px-2 py-0.5 font-medium cursor-pointer rounded-md text-[10px] whitespace-nowrap transition-colors',
                   selectedCategoryFilter === cat
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-surface-raised text-muted-foreground hover:bg-accent',
@@ -273,47 +298,55 @@ export function DocSidebar({
         </div>
 
         {/* Favorites Section */}
-        {favoriteDocs.length > 0 && selectedCategoryFilter === 'All' && !searchQuery && (
-          <div className="space-y-1 pt-1 border-b border-border/50 pb-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-accent-amber flex items-center gap-1 px-1">
-              <Star className="size-3 fill-accent-amber" />
-              Favorites
-            </p>
-            <ul className="space-y-0.5">
-              {favoriteDocs.map((docItem) => {
-                const isActive = docItem.id === activeDocId;
-                return (
-                  <li key={docItem.id}>
-                    <button
-                      type="button"
-                      onClick={() => onSelectDoc(docItem.id)}
-                      className={cn(
-                        'w-full p-2 text-xs flex items-center justify-between rounded-md transition-colors text-left cursor-pointer',
-                        isActive
-                          ? 'bg-selected font-semibold text-foreground'
-                          : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-                      )}
-                    >
-                      <div className="flex items-center gap-2 truncate">
-                        <IconRenderer icon={docItem.icon} iconColor={docItem.iconColor} sizeClassName="size-4" />
-                        <span className="truncate">{docItem.title}</span>
-                      </div>
-                      <span className="text-[10px] text-subtle shrink-0">
-                        {docItem.updatedAt}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        )}
+        {favoriteDocs.length > 0 &&
+          selectedCategoryFilter === 'All' &&
+          !searchQuery && (
+            <div className="space-y-1 pt-1 pb-2 border-b border-border/50">
+              <p className="font-semibold tracking-wider gap-1 px-1 flex items-center text-[10px] text-accent-amber uppercase">
+                <Star className="size-3 fill-accent-amber" />
+                Favorites
+              </p>
+              <ul className="space-y-0.5">
+                {favoriteDocs.map((docItem) => {
+                  const isActive = docItem.id === activeDocId;
+                  return (
+                    <li key={docItem.id}>
+                      <button
+                        type="button"
+                        onClick={() => onSelectDoc(docItem.id)}
+                        className={cn(
+                          'p-2 text-xs flex w-full cursor-pointer items-center justify-between rounded-md text-left transition-colors',
+                          isActive
+                            ? 'font-semibold bg-selected text-foreground'
+                            : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                        )}
+                      >
+                        <div className="gap-2 flex items-center truncate">
+                          <IconRenderer
+                            icon={docItem.icon}
+                            iconColor={docItem.iconColor}
+                            sizeClassName="size-4"
+                          />
+                          <span className="truncate">{docItem.title}</span>
+                        </div>
+                        <span className="shrink-0 text-[10px] text-subtle">
+                          {docItem.updatedAt}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
 
         {/* Company-Wise Tree Navigation */}
         <div className="space-y-3 pt-1">
           {companies.map((company) => {
             const companyDocs = filteredDocs.filter(
-              (d) => d.companyId === company.id || (!d.companyId && company.id === companies[0]?.id),
+              (d) =>
+                d.companyId === company.id ||
+                (!d.companyId && company.id === companies[0]?.id),
             );
             const rootDocs = companyDocs.filter((d) => !d.parentId);
             const isCollapsed = !!collapsedCompanies[company.id];
@@ -321,27 +354,29 @@ export function DocSidebar({
             return (
               <div key={company.id} className="space-y-1">
                 {/* Company Tree Header */}
-                <div className="group/comp flex items-center justify-between px-1 py-1 rounded-md hover:bg-accent/50 transition-colors">
+                <div className="group/comp px-1 py-1 flex items-center justify-between rounded-md transition-colors hover:bg-accent/50">
                   <button
                     type="button"
                     onClick={() => toggleCompanyCollapse(company.id)}
-                    className="flex items-center gap-1.5 text-xs font-bold text-foreground flex-1 truncate cursor-pointer text-left"
+                    className="gap-1.5 text-xs font-bold flex flex-1 cursor-pointer items-center truncate text-left text-foreground"
                   >
                     {isCollapsed ? (
-                      <ChevronRight className="size-3.5 text-subtle shrink-0" />
+                      <ChevronRight className="size-3.5 shrink-0 text-subtle" />
                     ) : (
-                      <ChevronDown className="size-3.5 text-subtle shrink-0" />
+                      <ChevronDown className="size-3.5 shrink-0 text-subtle" />
                     )}
-                    <span className="text-sm shrink-0">{company.icon || '🏠'}</span>
+                    <span className="text-sm shrink-0">
+                      {company.icon || '🏠'}
+                    </span>
                     <span className="truncate">{company.name}</span>
                   </button>
 
                   {/* Company Options & Action Menu */}
-                  <div className="flex items-center gap-0.5 opacity-0 group-hover/comp:opacity-100 transition-opacity">
+                  <div className="gap-0.5 flex items-center opacity-0 transition-opacity group-hover/comp:opacity-100">
                     <button
                       type="button"
                       onClick={() => onCreateDoc(company.id)}
-                      className="p-1 rounded text-subtle hover:text-foreground hover:bg-accent cursor-pointer"
+                      className="p-1 rounded cursor-pointer text-subtle hover:bg-accent hover:text-foreground"
                       title="Add Doc in Folder"
                     >
                       <Plus className="size-3.5 text-accent-blue" />
@@ -350,7 +385,7 @@ export function DocSidebar({
                       <DropdownMenuTrigger asChild>
                         <button
                           type="button"
-                          className="p-1 rounded text-subtle hover:text-foreground hover:bg-accent cursor-pointer"
+                          className="p-1 rounded cursor-pointer text-subtle hover:bg-accent hover:text-foreground"
                           title="Folder Options"
                         >
                           <MoreVertical className="size-3.5" />
@@ -366,7 +401,9 @@ export function DocSidebar({
                         </DropdownMenuItem>
                         {onRenameCompany && (
                           <DropdownMenuItem
-                            onClick={() => onRenameCompany(company.id, company.name)}
+                            onClick={() =>
+                              onRenameCompany(company.id, company.name)
+                            }
                             className="text-xs gap-2"
                           >
                             <Pencil className="size-3 text-primary" />
@@ -407,12 +444,12 @@ export function DocSidebar({
                 {!isCollapsed && (
                   <ul className="space-y-1 pl-1">
                     {rootDocs.length === 0 ? (
-                      <li className="text-[11px] text-subtle italic py-1 pl-6">
+                      <li className="py-1 pl-6 text-[11px] text-subtle italic">
                         <p>No pages inside</p>
                         <button
                           type="button"
                           onClick={() => onCreateDoc(company.id)}
-                          className="mt-1 text-[11px] text-subtle hover:text-foreground flex items-center gap-1 font-medium cursor-pointer hover:bg-accent/40 px-1.5 py-0.5 rounded transition-colors"
+                          className="mt-1 gap-1 font-medium px-1.5 py-0.5 rounded flex cursor-pointer items-center text-[11px] text-subtle transition-colors hover:bg-accent/40 hover:text-foreground"
                         >
                           <Plus className="size-3 text-accent-blue" />
                           Add new
@@ -479,7 +516,13 @@ function DocTreeNodeItem({
   expandedDocIds: Record<string, boolean>;
   toggleDocExpand: (docId: string) => void;
   onSelectDoc: (id: string) => void;
-  onCreateDoc: (companyId?: string, title?: string, category?: DocCategory, template?: string, parentId?: string) => void;
+  onCreateDoc: (
+    companyId?: string,
+    title?: string,
+    category?: DocCategory,
+    template?: string,
+    parentId?: string,
+  ) => void;
   onUpdateTitle?: (id: string, title: string) => void;
   onDuplicateDoc: (id: string) => void;
   onMoveDocToCompany?: (id: string, targetCompanyId: string) => void;
@@ -499,7 +542,13 @@ function DocTreeNodeItem({
 
   /* The row's "⋯" menu, right-click and touch sheet all render this list. */
   const actions: EntityAction[] = [
-    { id: 'open', group: 'open', label: 'Open', icon: FileText, run: () => onSelectDoc(doc.id) },
+    {
+      id: 'open',
+      group: 'open',
+      label: 'Open',
+      icon: FileText,
+      run: () => onSelectDoc(doc.id),
+    },
     {
       id: 'add-subpage',
       group: 'edit',
@@ -556,14 +605,12 @@ function DocTreeNodeItem({
       label: 'Move to folder',
       icon: MoveRight,
       hidden: !onMoveDocToCompany || moveTargets.length === 0,
-      children: moveTargets.map(
-        (c): EntityAction => ({
-          id: `move-${c.id}`,
-          label: c.name,
-          icon: Building,
-          run: () => onMoveDocToCompany?.(doc.id, c.id),
-        }),
-      ),
+      children: moveTargets.map((c): EntityAction => ({
+        id: `move-${c.id}`,
+        label: c.name,
+        icon: Building,
+        run: () => onMoveDocToCompany?.(doc.id, c.id),
+      })),
     },
     {
       id: 'copy-link',
@@ -617,87 +664,112 @@ function DocTreeNodeItem({
         entity={doc}
         label={doc.title}
       >
-      <div className="group relative flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => onSelectDoc(doc.id)}
-          aria-current={isActive ? 'page' : undefined}
-          className={cn(
-            'p-1.5 text-xs flex items-center w-full text-left rounded-md transition-colors cursor-pointer gap-1.5',
-            isActive
-              ? 'bg-selected font-medium text-foreground border border-border/80'
-              : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-          )}
-          style={{ paddingLeft: `${level * 12 + 6}px` }}
-        >
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleDocExpand(doc.id);
-            }}
-            className="p-0.5 hover:bg-accent/70 rounded cursor-pointer shrink-0"
-          >
-            {isExpanded ? (
-              <ChevronDown className="size-3 text-subtle" />
-            ) : (
-              <ChevronRight className="size-3 text-subtle" />
+        <div className="group relative flex items-center justify-between">
+          {/* Row wrapper carries the styling so the expand toggle and the
+            select button are siblings — a <button> inside a <button> is
+            invalid HTML and React warns on every render. */}
+          <div
+            className={cn(
+              'p-1.5 text-xs gap-1.5 flex w-full items-center rounded-md transition-colors',
+              isActive
+                ? 'font-medium border border-border/80 bg-selected text-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-foreground',
             )}
-          </button>
-
-          <IconRenderer
-            icon={doc.icon}
-            iconColor={doc.iconColor}
-            fallbackEmoji="📝"
-            sizeClassName="size-3.5 shrink-0"
-          />
-          <span className="font-medium truncate flex-1 text-xs">{doc.title}</span>
-        </button>
-
-        {/* Action Dropdown */}
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
-          <button
-            type="button"
-            onClick={() => {
-              toggleDocExpand(doc.id);
-              onCreateDoc(companyId, 'Untitled Page', 'General', undefined, doc.id);
-            }}
-            className="p-1 rounded text-subtle hover:text-foreground hover:bg-accent cursor-pointer"
-            title="Add Sub-page"
+            style={{ paddingLeft: `${level * 12 + 6}px` }}
           >
-            <Plus className="size-3 text-accent-blue" />
-          </button>
-          <ActionDropdownMenu
-            actions={actions}
-            scope={`doc:${doc.id}`}
-            entityType="doc"
-            entity={doc}
-            contentClassName="w-52"
-            trigger={
-              <button
-                type="button"
-                className="p-1 rounded text-subtle hover:text-foreground hover:bg-accent cursor-pointer"
-                title="Doc options"
-                aria-label={`Options for ${doc.title}`}
-              >
-                <MoreVertical className="size-3.5" />
-              </button>
-            }
-          />
+            <button
+              type="button"
+              onClick={() => toggleDocExpand(doc.id)}
+              aria-label={isExpanded ? 'Collapse page' : 'Expand page'}
+              aria-expanded={isExpanded}
+              className="p-0.5 rounded shrink-0 cursor-pointer hover:bg-accent/70"
+            >
+              {isExpanded ? (
+                <ChevronDown className="size-3 text-subtle" />
+              ) : (
+                <ChevronRight className="size-3 text-subtle" />
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onSelectDoc(doc.id)}
+              aria-current={isActive ? 'page' : undefined}
+              className="gap-1.5 min-w-0 flex flex-1 cursor-pointer items-center text-left"
+            >
+              <IconRenderer
+                icon={doc.icon}
+                iconColor={doc.iconColor}
+                fallbackEmoji="📝"
+                sizeClassName="size-3.5 shrink-0"
+              />
+              <span className="font-medium text-xs flex-1 truncate">
+                {doc.title}
+              </span>
+            </button>
+          </div>
+
+          {/* Action Dropdown */}
+          <div className="right-1.5 gap-0.5 absolute top-1/2 flex -translate-y-1/2 items-center opacity-0 transition-opacity group-hover:opacity-100">
+            <button
+              type="button"
+              onClick={() => {
+                toggleDocExpand(doc.id);
+                onCreateDoc(
+                  companyId,
+                  'Untitled Page',
+                  'General',
+                  undefined,
+                  doc.id,
+                );
+              }}
+              className="p-1 rounded cursor-pointer text-subtle hover:bg-accent hover:text-foreground"
+              title="Add Sub-page"
+            >
+              <Plus className="size-3 text-accent-blue" />
+            </button>
+            <ActionDropdownMenu
+              actions={actions}
+              scope={`doc:${doc.id}`}
+              entityType="doc"
+              entity={doc}
+              contentClassName="w-52"
+              trigger={
+                <button
+                  type="button"
+                  className="p-1 rounded cursor-pointer text-subtle hover:bg-accent hover:text-foreground"
+                  title="Doc options"
+                  aria-label={`Options for ${doc.title}`}
+                >
+                  <MoreVertical className="size-3.5" />
+                </button>
+              }
+            />
+          </div>
         </div>
-      </div>
       </EntityContextMenu>
 
       {/* Expanded Children */}
       {isExpanded && (
         <ul className="space-y-0.5">
           {childDocs.length === 0 ? (
-            <li style={{ paddingLeft: `${(level + 1) * 12 + 20}px` }} className="py-1">
+            <li
+              style={{ paddingLeft: `${(level + 1) * 12 + 20}px` }}
+              className="py-1"
+            >
               <p className="text-[11px] text-subtle italic">No pages inside</p>
               <button
                 type="button"
-                onClick={() => onCreateDoc(companyId, 'Untitled Page', 'General', undefined, doc.id)}
-                className="mt-0.5 text-[11px] text-subtle hover:text-foreground flex items-center gap-1 font-medium cursor-pointer hover:bg-accent/40 px-1.5 py-0.5 rounded transition-colors"
+                onClick={() =>
+                  onCreateDoc(
+                    companyId,
+                    'Untitled Page',
+                    'General',
+                    undefined,
+                    doc.id,
+                  )
+                }
+                className="mt-0.5 gap-1 font-medium px-1.5 py-0.5 rounded flex cursor-pointer items-center text-[11px] text-subtle transition-colors hover:bg-accent/40 hover:text-foreground"
               >
                 <Plus className="size-3 text-accent-blue" />
                 Add new
@@ -726,11 +798,22 @@ function DocTreeNodeItem({
                   level={level + 1}
                 />
               ))}
-              <li style={{ paddingLeft: `${(level + 1) * 12 + 20}px` }} className="pt-0.5">
+              <li
+                style={{ paddingLeft: `${(level + 1) * 12 + 20}px` }}
+                className="pt-0.5"
+              >
                 <button
                   type="button"
-                  onClick={() => onCreateDoc(companyId, 'Untitled Page', 'General', undefined, doc.id)}
-                  className="text-[11px] text-subtle hover:text-foreground flex items-center gap-1 font-medium cursor-pointer hover:bg-accent/40 px-1.5 py-0.5 rounded transition-colors"
+                  onClick={() =>
+                    onCreateDoc(
+                      companyId,
+                      'Untitled Page',
+                      'General',
+                      undefined,
+                      doc.id,
+                    )
+                  }
+                  className="gap-1 font-medium px-1.5 py-0.5 rounded flex cursor-pointer items-center text-[11px] text-subtle transition-colors hover:bg-accent/40 hover:text-foreground"
                 >
                   <Plus className="size-3 text-accent-blue" />
                   Add new
@@ -743,4 +826,3 @@ function DocTreeNodeItem({
     </li>
   );
 }
-

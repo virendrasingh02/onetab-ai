@@ -31,39 +31,64 @@ export type AgentState = 'draft' | 'active' | 'paused' | 'archived';
 function stableJson(value: unknown): string {
   return JSON.stringify(value, (_key, v: unknown) =>
     v && typeof v === 'object' && !Array.isArray(v)
-      ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)))
+      ? Object.fromEntries(
+          Object.entries(v as Record<string, unknown>).sort(([a], [b]) =>
+            a.localeCompare(b),
+          ),
+        )
       : v,
   );
 }
 
-export function describeBlueprintChanges(before: AgentBlueprint | null, after: AgentBlueprint): string {
+export function describeBlueprintChanges(
+  before: AgentBlueprint | null,
+  after: AgentBlueprint,
+): string {
   if (!before) return 'Created from a plan';
   const changes: string[] = [];
   if (before.name !== after.name) changes.push(`renamed to “${after.name}”`);
-  if (describeTriggerShort(before.trigger) !== describeTriggerShort(after.trigger) || before.trigger.timezone !== after.trigger.timezone) {
+  if (
+    describeTriggerShort(before.trigger) !==
+      describeTriggerShort(after.trigger) ||
+    before.trigger.timezone !== after.trigger.timezone
+  ) {
     changes.push(`runs ${describeTriggerShort(after.trigger).toLowerCase()}`);
   }
   const beforeIds = new Map(before.steps.map((s) => [s.id, s]));
   const afterIds = new Map(after.steps.map((s) => [s.id, s]));
   const added = after.steps.filter((s) => !beforeIds.has(s.id));
   const removed = before.steps.filter((s) => !afterIds.has(s.id));
-  const edited = after.steps.filter((s) => beforeIds.has(s.id) && stableJson(beforeIds.get(s.id)) !== stableJson(s));
-  if (added.length) changes.push(`added ${added.map((s) => `“${s.title}”`).join(', ')}`);
-  if (removed.length) changes.push(`removed ${removed.map((s) => `“${s.title}”`).join(', ')}`);
-  if (edited.length) changes.push(`edited ${edited.map((s) => `“${s.title}”`).join(', ')}`);
+  const edited = after.steps.filter(
+    (s) =>
+      beforeIds.has(s.id) && stableJson(beforeIds.get(s.id)) !== stableJson(s),
+  );
+  if (added.length)
+    changes.push(`added ${added.map((s) => `“${s.title}”`).join(', ')}`);
+  if (removed.length)
+    changes.push(`removed ${removed.map((s) => `“${s.title}”`).join(', ')}`);
+  if (edited.length)
+    changes.push(`edited ${edited.map((s) => `“${s.title}”`).join(', ')}`);
   const reordered =
-    !added.length && !removed.length && before.steps.map((s) => s.id).join() !== after.steps.map((s) => s.id).join();
+    !added.length &&
+    !removed.length &&
+    before.steps.map((s) => s.id).join() !==
+      after.steps.map((s) => s.id).join();
   if (reordered) changes.push('reordered steps');
   const grantedBefore = new Set(before.scopes);
   const granted = after.scopes.filter((s) => !grantedBefore.has(s));
   const revoked = before.scopes.filter((s) => !after.scopes.includes(s));
   if (granted.length) changes.push(`granted ${granted.join(', ')}`);
   if (revoked.length) changes.push(`removed permission ${revoked.join(', ')}`);
-  if (stableJson(before.output) !== stableJson(after.output)) changes.push('changed the output');
-  if (stableJson(before.params) !== stableJson(after.params)) changes.push('changed settings');
-  if (stableJson(before.notify) !== stableJson(after.notify)) changes.push('changed notifications');
-  if (before.objective !== after.objective) changes.push('updated the objective');
-  if ((before.instructions ?? '').trim() !== (after.instructions ?? '').trim()) changes.push('updated the writing guidance');
+  if (stableJson(before.output) !== stableJson(after.output))
+    changes.push('changed the output');
+  if (stableJson(before.params) !== stableJson(after.params))
+    changes.push('changed settings');
+  if (stableJson(before.notify) !== stableJson(after.notify))
+    changes.push('changed notifications');
+  if (before.objective !== after.objective)
+    changes.push('updated the objective');
+  if ((before.instructions ?? '').trim() !== (after.instructions ?? '').trim())
+    changes.push('updated the writing guidance');
   if (!changes.length) return 'Saved without changes';
   const text = changes.join('; ');
   return (text.charAt(0).toUpperCase() + text.slice(1)).slice(0, 480);
@@ -89,7 +114,12 @@ export class AgentStudioService {
 
   /* ------------------------------------------------------------ create -- */
 
-  async create(workspaceId: string, userId: string, input: AgentBlueprint, activate = false) {
+  async create(
+    workspaceId: string,
+    userId: string,
+    input: AgentBlueprint,
+    activate = false,
+  ) {
     await this.planGate.assertCanCreate(workspaceId, 'agent');
     const blueprint = await this.checked(workspaceId, userId, input);
     const compiled = compileAgentBlueprint(blueprint);
@@ -111,7 +141,9 @@ export class AgentStudioService {
         isActive: false,
       },
     });
-    await this.automations.snapshot(workspaceId, workflow.id, { summary: describeBlueprintChanges(null, blueprint) });
+    await this.automations.snapshot(workspaceId, workflow.id, {
+      summary: describeBlueprintChanges(null, blueprint),
+    });
     if (activate) await this.setState(workspaceId, workflow.id, 'active');
     this.automations.emitAgentChange(workspaceId, workflow.id, 'created');
     return this.get(workspaceId, workflow.id, userId);
@@ -122,15 +154,25 @@ export class AgentStudioService {
    * was changed on the canvas since the last compile, that would throw those
    * edits away, so it is refused unless the caller says to overwrite them.
    */
-  async update(workspaceId: string, workflowId: string, userId: string, input: AgentBlueprint, overwriteCanvasEdits = false) {
+  async update(
+    workspaceId: string,
+    workflowId: string,
+    userId: string,
+    input: AgentBlueprint,
+    overwriteCanvasEdits = false,
+  ) {
     const workflow = await this.find(workspaceId, workflowId);
     const before = readAgentProfile(workflow.agentProfile);
     if (before?.compiledSignature && !overwriteCanvasEdits) {
-      const current = workflowGraphSignature(this.parse(workflow.nodesJson), this.parse(workflow.edgesJson));
+      const current = workflowGraphSignature(
+        this.parse(workflow.nodesJson),
+        this.parse(workflow.edgesJson),
+      );
       if (current !== before.compiledSignature) {
         throw new ConflictException({
           code: 'CANVAS_EDITED',
-          message: 'This agent was edited on the canvas since its plan was saved. Saving the plan replaces those canvas edits.',
+          message:
+            'This agent was edited on the canvas since its plan was saved. Saving the plan replaces those canvas edits.',
         });
       }
     }
@@ -155,27 +197,53 @@ export class AgentStudioService {
         ...(workflow.isActive && blockers.length ? { isActive: false } : {}),
       },
     });
-    await this.automations.snapshot(workspaceId, workflowId, { summary: describeBlueprintChanges(before, blueprint) });
+    await this.automations.snapshot(workspaceId, workflowId, {
+      summary: describeBlueprintChanges(before, blueprint),
+    });
     this.automations.emitAgentChange(workspaceId, workflowId, 'updated');
     return this.get(workspaceId, workflowId, userId);
   }
 
   /** Re-checks a blueprint server-side the same way the planner builds one. */
-  private async checked(workspaceId: string, userId: string, input: AgentBlueprint): Promise<AgentBlueprint> {
+  private async checked(
+    workspaceId: string,
+    userId: string,
+    input: AgentBlueprint,
+  ): Promise<AgentBlueprint> {
     const catalog = await this.planner.catalog(workspaceId, userId);
-    const known = new Set([...catalog.tools.map((t) => t.name), ...catalog.apps.flatMap((a) => a.actions.map((x) => x.tool))]);
-    const unknown = input.steps.filter((s) => s.tool && !known.has(s.tool) && !s.tool.includes('.'));
+    const known = new Set([
+      ...catalog.tools.map((t) => t.name),
+      ...catalog.apps.flatMap((a) => a.actions.map((x) => x.tool)),
+    ]);
+    const unknown = input.steps.filter(
+      (s) => s.tool && !known.has(s.tool) && !s.tool.includes('.'),
+    );
     if (unknown.length) {
-      throw new BadRequestException(`These steps use tools that don’t exist: ${unknown.map((s) => `“${s.title}” (${s.tool})`).join(', ')}.`);
+      throw new BadRequestException(
+        `These steps use tools that don’t exist: ${unknown.map((s) => `“${s.title}” (${s.tool})`).join(', ')}.`,
+      );
     }
-    const appAccess = new Map(catalog.apps.flatMap((a) => a.actions.map((x) => [x.tool, x.access] as const)));
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { timezone: true } });
+    const appAccess = new Map(
+      catalog.apps.flatMap((a) =>
+        a.actions.map((x) => [x.tool, x.access] as const),
+      ),
+    );
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { timezone: true },
+    });
     const timezone = input.trigger.timezone || user?.timezone || 'UTC';
     let finalized: AgentBlueprint;
     try {
-      finalized = await this.planner.finalize(workspaceId, input, { timezone, catalog, userId });
+      finalized = await this.planner.finalize(workspaceId, input, {
+        timezone,
+        catalog,
+        userId,
+      });
     } catch (error) {
-      throw new BadRequestException(error instanceof Error ? error.message : 'The plan is not valid.');
+      throw new BadRequestException(
+        error instanceof Error ? error.message : 'The plan is not valid.',
+      );
     }
     // `finalize` recomputes scopes and default approvals; what the person set
     // on the plan — its grants, its approvals, its notifications — wins.
@@ -208,7 +276,9 @@ export class AgentStudioService {
     const profile = readAgentProfile(workflow.agentProfile);
     const nodes = this.parse(workflow.nodesJson);
     const edges = this.parse(workflow.edgesJson);
-    const canvasEdited = !!profile?.compiledSignature && workflowGraphSignature(nodes, edges) !== profile.compiledSignature;
+    const canvasEdited =
+      !!profile?.compiledSignature &&
+      workflowGraphSignature(nodes, edges) !== profile.compiledSignature;
     return {
       ...summary!,
       profile,
@@ -235,46 +305,84 @@ export class AgentStudioService {
   ) {
     if (workflows.length === 0) return [];
     const ids = workflows.map((w) => w.id);
-    const creatorIds = [...new Set(workflows.map((w) => w.creatorId).filter((id): id is string => !!id))];
+    const creatorIds = [
+      ...new Set(
+        workflows.map((w) => w.creatorId).filter((id): id is string => !!id),
+      ),
+    ];
     const since = new Date(Date.now() - 24 * 60 * 60_000);
-    const [creators, lastRuns, recentFailures, publishedVersions, runCounts] = await Promise.all([
-      this.prisma.user.findMany({ where: { id: { in: creatorIds } }, select: { id: true, name: true, displayName: true, avatarUrl: true } }),
-      this.prisma.aIExecution.findMany({
-        where: { workspaceId, entityType: 'WORKFLOW', entityId: { in: ids } },
-        orderBy: { startedAt: 'desc' },
-        distinct: ['entityId'],
-        select: { id: true, entityId: true, status: true, startedAt: true, finishedAt: true, stateJson: true },
-      }),
-      this.prisma.aIExecution.groupBy({
-        by: ['entityId'],
-        where: { workspaceId, entityType: 'WORKFLOW', entityId: { in: ids }, status: 'FAILED', startedAt: { gte: since } },
-        _count: { _all: true },
-      }),
-      this.prisma.aIWorkflowVersion.groupBy({
-        by: ['workflowId'],
-        where: { workflowId: { in: ids }, isPublished: true },
-        _max: { versionNumber: true },
-      }),
-      this.prisma.aIExecution.groupBy({
-        by: ['entityId'],
-        where: { workspaceId, entityType: 'WORKFLOW', entityId: { in: ids } },
-        _count: { _all: true },
-      }),
-    ]);
+    const [creators, lastRuns, recentFailures, publishedVersions, runCounts] =
+      await Promise.all([
+        this.prisma.user.findMany({
+          where: { id: { in: creatorIds } },
+          select: { id: true, name: true, displayName: true, avatarUrl: true },
+        }),
+        this.prisma.aIExecution.findMany({
+          where: { workspaceId, entityType: 'WORKFLOW', entityId: { in: ids } },
+          orderBy: { startedAt: 'desc' },
+          distinct: ['entityId'],
+          select: {
+            id: true,
+            entityId: true,
+            status: true,
+            startedAt: true,
+            finishedAt: true,
+            stateJson: true,
+          },
+        }),
+        this.prisma.aIExecution.groupBy({
+          by: ['entityId'],
+          where: {
+            workspaceId,
+            entityType: 'WORKFLOW',
+            entityId: { in: ids },
+            status: 'FAILED',
+            startedAt: { gte: since },
+          },
+          _count: { _all: true },
+        }),
+        this.prisma.aIWorkflowVersion.groupBy({
+          by: ['workflowId'],
+          where: { workflowId: { in: ids }, isPublished: true },
+          _max: { versionNumber: true },
+        }),
+        this.prisma.aIExecution.groupBy({
+          by: ['entityId'],
+          where: { workspaceId, entityType: 'WORKFLOW', entityId: { in: ids } },
+          _count: { _all: true },
+        }),
+      ]);
     const creatorById = new Map(creators.map((c) => [c.id, c]));
     const lastRunBy = new Map(lastRuns.map((r) => [r.entityId, r]));
-    const failuresBy = new Map(recentFailures.map((r) => [r.entityId, r._count._all]));
-    const publishedBy = new Map(publishedVersions.map((v) => [v.workflowId, v._max.versionNumber]));
+    const failuresBy = new Map(
+      recentFailures.map((r) => [r.entityId, r._count._all]),
+    );
+    const publishedBy = new Map(
+      publishedVersions.map((v) => [v.workflowId, v._max.versionNumber]),
+    );
     const runsBy = new Map(runCounts.map((r) => [r.entityId, r._count._all]));
 
     return workflows.map((w) => {
       const profile = readAgentProfile(w.agentProfile);
       const creator = w.creatorId ? creatorById.get(w.creatorId) : undefined;
       const published = publishedBy.get(w.id) ?? null;
-      const state: AgentState = w.archivedAt ? 'archived' : w.isActive ? 'active' : published ? 'paused' : 'draft';
-      const schedule = w.triggerType === 'CRON' ? workflowSchedule(w.nodesJson) : null;
+      const state: AgentState = w.archivedAt
+        ? 'archived'
+        : w.isActive
+          ? 'active'
+          : published
+            ? 'paused'
+            : 'draft';
+      const schedule =
+        w.triggerType === 'CRON' ? workflowSchedule(w.nodesJson) : null;
       const nextRun =
-        schedule && state === 'active' ? nextCronRun(schedule.cron, new Date(), schedule.timezone)?.toISOString() ?? null : null;
+        schedule && state === 'active'
+          ? (nextCronRun(
+              schedule.cron,
+              new Date(),
+              schedule.timezone,
+            )?.toISOString() ?? null)
+          : null;
       const last = lastRunBy.get(w.id);
       return {
         id: w.id,
@@ -286,7 +394,11 @@ export class AgentStudioService {
         trigger: profile
           ? profile.trigger
           : schedule
-            ? { kind: 'schedule' as const, cron: schedule.cron, ...(schedule.timezone ? { timezone: schedule.timezone } : {}) }
+            ? {
+                kind: 'schedule' as const,
+                cron: schedule.cron,
+                ...(schedule.timezone ? { timezone: schedule.timezone } : {}),
+              }
             : w.triggerType === 'MANUAL' || w.triggerType === 'WEBHOOK'
               ? { kind: 'manual' as const }
               : { kind: 'event' as const, event: w.triggerType as never },
@@ -296,7 +408,11 @@ export class AgentStudioService {
         publishedVersion: published,
         nextRunAt: nextRun,
         owner: creator
-          ? { id: creator.id, name: creator.displayName || creator.name, avatarUrl: creator.avatarUrl }
+          ? {
+              id: creator.id,
+              name: creator.displayName || creator.name,
+              avatarUrl: creator.avatarUrl,
+            }
           : null,
         isMine: w.creatorId === viewerId,
         templateId: profile?.source.templateId ?? null,
@@ -308,7 +424,10 @@ export class AgentStudioService {
               status: last.status,
               startedAt: last.startedAt.toISOString(),
               finishedAt: last.finishedAt?.toISOString() ?? null,
-              test: (last.stateJson as Record<string, unknown> | null)?.['__mode'] === 'test',
+              test:
+                (last.stateJson as Record<string, unknown> | null)?.[
+                  '__mode'
+                ] === 'test',
             }
           : null,
         runCount: runsBy.get(w.id) ?? 0,
@@ -327,17 +446,35 @@ export class AgentStudioService {
     if (state === 'active') {
       const blockers = profile ? blueprintBlockers(profile) : [];
       if (blockers.length) {
-        throw new BadRequestException({ code: 'AGENT_NOT_READY', message: `Before switching it on: ${blockers.join(' ')}` });
+        throw new BadRequestException({
+          code: 'AGENT_NOT_READY',
+          message: `Before switching it on: ${blockers.join(' ')}`,
+        });
       }
       // What runs on a trigger is always a published version someone can roll back to.
-      await this.automations.snapshot(workspaceId, workflowId, { summary: 'Published and switched on', publish: true });
-      await this.prisma.automationWorkflow.update({ where: { id: workflowId }, data: { isActive: true, archivedAt: null } });
+      await this.automations.snapshot(workspaceId, workflowId, {
+        summary: 'Published and switched on',
+        publish: true,
+      });
+      await this.prisma.automationWorkflow.update({
+        where: { id: workflowId },
+        data: { isActive: true, archivedAt: null },
+      });
     } else if (state === 'paused') {
-      await this.prisma.automationWorkflow.update({ where: { id: workflowId }, data: { isActive: false } });
+      await this.prisma.automationWorkflow.update({
+        where: { id: workflowId },
+        data: { isActive: false },
+      });
     } else if (state === 'archived') {
-      await this.prisma.automationWorkflow.update({ where: { id: workflowId }, data: { isActive: false, archivedAt: new Date() } });
+      await this.prisma.automationWorkflow.update({
+        where: { id: workflowId },
+        data: { isActive: false, archivedAt: new Date() },
+      });
     } else {
-      await this.prisma.automationWorkflow.update({ where: { id: workflowId }, data: { archivedAt: null } });
+      await this.prisma.automationWorkflow.update({
+        where: { id: workflowId },
+        data: { archivedAt: null },
+      });
     }
     this.automations.emitAgentChange(workspaceId, workflowId, 'state');
     return { id: workflowId, state };
@@ -346,7 +483,10 @@ export class AgentStudioService {
   async duplicate(workspaceId: string, workflowId: string, userId: string) {
     const workflow = await this.find(workspaceId, workflowId);
     const profile = readAgentProfile(workflow.agentProfile);
-    await this.planGate.assertCanCreate(workspaceId, profile ? 'agent' : 'workflow');
+    await this.planGate.assertCanCreate(
+      workspaceId,
+      profile ? 'agent' : 'workflow',
+    );
     const name = `${workflow.name} (copy)`.slice(0, 120);
     const copy = await this.prisma.automationWorkflow.create({
       data: {
@@ -361,7 +501,9 @@ export class AgentStudioService {
         isActive: false,
       },
     });
-    await this.automations.snapshot(workspaceId, copy.id, { summary: `Duplicated from “${workflow.name}”` });
+    await this.automations.snapshot(workspaceId, copy.id, {
+      summary: `Duplicated from “${workflow.name}”`,
+    });
     this.automations.emitAgentChange(workspaceId, copy.id, 'created');
     return this.get(workspaceId, copy.id, userId);
   }
@@ -376,42 +518,79 @@ export class AgentStudioService {
     workspaceId: string,
     workflowId: string,
     userId: string,
-    input: { text?: string; mode?: 'live' | 'test'; event?: Record<string, unknown> },
+    input: {
+      text?: string;
+      mode?: 'live' | 'test';
+      event?: Record<string, unknown>;
+    },
   ) {
     const workflow = await this.find(workspaceId, workflowId);
-    if (workflow.archivedAt) throw new BadRequestException('Unarchive this agent before running it.');
+    if (workflow.archivedAt)
+      throw new BadRequestException('Unarchive this agent before running it.');
     const profile = readAgentProfile(workflow.agentProfile);
     const mode = input.mode === 'test' ? 'test' : 'live';
     if (profile && mode === 'live') {
       const blockers = blueprintBlockers(profile);
       if (blockers.length) {
-        throw new BadRequestException({ code: 'AGENT_NOT_READY', message: `Before it can run: ${blockers.join(' ')}` });
+        throw new BadRequestException({
+          code: 'AGENT_NOT_READY',
+          message: `Before it can run: ${blockers.join(' ')}`,
+        });
       }
     }
     const payload: Record<string, unknown> = {
-      ...(input.text ? { input: { text: input.text } } : { input: { text: '' } }),
-      ...(input.event ? { ...input.event, event: input.event, trigger: 'test-event' } : {}),
+      ...(input.text
+        ? { input: { text: input.text } }
+        : { input: { text: '' } }),
+      ...(input.event
+        ? { ...input.event, event: input.event, trigger: 'test-event' }
+        : {}),
     };
-    return this.engine.startWorkflow(workflowId, payload, { mode, startedBy: 'person', userId });
+    return this.engine.startWorkflow(workflowId, payload, {
+      mode,
+      startedBy: 'person',
+      userId,
+    });
   }
 
   /* ------------------------------------------------------------- home -- */
 
   async home(workspaceId: string, userId: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { timezone: true, name: true, displayName: true } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { timezone: true, name: true, displayName: true },
+    });
     const timezone = user?.timezone || 'UTC';
     const today = startOfZonedDay(new Date(), timezone);
 
-    const [agents, runsToday, activeRuns, approvals, tasksCreated, docsCreated] = await Promise.all([
+    const [
+      agents,
+      runsToday,
+      activeRuns,
+      approvals,
+      tasksCreated,
+      docsCreated,
+    ] = await Promise.all([
       this.list(workspaceId, userId),
       this.prisma.aIExecution.findMany({
         where: { workspaceId, startedAt: { gte: today } },
         orderBy: { startedAt: 'desc' },
         take: 200,
-        select: { id: true, entityType: true, entityId: true, status: true, startedAt: true, finishedAt: true, stateJson: true },
+        select: {
+          id: true,
+          entityType: true,
+          entityId: true,
+          status: true,
+          startedAt: true,
+          finishedAt: true,
+          stateJson: true,
+        },
       }),
       this.prisma.aIExecution.findMany({
-        where: { workspaceId, status: { in: ['RUNNING', 'PAUSED', 'WAITING_APPROVAL'] } },
+        where: {
+          workspaceId,
+          status: { in: ['RUNNING', 'PAUSED', 'WAITING_APPROVAL'] },
+        },
         orderBy: { startedAt: 'desc' },
         take: 20,
         select: {
@@ -420,14 +599,25 @@ export class AgentStudioService {
           entityId: true,
           status: true,
           startedAt: true,
-          steps: { orderBy: { startedAt: 'desc' }, take: 1, select: { stepId: true, status: true, nodeType: true } },
+          steps: {
+            orderBy: { startedAt: 'desc' },
+            take: 1,
+            select: { stepId: true, status: true, nodeType: true },
+          },
         },
       }),
       this.prisma.approvalRequest.findMany({
         where: { workspaceId, state: 'PENDING', requesterId: userId },
         orderBy: { createdAt: 'desc' },
         take: 20,
-        select: { id: true, entityType: true, entityId: true, executionId: true, actionType: true, createdAt: true },
+        select: {
+          id: true,
+          entityType: true,
+          entityId: true,
+          executionId: true,
+          actionType: true,
+          createdAt: true,
+        },
       }),
       this.prisma.$queryRaw<Array<{ count: bigint }>>`
         SELECT count(*)::bigint AS count FROM tasks
@@ -446,38 +636,69 @@ export class AgentStudioService {
     // Canvas agents are excluded from list() but their runs still show here — look their names up too.
     const unknownIds = [
       ...new Set(
-        [...runsToday, ...activeRuns, ...approvals].map((r) => r.entityId).filter((id) => !byId.has(id)),
+        [...runsToday, ...activeRuns, ...approvals]
+          .map((r) => r.entityId)
+          .filter((id) => !byId.has(id)),
       ),
     ];
     const extraNames = new Map<string, string>();
     if (unknownIds.length) {
-      const rows = await this.prisma.automationWorkflow.findMany({
-        where: { workspaceId, id: { in: unknownIds } },
-        select: { id: true, name: true },
-      });
-      for (const row of rows) extraNames.set(row.id, row.name);
+      // Runs can belong to a workflow or to an agent/coworker (entityType AGENT).
+      const [workflows, aiAgents] = await Promise.all([
+        this.prisma.automationWorkflow.findMany({
+          where: { workspaceId, id: { in: unknownIds } },
+          select: { id: true, name: true },
+        }),
+        this.prisma.aIAgent.findMany({
+          where: { workspaceId, id: { in: unknownIds } },
+          select: { id: true, name: true },
+        }),
+      ]);
+      for (const row of [...workflows, ...aiAgents])
+        extraNames.set(row.id, row.name);
     }
-    const nameOf = (id: string) => byId.get(id)?.name ?? extraNames.get(id) ?? null;
+    const nameOf = (id: string) =>
+      byId.get(id)?.name ?? extraNames.get(id) ?? null;
 
     // Last 7 days of live runs, oldest first — drives the real stat-card sparklines.
     const weekStart = new Date(today.getTime() - 6 * 24 * 60 * 60_000);
     const weekRuns = await this.prisma.aIExecution.findMany({
-      where: { workspaceId, startedAt: { gte: weekStart }, status: { in: ['COMPLETED', 'FAILED'] } },
+      where: {
+        workspaceId,
+        startedAt: { gte: weekStart },
+        status: { in: ['COMPLETED', 'FAILED'] },
+      },
       select: { status: true, startedAt: true, stateJson: true },
       take: 5000,
     });
     const completedSeries = new Array<number>(7).fill(0);
     const failedSeries = new Array<number>(7).fill(0);
     for (const r of weekRuns) {
-      if ((r.stateJson as Record<string, unknown> | null)?.['__mode'] === 'test') continue;
-      const idx = Math.min(6, Math.max(0, Math.floor((r.startedAt.getTime() - weekStart.getTime()) / (24 * 60 * 60_000))));
+      if (
+        (r.stateJson as Record<string, unknown> | null)?.['__mode'] === 'test'
+      )
+        continue;
+      const idx = Math.min(
+        6,
+        Math.max(
+          0,
+          Math.floor(
+            (r.startedAt.getTime() - weekStart.getTime()) / (24 * 60 * 60_000),
+          ),
+        ),
+      );
       (r.status === 'COMPLETED' ? completedSeries : failedSeries)[idx] += 1;
     }
 
-    const live = runsToday.filter((r) => (r.stateJson as Record<string, unknown> | null)?.['__mode'] !== 'test');
+    const live = runsToday.filter(
+      (r) =>
+        (r.stateJson as Record<string, unknown> | null)?.['__mode'] !== 'test',
+    );
     const completedToday = live.filter((r) => r.status === 'COMPLETED');
     const failedToday = live.filter((r) => r.status === 'FAILED');
-    const usedTemplates = new Set(agents.map((a) => a.templateId).filter(Boolean));
+    const usedTemplates = new Set(
+      agents.map((a) => a.templateId).filter(Boolean),
+    );
 
     return {
       greetingName: (user?.displayName || user?.name || '').split(' ')[0] ?? '',
@@ -490,7 +711,11 @@ export class AgentStudioService {
         // Agents with a problem, counted once: failed today, or switched on and still failing.
         issues: new Set([
           ...failedToday.map((r) => r.entityId),
-          ...agents.filter((a) => a.state === 'active' && a.lastRun?.status === 'FAILED').map((a) => a.id),
+          ...agents
+            .filter(
+              (a) => a.state === 'active' && a.lastRun?.status === 'FAILED',
+            )
+            .map((a) => a.id),
         ]).size,
         activeAgents: agents.filter((a) => a.state === 'active').length,
         history: { completed: completedSeries, failed: failedSeries },
@@ -502,7 +727,13 @@ export class AgentStudioService {
         entityType: r.entityType,
         entityId: r.entityId,
         name: nameOf(r.entityId),
-        currentStep: r.steps[0] ? { stepId: r.steps[0].stepId, status: r.steps[0].status, nodeType: r.steps[0].nodeType } : null,
+        currentStep: r.steps[0]
+          ? {
+              stepId: r.steps[0].stepId,
+              status: r.steps[0].status,
+              nodeType: r.steps[0].nodeType,
+            }
+          : null,
       })),
       approvals: approvals.map((a) => ({
         id: a.id,
@@ -511,14 +742,18 @@ export class AgentStudioService {
         createdAt: a.createdAt.toISOString(),
         agentName: nameOf(a.entityId),
       })),
+      // entityType lets the client link a run to the right page: workflow runs
+      // open the agent editor, agent/coworker runs open the Runs view.
       recentlyCompleted: completedToday.slice(0, 8).map((r) => ({
         id: r.id,
+        entityType: r.entityType,
         entityId: r.entityId,
         name: nameOf(r.entityId),
         finishedAt: r.finishedAt?.toISOString() ?? null,
       })),
       failed: failedToday.slice(0, 8).map((r) => ({
         id: r.id,
+        entityType: r.entityType,
         entityId: r.entityId,
         name: nameOf(r.entityId),
         startedAt: r.startedAt.toISOString(),
@@ -527,7 +762,12 @@ export class AgentStudioService {
         .filter((a) => a.nextRunAt)
         .sort((a, b) => (a.nextRunAt ?? '').localeCompare(b.nextRunAt ?? ''))
         .slice(0, 8)
-        .map((a) => ({ id: a.id, name: a.name, nextRunAt: a.nextRunAt, trigger: a.trigger })),
+        .map((a) => ({
+          id: a.id,
+          name: a.name,
+          nextRunAt: a.nextRunAt,
+          trigger: a.trigger,
+        })),
       recommended: AGENT_TEMPLATES.filter((t) => !usedTemplates.has(t.id))
         .slice(0, 6)
         .map((t) => t.id),
@@ -536,12 +776,17 @@ export class AgentStudioService {
 
   /* ---------------------------------------------------------- versions -- */
 
-  async version(workspaceId: string, workflowId: string, versionNumber: number) {
+  async version(
+    workspaceId: string,
+    workflowId: string,
+    versionNumber: number,
+  ) {
     await this.find(workspaceId, workflowId);
     const version = await this.prisma.aIWorkflowVersion.findUnique({
       where: { workflowId_versionNumber: { workflowId, versionNumber } },
     });
-    if (!version) throw new NotFoundException(`Version ${versionNumber} not found.`);
+    if (!version)
+      throw new NotFoundException(`Version ${versionNumber} not found.`);
     return {
       versionNumber: version.versionNumber,
       name: version.name,
@@ -557,7 +802,9 @@ export class AgentStudioService {
   /* ----------------------------------------------------------- helpers -- */
 
   private async find(workspaceId: string, workflowId: string) {
-    const workflow = await this.prisma.automationWorkflow.findFirst({ where: { id: workflowId, workspaceId } });
+    const workflow = await this.prisma.automationWorkflow.findFirst({
+      where: { id: workflowId, workspaceId },
+    });
     if (!workflow) throw new NotFoundException('Agent not found.');
     return workflow;
   }
