@@ -1,4 +1,5 @@
 import {
+  useChatContentWidth,
   useMessageDensity,
   useOpenChatPosition,
   useChatPreferences,
@@ -51,6 +52,7 @@ import type {
 } from '@org/matrix-client';
 import {
   toPlatformUserId,
+  type ChatContentWidth,
   type ComposerContext,
   type PollDraft,
 } from '@org/types';
@@ -92,6 +94,7 @@ import {
   lazy,
   Suspense,
   type ComponentProps,
+  type CSSProperties,
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
@@ -175,6 +178,13 @@ export interface ConversationMentions {
   /** Unread mentions older than the loaded window. */
   unloadedCount: number;
 }
+
+/** Max width of the message column + composer per the chat width setting. */
+const CHAT_COLUMN_MAX_WIDTH: Record<ChatContentWidth, string> = {
+  narrow: '820px',
+  medium: '1120px',
+  full: '100%',
+};
 
 const NO_MENTIONS: ConversationMentions = {
   ids: [],
@@ -530,6 +540,7 @@ export function ChatSurface({
   composerContext,
 }: ChatSurfaceProps) {
   const messageDensity = useMessageDensity();
+  const contentWidth = useChatContentWidth();
   const openPosition = useOpenChatPosition();
   const { chat } = useChatPreferences();
   const effectiveOnTyping =
@@ -1539,7 +1550,7 @@ export function ChatSurface({
       if (message.structuredEvent?.type === 'mie.call_summary' && workspaceId) {
         const ev = message.structuredEvent;
         return (
-          <div className="px-4 py-1">
+          <div className="py-1 px-[calc(var(--chat-gutter,0px)_+_1rem)]">
             <CallSummaryMessageCard
               workspaceId={workspaceId}
               callId={ev.callId}
@@ -2257,7 +2268,20 @@ export function ChatSurface({
             ) : null
           }
         >
-          <div className="min-h-0 relative flex flex-1 flex-col overflow-hidden">
+          <div
+            className="min-h-0 relative flex flex-1 flex-col overflow-hidden"
+            // The chat width setting. Rows stay full-bleed (hover/saved/pinned
+            // tints span the pane) and pad their content in by `--chat-gutter`;
+            // the `%` resolves against each row's own width where it is used.
+            // The composer is capped at the same column width.
+            style={
+              {
+                '--chat-column-max-width': CHAT_COLUMN_MAX_WIDTH[contentWidth],
+                '--chat-gutter':
+                  'max(0px, (100% - var(--chat-column-max-width)) / 2)',
+              } as CSSProperties
+            }
+          >
             {/*
           The huddle bar opens full-width in the shell's dock below all three
           columns — it portals into `HuddleDock`, so where it sits in this tree
@@ -2526,62 +2550,64 @@ export function ChatSurface({
             </div>
 
             <div className="bottom-0 sticky z-20 w-full shrink-0 bg-background">
-              {chat?.showTypingIndicators !== false ? (
-                <TypingIndicator names={typingNames} />
-              ) : null}
-              <Composer
-                conversationId={conversationId}
-                targetName={title}
-                placeholder={
-                  welcome?.kind === 'self' ? 'Jot something down…' : undefined
-                }
-                workspaceId={composerContext?.workspaceId}
-                members={members}
-                currentUserId={myUserId}
-                linkPreviewsEnabled={chat?.linkPreviewsEnabled ?? true}
-                onSchedule={handleScheduleMessage}
-                pendingScheduled={pendingScheduledHere}
-                onCancelScheduled={handleCancelScheduled}
-                onTyping={effectiveOnTyping}
-                enterToSend={chat?.enterToSend ?? true}
-                slashCommands={mainControl.slashCommands}
-                onSlashCommand={runMainCommand}
-                onCreatePoll={pollsAvailable ? openPollDialog : undefined}
-                onAttach={
-                  onAttach ? (files) => void onAttach(files) : undefined
-                }
-                onSendVoice={onSendVoice}
-                readOnlyMessage={composerReadOnlyMessage}
-                anonymousPosting={anonymousPosting}
-                surfaceKind={composerContext?.surfaceKind}
-                viewerCanManage={mainControl.viewerCanManage}
-                isGuest={mainControl.isGuest}
-                canMentionGroups={mainControl.canMentionGroups}
-                workspaceMembers={mainControl.workspaceMembers}
-                agentMentions={mainControl.agentMentions}
-                coworkerMentions={mainControl.coworkerMentions}
-                appMentions={mainControl.appMentions}
-                channelMentions={mainControl.channelMentions}
-                connectors={mainControl.connectors}
-                replyingTo={replyingTo ? toReplyPreview(replyingTo) : null}
-                onCancelReply={() => setReplyingTo(null)}
-                onJumpToReply={
-                  replyingTo ? () => jumpTo(replyingTo.id) : undefined
-                }
-                onSend={async (body, meta) => {
-                  const replyToId = replyingTo?.id;
-                  setReplyingTo(null);
-                  const anchorId = await onSend(body, undefined, {
-                    ...(replyToId ? { replyToId } : {}),
-                    mentions: toMentionRefs(meta?.mentions),
-                  });
-                  mainControl.raiseMentionNotice(meta?.mentions, {
-                    ...noticePlacement,
-                    anchorId:
-                      typeof anchorId === 'string' ? anchorId : undefined,
-                  });
-                }}
-              />
+              <div className="mx-auto w-full max-w-[var(--chat-column-max-width,100%)]">
+                {chat?.showTypingIndicators !== false ? (
+                  <TypingIndicator names={typingNames} />
+                ) : null}
+                <Composer
+                  conversationId={conversationId}
+                  targetName={title}
+                  placeholder={
+                    welcome?.kind === 'self' ? 'Jot something down…' : undefined
+                  }
+                  workspaceId={composerContext?.workspaceId}
+                  members={members}
+                  currentUserId={myUserId}
+                  linkPreviewsEnabled={chat?.linkPreviewsEnabled ?? true}
+                  onSchedule={handleScheduleMessage}
+                  pendingScheduled={pendingScheduledHere}
+                  onCancelScheduled={handleCancelScheduled}
+                  onTyping={effectiveOnTyping}
+                  enterToSend={chat?.enterToSend ?? true}
+                  slashCommands={mainControl.slashCommands}
+                  onSlashCommand={runMainCommand}
+                  onCreatePoll={pollsAvailable ? openPollDialog : undefined}
+                  onAttach={
+                    onAttach ? (files) => void onAttach(files) : undefined
+                  }
+                  onSendVoice={onSendVoice}
+                  readOnlyMessage={composerReadOnlyMessage}
+                  anonymousPosting={anonymousPosting}
+                  surfaceKind={composerContext?.surfaceKind}
+                  viewerCanManage={mainControl.viewerCanManage}
+                  isGuest={mainControl.isGuest}
+                  canMentionGroups={mainControl.canMentionGroups}
+                  workspaceMembers={mainControl.workspaceMembers}
+                  agentMentions={mainControl.agentMentions}
+                  coworkerMentions={mainControl.coworkerMentions}
+                  appMentions={mainControl.appMentions}
+                  channelMentions={mainControl.channelMentions}
+                  connectors={mainControl.connectors}
+                  replyingTo={replyingTo ? toReplyPreview(replyingTo) : null}
+                  onCancelReply={() => setReplyingTo(null)}
+                  onJumpToReply={
+                    replyingTo ? () => jumpTo(replyingTo.id) : undefined
+                  }
+                  onSend={async (body, meta) => {
+                    const replyToId = replyingTo?.id;
+                    setReplyingTo(null);
+                    const anchorId = await onSend(body, undefined, {
+                      ...(replyToId ? { replyToId } : {}),
+                      mentions: toMentionRefs(meta?.mentions),
+                    });
+                    mainControl.raiseMentionNotice(meta?.mentions, {
+                      ...noticePlacement,
+                      anchorId:
+                        typeof anchorId === 'string' ? anchorId : undefined,
+                    });
+                  }}
+                />
+              </div>
             </div>
           </div>
 

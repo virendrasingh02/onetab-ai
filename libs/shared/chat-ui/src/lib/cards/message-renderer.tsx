@@ -134,7 +134,7 @@ export const MessageRenderer = memo(function MessageRenderer(
     switch (structured.type) {
       case 'mie.ai.agent':
         return (
-          <div className="px-4">
+          <div className="px-[calc(var(--chat-gutter,0px)_+_1rem)]">
             <AgentMessageCard
               message={message}
               event={structured}
@@ -171,7 +171,7 @@ export const MessageRenderer = memo(function MessageRenderer(
 
       case 'mie.app.response':
         return (
-          <div className="px-4">
+          <div className="px-[calc(var(--chat-gutter,0px)_+_1rem)]">
             <AppResponseCard
               message={message}
               event={structured}
@@ -185,7 +185,7 @@ export const MessageRenderer = memo(function MessageRenderer(
 
       case 'mie.approval':
         return (
-          <div className="px-4">
+          <div className="px-[calc(var(--chat-gutter,0px)_+_1rem)]">
             <ApprovalCard
               message={message}
               event={structured}
@@ -198,7 +198,7 @@ export const MessageRenderer = memo(function MessageRenderer(
 
       case 'mie.form':
         return (
-          <div className="px-4">
+          <div className="px-[calc(var(--chat-gutter,0px)_+_1rem)]">
             <FormCard
               message={message}
               event={structured}
@@ -218,7 +218,7 @@ export const MessageRenderer = memo(function MessageRenderer(
 
       case 'mie.file':
         return (
-          <div className="px-4">
+          <div className="px-[calc(var(--chat-gutter,0px)_+_1rem)]">
             <FileResponseCard
               message={message}
               event={structured}
@@ -229,7 +229,7 @@ export const MessageRenderer = memo(function MessageRenderer(
 
       case 'mie.workflow':
         return (
-          <div className="px-4">
+          <div className="px-[calc(var(--chat-gutter,0px)_+_1rem)]">
             <WorkflowCard
               message={message}
               event={structured}
@@ -240,7 +240,7 @@ export const MessageRenderer = memo(function MessageRenderer(
 
       case 'mie.system':
         return (
-          <div className="px-4">
+          <div className="px-[calc(var(--chat-gutter,0px)_+_1rem)]">
             <SystemMessageCard
               message={message}
               event={structured}
@@ -265,7 +265,7 @@ export const MessageRenderer = memo(function MessageRenderer(
 
       case 'mie.card':
         return (
-          <div className="px-4">
+          <div className="px-[calc(var(--chat-gutter,0px)_+_1rem)]">
             <UniversalCardRenderer
               cardId={structured.cardId}
               version={structured.version}

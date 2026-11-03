@@ -8,6 +8,7 @@ export {
   useNotificationDisplayPreferences,
   useNotificationSoundPreferences,
   useMessageDensity,
+  useChatContentWidth,
   useOpenChatPosition,
   useReadReceipts,
   useNotificationPosition,
@@ -77,6 +78,3 @@ export {
   DOWNLOAD_SELECTED_OS_STORAGE_KEY,
   type AppDownloadState,
 } from './lib/store/app-download-slice.js';
-
-
-

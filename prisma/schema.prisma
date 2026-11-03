@@ -1321,6 +1321,8 @@ model ChatSettings {
   density                  String   @default("comfortable")
   /// Where the timeline lands when a conversation opens: `last-read` | `newest`.
   openPosition             String   @default("last-read")
+  /// Max width of the timeline + composer column: `narrow` | `medium` | `full`.
+  contentWidth             String   @default("full")
   showReadReceipts         Boolean  @default(true)
   sendTypingNotice         Boolean  @default(true)
   /// Show other people's typing indicators. Independent of `sendTypingNotice`,

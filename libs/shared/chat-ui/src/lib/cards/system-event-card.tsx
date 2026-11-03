@@ -588,7 +588,7 @@ export function SystemEventCard({
       data-message-id={message.id}
       aria-label={message.body}
       className={cn(
-        'group/message min-h-11 gap-4 px-4 py-1.5 text-sm relative flex items-center transition-colors hover:bg-accent/60',
+        'group/message min-h-11 gap-4 py-1.5 text-sm relative flex items-center px-[calc(var(--chat-gutter,0px)_+_1rem)] transition-colors hover:bg-accent/60',
         isHighlighted && 'border-l-2 border-l-primary',
       )}
     >

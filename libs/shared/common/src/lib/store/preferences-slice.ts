@@ -1,6 +1,7 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import {
   DEFAULT_NOTIFICATION_SOUND_PREFERENCES,
+  type ChatContentWidth,
   type ChatPreferences,
   type MessageDensity,
   type NotificationDismissDuration,
@@ -22,6 +23,7 @@ export const PREFERENCES_STORAGE_KEY = 'onetab:user_preferences';
 export const DEFAULT_CHAT_PREFERENCES: ChatPreferences = {
   messageDensity: 'comfy',
   openPosition: 'last-read',
+  contentWidth: 'full',
   readReceipts: true,
   enterToSend: true,
   sendTypingNotice: true,
@@ -46,19 +48,21 @@ const NOTIFICATION_SOUND_PROFILES: NotificationSoundProfile[] = [
   'crisp',
 ];
 
-export const DEFAULT_NOTIFICATION_DISPLAY_PREFERENCES: NotificationDisplayPreferences = {
-  showContentPreview: true,
-  showDuringCalls: true,
-  flashTaskbar: true,
-  dismissDuration: 5000,
-  position: 'bottom-right',
-  size: 'comfy',
-  sound: DEFAULT_NOTIFICATION_SOUND_PREFERENCES,
-};
+export const DEFAULT_NOTIFICATION_DISPLAY_PREFERENCES: NotificationDisplayPreferences =
+  {
+    showContentPreview: true,
+    showDuringCalls: true,
+    flashTaskbar: true,
+    dismissDuration: 5000,
+    position: 'bottom-right',
+    size: 'comfy',
+    sound: DEFAULT_NOTIFICATION_SOUND_PREFERENCES,
+  };
 
 function sanitizeSoundPreferences(raw: unknown): NotificationSoundPreferences {
   const base = DEFAULT_NOTIFICATION_SOUND_PREFERENCES;
-  if (!raw || typeof raw !== 'object') return { ...base, events: { ...base.events } };
+  if (!raw || typeof raw !== 'object')
+    return { ...base, events: { ...base.events } };
   const obj = raw as Record<string, unknown>;
 
   const enabled =
@@ -70,20 +74,21 @@ function sanitizeSoundPreferences(raw: unknown): NotificationSoundPreferences {
       ? Math.min(1, Math.max(0, rawVolume))
       : base.volume;
 
-  const profile: NotificationSoundProfile = NOTIFICATION_SOUND_PROFILES.includes(
-    obj['profile'] as NotificationSoundProfile,
-  )
-    ? (obj['profile'] as NotificationSoundProfile)
-    : base.profile;
+  const profile: NotificationSoundProfile =
+    NOTIFICATION_SOUND_PROFILES.includes(
+      obj['profile'] as NotificationSoundProfile,
+    )
+      ? (obj['profile'] as NotificationSoundProfile)
+      : base.profile;
 
   const onlyWhenUnfocused =
     typeof obj['onlyWhenUnfocused'] === 'boolean'
       ? obj['onlyWhenUnfocused']
       : base.onlyWhenUnfocused;
 
-  const rawEvents = (obj['events'] && typeof obj['events'] === 'object'
-    ? obj['events']
-    : {}) as Record<string, unknown>;
+  const rawEvents = (
+    obj['events'] && typeof obj['events'] === 'object' ? obj['events'] : {}
+  ) as Record<string, unknown>;
   const events = {} as NotificationSoundPreferences['events'];
   for (const key of NOTIFICATION_SOUND_EVENTS) {
     events[key] =
@@ -111,33 +116,46 @@ function sanitizePreferences(raw: unknown): UserPreferences {
   if (!raw || typeof raw !== 'object') return DEFAULT_USER_PREFERENCES;
   const obj = raw as Record<string, unknown>;
 
-  const chatObj = (obj['chat'] && typeof obj['chat'] === 'object'
-    ? obj['chat']
-    : {}) as Record<string, unknown>;
-  const notifObj = (obj['notifications'] && typeof obj['notifications'] === 'object'
-    ? obj['notifications']
-    : {}) as Record<string, unknown>;
+  const chatObj = (
+    obj['chat'] && typeof obj['chat'] === 'object' ? obj['chat'] : {}
+  ) as Record<string, unknown>;
+  const notifObj = (
+    obj['notifications'] && typeof obj['notifications'] === 'object'
+      ? obj['notifications']
+      : {}
+  ) as Record<string, unknown>;
 
   const density: MessageDensity =
     chatObj['messageDensity'] === 'compact' ? 'compact' : 'comfy';
   const openPos: OpenChatPosition =
     chatObj['openPosition'] === 'newest' ? 'newest' : 'last-read';
+  const contentWidth: ChatContentWidth =
+    chatObj['contentWidth'] === 'narrow' || chatObj['contentWidth'] === 'medium'
+      ? chatObj['contentWidth']
+      : 'full';
   const readReceipts =
-    typeof chatObj['readReceipts'] === 'boolean' ? chatObj['readReceipts'] : true;
+    typeof chatObj['readReceipts'] === 'boolean'
+      ? chatObj['readReceipts']
+      : true;
   const enterToSend =
     typeof chatObj['enterToSend'] === 'boolean' ? chatObj['enterToSend'] : true;
   const sendTypingNotice =
-    typeof chatObj['sendTypingNotice'] === 'boolean' ? chatObj['sendTypingNotice'] : true;
+    typeof chatObj['sendTypingNotice'] === 'boolean'
+      ? chatObj['sendTypingNotice']
+      : true;
   const showTypingIndicators =
     typeof chatObj['showTypingIndicators'] === 'boolean'
       ? chatObj['showTypingIndicators']
       : true;
   const mentionWarningsEnabled =
-    typeof chatObj['mentionWarningsEnabled'] === 'boolean' ? chatObj['mentionWarningsEnabled'] : true;
-  const allowDirectMessagesFrom =
-    ['everyone', 'members', 'admins'].includes(chatObj['allowDirectMessagesFrom'] as string)
-      ? (chatObj['allowDirectMessagesFrom'] as 'everyone' | 'members' | 'admins')
-      : 'everyone';
+    typeof chatObj['mentionWarningsEnabled'] === 'boolean'
+      ? chatObj['mentionWarningsEnabled']
+      : true;
+  const allowDirectMessagesFrom = ['everyone', 'members', 'admins'].includes(
+    chatObj['allowDirectMessagesFrom'] as string,
+  )
+    ? (chatObj['allowDirectMessagesFrom'] as 'everyone' | 'members' | 'admins')
+    : 'everyone';
   const linkPreviewsEnabled =
     typeof chatObj['linkPreviewsEnabled'] === 'boolean'
       ? chatObj['linkPreviewsEnabled']
@@ -157,7 +175,12 @@ function sanitizePreferences(raw: unknown): UserPreferences {
       : true;
 
   const validDurations: NotificationDismissDuration[] = [
-    3000, 5000, 10000, 15000, 30000, null,
+    3000,
+    5000,
+    10000,
+    15000,
+    30000,
+    null,
   ];
   const rawDuration = notifObj['dismissDuration'];
   const dismissDuration: NotificationDismissDuration = validDurations.includes(
@@ -188,6 +211,7 @@ function sanitizePreferences(raw: unknown): UserPreferences {
     chat: {
       messageDensity: density,
       openPosition: openPos,
+      contentWidth,
       readReceipts,
       enterToSend,
       sendTypingNotice,
@@ -247,7 +271,10 @@ export const preferencesSlice = createSlice({
       state.isLoadedFromServer = true;
       persistPreferencesLocally(state.preferences);
     },
-    updateChatPreferences(state, action: PayloadAction<Partial<ChatPreferences>>) {
+    updateChatPreferences(
+      state,
+      action: PayloadAction<Partial<ChatPreferences>>,
+    ) {
       state.preferences.chat = {
         ...state.preferences.chat,
         ...action.payload,

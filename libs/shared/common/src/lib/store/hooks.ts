@@ -1,7 +1,12 @@
 import { useCallback } from 'react';
-import { useDispatch, useSelector, type TypedUseSelectorHook } from 'react-redux';
+import {
+  useDispatch,
+  useSelector,
+  type TypedUseSelectorHook,
+} from 'react-redux';
 import type {
   ChatPreferences,
+  ChatContentWidth,
   MessageDensity,
   NotificationDismissDuration,
   NotificationDisplayPreferences,
@@ -46,8 +51,7 @@ export function useUserPreferences(): {
   );
 
   const handleUpdateChatPreferences = useCallback(
-    (patch: Partial<ChatPreferences>) =>
-      dispatch(updateChatPreferences(patch)),
+    (patch: Partial<ChatPreferences>) => dispatch(updateChatPreferences(patch)),
     [dispatch],
   );
 
@@ -136,6 +140,12 @@ export function useNotificationSoundPreferences(): {
 export function useMessageDensity(): MessageDensity {
   return useAppSelector(
     (state) => state.preferences.preferences.chat.messageDensity,
+  );
+}
+
+export function useChatContentWidth(): ChatContentWidth {
+  return useAppSelector(
+    (state) => state.preferences.preferences.chat.contentWidth ?? 'full',
   );
 }
 

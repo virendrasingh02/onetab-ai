@@ -269,6 +269,7 @@ export type UpdateUploadInput = z.infer<typeof updateUploadSchema>;
 export const chatPreferencesSchema = z.object({
   messageDensity: z.enum(['comfy', 'compact']).default('comfy'),
   openPosition: z.enum(['last-read', 'newest']).default('last-read'),
+  contentWidth: z.enum(['narrow', 'medium', 'full']).default('full'),
   readReceipts: z.boolean().default(true),
   linkPreviewsEnabled: z.boolean().default(true),
   enterToSend: z.boolean().default(true),
@@ -463,6 +464,7 @@ export const userPreferencesSchema = z.object({
   chat: chatPreferencesSchema.default({
     messageDensity: 'comfy',
     openPosition: 'last-read',
+    contentWidth: 'full',
     readReceipts: true,
     linkPreviewsEnabled: true,
     enterToSend: true,

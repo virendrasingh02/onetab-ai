@@ -2,23 +2,19 @@ import type { IsoDateString, ThemeConfig } from './entities.js';
 
 export type MessageDensity = 'comfy' | 'compact';
 export type OpenChatPosition = 'last-read' | 'newest';
+/** How wide the timeline + composer column may grow on large screens. */
+export type ChatContentWidth = 'narrow' | 'medium' | 'full';
 export type NotificationPosition =
-  | 'bottom-right'
-  | 'top-right'
-  | 'bottom-left'
-  | 'top-left';
+  'bottom-right' | 'top-right' | 'bottom-left' | 'top-left';
 export type NotificationSize = 'comfy' | 'compact';
 export type NotificationDismissDuration =
-  | 3000
-  | 5000
-  | 10000
-  | 15000
-  | 30000
-  | null;
+  3000 | 5000 | 10000 | 15000 | 30000 | null;
 
 export interface ChatPreferences {
   messageDensity: MessageDensity;
   openPosition: OpenChatPosition;
+  /** Caps the message column + composer width; `full` fills the pane. */
+  contentWidth?: ChatContentWidth;
   readReceipts: boolean;
   enterToSend?: boolean;
   sendTypingNotice?: boolean;
@@ -35,12 +31,7 @@ export interface ChatPreferences {
  * by salience — see {@link NOTIFICATION_SOUND_PRIORITY}.
  */
 export type NotificationSoundEvent =
-  | 'message'
-  | 'dm'
-  | 'mention'
-  | 'priority'
-  | 'call'
-  | 'success';
+  'message' | 'dm' | 'mention' | 'priority' | 'call' | 'success';
 
 /**
  * A curated set of tone palettes. Every profile stays soft, short and warm;
@@ -54,15 +45,17 @@ export type NotificationSoundProfile = 'calm' | 'warm' | 'crisp';
  * of events is grouped into one, and whether a sound may bypass the debounce
  * window. Higher number = higher priority.
  */
-export const NOTIFICATION_SOUND_PRIORITY: Record<NotificationSoundEvent, number> =
-  {
-    call: 100,
-    priority: 80,
-    mention: 60,
-    dm: 50,
-    success: 30,
-    message: 20,
-  };
+export const NOTIFICATION_SOUND_PRIORITY: Record<
+  NotificationSoundEvent,
+  number
+> = {
+  call: 100,
+  priority: 80,
+  mention: 60,
+  dm: 50,
+  success: 30,
+  message: 20,
+};
 
 /**
  * User-level, cross-workspace notification-sound preferences. Sits beside the

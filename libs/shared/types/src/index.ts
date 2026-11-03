@@ -294,7 +294,11 @@ export type {
   MetricDefinition,
 } from './lib/admin.js';
 
-export { isAIEntityType, nextAgentVersionTag, agentVersionLabel } from './lib/automation.js';
+export {
+  isAIEntityType,
+  nextAgentVersionTag,
+  agentVersionLabel,
+} from './lib/automation.js';
 
 export type {
   AIEntity,
@@ -425,6 +429,7 @@ export type {
   ActivityFeedItem,
   ChatPreferences,
   MessageDensity,
+  ChatContentWidth,
   NotificationDismissDuration,
   NotificationDisplayPreferences,
   NotificationKind,
@@ -612,4 +617,8 @@ export {
   resolveAiEntityColorId,
   resolveAiEntityIconId,
 } from './lib/ai-entity-identity.js';
-export type { AiEntityColorDef, AiEntityIconDef, AiEntityIdentity } from './lib/ai-entity-identity.js';
+export type {
+  AiEntityColorDef,
+  AiEntityIconDef,
+  AiEntityIdentity,
+} from './lib/ai-entity-identity.js';

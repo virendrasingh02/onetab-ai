@@ -1177,11 +1177,11 @@ export function ChatBubble({
           actionsPinned && 'bg-foreground/[0.035]',
           isCompact
             ? cn(
-                'chat-density-compact gap-x-2.5 px-3',
+                'chat-density-compact gap-x-2.5 px-[calc(var(--chat-gutter,0px)_+_0.75rem)]',
                 isGrouped && !isSaved ? 'py-0' : 'pt-1 pb-0.5',
               )
             : cn(
-                'chat-density-comfy gap-x-4 px-4',
+                'chat-density-comfy gap-x-4 px-[calc(var(--chat-gutter,0px)_+_1rem)]',
                 isGrouped && !isSaved ? 'py-0.5' : 'pt-2.5 pb-0.5',
               ),
           // Keep the tint on hover — the neutral hover wash used to wipe it.
@@ -1202,7 +1202,9 @@ export function ChatBubble({
         ) : null}
 
         {/* Shown for grouped messages too — saving is per message. */}
-        {isSaved ? <SavedForLaterLabel messageId={message.id} density={density} /> : null}
+        {isSaved ? (
+          <SavedForLaterLabel messageId={message.id} density={density} />
+        ) : null}
 
         <div
           ref={avatarRef}
@@ -1905,7 +1907,7 @@ export function MessageToolbarShell({
       role="toolbar"
       aria-label="Message actions"
       className={cn(
-        '-top-4.5 right-4 p-1 gap-1 bg-white ease-out animate-in fade-in-0 zoom-in-95 absolute z-20 items-center rounded-xl border border-border/80 shadow-md transition-all duration-200 hover:shadow-lg dark:bg-surface-raised',
+        '-top-4.5 p-1 gap-1 bg-white ease-out animate-in fade-in-0 zoom-in-95 absolute right-[calc(var(--chat-gutter,0px)_+_1rem)] z-20 items-center rounded-xl border border-border/80 shadow-md transition-all duration-200 hover:shadow-lg dark:bg-surface-raised',
         visible
           ? 'flex'
           : 'hidden group-focus-within/message:flex group-hover/message:flex',

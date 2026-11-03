@@ -28,6 +28,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type Ref,
   type ReactNode,
 } from 'react';
@@ -43,6 +44,14 @@ import {
   setScrollAnchor,
   type ScrollAnchor,
 } from './scroll-position-store.js';
+
+/**
+ * Insets a row's content to the host's chat width (`--chat-gutter`, unset →
+ * no inset) while the row itself stays full width.
+ */
+const GUTTER_STYLE: CSSProperties = {
+  paddingInline: 'var(--chat-gutter, 0px)',
+};
 
 /** Stable default, so an absent prop does not rebuild the rows every render. */
 const NO_EPHEMERAL: readonly TimelineEphemeralItem[] = [];
@@ -1332,6 +1341,9 @@ export function MessageList({
          * conversation — welcome block and all — sits on the composer like
          * Slack's instead of hanging from the header. Once the history
          * overflows, the spacer collapses to nothing.
+         *
+         * Rows span the full width; the host's chat width setting centers
+         * their content through `--chat-gutter` (see `GUTTER_STYLE`).
          */
         contentClassName="flex flex-col"
         viewportProps={{
@@ -1376,7 +1388,9 @@ export function MessageList({
         ) : null}
 
         {/* Only once the history is exhausted is this actually the beginning. */}
-        {introSlot && !hasMore && !isLoadingOlder ? introSlot : null}
+        {introSlot && !hasMore && !isLoadingOlder ? (
+          <div style={GUTTER_STYLE}>{introSlot}</div>
+        ) : null}
 
         {/* Height and row `transform`s are written by the virtualizer itself
             (`directDomUpdates`), so they are deliberately absent here. */}
@@ -1399,6 +1413,9 @@ export function MessageList({
                   top: 0,
                   left: 0,
                   width: '100%',
+                  // Messages pad themselves so their hover tint stays
+                  // full-bleed; every other row is inset here.
+                  ...(row.kind === 'message' ? null : GUTTER_STYLE),
                 }}
               >
                 {row.kind === 'separator' ? (

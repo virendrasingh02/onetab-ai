@@ -732,6 +732,11 @@ export class UserService {
         messageDensity: density,
         openPosition:
           settings?.openPosition === 'newest' ? 'newest' : 'last-read',
+        contentWidth:
+          settings?.contentWidth === 'narrow' ||
+          settings?.contentWidth === 'medium'
+            ? settings.contentWidth
+            : 'full',
         readReceipts,
         enterToSend,
         sendTypingNotice,
@@ -785,6 +790,7 @@ export class UserService {
           userId,
           density: densityForDb,
           openPosition: updated.chat.openPosition ?? 'last-read',
+          contentWidth: updated.chat.contentWidth ?? 'full',
           showReadReceipts: updated.chat.readReceipts,
           enterToSend: updated.chat.enterToSend ?? true,
           sendTypingNotice: updated.chat.sendTypingNotice ?? true,
@@ -798,6 +804,7 @@ export class UserService {
         update: {
           density: densityForDb,
           openPosition: updated.chat.openPosition ?? 'last-read',
+          contentWidth: updated.chat.contentWidth ?? 'full',
           showReadReceipts: updated.chat.readReceipts,
           enterToSend: updated.chat.enterToSend ?? true,
           sendTypingNotice: updated.chat.sendTypingNotice ?? true,
