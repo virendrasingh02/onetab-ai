@@ -1591,10 +1591,16 @@ export function ChatSurface({
           mentionProfiles={mentionProfiles}
           isPinned={pinnedIds.includes(message.id)}
           isSaved={savedIds.includes(message.id)}
-          threadReplyCount={threadReplyCount(
-            replies.length,
-            threadSummaryById.get(message.id),
-          )}
+          // Inside the Thread panel the replies are listed right below the
+          // root (with their own count divider), so no "N replies" summary.
+          threadReplyCount={
+            inThread
+              ? undefined
+              : threadReplyCount(
+                  replies.length,
+                  threadSummaryById.get(message.id),
+                )
+          }
           showThreadConnector={!inThread}
           threadHasUnread={unreadThreadRoots.has(
             message.threadRootId ?? message.id,
