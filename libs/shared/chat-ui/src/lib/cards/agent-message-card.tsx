@@ -76,6 +76,7 @@ import { ReactionBar, reactionAddButtonClass } from '../reaction-bar.js';
 import { SavedForLaterLabel } from '../saved-for-later-label.js';
 import { executeStructuredAction } from './action-handler.js';
 import { useAiEntity, useAppEntity } from './agent-avatar-context.js';
+import { AgentRunProgress } from './agent-run-progress.js';
 import { ConnectAppsBlock } from './connect-apps-block.js';
 import { useAICardPreferencesStore } from './card-preferences-store.js';
 import { CardSettingsDialog } from './card-settings-dialog.js';
@@ -200,15 +201,11 @@ export function AgentMessageCard({
   const [debugModalOpen, setDebugModalOpen] = useState(false);
 
   // Progressive disclosure section states
-  const [toolsExpanded, setToolsExpanded] = useState(!prefs.collapseToolCalls);
   const [sourcesExpanded, setSourcesExpanded] = useState(
     !prefs.collapseSources,
   );
   const [reasoningExpanded, setReasoningExpanded] = useState(false);
   const [followUpSent, setFollowUpSent] = useState(false);
-  const [expandedToolIds, setExpandedToolIds] = useState<Set<string>>(
-    new Set(),
-  );
 
   // Connected apps (Asana, GitHub…) answer through this same card. Replies
   // posted before `agentKind` existed are recognised by their `App` role, and
@@ -341,15 +338,6 @@ export function AgentMessageCard({
         };
     }
   }, [event.status]);
-
-  const toggleToolDetails = (toolKey: string) => {
-    setExpandedToolIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(toolKey)) next.delete(toolKey);
-      else next.add(toolKey);
-      return next;
-    });
-  };
 
   const handleActionClick = async (action: StructuredMessageAction) => {
     if (onAction) {
@@ -713,71 +701,19 @@ export function AgentMessageCard({
             </div>
           </header>
 
-          {/* 2. LIVE / STREAMING EXECUTION PROGRESS */}
-          {isPending && (
-            <div
-              role="status"
-              aria-live="polite"
-              className="mt-2 text-xs animate-in fade-in-0 slide-in-from-bottom-1 duration-300"
-            >
-              <style>{`
-            @keyframes agent-status-shimmer {
-              from { background-position: 200% 0; }
-              to { background-position: -200% 0; }
-            }
-            .agent-status-text {
-              background-image: linear-gradient(90deg, currentColor 35%, var(--color-primary, #16a34a) 50%, currentColor 65%);
-              background-size: 200% 100%;
-              -webkit-background-clip: text;
-              background-clip: text;
-              -webkit-text-fill-color: transparent;
-              animation: agent-status-shimmer 2.2s linear infinite;
-            }
-            @media (prefers-reduced-motion: reduce) {
-              .agent-status-text { animation: none; -webkit-text-fill-color: currentColor; }
-            }
-          `}</style>
-              <span className="agent-status-text font-medium text-muted-foreground">
-                {event.status === 'queued' ? 'Waiting in queue' : 'Thinking'}
-                {event.tools?.some((t) => t.status === 'running')
-                  ? ' · using tools'
-                  : ''}
-                …
-              </span>
-
-              {/* Step Progression checklist */}
-              <div className="mt-2.5 space-y-1.5 text-xs font-mono empty:hidden">
-                {event.tools &&
-                  event.tools.length > 0 &&
-                  event.tools.map((t, idx) => (
-                    <div key={idx} className="gap-2 flex items-center">
-                      {t.status === 'success' ? (
-                        <Check className="size-3 text-success" />
-                      ) : t.status === 'running' ? (
-                        <Loader2 className="size-3 animate-spin text-primary" />
-                      ) : t.status === 'failed' ? (
-                        <XCircle className="size-3 text-destructive" />
-                      ) : (
-                        <span className="size-3 rounded-full border border-border text-center text-2xs leading-none">
-                          ○
-                        </span>
-                      )}
-                      <span
-                        className={cn(
-                          t.status === 'running' && 'font-bold text-primary',
-                        )}
-                      >
-                        {t.name}
-                      </span>
-                      {t.durationMs !== undefined && (
-                        <span className="ml-auto text-2xs text-muted-foreground">
-                          {formatDuration(t.durationMs)}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-              </div>
-            </div>
+          {/* 2. PROCESS STEPS — live while the agent works, then folded into
+          a "Worked for 14s · 3 steps" line above the reply. Tool calls live
+          here too, each inspectable from its step. */}
+          {(isPending || event.status === 'completed') && (
+            <AgentRunProgress
+              event={event}
+              fallbackStartedAt={message.timestamp}
+              hasContent={hasContent}
+              showTools={prefs.showTools}
+              openWhenDone={
+                !prefs.collapseToolCalls && Boolean(event.tools?.length)
+              }
+            />
           )}
 
           {/* 3. APPROVAL REQUIRED STATE BANNER */}
@@ -949,129 +885,6 @@ export function AgentMessageCard({
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-
-          {/* 9. TOOL EXECUTIONS ACCORDION */}
-          {prefs.showTools && event.tools && event.tools.length > 0 && (
-            <div className="mt-2">
-              {/* A quiet line under the answer, not a full-width bar that outweighs it. */}
-              <button
-                type="button"
-                aria-expanded={toolsExpanded}
-                onClick={() => setToolsExpanded((prev) => !prev)}
-                className="gap-1.5 px-1.5 py-0.5 -ml-1.5 text-xs inline-flex max-w-full cursor-pointer items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              >
-                <Terminal className="size-3 shrink-0" />
-                <span className="truncate">
-                  Used {event.tools.length}{' '}
-                  {event.tools.length === 1 ? 'tool' : 'tools'}
-                  {' · '}
-                  {event.tools.map((tool) => tool.name).join(', ')}
-                </span>
-                <ChevronDown
-                  className={cn(
-                    'size-3 shrink-0 transition-transform duration-200',
-                    toolsExpanded && 'rotate-180',
-                  )}
-                />
-              </button>
-
-              {toolsExpanded && (
-                <div className="mt-1.5 p-3 space-y-2 rounded-xl border border-border/80 bg-surface-raised">
-                  {event.tools.map((tool, idx) => {
-                    const toolKey = tool.id || `tool-${idx}`;
-                    const isDetailOpen = expandedToolIds.has(toolKey);
-
-                    return (
-                      <div
-                        key={toolKey}
-                        className="p-2.5 text-xs rounded-lg border border-border bg-surface font-mono"
-                      >
-                        <div className="gap-2 flex items-center justify-between">
-                          <div className="gap-2 min-w-0 flex items-center">
-                            {tool.status === 'success' ? (
-                              <Check className="size-3 shrink-0 text-success" />
-                            ) : tool.status === 'running' ? (
-                              <Loader2 className="size-3 animate-spin shrink-0 text-primary" />
-                            ) : (
-                              <XCircle className="size-3 shrink-0 text-destructive" />
-                            )}
-                            <span className="font-semibold truncate text-foreground">
-                              {tool.name}
-                            </span>
-                          </div>
-
-                          <div className="gap-2 flex shrink-0 items-center">
-                            {tool.durationMs !== undefined && (
-                              <span className="text-2xs text-muted-foreground">
-                                {formatDuration(tool.durationMs)}
-                              </span>
-                            )}
-                            {(tool.input || tool.output || tool.error) && (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => toggleToolDetails(toolKey)}
-                                className="h-5 px-1.5 text-2xs text-muted-foreground hover:text-foreground"
-                              >
-                                {isDetailOpen ? 'Hide' : 'Inspect'}
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-
-                        {isDetailOpen && (
-                          <div className="mt-2 pt-2 space-y-2 text-xs border-t border-border/60">
-                            {Boolean(tool.input) && (
-                              <div>
-                                <span className="font-bold mb-1 block text-2xs text-muted-foreground uppercase">
-                                  Input
-                                </span>
-                                <CodeBlock
-                                  variant="compact"
-                                  language="json"
-                                  code={
-                                    typeof tool.input === 'string'
-                                      ? tool.input
-                                      : JSON.stringify(tool.input, null, 2)
-                                  }
-                                />
-                              </div>
-                            )}
-
-                            {Boolean(tool.output) && (
-                              <div>
-                                <span className="font-bold mb-1 block text-2xs text-muted-foreground uppercase">
-                                  Output
-                                </span>
-                                <CodeBlock
-                                  variant="compact"
-                                  language="json"
-                                  code={
-                                    typeof tool.output === 'string'
-                                      ? tool.output
-                                      : JSON.stringify(tool.output, null, 2)
-                                  }
-                                />
-                              </div>
-                            )}
-
-                            {tool.error && (
-                              <div className="font-sans text-destructive">
-                                <span className="font-bold block text-2xs uppercase">
-                                  Error
-                                </span>
-                                <p className="mt-0.5">{tool.error}</p>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
             </div>
           )}
 

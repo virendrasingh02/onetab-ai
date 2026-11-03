@@ -182,3 +182,92 @@ describe('AgentMessageCard — apps to connect', () => {
     expect(onRetry).toHaveBeenCalled();
   });
 });
+
+describe('AgentMessageCard — process steps', () => {
+  it('shows the steps open while the agent works, current step live', () => {
+    renderCard(
+      createEvent({
+        status: 'running',
+        responseText: undefined,
+        tools: [
+          { name: 'gmail.search_messages', status: 'success', durationMs: 850 },
+          { name: 'Collect Sources', status: 'running' },
+        ],
+      }),
+    );
+
+    const header = screen.getByRole('button', { name: /working on it/i });
+    expect(header).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Got your message')).toBeInTheDocument();
+    expect(screen.getByText('Gmail search messages')).toBeInTheDocument();
+    expect(screen.getByText('850ms')).toBeInTheDocument();
+    expect(screen.getByText(/\(in progress\)/)).toBeInTheDocument();
+    expect(screen.getByText('Writing the reply')).toBeInTheDocument();
+
+    // Collapsed mid-run, the header carries the current step instead.
+    fireEvent.click(header);
+    expect(screen.queryByText('Got your message')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /using collect sources/i }),
+    ).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('folds a finished run into "Worked for …" above the reply', () => {
+    renderCard(createEvent({ agentName: 'Writer', durationMs: 14_200 }));
+
+    const summary = screen.getByRole('button', {
+      name: /worked for 14s · 3 steps/i,
+    });
+    expect(summary).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Wrote the reply')).not.toBeInTheDocument();
+
+    fireEvent.click(summary);
+    expect(screen.getByText('Got your message')).toBeInTheDocument();
+    expect(screen.getByText('Understood your request')).toBeInTheDocument();
+    expect(screen.getByText('Wrote the reply')).toBeInTheDocument();
+  });
+
+  it('keeps tool calls in the steps, inspectable — no separate "Used N tools" line', () => {
+    renderCard(
+      createEvent({
+        agentName: 'Mailer',
+        durationMs: 2_400,
+        tools: [
+          {
+            name: 'gmail.search_messages',
+            status: 'success',
+            durationMs: 850,
+            input: { q: 'invoices' },
+            output: { count: 2 },
+          },
+          {
+            name: 'calendar.list',
+            status: 'failed',
+            error: 'Calendar is not connected',
+          },
+        ],
+      }),
+    );
+
+    expect(screen.queryByText(/^Used 2 tools/)).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: /worked for 2s · used 2 tools · 1 failed/i,
+      }),
+    );
+    expect(screen.getByText('Gmail search messages')).toBeInTheDocument();
+    expect(screen.getByText('850ms')).toBeInTheDocument();
+    expect(screen.getByText('Calendar list')).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Inspect Gmail search messages' }),
+    );
+    expect(screen.getByText('Input')).toBeInTheDocument();
+    expect(screen.getByText('Output')).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Inspect Calendar list' }),
+    );
+    expect(screen.getByText('Calendar is not connected')).toBeInTheDocument();
+  });
+});

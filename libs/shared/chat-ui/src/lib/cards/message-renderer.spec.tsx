@@ -94,7 +94,7 @@ describe('MessageRenderer', () => {
 
     renderWithProviders(<MessageRenderer message={msg} isOwn={false} />);
 
-    expect(screen.getByText(/Thinking · using tools/i)).toBeInTheDocument();
+    expect(screen.getByText(/Working on it/i)).toBeInTheDocument();
     expect(screen.getByText('Collect Sources')).toBeInTheDocument();
   });
 
