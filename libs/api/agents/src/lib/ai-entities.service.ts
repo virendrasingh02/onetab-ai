@@ -35,7 +35,12 @@ import {
  * the runtime reads, `configuration.runtime`, and the builder's schedules.
  */
 interface GraphApplication {
-  columns: Partial<Pick<DerivedAgentConfig, 'name' | 'role' | 'description' | 'provider' | 'model' | 'systemPrompt'>> & {
+  columns: Partial<
+    Pick<
+      DerivedAgentConfig,
+      'name' | 'role' | 'description' | 'provider' | 'model' | 'systemPrompt'
+    >
+  > & {
     tools?: string[];
   };
   runtime: DerivedAgentConfig['runtime'];
@@ -46,12 +51,51 @@ interface GraphApplication {
 /** Every coworker carries the same default glyph until it is given a photo or another preset. */
 const DEFAULT_COWORKER_AVATAR = 'icon:bot';
 
-function resolveAvatarUrl(row: { type: string; avatarUrl: string | null }): string | null {
-  return row.avatarUrl ?? (row.type === 'coworker' ? DEFAULT_COWORKER_AVATAR : null);
+function resolveAvatarUrl(row: {
+  type: string;
+  avatarUrl: string | null;
+}): string | null {
+  return (
+    row.avatarUrl ?? (row.type === 'coworker' ? DEFAULT_COWORKER_AVATAR : null)
+  );
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+/** The sampling settings in `configuration.runtime` that need a paid plan. */
+const PAID_RUNTIME_KEYS = ['temperature', 'maxTokens'] as const;
+
+/**
+ * Whether an update changes what the Free plan doesn't allow: the provider,
+ * the model or the sampling settings. Clients send the whole (merged)
+ * configuration and echo the saved model, so only a real change counts —
+ * archiving, trashing or retagging an agent must still work on Free.
+ */
+export function changesPaidModelSettings(
+  dto: {
+    provider?: string | null;
+    model?: string | null;
+    configuration?: unknown;
+  },
+  saved: {
+    provider: string | null;
+    model: string | null;
+    configuration: unknown;
+  },
+): boolean {
+  if (dto.provider !== undefined && dto.provider !== saved.provider)
+    return true;
+  if (dto.model !== undefined && dto.model !== saved.model) return true;
+  if (dto.configuration === undefined) return false;
+  const next = asRecord(asRecord(dto.configuration)['runtime']);
+  const prev = asRecord(asRecord(saved.configuration)['runtime']);
+  return PAID_RUNTIME_KEYS.some(
+    (key) => next[key] !== undefined && next[key] !== prev[key],
+  );
 }
 
 function parsePermissions(value: unknown): CoworkerPermissions {
@@ -111,8 +155,17 @@ export class AIEntitiesService {
   ) {}
 
   /** Tells every open tab this agent/coworker changed (realtime `agent.updated`). */
-  private emitChange(workspaceId: string, agentId: string, action: AgentChangeAction) {
-    this.events?.emit(AppEvent.AgentChanged, { workspaceId, agentId, kind: 'entity', action });
+  private emitChange(
+    workspaceId: string,
+    agentId: string,
+    action: AgentChangeAction,
+  ) {
+    this.events?.emit(AppEvent.AgentChanged, {
+      workspaceId,
+      agentId,
+      kind: 'entity',
+      action,
+    });
   }
 
   async getEntities(workspaceId: string, type?: AIEntityType) {
@@ -182,13 +235,20 @@ export class AIEntitiesService {
   /** The people behind these entities, so cards show a real owner rather than free text. */
   private async ownersById(ids: Array<string | null>) {
     const unique = [...new Set(ids.filter((id): id is string => !!id))];
-    if (!unique.length) return new Map<string, { id: string; name: string; avatarUrl: string | null }>();
+    if (!unique.length)
+      return new Map<
+        string,
+        { id: string; name: string; avatarUrl: string | null }
+      >();
     const users = await this.prisma.user.findMany({
       where: { id: { in: unique } },
       select: { id: true, name: true, displayName: true, avatarUrl: true },
     });
     return new Map(
-      users.map((u) => [u.id, { id: u.id, name: u.displayName || u.name, avatarUrl: u.avatarUrl }]),
+      users.map((u) => [
+        u.id,
+        { id: u.id, name: u.displayName || u.name, avatarUrl: u.avatarUrl },
+      ]),
     );
   }
 
@@ -258,7 +318,13 @@ export class AIEntitiesService {
     if (dto.type === 'agent') {
       const sub = await this.prisma.workspaceSubscription.findUnique({
         where: { workspaceId },
-        select: { planTier: true, status: true, trialStatus: true, trialEnd: true, convertedAt: true },
+        select: {
+          planTier: true,
+          status: true,
+          trialStatus: true,
+          trialEnd: true,
+          convertedAt: true,
+        },
       });
 
       // An expired, unconverted trial falls back to Free limits rather than
@@ -283,9 +349,14 @@ export class AIEntitiesService {
 
     // Links are validated before anything is written, so a bad id fails the
     // whole create instead of leaving an entity half-linked.
-    if (dto.agentIds?.length) await this.assertLinkableAgents(workspaceId, dto.agentIds);
+    if (dto.agentIds?.length)
+      await this.assertLinkableAgents(workspaceId, dto.agentIds);
     if (dto.integrationIds?.length) {
-      await this.assertLinkableIntegrations(workspaceId, creatorId, dto.integrationIds);
+      await this.assertLinkableIntegrations(
+        workspaceId,
+        creatorId,
+        dto.integrationIds,
+      );
     }
 
     const defaultTools =
@@ -293,7 +364,9 @@ export class AIEntitiesService {
         ? ['search_docs', 'list_projects', 'list_tasks', 'list_channels']
         : ['search_docs', 'create_task'];
 
-    const graph = dto.graphJson ? await this.applyGraph(workspaceId, dto.graphJson, creatorId) : null;
+    const graph = dto.graphJson
+      ? await this.applyGraph(workspaceId, dto.graphJson, creatorId)
+      : null;
     const derived = graph?.columns ?? {};
 
     const entity = await this.prisma.aIAgent.create({
@@ -302,9 +375,14 @@ export class AIEntitiesService {
         creatorId,
         type: dto.type,
         name: dto.name,
-        role: dto.role ?? derived.role ?? (dto.type === 'coworker' ? 'Coworker' : 'Assistant'),
+        role:
+          dto.role ??
+          derived.role ??
+          (dto.type === 'coworker' ? 'Coworker' : 'Assistant'),
         description: dto.description ?? derived.description,
-        avatarUrl: dto.avatarUrl ?? (dto.type === 'coworker' ? DEFAULT_COWORKER_AVATAR : undefined),
+        avatarUrl:
+          dto.avatarUrl ??
+          (dto.type === 'coworker' ? DEFAULT_COWORKER_AVATAR : undefined),
         personality: dto.personality,
         welcomeMessage: dto.welcomeMessage,
         systemPrompt:
@@ -316,7 +394,9 @@ export class AIEntitiesService {
         systemInstructions: dto.systemInstructions ?? '',
         status: 'AVAILABLE',
         provider:
-          dto.provider ?? derived.provider ?? (process.env['AI_DEFAULT_PROVIDER'] || 'nvidia'),
+          dto.provider ??
+          derived.provider ??
+          (process.env['AI_DEFAULT_PROVIDER'] || 'nvidia'),
         model:
           dto.model ??
           derived.model ??
@@ -359,7 +439,9 @@ export class AIEntitiesService {
 
     this.emitChange(workspaceId, entity.id, 'created');
     const created = await this.getEntity(workspaceId, entity.id);
-    return graph?.warnings.length ? { ...created, warnings: graph.warnings } : created;
+    return graph?.warnings.length
+      ? { ...created, warnings: graph.warnings }
+      : created;
   }
 
   async updateEntity(
@@ -369,11 +451,16 @@ export class AIEntitiesService {
   ) {
     await this.assertEntity(workspaceId, entityId);
 
-    if (
+    const saved =
       dto.provider !== undefined ||
       dto.model !== undefined ||
       dto.configuration !== undefined
-    ) {
+        ? await this.prisma.aIAgent.findUnique({
+            where: { id: entityId },
+            select: { provider: true, model: true, configuration: true },
+          })
+        : null;
+    if (saved && changesPaidModelSettings(dto, saved)) {
       const sub = await this.prisma.workspaceSubscription.findUnique({
         where: { workspaceId },
         select: { planTier: true },
@@ -390,18 +477,27 @@ export class AIEntitiesService {
 
     const owner =
       dto.graphJson !== undefined
-        ? await this.prisma.aIAgent.findUnique({ where: { id: entityId }, select: { creatorId: true } })
+        ? await this.prisma.aIAgent.findUnique({
+            where: { id: entityId },
+            select: { creatorId: true },
+          })
         : null;
     const graph =
       dto.graphJson !== undefined
-        ? await this.applyGraph(workspaceId, dto.graphJson, owner?.creatorId ?? null)
+        ? await this.applyGraph(
+            workspaceId,
+            dto.graphJson,
+            owner?.creatorId ?? null,
+          )
         : null;
     const derived = graph?.columns ?? {};
     const existingConfiguration = graph
-      ? (((await this.prisma.aIAgent.findUnique({
-          where: { id: entityId },
-          select: { configuration: true },
-        }))?.configuration ?? {}) as Record<string, unknown>)
+      ? (((
+          await this.prisma.aIAgent.findUnique({
+            where: { id: entityId },
+            select: { configuration: true },
+          })
+        )?.configuration ?? {}) as Record<string, unknown>)
       : {};
 
     const updated = await this.prisma.aIAgent.update({
@@ -409,16 +505,27 @@ export class AIEntitiesService {
       data: {
         // Explicit fields win; the graph fills in what the caller left out.
         ...(derived.role !== undefined ? { role: derived.role } : {}),
-        ...(derived.description !== undefined ? { description: derived.description } : {}),
-        ...(derived.provider !== undefined ? { provider: derived.provider } : {}),
+        ...(derived.description !== undefined
+          ? { description: derived.description }
+          : {}),
+        ...(derived.provider !== undefined
+          ? { provider: derived.provider }
+          : {}),
         ...(derived.model !== undefined ? { model: derived.model } : {}),
-        ...(derived.systemPrompt !== undefined ? { systemPrompt: derived.systemPrompt } : {}),
-        ...(derived.tools !== undefined ? { tools: JSON.stringify(derived.tools) } : {}),
+        ...(derived.systemPrompt !== undefined
+          ? { systemPrompt: derived.systemPrompt }
+          : {}),
+        ...(derived.tools !== undefined
+          ? { tools: JSON.stringify(derived.tools) }
+          : {}),
         ...(graph && dto.configuration === undefined
           ? {
               configuration: {
                 ...existingConfiguration,
-                runtime: keepSavedMemoryPolicy(existingConfiguration['runtime'], graph.runtime),
+                runtime: keepSavedMemoryPolicy(
+                  existingConfiguration['runtime'],
+                  graph.runtime,
+                ),
               } as any,
             }
           : {}),
@@ -488,7 +595,9 @@ export class AIEntitiesService {
       where: { workspaceId },
       select: { planTier: true },
     });
-    const planAllowsModels = canUpgradeAgent(normalizePlanTier(sub?.planTier ?? 'free'));
+    const planAllowsModels = canUpgradeAgent(
+      normalizePlanTier(sub?.planTier ?? 'free'),
+    );
 
     const { runtime } = derived;
     const columns: GraphApplication['columns'] = {
@@ -501,7 +610,11 @@ export class AIEntitiesService {
     if (planAllowsModels) {
       if (derived.provider) columns.provider = derived.provider;
       if (derived.model) columns.model = derived.model;
-    } else if (derived.provider || derived.model || runtime.temperature !== undefined) {
+    } else if (
+      derived.provider ||
+      derived.model ||
+      runtime.temperature !== undefined
+    ) {
       delete runtime.temperature;
       delete runtime.maxTokens;
       warnings.push(
@@ -518,8 +631,12 @@ export class AIEntitiesService {
       const valid = new Set(found.map((f) => f.id));
       const missing = ids.filter((id) => !valid.has(id));
       if (missing.length) {
-        runtime.knowledge = runtime.knowledge.filter((k) => valid.has(k.knowledgeBaseId));
-        warnings.push(`${missing.length} knowledge source(s) no longer exist and were skipped.`);
+        runtime.knowledge = runtime.knowledge.filter((k) =>
+          valid.has(k.knowledgeBaseId),
+        );
+        warnings.push(
+          `${missing.length} knowledge source(s) no longer exist and were skipped.`,
+        );
       }
     }
 
@@ -530,9 +647,16 @@ export class AIEntitiesService {
     for (const output of runtime.outputs) {
       if (
         output.kind === 'channel' &&
-        !(await creatorCanPostToChannel(this.prisma, workspaceId, output.target, creatorId))
+        !(await creatorCanPostToChannel(
+          this.prisma,
+          workspaceId,
+          output.target,
+          creatorId,
+        ))
       ) {
-        warnings.push("An output channel isn't one this agent's creator can post in, so it was skipped.");
+        warnings.push(
+          "An output channel isn't one this agent's creator can post in, so it was skipped.",
+        );
         continue;
       }
       kept.push(output);
@@ -541,13 +665,19 @@ export class AIEntitiesService {
     runtime.outputs = runtime.outputs.filter((o) => {
       if (o.kind !== 'webhook') return true;
       const ok = /^https:\/\//i.test(o.target);
-      if (!ok) warnings.push('Webhook outputs must use an https:// URL; one was skipped.');
+      if (!ok)
+        warnings.push(
+          'Webhook outputs must use an https:// URL; one was skipped.',
+        );
       return ok;
     });
 
     const schedules = runtime.schedules.filter((sch) => {
       const ok = /^(\S+\s+){4}\S+$/.test(sch.cronExpression.trim());
-      if (!ok) warnings.push(`'${sch.cronExpression}' is not a 5-field cron expression; that schedule was skipped.`);
+      if (!ok)
+        warnings.push(
+          `'${sch.cronExpression}' is not a 5-field cron expression; that schedule was skipped.`,
+        );
       return ok;
     });
     runtime.schedules = schedules;
@@ -556,9 +686,14 @@ export class AIEntitiesService {
   }
 
   /** Replaces the schedules the builder owns; API-created schedules are untouched. */
-  private async syncBuilderSchedules(agentId: string, schedules: AgentScheduleSpec[]) {
+  private async syncBuilderSchedules(
+    agentId: string,
+    schedules: AgentScheduleSpec[],
+  ) {
     await this.prisma.$transaction([
-      this.prisma.agentSchedule.deleteMany({ where: { agentId, source: 'builder' } }),
+      this.prisma.agentSchedule.deleteMany({
+        where: { agentId, source: 'builder' },
+      }),
       ...(schedules.length
         ? [
             this.prisma.agentSchedule.createMany({
@@ -617,13 +752,19 @@ export class AIEntitiesService {
     });
   }
 
-  async linkApp(workspaceId: string, coworkerId: string, integrationId: string) {
+  async linkApp(
+    workspaceId: string,
+    coworkerId: string,
+    integrationId: string,
+  ) {
     await this.assertEntity(workspaceId, coworkerId);
     const entity = await this.prisma.aIAgent.findUniqueOrThrow({
       where: { id: coworkerId },
       select: { creatorId: true },
     });
-    await this.assertLinkableIntegrations(workspaceId, entity.creatorId, [integrationId]);
+    await this.assertLinkableIntegrations(workspaceId, entity.creatorId, [
+      integrationId,
+    ]);
     return this.prisma.coworkerApp.upsert({
       where: { coworkerId_integrationId: { coworkerId, integrationId } },
       create: { coworkerId, integrationId },
@@ -631,7 +772,11 @@ export class AIEntitiesService {
     });
   }
 
-  async unlinkApp(workspaceId: string, coworkerId: string, integrationId: string) {
+  async unlinkApp(
+    workspaceId: string,
+    coworkerId: string,
+    integrationId: string,
+  ) {
     await this.assertEntity(workspaceId, coworkerId);
     await this.prisma.coworkerApp.deleteMany({
       where: { coworkerId, integrationId },
@@ -645,7 +790,9 @@ export class AIEntitiesService {
       where: { id: { in: unique }, workspaceId, type: 'agent' },
     });
     if (found !== unique.length) {
-      throw new BadRequestException('Some of those agents are not in this workspace.');
+      throw new BadRequestException(
+        'Some of those agents are not in this workspace.',
+      );
     }
   }
 
@@ -709,7 +856,11 @@ export class AIEntitiesService {
     });
   }
 
-  async deleteSchedule(workspaceId: string, entityId: string, scheduleId: string): Promise<void> {
+  async deleteSchedule(
+    workspaceId: string,
+    entityId: string,
+    scheduleId: string,
+  ): Promise<void> {
     await this.assertEntity(workspaceId, entityId);
     await this.prisma.agentSchedule.deleteMany({
       where: { id: scheduleId, agentId: entityId },
@@ -756,12 +907,22 @@ export class AIEntitiesService {
    * advisory lock, re-reading inside it; the common case (nothing to do) is
    * one read and no transaction.
    */
-  async initializeDefaultCoworkers(workspaceId: string, creatorId?: string): Promise<void> {
+  async initializeDefaultCoworkers(
+    workspaceId: string,
+    creatorId?: string,
+  ): Promise<void> {
     try {
-      if (!this.coworkerSeedWork(await this.readCoworkers(this.prisma, workspaceId))) return;
+      if (
+        !this.coworkerSeedWork(
+          await this.readCoworkers(this.prisma, workspaceId),
+        )
+      )
+        return;
       await this.prisma.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`coworker-seed:${workspaceId}`}))`;
-        const work = this.coworkerSeedWork(await this.readCoworkers(tx, workspaceId));
+        const work = this.coworkerSeedWork(
+          await this.readCoworkers(tx, workspaceId),
+        );
         if (!work) return;
         for (const row of work.needGrants) {
           await tx.aIAgent.update({
@@ -769,13 +930,18 @@ export class AIEntitiesService {
             data: {
               permissions: {
                 ...row.permissions,
-                allowActions: [...(row.template.permissions.allowActions ?? [])],
+                allowActions: [
+                  ...(row.template.permissions.allowActions ?? []),
+                ],
               } as Prisma.InputJsonValue,
             },
           });
         }
         for (const row of work.needIdentity) {
-          await tx.aIAgent.update({ where: { id: row.id }, data: { avatarUrl: row.avatarUrl } });
+          await tx.aIAgent.update({
+            where: { id: row.id },
+            data: { avatarUrl: row.avatarUrl },
+          });
         }
         for (const { row, template } of work.adopt) {
           // Same coworker, same name/prompt/grants — it now fills this default's
@@ -790,7 +956,9 @@ export class AIEntitiesService {
               } as Prisma.InputJsonValue,
             },
           });
-          this.logger.log(`Coworker '${row.name}' now fills the default '${template.name}' role in workspace ${workspaceId}`);
+          this.logger.log(
+            `Coworker '${row.name}' now fills the default '${template.name}' role in workspace ${workspaceId}`,
+          );
         }
         for (const template of work.missing) {
           await tx.aIAgent.create({
@@ -806,10 +974,13 @@ export class AIEntitiesService {
               systemPrompt: template.systemPrompt,
               systemInstructions: template.systemInstructions,
               status: 'AVAILABLE',
-              avatarUrl: coworkerTemplateAvatar(template.key) ?? DEFAULT_COWORKER_AVATAR,
+              avatarUrl:
+                coworkerTemplateAvatar(template.key) ?? DEFAULT_COWORKER_AVATAR,
               // Same default a hand-made coworker gets — not the column's `ollama` placeholder.
               provider: process.env['AI_DEFAULT_PROVIDER'] || 'nvidia',
-              model: process.env['AI_DEFAULT_MODEL'] || 'nvidia/nemotron-3-super-120b-a12b',
+              model:
+                process.env['AI_DEFAULT_MODEL'] ||
+                'nvidia/nemotron-3-super-120b-a12b',
               tools: JSON.stringify(template.tools),
               permissions: { ...template.permissions } as Prisma.InputJsonValue,
               configuration: {
@@ -819,18 +990,31 @@ export class AIEntitiesService {
               },
             },
           });
-          this.logger.log(`Initialized default coworker '${template.name}' in workspace ${workspaceId}`);
+          this.logger.log(
+            `Initialized default coworker '${template.name}' in workspace ${workspaceId}`,
+          );
         }
       });
     } catch (error) {
-      this.logger.warn(`Failed to initialize default coworkers for workspace ${workspaceId}: ${String(error)}`);
+      this.logger.warn(
+        `Failed to initialize default coworkers for workspace ${workspaceId}: ${String(error)}`,
+      );
     }
   }
 
-  private readCoworkers(db: Pick<PrismaService, 'aIAgent'>, workspaceId: string) {
+  private readCoworkers(
+    db: Pick<PrismaService, 'aIAgent'>,
+    workspaceId: string,
+  ) {
     return db.aIAgent.findMany({
       where: { workspaceId, type: 'coworker' },
-      select: { id: true, name: true, avatarUrl: true, permissions: true, configuration: true },
+      select: {
+        id: true,
+        name: true,
+        avatarUrl: true,
+        permissions: true,
+        configuration: true,
+      },
       // Oldest first, so adoption picks the longest-standing coworker.
       orderBy: { createdAt: 'asc' },
     });
@@ -838,21 +1022,41 @@ export class AIEntitiesService {
 
   /** What seeding still has to do, or null when the workspace is up to date. */
   private coworkerSeedWork(
-    existing: Array<{ id: string; name: string; avatarUrl?: string | null; permissions: unknown; configuration: unknown }>,
+    existing: Array<{
+      id: string;
+      name: string;
+      avatarUrl?: string | null;
+      permissions: unknown;
+      configuration: unknown;
+    }>,
   ) {
-    const needGrants: Array<{ id: string; permissions: Record<string, unknown>; template: CoworkerTemplate }> = [];
+    const needGrants: Array<{
+      id: string;
+      permissions: Record<string, unknown>;
+      template: CoworkerTemplate;
+    }> = [];
     // Defaults still on the old shared look (no avatar, or the untouched `icon:bot`)
     // take their template's own identity; anything someone picked is left alone.
     const needIdentity: Array<{ id: string; avatarUrl: string }> = [];
     for (const row of existing) {
-      const template = getCoworkerTemplate(coworkerTemplateKey(row.configuration));
+      const template = getCoworkerTemplate(
+        coworkerTemplateKey(row.configuration),
+      );
       const permissions =
-        row.permissions && typeof row.permissions === 'object' && !Array.isArray(row.permissions)
+        row.permissions &&
+        typeof row.permissions === 'object' &&
+        !Array.isArray(row.permissions)
           ? (row.permissions as Record<string, unknown>)
           : {};
-      if (template && !('allowActions' in permissions)) needGrants.push({ id: row.id, permissions, template });
-      const identity = template ? coworkerTemplateAvatar(template.key) : undefined;
-      if (identity && (!row.avatarUrl || row.avatarUrl === DEFAULT_COWORKER_AVATAR)) {
+      if (template && !('allowActions' in permissions))
+        needGrants.push({ id: row.id, permissions, template });
+      const identity = template
+        ? coworkerTemplateAvatar(template.key)
+        : undefined;
+      if (
+        identity &&
+        (!row.avatarUrl || row.avatarUrl === DEFAULT_COWORKER_AVATAR)
+      ) {
         needIdentity.push({ id: row.id, avatarUrl: identity });
       }
     }
@@ -860,30 +1064,53 @@ export class AIEntitiesService {
     const unfilled = COWORKER_TEMPLATES.filter(
       (t) =>
         t.seedByDefault &&
-        !existing.some((e) => coworkerTemplateKey(e.configuration) === t.key || e.name === t.name),
+        !existing.some(
+          (e) =>
+            coworkerTemplateKey(e.configuration) === t.key || e.name === t.name,
+        ),
     );
     // An unfilled default adopts the oldest coworker made from a template it
     // replaces (Finance → Ledger) rather than seeding a near-duplicate.
-    const adopt: Array<{ row: { id: string; name: string; configuration: Record<string, unknown> }; template: CoworkerTemplate }> = [];
+    const adopt: Array<{
+      row: { id: string; name: string; configuration: Record<string, unknown> };
+      template: CoworkerTemplate;
+    }> = [];
     const missing: CoworkerTemplate[] = [];
     const claimed = new Set<string>();
     for (const template of unfilled) {
       const candidate = existing.find(
-        (e) => !claimed.has(e.id) && (template.adopts ?? []).includes(coworkerTemplateKey(e.configuration) as CoworkerTemplateKey),
+        (e) =>
+          !claimed.has(e.id) &&
+          (template.adopts ?? []).includes(
+            coworkerTemplateKey(e.configuration) as CoworkerTemplateKey,
+          ),
       );
       if (candidate) {
         claimed.add(candidate.id);
-        adopt.push({ row: { id: candidate.id, name: candidate.name, configuration: asRecord(candidate.configuration) }, template });
+        adopt.push({
+          row: {
+            id: candidate.id,
+            name: candidate.name,
+            configuration: asRecord(candidate.configuration),
+          },
+          template,
+        });
       } else {
         missing.push(template);
       }
     }
-    return needGrants.length || needIdentity.length || missing.length || adopt.length
+    return needGrants.length ||
+      needIdentity.length ||
+      missing.length ||
+      adopt.length
       ? { needGrants, needIdentity, missing, adopt }
       : null;
   }
 
-  async seedInitialCoworkers(workspaceId: string, creatorId?: string): Promise<void> {
+  async seedInitialCoworkers(
+    workspaceId: string,
+    creatorId?: string,
+  ): Promise<void> {
     return this.initializeDefaultCoworkers(workspaceId, creatorId);
   }
 
