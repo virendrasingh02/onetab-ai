@@ -1,5 +1,9 @@
 import { agentsApi } from '@org/api-client';
-import { agentService, DEFAULT_AGENT_MODEL } from '../services/agentService.js';
+import {
+  agentLifecycleStatus,
+  agentService,
+  DEFAULT_AGENT_MODEL,
+} from '../services/agentService.js';
 import {
   FilterChips,
   Button,
@@ -19,7 +23,6 @@ import {
   LoadingState,
   SearchInput,
   toast,
-  UserAvatar,
   AppSelect,
   Label,
   Textarea,
@@ -29,7 +32,6 @@ import {
   formatAiEntityIconAvatar,
   parseAiEntityAvatar,
 } from '@org/ui';
-import { cn } from '@org/utils';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowRight,
@@ -63,6 +65,11 @@ import {
 } from '../components/workflow-canvas/agent-config/use-agent-config-data.js';
 import { SectionHeader } from '../components/section-tabs.js';
 import { ListToolbar } from '../components/list-toolbar.js';
+import {
+  EntityCard,
+  EntityChips,
+  EntityCount,
+} from '../components/common/entity-card.js';
 
 const STATUS_FILTERS = [
   'all',
@@ -110,6 +117,14 @@ function agentSummary(agent: {
   if (description) return description;
   const prompt = agent.systemPrompt?.trim();
   return prompt && prompt !== DEFAULT_SYSTEM_PROMPT ? prompt : '';
+}
+
+/** In Trash: soft-deleted agents carry `deletedAt` (top level or in configuration) or status "deleted". */
+function isAgentDeleted(agent: any): boolean {
+  const config = agent.configuration || {};
+  return (
+    Boolean(agent.deletedAt || config.deletedAt) || config.status === 'deleted'
+  );
 }
 
 function countTools(tools: string | null | undefined): number {
@@ -451,10 +466,9 @@ export function AgentsListPage() {
   const filteredAgents = useMemo(() => {
     return rawAgents.filter((agent: any) => {
       const config = agent.configuration || {};
-      const status: AgentStatus = config.status || 'draft';
+      const status = agentLifecycleStatus(agent) as AgentStatus;
       const env: AgentEnvironment = config.environment || 'development';
-      const isDeleted =
-        Boolean(agent.deletedAt) || status === ('deleted' as any);
+      const isDeleted = isAgentDeleted(agent);
 
       // Trash tab
       if (filterTab === 'trash') {
@@ -499,10 +513,9 @@ export function AgentsListPage() {
     return Array.from(new Set([...DEFAULT_CATEGORIES, ...fromAgents]));
   }, [rawAgents]);
 
-  const deletedAgentsCount = rawAgents.filter(
-    (a: any) => Boolean(a.deletedAt) || a.configuration?.status === 'deleted',
-  ).length;
-  const liveAgents = rawAgents.filter((a: any) => !a.deletedAt);
+  // Trash counts on its own; "All" and the header count only what's live.
+  const deletedAgentsCount = rawAgents.filter(isAgentDeleted).length;
+  const liveAgents = rawAgents.filter((a: any) => !isAgentDeleted(a));
 
   if (isLoading) {
     return <LoadingState label="Loading workspace agents…" />;
@@ -608,8 +621,7 @@ export function AgentsListPage() {
                   tab === 'all'
                     ? liveAgents.length
                     : liveAgents.filter(
-                        (a: any) =>
-                          (a.configuration?.status || 'draft') === tab,
+                        (a: any) => agentLifecycleStatus(a) === tab,
                       ).length,
               })),
               ...(deletedAgentsCount > 0 || filterTab === 'trash'
@@ -659,341 +671,248 @@ export function AgentsListPage() {
           <div className="gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 grid grid-cols-1">
             {filteredAgents.map((agent: any) => {
               const config = agent.configuration || {};
-              const status: AgentStatus = config.status || 'draft';
+              const status = agentLifecycleStatus(agent) as AgentStatus;
               const env: AgentEnvironment = config.environment || 'development';
               const tags = config.tags || [];
               // The creator's real profile from the API; the free-text name only covers older agents.
               const owner =
                 agent.owner ||
                 (config.owner?.name ? { name: config.owner.name } : null);
-              const isDeleted =
-                Boolean(agent.deletedAt) || status === ('deleted' as any);
+              const isDeleted = isAgentDeleted(agent);
               const toolsCount = countTools(agent.tools);
-              const description = agentSummary(agent);
-              const extraTags = Math.max(0, tags.length - 2);
 
               return (
-                <div
+                <EntityCard
                   key={agent.id}
-                  className={cn(
-                    'group p-4 relative flex flex-col rounded-xl border border-border bg-surface transition-all',
-                    isDeleted
-                      ? 'opacity-80'
-                      : 'hover:border-border-strong hover:shadow-md',
-                  )}
-                >
-                  {/* The whole card opens the canvas; controls sit above this layer (`relative z-10`). */}
-                  {!isDeleted && (
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/agents/${agent.id}`)}
-                      aria-label={`Open ${agent.name} in Studio`}
-                      className="inset-0 absolute rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  name={agent.name}
+                  avatar={<AgentAvatar agent={agent} size="lg" />}
+                  status={
+                    <AIEntityStatusBadge
+                      status={isDeleted ? 'trash' : status}
                     />
-                  )}
-
-                  <div className="gap-3 flex items-start">
-                    <AgentAvatar agent={agent} size="lg" />
-                    <div className="min-w-0 flex-1">
-                      <h3
-                        className="text-sm font-semibold truncate text-foreground"
-                        title={agent.name}
-                      >
-                        {agent.name}
-                      </h3>
-                      <div className="mt-1 min-w-0 gap-1.5 text-xs flex items-center text-muted-foreground">
-                        <AIEntityStatusBadge
-                          status={isDeleted ? 'trash' : status}
-                          className="shrink-0"
-                        />
-                        <span className="truncate">
-                          {agent.role || 'Assistant'}
-                          <span aria-hidden> · </span>
-                          {ENV_LABEL[env]}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="-mr-1 -mt-1 relative z-10 shrink-0">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            aria-label={`Actions for ${agent.name}`}
-                            className="size-7 text-muted-foreground hover:text-foreground"
-                          >
-                            <MoreVertical className="size-3.5" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                          align="end"
-                          className="w-48 text-xs"
-                        >
-                          {!isDeleted ? (
-                            <>
-                              <DropdownMenuItem
-                                onClick={() => navigate(`/agents/${agent.id}`)}
-                              >
-                                <Edit2 className="size-3.5 mr-2 text-primary" />{' '}
-                                Open Canvas Builder
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => navigate(`/chat/${agent.id}`)}
-                              >
-                                <MessageSquare className="size-3.5 mr-2 text-accent-blue" />{' '}
-                                Open Chat Interface
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setRenameAgentTarget(agent);
-                                  setRenameNameInput(agent.name);
-                                }}
-                              >
-                                <Tag className="size-3.5 mr-2" /> Rename Agent
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleDuplicate(agent)}
-                              >
-                                <Copy className="size-3.5 mr-2" /> Duplicate
-                                Agent
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleExportAgent(agent)}
-                              >
-                                <Download className="size-3.5 mr-2" /> Export
-                                JSON
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-
-                              {/* Status Sub-menu */}
-                              <div className="px-2 py-1 font-semibold text-2xs text-muted-foreground uppercase">
-                                Change Status
-                              </div>
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  updateStatusMutation.mutate({
-                                    agentId: agent.id,
-                                    status: 'draft',
-                                  })
-                                }
-                              >
-                                Mark as Draft
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  updateStatusMutation.mutate({
-                                    agentId: agent.id,
-                                    status: 'testing',
-                                  })
-                                }
-                              >
-                                Mark as Testing
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={async () => {
-                                  const ok = await confirm({
-                                    title: `Publish “${agent.name}”?`,
-                                    description:
-                                      'Published agents go live and can be called by anyone with access, including via API keys and webhooks.',
-                                    confirmLabel: 'Publish',
-                                    tone: 'warning',
-                                  });
-                                  if (ok)
-                                    updateStatusMutation.mutate({
-                                      agentId: agent.id,
-                                      status: 'published',
-                                    });
-                                }}
-                              >
-                                Publish Agent
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={async () => {
-                                  const ok = await confirm({
-                                    title: `Pause “${agent.name}”?`,
-                                    description:
-                                      'It will stop responding to chats, schedules and triggers until you resume it.',
-                                    confirmLabel: 'Pause agent',
-                                    tone: 'warning',
-                                  });
-                                  if (ok)
-                                    updateStatusMutation.mutate({
-                                      agentId: agent.id,
-                                      status: 'paused',
-                                    });
-                                }}
-                              >
-                                Pause Agent
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={async () => {
-                                  const ok = await confirm({
-                                    title: `Archive “${agent.name}”?`,
-                                    description:
-                                      'It will stop running and be hidden from the active list. You can bring it back later.',
-                                    confirmLabel: 'Archive',
-                                    tone: 'warning',
-                                  });
-                                  if (ok)
-                                    updateStatusMutation.mutate({
-                                      agentId: agent.id,
-                                      status: 'archived',
-                                    });
-                                }}
-                              >
-                                Archive Agent
-                              </DropdownMenuItem>
-
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={async () => {
-                                  const ok = await confirm({
-                                    title: `Move “${agent.name}” to Trash?`,
-                                    description:
-                                      'It stops running immediately. You can restore it from Trash until it is deleted permanently.',
-                                    confirmLabel: 'Move to Trash',
-                                    tone: 'warning',
-                                  });
-                                  if (ok) deleteMutation.mutate(agent.id);
-                                }}
-                                className="text-destructive focus:text-destructive"
-                              >
-                                <Trash2 className="size-3.5 mr-2" /> Move to
-                                Trash
-                              </DropdownMenuItem>
-                            </>
-                          ) : (
-                            <>
-                              <DropdownMenuItem
-                                onClick={() => restoreMutation.mutate(agent.id)}
-                              >
-                                <RotateCcw className="size-3.5 mr-2 text-success" />{' '}
-                                Restore Agent
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={async () => {
-                                  const ok = await confirm({
-                                    title: `Permanently delete “${agent.name}”?`,
-                                    description:
-                                      'Its configuration, runs and history are erased. This can’t be undone.',
-                                    confirmLabel: 'Delete permanently',
-                                    destructive: true,
-                                    requireText: agent.name,
-                                  });
-                                  if (ok)
-                                    permanentDeleteMutation.mutate(agent.id);
-                                }}
-                                className="text-destructive focus:text-destructive"
-                              >
-                                <Trash2 className="size-3.5 mr-2" /> Delete
-                                Permanently
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-
-                  {/* Fixed two-line block so footers line up across a row. */}
-                  <p
-                    className={cn(
-                      'mt-3 min-h-10 text-xs leading-5 line-clamp-2',
-                      description
-                        ? 'text-muted-foreground'
-                        : 'text-muted-foreground/60 italic',
-                    )}
-                  >
-                    {description || 'No description yet'}
-                  </p>
-
-                  <div className="mb-4 mt-3 min-h-5 gap-1.5 flex flex-wrap items-center">
-                    {config.category && (
-                      <span className="px-2 py-0.5 font-medium rounded-md border border-border/60 bg-surface-raised text-2xs text-foreground">
-                        {config.category}
-                      </span>
-                    )}
-                    {tags.slice(0, 2).map((t: string) => (
-                      <span
-                        key={t}
-                        className="px-1.5 py-0.5 rounded-md bg-muted/40 text-2xs text-muted-foreground"
-                      >
-                        #{t}
-                      </span>
-                    ))}
-                    {extraTags > 0 && (
-                      <span
-                        className="text-2xs text-muted-foreground"
-                        title={tags
-                          .slice(2)
-                          .map((t: string) => `#${t}`)
-                          .join(' ')}
-                      >
-                        +{extraTags}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="gap-2 pt-3 mt-auto flex items-center border-t border-border/60">
-                    <div className="min-w-0 gap-2 text-xs flex flex-1 items-center overflow-hidden">
+                  }
+                  subtitle={`${agent.role || 'Assistant'} · ${ENV_LABEL[env]}`}
+                  description={agentSummary(agent)}
+                  chips={<EntityChips category={config.category} tags={tags} />}
+                  owner={owner}
+                  onOpen={
+                    isDeleted
+                      ? undefined
+                      : () => navigate(`/agents/${agent.id}`)
+                  }
+                  openLabel={`Open ${agent.name} in Studio`}
+                  dimmed={isDeleted}
+                  facts={
+                    <>
                       <AIEntityModel
                         model={agent.model || null}
                         provider={agent.provider || null}
                         className="min-w-0 shrink"
                       />
-                      <span
-                        className={cn(
-                          'gap-1 inline-flex shrink-0 items-center text-muted-foreground',
-                          !toolsCount && 'opacity-60',
-                        )}
+                      <EntityCount
+                        icon={<Wrench />}
+                        count={toolsCount}
+                        label={plural(toolsCount, 'tool')}
+                      />
+                    </>
+                  }
+                  actions={
+                    !isDeleted ? (
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        onClick={() => navigate(`/agents/${agent.id}`)}
+                        className="gap-1 text-xs"
                       >
-                        <Wrench className="size-3" aria-hidden />
-                        <span className="font-semibold text-foreground tabular-nums">
-                          {toolsCount}
-                        </span>
-                        {plural(toolsCount, 'tool')}
-                      </span>
-                    </div>
+                        Open{' '}
+                        <ArrowRight className="size-3 group-hover:translate-x-0.5 transition-transform" />
+                      </Button>
+                    ) : (
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        onClick={() => restoreMutation.mutate(agent.id)}
+                        className="gap-1 text-xs text-success hover:text-success/80"
+                      >
+                        <RotateCcw className="size-3" /> Restore
+                      </Button>
+                    )
+                  }
+                  menu={
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          aria-label={`Actions for ${agent.name}`}
+                          className="size-7 text-muted-foreground hover:text-foreground"
+                        >
+                          <MoreVertical className="size-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48 text-xs">
+                        {!isDeleted ? (
+                          <>
+                            <DropdownMenuItem
+                              onClick={() => navigate(`/agents/${agent.id}`)}
+                            >
+                              <Edit2 className="size-3.5 mr-2 text-primary" />{' '}
+                              Open Canvas Builder
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => navigate(`/chat/${agent.id}`)}
+                            >
+                              <MessageSquare className="size-3.5 mr-2 text-accent-blue" />{' '}
+                              Open Chat Interface
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setRenameAgentTarget(agent);
+                                setRenameNameInput(agent.name);
+                              }}
+                            >
+                              <Tag className="size-3.5 mr-2" /> Rename Agent
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleDuplicate(agent)}
+                            >
+                              <Copy className="size-3.5 mr-2" /> Duplicate Agent
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleExportAgent(agent)}
+                            >
+                              <Download className="size-3.5 mr-2" /> Export JSON
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
 
-                    <div className="gap-1 relative z-10 flex shrink-0 items-center">
-                      {owner?.name && (
-                        <span
-                          title={`Owner: ${owner.name}`}
-                          className="mr-1 inline-flex"
-                        >
-                          <UserAvatar
-                            name={owner.name}
-                            src={owner.avatarUrl ?? undefined}
-                            seed={owner.id ?? undefined}
-                            indicator={false}
-                            size="xs"
-                          />
-                        </span>
-                      )}
-                      {!isDeleted ? (
-                        <Button
-                          size="xs"
-                          variant="outline"
-                          onClick={() => navigate(`/agents/${agent.id}`)}
-                          className="gap-1 text-xs"
-                        >
-                          Open{' '}
-                          <ArrowRight className="size-3 group-hover:translate-x-0.5 transition-transform" />
-                        </Button>
-                      ) : (
-                        <Button
-                          size="xs"
-                          variant="outline"
-                          onClick={() => restoreMutation.mutate(agent.id)}
-                          className="gap-1 text-xs text-success hover:text-success/80"
-                        >
-                          <RotateCcw className="size-3" /> Restore
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                            {/* Status Sub-menu */}
+                            <div className="px-2 py-1 font-semibold text-2xs text-muted-foreground uppercase">
+                              Change Status
+                            </div>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                updateStatusMutation.mutate({
+                                  agentId: agent.id,
+                                  status: 'draft',
+                                })
+                              }
+                            >
+                              Mark as Draft
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                updateStatusMutation.mutate({
+                                  agentId: agent.id,
+                                  status: 'testing',
+                                })
+                              }
+                            >
+                              Mark as Testing
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={async () => {
+                                const ok = await confirm({
+                                  title: `Publish “${agent.name}”?`,
+                                  description:
+                                    'Published agents go live and can be called by anyone with access, including via API keys and webhooks.',
+                                  confirmLabel: 'Publish',
+                                  tone: 'warning',
+                                });
+                                if (ok)
+                                  updateStatusMutation.mutate({
+                                    agentId: agent.id,
+                                    status: 'published',
+                                  });
+                              }}
+                            >
+                              Publish Agent
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={async () => {
+                                const ok = await confirm({
+                                  title: `Pause “${agent.name}”?`,
+                                  description:
+                                    'It will stop responding to chats, schedules and triggers until you resume it.',
+                                  confirmLabel: 'Pause agent',
+                                  tone: 'warning',
+                                });
+                                if (ok)
+                                  updateStatusMutation.mutate({
+                                    agentId: agent.id,
+                                    status: 'paused',
+                                  });
+                              }}
+                            >
+                              Pause Agent
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={async () => {
+                                const ok = await confirm({
+                                  title: `Archive “${agent.name}”?`,
+                                  description:
+                                    'It will stop running and be hidden from the active list. You can bring it back later.',
+                                  confirmLabel: 'Archive',
+                                  tone: 'warning',
+                                });
+                                if (ok)
+                                  updateStatusMutation.mutate({
+                                    agentId: agent.id,
+                                    status: 'archived',
+                                  });
+                              }}
+                            >
+                              Archive Agent
+                            </DropdownMenuItem>
+
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={async () => {
+                                const ok = await confirm({
+                                  title: `Move “${agent.name}” to Trash?`,
+                                  description:
+                                    'It stops running immediately. You can restore it from Trash until it is deleted permanently.',
+                                  confirmLabel: 'Move to Trash',
+                                  tone: 'warning',
+                                });
+                                if (ok) deleteMutation.mutate(agent.id);
+                              }}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="size-3.5 mr-2" /> Move to Trash
+                            </DropdownMenuItem>
+                          </>
+                        ) : (
+                          <>
+                            <DropdownMenuItem
+                              onClick={() => restoreMutation.mutate(agent.id)}
+                            >
+                              <RotateCcw className="size-3.5 mr-2 text-success" />{' '}
+                              Restore Agent
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={async () => {
+                                const ok = await confirm({
+                                  title: `Permanently delete “${agent.name}”?`,
+                                  description:
+                                    'Its configuration, runs and history are erased. This can’t be undone.',
+                                  confirmLabel: 'Delete permanently',
+                                  destructive: true,
+                                  requireText: agent.name,
+                                });
+                                if (ok)
+                                  permanentDeleteMutation.mutate(agent.id);
+                              }}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="size-3.5 mr-2" /> Delete
+                              Permanently
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  }
+                />
               );
             })}
           </div>

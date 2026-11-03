@@ -1,5 +1,9 @@
 import { agentsApi } from '@org/api-client';
-import { aiEntityAvatarFromLegacy, type AIAgent, type AIAgentDetail } from '@org/types';
+import {
+  aiEntityAvatarFromLegacy,
+  type AIAgent,
+  type AIAgentDetail,
+} from '@org/types';
 
 /**
  * Agents as Studio uses them. Everything here goes to the platform API and a
@@ -16,12 +20,20 @@ export const DEFAULT_AGENT_MODEL = 'nvidia/nemotron-3-super-120b-a12b';
 /** Provider of {@link DEFAULT_AGENT_MODEL}. */
 export const DEFAULT_AGENT_PROVIDER = 'nvidia';
 
-export interface StudioAgent extends Omit<AIAgentDetail, 'configuration' | 'tools' | 'status'> {
+export interface StudioAgent extends Omit<
+  AIAgentDetail,
+  'configuration' | 'tools' | 'status'
+> {
   tools: unknown[];
   configuration: Config;
   /** Studio's lifecycle status (draft, published, archived, deleted…), not the coworker presence. */
   status: string;
-  stats: { totalRuns: number; successRate: number; avgDuration: string; costEstimate: string };
+  stats: {
+    totalRuns: number;
+    successRate: number;
+    avgDuration: string;
+    costEstimate: string;
+  };
   deployment: Record<string, unknown>;
   deletedAt?: string | null;
 }
@@ -50,7 +62,9 @@ export interface AgentDraft {
 }
 
 const asConfig = (value: unknown): Config =>
-  value && typeof value === 'object' && !Array.isArray(value) ? (value as Config) : {};
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Config)
+    : {};
 
 function parseTools(raw: unknown): unknown[] {
   if (Array.isArray(raw)) return raw;
@@ -65,6 +79,19 @@ function parseTools(raw: unknown): unknown[] {
   return [];
 }
 
+/** Studio's lifecycle status: the saved one, else live agents read as published. One rule for every tab. */
+export function agentLifecycleStatus(raw: {
+  isActive?: boolean | null;
+  configuration?: unknown;
+}): string {
+  const status = asConfig(raw.configuration)['status'];
+  return typeof status === 'string' && status
+    ? status
+    : raw.isActive
+      ? 'published'
+      : 'draft';
+}
+
 /** An API agent in the shape Studio's pages read. */
 export function normalizeAgent(raw: AIAgent | AIAgentDetail): StudioAgent {
   const record = raw as unknown as Record<string, unknown>;
@@ -74,13 +101,16 @@ export function normalizeAgent(raw: AIAgent | AIAgentDetail): StudioAgent {
     ...(raw as unknown as StudioAgent),
     role: raw.role || 'Assistant Specialist',
     description: raw.description || '',
-    status: String(config['status'] || (raw.isActive ? 'published' : 'draft')),
+    status: agentLifecycleStatus(raw),
     model: raw.model || DEFAULT_AGENT_MODEL,
     provider: raw.provider || (raw.model ? 'OpenAI' : DEFAULT_AGENT_PROVIDER),
     systemPrompt: raw.systemPrompt || '',
     tools: parseTools(record['tools']),
     configuration: config,
-    deletedAt: typeof config['deletedAt'] === 'string' ? (config['deletedAt'] as string) : null,
+    deletedAt:
+      typeof config['deletedAt'] === 'string'
+        ? (config['deletedAt'] as string)
+        : null,
     stats: {
       totalRuns: Number(stats['totalRuns'] ?? 0),
       successRate: Number(stats['successRate'] ?? 100),
@@ -92,7 +122,10 @@ export function normalizeAgent(raw: AIAgent | AIAgentDetail): StudioAgent {
 }
 
 /** A workflow built around a coworker: trigger → the coworker's step → output. */
-function coworkerStarterGraph(name: string, coworker: { id: string; name: string }): string {
+function coworkerStarterGraph(
+  name: string,
+  coworker: { id: string; name: string },
+): string {
   return JSON.stringify({
     schemaVersion: '1.0.0',
     name,
@@ -101,13 +134,21 @@ function coworkerStarterGraph(name: string, coworker: { id: string; name: string
         id: 'start-1',
         type: 'START',
         position: { x: 100, y: 200 },
-        data: { label: 'Workflow Trigger', subtitle: 'Manual execution & API trigger', config: { triggerType: 'MANUAL' } },
+        data: {
+          label: 'Workflow Trigger',
+          subtitle: 'Manual execution & API trigger',
+          config: { triggerType: 'MANUAL' },
+        },
       },
       {
         id: 'coworker-1',
         type: 'AI_COWORKER',
         position: { x: 420, y: 180 },
-        data: { label: coworker.name, subtitle: 'AI Coworker', config: { coworkerId: coworker.id } },
+        data: {
+          label: coworker.name,
+          subtitle: 'AI Coworker',
+          config: { coworkerId: coworker.id },
+        },
       },
       {
         id: 'end-1',
@@ -133,7 +174,11 @@ function starterGraph(name: string, model: string): string {
         id: 'start-1',
         type: 'START',
         position: { x: 100, y: 200 },
-        data: { label: 'Workflow Trigger', subtitle: 'Manual execution & API trigger', config: { triggerType: 'MANUAL' } },
+        data: {
+          label: 'Workflow Trigger',
+          subtitle: 'Manual execution & API trigger',
+          config: { triggerType: 'MANUAL' },
+        },
       },
       {
         id: 'agent-1',
@@ -159,9 +204,18 @@ function starterGraph(name: string, model: string): string {
  * The API replaces `configuration` wholesale, so a partial configuration patch
  * is merged onto the saved one first.
  */
-async function mergedConfiguration(workspaceId: string, agentId: string, patch: Config): Promise<Config> {
+async function mergedConfiguration(
+  workspaceId: string,
+  agentId: string,
+  patch: Config,
+): Promise<Config> {
   const current = await agentsApi.get(workspaceId, agentId);
-  return { ...asConfig((current as unknown as Record<string, unknown>)['configuration']), ...patch };
+  return {
+    ...asConfig(
+      (current as unknown as Record<string, unknown>)['configuration'],
+    ),
+    ...patch,
+  };
 }
 
 export const agentService = {
@@ -170,11 +224,17 @@ export const agentService = {
     return list.map(normalizeAgent);
   },
 
-  async getAgentById(workspaceId: string, agentId: string): Promise<StudioAgent> {
+  async getAgentById(
+    workspaceId: string,
+    agentId: string,
+  ): Promise<StudioAgent> {
     return normalizeAgent(await agentsApi.get(workspaceId, agentId));
   },
 
-  async createAgent(workspaceId: string, data: AgentDraft): Promise<StudioAgent> {
+  async createAgent(
+    workspaceId: string,
+    data: AgentDraft,
+  ): Promise<StudioAgent> {
     const name = data.name || 'Untitled Agent';
     const model = data.model || DEFAULT_AGENT_MODEL;
     const configuration: Config = {
@@ -182,10 +242,14 @@ export const agentService = {
       theme: data.configuration?.['theme'] || data.theme || 'emerald',
       icon: data.configuration?.['icon'] || data.icon || 'Bot',
       avatar: data.configuration?.['avatar'] || data.avatar || '',
-      category: data.configuration?.['category'] || data.category || 'Customer Support',
+      category:
+        data.configuration?.['category'] || data.category || 'Customer Support',
       tags: data.configuration?.['tags'] || data.tags || ['General'],
       owner: data.configuration?.['owner'] || data.owner || null,
-      environment: data.configuration?.['environment'] || data.environment || 'development',
+      environment:
+        data.configuration?.['environment'] ||
+        data.environment ||
+        'development',
       ...(data.configuration || {}),
     };
 
@@ -194,11 +258,15 @@ export const agentService = {
       role: data.role || 'Assistant Specialist',
       description: data.description || 'Configured via AI Agent Studio',
       systemPrompt: data.systemPrompt || 'You are an intelligent AI agent.',
-      provider: data.provider || (data.model ? 'OpenAI' : DEFAULT_AGENT_PROVIDER),
+      provider:
+        data.provider || (data.model ? 'OpenAI' : DEFAULT_AGENT_PROVIDER),
       model,
       tools: (data.tools as string[] | undefined) || ['search_docs'],
       // One identity everywhere: a photo, or the icon + colour as `icon:<icon>:<color>`.
-      avatarUrl: aiEntityAvatarFromLegacy(data.avatarUrl as string | undefined, configuration),
+      avatarUrl: aiEntityAvatarFromLegacy(
+        data.avatarUrl as string | undefined,
+        configuration,
+      ),
       configuration,
       graphJson: data.graphJson || starterGraph(name, model),
     });
@@ -206,7 +274,10 @@ export const agentService = {
   },
 
   /** A new canvas that hands its work to `coworker` — the start of grouping work under it. */
-  createCoworkerWorkflow(workspaceId: string, coworker: { id: string; name: string }): Promise<StudioAgent> {
+  createCoworkerWorkflow(
+    workspaceId: string,
+    coworker: { id: string; name: string },
+  ): Promise<StudioAgent> {
     const name = `${coworker.name} workflow`;
     return this.createAgent(workspaceId, {
       name,
@@ -222,7 +293,14 @@ export const agentService = {
     patch: Parameters<typeof agentsApi.update>[2],
   ): Promise<StudioAgent> {
     const body = patch.configuration
-      ? { ...patch, configuration: await mergedConfiguration(workspaceId, agentId, patch.configuration) }
+      ? {
+          ...patch,
+          configuration: await mergedConfiguration(
+            workspaceId,
+            agentId,
+            patch.configuration,
+          ),
+        }
       : patch;
     return normalizeAgent(await agentsApi.update(workspaceId, agentId, body));
   },
@@ -253,11 +331,15 @@ export const agentService = {
   },
 
   async archiveAgent(workspaceId: string, agentId: string) {
-    return this.updateAgent(workspaceId, agentId, { configuration: { status: 'archived' } });
+    return this.updateAgent(workspaceId, agentId, {
+      configuration: { status: 'archived' },
+    });
   },
 
   async unarchiveAgent(workspaceId: string, agentId: string) {
-    return this.updateAgent(workspaceId, agentId, { configuration: { status: 'draft' } });
+    return this.updateAgent(workspaceId, agentId, {
+      configuration: { status: 'draft' },
+    });
   },
 
   async duplicateAgent(workspaceId: string, agentId: string) {
@@ -272,11 +354,19 @@ export const agentService = {
       tools: existing.tools,
       avatarUrl: existing.avatarUrl,
       graphJson: existing.graphJson,
-      configuration: { ...existing.configuration, status: 'draft', deletedAt: null },
+      configuration: {
+        ...existing.configuration,
+        status: 'draft',
+        deletedAt: null,
+      },
     });
   },
 
-  async createFromExistingWorkflow(workspaceId: string, sourceAgentId: string, newMetadata: AgentDraft) {
+  async createFromExistingWorkflow(
+    workspaceId: string,
+    sourceAgentId: string,
+    newMetadata: AgentDraft,
+  ) {
     const source = await this.getAgentById(workspaceId, sourceAgentId);
     return this.createAgent(workspaceId, {
       ...newMetadata,
@@ -284,7 +374,11 @@ export const agentService = {
       tools: source.tools,
       model: newMetadata.model || source.model,
       systemPrompt: newMetadata.systemPrompt || source.systemPrompt,
-      configuration: { ...source.configuration, ...(newMetadata.configuration || {}), status: 'draft' },
+      configuration: {
+        ...source.configuration,
+        ...(newMetadata.configuration || {}),
+        status: 'draft',
+      },
     });
   },
 
@@ -300,7 +394,9 @@ export const agentService = {
           model: agent.model,
           provider: agent.provider,
           systemPrompt: agent.systemPrompt,
-          temperature: (agent as unknown as Record<string, unknown>)['temperature'],
+          temperature: (agent as unknown as Record<string, unknown>)[
+            'temperature'
+          ],
           tools: agent.tools,
           graphJson: agent.graphJson,
         },

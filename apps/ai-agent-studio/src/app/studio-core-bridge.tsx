@@ -3,10 +3,22 @@ import { RealtimeProvider } from '@org/realtime';
 import { LoadingState } from '@org/ui';
 import { Activity, ShieldAlert } from 'lucide-react';
 import { WorkflowCanvasView } from '@org/web-automations';
-import { AgentCreatePage, AgentDetailPage, AgentLibrary } from '@org/web-automations';
+import {
+  AgentCreatePage,
+  AgentDetailPage,
+  AgentLibrary,
+} from '@org/web-automations';
 import { AIApprovalsSection, AIRunsSection } from '@org/web-ai';
 import { useEffect, type ComponentProps, type ReactNode } from 'react';
-import { LEGACY_SEGMENTS, Navigate, Outlet, Route, scopeStudioPath, useLocation, useParams } from './router.js';
+import {
+  LEGACY_SEGMENTS,
+  Navigate,
+  Outlet,
+  Route,
+  scopeStudioPath,
+  useLocation,
+  useParams,
+} from './router.js';
 
 import { SectionHeader } from './components/section-tabs.js';
 import { StudioPage } from './components/studio-page.js';
@@ -38,7 +50,8 @@ function StudioCoreFrame({ children }: { children: ReactNode }) {
   // The workspace hooks gate on the shared auth store; Studio keeps its own
   // session, so mirror the user into it.
   useEffect(() => {
-    if (useAuthStore.getState().user?.id !== user.id) useAuthStore.getState().setUser(user);
+    if (useAuthStore.getState().user?.id !== user.id)
+      useAuthStore.getState().setUser(user);
   }, [user]);
 
   return (
@@ -51,14 +64,16 @@ function StudioCoreFrame({ children }: { children: ReactNode }) {
 /** Keeps the URL's workspace and the Studio's active workspace the same. */
 function StudioCoreRoute() {
   const { workspaceSlug } = useParams<{ workspaceSlug: string }>();
-  const { activeWorkspace, workspaces, setActiveWorkspace } = useStudioSession();
+  const { activeWorkspace, workspaces, setActiveWorkspace } =
+    useStudioSession();
   const match = workspaces.find((w) => w.slug === workspaceSlug);
 
   useEffect(() => {
     if (match && match.id !== activeWorkspace.id) setActiveWorkspace(match);
   }, [match, activeWorkspace.id, setActiveWorkspace]);
 
-  if (!match) return <Navigate to={studioCorePath(activeWorkspace.slug)} replace />;
+  if (!match)
+    return <Navigate to={studioCorePath(activeWorkspace.slug)} replace />;
   if (match.id !== activeWorkspace.id) return <LoadingState fullPage />;
   return (
     <StudioCoreFrame>
@@ -91,7 +106,10 @@ function AgentRedirect() {
 function SectionFrame({
   children,
   ...header
-}: { children: ReactNode } & Pick<ComponentProps<typeof StudioPage>, 'title' | 'description' | 'icon'>) {
+}: { children: ReactNode } & Pick<
+  ComponentProps<typeof StudioPage>,
+  'title' | 'description' | 'icon'
+>) {
   return <StudioPage {...header}>{children}</StudioPage>;
 }
 
@@ -107,52 +125,57 @@ function CanvasRoute() {
 export function studioCoreRoutes(children?: ReactNode) {
   return (
     <>
-    <Route path={STUDIO_CORE_PATH} element={<StudioCoreRoute />}>
-      <Route index element={<StudioHomePage />} />
-      <Route
-        path="agents"
-        element={
-          // Same bar + tab row as its section siblings (my-agents, coworkers, workflows).
-          <div className="min-h-0 flex flex-1 flex-col">
-            <AgentLibrary header={(actions) => <SectionHeader section="agents" actions={actions} />} />
-          </div>
-        }
-      />
-      <Route
-        path="runs"
-        element={
-          <SectionFrame
-            title="Runs"
-            description="Every agent, coworker and workflow run, live — with its steps, cost and outcome."
-            icon={<Activity />}
-          >
-            <AIRunsSection />
-          </SectionFrame>
-        }
-      />
-      <Route
-        path="approvals"
-        element={
-          <SectionFrame
-            title="Human Approvals"
-            description="Actions your agents are holding until someone approves or rejects them."
-            icon={<ShieldAlert />}
-          >
-            <AIApprovalsSection />
-          </SectionFrame>
-        }
-      />
-      <Route path="studio/new" element={<AgentCreatePage />} />
-      <Route path="studio/:workflowId" element={<AgentDetailPage />} />
-      <Route path="workflows/:workflowId" element={<CanvasRoute />} />
-      {/* Links from the main app (`/w/:slug/ai/...`) that land on a Studio page of its own. */}
-      <Route path="prompts" element={<Navigate to="/templates" replace />} />
-      <Route path="agents/new" element={<Navigate to="/create" replace />} />
-      <Route path="agents/:agentId" element={<AgentRedirect />} />
-      {children}
-      <Route path="*" element={<Navigate to=".." replace />} />
-    </Route>
-    <Route path="*" element={<LegacyRedirect />} />
+      <Route path={STUDIO_CORE_PATH} element={<StudioCoreRoute />}>
+        <Route index element={<StudioHomePage />} />
+        <Route
+          path="agents"
+          element={
+            // Same bar + tab row as its section siblings (my-agents, coworkers, workflows).
+            <div className="min-h-0 flex flex-1 flex-col">
+              <AgentLibrary
+                plannedOnly
+                header={(actions) => (
+                  <SectionHeader section="agents" actions={actions} />
+                )}
+              />
+            </div>
+          }
+        />
+        <Route
+          path="runs"
+          element={
+            <SectionFrame
+              title="Runs"
+              description="Every agent, coworker and workflow run, live — with its steps, cost and outcome."
+              icon={<Activity />}
+            >
+              <AIRunsSection />
+            </SectionFrame>
+          }
+        />
+        <Route
+          path="approvals"
+          element={
+            <SectionFrame
+              title="Human Approvals"
+              description="Actions your agents are holding until someone approves or rejects them."
+              icon={<ShieldAlert />}
+            >
+              <AIApprovalsSection />
+            </SectionFrame>
+          }
+        />
+        <Route path="studio/new" element={<AgentCreatePage />} />
+        <Route path="studio/:workflowId" element={<AgentDetailPage />} />
+        <Route path="workflows/:workflowId" element={<CanvasRoute />} />
+        {/* Links from the main app (`/w/:slug/ai/...`) that land on a Studio page of its own. */}
+        <Route path="prompts" element={<Navigate to="/templates" replace />} />
+        <Route path="agents/new" element={<Navigate to="/create" replace />} />
+        <Route path="agents/:agentId" element={<AgentRedirect />} />
+        {children}
+        <Route path="*" element={<Navigate to=".." replace />} />
+      </Route>
+      <Route path="*" element={<LegacyRedirect />} />
     </>
   );
 }

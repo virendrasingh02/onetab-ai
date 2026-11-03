@@ -22,16 +22,35 @@ import { cn, formatRelative } from '@org/utils';
 import { aiWorkspacePath, studioAgentPath } from '@org/web-ai';
 import { AIEntityAvatar, useAgents } from '@org/web-agents';
 import { CoworkerCreateDialog, useCoworkers } from '@org/web-coworkers';
-import { useCanManageAIResource, useCreationPolicies, useCurrentWorkspace, useWorkspacePermission } from '@org/web-workspace';
+import {
+  useCanManageAIResource,
+  useCreationPolicies,
+  useCurrentWorkspace,
+  useWorkspacePermission,
+} from '@org/web-workspace';
 import { Bot, LayoutTemplate, Plus, Sparkles, UserCheck } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { buildAgentActions } from './agent-actions.js';
 import { AgentCard } from './AgentCard.js';
 import { templateIcon } from './studio-meta.js';
-import { useAgentFavorites, useStudioAgents, useStudioMutations } from './use-studio.js';
+import {
+  useAgentFavorites,
+  useStudioAgents,
+  useStudioMutations,
+} from './use-studio.js';
 
-type View = 'all' | 'mine' | 'shared' | 'favorites' | 'scheduled' | 'active' | 'paused' | 'drafts' | 'failing' | 'archived';
+type View =
+  | 'all'
+  | 'mine'
+  | 'shared'
+  | 'favorites'
+  | 'scheduled'
+  | 'active'
+  | 'paused'
+  | 'drafts'
+  | 'failing'
+  | 'archived';
 type TypeFilter = 'all' | 'planned' | 'workflow' | 'assistant' | 'coworker';
 
 const VIEWS: ReadonlyArray<{ id: View; label: string }> = [
@@ -62,19 +81,27 @@ const TYPES = [
  */
 export function AgentLibrary({
   header,
+  plannedOnly = false,
 }: {
   /**
    * Renders the host page's header with the library's create buttons, so they
    * sit in the header instead of the filter row. The content is then padded.
    */
   header?: (actions: ReactNode) => ReactNode;
+  /**
+   * Lists only planned (Studio) agents and canvas workflows. For hosts whose
+   * chat assistants and coworkers already have tabs of their own, so the same
+   * agent isn't listed twice.
+   */
+  plannedOnly?: boolean;
 } = {}) {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const { workspaceId, slug } = useCurrentWorkspace();
   const { can } = useWorkspacePermission();
   const canManageResource = useCanManageAIResource();
-  const { canCreateCoworkers, isLoading: policiesLoading } = useCreationPolicies(workspaceId);
+  const { canCreateCoworkers, isLoading: policiesLoading } =
+    useCreationPolicies(workspaceId);
   const studio = useStudioAgents(workspaceId);
   const assistants = useAgents(workspaceId, { includeDrafts: true });
   const coworkers = useCoworkers(workspaceId);
@@ -84,7 +111,20 @@ export function AgentLibrary({
   const [coworkerOpen, setCoworkerOpen] = useState(false);
   const view = (params.get('view') as View) || 'all';
   const legacyType = params.get('type');
-  const type: TypeFilter = legacyType === 'coworker' ? 'coworker' : legacyType === 'agent' ? 'assistant' : ((legacyType as TypeFilter) || 'all');
+  const requestedType: TypeFilter =
+    legacyType === 'coworker'
+      ? 'coworker'
+      : legacyType === 'agent'
+        ? 'assistant'
+        : (legacyType as TypeFilter) || 'all';
+  const type: TypeFilter =
+    plannedOnly &&
+    (requestedType === 'assistant' || requestedType === 'coworker')
+      ? 'all'
+      : requestedType;
+  const typeOptions = plannedOnly
+    ? TYPES.filter((t) => t.value !== 'assistant' && t.value !== 'coworker')
+    : TYPES;
 
   const setParam = (key: string, value: string | null) =>
     setParams(
@@ -99,23 +139,31 @@ export function AgentLibrary({
 
   // Templates used to be a view here; old `?view=templates` links go to their page.
   useEffect(() => {
-    if (params.get('view') === 'templates') navigate(aiWorkspacePath(slug, 'templates'), { replace: true });
+    if (params.get('view') === 'templates')
+      navigate(aiWorkspacePath(slug, 'templates'), { replace: true });
   }, [params, navigate, slug]);
 
   // "New → Coworker" lands here with ?create=coworker.
   useEffect(() => {
     if (params.get('create') !== 'coworker' || policiesLoading) return;
     if (canCreateCoworkers) setCoworkerOpen(true);
-    else toast.info('Only admins can create coworkers here', { description: 'Ask a workspace admin, or have them change it in Settings → Permissions & Policies.' });
+    else
+      toast.info('Only admins can create coworkers here', {
+        description:
+          'Ask a workspace admin, or have them change it in Settings → Permissions & Policies.',
+      });
     setParam('create', null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params, canCreateCoworkers, policiesLoading]);
 
   const needle = query.trim().toLowerCase();
-  const matches = (text: string | null | undefined) => !needle || (text ?? '').toLowerCase().includes(needle);
+  const matches = (text: string | null | undefined) =>
+    !needle || (text ?? '').toLowerCase().includes(needle);
 
   const agents = useMemo(() => {
-    const list = (studio.data ?? []).filter((a) => matches(a.name) || matches(a.description));
+    const list = (studio.data ?? []).filter(
+      (a) => matches(a.name) || matches(a.description),
+    );
     return list.filter((a) => {
       if (type === 'planned' && !a.isStudioAgent) return false;
       if (type === 'workflow' && a.isStudioAgent) return false;
@@ -147,20 +195,35 @@ export function AgentLibrary({
   }, [studio.data, view, type, needle, favorites]);
 
   const entities = useMemo(() => {
-    if (type === 'planned' || type === 'workflow') return [];
-    if (!['all', 'mine', 'shared', 'favorites', 'active', 'paused'].includes(view)) return [];
-    const all: AIEntity[] = [...(assistants.data ?? []), ...(coworkers.data ?? [])];
+    if (plannedOnly || type === 'planned' || type === 'workflow') return [];
+    if (
+      !['all', 'mine', 'shared', 'favorites', 'active', 'paused'].includes(view)
+    )
+      return [];
+    const all: AIEntity[] = [
+      ...(assistants.data ?? []),
+      ...(coworkers.data ?? []),
+    ];
     return all.filter((e) => {
       if (type === 'assistant' && e.type !== 'agent') return false;
       if (type === 'coworker' && e.type !== 'coworker') return false;
-      if (!matches(e.name) && !matches(e.role) && !matches(e.description)) return false;
+      if (!matches(e.name) && !matches(e.role) && !matches(e.description))
+        return false;
       if (view === 'favorites') return favorites.has(e.id);
       if (view === 'active') return e.isActive;
       if (view === 'paused') return !e.isActive;
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assistants.data, coworkers.data, view, type, needle, favorites]);
+  }, [
+    assistants.data,
+    coworkers.data,
+    view,
+    type,
+    needle,
+    favorites,
+    plannedOnly,
+  ]);
 
   const actionsFor = (agent: StudioAgentSummary) =>
     buildAgentActions(agent, {
@@ -168,35 +231,66 @@ export function AgentLibrary({
       canCreate: can('create'),
       onOpen: () => navigate(studioAgentPath(slug, agent.id)),
       onRun: () =>
-        mutations.run.mutateAsync({ id: agent.id }).then((started) =>
-          navigate(`${studioAgentPath(slug, agent.id, 'runs')}&run=${started.runId}`),
-        ),
+        mutations.run
+          .mutateAsync({ id: agent.id })
+          .then((started) =>
+            navigate(
+              `${studioAgentPath(slug, agent.id, 'runs')}&run=${started.runId}`,
+            ),
+          ),
       onTest: () =>
-        mutations.run.mutateAsync({ id: agent.id, mode: 'test' }).then((started) =>
-          navigate(`${studioAgentPath(slug, agent.id, 'runs')}&run=${started.runId}`),
-        ),
-      onSwitchOn: () => mutations.setState.mutateAsync({ id: agent.id, state: 'active' }),
-      onPause: () => mutations.setState.mutateAsync({ id: agent.id, state: 'paused' }),
-      onArchive: () => mutations.setState.mutateAsync({ id: agent.id, state: 'archived' }),
-      onRestore: () => mutations.setState.mutateAsync({ id: agent.id, state: 'draft' }),
-      onDuplicate: () => mutations.duplicate.mutateAsync(agent.id).then((copy) => navigate(studioAgentPath(slug, copy.id))),
-      onOpenCanvas: () => navigate(aiWorkspacePath(slug, 'workflows', agent.id)),
+        mutations.run
+          .mutateAsync({ id: agent.id, mode: 'test' })
+          .then((started) =>
+            navigate(
+              `${studioAgentPath(slug, agent.id, 'runs')}&run=${started.runId}`,
+            ),
+          ),
+      onSwitchOn: () =>
+        mutations.setState.mutateAsync({ id: agent.id, state: 'active' }),
+      onPause: () =>
+        mutations.setState.mutateAsync({ id: agent.id, state: 'paused' }),
+      onArchive: () =>
+        mutations.setState.mutateAsync({ id: agent.id, state: 'archived' }),
+      onRestore: () =>
+        mutations.setState.mutateAsync({ id: agent.id, state: 'draft' }),
+      onDuplicate: () =>
+        mutations.duplicate
+          .mutateAsync(agent.id)
+          .then((copy) => navigate(studioAgentPath(slug, copy.id))),
+      onOpenCanvas: () =>
+        navigate(aiWorkspacePath(slug, 'workflows', agent.id)),
       onDelete: () => mutations.remove.mutateAsync(agent.id),
     });
 
-  const loading = studio.isLoading || (assistants.isLoading && coworkers.isLoading);
-  const total = (studio.data?.length ?? 0) + (assistants.data?.length ?? 0) + (coworkers.data?.length ?? 0);
+  const loading =
+    studio.isLoading || (assistants.isLoading && coworkers.isLoading);
+  const total =
+    (studio.data?.length ?? 0) +
+    (plannedOnly
+      ? 0
+      : (assistants.data?.length ?? 0) + (coworkers.data?.length ?? 0));
 
   const createActions =
     canCreateCoworkers || can('create') ? (
       <>
-        {canCreateCoworkers ? (
-          <Button size="sm" variant="outline" leadingIcon={<UserCheck />} onClick={() => setCoworkerOpen(true)}>
+        {canCreateCoworkers && !plannedOnly ? (
+          <Button
+            size="sm"
+            variant="outline"
+            leadingIcon={<UserCheck />}
+            onClick={() => setCoworkerOpen(true)}
+          >
             New coworker
           </Button>
         ) : null}
         {can('create') ? (
-          <Button size="sm" variant="primary" leadingIcon={<Sparkles />} onClick={() => navigate(aiWorkspacePath(slug, 'studio', 'new'))}>
+          <Button
+            size="sm"
+            variant="primary"
+            leadingIcon={<Sparkles />}
+            onClick={() => navigate(aiWorkspacePath(slug, 'studio', 'new'))}
+          >
             Describe an agent
           </Button>
         ) : null}
@@ -205,84 +299,143 @@ export function AgentLibrary({
 
   return (
     <>
-    {header?.(createActions)}
-    <div className={cn('space-y-4', header && 'p-4 sm:p-6')}>
-      <div role="toolbar" aria-label="Filter agents" className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <SearchInput value={query} onValueChange={setQuery} placeholder="Search agents" aria-label="Search agents" wrapperClassName="w-full sm:w-64" />
-          <FilterChips aria-label="Library views" value={view} onChange={(v) => setParam('view', v)} options={VIEWS.map((v) => ({ value: v.id, label: v.label }))} />
+      {header?.(createActions)}
+      <div className={cn('space-y-4', header && 'p-4 sm:p-6')}>
+        <div
+          role="toolbar"
+          aria-label="Filter agents"
+          className="gap-x-4 gap-y-2 flex flex-wrap items-center justify-between"
+        >
+          <div className="min-w-0 gap-2 flex flex-wrap items-center">
+            <SearchInput
+              value={query}
+              onValueChange={setQuery}
+              placeholder="Search agents"
+              aria-label="Search agents"
+              wrapperClassName="w-full sm:w-64"
+            />
+            <FilterChips
+              aria-label="Library views"
+              value={view}
+              onChange={(v) => setParam('view', v)}
+              options={VIEWS.map((v) => ({ value: v.id, label: v.label }))}
+            />
+          </div>
+          <div className="gap-2 flex flex-wrap items-center">
+            <AppSelect
+              className="min-w-40 w-auto"
+              aria-label="Kind of agent"
+              value={type}
+              onValueChange={(v) => setParam('type', v)}
+              options={typeOptions.map((t) => ({
+                value: t.value,
+                label: t.label,
+              }))}
+            />
+            {header ? null : createActions}
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <AppSelect
-            className="w-auto min-w-40"
-            aria-label="Kind of agent"
-            value={type}
-            onValueChange={(v) => setParam('type', v)}
-            options={TYPES.map((t) => ({ value: t.value, label: t.label }))}
+
+        {loading ? (
+          <LoadingState label="Loading agents…" />
+        ) : studio.isError && assistants.isError ? (
+          <ErrorState
+            title="Couldn't load agents"
+            onRetry={() => void studio.refetch()}
           />
-          {header ? null : createActions}
-        </div>
-      </div>
-
-      {loading ? (
-        <LoadingState label="Loading agents…" />
-      ) : studio.isError && assistants.isError ? (
-        <ErrorState title="Couldn't load agents" onRetry={() => void studio.refetch()} />
-      ) : total === 0 ? (
-        <EmptyState
-          icon={<Bot />}
-          title="No agents yet"
-          description="Describe what you want done — “prepare my daily report every evening” — and the Studio plans an agent for you. Or start from a template."
-          action={
-            can('create') ? (
-              <Button leadingIcon={<Sparkles />} onClick={() => navigate(aiWorkspacePath(slug, 'studio', 'new'))}>
-                Describe an agent
+        ) : total === 0 ? (
+          <EmptyState
+            icon={<Bot />}
+            title="No agents yet"
+            description="Describe what you want done — “prepare my daily report every evening” — and the Studio plans an agent for you. Or start from a template."
+            action={
+              can('create') ? (
+                <Button
+                  leadingIcon={<Sparkles />}
+                  onClick={() =>
+                    navigate(aiWorkspacePath(slug, 'studio', 'new'))
+                  }
+                >
+                  Describe an agent
+                </Button>
+              ) : undefined
+            }
+            secondaryAction={
+              <Button
+                variant="outline"
+                leadingIcon={<LayoutTemplate />}
+                onClick={() => navigate(aiWorkspacePath(slug, 'templates'))}
+              >
+                Browse templates
               </Button>
-            ) : undefined
-          }
-          secondaryAction={
-            <Button variant="outline" leadingIcon={<LayoutTemplate />} onClick={() => navigate(aiWorkspacePath(slug, 'templates'))}>
-              Browse templates
-            </Button>
-          }
-        />
-      ) : agents.length + entities.length === 0 ? (
-        <EmptyState size="sm" title="Nothing here" description={view === 'favorites' ? 'Star an agent to keep it here.' : 'Try another view or search.'} />
-      ) : (
-        <ul className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(min(100%,17rem),1fr))]">
-          {agents.map((agent) => (
-            <li key={agent.id}>
-              <AgentCard
-                agent={agent}
-                to={studioAgentPath(slug, agent.id)}
-                favorite={favorites.has(agent.id)}
-                onToggleFavorite={() => toggle(agent.id)}
-                actions={actionsFor(agent)}
-              />
-            </li>
-          ))}
-          {entities.map((entity) => (
-            <li key={entity.id}>
-              <EntityCard entity={entity} to={aiWorkspacePath(slug, 'agents', entity.id)} />
-            </li>
-          ))}
-        </ul>
-      )}
+            }
+          />
+        ) : agents.length + entities.length === 0 ? (
+          <EmptyState
+            size="sm"
+            title="Nothing here"
+            description={
+              view === 'favorites'
+                ? 'Star an agent to keep it here.'
+                : 'Try another view or search.'
+            }
+          />
+        ) : (
+          <ul className="gap-3 grid grid-cols-[repeat(auto-fill,minmax(min(100%,17rem),1fr))]">
+            {agents.map((agent) => (
+              <li key={agent.id}>
+                <AgentCard
+                  agent={agent}
+                  to={studioAgentPath(slug, agent.id)}
+                  favorite={favorites.has(agent.id)}
+                  onToggleFavorite={() => toggle(agent.id)}
+                  actions={actionsFor(agent)}
+                />
+              </li>
+            ))}
+            {entities.map((entity) => (
+              <li key={entity.id}>
+                <EntityCard
+                  entity={entity}
+                  to={aiWorkspacePath(slug, 'agents', entity.id)}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
 
-      {workspaceId ? <CoworkerCreateDialog open={coworkerOpen} onOpenChange={setCoworkerOpen} workspaceId={workspaceId} /> : null}
-    </div>
+        {workspaceId ? (
+          <CoworkerCreateDialog
+            open={coworkerOpen}
+            onOpenChange={setCoworkerOpen}
+            workspaceId={workspaceId}
+          />
+        ) : null}
+      </div>
     </>
   );
 }
 
 /** Assistants and coworkers: conversational agents with their own editor. */
 function EntityCard({ entity, to }: { entity: AIEntity; to: string }) {
-  const working = entity.status === 'WORKING' || entity.status === 'RUNNING_TASK';
-  const state = !entity.isActive ? 'Paused' : entity.type === 'coworker' ? (working ? 'Working' : entity.status === 'ERROR' ? 'Error' : 'Available') : 'Ready';
+  const working =
+    entity.status === 'WORKING' || entity.status === 'RUNNING_TASK';
+  const state = !entity.isActive
+    ? 'Paused'
+    : entity.type === 'coworker'
+      ? working
+        ? 'Working'
+        : entity.status === 'ERROR'
+          ? 'Error'
+          : 'Available'
+      : 'Ready';
   return (
-    <Link to={to} className="block h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-      <Card className="flex h-full flex-col gap-3 p-4 transition-colors hover:border-border-strong">
-        <div className="flex items-start gap-3">
+    <Link
+      to={to}
+      className="block h-full rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+    >
+      <Card className="gap-3 p-4 flex h-full flex-col transition-colors hover:border-border-strong">
+        <div className="gap-3 flex items-start">
           <AIEntityAvatar
             name={entity.name}
             type={entity.type}
@@ -292,18 +445,44 @@ function EntityCard({ entity, to }: { entity: AIEntity; to: string }) {
             size="md"
           />
           <div className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold text-foreground">{entity.name}</span>
-            <div className="mt-0.5 flex items-center gap-1.5">
-              <span className="text-xs text-muted-foreground">{entity.type === 'coworker' ? 'AI coworker' : 'Assistant agent'}</span>
-              <Badge variant={state === 'Paused' ? 'neutral' : state === 'Error' ? 'destructive' : 'success'} className="text-[10px]">
+            <span className="text-sm font-semibold block truncate text-foreground">
+              {entity.name}
+            </span>
+            <div className="mt-0.5 gap-1.5 flex items-center">
+              <span className="text-xs text-muted-foreground">
+                {entity.type === 'coworker' ? 'AI coworker' : 'Assistant agent'}
+              </span>
+              <Badge
+                variant={
+                  state === 'Paused'
+                    ? 'neutral'
+                    : state === 'Error'
+                      ? 'destructive'
+                      : 'success'
+                }
+                className="text-[10px]"
+              >
                 {state}
               </Badge>
             </div>
           </div>
         </div>
-        {entity.description ? <p className="line-clamp-2 text-xs text-muted-foreground">{entity.description}</p> : <p className="text-xs text-muted-foreground">{entity.role}</p>}
-        <p className="mt-auto border-t border-border/60 pt-3 text-[11px] text-muted-foreground">
-          {entity.lastActiveAt ? `Active ${formatRelative(entity.lastActiveAt)}` : 'Not used yet'} · answers in chat
+        {/* The role is already under the name; repeating it here read as a description. */}
+        <p
+          className={cn(
+            'min-h-10 text-xs leading-5 line-clamp-2',
+            entity.description
+              ? 'text-muted-foreground'
+              : 'text-muted-foreground/60 italic',
+          )}
+        >
+          {entity.description || 'No description yet'}
+        </p>
+        <p className="pt-3 mt-auto border-t border-border/60 text-[11px] text-muted-foreground">
+          {entity.lastActiveAt
+            ? `Active ${formatRelative(entity.lastActiveAt)}`
+            : 'Not used yet'}{' '}
+          · answers in chat
         </p>
       </Card>
     </Link>
@@ -311,13 +490,25 @@ function EntityCard({ entity, to }: { entity: AIEntity; to: string }) {
 }
 
 /** Starter agents, grouped — each one a working plan made only of real tools. */
-export function TemplateGallery({ slug, query = '', limitTo }: { slug: string | undefined; query?: string; limitTo?: string[] }) {
+export function TemplateGallery({
+  slug,
+  query = '',
+  limitTo,
+}: {
+  slug: string | undefined;
+  query?: string;
+  limitTo?: string[];
+}) {
   const templates = AGENT_TEMPLATES.filter(
-    (t) => (!limitTo || limitTo.includes(t.id)) && (!query || t.name.toLowerCase().includes(query) || t.description.toLowerCase().includes(query)),
+    (t) =>
+      (!limitTo || limitTo.includes(t.id)) &&
+      (!query ||
+        t.name.toLowerCase().includes(query) ||
+        t.description.toLowerCase().includes(query)),
   );
   if (limitTo) {
     return (
-      <ul className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(min(100%,17rem),1fr))]">
+      <ul className="gap-3 grid grid-cols-[repeat(auto-fill,minmax(min(100%,17rem),1fr))]">
         {templates.map((t) => (
           <li key={t.id}>
             <TemplateCard template={t} slug={slug} />
@@ -326,16 +517,26 @@ export function TemplateGallery({ slug, query = '', limitTo }: { slug: string | 
       </ul>
     );
   }
-  const categories = (Object.keys(AGENT_TEMPLATE_CATEGORIES) as AgentTemplateCategory[]).filter((c) => templates.some((t) => t.category === c));
-  if (categories.length === 0) return <EmptyState size="sm" title="No templates match" />;
+  const categories = (
+    Object.keys(AGENT_TEMPLATE_CATEGORIES) as AgentTemplateCategory[]
+  ).filter((c) => templates.some((t) => t.category === c));
+  if (categories.length === 0)
+    return <EmptyState size="sm" title="No templates match" />;
   return (
     <div className="space-y-6">
       {categories.map((category) => (
-        <section key={category} aria-labelledby={`tpl-${category}`} className="space-y-3">
-          <h2 id={`tpl-${category}`} className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <section
+          key={category}
+          aria-labelledby={`tpl-${category}`}
+          className="space-y-3"
+        >
+          <h2
+            id={`tpl-${category}`}
+            className="text-xs font-semibold tracking-wider text-muted-foreground uppercase"
+          >
             {AGENT_TEMPLATE_CATEGORIES[category]}
           </h2>
-          <ul className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(min(100%,17rem),1fr))]">
+          <ul className="gap-3 grid grid-cols-[repeat(auto-fill,minmax(min(100%,17rem),1fr))]">
             {templates
               .filter((t) => t.category === category)
               .map((t) => (
@@ -350,18 +551,31 @@ export function TemplateGallery({ slug, query = '', limitTo }: { slug: string | 
   );
 }
 
-function TemplateCard({ template, slug }: { template: AgentTemplateDefinition; slug: string | undefined }) {
+function TemplateCard({
+  template,
+  slug,
+}: {
+  template: AgentTemplateDefinition;
+  slug: string | undefined;
+}) {
   const Icon = templateIcon(template.icon);
   const bp = useMemo(() => template.blueprint(), [template]);
   return (
-    <Card className="flex h-full flex-col gap-3 p-4">
-      <div className="flex items-start gap-3">
-        <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary [&_svg]:size-4">
+    <Card className="gap-3 p-4 flex h-full flex-col">
+      <div className="gap-3 flex items-start">
+        <span
+          aria-hidden
+          className="size-9 [&_svg]:size-4 flex shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"
+        >
           <Icon />
         </span>
         <div className="min-w-0">
-          <h3 className="text-sm font-semibold text-foreground">{template.name}</h3>
-          <p className="mt-0.5 text-xs text-muted-foreground">{template.description}</p>
+          <h3 className="text-sm font-semibold text-foreground">
+            {template.name}
+          </h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {template.description}
+          </p>
         </div>
       </div>
       <ol className="space-y-0.5 pl-12 text-[11px] text-muted-foreground">
@@ -372,16 +586,23 @@ function TemplateCard({ template, slug }: { template: AgentTemplateDefinition; s
         ))}
         {bp.steps.length > 5 ? <li>+ {bp.steps.length - 5} more</li> : null}
       </ol>
-      <div className="mt-auto flex items-center justify-between gap-2 pt-1">
+      <div className="gap-2 pt-1 mt-auto flex items-center justify-between">
         {template.requires?.length ? (
           <Badge variant="outline" className="text-[10px]">
-            Needs {template.requires.map((r) => r.charAt(0).toUpperCase() + r.slice(1)).join(', ')}
+            Needs{' '}
+            {template.requires
+              .map((r) => r.charAt(0).toUpperCase() + r.slice(1))
+              .join(', ')}
           </Badge>
         ) : (
           <span />
         )}
         <Button asChild size="sm" variant="outline" leadingIcon={<Plus />}>
-          <Link to={`${aiWorkspacePath(slug, 'studio', 'new')}?template=${template.id}`}>Use template</Link>
+          <Link
+            to={`${aiWorkspacePath(slug, 'studio', 'new')}?template=${template.id}`}
+          >
+            Use template
+          </Link>
         </Button>
       </div>
     </Card>
