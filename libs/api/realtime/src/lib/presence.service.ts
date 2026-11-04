@@ -1,23 +1,31 @@
 import { Injectable } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { Interval } from '@nestjs/schedule';
-import { AppEvent } from '@org/api-common';
+import { AppEvent, type UserStatusChangedEvent } from '@org/api-common';
 import { CacheService } from '@org/api-cache';
 import { PrismaService } from '@org/database';
 import type { UserPresence } from '@org/types';
+
+type PresenceValue = UserPresence['status'];
 
 interface ClientSession {
   clientId: string;
   userId: string;
   workspaceId: string | null;
-  connectedAt: Date;
-  lastActiveAt: Date;
+}
+
+/** What one device (browser tab, desktop window) last told us about itself. */
+interface DeviceReading {
+  status: 'online' | 'away' | 'busy';
+  lastBeatAt: number;
 }
 
 interface UserPresenceState {
   userId: string;
   activeClientIds: Set<string>;
-  status: 'online' | 'away' | 'busy' | 'offline';
+  /** Readings per device; the visible status is derived from all of them. */
+  devices: Map<string, DeviceReading>;
+  status: PresenceValue;
   lastActiveAt: Date;
   lastSeenAt: Date;
   connectedAt: Date;
@@ -26,7 +34,25 @@ interface UserPresenceState {
   workspaces: Set<string>;
   /** User pinned themselves away; idle/heartbeat/reconnect must not undo it. */
   manualAway: boolean;
+  /** Do-not-disturb or a scheduled status holding the dot. */
+  held: 'busy' | 'away' | null;
+  /** When the last stream closed; null while one is open. */
+  disconnectedAt: number | null;
+  lastBeatAt: number;
+  /** Last `lastSeenAt` written to the DB, so heartbeats don't write each time. */
+  persistedSeenAt: number;
 }
+
+const TO_DB = {
+  online: 'ONLINE',
+  away: 'AWAY',
+  busy: 'BUSY',
+  offline: 'OFFLINE',
+} as const;
+
+const DEFAULT_DEVICE = 'default';
+const CONNECTION_DEVICE_PREFIX = 'conn:';
+const MAX_DEVICES_PER_USER = 32;
 
 @Injectable()
 export class PresenceService {
@@ -36,8 +62,25 @@ export class PresenceService {
   // userId -> UserPresenceState
   private readonly userPresenceStates = new Map<string, UserPresenceState>();
 
-  private readonly idleThresholdMs = 3 * 60_000; // 3 minutes -> away
-  private readonly disconnectThresholdMs = 60_000; // 60 seconds without heartbeat -> offline
+  // userId -> state being loaded, so a heartbeat racing the stream shares it.
+  private readonly loadingStates = new Map<
+    string,
+    Promise<UserPresenceState>
+  >();
+
+  /**
+   * No heartbeat for this long means the device is gone. An open stream proves
+   * nothing: after a network cut the server can keep a dead socket for minutes.
+   * Above the 60s floor browsers throttle background-tab timers to.
+   */
+  private readonly staleDeviceMs = 90_000;
+  /** Survives a reload or workspace switch without flashing "offline". */
+  private readonly disconnectGraceMs = 10_000;
+  /** Other nodes trust a cached reading only about as long as a heartbeat. */
+  private readonly cacheTtlMs = 120_000;
+  private readonly seenPersistIntervalMs = 60_000;
+  /** DB rows left "online" by a crash are older than any live user's. */
+  private readonly ghostAfterMs = 5 * 60_000;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -53,213 +96,84 @@ export class PresenceService {
     userId: string,
     workspaceId?: string | null,
   ): Promise<UserPresence> {
-    const now = new Date();
     const wsId = workspaceId ?? null;
+    this.clientSessions.set(clientId, { clientId, userId, workspaceId: wsId });
 
-    this.clientSessions.set(clientId, {
-      clientId,
-      userId,
-      workspaceId: wsId,
-      connectedAt: now,
-      lastActiveAt: now,
-    });
+    const state = await this.ensureState(userId);
+    const now = Date.now();
+    state.activeClientIds.add(clientId);
+    state.disconnectedAt = null;
+    if (wsId) state.workspaces.add(wsId);
 
-    let state = this.userPresenceStates.get(userId);
-    const wasOffline = !state || state.status === 'offline';
-
-    if (!state) {
-      // Load initial status / text from DB
-      const user = await this.prisma.user.findUnique({
-        where: { id: userId },
-        select: {
-          statusText: true,
-          statusEmoji: true,
-          presence: true,
-          presenceManualAway: true,
-          lastSeenAt: true,
-        },
-      });
-      const manualAway = user?.presenceManualAway ?? false;
-
-      state = {
-        userId,
-        activeClientIds: new Set([clientId]),
-        status: manualAway
-          ? 'away'
-          : user?.presence === 'BUSY'
-          ? 'busy'
-          : 'online',
-        manualAway,
-        lastActiveAt: now,
-        lastSeenAt: now,
-        connectedAt: now,
-        statusText: user?.statusText ?? null,
-        statusEmoji: user?.statusEmoji ?? null,
-        workspaces: new Set(),
-      };
-      this.userPresenceStates.set(userId, state);
-    } else {
-      state.activeClientIds.add(clientId);
-      state.lastActiveAt = now;
-      if (
-        !state.manualAway &&
-        (state.status === 'offline' || state.status === 'away')
-      ) {
-        state.status = 'online';
-      } else if (state.manualAway) {
-        state.status = 'away';
-      }
-    }
-
-    if (wsId) {
-      state.workspaces.add(wsId);
-    } else {
-      // Load user's active workspaces for presence broadcasting
-      const memberships = await this.prisma.workspaceMember.findMany({
-        where: { userId, status: 'ACTIVE' },
-        select: { workspaceId: true },
-      });
-      for (const m of memberships) {
-        state.workspaces.add(m.workspaceId);
-      }
-    }
-
-    // Persist online state to DB
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        presence:
-          state.status === 'busy'
-            ? 'BUSY'
-            : state.status === 'away'
-            ? 'AWAY'
-            : 'ONLINE',
-        lastSeenAt: now,
-      },
-    });
-
-    const presenceResult = this.toUserPresence(state, wsId);
-    await this.cache.set(`presence:user:${userId}`, presenceResult, 300_000);
-
-    if (wasOffline) {
-      this.events.emit(AppEvent.PresenceUpdated, {
-        workspaceId: wsId,
-        actorId: userId,
-        presence: presenceResult,
-        targetWorkspaces: Array.from(state.workspaces),
+    // A fresh stream counts as a live device until its first heartbeat, unless
+    // real devices are already reporting (an idle tab reconnecting is not
+    // proof the user came back).
+    if (this.freshDevices(state, now).length === 0) {
+      state.connectedAt = new Date(now);
+      state.devices.set(`${CONNECTION_DEVICE_PREFIX}${clientId}`, {
+        status: 'online',
+        lastBeatAt: now,
       });
     }
 
-    return presenceResult;
+    return this.settle(state, wsId);
   }
 
   /**
-   * Removes a client connection upon disconnect.
+   * Removes a client connection upon disconnect. The user stays as they are
+   * for a short grace period, then the reaper takes them offline.
    */
   async removeConnection(clientId: string): Promise<void> {
     const session = this.clientSessions.get(clientId);
     if (!session) return;
-
     this.clientSessions.delete(clientId);
-    const { userId, workspaceId } = session;
 
-    const state = this.userPresenceStates.get(userId);
+    const state = this.userPresenceStates.get(session.userId);
     if (!state) return;
 
     state.activeClientIds.delete(clientId);
-
-    // If no remaining active connections, transition to offline
     if (state.activeClientIds.size === 0) {
-      const now = new Date();
-      state.status = 'offline';
-      state.lastSeenAt = now;
-
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: {
-          presence: 'OFFLINE',
-          lastSeenAt: now,
-        },
-      });
-
-      const presenceResult = this.toUserPresence(state, workspaceId);
-      await this.cache.set(`presence:user:${userId}`, presenceResult, 300_000);
-
-      this.events.emit(AppEvent.PresenceUpdated, {
-        workspaceId,
-        actorId: userId,
-        presence: presenceResult,
-        targetWorkspaces: Array.from(state.workspaces),
-      });
+      // Its device entry stays: that's what carries them through the grace.
+      state.disconnectedAt = Date.now();
+    } else {
+      state.devices.delete(`${CONNECTION_DEVICE_PREFIX}${clientId}`);
     }
   }
 
   /**
-   * Records a heartbeat / activity ping from a user.
+   * Records a heartbeat / activity ping from one of a user's devices.
    */
   async recordHeartbeat(
     userId: string,
     workspaceId?: string | null,
-    status?: 'online' | 'away' | 'busy' | 'offline',
+    status?: PresenceValue,
     statusText?: string | null,
     statusEmoji?: string | null,
+    deviceId?: string | null,
   ): Promise<UserPresence> {
-    const now = new Date();
-    let state = this.userPresenceStates.get(userId);
-    const previousStatus = state?.status;
+    const state = await this.ensureState(userId);
+    const now = Date.now();
+    const device = deviceId || DEFAULT_DEVICE;
 
-    if (!state) {
-      state = {
-        userId,
-        activeClientIds: new Set(),
-        status: status ?? 'online',
-        lastActiveAt: now,
-        lastSeenAt: now,
-        connectedAt: now,
-        statusText: statusText ?? null,
-        statusEmoji: statusEmoji ?? null,
-        workspaces: new Set(workspaceId ? [workspaceId] : []),
-        manualAway: false,
-      };
-      this.userPresenceStates.set(userId, state);
+    state.lastBeatAt = now;
+    for (const key of state.devices.keys()) {
+      if (key.startsWith(CONNECTION_DEVICE_PREFIX)) state.devices.delete(key);
+    }
+
+    if (status === 'offline') {
+      state.devices.delete(device);
     } else {
-      state.lastActiveAt = now;
-      // A pinned "away" is only changed by setExplicitPresence.
-      if (status && !state.manualAway) state.status = status;
-      if (statusText !== undefined) state.statusText = statusText;
-      if (statusEmoji !== undefined) state.statusEmoji = statusEmoji;
-      if (workspaceId) state.workspaces.add(workspaceId);
+      const reported = status ?? state.devices.get(device)?.status ?? 'online';
+      state.devices.set(device, { status: reported, lastBeatAt: now });
+      if (reported === 'online') state.lastActiveAt = new Date(now);
     }
+    this.pruneDevices(state, now);
 
-    const presenceResult = this.toUserPresence(state, workspaceId);
-    await this.cache.set(`presence:user:${userId}`, presenceResult, 300_000);
+    if (statusText !== undefined) state.statusText = statusText;
+    if (statusEmoji !== undefined) state.statusEmoji = statusEmoji;
+    if (workspaceId) state.workspaces.add(workspaceId);
 
-    // If status changed, emit presence update
-    if (previousStatus && previousStatus !== state.status) {
-      this.events.emit(AppEvent.PresenceUpdated, {
-        workspaceId,
-        actorId: userId,
-        presence: presenceResult,
-        targetWorkspaces: Array.from(state.workspaces),
-      });
-
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: {
-          presence:
-            state.status === 'online'
-              ? 'ONLINE'
-              : state.status === 'away'
-              ? 'AWAY'
-              : state.status === 'busy'
-              ? 'BUSY'
-              : 'OFFLINE',
-          lastSeenAt: now,
-        },
-      });
-    }
-
-    return presenceResult;
+    return this.settle(state, workspaceId);
   }
 
   /**
@@ -267,40 +181,67 @@ export class PresenceService {
    */
   async setExplicitPresence(
     userId: string,
-    presence: 'online' | 'away' | 'busy' | 'offline',
+    presence: PresenceValue,
     workspaceId?: string | null,
+    deviceId?: string | null,
   ): Promise<UserPresence> {
     // online/away are the user's own "Set yourself as ..." toggle: persist it
     // so it survives reconnects and applies on every device.
-    if (presence === 'online' || presence === 'away') {
-      const manualAway = presence === 'away';
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: { presenceManualAway: manualAway },
-      });
-      // Lift the pin while applying so the heartbeat guard doesn't swallow
-      // this change, then re-pin.
-      const existing = this.userPresenceStates.get(userId);
-      if (existing) existing.manualAway = false;
-      const result = await this.recordHeartbeat(userId, workspaceId, presence);
-      const state = this.userPresenceStates.get(userId);
-      if (state) {
-        state.manualAway = manualAway;
-        const pinned = this.toUserPresence(state, workspaceId);
-        await this.cache.set(`presence:user:${userId}`, pinned, 300_000);
-        // Re-broadcast with the final flag so the user's other devices pick
-        // up the pin even when the visible status didn't change.
-        this.events.emit(AppEvent.PresenceUpdated, {
-          workspaceId,
-          actorId: userId,
-          presence: pinned,
-          targetWorkspaces: Array.from(state.workspaces),
-        });
-        return pinned;
-      }
-      return { ...result, manualAway };
+    if (presence !== 'online' && presence !== 'away') {
+      return this.recordHeartbeat(
+        userId,
+        workspaceId,
+        presence,
+        undefined,
+        undefined,
+        deviceId,
+      );
     }
-    return this.recordHeartbeat(userId, workspaceId, presence);
+
+    const manualAway = presence === 'away';
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { presenceManualAway: manualAway },
+    });
+    const state = await this.ensureState(userId);
+    state.manualAway = manualAway;
+
+    const result = await this.recordHeartbeat(
+      userId,
+      workspaceId,
+      manualAway ? undefined : 'online',
+      undefined,
+      undefined,
+      deviceId,
+    );
+    // Broadcast even when the dot didn't move, so the user's other devices
+    // pick up the pin.
+    this.broadcast(state, result, workspaceId);
+    return result;
+  }
+
+  /**
+   * A status saved outside the heartbeat path (status dialog, schedule, expiry)
+   * — fold it into the live state, or the next read would undo it.
+   */
+  @OnEvent(AppEvent.UserStatusChanged)
+  async onUserStatusChanged(e: UserStatusChangedEvent): Promise<void> {
+    const state = this.userPresenceStates.get(e.userId);
+    if (!state) {
+      await this.cache.del(`presence:user:${e.userId}`);
+      return;
+    }
+
+    state.statusText = e.statusText;
+    state.statusEmoji = e.statusEmoji;
+    if (e.presence === 'BUSY') state.held = 'busy';
+    else if (e.presence === 'AWAY') state.held = 'away';
+    else if (e.presence === 'ONLINE' || e.source === 'schedule-cleared') {
+      state.held = null;
+    }
+
+    const result = await this.settle(state);
+    this.broadcast(state, result);
   }
 
   /**
@@ -310,61 +251,27 @@ export class PresenceService {
     userId: string,
     workspaceId?: string | null,
   ): Promise<UserPresence> {
-    // 1. Check local node state
-    const state = this.userPresenceStates.get(userId);
-    if (state) {
-      return this.toUserPresence(state, workspaceId);
-    }
+    const live = await this.readLive(userId, workspaceId);
+    if (live) return live;
 
-    // 2. Check cluster-wide Redis cache
-    const cached = await this.cache.get<UserPresence>(`presence:user:${userId}`);
-    if (cached) {
-      return {
-        ...cached,
-        workspaceId: workspaceId ?? cached.workspaceId,
-      };
-    }
-
-    // 3. Fallback to database
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
-        presence: true,
         lastSeenAt: true,
         statusText: true,
         statusEmoji: true,
       },
     });
 
-    if (!user) {
-      return {
-        userId,
-        status: 'offline',
-        lastSeenAt: null,
-      };
-    }
-
-    const normalizedStatus: 'online' | 'away' | 'busy' | 'offline' =
-      user.presence === 'ONLINE'
-        ? 'online'
-        : user.presence === 'AWAY'
-        ? 'away'
-        : user.presence === 'BUSY'
-        ? 'busy'
-        : 'offline';
-
-    const result: UserPresence = {
-      userId: user.id,
+    return {
+      userId,
       workspaceId: workspaceId ?? null,
-      status: normalizedStatus,
-      lastSeenAt: user.lastSeenAt?.toISOString() ?? null,
-      statusText: user.statusText,
-      statusEmoji: user.statusEmoji,
+      status: 'offline',
+      lastSeenAt: user?.lastSeenAt?.toISOString() ?? null,
+      statusText: user?.statusText ?? null,
+      statusEmoji: user?.statusEmoji ?? null,
     };
-
-    await this.cache.set(`presence:user:${userId}`, result, 300_000);
-    return result;
   }
 
   /**
@@ -377,7 +284,6 @@ export class PresenceService {
         userId: true,
         user: {
           select: {
-            presence: true,
             lastSeenAt: true,
             statusText: true,
             statusEmoji: true,
@@ -388,90 +294,224 @@ export class PresenceService {
 
     const results: UserPresence[] = [];
     for (const m of members) {
-      const liveState = this.userPresenceStates.get(m.userId);
-      if (liveState) {
-        results.push(this.toUserPresence(liveState, workspaceId));
-        continue;
-      }
-
-      const cached = await this.cache.get<UserPresence>(`presence:user:${m.userId}`);
-      if (cached) {
-        results.push({ ...cached, workspaceId });
-        continue;
-      }
-
-      const status: 'online' | 'away' | 'busy' | 'offline' =
-        m.user.presence === 'ONLINE'
-          ? 'online'
-          : m.user.presence === 'AWAY'
-          ? 'away'
-          : m.user.presence === 'BUSY'
-          ? 'busy'
-          : 'offline';
-
-      results.push({
-        userId: m.userId,
-        workspaceId,
-        status,
-        lastSeenAt: m.user.lastSeenAt?.toISOString() ?? null,
-        statusText: m.user.statusText,
-        statusEmoji: m.user.statusEmoji,
-      });
+      const live = await this.readLive(m.userId, workspaceId);
+      // Nobody live is reporting for them, so they're offline — whatever
+      // `User.presence` says (a crash leaves that column "ONLINE").
+      results.push(
+        live ?? {
+          userId: m.userId,
+          workspaceId,
+          status: 'offline',
+          lastSeenAt: m.user.lastSeenAt?.toISOString() ?? null,
+          statusText: m.user.statusText,
+          statusEmoji: m.user.statusEmoji,
+        },
+      );
     }
 
     return results;
   }
 
   /**
-   * Periodic reaper to detect idle ('away') or disconnected ('offline') clients.
+   * Periodic reaper: takes users offline once their last stream has closed or
+   * their devices stopped heartbeating.
    */
   @Interval(15_000)
   async reapStalePresence(): Promise<void> {
     const now = Date.now();
 
     for (const [userId, state] of this.userPresenceStates.entries()) {
-      if (state.status === 'offline') continue;
+      // Their stream closed and nothing has beaten since: the app is gone.
+      if (
+        state.disconnectedAt !== null &&
+        state.lastBeatAt <= state.disconnectedAt &&
+        now - state.disconnectedAt > this.disconnectGraceMs
+      ) {
+        state.devices.clear();
+      }
+      this.pruneDevices(state, now);
 
-      const idleDuration = now - state.lastActiveAt.getTime();
-
-      // Check if user has no active clients and timeout passed
-      if (state.activeClientIds.size === 0 && idleDuration > this.disconnectThresholdMs) {
-        state.status = 'offline';
-        state.lastSeenAt = new Date();
-
-        await this.prisma.user.update({
-          where: { id: userId },
-          data: { presence: 'OFFLINE', lastSeenAt: state.lastSeenAt },
-        });
-
-        const presenceResult = this.toUserPresence(state);
-        this.events.emit(AppEvent.PresenceUpdated, {
-          workspaceId: null,
-          actorId: userId,
-          presence: presenceResult,
-          targetWorkspaces: Array.from(state.workspaces),
-        });
+      try {
+        await this.settle(state);
+      } catch {
+        // One failed write must not stop the sweep; the next tick retries.
         continue;
       }
 
-      // Check if active user went idle (> 3 minutes without interaction)
-      if (state.status === 'online' && idleDuration > this.idleThresholdMs) {
-        state.status = 'away';
-
-        await this.prisma.user.update({
-          where: { id: userId },
-          data: { presence: 'AWAY' },
-        });
-
-        const presenceResult = this.toUserPresence(state);
-        this.events.emit(AppEvent.PresenceUpdated, {
-          workspaceId: null,
-          actorId: userId,
-          presence: presenceResult,
-          targetWorkspaces: Array.from(state.workspaces),
-        });
+      if (state.status === 'offline' && state.activeClientIds.size === 0) {
+        this.userPresenceStates.delete(userId);
       }
     }
+  }
+
+  /**
+   * Clears `User.presence` for accounts nobody is live on — rows a crash or
+   * restart left "online", which rosters reading the column would keep showing.
+   */
+  @Interval(5 * 60_000)
+  async sweepGhostPresence(): Promise<void> {
+    await this.prisma.user.updateMany({
+      where: {
+        presence: { not: 'OFFLINE' },
+        id: { notIn: Array.from(this.userPresenceStates.keys()) },
+        OR: [
+          { lastSeenAt: null },
+          { lastSeenAt: { lt: new Date(Date.now() - this.ghostAfterMs) } },
+        ],
+      },
+      data: { presence: 'OFFLINE' },
+    });
+  }
+
+  /** This node's reading, else one a sibling node shared through the cache. */
+  private async readLive(
+    userId: string,
+    workspaceId?: string | null,
+  ): Promise<UserPresence | null> {
+    const state = this.userPresenceStates.get(userId);
+    if (state) return this.toUserPresence(state, workspaceId);
+
+    const cached = await this.cache.get<UserPresence>(
+      `presence:user:${userId}`,
+    );
+    if (!cached) return null;
+    return { ...cached, workspaceId: workspaceId ?? cached.workspaceId };
+  }
+
+  /** The live state for a user, loaded once even under concurrent callers. */
+  private async ensureState(userId: string): Promise<UserPresenceState> {
+    const existing = this.userPresenceStates.get(userId);
+    if (existing) return existing;
+
+    let loading = this.loadingStates.get(userId);
+    if (!loading) {
+      loading = this.loadState(userId).finally(() => {
+        this.loadingStates.delete(userId);
+      });
+      this.loadingStates.set(userId, loading);
+    }
+    return loading;
+  }
+
+  private async loadState(userId: string): Promise<UserPresenceState> {
+    const [user, memberships] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          statusText: true,
+          statusEmoji: true,
+          presence: true,
+          presenceManualAway: true,
+          lastSeenAt: true,
+        },
+      }),
+      // Presence is per account: every shared workspace needs the updates, not
+      // only the one this client happens to have open.
+      this.prisma.workspaceMember.findMany({
+        where: { userId, status: 'ACTIVE' },
+        select: { workspaceId: true },
+      }),
+    ]);
+
+    const now = new Date();
+    const state: UserPresenceState = {
+      userId,
+      activeClientIds: new Set(),
+      devices: new Map(),
+      status: 'offline',
+      manualAway: user?.presenceManualAway ?? false,
+      held: user?.presence === 'BUSY' ? 'busy' : null,
+      lastActiveAt: now,
+      lastSeenAt: user?.lastSeenAt ?? now,
+      connectedAt: now,
+      statusText: user?.statusText ?? null,
+      statusEmoji: user?.statusEmoji ?? null,
+      workspaces: new Set(memberships.map((m) => m.workspaceId)),
+      disconnectedAt: null,
+      lastBeatAt: 0,
+      persistedSeenAt: 0,
+    };
+    this.userPresenceStates.set(userId, state);
+    return state;
+  }
+
+  private freshDevices(state: UserPresenceState, now: number): DeviceReading[] {
+    return Array.from(state.devices.values()).filter(
+      (d) => now - d.lastBeatAt <= this.staleDeviceMs,
+    );
+  }
+
+  private pruneDevices(state: UserPresenceState, now: number): void {
+    for (const [key, device] of state.devices.entries()) {
+      if (now - device.lastBeatAt > this.staleDeviceMs) {
+        state.devices.delete(key);
+      }
+    }
+    // Every page load is a new device id; a reload loop must not grow this.
+    while (state.devices.size > MAX_DEVICES_PER_USER) {
+      const oldest = state.devices.keys().next().value;
+      if (oldest === undefined) break;
+      state.devices.delete(oldest);
+    }
+  }
+
+  /**
+   * The one status a user shows: an idle tab must not mark someone away while
+   * another device is in active use, so the most available device wins.
+   */
+  private deriveStatus(state: UserPresenceState, now: number): PresenceValue {
+    const devices = this.freshDevices(state, now);
+    if (devices.length === 0) return 'offline';
+    if (state.manualAway) return 'away';
+    if (state.held) return state.held;
+    if (devices.some((d) => d.status === 'busy')) return 'busy';
+    return devices.some((d) => d.status === 'online') ? 'online' : 'away';
+  }
+
+  /** Applies the derived status; every change is persisted and broadcast. */
+  private async settle(
+    state: UserPresenceState,
+    workspaceId?: string | null,
+  ): Promise<UserPresence> {
+    const now = Date.now();
+    const next = this.deriveStatus(state, now);
+    const changed = next !== state.status;
+    state.status = next;
+
+    const isLive = next !== 'offline';
+    const seenDue = now - state.persistedSeenAt >= this.seenPersistIntervalMs;
+    if (isLive || changed) state.lastSeenAt = new Date(now);
+
+    if (changed || (isLive && seenDue)) {
+      await this.prisma.user.update({
+        where: { id: state.userId },
+        data: { presence: TO_DB[next], lastSeenAt: state.lastSeenAt },
+      });
+      state.persistedSeenAt = now;
+    }
+
+    const result = this.toUserPresence(state, workspaceId);
+    await this.cache.set(
+      `presence:user:${state.userId}`,
+      result,
+      this.cacheTtlMs,
+    );
+
+    if (changed) this.broadcast(state, result, workspaceId);
+    return result;
+  }
+
+  private broadcast(
+    state: UserPresenceState,
+    presence: UserPresence,
+    workspaceId?: string | null,
+  ): void {
+    this.events.emit(AppEvent.PresenceUpdated, {
+      workspaceId: workspaceId ?? null,
+      actorId: state.userId,
+      presence,
+      targetWorkspaces: Array.from(state.workspaces),
+    });
   }
 
   private toUserPresence(

@@ -2,18 +2,17 @@ import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@org/ui';
-import { useAuthStore, useCurrentUser } from '@org/auth';
+import { useCurrentUser } from '@org/auth';
 import {
   channelApi,
   queryKeys,
   remindersApi,
-  userApi,
   workToolsApi,
 } from '@org/api-client';
+import { usePresence } from '@org/realtime';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   ChannelRole,
-  PresenceStatus,
   TaskPriority,
   TaskStatus,
   toPlatformUserId,
@@ -77,13 +76,17 @@ export function useSlashCommands({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const currentUser = useCurrentUser();
-  const setUser = useAuthStore((s) => s.setUser);
+  const { status: selfStatus, setManualAway } = usePresence(currentUser?.id);
   const { slug, workspaceId: currentWorkspaceId } = useCurrentWorkspace();
   const workspaceId = context?.workspaceId ?? currentWorkspaceId;
   const channelId = context?.channelId;
 
   return useCallback(
-    async ({ name, args, mentions }: SlashCommandInvocation): Promise<boolean> => {
+    async ({
+      name,
+      args,
+      mentions,
+    }: SlashCommandInvocation): Promise<boolean> => {
       const people = mentions.filter((m) => m.kind === 'user');
 
       switch (name) {
@@ -120,13 +123,12 @@ export function useSlashCommands({
         }
 
         case 'away': {
-          const goingAway = currentUser?.presence !== PresenceStatus.AWAY;
+          const goingAway = selfStatus !== 'away';
           try {
-            const updated = await userApi.updateStatus({
-              presence: goingAway ? PresenceStatus.AWAY : PresenceStatus.ONLINE,
-            });
-            setUser(updated);
-            toast.success(goingAway ? 'You are now away' : 'You are back online');
+            await setManualAway(goingAway);
+            toast.success(
+              goingAway ? 'You are now away' : 'You are back online',
+            );
           } catch (err) {
             toast.error(failure(err, 'Could not update your status.'));
           }
@@ -145,7 +147,9 @@ export function useSlashCommands({
             void queryClient.invalidateQueries({
               queryKey: queryKeys.channels.all(workspaceId),
             });
-            toast.success(args.trim() ? 'Channel topic updated' : 'Channel topic cleared');
+            toast.success(
+              args.trim() ? 'Channel topic updated' : 'Channel topic cleared',
+            );
           } catch (err) {
             toast.error(failure(err, 'Could not set the topic.'));
           }
@@ -198,7 +202,9 @@ export function useSlashCommands({
           }
           const assignee = name === 'assign' ? people[0] : undefined;
           if (name === 'assign' && !assignee) {
-            toast.error('Mention who to assign it to, e.g. /assign @person fix login');
+            toast.error(
+              'Mention who to assign it to, e.g. /assign @person fix login',
+            );
             return true;
           }
           const title = stripMentions(args, assignee ? [assignee] : []);
@@ -272,7 +278,9 @@ export function useSlashCommands({
         case 'search': {
           if (!slug) return false;
           const q = args.trim();
-          navigate(`/w/${slug}/search${q ? `?q=${encodeURIComponent(q)}` : ''}`);
+          navigate(
+            `/w/${slug}/search${q ? `?q=${encodeURIComponent(q)}` : ''}`,
+          );
           return true;
         }
 
@@ -292,8 +300,8 @@ export function useSlashCommands({
       canMentionGroups,
       sendText,
       startHuddle,
-      currentUser?.presence,
-      setUser,
+      selfStatus,
+      setManualAway,
       workspaceId,
       channelId,
       queryClient,

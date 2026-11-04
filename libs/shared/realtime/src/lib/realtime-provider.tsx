@@ -18,7 +18,10 @@ import React, {
 } from 'react';
 import { PresenceService } from './presence-service.js';
 import { RealtimeClient } from './realtime-client.js';
-import { RealtimeEventBus, type RealtimeEventHandler } from './realtime-event-bus.js';
+import {
+  RealtimeEventBus,
+  type RealtimeEventHandler,
+} from './realtime-event-bus.js';
 import {
   RealtimeEventType,
   type AgentUpdatedPayload,
@@ -251,56 +254,38 @@ export function RealtimeProvider({
     );
 
     // 6. Channels
-    const unsubChannelCreated = bus.on(
-      RealtimeEventType.ChannelCreated,
-      () => {
-        queryClient.invalidateQueries({
-          queryKey: ['channels', ws],
-        });
-      },
-    );
-    const unsubChannelUpdated = bus.on(
-      RealtimeEventType.ChannelUpdated,
-      () => {
-        queryClient.invalidateQueries({
-          queryKey: ['channels', ws],
-        });
-      },
-    );
-    const unsubChannelDeleted = bus.on(
-      RealtimeEventType.ChannelDeleted,
-      () => {
-        queryClient.invalidateQueries({
-          queryKey: ['channels', ws],
-        });
-      },
-    );
+    const unsubChannelCreated = bus.on(RealtimeEventType.ChannelCreated, () => {
+      queryClient.invalidateQueries({
+        queryKey: ['channels', ws],
+      });
+    });
+    const unsubChannelUpdated = bus.on(RealtimeEventType.ChannelUpdated, () => {
+      queryClient.invalidateQueries({
+        queryKey: ['channels', ws],
+      });
+    });
+    const unsubChannelDeleted = bus.on(RealtimeEventType.ChannelDeleted, () => {
+      queryClient.invalidateQueries({
+        queryKey: ['channels', ws],
+      });
+    });
 
     // 7. Workspace Members & Invitations
-    const unsubMember = bus.on(
-      RealtimeEventType.WorkspaceMemberUpdated,
-      () => {
-        queryClient.invalidateQueries({
-          queryKey: ['members', ws],
-        });
-      },
-    );
-    const unsubInvite = bus.on(
-      RealtimeEventType.InvitationCreated,
-      () => {
-        queryClient.invalidateQueries({
-          queryKey: ['invitations', ws],
-        });
-      },
-    );
+    const unsubMember = bus.on(RealtimeEventType.WorkspaceMemberUpdated, () => {
+      queryClient.invalidateQueries({
+        queryKey: ['members', ws],
+      });
+    });
+    const unsubInvite = bus.on(RealtimeEventType.InvitationCreated, () => {
+      queryClient.invalidateQueries({
+        queryKey: ['invitations', ws],
+      });
+    });
     // A scheduled status flipped server-side (brief §9) — refresh the roster so
     // teammates see the new status text without waiting for a poll.
-    const unsubUserStatus = bus.on(
-      RealtimeEventType.UserStatusChanged,
-      () => {
-        queryClient.invalidateQueries({ queryKey: ['members', ws] });
-      },
-    );
+    const unsubUserStatus = bus.on(RealtimeEventType.UserStatusChanged, () => {
+      queryClient.invalidateQueries({ queryKey: ['members', ws] });
+    });
     // A huddle started / changed / ended (brief §6) — refresh the huddle state.
     const unsubHuddle = bus.on(RealtimeEventType.HuddleUpdated, () => {
       queryClient.invalidateQueries({ queryKey: ['huddle', ws] });
@@ -358,7 +343,12 @@ export function RealtimeProvider({
 
   return (
     <RealtimeContext.Provider value={value}>
-      <PresenceProvider userId={userId} workspaceId={workspaceId} bus={bus}>
+      <PresenceProvider
+        userId={userId}
+        workspaceId={workspaceId}
+        bus={bus}
+        connectionState={connectionState}
+      >
         {children}
       </PresenceProvider>
     </RealtimeContext.Provider>
@@ -372,6 +362,7 @@ export interface PresenceProviderProps {
   userId?: string | null;
   workspaceId?: string | null;
   bus: RealtimeEventBus;
+  connectionState?: RealtimeConnectionState;
 }
 
 export function PresenceProvider({
@@ -379,6 +370,7 @@ export function PresenceProvider({
   userId,
   workspaceId,
   bus,
+  connectionState,
 }: PresenceProviderProps) {
   const [presenceService, setPresenceService] =
     useState<PresenceService | null>(null);
@@ -412,6 +404,15 @@ export function PresenceProvider({
       presenceService.setContext(userId ?? null, workspaceId ?? null);
     }
   }, [presenceService, userId, workspaceId]);
+
+  // `connecting` follows every workspace switch, so only a settled state counts.
+  useEffect(() => {
+    if (!presenceService || !connectionState) return;
+    if (connectionState === 'connected') presenceService.setConnected(true);
+    else if (connectionState !== 'connecting') {
+      presenceService.setConnected(false);
+    }
+  }, [presenceService, connectionState]);
 
   const getPresence = useCallback(
     (uid: string): UserPresence => {
@@ -544,7 +545,9 @@ export function usePresence(userId?: string) {
 /**
  * Quick boolean / status indicator hook for avatars and member lists.
  */
-export function useOnlineStatus(userId: string | undefined): 'online' | 'away' | 'busy' | 'offline' {
+export function useOnlineStatus(
+  userId: string | undefined,
+): 'online' | 'away' | 'busy' | 'offline' {
   const ctx = useContext(PresenceContext);
   if (!ctx || !userId) return 'offline';
   const presence = ctx.getPresence(userId);

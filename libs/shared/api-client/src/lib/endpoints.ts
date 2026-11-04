@@ -5757,6 +5757,7 @@ export const realtimeApi = {
     workspaceId?: string | null;
     statusText?: string | null;
     statusEmoji?: string | null;
+    deviceId?: string | null;
   }) => request<{ ok: boolean }>(http.post('/realtime/heartbeat', input)),
 
   setPresence: (

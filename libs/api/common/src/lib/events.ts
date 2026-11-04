@@ -357,7 +357,7 @@ export interface UserStatusChangedEvent extends BaseEvent {
   statusEmoji: string | null;
   presence: string | null;
   /** What drove the change. */
-  source: 'schedule' | 'schedule-cleared' | 'expiry';
+  source: 'manual' | 'schedule' | 'schedule-cleared' | 'expiry';
 }
 
 export interface HuddleUpdatedEvent extends BaseEvent {
@@ -682,7 +682,8 @@ export interface AiAgentMessageEvent {
 }
 
 /** How a coworker turn was started. */
-export type CoworkerTurnSource = 'chat' | 'schedule' | 'workflow' | 'handoff' | 'api';
+export type CoworkerTurnSource =
+  'chat' | 'schedule' | 'workflow' | 'handoff' | 'api';
 
 export interface CoworkerRunEvent {
   workspaceId: string;

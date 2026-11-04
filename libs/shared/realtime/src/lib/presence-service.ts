@@ -20,6 +20,15 @@ export type PresenceChangeListener = (
   presence: UserPresence,
 ) => void;
 
+/** Long enough that a reload or workspace switch doesn't blank the roster. */
+const CONNECTION_LOSS_GRACE_MS = 8_000;
+
+/** Identifies this tab, so the server can combine it with the user's others. */
+function createDeviceId(): string {
+  const random = Math.random().toString(36).slice(2, 10);
+  return `web-${Date.now().toString(36)}-${random}`;
+}
+
 /**
  * Client-side Presence Service.
  *
@@ -46,6 +55,12 @@ export class PresenceService {
   private unsubscribeBus: (() => void) | null = null;
   private isDisposed = false;
 
+  private readonly deviceId = createDeviceId();
+  private connectionLossTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Set when the map can no longer be trusted; cleared by a good snapshot. */
+  private snapshotStale = false;
+  private removeWindowListeners: (() => void) | null = null;
+
   constructor(options: PresenceServiceOptions) {
     this.bus = options.bus;
     this.currentWorkspaceId = options.workspaceId ?? null;
@@ -57,6 +72,10 @@ export class PresenceService {
     this.initUserActivityTracker();
     this.startHeartbeatLoop();
     this.startIdleCheckLoop();
+
+    if (this.currentWorkspaceId) {
+      void this.fetchWorkspacePresenceSnapshot(this.currentWorkspaceId);
+    }
   }
 
   public setContext(userId: string | null, workspaceId: string | null) {
@@ -68,8 +87,62 @@ export class PresenceService {
       // Clear presence map on workspace switch
       this.presenceMap.clear();
       if (workspaceId) {
-        this.fetchWorkspacePresenceSnapshot(workspaceId);
+        void this.fetchWorkspacePresenceSnapshot(workspaceId);
       }
+    }
+  }
+
+  /**
+   * Fed by the realtime stream's state. Back online: report in and reload the
+   * roster, since presence events were missed. Still down after a short grace:
+   * nothing shown can be vouched for any more, so stop showing it as live.
+   */
+  public setConnected(connected: boolean) {
+    if (connected) {
+      this.clearConnectionLossTimer();
+      void this.resync();
+      return;
+    }
+    if (this.connectionLossTimer) return;
+    const isOffline =
+      typeof navigator !== 'undefined' && navigator.onLine === false;
+    this.connectionLossTimer = setTimeout(
+      () => {
+        this.connectionLossTimer = null;
+        this.markConnectionLost();
+      },
+      isOffline ? 0 : CONNECTION_LOSS_GRACE_MS,
+    );
+  }
+
+  private clearConnectionLossTimer() {
+    if (this.connectionLossTimer) clearTimeout(this.connectionLossTimer);
+    this.connectionLossTimer = null;
+  }
+
+  private markConnectionLost() {
+    if (this.isDisposed) return;
+    this.snapshotStale = true;
+
+    const self = this.currentUserId;
+    if (self && !this.presenceMap.has(self)) {
+      const unknown = this.getPresence(self);
+      this.presenceMap.set(self, unknown);
+      this.notifyListeners(self, unknown);
+    }
+    for (const [userId, presence] of this.presenceMap.entries()) {
+      if (presence.status === 'offline') continue;
+      const updated: UserPresence = { ...presence, status: 'offline' };
+      this.presenceMap.set(userId, updated);
+      this.notifyListeners(userId, updated);
+    }
+  }
+
+  private async resync(): Promise<void> {
+    if (this.isDisposed) return;
+    await this.sendHeartbeat(this.localStatus);
+    if (this.currentWorkspaceId) {
+      await this.fetchWorkspacePresenceSnapshot(this.currentWorkspaceId);
     }
   }
 
@@ -122,9 +195,10 @@ export class PresenceService {
         {
           presence: away ? 'away' : 'online',
           workspaceId: this.currentWorkspaceId,
+          deviceId: this.deviceId,
         },
       );
-      this.syncManualFlag(res.data?.presence);
+      this.applyOwnReading(res.data?.presence);
     } catch (err) {
       this.manualAway = prev.manual;
       this.applyLocal(prev.status);
@@ -141,6 +215,15 @@ export class PresenceService {
         this.localStatus = 'online';
       }
     }
+  }
+
+  /** The server's view of us: other devices can make it differ from ours. */
+  private applyOwnReading(p?: UserPresence | null) {
+    if (!p || p.userId !== this.currentUserId) return;
+    this.syncManualFlag(p);
+    const existing = this.presenceMap.get(p.userId);
+    this.presenceMap.set(p.userId, p);
+    if (existing?.status !== p.status) this.notifyListeners(p.userId, p);
   }
 
   private applyLocal(status: 'online' | 'away' | 'busy' | 'offline') {
@@ -199,12 +282,22 @@ export class PresenceService {
         const existing = this.presenceMap.get(payload.userId);
         const updated: UserPresence = {
           userId: payload.userId,
-          workspaceId: payload.workspaceId ?? existing?.workspaceId ?? this.currentWorkspaceId,
+          workspaceId:
+            payload.workspaceId ??
+            existing?.workspaceId ??
+            this.currentWorkspaceId,
           status: payload.status,
           lastSeenAt: payload.lastSeenAt ?? existing?.lastSeenAt ?? null,
           lastActiveAt: payload.lastActiveAt ?? existing?.lastActiveAt ?? null,
-          statusText: payload.statusText ?? existing?.statusText ?? null,
-          statusEmoji: payload.statusEmoji ?? existing?.statusEmoji ?? null,
+          // `null` means the status was cleared; only `undefined` keeps it.
+          statusText:
+            payload.statusText !== undefined
+              ? payload.statusText
+              : (existing?.statusText ?? null),
+          statusEmoji:
+            payload.statusEmoji !== undefined
+              ? payload.statusEmoji
+              : (existing?.statusEmoji ?? null),
           manualAway: payload.manualAway ?? existing?.manualAway,
         };
 
@@ -229,15 +322,19 @@ export class PresenceService {
       const response = await http.get<{ presence: UserPresence[] }>(
         `/workspaces/${workspaceId}/presence`,
       );
+      // The user switched workspace while this was in flight.
+      if (this.isDisposed || workspaceId !== this.currentWorkspaceId) return;
       if (response.data?.presence) {
         for (const item of response.data.presence) {
           this.syncManualFlag(item);
           this.presenceMap.set(item.userId, item);
           this.notifyListeners(item.userId, item);
         }
+        this.snapshotStale = false;
       }
     } catch {
-      // Ignore snapshot failure on network offline
+      // Network offline; the heartbeat loop retries while the map is stale.
+      this.snapshotStale = true;
     }
   }
 
@@ -260,42 +357,48 @@ export class PresenceService {
       }
     };
 
-    const events = ['mousemove', 'keydown', 'touchstart', 'scroll', 'click', 'focus'];
+    const onVisibilityChange = () => {
+      // Hidden tabs fall through to the idle check, which marks them away.
+      if (document.visibilityState === 'visible') onUserInteraction();
+    };
+
+    const events = [
+      'mousemove',
+      'keydown',
+      'touchstart',
+      'scroll',
+      'click',
+      'focus',
+    ];
     for (const ev of events) {
       window.addEventListener(ev, onUserInteraction, { passive: true });
     }
+    document.addEventListener('visibilitychange', onVisibilityChange);
 
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') {
-        onUserInteraction();
-      } else {
-        // Tab hidden — if hidden for a while, it will transition to away in idle check
+    this.removeWindowListeners = () => {
+      if (throttleTimer) clearTimeout(throttleTimer);
+      for (const ev of events) {
+        window.removeEventListener(ev, onUserInteraction);
       }
-    });
-
-    window.addEventListener('beforeunload', () => {
-      // Best-effort navigator.sendBeacon on tab close
-      if (this.currentUserId && navigator.sendBeacon && getAccessToken()) {
-        const url = `/api/v1/realtime/heartbeat`;
-        const data = JSON.stringify({
-          status: 'offline',
-          workspaceId: this.currentWorkspaceId,
-        });
-        const blob = new Blob([data], { type: 'application/json' });
-        navigator.sendBeacon(url, blob);
-      }
-    });
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
   }
 
   private startIdleCheckLoop() {
     this.idleCheckTimer = setInterval(() => {
-      if (this.isDisposed || !this.currentUserId || this.localStatus === 'busy') return;
+      if (this.isDisposed || !this.currentUserId || this.localStatus === 'busy')
+        return;
 
       const idleTime = Date.now() - this.lastActivityAt;
       const isDocumentHidden =
-        typeof document !== 'undefined' && document.visibilityState === 'hidden';
+        typeof document !== 'undefined' &&
+        document.visibilityState === 'hidden';
 
-      if (this.localStatus === 'online' && (idleTime > this.idleTimeoutMs || (isDocumentHidden && idleTime > 60_000))) {
+      if (
+        this.localStatus === 'online' &&
+        (idleTime > this.idleTimeoutMs ||
+          (isDocumentHidden && idleTime > 60_000))
+      ) {
         this.localStatus = 'away';
         this.setLocalPresence('away');
       }
@@ -312,7 +415,8 @@ export class PresenceService {
 
     this.heartbeatTimer = setInterval(() => {
       if (this.isDisposed) return;
-      this.sendHeartbeat(this.localStatus);
+      if (this.snapshotStale) void this.resync();
+      else void this.sendHeartbeat(this.localStatus);
     }, this.heartbeatIntervalMs);
   }
 
@@ -323,14 +427,20 @@ export class PresenceService {
   ): Promise<void> {
     const token = getAccessToken();
     if (!token || !this.currentUserId) return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
 
     try {
-      await http.post('/realtime/heartbeat', {
-        status,
-        workspaceId: this.currentWorkspaceId,
-        statusText,
-        statusEmoji,
-      });
+      const res = await http.post<{ presence?: UserPresence }>(
+        '/realtime/heartbeat',
+        {
+          status,
+          workspaceId: this.currentWorkspaceId,
+          statusText,
+          statusEmoji,
+          deviceId: this.deviceId,
+        },
+      );
+      if (!this.isDisposed) this.applyOwnReading(res.data?.presence);
     } catch {
       // Ignore heartbeat error
     }
@@ -340,6 +450,8 @@ export class PresenceService {
     this.isDisposed = true;
     if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
     if (this.idleCheckTimer) clearInterval(this.idleCheckTimer);
+    this.clearConnectionLossTimer();
+    if (this.removeWindowListeners) this.removeWindowListeners();
     if (this.unsubscribeBus) this.unsubscribeBus();
     this.listeners.clear();
     this.presenceMap.clear();

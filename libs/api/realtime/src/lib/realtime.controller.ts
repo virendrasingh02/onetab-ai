@@ -18,22 +18,11 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import {
-  CurrentUser,
-  Public,
-  type AuthenticatedUser,
-} from '@org/api-common';
+import { CurrentUser, Public, type AuthenticatedUser } from '@org/api-common';
 import { PrismaService } from '@org/database';
 import type { UserPresence } from '@org/types';
 import type { Request } from 'express';
-import {
-  finalize,
-  interval,
-  map,
-  merge,
-  Observable,
-  Subject,
-} from 'rxjs';
+import { finalize, interval, map, merge, Observable, Subject } from 'rxjs';
 import { PresenceService } from './presence.service.js';
 import {
   RealtimeGatewayService,
@@ -290,7 +279,13 @@ export class RealtimeController {
   async deliveryStatus(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
-  ): Promise<{ id: string; status: DeliveryStatus; type: string; updatedAt: number; reason?: string }> {
+  ): Promise<{
+    id: string;
+    status: DeliveryStatus;
+    type: string;
+    updatedAt: number;
+    reason?: string;
+  }> {
     const status = await this.deliveries.getStatus(user.id, id);
     if (!status) throw new NotFoundException('Delivery not found.');
     return status;
@@ -314,7 +309,15 @@ export class RealtimeController {
       where: { workspaceId, userId, status: 'ACTIVE' },
       select: { id: true },
     });
-    if (!member) throw new ForbiddenException('Not a member of this workspace.');
+    if (!member)
+      throw new ForbiddenException('Not a member of this workspace.');
+  }
+
+  /** Device ids come from the client, so bound what gets stored per user. */
+  private deviceIdFrom(value: unknown): string | null {
+    return typeof value === 'string' && /^[\w-]{1,64}$/.test(value)
+      ? value
+      : null;
   }
 
   /**
@@ -329,6 +332,7 @@ export class RealtimeController {
       workspaceId?: string | null;
       statusText?: string | null;
       statusEmoji?: string | null;
+      deviceId?: string | null;
     },
   ): Promise<{ ok: boolean; presence: UserPresence }> {
     await this.assertActiveMember(user.id, body.workspaceId);
@@ -338,6 +342,7 @@ export class RealtimeController {
       body.status,
       body.statusText,
       body.statusEmoji,
+      this.deviceIdFrom(body.deviceId),
     );
     return { ok: true, presence };
   }
@@ -352,6 +357,7 @@ export class RealtimeController {
     body: {
       presence: 'online' | 'away' | 'busy' | 'offline';
       workspaceId?: string | null;
+      deviceId?: string | null;
     },
   ): Promise<{ ok: boolean; presence: UserPresence }> {
     await this.assertActiveMember(user.id, body.workspaceId);
@@ -359,6 +365,7 @@ export class RealtimeController {
       user.id,
       body.presence,
       body.workspaceId,
+      this.deviceIdFrom(body.deviceId),
     );
     return { ok: true, presence };
   }

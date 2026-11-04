@@ -506,6 +506,12 @@ export class UserService {
       data,
     });
 
+    await this.emitStatusChanged(userId, {
+      statusText: user.statusText,
+      statusEmoji: user.statusEmoji,
+      presence: input.presence ?? null,
+    });
+
     const isExpired = user.statusExpiresAt && user.statusExpiresAt < new Date();
 
     return {
@@ -549,6 +555,37 @@ export class UserService {
     await this.prisma.user.update({
       where: { id: userId },
       data: { presence, lastSeenAt: new Date() },
+    });
+    const { statusText, statusEmoji } =
+      await this.prisma.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: { statusText: true, statusEmoji: true },
+      });
+    await this.emitStatusChanged(userId, { statusText, statusEmoji, presence });
+  }
+
+  /** Tells the live presence layer and rosters about a hand-set status. */
+  private async emitStatusChanged(
+    userId: string,
+    status: {
+      statusText: string | null;
+      statusEmoji: string | null;
+      presence: string | null;
+    },
+  ): Promise<void> {
+    const memberships = await this.prisma.workspaceMember.findMany({
+      where: { userId, status: 'ACTIVE' },
+      select: { workspaceId: true },
+    });
+    const workspaceIds = memberships.map((m) => m.workspaceId);
+
+    this.events.emit(AppEvent.UserStatusChanged, {
+      workspaceId: workspaceIds[0] ?? '',
+      actorId: userId,
+      userId,
+      workspaceIds,
+      ...status,
+      source: 'manual',
     });
   }
 
