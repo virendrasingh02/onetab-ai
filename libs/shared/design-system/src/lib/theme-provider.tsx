@@ -28,7 +28,17 @@ export const ACTIVE_WORKSPACE_STORAGE_KEY = 'onetab_active_workspace_id';
 const MODES = ['light', 'dark', 'system'] as const;
 const DENSITY_VALUES = ['compact', 'default', 'comfortable'] as const;
 const ACCENT_VALUES = [
-  'mint', 'violet', 'blue', 'green', 'amber', 'pink', 'cyan', 'orange', 'indigo', 'teal', 'rose',
+  'mint',
+  'violet',
+  'blue',
+  'green',
+  'amber',
+  'pink',
+  'cyan',
+  'orange',
+  'indigo',
+  'teal',
+  'rose',
 ] as const;
 const RADIUS_VALUES = ['xs', 'sm', 'md', 'lg', 'xl'] as const;
 
@@ -151,7 +161,10 @@ function resolve(theme: Theme): ResolvedTheme {
 }
 
 /** Injects or clears custom CSS variables style block. */
-function applyCustomThemeVariables(config: ThemeConfig | null, resolved: ResolvedTheme) {
+function applyCustomThemeVariables(
+  config: ThemeConfig | null,
+  resolved: ResolvedTheme,
+) {
   if (typeof document === 'undefined') return;
 
   const styleId = 'onetab-custom-theme-vars';
@@ -265,7 +278,11 @@ export function ThemeProvider({
   );
 
   const [density, setDensityState] = useState<Density>(() =>
-    readStoredValue(scopedKeys(scopeKey).density, defaultDensity, DENSITY_VALUES),
+    readStoredValue(
+      scopedKeys(scopeKey).density,
+      defaultDensity,
+      DENSITY_VALUES,
+    ),
   );
   const [accent, setAccentState] = useState<Accent>(() =>
     readStoredValue(scopedKeys(scopeKey).accent, defaultAccent, ACCENT_VALUES),
@@ -328,8 +345,7 @@ export function ThemeProvider({
     const nextCustom =
       rawCustom !== null ? readStoredCustomTheme(k.custom) : cur.customTheme;
     const nextMode =
-      nextCustom?.mode ??
-      readStoredValue(k.theme, cur.theme, MODES);
+      nextCustom?.mode ?? readStoredValue(k.theme, cur.theme, MODES);
 
     setCustomThemeState(nextCustom);
     setDraftTheme(null);
@@ -466,7 +482,7 @@ export function useTheme(): ThemeContextValue {
  */
 export const themeInitScript = `(function(){try{
   var el=document.documentElement;
-  var ws=null;try{ws=localStorage.getItem('${ACTIVE_WORKSPACE_STORAGE_KEY}');}catch(e){}
+  var ws=null;try{ws=sessionStorage.getItem('${ACTIVE_WORKSPACE_STORAGE_KEY}')||localStorage.getItem('${ACTIVE_WORKSPACE_STORAGE_KEY}');}catch(e){}
   function g(base){var v=null;if(ws){try{v=localStorage.getItem(base+'::'+ws);}catch(e){}}if(v==null){try{v=localStorage.getItem(base);}catch(e){}}return v;}
   var k=g('${THEME_STORAGE_KEY}');
   var d=k==='dark'||(k==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);

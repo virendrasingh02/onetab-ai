@@ -63,7 +63,6 @@ import {
   useCurrentWorkspace,
   useWorkspaces,
   useWorkspaceStore,
-  workspaceEntryPath,
   type WorkspaceState,
 } from '@org/web-workspace';
 import { ScheduledStatusDialog } from '@org/web-profile';
@@ -91,13 +90,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import {
-  Link,
-  Navigate,
-  Outlet,
-  useLocation,
-  useNavigate,
-} from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AddAccountDialog } from './add-account-dialog.js';
 import { AppHeader } from './app-header.js';
 import { liveRoomForChannel } from './activity-conversation-list.js';
@@ -105,6 +98,7 @@ import { ChannelNav } from './channel-nav.js';
 import { MobileBottomNav } from './mobile-bottom-nav.js';
 import { OfflineSyncBanner } from './offline/offline-sync-banner.js';
 import { OfflineConflictToastBridge } from './sync/offline-conflict-toast-bridge.js';
+import { WorkspaceUnavailable } from './workspace-unavailable.js';
 import { SyncStatusIndicator } from './sync/sync-status-indicator.js';
 import { useNavigationSync } from './navigation/use-navigation-sync.js';
 import { useRememberWorkspacePath } from './navigation/use-remember-workspace-path.js';
@@ -635,28 +629,7 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
   }
 
   if (!workspace || !slug || !workspaceId) {
-    // The workspace in the URL is gone (deleted, or membership revoked). If the
-    // user still belongs to another one, drop them straight into it — resuming
-    // where they last were there — rather than showing a dead end. Only when
-    // there is genuinely nowhere else to go does the message stand.
-    const fallback = (workspacesQuery.data ?? []).find((w) => w.slug !== slug);
-    if (fallback) {
-      return <Navigate to={workspaceEntryPath(fallback)} replace />;
-    }
-    return (
-      <div className="p-6 grid min-h-full place-items-center">
-        <EmptyState
-          icon={<Building2 />}
-          title="Workspace not found"
-          description="It may have been deleted, or you may no longer be a member."
-          action={
-            <Button asChild variant="outline">
-              <Link to="/">Go to your workspaces</Link>
-            </Button>
-          }
-        />
-      </div>
-    );
+    return <WorkspaceUnavailable slug={slug} />;
   }
 
   const workspaces = workspacesQuery.data ?? [];

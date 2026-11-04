@@ -72,10 +72,11 @@ function accessTokenExpiry(token: string): number {
  * plain function (no hooks): the provider runs outside React.
  */
 export async function rotateAccount(account: Account): Promise<string> {
-  if (!account.refreshToken && useAuthStore.getState().user?.id !== account.id) {
-    throw new SessionRejectedError(
-      'This account needs to be signed in again.',
-    );
+  if (
+    !account.refreshToken &&
+    useAuthStore.getState().user?.id !== account.id
+  ) {
+    throw new SessionRejectedError('This account needs to be signed in again.');
   }
   const res = account.refreshToken
     ? await authApi.refresh({ refreshToken: account.refreshToken })
@@ -163,6 +164,8 @@ async function activateAccount(
     // bouncing to one it cannot see.
     for (const key of ACTIVE_WORKSPACE_KEYS) {
       try {
+        // Both copies: this tab's own pointer outranks the shared one.
+        sessionStorage.removeItem(key);
         localStorage.removeItem(key);
       } catch {
         // ignore storage errors

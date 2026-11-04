@@ -43,7 +43,9 @@
         try {
           var ws = null;
           try {
-            ws = localStorage.getItem('onetab_active_workspace_id');
+            ws =
+              sessionStorage.getItem('onetab_active_workspace_id') ||
+              localStorage.getItem('onetab_active_workspace_id');
           } catch (e) {}
           function g(base) {
             var v = null;

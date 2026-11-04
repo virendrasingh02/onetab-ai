@@ -32,24 +32,39 @@ const LAST_ACTIVE_SLUG_KEY = 'onetab_active_workspace_slug';
  */
 export const ACTIVE_WORKSPACE_EVENT = 'onetab:active-workspace';
 
-export function getPersistedActiveWorkspaceId(): string | null {
+/**
+ * The active workspace is per tab. `sessionStorage` holds this tab's own value,
+ * so working in another tab can never re-scope this one; `localStorage` holds
+ * the last workspace used in any tab, which is where a brand-new tab starts.
+ */
+function readActivePointer(key: string): string | null {
   try {
-    return localStorage.getItem(LAST_ACTIVE_WORKSPACE_KEY);
+    return sessionStorage.getItem(key) ?? localStorage.getItem(key);
   } catch {
     return null;
   }
 }
 
-export function persistActiveWorkspaceId(id: string | null): void {
+function writeActivePointer(key: string, value: string | null): void {
   try {
-    if (id) {
-      localStorage.setItem(LAST_ACTIVE_WORKSPACE_KEY, id);
-    } else {
-      localStorage.removeItem(LAST_ACTIVE_WORKSPACE_KEY);
+    for (const storage of [sessionStorage, localStorage]) {
+      if (value) {
+        storage.setItem(key, value);
+      } else {
+        storage.removeItem(key);
+      }
     }
   } catch {
     // Ignore storage quota or permission errors
   }
+}
+
+export function getPersistedActiveWorkspaceId(): string | null {
+  return readActivePointer(LAST_ACTIVE_WORKSPACE_KEY);
+}
+
+export function persistActiveWorkspaceId(id: string | null): void {
+  writeActivePointer(LAST_ACTIVE_WORKSPACE_KEY, id);
   try {
     window.dispatchEvent(
       new CustomEvent(ACTIVE_WORKSPACE_EVENT, { detail: id ?? null }),
@@ -60,23 +75,11 @@ export function persistActiveWorkspaceId(id: string | null): void {
 }
 
 export function getPersistedActiveWorkspaceSlug(): string | null {
-  try {
-    return localStorage.getItem(LAST_ACTIVE_SLUG_KEY);
-  } catch {
-    return null;
-  }
+  return readActivePointer(LAST_ACTIVE_SLUG_KEY);
 }
 
 export function persistActiveWorkspaceSlug(slug: string | null): void {
-  try {
-    if (slug) {
-      localStorage.setItem(LAST_ACTIVE_SLUG_KEY, slug);
-    } else {
-      localStorage.removeItem(LAST_ACTIVE_SLUG_KEY);
-    }
-  } catch {
-    // Ignore
-  }
+  writeActivePointer(LAST_ACTIVE_SLUG_KEY, slug);
 }
 
 export function getPersistedLastChannel(workspaceId: string): string | null {

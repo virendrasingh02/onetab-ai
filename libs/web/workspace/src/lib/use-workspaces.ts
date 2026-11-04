@@ -1,4 +1,9 @@
-import { authApi, invitationApi, queryKeys, workspaceApi } from '@org/api-client';
+import {
+  authApi,
+  invitationApi,
+  queryKeys,
+  workspaceApi,
+} from '@org/api-client';
 import { registerPasskey } from '@org/auth';
 import {
   isPolicyRoleAllowed,
@@ -19,6 +24,7 @@ import {
 } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { isWorkspaceGoneError } from './workspace-landing.js';
 import { useWorkspaceStore } from './workspace.store.js';
 
 /**
@@ -46,8 +52,15 @@ export function useWorkspace(slug: string | undefined) {
     enabled: !!slug,
     staleTime: 30_000,
     // The API returns 404 both for a workspace that does not exist and for one
-    // the user cannot see. Neither improves on a retry.
-    retry: false,
+    // the user cannot see. Neither improves on a retry; anything else is a blip
+    // worth riding out before the shell has to show an error.
+    retry: (failureCount, error) =>
+      !isWorkspaceGoneError(error) && failureCount < 3,
+    // A refetch of a never-loaded query resets it to pending, which brings the
+    // placeholder back and remounts the shell — and every `useCurrentWorkspace`
+    // in it would refetch on mount, looping. A failure stays put until an
+    // explicit retry, a window refocus or a reconnect.
+    retryOnMount: false,
     // Keep the current workspace on screen across a slug change or a refetch,
     // so switching pages never blanks the shell to "Loading your workspace…".
     placeholderData: keepPreviousData,
@@ -127,10 +140,11 @@ export function useCurrentWorkspace(): {
   const setActiveWorkspace = useWorkspaceStore((s) => s.setActiveWorkspace);
 
   useEffect(() => {
-    if (query.data) {
+    // Placeholder data is the workspace being left, not the one in the URL.
+    if (query.data && !query.isPlaceholderData) {
       setActiveWorkspace(query.data);
     }
-  }, [query.data, setActiveWorkspace]);
+  }, [query.data, query.isPlaceholderData, setActiveWorkspace]);
 
   return {
     slug: workspaceSlug,
@@ -392,7 +406,9 @@ export function useRevokeSession() {
     mutationFn: (sessionId: string) => authApi.revokeSession(sessionId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['auth', 'sessions'] });
-      queryClient.invalidateQueries({ queryKey: ['auth', 'security-overview'] });
+      queryClient.invalidateQueries({
+        queryKey: ['auth', 'security-overview'],
+      });
     },
   });
 }
@@ -404,7 +420,9 @@ export function useRevokeOtherSessions() {
     mutationFn: () => authApi.revokeOtherSessions(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['auth', 'sessions'] });
-      queryClient.invalidateQueries({ queryKey: ['auth', 'security-overview'] });
+      queryClient.invalidateQueries({
+        queryKey: ['auth', 'security-overview'],
+      });
     },
   });
 }
@@ -429,7 +447,9 @@ export function useVerifyTotp() {
   return useMutation({
     mutationFn: (input: { code: string }) => authApi.verifyTotp(input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['auth', 'security-overview'] });
+      queryClient.invalidateQueries({
+        queryKey: ['auth', 'security-overview'],
+      });
     },
   });
 }
@@ -441,7 +461,9 @@ export function useDisableTotp() {
     mutationFn: (input: { currentPassword?: string; code?: string } = {}) =>
       authApi.disableTotp(input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['auth', 'security-overview'] });
+      queryClient.invalidateQueries({
+        queryKey: ['auth', 'security-overview'],
+      });
     },
   });
 }
@@ -452,7 +474,9 @@ export function useRegenerateRecoveryCodes() {
   return useMutation({
     mutationFn: () => authApi.regenerateRecoveryCodes(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['auth', 'security-overview'] });
+      queryClient.invalidateQueries({
+        queryKey: ['auth', 'security-overview'],
+      });
     },
   });
 }
@@ -472,8 +496,12 @@ export function useRegisterWebAuthn() {
     // Opens the browser's WebAuthn prompt; the server verifies the attestation.
     mutationFn: (deviceName?: string) => registerPasskey(deviceName),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['auth', 'webauthn', 'credentials'] });
-      queryClient.invalidateQueries({ queryKey: ['auth', 'security-overview'] });
+      queryClient.invalidateQueries({
+        queryKey: ['auth', 'webauthn', 'credentials'],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['auth', 'security-overview'],
+      });
     },
   });
 }
@@ -484,8 +512,12 @@ export function useDeleteWebAuthn() {
   return useMutation({
     mutationFn: (credentialId: string) => authApi.deleteWebAuthn(credentialId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['auth', 'webauthn', 'credentials'] });
-      queryClient.invalidateQueries({ queryKey: ['auth', 'security-overview'] });
+      queryClient.invalidateQueries({
+        queryKey: ['auth', 'webauthn', 'credentials'],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['auth', 'security-overview'],
+      });
     },
   });
 }
@@ -505,9 +537,9 @@ export function useDisconnectIdentity() {
     mutationFn: (provider: string) => authApi.disconnectIdentity(provider),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['auth', 'identities'] });
-      queryClient.invalidateQueries({ queryKey: ['auth', 'security-overview'] });
+      queryClient.invalidateQueries({
+        queryKey: ['auth', 'security-overview'],
+      });
     },
   });
 }
-
-

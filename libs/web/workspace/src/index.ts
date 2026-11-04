@@ -89,6 +89,11 @@ export {
 } from './lib/workspace.store.js';
 
 export {
+  isWorkspaceGoneError,
+  pickLandingWorkspace,
+} from './lib/workspace-landing.js';
+
+export {
   useNavigationMemoryStore,
   getNavigationMemorySnapshot,
   getPersistedLastWorkspacePath,
