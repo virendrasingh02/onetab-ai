@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useState, type CSSProperties } from 'react';
 import { MediaMosaic } from './media-mosaic.js';
+import { CHAT_ROW_INSET, CHAT_ROW_INSET_COMPACT } from './chat-row.js';
 
 export interface PendingUploadMessageFile {
   name: string;
@@ -214,8 +215,9 @@ export function PendingUploadMessage({
       aria-label={`${senderName} is uploading ${files.length} ${noun}`}
       aria-busy={status !== 'failed'}
       className={cn(
-        'relative flex gap-x-4 px-4 pb-0.5 pt-2.5',
-        compact && 'gap-x-2.5 px-3 pt-1',
+        'relative flex gap-x-4 pb-0.5 pt-2.5',
+        compact ? CHAT_ROW_INSET_COMPACT : CHAT_ROW_INSET,
+        compact && 'gap-x-2.5 pt-1',
         status === 'failed' && 'bg-destructive/5',
       )}
     >

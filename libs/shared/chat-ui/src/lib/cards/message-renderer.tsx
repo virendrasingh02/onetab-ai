@@ -8,7 +8,9 @@ import type {
 } from '@org/types';
 import { memo, type ReactNode } from 'react';
 import type { RightPanelProfile } from '@org/ui';
+import { cn } from '@org/utils';
 import { ChatBubble } from '../chat-bubble.js';
+import { CHAT_ROW, CHAT_ROW_HIGHLIGHT } from '../chat-row.js';
 import type { ReplyPreview } from '../reply-quote.js';
 import { AgentMessageCard } from './agent-message-card.js';
 import { AppResponseCard } from './app-response-card.js';
@@ -129,63 +131,60 @@ export const MessageRenderer = memo(function MessageRenderer(
     onViewSystemEventEntity,
   } = props;
   const structured = message.structuredEvent;
+  const cardRow = cn(CHAT_ROW, isHighlighted && CHAT_ROW_HIGHLIGHT);
 
   if (structured) {
     switch (structured.type) {
       case 'mie.ai.agent':
         return (
-          <div className="px-[calc(var(--chat-gutter,0px)_+_1rem)]">
-            <AgentMessageCard
-              message={message}
-              event={structured}
-              isOwn={props.isOwn}
-              isHighlighted={isHighlighted}
-              onAction={onAction}
-              onRetry={onRetry}
-              onOpenThread={onOpenThread}
-              onOpenInConversation={props.onOpenInConversation}
-              roomKind={props.roomKind}
-              onToggleSave={onToggleSave}
-              isSaved={isSaved}
-              onReact={onReact}
-              onFollowUp={props.onFollowUp}
-              showFollowUps={props.showFollowUps}
-              onReply={props.onReply}
-              onForward={props.onForward}
-              onCopyLink={props.onCopyLink}
-              onCopyText={props.onCopyText}
-              onQuote={props.onQuote}
-              onMarkUnread={props.onMarkUnread}
-              onRemind={props.onRemind}
-              onTogglePin={props.onTogglePin}
-              isPinned={props.isPinned}
-              onDelete={onDelete}
-              canModerateMessages={props.canModerateMessages}
-              threadReplyCount={props.threadReplyCount}
-              threadHasUnread={props.threadHasUnread}
-              threadParticipants={props.threadParticipants}
-              lastReplyAt={props.lastReplyAt}
-            />
-          </div>
+          <AgentMessageCard
+            message={message}
+            event={structured}
+            isOwn={props.isOwn}
+            isHighlighted={isHighlighted}
+            onAction={onAction}
+            onRetry={onRetry}
+            onOpenThread={onOpenThread}
+            onOpenInConversation={props.onOpenInConversation}
+            roomKind={props.roomKind}
+            onToggleSave={onToggleSave}
+            isSaved={isSaved}
+            onReact={onReact}
+            onFollowUp={props.onFollowUp}
+            showFollowUps={props.showFollowUps}
+            onReply={props.onReply}
+            onForward={props.onForward}
+            onCopyLink={props.onCopyLink}
+            onCopyText={props.onCopyText}
+            onQuote={props.onQuote}
+            onMarkUnread={props.onMarkUnread}
+            onRemind={props.onRemind}
+            onTogglePin={props.onTogglePin}
+            isPinned={props.isPinned}
+            onDelete={onDelete}
+            canModerateMessages={props.canModerateMessages}
+            threadReplyCount={props.threadReplyCount}
+            threadHasUnread={props.threadHasUnread}
+            threadParticipants={props.threadParticipants}
+            lastReplyAt={props.lastReplyAt}
+          />
         );
 
       case 'mie.app.response':
         return (
-          <div className="px-[calc(var(--chat-gutter,0px)_+_1rem)]">
-            <AppResponseCard
-              message={message}
-              event={structured}
-              isOwn={props.isOwn}
-              isHighlighted={isHighlighted}
-              onAction={onAction}
-              onOpenThread={onOpenThread}
-            />
-          </div>
+          <AppResponseCard
+            message={message}
+            event={structured}
+            isOwn={props.isOwn}
+            isHighlighted={isHighlighted}
+            onAction={onAction}
+            onOpenThread={onOpenThread}
+          />
         );
 
       case 'mie.approval':
         return (
-          <div className="px-[calc(var(--chat-gutter,0px)_+_1rem)]">
+          <div className={cardRow}>
             <ApprovalCard
               message={message}
               event={structured}
@@ -198,7 +197,7 @@ export const MessageRenderer = memo(function MessageRenderer(
 
       case 'mie.form':
         return (
-          <div className="px-[calc(var(--chat-gutter,0px)_+_1rem)]">
+          <div className={cardRow}>
             <FormCard
               message={message}
               event={structured}
@@ -218,7 +217,7 @@ export const MessageRenderer = memo(function MessageRenderer(
 
       case 'mie.file':
         return (
-          <div className="px-[calc(var(--chat-gutter,0px)_+_1rem)]">
+          <div className={cardRow}>
             <FileResponseCard
               message={message}
               event={structured}
@@ -229,7 +228,7 @@ export const MessageRenderer = memo(function MessageRenderer(
 
       case 'mie.workflow':
         return (
-          <div className="px-[calc(var(--chat-gutter,0px)_+_1rem)]">
+          <div className={cardRow}>
             <WorkflowCard
               message={message}
               event={structured}
@@ -240,7 +239,7 @@ export const MessageRenderer = memo(function MessageRenderer(
 
       case 'mie.system':
         return (
-          <div className="px-[calc(var(--chat-gutter,0px)_+_1rem)]">
+          <div className={cardRow}>
             <SystemMessageCard
               message={message}
               event={structured}
@@ -265,7 +264,7 @@ export const MessageRenderer = memo(function MessageRenderer(
 
       case 'mie.card':
         return (
-          <div className="px-[calc(var(--chat-gutter,0px)_+_1rem)]">
+          <div className={cardRow}>
             <UniversalCardRenderer
               cardId={structured.cardId}
               version={structured.version}

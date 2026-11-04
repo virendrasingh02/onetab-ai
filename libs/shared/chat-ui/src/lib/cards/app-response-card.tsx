@@ -14,6 +14,11 @@ import {
   UserAvatar,
 } from '@org/ui';
 import { cn } from '@org/utils';
+import {
+  CHAT_ROW_HIGHLIGHT,
+  CHAT_ROW_HOVER,
+  CHAT_ROW_INSET,
+} from '../chat-row.js';
 import { MessageTime } from '../message-time.js';
 import { EntityKindBadge } from '../entity-kind-badge.js';
 import {
@@ -90,8 +95,10 @@ export function AppResponseCard({
     <article
       data-message-id={message.id}
       className={cn(
-        'group/app-card -mx-4 gap-4 px-4 pt-2.5 pb-1 relative flex transition-colors hover:bg-foreground/[0.035]',
-        isHighlighted && 'border-l-2 border-l-primary bg-primary/5',
+        'group/app-card gap-4 pt-2.5 pb-1 relative flex transition-colors',
+        CHAT_ROW_INSET,
+        CHAT_ROW_HOVER,
+        isHighlighted && CHAT_ROW_HIGHLIGHT,
       )}
     >
       <div className="w-10 shrink-0">

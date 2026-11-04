@@ -12,6 +12,11 @@ import {
   toast,
 } from '@org/ui';
 import { cn } from '@org/utils';
+import {
+  CHAT_ROW_HIGHLIGHT,
+  CHAT_ROW_HOVER,
+  CHAT_ROW_INSET,
+} from '../chat-row.js';
 import { MessageTime } from '../message-time.js';
 import { EntityKindBadge } from '../entity-kind-badge.js';
 import { AppLogoAvatar } from '../app-logo-avatar.js';
@@ -588,8 +593,10 @@ export function SystemEventCard({
       data-message-id={message.id}
       aria-label={message.body}
       className={cn(
-        'group/message min-h-11 gap-4 py-1.5 text-sm relative flex items-center px-[calc(var(--chat-gutter,0px)_+_1rem)] transition-colors hover:bg-accent/60',
-        isHighlighted && 'border-l-2 border-l-primary',
+        'group/message min-h-11 gap-4 py-1.5 text-sm relative flex items-center transition-colors',
+        CHAT_ROW_INSET,
+        CHAT_ROW_HOVER,
+        isHighlighted && CHAT_ROW_HIGHLIGHT,
       )}
     >
       <div className="w-10 flex shrink-0 justify-center self-start">

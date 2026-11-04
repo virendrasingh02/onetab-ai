@@ -7,6 +7,12 @@ import {
   type RoomMember,
   type WorkspacePolicy,
 } from '@org/types';
+import {
+  CHAT_ROW_HIGHLIGHT,
+  CHAT_ROW_HOVER,
+  CHAT_ROW_INSET,
+  CHAT_ROW_INSET_COMPACT,
+} from './chat-row.js';
 import { SeenBy } from './seen-by.js';
 import {
   ActionDropdownMenu,
@@ -1173,21 +1179,24 @@ export function ChatBubble({
         aria-label={`Message from ${senderName}, ${formatFullTimestamp(message.timestamp)}`}
         ref={articleRef}
         className={cn(
-          'group/message relative flex flex-wrap transition-[background-color,opacity] hover:bg-foreground/[0.035]',
+          'group/message relative flex flex-wrap transition-[background-color,opacity]',
+          CHAT_ROW_HOVER,
           actionsPinned && 'bg-foreground/[0.035]',
           isCompact
             ? cn(
-                'chat-density-compact gap-x-2.5 px-[calc(var(--chat-gutter,0px)_+_0.75rem)]',
+                'chat-density-compact gap-x-2.5',
+                CHAT_ROW_INSET_COMPACT,
                 isGrouped && !isSaved ? 'py-0' : 'pt-1 pb-0.5',
               )
             : cn(
-                'chat-density-comfy gap-x-4 px-[calc(var(--chat-gutter,0px)_+_1rem)]',
+                'chat-density-comfy gap-x-4',
+                CHAT_ROW_INSET,
                 isGrouped && !isSaved ? 'py-0.5' : 'pt-2.5 pb-0.5',
               ),
           // Keep the tint on hover — the neutral hover wash used to wipe it.
           isSaved && 'bg-primary/[0.05] hover:bg-primary/[0.08]',
           isPinned && 'bg-warning/[0.05] hover:bg-warning/[0.08]',
-          isHighlighted && 'message-flash',
+          isHighlighted && CHAT_ROW_HIGHLIGHT,
           showSending && 'opacity-70',
           message.sendState === 'failed' && 'bg-destructive/5',
         )}

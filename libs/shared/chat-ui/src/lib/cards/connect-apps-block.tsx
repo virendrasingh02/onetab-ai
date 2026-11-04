@@ -1,13 +1,13 @@
 import { getAppLogoUrl, type AgentAppConnectionNeed } from '@org/types';
 import { AiEntityAvatar, Button, type AiEntityKind } from '@org/ui';
 import { cn } from '@org/utils';
-import { CheckCircle2, Eye, Loader2, Plug, RefreshCw } from 'lucide-react';
-import { useState, type KeyboardEvent } from 'react';
+import { CheckCircle2, Loader2, Plug, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
 import { AppLogoAvatar } from '../app-logo-avatar.js';
 import { EntityKindBadge } from '../entity-kind-badge.js';
+import { PrivateNoticeRow } from '../private-notice-row.js';
 import { useAiEntity } from './agent-avatar-context.js';
 import { useAppConnector } from './app-connect-context.js';
-import { SystemEventTimestamp } from './system-event-card.js';
 
 /**
  * The apps an agent needs the viewer to connect, as Slack-style message
@@ -144,50 +144,28 @@ export function AgentConnectNotice({
   const appList = apps.length > 1 ? `${apps.slice(0, -1).join(', ')} and ${apps.at(-1)}` : apps[0];
   const reconnecting = needs.every((n) => n.reason === 'reconnect');
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    if (event.key === 'Escape') {
-      event.stopPropagation();
-      onDismiss();
-    }
-  };
-
   return (
-    <section
-      role="status"
-      aria-live="polite"
-      aria-label={`Only visible to you. ${name} needs ${appList} connected.`}
-      onKeyDown={handleKeyDown}
-      className="relative min-w-0 px-4 pt-2 pb-1.5 text-sm animate-in fade-in slide-in-from-bottom-1 duration-200 motion-reduce:animate-none"
+    <PrivateNoticeRow
+      ariaLabel={`Only visible to you. ${name} needs ${appList} connected.`}
+      avatar={<AiEntityAvatar name={name} kind={kind} avatarUrl={live?.avatarUrl || agentAvatarUrl} size="md" />}
+      name={name}
+      badge={<EntityKindBadge kind="agent" />}
+      timestamp={timestamp}
+      onDismiss={onDismiss}
+      actions={
+        <Button type="button" size="sm" variant="ghost" onClick={onDismiss}>
+          {allConnected ? 'Done' : 'Dismiss'}
+        </Button>
+      }
     >
-      <p className="mb-1 flex items-center gap-1.5 pl-14 text-xs font-medium text-muted-foreground">
-        <Eye className="size-3.5 shrink-0" aria-hidden />
-        Only visible to you
+      <p className="text-message leading-relaxed text-foreground">
+        {allConnected
+          ? `Thanks — ${appList} ${apps.length > 1 ? 'are' : 'is'} connected. Ask me anything.`
+          : reconnecting
+            ? `Your ${appList} connection expired. Reconnect it so I can keep working in your account.`
+            : `To help you here I need access to your ${appList}. Connect your account — I only act on your behalf, and only with what you ask.`}
       </p>
-      <div className="flex gap-4">
-        <div className="w-10 shrink-0">
-          <AiEntityAvatar name={name} kind={kind} avatarUrl={live?.avatarUrl || agentAvatarUrl} size="md" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <header className="flex items-baseline gap-2">
-            <span className="text-message font-bold text-foreground">{name}</span>
-            <EntityKindBadge kind="agent" />
-            <SystemEventTimestamp timestamp={timestamp} />
-          </header>
-          <p className="text-message leading-relaxed text-foreground">
-            {allConnected
-              ? `Thanks — ${appList} ${apps.length > 1 ? 'are' : 'is'} connected. Ask me anything.`
-              : reconnecting
-                ? `Your ${appList} connection expired. Reconnect it so I can keep working in your account.`
-                : `To help you here I need access to your ${appList}. Connect your account — I only act on your behalf, and only with what you ask.`}
-          </p>
-          {allConnected ? null : <ConnectAppsBlock needs={needs} agentName={name} />}
-          <div className="mt-1.5">
-            <Button size="sm" variant="ghost" onClick={onDismiss} className="h-7 px-2 text-xs text-muted-foreground">
-              {allConnected ? 'Done' : 'Dismiss'}
-            </Button>
-          </div>
-        </div>
-      </div>
-    </section>
+      {allConnected ? null : <ConnectAppsBlock needs={needs} agentName={name} />}
+    </PrivateNoticeRow>
   );
 }

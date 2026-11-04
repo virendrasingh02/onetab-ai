@@ -24,6 +24,12 @@ import {
   AiEntityAvatar,
 } from '@org/ui';
 import { cn } from '@org/utils';
+import {
+  CHAT_ROW,
+  CHAT_ROW_HIGHLIGHT,
+  CHAT_ROW_HOVER,
+  CHAT_ROW_INSET,
+} from '../chat-row.js';
 import { MessageTime } from '../message-time.js';
 import { EntityKindBadge } from '../entity-kind-badge.js';
 import { AppLogoAvatar } from '../app-logo-avatar.js';
@@ -563,64 +569,66 @@ export function AgentMessageCard({
   // Compact Mode Rendering
   if (density === 'compact') {
     return (
-      <article
-        data-message-id={message.id}
-        className={cn(
-          'group/card my-1.5 p-3 relative rounded-xl border border-border/80 bg-surface transition-colors hover:border-border',
-          isHighlighted && 'ring-2 ring-primary/60',
-        )}
-      >
-        <div className="gap-3 flex items-center justify-between">
-          <div className="gap-2 min-w-0 flex items-center">
-            {isApp ? (
-              <AppLogoAvatar logoUrl={avatarSrc} size="sm" />
-            ) : (
-              <AiEntityAvatar
-                name={agentName}
-                kind={entityKind}
-                avatarUrl={avatarSrc}
-                size="sm"
-              />
-            )}
-            <div className="min-w-0">
-              <div className="gap-1.5 flex flex-wrap items-center">
-                <span className="text-xs font-bold truncate text-foreground">
-                  {agentName}
-                </span>
-                <span className="font-mono text-2xs text-muted-foreground">
-                  {event.model}
-                </span>
-                <Badge
-                  variant={statusConfig.variant}
-                  className="py-0 h-4 gap-1 text-2xs"
-                >
-                  {statusConfig.icon}
-                  <span>{statusConfig.label}</span>
-                </Badge>
+      <div className={cn(CHAT_ROW, isHighlighted && CHAT_ROW_HIGHLIGHT)}>
+        <article
+          data-message-id={message.id}
+          className={cn(
+            'group/card my-1.5 p-3 relative rounded-xl border border-border/80 bg-surface transition-colors hover:border-border',
+            isHighlighted && 'ring-2 ring-primary/60',
+          )}
+        >
+          <div className="gap-3 flex items-center justify-between">
+            <div className="gap-2 min-w-0 flex items-center">
+              {isApp ? (
+                <AppLogoAvatar logoUrl={avatarSrc} size="sm" />
+              ) : (
+                <AiEntityAvatar
+                  name={agentName}
+                  kind={entityKind}
+                  avatarUrl={avatarSrc}
+                  size="sm"
+                />
+              )}
+              <div className="min-w-0">
+                <div className="gap-1.5 flex flex-wrap items-center">
+                  <span className="text-xs font-bold truncate text-foreground">
+                    {agentName}
+                  </span>
+                  <span className="font-mono text-2xs text-muted-foreground">
+                    {event.model}
+                  </span>
+                  <Badge
+                    variant={statusConfig.variant}
+                    className="py-0 h-4 gap-1 text-2xs"
+                  >
+                    {statusConfig.icon}
+                    <span>{statusConfig.label}</span>
+                  </Badge>
+                </div>
+                <p className="text-xs mt-0.5 max-w-md truncate text-foreground/90">
+                  {event.summary || event.responseText || message.body}
+                </p>
               </div>
-              <p className="text-xs mt-0.5 max-w-md truncate text-foreground/90">
-                {event.summary || event.responseText || message.body}
-              </p>
+            </div>
+
+            <div className="gap-1 flex shrink-0 items-center">
+              {event.durationMs !== undefined && (
+                <span className="font-mono text-2xs text-muted-foreground">
+                  {formatDuration(event.durationMs)}
+                </span>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => prefs.setDensity('comfortable')}
+                className="h-6 px-2 text-2xs"
+              >
+                Open
+              </Button>
             </div>
           </div>
-
-          <div className="gap-1 flex shrink-0 items-center">
-            {event.durationMs !== undefined && (
-              <span className="font-mono text-2xs text-muted-foreground">
-                {formatDuration(event.durationMs)}
-              </span>
-            )}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => prefs.setDensity('comfortable')}
-              className="h-6 px-2 text-2xs"
-            >
-              Open
-            </Button>
-          </div>
-        </div>
-      </article>
+        </article>
+      </div>
     );
   }
 
@@ -644,11 +652,13 @@ export function AgentMessageCard({
         className={cn(
           // Same row rhythm as a normal message (ChatBubble comfy density);
           // wraps only to put the "Saved for later" row above the avatar.
-          'group/message -mx-4 gap-x-4 px-4 pt-2.5 pb-1 relative flex flex-wrap transition-colors hover:bg-foreground/[0.035]',
+          'group/message gap-x-4 pt-2.5 pb-1 relative flex flex-wrap transition-colors',
+          CHAT_ROW_INSET,
+          CHAT_ROW_HOVER,
           actionsPinned && 'bg-foreground/[0.035]',
           isSaved && 'bg-primary/[0.05] hover:bg-primary/[0.08]',
           isPinned && 'bg-warning/[0.05] hover:bg-warning/[0.08]',
-          isHighlighted && 'border-l-2 border-l-primary bg-primary/5',
+          isHighlighted && CHAT_ROW_HIGHLIGHT,
         )}
       >
         {isSaved ? <SavedForLaterLabel messageId={message.id} /> : null}

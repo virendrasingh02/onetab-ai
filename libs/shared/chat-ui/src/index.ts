@@ -14,6 +14,7 @@ export {
   formatFullTimestamp,
   type ChatBubbleProps,
 } from './lib/chat-bubble.js';
+export { CHAT_ROW } from './lib/chat-row.js';
 export {
   MentionAliasesProvider,
   useMentionAliases,

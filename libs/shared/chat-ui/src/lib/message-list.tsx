@@ -1413,9 +1413,11 @@ export function MessageList({
                   top: 0,
                   left: 0,
                   width: '100%',
-                  // Messages pad themselves so their hover tint stays
-                  // full-bleed; every other row is inset here.
-                  ...(row.kind === 'message' ? null : GUTTER_STYLE),
+                  // Messages and client-only rows pad themselves so their
+                  // tint stays full-bleed; only the dividers are inset here.
+                  ...(row.kind === 'separator' || row.kind === 'unread'
+                    ? GUTTER_STYLE
+                    : null),
                 }}
               >
                 {row.kind === 'separator' ? (

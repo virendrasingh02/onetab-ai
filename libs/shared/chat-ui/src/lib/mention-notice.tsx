@@ -1,13 +1,12 @@
-import { Fragment, type KeyboardEvent, type ReactNode } from 'react';
-import { AtSign, Bot, CheckCircle2, Eye, Plug } from 'lucide-react';
+import { Fragment, type ReactNode } from 'react';
+import { AtSign, Bot, CheckCircle2, Plug } from 'lucide-react';
 import { Button } from '@org/ui';
-import { cn } from '@org/utils';
 import type { AddAction, ComposerSurfaceKind } from '@org/types';
-import { SystemEventTimestamp } from './cards/system-event-card.js';
 import type {
   MentionNoticeStatus,
   MentionNoticeTarget,
 } from './mention-notice-store.js';
+import { PrivateNoticeRow } from './private-notice-row.js';
 
 /** The name the notice is "from" — the platform itself, not a person. */
 export const MENTION_NOTICE_SENDER = 'Onetab';
@@ -236,9 +235,7 @@ export interface MentionNoticeProps extends MentionNoticeCopyInput {
  * — a person, AI agent, coworker or app — who isn't in the conversation, with
  * one-click ways to add them, dismiss it, or never be told again.
  *
- * It renders as a timeline row (same avatar gutter and type scale as a message)
- * but in a quiet inset card, so it reads as being *about* your message rather
- * than *part of* the conversation everyone else sees.
+ * A {@link PrivateNoticeRow}, so it looks like any other row in the timeline.
  */
 export function MentionNotice({
   targets,
@@ -263,115 +260,86 @@ export function MentionNotice({
   const adding = status === 'adding';
   const plainNames = joinNames(targets.map((t) => `@${t.name}`));
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    if (event.key === 'Escape') {
-      event.stopPropagation();
-      onDismiss();
-    }
-  };
-
   return (
-    <section
-      role="status"
-      aria-live="polite"
-      aria-label={`Only visible to you. You mentioned ${plainNames}, ${copy.clause}`}
-      onKeyDown={handleKeyDown}
-      className={cn(
-        'mx-2 my-1 px-2 pt-2 pb-2.5 relative rounded-xl border border-border/70 bg-surface-muted text-sm',
-        'animate-in fade-in slide-in-from-bottom-1 duration-200 motion-reduce:animate-none',
-        className,
-      )}
-    >
-      <p className="mb-1 gap-1.5 pl-14 font-medium flex items-center text-xs text-muted-foreground">
-        <Eye className="size-3.5 shrink-0" aria-hidden />
-        Only visible to you
-      </p>
-
-      <div className="gap-4 flex">
-        <div className="w-10 shrink-0">
-          <span
-            aria-hidden
-            className="size-10 flex items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shadow-xs"
-          >
-            <AtSign className="size-5" />
-          </span>
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <header className="gap-2 flex items-baseline">
-            <span className="text-message font-bold text-foreground">
-              {MENTION_NOTICE_SENDER}
-            </span>
-            <SystemEventTimestamp timestamp={timestamp} />
-          </header>
-
-          {added ? (
-            <p className="gap-1.5 flex items-center text-message text-foreground">
-              <CheckCircle2
-                className="size-4 shrink-0 text-success-text"
-                aria-hidden
-              />
-              <span>
-                {getMentionNoticeSuccess({
-                  ...copyInput,
-                  targets: addedIds?.length
-                    ? targets.filter((t) => addedIds.includes(t.id))
-                    : targets,
-                })}
-              </span>
-            </p>
-          ) : (
-            <>
-              <p className="text-message leading-relaxed text-foreground">
-                You mentioned <TargetList targets={targets} />, {copy.clause}
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {copy.detail}
-              </p>
-            </>
-          )}
-
-          {error && !added ? (
-            <p role="alert" className="mt-1.5 text-xs text-destructive-text">
-              {error}
-            </p>
-          ) : null}
-
-          <div className="mt-2 gap-1.5 flex flex-wrap items-center">
-            {!added && copy.actionLabel && onAdd ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="primary"
-                loading={adding}
-                onClick={onAdd}
-              >
-                {status === 'failed' ? 'Try again' : copy.actionLabel}
-              </Button>
-            ) : null}
+    <PrivateNoticeRow
+      ariaLabel={`Only visible to you. You mentioned ${plainNames}, ${copy.clause}`}
+      avatar={
+        <span
+          aria-hidden
+          className="size-10 flex items-center justify-center rounded-full bg-muted text-muted-foreground"
+        >
+          <AtSign className="size-4" />
+        </span>
+      }
+      name={MENTION_NOTICE_SENDER}
+      timestamp={timestamp}
+      onDismiss={onDismiss}
+      className={className}
+      actions={
+        <>
+          {!added && copy.actionLabel && onAdd ? (
             <Button
               type="button"
               size="sm"
-              variant={added ? 'ghost' : 'outline'}
-              disabled={adding}
-              onClick={onDismiss}
+              variant="primary"
+              loading={adding}
+              onClick={onAdd}
             >
-              {added ? 'Done' : 'Dismiss'}
+              {status === 'failed' ? 'Try again' : copy.actionLabel}
             </Button>
-            {!added && onDontShowAgain ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                disabled={adding}
-                onClick={onDontShowAgain}
-              >
-                Don&apos;t show again
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      </div>
-    </section>
+          ) : null}
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={adding}
+            onClick={onDismiss}
+          >
+            {added ? 'Done' : 'Dismiss'}
+          </Button>
+          {!added && onDontShowAgain ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={adding}
+              onClick={onDontShowAgain}
+            >
+              Don&apos;t show again
+            </Button>
+          ) : null}
+        </>
+      }
+    >
+      {added ? (
+        <p className="gap-1.5 flex items-center text-message text-foreground">
+          <CheckCircle2
+            className="size-4 shrink-0 text-success-text"
+            aria-hidden
+          />
+          <span>
+            {getMentionNoticeSuccess({
+              ...copyInput,
+              targets: addedIds?.length
+                ? targets.filter((t) => addedIds.includes(t.id))
+                : targets,
+            })}
+          </span>
+        </p>
+      ) : (
+        <>
+          <p className="text-message leading-relaxed text-foreground">
+            You mentioned <TargetList targets={targets} />, {copy.clause}
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{copy.detail}</p>
+        </>
+      )}
+
+      {error && !added ? (
+        <p role="alert" className="mt-1.5 text-xs text-destructive-text">
+          {error}
+        </p>
+      ) : null}
+    </PrivateNoticeRow>
   );
 }

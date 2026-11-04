@@ -33,6 +33,7 @@ import {
   TypingIndicator,
   UnreadMentionsPill,
   useMentionNotices,
+  CHAT_ROW,
   insertIntoComposer,
   quoteMarkdown,
   toReplyPreview,
@@ -1550,7 +1551,7 @@ export function ChatSurface({
       if (message.structuredEvent?.type === 'mie.call_summary' && workspaceId) {
         const ev = message.structuredEvent;
         return (
-          <div className="py-1 px-[calc(var(--chat-gutter,0px)_+_1rem)]">
+          <div className={`py-1 ${CHAT_ROW}`}>
             <CallSummaryMessageCard
               workspaceId={workspaceId}
               callId={ev.callId}
