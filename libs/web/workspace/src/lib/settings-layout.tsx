@@ -605,59 +605,40 @@ export function SettingsLayout({
 
       {/* Main Settings Card Box */}
       <div className="min-h-0 flex h-full w-full flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-xs">
-        {/* Top Header Bar */}
-        <header className="h-12 backdrop-blur-md px-4 sm:px-6 flex shrink-0 items-center justify-between border-b border-border/70 bg-surface/60">
-          <div className="gap-2.5 text-xs flex items-center">
-            <button
-              type="button"
-              onClick={() => guardedLeave(() => navigate(backUrl))}
-              className="gap-1.5 font-medium px-2 py-1 inline-flex items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
-            >
-              <ArrowLeft className="size-3.5" />
-              <span>Back</span>
-            </button>
-            <span className="text-muted-foreground/50">/</span>
-            <div className="gap-2 flex items-center">
-              <span className="font-semibold text-foreground">Settings</span>
-              <span className="text-muted-foreground/50">/</span>
-              <span className="font-medium px-2 py-0.5 rounded-md bg-primary/10 text-primary capitalize">
-                {activeTab.replace(/-/g, ' ')}
-              </span>
-            </div>
-            {workspace?.name ? (
-              <Badge
-                variant="neutral"
-                className="sm:inline-flex font-medium text-xs hidden text-foreground/80"
-              >
-                {workspace.name}
-              </Badge>
-            ) : null}
-          </div>
-
-          <div className="gap-2 flex items-center">
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-label="Close settings"
-              onClick={() => guardedLeave(() => navigate(backUrl))}
-              className="h-8 gap-1.5 px-2.5 text-xs rounded-lg text-muted-foreground hover:text-foreground"
-            >
-              <span>Close</span>
-              <KbdShortcut
-                keys={['Escape']}
-                size="xs"
-                variant="muted"
-                responsive
-              />
-              <X className="size-3.5" />
-            </Button>
-          </div>
-        </header>
-
         {/* Inner Content Area: Sidebar + Scrollable Main Content */}
         <div className="min-h-0 flex flex-1 overflow-hidden">
           {/* Left Dedicated Settings Sidebar */}
-          <aside className="w-64 sm:w-72 flex h-full shrink-0 flex-col border-r border-border bg-surface-muted/50 select-none">
+          <aside className="w-64 sm:w-72 flex h-full shrink-0 flex-col border-r border-border bg-card select-none">
+            {/* Title + the way back to the workspace */}
+            <div className="gap-2 px-3 pt-3 flex items-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Close settings"
+                title="Back to workspace"
+                onClick={() => guardedLeave(() => navigate(backUrl))}
+                className="size-8 p-0 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="size-4" />
+              </Button>
+              <div className="min-w-0 flex-1">
+                <p className="text-base font-semibold leading-tight text-foreground">
+                  Settings
+                </p>
+                {workspace?.name ? (
+                  <p className="text-xs leading-tight truncate text-muted-foreground">
+                    {workspace.name}
+                  </p>
+                ) : null}
+              </div>
+              <KbdShortcut
+                keys={['Escape']}
+                size="lg"
+                variant="muted"
+                responsive
+              />
+            </div>
+
             {/* Search Input */}
             <div className="p-3">
               <div className="relative">
@@ -669,7 +650,7 @@ export function SettingsLayout({
                   leadingIcon={
                     <Search className="size-3.5 text-muted-foreground" />
                   }
-                  className="h-8 text-xs pr-7 rounded-lg border-border bg-surface-inset placeholder:text-muted-foreground"
+                  className="h-8 text-sm pr-7 rounded-lg border-border bg-surface-inset placeholder:text-muted-foreground"
                 />
                 {searchQuery && (
                   <button
@@ -705,9 +686,9 @@ export function SettingsLayout({
                         aria-expanded={!isCollapsed}
                         className="group/hdr px-2.5 py-1 flex w-full items-center justify-between rounded-md text-left transition-colors hover:bg-accent/40"
                       >
-                        <span className="gap-1.5 font-bold tracking-wider flex items-center text-[10.5px] text-muted-foreground uppercase">
+                        <span className="gap-1.5 font-semibold tracking-wider text-xs flex items-center text-muted-foreground uppercase">
                           {group.title}
-                          <span className="font-semibold text-[10px] text-muted-foreground/60 normal-case tabular-nums">
+                          <span className="font-semibold text-xs text-muted-foreground/80 normal-case tabular-nums">
                             {items.length}
                           </span>
                         </span>
@@ -739,9 +720,9 @@ export function SettingsLayout({
                                 }
                                 aria-current={isActive ? 'page' : undefined}
                                 className={cn(
-                                  'px-2.5 py-1.5 font-medium flex w-full cursor-pointer items-center justify-between rounded-xl text-left text-[13px] transition-all',
+                                  'px-2.5 py-1.5 font-medium text-sm flex w-full cursor-pointer items-center justify-between rounded-xl text-left transition-all',
                                   isActive
-                                    ? 'font-semibold shadow-2xs bg-accent text-foreground'
+                                    ? 'font-semibold bg-accent text-foreground dark:bg-primary/15'
                                     : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
                                 )}
                               >
@@ -764,7 +745,7 @@ export function SettingsLayout({
                                     {item.badge ? (
                                       <Badge
                                         variant="neutral"
-                                        className="px-1.5 py-0 font-semibold text-[10px]"
+                                        className="px-1.5 py-0 font-semibold text-xs"
                                       >
                                         {item.badge}
                                       </Badge>
