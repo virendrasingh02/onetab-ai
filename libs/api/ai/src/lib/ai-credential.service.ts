@@ -1,4 +1,11 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { assertPublicHttpUrl, UnsafeUrlError } from '@org/api-common';
 import { PrismaService } from '@org/database';
@@ -22,6 +29,27 @@ export interface ResolvedProviderCredential {
   enabled: boolean;
   isCustom: boolean;
   source: 'database' | 'environment' | 'none';
+}
+
+/** Long enough for a cold model, short enough to answer inside one request. */
+const PROBE_TIMEOUT_MS = 20_000;
+
+/** The `metadata` column holds the reason the last check failed, if it did. */
+function readLastError(metadata: string | null | undefined): string | undefined {
+  try {
+    const parsed = JSON.parse(metadata || '{}') as { lastError?: unknown };
+    return typeof parsed.lastError === 'string' ? parsed.lastError : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function probeRecord(result: ProviderConnectionTestResult) {
+  return {
+    status: result.status,
+    lastTestedAt: new Date(result.checkedAt),
+    metadata: JSON.stringify(result.status === 'CONNECTED' ? {} : { lastError: result.detail }),
+  };
 }
 
 const PROVIDER_REQUIREMENTS: Record<AIProvider, ProviderCredentialRequirement[]> = {
@@ -271,10 +299,17 @@ export class AICredentialService {
     }
 
     // 2. Workspace scope check
+    let workspaceSettings: { baseUrl?: string; defaultModel?: string } = {};
     if (scope.workspaceId) {
       const wsCred = await this.prisma.aIProviderCredential.findFirst({
         where: { provider, scopeType: 'workspace', scopeId: scope.workspaceId },
       });
+      // A row without a key still names this workspace's endpoint and default
+      // model (a keyless Ollama host, or a default on the platform's key).
+      workspaceSettings = {
+        baseUrl: wsCred?.baseUrl ?? undefined,
+        defaultModel: wsCred?.defaultModel ?? undefined,
+      };
       if (wsCred && wsCred.encryptedApiKey) {
         return {
           apiKey: this.encryption.decrypt(wsCred.encryptedApiKey),
@@ -326,8 +361,7 @@ export class AICredentialService {
 
     return {
       apiKey: envApiKey,
-      baseUrl: undefined,
-      defaultModel: undefined,
+      ...workspaceSettings,
       enabled: true,
       isCustom: false,
       source: envApiKey || envValid?.valid ? 'environment' : 'none',
@@ -366,11 +400,7 @@ export class AICredentialService {
     });
     const credMap = new Map(wsCreds.map((c) => [c.provider, c]));
 
-    // Fetch model settings for this workspace
-    const modelSettings = await this.prisma.aIModelSetting.findMany({
-      where: { workspaceId },
-    });
-    const modelSettingMap = new Map(modelSettings.map((s) => [s.modelId, s]));
+    const withWorkspaceSettings = await this.modelSettingsApplier(workspaceId);
 
     return baseProviders.map((provider) => {
       const cred = credMap.get(provider.id);
@@ -384,9 +414,11 @@ export class AICredentialService {
       let baseUrl = provider.baseUrl;
 
       if (cred) {
-        configured = Boolean(cred.encryptedApiKey || provider.id === 'ollama');
+        // Without its own key the workspace still runs on a platform key.
+        configured = Boolean(cred.encryptedApiKey) || provider.configured;
         maskedKey = cred.maskedKey || (cred.encryptedApiKey ? '••••••••••••' : undefined);
-        status = (cred.status as AIProviderStatus) || (configured ? 'CONNECTED' : 'NOT_CONFIGURED');
+        const saved = cred.status as AIProviderStatus;
+        status = configured && saved !== 'NOT_CONFIGURED' ? saved : provider.status;
         enabled = cred.enabled;
         if (cred.defaultModel) defaultModel = cred.defaultModel;
         if (cred.baseUrl) baseUrl = cred.baseUrl;
@@ -394,16 +426,6 @@ export class AICredentialService {
         configured = true;
         status = 'CONNECTED';
       }
-
-      // Map models with workspace-specific enabled/default overrides
-      const models: AIModelMetadata[] = provider.models.map((m) => {
-        const setting = modelSettingMap.get(m.id) || modelSettingMap.get(m.model);
-        return {
-          ...m,
-          enabled: setting ? setting.enabled : m.enabled,
-          default: setting ? setting.isDefault : m.default,
-        };
-      });
 
       return {
         ...provider,
@@ -414,9 +436,37 @@ export class AICredentialService {
         baseUrl,
         maskedKey,
         credentialRequirements: requirements,
-        models,
+        credentialSource: cred?.encryptedApiKey
+          ? 'workspace'
+          : provider.configured
+            ? 'environment'
+            : 'none',
+        lastTestedAt: cred?.lastTestedAt?.toISOString(),
+        lastError: readLastError(cred?.metadata),
+        models: provider.models.map(withWorkspaceSettings),
       };
     });
+  }
+
+  /** Every model, with this workspace's enabled/default choices applied. */
+  async listWorkspaceModels(workspaceId: string): Promise<AIModelMetadata[]> {
+    const withWorkspaceSettings = await this.modelSettingsApplier(workspaceId);
+    return this.providerRegistry.getAllModels().map(withWorkspaceSettings);
+  }
+
+  private async modelSettingsApplier(
+    workspaceId: string
+  ): Promise<(model: AIModelMetadata) => AIModelMetadata> {
+    const settings = await this.prisma.aIModelSetting.findMany({
+      where: { workspaceId },
+    });
+    const byModel = new Map(settings.map((s) => [s.modelId, s]));
+    return (m) => {
+      const setting = byModel.get(m.id) || byModel.get(m.model);
+      return setting
+        ? { ...m, enabled: setting.enabled, default: setting.isDefault }
+        : m;
+    };
   }
 
   /**
@@ -435,6 +485,11 @@ export class AICredentialService {
   /**
    * Saves or updates a provider credential for a workspace.
    * Securely encrypts the API key at rest and never returns plaintext to the caller.
+   *
+   * Anything that changes where or how the provider is reached is checked
+   * against the provider, so the saved status is what it actually answered.
+   * With `verify`, a failed check writes nothing, keeping a working key safe
+   * from a mistyped replacement.
    */
   async saveCredential(
     workspaceId: string,
@@ -442,19 +497,49 @@ export class AICredentialService {
     input: SaveProviderCredentialInput,
     userId?: string
   ): Promise<AIProviderMetadata> {
-    if (input.baseUrl?.trim()) await this.assertUsableBaseUrl(input.baseUrl.trim());
+    // Checked first: a row for a provider this deployment doesn't offer could
+    // never be read back, so it would be saved and then reported as a failure.
+    if (
+      !this.providerRegistry.hasAdapter(provider) ||
+      !this.providerRegistry.isProviderEnabled(provider)
+    ) {
+      throw new NotFoundException(`AI Provider '${provider}' not found`);
+    }
+
+    const newKey = input.apiKey?.trim() || undefined;
+    const newBaseUrl = input.baseUrl?.trim() || undefined;
+    const newModel = input.defaultModel?.trim() || undefined;
+    if (newBaseUrl) await this.assertUsableBaseUrl(newBaseUrl);
 
     const existing = await this.prisma.aIProviderCredential.findFirst({
       where: { provider, scopeType: 'workspace', scopeId: workspaceId },
     });
 
+    const connectionChanged =
+      !existing ||
+      Boolean(newKey) ||
+      (input.baseUrl !== undefined && (newBaseUrl ?? null) !== existing.baseUrl) ||
+      (input.defaultModel !== undefined && (newModel ?? null) !== existing.defaultModel);
+
+    let probe: ProviderConnectionTestResult | undefined;
+    if (connectionChanged) {
+      const current = await this.resolveCredential(provider, { workspaceId });
+      probe = await this.probeProvider(provider, {
+        apiKey: newKey ?? current.apiKey,
+        baseUrl: input.baseUrl !== undefined ? newBaseUrl : current.baseUrl,
+        model: input.defaultModel !== undefined ? newModel : current.defaultModel,
+      });
+      if (input.verify && probe.status !== 'CONNECTED') {
+        throw new UnprocessableEntityException(probe.detail);
+      }
+    }
+
     let encryptedApiKey = existing?.encryptedApiKey ?? '';
     let maskedKey = existing?.maskedKey ?? '';
 
-    if (input.apiKey && input.apiKey.trim()) {
-      const cleanKey = input.apiKey.trim();
-      encryptedApiKey = this.encryption.encrypt(cleanKey);
-      maskedKey = this.encryption.maskApiKey(cleanKey);
+    if (newKey) {
+      encryptedApiKey = this.encryption.encrypt(newKey);
+      maskedKey = this.encryption.maskApiKey(newKey);
     }
 
     await this.prisma.aIProviderCredential.upsert({
@@ -471,20 +556,18 @@ export class AICredentialService {
         scopeId: workspaceId,
         encryptedApiKey,
         maskedKey,
-        baseUrl: input.baseUrl?.trim() || null,
-        defaultModel: input.defaultModel?.trim() || null,
+        baseUrl: newBaseUrl ?? null,
+        defaultModel: newModel ?? null,
         enabled: input.enabled ?? true,
         createdBy: userId ?? null,
-        status: encryptedApiKey || provider === 'ollama' ? 'CONNECTED' : 'NOT_CONFIGURED',
+        ...(probe ? probeRecord(probe) : {}),
       },
       update: {
         ...(encryptedApiKey ? { encryptedApiKey, maskedKey } : {}),
-        ...(input.baseUrl !== undefined ? { baseUrl: input.baseUrl.trim() || null } : {}),
-        ...(input.defaultModel !== undefined
-          ? { defaultModel: input.defaultModel.trim() || null }
-          : {}),
+        ...(input.baseUrl !== undefined ? { baseUrl: newBaseUrl ?? null } : {}),
+        ...(input.defaultModel !== undefined ? { defaultModel: newModel ?? null } : {}),
         ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),
-        status: encryptedApiKey || provider === 'ollama' ? 'CONNECTED' : 'NOT_CONFIGURED',
+        ...(probe ? probeRecord(probe) : {}),
       },
     });
 
@@ -557,92 +640,109 @@ export class AICredentialService {
     model?: string
   ): Promise<ProviderConnectionTestResult> {
     const cred = await this.resolveCredential(provider, { workspaceId });
+    const result = await this.probeProvider(provider, {
+      apiKey: cred.apiKey,
+      baseUrl: cred.baseUrl,
+      model: model || cred.defaultModel,
+    });
 
-    if (!cred.apiKey && provider !== 'ollama') {
+    await this.prisma.aIProviderCredential.updateMany({
+      where: { provider, scopeType: 'workspace', scopeId: workspaceId },
+      data: probeRecord(result),
+    });
+
+    return result;
+  }
+
+  /** One tiny real request to the provider. Never writes anything. */
+  private async probeProvider(
+    provider: AIProvider,
+    target: { apiKey?: string; baseUrl?: string; model?: string }
+  ): Promise<ProviderConnectionTestResult> {
+    const checkedAt = new Date().toISOString();
+    const { apiKey, baseUrl } = target;
+
+    if (!apiKey && provider !== 'ollama') {
       return {
         provider,
-        model,
+        model: target.model,
         status: 'NOT_CONFIGURED',
         latencyMs: null,
-        detail: `No API key configured for ${provider} in this workspace or environment.`,
-        checkedAt: new Date().toISOString(),
+        detail: 'Add an API key to connect this provider.',
+        checkedAt,
+      };
+    }
+
+    if (!this.providerRegistry.hasAdapter(provider)) {
+      return {
+        provider,
+        model: target.model,
+        status: 'ERROR',
+        latencyMs: null,
+        detail: `Adapter for provider '${provider}' not registered.`,
+        checkedAt,
       };
     }
 
     const adapter = this.providerRegistry.getAdapter(provider);
-    if (!adapter) {
+    const model = target.model || adapter.defaultModel;
+    const startTime = Date.now();
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    try {
+      // Not every adapter stops on the signal, so the deadline is enforced here.
+      await Promise.race([
+        adapter.chat({
+          model,
+          messages: [{ role: 'user', content: 'Ping' }],
+          maxTokens: 5,
+          temperature: 0.1,
+          apiKey,
+          baseUrl,
+          signal: controller.signal,
+        }),
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => {
+            controller.abort();
+            reject(new HttpException('The provider did not answer in time.', 504));
+          }, PROBE_TIMEOUT_MS);
+        }),
+      ]);
+
+      const latencyMs = Date.now() - startTime;
       return {
         provider,
         model,
-        status: 'ERROR',
-        latencyMs: null,
-        detail: `Adapter for provider '${provider}' not registered.`,
-        checkedAt: new Date().toISOString(),
-      };
-    }
-
-    const startTime = Date.now();
-    try {
-      // Execute lightweight probe chat with resolved credentials
-      const targetModel = model || cred.defaultModel || adapter.defaultModel;
-      await adapter.chat({
-        model: targetModel,
-        messages: [{ role: 'user', content: 'Ping' }],
-        maxTokens: 5,
-        temperature: 0.1,
-        apiKey: cred.apiKey,
-        baseUrl: cred.baseUrl,
-      });
-
-      const latencyMs = Date.now() - startTime;
-
-      // Update credential status in DB if exists
-      await this.prisma.aIProviderCredential.updateMany({
-        where: { provider, scopeType: 'workspace', scopeId: workspaceId },
-        data: {
-          status: 'CONNECTED',
-          lastTestedAt: new Date(),
-        },
-      });
-
-      return {
-        provider,
-        model: targetModel,
         status: 'CONNECTED',
         latencyMs,
         detail: `Connection successful (${latencyMs}ms)`,
-        checkedAt: new Date().toISOString(),
+        checkedAt,
       };
     } catch (err: unknown) {
-      const latencyMs = Date.now() - startTime;
       const message = err instanceof Error ? err.message : String(err);
-      let status: AIProviderStatus = 'ERROR';
-
-      if (message.includes('401') || message.includes('auth') || message.includes('API_KEY')) {
-        status = 'AUTH_ERROR';
-      } else if (message.includes('429') || message.includes('rate limit')) {
-        status = 'RATE_LIMITED';
-      } else if (message.includes('503') || message.includes('unavailable')) {
-        status = 'UNAVAILABLE';
-      }
-
-      await this.prisma.aIProviderCredential.updateMany({
-        where: { provider, scopeType: 'workspace', scopeId: workspaceId },
-        data: {
-          status,
-          lastTestedAt: new Date(),
-        },
-      });
-
+      // Stored and shown to the workspace, so a key echoed back stops here.
+      const safeMessage = apiKey ? message.split(apiKey).join('••••') : message;
       return {
         provider,
         model,
-        status,
-        latencyMs,
-        detail: `Connection failed: ${message}`,
-        checkedAt: new Date().toISOString(),
+        status: this.statusForProbeFailure(err, message),
+        latencyMs: Date.now() - startTime,
+        detail: `Connection failed: ${safeMessage}`.slice(0, 500),
+        checkedAt,
       };
+    } finally {
+      clearTimeout(timer);
     }
+  }
+
+  /** Adapters raise HttpExceptions with the provider's status; others are text. */
+  private statusForProbeFailure(err: unknown, message: string): AIProviderStatus {
+    const code = err instanceof HttpException ? err.getStatus() : undefined;
+    if (code === 401 || code === 403 || message.includes('API_KEY')) return 'AUTH_ERROR';
+    if (code === 429) return 'RATE_LIMITED';
+    if (code === 503 || code === 504) return 'UNAVAILABLE';
+    return 'ERROR';
   }
 
   private getEnvApiKeyForProvider(provider: AIProvider): string | undefined {

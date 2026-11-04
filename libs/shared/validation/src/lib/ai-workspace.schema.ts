@@ -321,6 +321,7 @@ export const saveProviderCredentialSchema = z.object({
     .optional(),
   defaultModel: text(200).optional(),
   enabled: z.boolean().optional(),
+  verify: z.boolean().optional(),
 });
 
 export const updateModelSettingsSchema = z.object({

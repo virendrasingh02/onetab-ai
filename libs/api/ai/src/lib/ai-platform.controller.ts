@@ -141,8 +141,8 @@ export class AIPlatformController {
   }
 
   @Get('models')
-  getModels(@WorkspaceId() _workspaceId: string) {
-    return this.aiService.getAllModels();
+  getModels(@WorkspaceId() workspaceId: string) {
+    return this.credentialService.listWorkspaceModels(workspaceId);
   }
 
   @Post('test-connection')
@@ -181,6 +181,8 @@ export class AIPlatformController {
     });
     return this.aiService.chat({
       ...body,
+      provider,
+      model: body.model || cred.defaultModel,
       apiKey: cred.apiKey,
       baseUrl: cred.baseUrl,
     });
@@ -215,6 +217,8 @@ export class AIPlatformController {
       });
       for await (const event of this.aiService.streamChat({
         ...body,
+        provider,
+        model: body.model || cred.defaultModel,
         apiKey: cred.apiKey,
         baseUrl: cred.baseUrl,
       })) {

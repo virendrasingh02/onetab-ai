@@ -23,6 +23,21 @@ import {
   XAIAdapter,
 } from './adapters/index.js';
 
+const PROVIDER_DESCRIPTIONS: Record<AIProvider, string> = {
+  nvidia: 'Nemotron and open models on NVIDIA NIM.',
+  openai: 'GPT models and text embeddings.',
+  anthropic: 'Claude models for reasoning, coding and agents.',
+  gemini: 'Multimodal Gemini models from Google.',
+  deepseek: 'DeepSeek chat and reasoning models.',
+  groq: 'Very low latency inference on open models.',
+  mistral: 'Mistral and Codestral models.',
+  xai: 'Grok models from xAI.',
+  together: 'Hosted open-source models.',
+  openrouter: 'One key for models from many providers.',
+  cohere: 'Command models, embeddings and rerank.',
+  ollama: 'Private models on your own machine or server.',
+};
+
 @Injectable()
 export class ProviderRegistryService implements OnModuleInit {
   private readonly logger = new Logger(ProviderRegistryService.name);
@@ -168,7 +183,7 @@ export class ProviderRegistryService implements OnModuleInit {
           capabilities,
           defaultModel: adapter.defaultModel,
           models,
-          description: `High performance multi-model integration for ${this.formatProviderName(adapter.provider)}`,
+          description: PROVIDER_DESCRIPTIONS[adapter.provider],
         };
       });
   }

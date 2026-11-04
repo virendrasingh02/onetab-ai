@@ -1165,7 +1165,7 @@ export class AIRuntimeService {
       const calledAt = Date.now();
       const result = await this.aiService.chat({
         provider,
-        model: entity.model || undefined,
+        model: entity.model || cred.defaultModel,
         apiKey: cred.apiKey,
         baseUrl: cred.baseUrl,
         messages,

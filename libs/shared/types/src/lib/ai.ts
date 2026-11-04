@@ -105,6 +105,12 @@ export interface AIProviderMetadata {
   maskedKey?: string;
   enabled?: boolean;
   credentialRequirements?: ProviderCredentialRequirement[];
+  /** Whose key runs this provider: the workspace's own, or the platform's. */
+  credentialSource?: 'workspace' | 'environment' | 'none';
+  /** When the workspace credential was last checked against the provider. */
+  lastTestedAt?: string;
+  /** Why that check failed; absent once it passes. */
+  lastError?: string;
 }
 
 export interface SaveProviderCredentialInput {
@@ -112,6 +118,8 @@ export interface SaveProviderCredentialInput {
   baseUrl?: string;
   defaultModel?: string;
   enabled?: boolean;
+  /** Refuse to save (422, nothing written) unless the provider accepts it. */
+  verify?: boolean;
 }
 
 export interface UpdateModelSettingsInput {

@@ -4736,9 +4736,11 @@ export const aiApi = {
     input: UpdateModelSettingsInput,
   ) =>
     request<void>(
-      http.patch(`/workspaces/${workspaceId}/ai/models/${modelId}`, input, {
-        timeout: 30_000,
-      }),
+      http.patch(
+        `/workspaces/${workspaceId}/ai/models/${encodeURIComponent(modelId)}`,
+        input,
+        { timeout: 30_000 },
+      ),
     ),
 
   getModels: (workspaceId: string) =>

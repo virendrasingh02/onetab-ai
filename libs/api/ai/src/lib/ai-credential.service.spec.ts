@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { HttpException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@org/database';
 import { AICredentialService } from './ai-credential.service.js';
@@ -9,6 +10,7 @@ import { ProviderRegistryService } from './provider-registry.service.js';
 describe('AICredentialService', () => {
   let service: AICredentialService;
   let encryption: AIEncryptionService;
+  let providerRegistry: ProviderRegistryService;
   let mockPrisma: any;
   let mockConfig: Record<string, string | undefined>;
 
@@ -24,7 +26,7 @@ describe('AICredentialService', () => {
 
     encryption = new AIEncryptionService(configService);
 
-    const providerRegistry = new ProviderRegistryService(configService);
+    providerRegistry = new ProviderRegistryService(configService);
     const modelRegistry = new ModelRegistryService(providerRegistry);
 
     mockPrisma = {
@@ -50,6 +52,14 @@ describe('AICredentialService', () => {
       modelRegistry
     );
   });
+
+  /** Stands in for the provider: resolves, or rejects with `failure`. */
+  const stubProviderReply = (failure?: Error) => {
+    const chat = vi.spyOn(providerRegistry.getAdapter('anthropic'), 'chat');
+    if (failure) chat.mockRejectedValue(failure);
+    else chat.mockResolvedValue({} as never);
+    return chat;
+  };
 
   describe('resolveCredential hierarchy', () => {
     it('falls back to environment variable when no DB credential exists', async () => {
@@ -120,6 +130,7 @@ describe('AICredentialService', () => {
     it('encrypts the key and returns masked metadata without exposing plaintext', async () => {
       mockPrisma.aIProviderCredential.findFirst.mockResolvedValue(null);
       mockPrisma.aIProviderCredential.upsert.mockResolvedValue({});
+      stubProviderReply();
 
       // Mock subsequent list query
       mockPrisma.aIProviderCredential.findMany.mockResolvedValue([
@@ -163,6 +174,104 @@ describe('AICredentialService', () => {
       expect(result.id).toBe('anthropic');
       expect(result.maskedKey).toBe('••••••••••••7777');
       expect((result as any).apiKey).toBeUndefined();
+    });
+
+    it('with verify, writes nothing when the provider rejects the key', async () => {
+      mockPrisma.aIProviderCredential.findFirst.mockResolvedValue(null);
+      stubProviderReply(new HttpException('Invalid key', 401));
+
+      await expect(
+        service.saveCredential('ws-123', 'anthropic', { apiKey: 'sk-ant-bad', verify: true })
+      ).rejects.toThrow('Invalid key');
+      expect(mockPrisma.aIProviderCredential.upsert).not.toHaveBeenCalled();
+    });
+
+    it('without verify, saves what the provider actually answered', async () => {
+      mockPrisma.aIProviderCredential.findFirst.mockResolvedValue(null);
+      mockPrisma.aIProviderCredential.findMany.mockResolvedValue([]);
+      stubProviderReply(new HttpException('Invalid key', 401));
+
+      await service.saveCredential('ws-123', 'anthropic', { apiKey: 'sk-ant-bad' });
+
+      const { create } = mockPrisma.aIProviderCredential.upsert.mock.calls[0][0];
+      expect(create.status).toBe('AUTH_ERROR');
+      expect(JSON.parse(create.metadata).lastError).toContain('Invalid key');
+    });
+
+    it('does not re-check when nothing about the connection changed', async () => {
+      mockPrisma.aIProviderCredential.findFirst.mockResolvedValue({
+        encryptedApiKey: 'enc',
+        maskedKey: '••••7777',
+        baseUrl: null,
+        defaultModel: 'claude-sonnet-4-5',
+      });
+      const chat = stubProviderReply();
+
+      await service.saveCredential('ws-123', 'anthropic', {
+        defaultModel: 'claude-sonnet-4-5',
+        enabled: false,
+      });
+
+      expect(chat).not.toHaveBeenCalled();
+    });
+
+    it('refuses a provider this deployment does not offer, before writing', async () => {
+      mockConfig['AI_ENABLED_PROVIDERS'] = 'nvidia';
+      const narrowed = new AICredentialService(
+        mockPrisma as unknown as PrismaService,
+        { get: (key: string) => mockConfig[key] } as unknown as ConfigService,
+        encryption,
+        new ProviderRegistryService({ get: (key: string) => mockConfig[key] } as unknown as ConfigService)
+      );
+
+      await expect(
+        narrowed.saveCredential('ws-123', 'groq', { apiKey: 'gsk_x' })
+      ).rejects.toThrow("'groq' not found");
+      expect(mockPrisma.aIProviderCredential.upsert).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('testWorkspaceConnection', () => {
+    it('never stores a key the provider echoes back in its error', async () => {
+      const key = 'sk-ant-echoed-secret';
+      mockPrisma.aIProviderCredential.findFirst.mockImplementation(({ where }: any) =>
+        where.scopeType === 'workspace'
+          ? { encryptedApiKey: encryption.encrypt(key), enabled: true }
+          : null
+      );
+      stubProviderReply(new HttpException(`Bad key ${key}`, 401));
+
+      const result = await service.testWorkspaceConnection('ws-123', 'anthropic');
+
+      expect(result.status).toBe('AUTH_ERROR');
+      expect(result.detail).not.toContain(key);
+      expect(JSON.stringify(mockPrisma.aIProviderCredential.updateMany.mock.calls)).not.toContain(key);
+    });
+  });
+
+  describe('workspace settings without a key', () => {
+    it('keeps the workspace endpoint and default model on the platform key', async () => {
+      mockPrisma.aIProviderCredential.findFirst.mockImplementation(({ where }: any) =>
+        where.scopeType === 'workspace'
+          ? { encryptedApiKey: '', baseUrl: 'https://proxy.example.com/v1', defaultModel: 'm-1', enabled: true }
+          : null
+      );
+
+      const resolved = await service.resolveCredential('nvidia', { workspaceId: 'ws-123' });
+
+      expect(resolved.apiKey).toBe('nvapi-env-fallback-key-9999');
+      expect(resolved.baseUrl).toBe('https://proxy.example.com/v1');
+      expect(resolved.defaultModel).toBe('m-1');
+    });
+
+    it('applies workspace model choices to the model list', async () => {
+      mockPrisma.aIModelSetting.findMany.mockResolvedValue([
+        { modelId: 'claude-sonnet', enabled: false, isDefault: false },
+      ]);
+
+      const models = await service.listWorkspaceModels('ws-123');
+
+      expect(models.find((m) => m.id === 'claude-sonnet')?.enabled).toBe(false);
     });
   });
 
