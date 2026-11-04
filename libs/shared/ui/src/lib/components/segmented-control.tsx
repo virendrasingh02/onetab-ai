@@ -1,9 +1,10 @@
 import { cn } from '@org/utils';
-import { useId } from 'react';
+import { useId, type ReactNode } from 'react';
 
 export interface SegmentedOption<T extends string | number> {
   value: T;
   label: string;
+  icon?: ReactNode;
   /** Optional longer description for assistive technology. */
   hint?: string;
 }
@@ -15,6 +16,9 @@ export interface SegmentedControlProps<T extends string | number> {
   /** Required: names the group for screen readers. */
   'aria-label': string;
   size?: 'sm' | 'md';
+  /** `fill` shares the full width equally; `tiles` also stacks each icon over its label. */
+  layout?: 'inline' | 'fill' | 'tiles';
+  disabled?: boolean;
   className?: string;
 }
 
@@ -31,6 +35,8 @@ export function SegmentedControl<T extends string | number>({
   value,
   onChange,
   size = 'md',
+  layout = 'inline',
+  disabled = false,
   className,
   'aria-label': ariaLabel,
 }: SegmentedControlProps<T>) {
@@ -41,7 +47,10 @@ export function SegmentedControl<T extends string | number>({
       role="radiogroup"
       aria-label={ariaLabel}
       className={cn(
-        'gap-0.5 p-0.5 inline-flex items-center rounded-lg border bg-surface-inset',
+        'gap-0.5 p-0.5 relative rounded-lg border bg-surface-inset',
+        layout === 'inline'
+          ? 'inline-flex items-center'
+          : 'grid w-full auto-cols-fr grid-flow-col',
         className,
       )}
     >
@@ -57,20 +66,30 @@ export function SegmentedControl<T extends string | number>({
               name={name}
               className="peer sr-only"
               checked={selected}
+              disabled={disabled}
               aria-describedby={option.hint ? `${id}-hint` : undefined}
               onChange={() => onChange(option.value)}
             />
             <label
               htmlFor={id}
               className={cn(
-                'font-medium cursor-pointer rounded-md transition-colors duration-(--duration-fast)',
+                'font-medium rounded-md transition-colors duration-(--duration-fast)',
                 'peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring/40',
                 size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-xs',
+                layout !== 'inline' &&
+                  'gap-1.5 min-w-0 [&_svg]:size-3.5 flex items-center justify-center text-center [&_svg]:shrink-0',
+                layout === 'tiles' &&
+                  'gap-1 px-1 py-1.5 [&_svg]:size-4 flex-col',
+                disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
                 selected
-                  ? 'shadow-xs bg-background text-foreground'
-                  : 'text-muted-foreground hover:text-foreground',
+                  ? 'bg-background text-foreground shadow-xs'
+                  : cn(
+                      'text-muted-foreground',
+                      !disabled && 'hover:text-foreground',
+                    ),
               )}
             >
+              {option.icon}
               {option.label}
             </label>
             {option.hint ? (

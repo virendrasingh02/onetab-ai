@@ -16,9 +16,6 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
@@ -57,7 +54,6 @@ import {
   Background,
   type ConnectionLineComponentProps,
   ConnectionMode,
-  MiniMap,
   Panel,
   ReactFlow,
   ReactFlowProvider,
@@ -127,13 +123,7 @@ import {
   X,
   Rocket,
   CornerDownRight,
-  MoveHorizontal,
   MoreHorizontal,
-  MoveVertical,
-  Spline,
-  Route,
-  Slash,
-  Rows3,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -157,6 +147,16 @@ import {
   WorkflowConnectionLine,
 } from '../components/workflow-canvas/custom-edges.jsx';
 import { CanvasContextMenu } from '../components/workflow-canvas/canvas-context-menu.jsx';
+import { CanvasMiniMap } from '../components/workflow-canvas/canvas-mini-map.js';
+import {
+  CanvasLayoutMenu,
+  DEFAULT_LAYOUT_PREFS,
+  isLayoutArrange,
+  isLayoutSpacing,
+  parseCanvasLayoutDefaults,
+  type CanvasLayoutDefaults,
+  type LayoutPrefs,
+} from '../components/workflow-canvas/canvas-layout-menu.js';
 import { NodeCatalogModal } from '../components/workflow-canvas/node-catalog-modal.js';
 import {
   NodeInspector,
@@ -186,13 +186,8 @@ import {
 } from '../components/agent-detail/agent-settings-layout.js';
 import { agentService } from '../services/agentService.js';
 import { analyticsService } from '../services/analyticsService.js';
+import { layoutWorkflow } from '../components/workflow-canvas/auto-layout.js';
 import {
-  layoutWorkflow,
-  type LayoutArrange,
-  type LayoutSpacing,
-} from '../components/workflow-canvas/auto-layout.js';
-import {
-  EDGE_ROUTING_HINTS,
   EDGE_ROUTING_LABELS,
   isEdgeRouting,
 } from '../components/workflow-canvas/edge-routing.js';
@@ -311,53 +306,6 @@ export interface ParsedStudioGraph {
   } & Partial<LayoutPrefs>;
 }
 
-/** How Auto Layout arranges the canvas; saved with the graph so each agent keeps its own. */
-interface LayoutPrefs {
-  arrange: LayoutArrange;
-  spacing: LayoutSpacing;
-}
-const DEFAULT_LAYOUT_PREFS: LayoutPrefs = {
-  arrange: 'layered',
-  spacing: 'comfortable',
-};
-
-const LAYOUT_ARRANGE_MENU: {
-  value: LayoutArrange;
-  label: string;
-  hint: string;
-  Icon: typeof Spline;
-}[] = [
-  {
-    value: 'layered',
-    label: 'Layered flow',
-    hint: 'Columns by step order, fewest crossing wires',
-    Icon: Rows3,
-  },
-  {
-    value: 'tree',
-    label: 'Tree',
-    hint: 'Tidy tree: each step centred over the branches it starts',
-    Icon: Network,
-  },
-];
-const LAYOUT_SPACING_MENU: { value: LayoutSpacing; label: string }[] = [
-  { value: 'compact', label: 'Compact' },
-  { value: 'comfortable', label: 'Comfortable' },
-  { value: 'spacious', label: 'Spacious' },
-];
-const isLayoutArrange = (v: unknown): v is LayoutArrange =>
-  v === 'layered' || v === 'tree';
-const isLayoutSpacing = (v: unknown): v is LayoutSpacing =>
-  v === 'compact' || v === 'comfortable' || v === 'spacious';
-
-/** Canvas-wide routing choices, in menu order. */
-const EDGE_ROUTING_MENU: { value: WorkflowEdgeStyle; Icon: typeof Spline }[] = [
-  { value: 'smooth', Icon: Spline },
-  { value: 'step', Icon: CornerDownRight },
-  { value: 'smart', Icon: Route },
-  { value: 'straight', Icon: Slash },
-];
-
 /** The canvas graph as the API stores it: JSON in `graphJson`. */
 function parseGraph(
   graphJson: string | null | undefined,
@@ -387,15 +335,16 @@ function parseGraph(
       layout: {
         direction:
           graph.layout?.direction === 'vertical' ? 'vertical' : 'horizontal',
-        edgeStyle: isEdgeRouting(graph.layout?.edgeStyle)
-          ? graph.layout.edgeStyle
-          : 'smooth',
-        arrange: isLayoutArrange(graph.layout?.arrange)
-          ? graph.layout.arrange
-          : DEFAULT_LAYOUT_PREFS.arrange,
-        spacing: isLayoutSpacing(graph.layout?.spacing)
-          ? graph.layout.spacing
-          : DEFAULT_LAYOUT_PREFS.spacing,
+        // Left unset when never chosen, so the member's defaults can fill in
+        ...(isEdgeRouting(graph.layout?.edgeStyle)
+          ? { edgeStyle: graph.layout.edgeStyle }
+          : {}),
+        ...(isLayoutArrange(graph.layout?.arrange)
+          ? { arrange: graph.layout.arrange }
+          : {}),
+        ...(isLayoutSpacing(graph.layout?.spacing)
+          ? { spacing: graph.layout.spacing }
+          : {}),
       },
     };
   } catch {
@@ -434,6 +383,7 @@ const LAYOUT_ANIMATION_MS = 420;
 /** Quiet time after the last edit before the draft saves itself. */
 const AUTO_SAVE_DELAY_MS = 2000;
 const AUTO_SAVE_PREF_KEY = 'studioAutosave';
+const LAYOUT_DEFAULTS_PREF_KEY = 'studioCanvasLayout';
 const isAutoSave = (opts: unknown) =>
   !!(opts as { auto?: boolean } | undefined)?.auto;
 
@@ -557,7 +507,7 @@ const HISTORY_LIMIT = 100;
 const HISTORY_SETTLE_MS = 400;
 
 /** Canvas-wide settings that undo/redo restores along with the graph. */
-interface CanvasLayout {
+interface CanvasLayout extends LayoutPrefs {
   direction: WorkflowDirection;
   edgeStyle: WorkflowEdgeStyle;
 }
@@ -587,7 +537,14 @@ function toGraphSnapshot(
   return {
     key: JSON.stringify(
       layout
-        ? [cleanNodes, cleanEdges, layout.direction, layout.edgeStyle]
+        ? [
+            cleanNodes,
+            cleanEdges,
+            layout.direction,
+            layout.edgeStyle,
+            layout.arrange,
+            layout.spacing,
+          ]
         : [cleanNodes, cleanEdges],
     ),
     nodes: cleanNodes,
@@ -679,6 +636,7 @@ function WorkflowCanvasInner({
   onChangeEdgeStyle,
   layoutPrefs = DEFAULT_LAYOUT_PREFS,
   onChangeLayoutPrefs,
+  layoutAutoSaved = true,
   isCopilotOpen = false,
   onToggleCopilot,
   onUpdateNodeMetadata,
@@ -736,6 +694,8 @@ function WorkflowCanvasInner({
   layoutPrefs?: LayoutPrefs;
   /** Saves the choice and re-runs Auto Layout with it. */
   onChangeLayoutPrefs?: (patch: Partial<LayoutPrefs>) => void;
+  /** Whether a layout change saves itself, or waits for the Save button. */
+  layoutAutoSaved?: boolean;
   isCopilotOpen?: boolean;
   /** Opens/closes the Agent Copilot drawer; the toolbar button is hidden without it. */
   onToggleCopilot?: () => void;
@@ -772,6 +732,7 @@ function WorkflowCanvasInner({
   );
   const canvasRef = useRef<HTMLDivElement>(null);
   const edgeReconnectSuccessful = useRef(true);
+  const revealMiniMapRef = useRef<(() => void) | null>(null);
 
   // Keyboard shortcuts: V (select), H (pan), Shift+1 (zoom to fit), Shift+0 (zoom to 100%), Shift+L (tidy)
   const autoLayoutRef = useRef<(dir?: 'LR' | 'TB') => void>(() => undefined);
@@ -1203,118 +1164,17 @@ function WorkflowCanvasInner({
           <span>Auto Layout</span>
         </Button>
 
-        {/* Layout direction + connection style live in one overflow menu */}
         <div className="h-4 mx-0.5 w-px bg-border" />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              title="Layout & connection options"
-              aria-label="Layout and connection options"
-              className="rounded-xl"
-            >
-              <MoreHorizontal className="size-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent side="top" align="center" className="w-52">
-            <DropdownMenuLabel className="text-xs text-muted-foreground">
-              Layout direction
-            </DropdownMenuLabel>
-            <DropdownMenuRadioGroup
-              value={direction}
-              onValueChange={(value) =>
-                onChangeDirection?.(value as WorkflowDirection)
-              }
-            >
-              <DropdownMenuRadioItem
-                value="horizontal"
-                className="gap-2 text-xs"
-              >
-                <MoveHorizontal className="size-3.5" />
-                Horizontal
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="vertical" className="gap-2 text-xs">
-                <MoveVertical className="size-3.5" />
-                Vertical
-              </DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs text-muted-foreground">
-              Arrangement
-            </DropdownMenuLabel>
-            <DropdownMenuRadioGroup
-              value={layoutPrefs.arrange}
-              onValueChange={(value) =>
-                onChangeLayoutPrefs?.({ arrange: value as LayoutArrange })
-              }
-            >
-              {LAYOUT_ARRANGE_MENU.map(({ value, label, hint, Icon }) => (
-                <DropdownMenuRadioItem
-                  key={value}
-                  value={value}
-                  disabled={isLocked}
-                  className="gap-2 text-xs"
-                  title={hint}
-                >
-                  <Icon className="size-3.5" />
-                  {label}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs text-muted-foreground">
-              Spacing
-            </DropdownMenuLabel>
-            <div
-              role="radiogroup"
-              aria-label="Spacing"
-              className="mx-1 mb-1 gap-0.5 p-0.5 grid grid-cols-3 rounded-lg bg-surface-raised"
-            >
-              {LAYOUT_SPACING_MENU.map(({ value, label }) => (
-                <button
-                  key={value}
-                  type="button"
-                  role="radio"
-                  aria-checked={layoutPrefs.spacing === value}
-                  disabled={isLocked}
-                  onClick={() => onChangeLayoutPrefs?.({ spacing: value })}
-                  className={cn(
-                    'h-6 text-xs font-medium cursor-pointer rounded-md transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-                    layoutPrefs.spacing === value
-                      ? 'bg-surface text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs text-muted-foreground">
-              Edge routing
-            </DropdownMenuLabel>
-            <DropdownMenuRadioGroup
-              value={edgeStyle}
-              onValueChange={(value) =>
-                onChangeEdgeStyle?.(value as WorkflowEdgeStyle)
-              }
-            >
-              {EDGE_ROUTING_MENU.map(({ value, Icon }) => (
-                <DropdownMenuRadioItem
-                  key={value}
-                  value={value}
-                  className="gap-2 text-xs"
-                  title={EDGE_ROUTING_HINTS[value]}
-                >
-                  <Icon className="size-3.5" />
-                  {EDGE_ROUTING_LABELS[value]}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <CanvasLayoutMenu
+          direction={direction}
+          edgeStyle={edgeStyle}
+          prefs={layoutPrefs}
+          isLocked={isLocked}
+          autoSaved={layoutAutoSaved}
+          onChangeDirection={onChangeDirection}
+          onChangeEdgeStyle={onChangeEdgeStyle}
+          onChangePrefs={onChangeLayoutPrefs}
+        />
 
         {onOpenCommandPalette && (
           <>
@@ -1700,6 +1560,10 @@ function WorkflowCanvasInner({
         }}
       >
         <ReactFlow
+          // A null event is a programmatic move (fit view, zoom buttons), not the member navigating
+          onMove={(event) => {
+            if (event) revealMiniMapRef.current?.();
+          }}
           nodes={displayNodes}
           edges={edges}
           onNodesChange={isLocked ? undefined : onNodesChange}
@@ -1842,33 +1706,7 @@ function WorkflowCanvasInner({
             size={1}
             color="color-mix(in oklab, var(--muted-foreground) 30%, transparent)"
           />
-          <MiniMap
-            nodeColor={(n) => {
-              const t = n.type || '';
-              if (t.includes('START') || t.includes('TRIGGER'))
-                return 'var(--success)';
-              if (t.includes('AGENT')) return 'var(--primary)';
-              if (t.includes('FIRECRAWL')) return 'var(--warning)';
-              if (t.includes('TOOL') || t.includes('MCP'))
-                return 'var(--primary)';
-              if (t.includes('TRANSFORM') || t.includes('CODE'))
-                return 'var(--accent-cyan)';
-              if (t.includes('IF') || t.includes('CONDITION'))
-                return 'var(--accent-violet)';
-              if (t.includes('USER') || t.includes('APPROVAL'))
-                return 'var(--destructive)';
-              if (t.includes('NOTE')) return 'var(--accent-amber)';
-              if (t.includes('GROUP')) return 'var(--muted-foreground)';
-              if (t.includes('APP_CONNECTOR')) return 'var(--accent-cyan)';
-              if (t.includes('END') || t.includes('OUTPUT'))
-                return 'var(--success)';
-              // Prompt / LLM / knowledge cards plugged into an agent, and anything else: quiet grey
-              return 'var(--border-strong)';
-            }}
-            nodeStrokeWidth={3}
-            className="!rounded-xl !border-border !bg-surface !shadow-sm"
-            maskColor="rgba(0, 0, 0, 0.4)"
-          />
+          <CanvasMiniMap revealRef={revealMiniMapRef} />
           <RemeasureHandlesOnDirection direction={direction} />
         </ReactFlow>
       </WorkflowLayoutContext.Provider>
@@ -2067,6 +1905,15 @@ export function AgentDetailPage() {
     true,
     (raw) => (typeof raw === 'boolean' ? raw : undefined),
   );
+  // Last-used canvas style, for agents that haven't chosen their own
+  const [layoutDefaults, saveLayoutDefaults] =
+    useMemberPreference<CanvasLayoutDefaults>(
+      LAYOUT_DEFAULTS_PREF_KEY,
+      {},
+      parseCanvasLayoutDefaults,
+    );
+  const layoutDefaultsRef = useRef(layoutDefaults);
+  layoutDefaultsRef.current = layoutDefaults;
   const [lastSaved, setLastSaved] = useState<{
     at: number;
     auto: boolean;
@@ -2127,6 +1974,7 @@ export function AgentDetailPage() {
       const snapshot = toGraphSnapshot(nodes, edges, {
         direction: workflowDirection,
         edgeStyle: workflowEdgeStyle,
+        ...layoutPrefs,
       });
       const h = historyRef.current;
       if (h.reset) {
@@ -2143,17 +1991,26 @@ export function AgentDetailPage() {
       syncHistoryFlags();
     }, HISTORY_SETTLE_MS);
     return () => clearTimeout(timer);
-  }, [nodes, edges, workflowDirection, workflowEdgeStyle, syncHistoryFlags]);
+  }, [
+    nodes,
+    edges,
+    workflowDirection,
+    workflowEdgeStyle,
+    layoutPrefs,
+    syncHistoryFlags,
+  ]);
 
   const graphRef = useRef({ nodes, edges });
   graphRef.current = { nodes, edges };
   const layoutRef = useRef<CanvasLayout>({
     direction: workflowDirection,
     edgeStyle: workflowEdgeStyle,
+    ...layoutPrefs,
   });
   layoutRef.current = {
     direction: workflowDirection,
     edgeStyle: workflowEdgeStyle,
+    ...layoutPrefs,
   };
 
   const stepHistory = useCallback(
@@ -2186,6 +2043,10 @@ export function AgentDetailPage() {
       if (target.layout) {
         setWorkflowDirection(target.layout.direction);
         setWorkflowEdgeStyle(target.layout.edgeStyle);
+        setLayoutPrefs({
+          arrange: target.layout.arrange,
+          spacing: target.layout.spacing,
+        });
       }
       setIsDirty(true);
       syncHistoryFlags();
@@ -2345,6 +2206,20 @@ export function AgentDetailPage() {
   -d '{"prompt": ${prompt}}'`;
   };
 
+  /** What the agent saved wins; anything it never chose follows the member's last-used style. */
+  const applyLayoutChoices = useCallback(
+    (stored: ParsedStudioGraph['layout'], defaults: CanvasLayoutDefaults) => {
+      setWorkflowEdgeStyle(stored?.edgeStyle ?? defaults.edgeStyle ?? 'smooth');
+      setLayoutPrefs({
+        arrange:
+          stored?.arrange ?? defaults.arrange ?? DEFAULT_LAYOUT_PREFS.arrange,
+        spacing:
+          stored?.spacing ?? defaults.spacing ?? DEFAULT_LAYOUT_PREFS.spacing,
+      });
+    },
+    [],
+  );
+
   // Hydrate the canvas and the settings form whenever the stored agent changes.
   // Other saves (Memory/Widget tabs, header rename) refetch the agent too; those must
   // not wipe unsaved canvas/settings edits. Only a version restore forces a reload.
@@ -2364,17 +2239,11 @@ export function AgentDetailPage() {
     }
     forceHydrateRef.current = false;
     const graph = parseGraph(agent.graphJson);
+    applyLayoutChoices(graph?.layout, layoutDefaultsRef.current);
     if (graph) {
       if (graph.layout?.direction) {
         setWorkflowDirection(graph.layout.direction);
       }
-      if (graph.layout?.edgeStyle) {
-        setWorkflowEdgeStyle(graph.layout.edgeStyle);
-      }
-      setLayoutPrefs({
-        arrange: graph.layout?.arrange ?? DEFAULT_LAYOUT_PREFS.arrange,
-        spacing: graph.layout?.spacing ?? DEFAULT_LAYOUT_PREFS.spacing,
-      });
       setGraphSettings(graph.settings);
       // A save round-trip returns the graph already on the canvas — leave it (and the
       // undo history) alone. Only a different graph (first load, restored version)
@@ -2423,6 +2292,19 @@ export function AgentDetailPage() {
     setHeaderNameInput(agent.name);
     setIsDirty(false);
   }, [agent]);
+
+  // The member's preferences can arrive after the agent does
+  useEffect(() => {
+    if (!agent || isDirtyRef.current) return;
+    applyLayoutChoices(parseGraph(agent.graphJson)?.layout, layoutDefaults);
+    historyRef.current.reset = true;
+    // The parsed object is new each render; its values are what matter
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    layoutDefaults.edgeStyle,
+    layoutDefaults.arrange,
+    layoutDefaults.spacing,
+  ]);
 
   const updateSettings = (patch: Partial<AgentSettingsDraft>) => {
     setSettingsDraft((draft) => (draft ? { ...draft, ...patch } : draft));
@@ -2749,7 +2631,11 @@ export function AgentDetailPage() {
       ];
     if (!upstream) return own;
     // The answer is on its way down the wire: it lands when the run gets here
-    if (!own && upstream.status === 'success' && runPlayback.view?.settled === false)
+    if (
+      !own &&
+      upstream.status === 'success' &&
+      runPlayback.view?.settled === false
+    )
       return { status: 'running', output: '', tokens: 0, latencyMs: 0 };
     return {
       ...upstream,
@@ -3584,6 +3470,7 @@ export function AgentDetailPage() {
     (
       explicitDir?: 'LR' | 'TB',
       prefs: LayoutPrefs = layoutPrefs,
+      { quietWhenTidy = false }: { quietWhenTidy?: boolean } = {},
     ): number | null => {
       const dir =
         explicitDir || (workflowDirection === 'vertical' ? 'TB' : 'LR');
@@ -3604,7 +3491,7 @@ export function AgentDetailPage() {
         );
       });
       if (!moved) {
-        toast('Already tidy — nothing to move');
+        if (!quietWhenTidy) toast('Already tidy — nothing to move');
         return null;
       }
 
@@ -3680,7 +3567,10 @@ export function AgentDetailPage() {
         return;
       setLayoutPrefs(next);
       setIsDirty(true);
-      const duration = handleAutoLayout(undefined, next);
+      saveLayoutDefaults({ edgeStyle: workflowEdgeStyle, ...next });
+      const duration = handleAutoLayout(undefined, next, {
+        quietWhenTidy: true,
+      });
       if (duration !== null) {
         setTimeout(
           () => reactFlowRef.current?.fitView({ padding: 0.2, duration: 450 }),
@@ -3688,7 +3578,13 @@ export function AgentDetailPage() {
         );
       }
     },
-    [isCanvasLocked, layoutPrefs, handleAutoLayout],
+    [
+      isCanvasLocked,
+      layoutPrefs,
+      workflowEdgeStyle,
+      saveLayoutDefaults,
+      handleAutoLayout,
+    ],
   );
 
   // Plugging something into (or out of) an agent hangs it in the agent's tree right away,
@@ -3742,7 +3638,7 @@ export function AgentDetailPage() {
 
   const handleChangeDirection = useCallback(
     (newDir: WorkflowDirection) => {
-      if (newDir === workflowDirection) return;
+      if (isCanvasLocked || newDir === workflowDirection) return;
       setWorkflowDirection(newDir);
       setIsDirty(true);
       // Run auto layout in the new direction
@@ -3782,19 +3678,26 @@ export function AgentDetailPage() {
         reactFlowRef.current?.fitView({ padding: 0.2, duration: 400 });
       }, 50);
     },
-    [workflowDirection, nodes, edges, undoAction, layoutPrefs],
+    [isCanvasLocked, workflowDirection, nodes, edges, undoAction, layoutPrefs],
   );
 
   const handleChangeEdgeStyle = useCallback(
     (newStyle: WorkflowEdgeStyle) => {
-      if (newStyle === workflowEdgeStyle) return;
+      if (isCanvasLocked || newStyle === workflowEdgeStyle) return;
       setWorkflowEdgeStyle(newStyle);
       setIsDirty(true);
+      saveLayoutDefaults({ edgeStyle: newStyle, ...layoutPrefs });
       toast.success(`Edge routing: ${EDGE_ROUTING_LABELS[newStyle]}`, {
         action: undoAction,
       });
     },
-    [workflowEdgeStyle, undoAction],
+    [
+      isCanvasLocked,
+      workflowEdgeStyle,
+      layoutPrefs,
+      saveLayoutDefaults,
+      undoAction,
+    ],
   );
 
   const handleUpdateNodeMetadata = useCallback(
@@ -5171,6 +5074,7 @@ export function AgentDetailPage() {
                   onChangeEdgeStyle={handleChangeEdgeStyle}
                   layoutPrefs={layoutPrefs}
                   onChangeLayoutPrefs={handleChangeLayoutPrefs}
+                  layoutAutoSaved={autoSaveEnabled}
                   isCopilotOpen={showAiPanel}
                   onToggleCopilot={
                     agentId && settingsDraft
