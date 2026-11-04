@@ -22,6 +22,7 @@ import type { Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { Public, zodBody } from '@org/api-common';
 import { UnsupportedDocumentError, extractTextFromFile } from '@org/api-ai';
+import type { AgentApiKeyScope } from '@org/types';
 import {
   initAgentSessionSchema,
   sendSessionMessageSchema,
@@ -81,8 +82,21 @@ export class AgentPublicController {
     return session;
   }
 
-  /** The workspace a workspace API key belongs to. */
+  /** Refuses a valid key that was not granted `scope`. */
+  private requireScope(
+    record: { scopes: string[] },
+    scope: AgentApiKeyScope,
+  ): void {
+    if (!record.scopes.includes(scope)) {
+      throw new ForbiddenException(
+        `This API key does not have the ${scope} scope.`,
+      );
+    }
+  }
+
+  /** The workspace of an API key that holds `scope`. */
   private async requireApiKeyWorkspace(
+    scope: AgentApiKeyScope,
     apiKeyHeader?: string,
     authHeader?: string,
   ): Promise<string> {
@@ -92,6 +106,7 @@ export class AgentPublicController {
       : null;
     if (!record)
       throw new UnauthorizedException('A valid API key is required.');
+    this.requireScope(record, scope);
     return record.workspaceId;
   }
 
@@ -324,27 +339,35 @@ export class AgentPublicController {
       body.message ||
       (typeof body.input === 'string'
         ? body.input
-        : JSON.stringify(body.input || {})) ||
-      '';
+        : body.input && Object.keys(body.input).length > 0
+          ? JSON.stringify(body.input)
+          : '');
 
     if (!prompt) {
       throw new BadRequestException('A prompt or message is required.');
     }
 
     // Authenticate:
-    // Option A: Private API Key (ot_live_...)
+    // Option A: Private API Key (ot_live_...). A bearer public key is option B.
+    const bearer = this.bearer(authHeader);
     const apiKey =
-      apiKeyHeader ||
-      (authHeader?.startsWith('Bearer ot_live_')
-        ? authHeader.slice(7)
-        : authHeader?.startsWith('Bearer ')
-          ? authHeader.slice(7)
-          : null);
+      apiKeyHeader || (bearer?.startsWith('ot_pub_') ? null : bearer);
 
     if (apiKey) {
       const keyRecord = await this.deploymentService.validateApiKey(apiKey);
       if (!keyRecord) {
         throw new UnauthorizedException('Invalid or expired API key.');
+      }
+      this.requireScope(keyRecord, 'agent:execute');
+
+      const live = await this.deploymentService.findLiveDeployment(
+        keyRecord.workspaceId,
+        agentId,
+      );
+      if (!live) {
+        throw new ForbiddenException(
+          'This agent has no live deployment. Deploy it in Studio before calling it with an API key.',
+        );
       }
 
       return this.runtimeBridge.execute({
@@ -352,14 +375,13 @@ export class AgentPublicController {
         agentId,
         prompt,
         context: body.context,
-        versionNumber: body.versionNumber,
+        versionNumber: body.versionNumber ?? live.versionNumber,
       });
     }
 
     // Option B: Public Key (ot_pub_...)
     const publicKey =
-      publicKeyHeader ||
-      (authHeader?.startsWith('Bearer ot_pub_') ? authHeader.slice(7) : null);
+      publicKeyHeader || (bearer?.startsWith('ot_pub_') ? bearer : null);
     if (publicKey) {
       const deployment =
         await this.deploymentService.getDeploymentByPublicKey(publicKey);
@@ -393,6 +415,7 @@ export class AgentPublicController {
     @Headers('authorization') authHeader?: string,
   ) {
     const workspaceId = await this.requireApiKeyWorkspace(
+      'agent:read',
       apiKeyHeader,
       authHeader,
     );
@@ -423,6 +446,7 @@ export class AgentPublicController {
     @Headers('authorization') authHeader?: string,
   ) {
     const workspaceId = await this.requireApiKeyWorkspace(
+      'agent:execute',
       apiKeyHeader,
       authHeader,
     );

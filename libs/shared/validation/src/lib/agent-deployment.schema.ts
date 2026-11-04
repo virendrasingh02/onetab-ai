@@ -1,3 +1,4 @@
+import { AGENT_API_KEY_SCOPES } from '@org/types';
 import { z } from 'zod';
 
 export const agentDeploymentTargetSchema = z.enum([
@@ -80,7 +81,9 @@ export const sendSessionMessageSchema = z
 export const executeHeadlessAgentSchema = z.object({
   prompt: z.string().min(1).optional(),
   message: z.string().min(1).optional(),
-  input: z.record(z.string(), z.unknown()).optional(),
+  input: z
+    .union([z.string().min(1), z.record(z.string(), z.unknown())])
+    .optional(),
   context: z.record(z.string(), z.unknown()).optional(),
   stream: z.boolean().optional().default(false),
   deploymentId: z.string().optional(),
@@ -101,25 +104,38 @@ export const rollbackDeploymentSchema = z.object({
 export const createAgentDeploymentWebhookSchema = z.object({
   url: z.string().url(),
   secret: z.string().min(8).optional(),
-  events: z.array(z.string()).default([
-    'agent.run.completed',
-    'agent.run.failed',
-    'agent.approval.requested',
-  ]),
+  events: z
+    .array(z.string())
+    .default([
+      'agent.run.completed',
+      'agent.run.failed',
+      'agent.approval.requested',
+    ]),
 });
 
 export const createAgentApiKeySchema = z.object({
   name: z.string().min(1).max(100),
-  scopes: z.array(z.string()).default(['agent:read', 'agent:execute']),
+  scopes: z
+    .array(z.enum(AGENT_API_KEY_SCOPES))
+    .min(1)
+    .default([...AGENT_API_KEY_SCOPES]),
   expiresInDays: z.number().int().positive().optional(),
 });
 
-export type CreateAgentDeploymentInput = z.infer<typeof createAgentDeploymentSchema>;
-export type UpdateAgentDeploymentInput = z.infer<typeof updateAgentDeploymentSchema>;
+export type CreateAgentDeploymentInput = z.infer<
+  typeof createAgentDeploymentSchema
+>;
+export type UpdateAgentDeploymentInput = z.infer<
+  typeof updateAgentDeploymentSchema
+>;
 export type InitAgentSessionInput = z.infer<typeof initAgentSessionSchema>;
 export type SendSessionMessageInput = z.infer<typeof sendSessionMessageSchema>;
-export type ExecuteHeadlessAgentInput = z.infer<typeof executeHeadlessAgentSchema>;
+export type ExecuteHeadlessAgentInput = z.infer<
+  typeof executeHeadlessAgentSchema
+>;
 export type ApproveActionInput = z.infer<typeof approveActionSchema>;
 export type RollbackDeploymentInput = z.infer<typeof rollbackDeploymentSchema>;
-export type CreateAgentDeploymentWebhookInput = z.infer<typeof createAgentDeploymentWebhookSchema>;
+export type CreateAgentDeploymentWebhookInput = z.infer<
+  typeof createAgentDeploymentWebhookSchema
+>;
 export type CreateAgentApiKeyInput = z.infer<typeof createAgentApiKeySchema>;

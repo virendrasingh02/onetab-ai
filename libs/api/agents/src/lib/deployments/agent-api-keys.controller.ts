@@ -16,7 +16,10 @@ import {
   zodBody,
 } from '@org/api-common';
 import { WorkspacePermission } from '@org/types';
-import { createAgentApiKeySchema, type CreateAgentApiKeyInput } from '@org/validation';
+import {
+  createAgentApiKeySchema,
+  type CreateAgentApiKeyInput,
+} from '@org/validation';
 import { AgentDeploymentService } from './agent-deployment.service.js';
 
 /**
@@ -34,9 +37,15 @@ export class AgentApiKeysController {
     return this.deploymentService.listApiKeys(workspaceId);
   }
 
+  /** The agents a key can run: those with a live deployment. */
+  @Get('agents')
+  deployedAgents(@WorkspaceId() workspaceId: string) {
+    return this.deploymentService.listDeployedAgents(workspaceId);
+  }
+
   /** The only response that ever carries the key itself. */
   @Post()
-  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
   create(
     @WorkspaceId() workspaceId: string,
     @Body(zodBody(createAgentApiKeySchema)) body: CreateAgentApiKeyInput,
@@ -45,7 +54,7 @@ export class AgentApiKeysController {
   }
 
   @Delete(':keyId')
-  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
   @HttpCode(HttpStatus.NO_CONTENT)
   revoke(@WorkspaceId() workspaceId: string, @Param('keyId') keyId: string) {
     return this.deploymentService.revokeApiKey(workspaceId, keyId);

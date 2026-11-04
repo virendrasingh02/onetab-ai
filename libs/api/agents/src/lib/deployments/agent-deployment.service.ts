@@ -35,7 +35,12 @@ export function periodToMs(period: string): number {
 export function categorizeRunError(message: string): string {
   if (/time(d)? ?out/i.test(message)) return 'Timeout';
   if (/rate.?limit|429|too many requests/i.test(message)) return 'Rate limited';
-  if (/api key|credential|unauthori[sz]ed|401|403|not connected|provider/i.test(message)) return 'Provider or credentials';
+  if (
+    /api key|credential|unauthori[sz]ed|401|403|not connected|provider/i.test(
+      message,
+    )
+  )
+    return 'Provider or credentials';
   if (/tool/i.test(message)) return 'Tool error';
   return 'Other';
 }
@@ -54,8 +59,11 @@ export function deploymentTrafficFilter(deploymentId: string) {
 
 /** How a recorded run reached the agent, from its run state. */
 export function runChannel(state: unknown): AgentDeploymentRunChannel | null {
-  const value = (state as { deploymentChannel?: unknown } | null)?.deploymentChannel;
-  return value === 'session' || value === 'public_key' || value === 'api_key' ? value : null;
+  const value = (state as { deploymentChannel?: unknown } | null)
+    ?.deploymentChannel;
+  return value === 'session' || value === 'public_key' || value === 'api_key'
+    ? value
+    : null;
 }
 
 /**
@@ -71,9 +79,17 @@ export function bucketRuns(
   const span = periodToMs(period);
   const step = span <= 2 * 86_400_000 ? 3_600_000 : 86_400_000;
   const floor = (t: number) => Math.floor(t / step) * step;
-  const buckets = new Map<number, { bucket: string; runs: number; failed: number; tokens: number }>();
+  const buckets = new Map<
+    number,
+    { bucket: string; runs: number; failed: number; tokens: number }
+  >();
   for (let t = floor(now - span) + step; t <= floor(now); t += step) {
-    buckets.set(t, { bucket: new Date(t).toISOString(), runs: 0, failed: 0, tokens: 0 });
+    buckets.set(t, {
+      bucket: new Date(t).toISOString(),
+      runs: 0,
+      failed: 0,
+      tokens: 0,
+    });
   }
   for (const run of runs) {
     const entry = buckets.get(floor(run.startedAt.getTime()));
@@ -153,7 +169,8 @@ export class AgentDeploymentService {
       target: d.target as AgentDeploymentTarget,
       publicKey: d.publicKey,
       allowedOrigins: d.allowedOrigins,
-      widgetConfig: (d.widgetConfig as AgentWidgetConfig) || DEFAULT_AGENT_WIDGET_CONFIG,
+      widgetConfig:
+        (d.widgetConfig as AgentWidgetConfig) || DEFAULT_AGENT_WIDGET_CONFIG,
       securityConfig: (d.securityConfig as AgentSecurityConfig) || {},
       metadata: (d.metadata as Record<string, unknown>) || {},
       createdAt: d.createdAt.toISOString(),
@@ -210,7 +227,8 @@ export class AgentDeploymentService {
       target: d.target as AgentDeploymentTarget,
       publicKey: d.publicKey,
       allowedOrigins: d.allowedOrigins,
-      widgetConfig: (d.widgetConfig as AgentWidgetConfig) || DEFAULT_AGENT_WIDGET_CONFIG,
+      widgetConfig:
+        (d.widgetConfig as AgentWidgetConfig) || DEFAULT_AGENT_WIDGET_CONFIG,
       securityConfig: (d.securityConfig as AgentSecurityConfig) || {},
       metadata: (d.metadata as Record<string, unknown>) || {},
       createdAt: d.createdAt.toISOString(),
@@ -251,7 +269,9 @@ export class AgentDeploymentService {
     });
 
     if (!deployment) {
-      throw new NotFoundException('Deployment not found or invalid public key.');
+      throw new NotFoundException(
+        'Deployment not found or invalid public key.',
+      );
     }
 
     return deployment;
@@ -429,11 +449,14 @@ export class AgentDeploymentService {
     });
     if (!deployment) throw new NotFoundException('Deployment not found.');
 
-    const config = (deployment.agent.configuration as Record<string, any>) || {};
+    const config =
+      (deployment.agent.configuration as Record<string, any>) || {};
     const versions = Array.isArray(config.versions) ? config.versions : [];
     const targetVer = versions.find((v: any) => v.version === versionNumber);
     if (!targetVer && versionNumber !== config.currentVersion) {
-      throw new BadRequestException(`Version ${versionNumber} is not a valid published version snapshot.`);
+      throw new BadRequestException(
+        `Version ${versionNumber} is not a valid published version snapshot.`,
+      );
     }
 
     await this.prisma.agentDeployment.update({
@@ -445,7 +468,9 @@ export class AgentDeploymentService {
       },
     });
 
-    this.logger.log(`Promoted deployment ${deploymentId} to version ${versionNumber}`);
+    this.logger.log(
+      `Promoted deployment ${deploymentId} to version ${versionNumber}`,
+    );
     return this.getDeployment(workspaceId, deploymentId);
   }
 
@@ -461,11 +486,16 @@ export class AgentDeploymentService {
     });
     if (!deployment) throw new NotFoundException('Deployment not found.');
 
-    const config = (deployment.agent.configuration as Record<string, any>) || {};
+    const config =
+      (deployment.agent.configuration as Record<string, any>) || {};
     const versions = Array.isArray(config.versions) ? config.versions : [];
-    const targetSnapshot = versions.find((v: any) => v.version === targetVersion);
+    const targetSnapshot = versions.find(
+      (v: any) => v.version === targetVersion,
+    );
     if (!targetSnapshot) {
-      throw new BadRequestException(`Version snapshot ${targetVersion} does not exist to rollback to.`);
+      throw new BadRequestException(
+        `Version snapshot ${targetVersion} does not exist to rollback to.`,
+      );
     }
 
     const previousVersion = deployment.versionNumber;
@@ -477,7 +507,9 @@ export class AgentDeploymentService {
         metadata: {
           ...((deployment.metadata as Record<string, any>) || {}),
           rollbackHistory: [
-            ...(((deployment.metadata as Record<string, any>)?.['rollbackHistory'] as any[]) || []),
+            ...(((deployment.metadata as Record<string, any>)?.[
+              'rollbackHistory'
+            ] as any[]) || []),
             {
               fromVersion: previousVersion,
               toVersion: targetVersion,
@@ -489,7 +521,9 @@ export class AgentDeploymentService {
       },
     });
 
-    this.logger.log(`Rolled back deployment ${deploymentId} from v${previousVersion} to v${targetVersion}`);
+    this.logger.log(
+      `Rolled back deployment ${deploymentId} from v${previousVersion} to v${targetVersion}`,
+    );
     return this.getDeployment(workspaceId, deploymentId);
   }
 
@@ -511,7 +545,10 @@ export class AgentDeploymentService {
     return this.getDeployment(workspaceId, deploymentId);
   }
 
-  async deleteDeployment(workspaceId: string, deploymentId: string): Promise<void> {
+  async deleteDeployment(
+    workspaceId: string,
+    deploymentId: string,
+  ): Promise<void> {
     const deployment = await this.prisma.agentDeployment.findFirst({
       where: { id: deploymentId, workspaceId },
     });
@@ -560,21 +597,30 @@ export class AgentDeploymentService {
       take: 5000,
     });
 
-    const successfulRuns = executions.filter((e) => e.status === 'COMPLETED').length;
+    const successfulRuns = executions.filter(
+      (e) => e.status === 'COMPLETED',
+    ).length;
     const failedRuns = executions.filter((e) => e.status === 'FAILED').length;
     const finished = successfulRuns + failedRuns;
-    const timed = executions.filter((e) => e.status !== 'RUNNING' && e.latencyMs > 0);
+    const timed = executions.filter(
+      (e) => e.status !== 'RUNNING' && e.latencyMs > 0,
+    );
 
     const approvals = executions.length
       ? await this.prisma.approvalRequest.findMany({
-          where: { workspaceId, executionId: { in: executions.map((e) => e.id) } },
+          where: {
+            workspaceId,
+            executionId: { in: executions.map((e) => e.id) },
+          },
           select: { state: true },
         })
       : [];
 
     const toolCounts: Record<string, number> = {};
     for (const execution of executions) {
-      const calls = Array.isArray(execution.toolCalls) ? (execution.toolCalls as Array<Record<string, unknown>>) : [];
+      const calls = Array.isArray(execution.toolCalls)
+        ? (execution.toolCalls as Array<Record<string, unknown>>)
+        : [];
       for (const call of calls) {
         const name = String(call?.['name'] ?? call?.['toolName'] ?? 'tool');
         toolCounts[name] = (toolCounts[name] || 0) + 1;
@@ -584,12 +630,14 @@ export class AgentDeploymentService {
     const errorCategories: Record<string, number> = {};
     for (const execution of executions) {
       if (execution.status !== 'FAILED') continue;
-      const message = (execution.errorsJson as { message?: string } | null)?.message ?? '';
+      const message =
+        (execution.errorsJson as { message?: string } | null)?.message ?? '';
       const category = categorizeRunError(message);
       errorCategories[category] = (errorCategories[category] || 0) + 1;
     }
 
-    const channelCounts: Partial<Record<AgentDeploymentRunChannel, number>> = {};
+    const channelCounts: Partial<Record<AgentDeploymentRunChannel, number>> =
+      {};
     for (const execution of executions) {
       const channel = runChannel(execution.stateJson);
       if (channel) channelCounts[channel] = (channelCounts[channel] ?? 0) + 1;
@@ -601,15 +649,26 @@ export class AgentDeploymentService {
       totalRuns: executions.length,
       successfulRuns,
       failedRuns,
-      successRate: finished > 0 ? Math.round((successfulRuns / finished) * 100) : 0,
-      avgLatencyMs: timed.length ? Math.round(timed.reduce((sum, e) => sum + e.latencyMs, 0) / timed.length) : 0,
+      successRate:
+        finished > 0 ? Math.round((successfulRuns / finished) * 100) : 0,
+      avgLatencyMs: timed.length
+        ? Math.round(
+            timed.reduce((sum, e) => sum + e.latencyMs, 0) / timed.length,
+          )
+        : 0,
       totalTokens: executions.reduce((sum, e) => sum + e.tokensUsed, 0),
-      estimatedCost: Number(executions.reduce((sum, e) => sum + e.totalCost, 0).toFixed(4)),
+      estimatedCost: Number(
+        executions.reduce((sum, e) => sum + e.totalCost, 0).toFixed(4),
+      ),
       activeSessions,
       approvalsRequested: approvals.length,
       approvalsApproved: approvals.filter((a) => a.state === 'APPROVED').length,
       approvalsRejected: approvals.filter((a) => a.state === 'REJECTED').length,
-      approvalsPending: await this.countPendingApprovals(workspaceId, deployment.agentId, deploymentId),
+      approvalsPending: await this.countPendingApprovals(
+        workspaceId,
+        deployment.agentId,
+        deploymentId,
+      ),
       toolExecutionsCount: Object.values(toolCounts).reduce((a, b) => a + b, 0),
       topTools: Object.entries(toolCounts)
         .map(([name, count]) => ({ name, count }))
@@ -618,7 +677,11 @@ export class AgentDeploymentService {
       recentErrorCategories: Object.entries(errorCategories)
         .map(([category, count]) => ({ category, count }))
         .sort((a, b) => b.count - a.count),
-      channels: (Object.entries(channelCounts) as Array<[AgentDeploymentRunChannel, number]>)
+      channels: (
+        Object.entries(channelCounts) as Array<
+          [AgentDeploymentRunChannel, number]
+        >
+      )
         .map(([channel, count]) => ({ channel, count }))
         .sort((a, b) => b.count - a.count),
       series: bucketRuns(executions, period, now),
@@ -638,20 +701,37 @@ export class AgentDeploymentService {
   }
 
   /** Undecided approvals from this deployment's runs, however long ago they were raised. */
-  private async countPendingApprovals(workspaceId: string, agentId: string, deploymentId: string): Promise<number> {
+  private async countPendingApprovals(
+    workspaceId: string,
+    agentId: string,
+    deploymentId: string,
+  ): Promise<number> {
     const waiting = await this.prisma.aIExecution.findMany({
-      where: { workspaceId, agentId, status: 'WAITING_APPROVAL', OR: deploymentTrafficFilter(deploymentId) },
+      where: {
+        workspaceId,
+        agentId,
+        status: 'WAITING_APPROVAL',
+        OR: deploymentTrafficFilter(deploymentId),
+      },
       select: { id: true },
       take: 1000,
     });
     if (waiting.length === 0) return 0;
     return this.prisma.approvalRequest.count({
-      where: { workspaceId, state: 'PENDING', executionId: { in: waiting.map((e) => e.id) } },
+      where: {
+        workspaceId,
+        state: 'PENDING',
+        executionId: { in: waiting.map((e) => e.id) },
+      },
     });
   }
 
   /** Throws NotFound unless the deployment belongs to this agent in this workspace. */
-  async assertDeployment(workspaceId: string, agentId: string, deploymentId: string): Promise<void> {
+  async assertDeployment(
+    workspaceId: string,
+    agentId: string,
+    deploymentId: string,
+  ): Promise<void> {
     const found = await this.prisma.agentDeployment.findFirst({
       where: { id: deploymentId, workspaceId, agentId },
       select: { id: true },
@@ -661,24 +741,52 @@ export class AgentDeploymentService {
 
   // --- API Keys Management ---
 
+  /** The agent's newest live deployment. An API key can only run an agent that has one. */
+  async findLiveDeployment(
+    workspaceId: string,
+    agentId: string,
+  ): Promise<{ id: string; versionNumber: number } | null> {
+    return this.prisma.agentDeployment.findFirst({
+      where: { workspaceId, agentId, status: 'ACTIVE' },
+      orderBy: { publishedAt: 'desc' },
+      select: { id: true, versionNumber: true },
+    });
+  }
+
+  /** The agents an API key can run: those with a live deployment. */
+  async listDeployedAgents(workspaceId: string) {
+    const deployments = await this.prisma.agentDeployment.findMany({
+      where: { workspaceId, status: 'ACTIVE' },
+      distinct: ['agentId'],
+      select: { agent: { select: { id: true, name: true } } },
+    });
+    return deployments
+      .map((d) => d.agent)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
   /** The workspace's API keys: prefix and metadata only, never the secret. */
   async listApiKeys(workspaceId: string) {
     const keys = await this.prisma.agentApiKey.findMany({
       where: { workspaceId },
       orderBy: { createdAt: 'desc' },
     });
-    return keys.map((k) => ({
-      id: k.id,
-      workspaceId: k.workspaceId,
-      name: k.name,
-      keyPrefix: k.keyPrefix,
-      scopes: k.scopes,
-      lastUsedAt: k.lastUsedAt?.toISOString() ?? null,
-      expiresAt: k.expiresAt?.toISOString() ?? null,
-      isActive: k.isActive && !(k.expiresAt && k.expiresAt < new Date()),
-      createdAt: k.createdAt.toISOString(),
-      updatedAt: k.updatedAt.toISOString(),
-    }));
+    return keys.map((k) => {
+      const expired = !!k.expiresAt && k.expiresAt < new Date();
+      return {
+        id: k.id,
+        workspaceId: k.workspaceId,
+        name: k.name,
+        keyPrefix: k.keyPrefix,
+        scopes: k.scopes,
+        lastUsedAt: k.lastUsedAt?.toISOString() ?? null,
+        expiresAt: k.expiresAt?.toISOString() ?? null,
+        isActive: k.isActive && !expired,
+        status: !k.isActive ? 'revoked' : expired ? 'expired' : 'active',
+        createdAt: k.createdAt.toISOString(),
+        updatedAt: k.updatedAt.toISOString(),
+      };
+    });
   }
 
   /** Stops a key working. The row stays, so usage history keeps its name. */
@@ -734,7 +842,9 @@ export class AgentDeploymentService {
         where: { id: record.id },
         data: { lastUsedAt: new Date() },
       })
-      .catch((e) => this.logger.warn(`Failed to update key lastUsedAt: ${e.message}`));
+      .catch((e) =>
+        this.logger.warn(`Failed to update key lastUsedAt: ${e.message}`),
+      );
 
     return record;
   }

@@ -11,7 +11,8 @@ export type AgentDeploymentTarget =
   | 'PLATFORM_APP'
   | 'ELECTRON_DESKTOP';
 
-export type AgentDeploymentEnvironment = 'DEVELOPMENT' | 'STAGING' | 'PRODUCTION';
+export type AgentDeploymentEnvironment =
+  'DEVELOPMENT' | 'STAGING' | 'PRODUCTION';
 
 export type AgentDeploymentStatus = 'ACTIVE' | 'SUSPENDED' | 'DEPRECATED';
 
@@ -19,7 +20,8 @@ import type { AgentExecutionState } from './agent-config.js';
 export type { AgentExecutionState };
 
 export type AgentWidgetTheme = 'light' | 'dark' | 'system';
-export type AgentWidgetPosition = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+export type AgentWidgetPosition =
+  'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
 export type AgentWidgetLauncherSize = 'sm' | 'md' | 'lg';
 /**
  * How the floating widget presents itself: `panel` is a launcher that opens
@@ -234,6 +236,15 @@ export interface AgentWebhookDeliveryView {
   createdAt: string;
 }
 
+/**
+ * What an agent API key may do. `agent:execute` runs and cancels agents;
+ * `agent:read` reads a run's status. The public API checks these on each call.
+ */
+export const AGENT_API_KEY_SCOPES = ['agent:execute', 'agent:read'] as const;
+export type AgentApiKeyScope = (typeof AGENT_API_KEY_SCOPES)[number];
+
+export type AgentApiKeyStatus = 'active' | 'expired' | 'revoked';
+
 export interface AgentApiKeyView {
   id: string;
   workspaceId: string;
@@ -243,6 +254,7 @@ export interface AgentApiKeyView {
   lastUsedAt?: string | null;
   expiresAt?: string | null;
   isActive: boolean;
+  status: AgentApiKeyStatus;
   createdAt: string;
   updatedAt: string;
 }
@@ -281,7 +293,12 @@ export interface AgentDeploymentAnalyticsSummary {
   /** Runs by how they reached the agent: embed sessions, public-key REST calls, private API keys. */
   channels: Array<{ channel: AgentDeploymentRunChannel; count: number }>;
   /** Runs over the period, oldest first, in hourly buckets for `24h` and daily ones otherwise. */
-  series: Array<{ bucket: string; runs: number; failed: number; tokens: number }>;
+  series: Array<{
+    bucket: string;
+    runs: number;
+    failed: number;
+    tokens: number;
+  }>;
   /** The latest runs, newest first. */
   recentRuns: AgentDeploymentRecentRun[];
 }
@@ -366,4 +383,3 @@ export const DEFAULT_SECURITY_CONFIG: AgentSecurityConfig = {
   sensitiveActionsRequireApproval: true,
   allowedTools: [],
 };
-

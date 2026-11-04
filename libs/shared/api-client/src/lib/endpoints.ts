@@ -3544,6 +3544,12 @@ export const agentApiKeysApi = {
       http.get(`/workspaces/${workspaceId}/agent-api-keys`),
     ),
 
+  /** The agents a key can run: those with a live deployment. */
+  deployedAgents: (workspaceId: string) =>
+    request<Array<{ id: string; name: string }>>(
+      http.get(`/workspaces/${workspaceId}/agent-api-keys/agents`),
+    ),
+
   /** The response carries the full key once; it can't be shown again. */
   create: (
     workspaceId: string,
@@ -3560,6 +3566,18 @@ export const agentApiKeysApi = {
 };
 
 export const publicAgentApi = {
+  /** Run an agent the way a server does: authenticated by the key alone. */
+  executeHeadless: (
+    agentId: string,
+    data: { prompt: string; context?: Record<string, unknown> },
+    apiKey: string,
+  ) =>
+    request<AgentRunResponseView>(
+      http.post(`/agents/${agentId}/execute`, data, {
+        headers: { 'x-api-key': apiKey },
+      }),
+    ),
+
   /**
    * Start a widget conversation, or pick up `resumeSessionId` when it is one of
    * this visitor's. Keep the returned `visitorKey` to see the visitor's history later.

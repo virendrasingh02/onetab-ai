@@ -1,12 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createHash } from 'node:crypto';
-import { AgentDeploymentService, bucketRuns, periodToMs } from './agent-deployment.service.js';
-import { AgentSessionService, widgetAvatarUrl } from './agent-session.service.js';
+import {
+  AgentDeploymentService,
+  bucketRuns,
+  periodToMs,
+} from './agent-deployment.service.js';
+import {
+  AgentSessionService,
+  widgetAvatarUrl,
+} from './agent-session.service.js';
 import { AgentDeploymentWebhookService } from './agent-webhook.service.js';
-import { AgentRuntimeBridgeService, publicRunError } from './agent-runtime-bridge.service.js';
+import {
+  AgentRuntimeBridgeService,
+  publicRunError,
+} from './agent-runtime-bridge.service.js';
 import { AgentPublicController } from './agent-public.controller.js';
 import { AgentDeploymentController } from './agent-deployment.controller.js';
-import { IS_PUBLIC_KEY } from '@org/api-common';
+import { AgentApiKeysController } from './agent-api-keys.controller.js';
+import { IS_PUBLIC_KEY, WORKSPACE_PERMISSIONS_KEY } from '@org/api-common';
+import { WorkspacePermission } from '@org/types';
 
 describe('Universal AI Agent Deployment System', () => {
   const workspaceId = 'ws_apple_procurement';
@@ -18,7 +30,8 @@ describe('Universal AI Agent Deployment System', () => {
     workspaceId,
     name: 'Buy a Mac System',
     role: 'Hardware Procurement Specialist',
-    description: 'Autonomous agent that researches, compares, budgets, and executes Mac system purchases.',
+    description:
+      'Autonomous agent that researches, compares, budgets, and executes Mac system purchases.',
     avatarUrl: 'https://apple.com/avatar.png',
     icon: 'Laptop',
     color: 'blue',
@@ -26,12 +39,29 @@ describe('Universal AI Agent Deployment System', () => {
     temperature: 0.2,
     systemInstructions:
       'You are the authorized Buy a Mac System procurement specialist. Search approved Apple product catalogs, compare specs, check inventory, and request confirmation before placing orders.',
-    welcomeMessage: 'Hello! I can help you select and purchase the ideal Mac system within your budget.',
+    welcomeMessage:
+      'Hello! I can help you select and purchase the ideal Mac system within your budget.',
     tools: JSON.stringify([
-      { id: 'search_mac_catalog', name: 'search_mac_catalog', description: 'Search Apple hardware catalog' },
-      { id: 'compare_specs', name: 'compare_specs', description: 'Compare M3 / M4 chip benchmarks and memory' },
-      { id: 'check_inventory', name: 'check_inventory', description: 'Check authorized vendor stock' },
-      { id: 'execute_purchase', name: 'execute_purchase', description: 'Submit order for purchase approval' },
+      {
+        id: 'search_mac_catalog',
+        name: 'search_mac_catalog',
+        description: 'Search Apple hardware catalog',
+      },
+      {
+        id: 'compare_specs',
+        name: 'compare_specs',
+        description: 'Compare M3 / M4 chip benchmarks and memory',
+      },
+      {
+        id: 'check_inventory',
+        name: 'check_inventory',
+        description: 'Check authorized vendor stock',
+      },
+      {
+        id: 'execute_purchase',
+        name: 'execute_purchase',
+        description: 'Submit order for purchase approval',
+      },
     ]),
     configuration: {
       budgetMax: 5000,
@@ -43,8 +73,14 @@ describe('Universal AI Agent Deployment System', () => {
           snapshot: {
             model: 'gpt-4o',
             temperature: 0.2,
-            instructions: 'You are the authorized Buy a Mac System procurement specialist.',
-            tools: ['search_mac_catalog', 'compare_specs', 'check_inventory', 'execute_purchase'],
+            instructions:
+              'You are the authorized Buy a Mac System procurement specialist.',
+            tools: [
+              'search_mac_catalog',
+              'compare_specs',
+              'check_inventory',
+              'execute_purchase',
+            ],
           },
         },
       ],
@@ -87,7 +123,12 @@ describe('Universal AI Agent Deployment System', () => {
       },
     },
     securityConfig: {
-      allowedTools: ['search_mac_catalog', 'compare_specs', 'check_inventory', 'execute_purchase'],
+      allowedTools: [
+        'search_mac_catalog',
+        'compare_specs',
+        'check_inventory',
+        'execute_purchase',
+      ],
       rateLimitPerMinute: 60,
       requireAuthentication: false,
       sensitiveActionsRequireApproval: true,
@@ -99,7 +140,9 @@ describe('Universal AI Agent Deployment System', () => {
   };
 
   const validApiKeySecret = 'ot_live_a1b2c3d4e5f6g7h8i9j0k1l2';
-  const validApiKeyHash = createHash('sha256').update(validApiKeySecret).digest('hex');
+  const validApiKeyHash = createHash('sha256')
+    .update(validApiKeySecret)
+    .digest('hex');
 
   let prisma: any;
   let aiRuntime: any;
@@ -152,7 +195,10 @@ describe('Universal AI Agent Deployment System', () => {
           return Promise.resolve(null);
         }),
         findUnique: vi.fn().mockImplementation(({ where }) => {
-          if (where?.id === 'dep_mac_1' || where?.publicKey === 'ot_pub_valid_key') {
+          if (
+            where?.id === 'dep_mac_1' ||
+            where?.publicKey === 'ot_pub_valid_key'
+          ) {
             return Promise.resolve(currentDeployment);
           }
           return Promise.resolve(null);
@@ -187,7 +233,8 @@ describe('Universal AI Agent Deployment System', () => {
                 {
                   id: 'msg_1',
                   role: 'user',
-                  content: 'Looking for a MacBook Pro for heavy iOS development',
+                  content:
+                    'Looking for a MacBook Pro for heavy iOS development',
                   timestamp: new Date().toISOString(),
                 },
               ],
@@ -209,7 +256,8 @@ describe('Universal AI Agent Deployment System', () => {
                 {
                   id: 'msg_1',
                   role: 'user',
-                  content: 'Looking for a MacBook Pro for heavy iOS development',
+                  content:
+                    'Looking for a MacBook Pro for heavy iOS development',
                   timestamp: new Date().toISOString(),
                 },
               ],
@@ -296,7 +344,7 @@ describe('Universal AI Agent Deployment System', () => {
               name: 'E-commerce API Integration Key',
               keyPrefix: 'ot_live_a1b2',
               keyHash: validApiKeyHash,
-              scopes: ['execute', 'read'],
+              scopes: ['agent:execute', 'agent:read'],
               isActive: true,
               createdAt: new Date(),
               updatedAt: new Date(),
@@ -313,7 +361,7 @@ describe('Universal AI Agent Deployment System', () => {
               name: 'E-commerce API Integration Key',
               keyPrefix: 'ot_live_a1b2',
               keyHash: validApiKeyHash,
-              scopes: ['execute', 'read'],
+              scopes: ['agent:execute', 'agent:read'],
               isActive: true,
               createdAt: new Date(),
               updatedAt: new Date(),
@@ -353,7 +401,12 @@ describe('Universal AI Agent Deployment System', () => {
           {
             name: 'search_mac_catalog',
             input: { query: 'MacBook Pro 16 M3 Max 64GB' },
-            output: { model: 'MacBook Pro 16', chip: 'M3 Max', memory: '64GB', price: 3499 },
+            output: {
+              model: 'MacBook Pro 16',
+              chip: 'M3 Max',
+              memory: '64GB',
+              price: 3499,
+            },
             status: 'SUCCESS',
             durationMs: 120,
           },
@@ -446,7 +499,9 @@ describe('Universal AI Agent Deployment System', () => {
       expect(initResult.sessionId).toBe('sess_mac_100');
       expect(initResult.sessionToken).toMatch(/^ot_sess_/);
       expect(initResult.deployment.agentName).toBe('Buy a Mac System');
-      expect(initResult.deployment.widgetConfig.appearance.title).toBe('Mac Procurement Assistant');
+      expect(initResult.deployment.widgetConfig.appearance.title).toBe(
+        'Mac Procurement Assistant',
+      );
     });
 
     it('rejects session initialization when origin is disallowed by securityConfig', async () => {
@@ -456,7 +511,9 @@ describe('Universal AI Agent Deployment System', () => {
           {},
           'https://unauthorized-phishing-site.com',
         ),
-      ).rejects.toThrow('Origin "https://unauthorized-phishing-site.com" is not authorized');
+      ).rejects.toThrow(
+        'Origin "https://unauthorized-phishing-site.com" is not authorized',
+      );
     });
 
     it('appends and caps session message history', async () => {
@@ -476,7 +533,8 @@ describe('Universal AI Agent Deployment System', () => {
     it('executes a product research query using the shared runtime engine', async () => {
       const runResult = await runtimeBridge.execute({
         agentId: macAgentId,
-        prompt: 'Find me the top recommended MacBook Pro for iOS development within $4000',
+        prompt:
+          'Find me the top recommended MacBook Pro for iOS development within $4000',
         deploymentId: 'dep_mac_1',
       });
 
@@ -492,7 +550,8 @@ describe('Universal AI Agent Deployment System', () => {
   describe('4. Human-in-the-Loop Approval Safeguards', () => {
     it('pauses execution and enters WAITING_FOR_APPROVAL when high-impact purchase is requested', async () => {
       aiRuntime.executeTurn.mockResolvedValueOnce({
-        result: 'Ready to order 1x MacBook Pro 16" M3 Max 64GB Space Black for $3,499.00.',
+        result:
+          'Ready to order 1x MacBook Pro 16" M3 Max 64GB Space Black for $3,499.00.',
         tools: [
           {
             name: 'execute_purchase',
@@ -510,7 +569,8 @@ describe('Universal AI Agent Deployment System', () => {
 
       const runResult = await runtimeBridge.execute({
         agentId: macAgentId,
-        prompt: 'Please proceed and place the order for this MacBook Pro with PO-2026-MAC-881',
+        prompt:
+          'Please proceed and place the order for this MacBook Pro with PO-2026-MAC-881',
         deploymentId: 'dep_mac_1',
       });
 
@@ -526,8 +586,14 @@ describe('Universal AI Agent Deployment System', () => {
     });
 
     it('does not pretend to resume a paused run: there is no unauthenticated approve endpoint or fake confirmation', () => {
-      expect((runtimeBridge as unknown as Record<string, unknown>)['submitApproval']).toBeUndefined();
-      expect((publicController as unknown as Record<string, unknown>)['approveAction']).toBeUndefined();
+      expect(
+        (runtimeBridge as unknown as Record<string, unknown>)['submitApproval'],
+      ).toBeUndefined();
+      expect(
+        (publicController as unknown as Record<string, unknown>)[
+          'approveAction'
+        ],
+      ).toBeUndefined();
     });
   });
 
@@ -562,6 +628,119 @@ describe('Universal AI Agent Deployment System', () => {
         ),
       ).rejects.toThrow('Invalid or expired API key');
     });
+
+    const keyWithScopes = (scopes: string[]) => ({
+      id: 'key_scoped',
+      workspaceId,
+      isActive: true,
+      expiresAt: null,
+      keyHash: 'x',
+      scopes,
+    });
+
+    it('refuses to run an agent with a key that lacks agent:execute', async () => {
+      prisma.agentApiKey.findUnique.mockResolvedValueOnce(
+        keyWithScopes(['agent:read']),
+      );
+
+      await expect(
+        publicController.executeAgent(
+          macAgentId,
+          undefined,
+          undefined,
+          'ot_live_read_only',
+          { prompt: 'Check stock' },
+        ),
+      ).rejects.toThrow('agent:execute');
+    });
+
+    it('refuses to read a run with a key that lacks agent:read', async () => {
+      prisma.agentApiKey.findUnique.mockResolvedValueOnce(
+        keyWithScopes(['agent:execute']),
+      );
+
+      await expect(
+        publicController.getRun('run_1', 'ot_live_run_only'),
+      ).rejects.toThrow('agent:read');
+    });
+
+    it('refuses to cancel a run with a key that lacks agent:execute', async () => {
+      prisma.agentApiKey.findUnique.mockResolvedValueOnce(
+        keyWithScopes(['agent:read']),
+      );
+
+      await expect(
+        publicController.cancelRun('run_1', 'ot_live_read_only'),
+      ).rejects.toThrow('agent:execute');
+    });
+
+    it('refuses to run an agent with no live deployment, and only counts active ones', async () => {
+      prisma.agentDeployment.findFirst.mockClear();
+      prisma.agentDeployment.findFirst.mockResolvedValueOnce(null);
+
+      await expect(
+        publicController.executeAgent(
+          macAgentId,
+          undefined,
+          undefined,
+          validApiKeySecret,
+          { prompt: 'Check stock' },
+        ),
+      ).rejects.toThrow('no live deployment');
+      expect(prisma.agentDeployment.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { workspaceId, agentId: macAgentId, status: 'ACTIVE' },
+        }),
+      );
+    });
+
+    it('lists each deployed agent once, for the key usage example', async () => {
+      prisma.agentDeployment.findMany = vi
+        .fn()
+        .mockResolvedValue([
+          { agent: { id: 'a_2', name: 'Zed' } },
+          { agent: { id: 'a_1', name: 'Ana' } },
+        ]);
+
+      await expect(
+        deploymentService.listDeployedAgents(workspaceId),
+      ).resolves.toEqual([
+        { id: 'a_1', name: 'Ana' },
+        { id: 'a_2', name: 'Zed' },
+      ]);
+      expect(prisma.agentDeployment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { workspaceId, status: 'ACTIVE' },
+          distinct: ['agentId'],
+        }),
+      );
+    });
+
+    it('accepts a public key sent as a bearer token', async () => {
+      const response = await publicController.executeAgent(
+        macAgentId,
+        'Bearer ot_pub_valid_key',
+        undefined,
+        undefined,
+        {
+          prompt: 'Check stock',
+        },
+      );
+
+      expect(response.status).toBe('COMPLETED');
+    });
+
+    it('needs something to run: an empty input is not a prompt', async () => {
+      await expect(
+        publicController.executeAgent(
+          macAgentId,
+          undefined,
+          undefined,
+          validApiKeySecret,
+          { input: {} } as never,
+        ),
+      ).rejects.toThrow('prompt or message is required');
+    });
   });
 
   describe('6. Outbound Webhook Verification & HMAC Signing', () => {
@@ -579,7 +758,8 @@ describe('Universal AI Agent Deployment System', () => {
 
         expect(result).toBeDefined();
         expect(prisma.agentWebhookDelivery.create).toHaveBeenCalled();
-        const deliveryCall = prisma.agentWebhookDelivery.create.mock.calls[0][0];
+        const deliveryCall =
+          prisma.agentWebhookDelivery.create.mock.calls[0][0];
         expect(deliveryCall.data.event).toBe('agent.run.completed');
       } finally {
         global.fetch = originalFetch;
@@ -589,10 +769,16 @@ describe('Universal AI Agent Deployment System', () => {
 
   describe('6b. Tenant scoping of webhooks and API keys', () => {
     it('does not reach a webhook through a deployment it does not belong to', async () => {
-      prisma.agentDeploymentWebhook.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+      prisma.agentDeploymentWebhook.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null);
 
-      await expect(webhookService.testWebhook('wh_mac_1', 'dep_other')).rejects.toThrow('Webhook not found');
-      await expect(webhookService.deleteWebhook('wh_mac_1', 'dep_other')).rejects.toThrow('Webhook not found');
+      await expect(
+        webhookService.testWebhook('wh_mac_1', 'dep_other'),
+      ).rejects.toThrow('Webhook not found');
+      await expect(
+        webhookService.deleteWebhook('wh_mac_1', 'dep_other'),
+      ).rejects.toThrow('Webhook not found');
       expect(prisma.agentDeploymentWebhook.findFirst).toHaveBeenCalledWith({
         where: { id: 'wh_mac_1', deploymentId: 'dep_other' },
       });
@@ -602,10 +788,18 @@ describe('Universal AI Agent Deployment System', () => {
       prisma.agentDeployment.findFirst.mockResolvedValueOnce(null);
 
       await expect(
-        deploymentService.assertDeployment(workspaceId, macAgentId, 'dep_of_another_tenant'),
+        deploymentService.assertDeployment(
+          workspaceId,
+          macAgentId,
+          'dep_of_another_tenant',
+        ),
       ).rejects.toThrow('Deployment not found');
       expect(prisma.agentDeployment.findFirst).toHaveBeenCalledWith({
-        where: { id: 'dep_of_another_tenant', workspaceId, agentId: macAgentId },
+        where: {
+          id: 'dep_of_another_tenant',
+          workspaceId,
+          agentId: macAgentId,
+        },
         select: { id: true },
       });
     });
@@ -631,7 +825,11 @@ describe('Universal AI Agent Deployment System', () => {
 
       expect(keys).toHaveLength(1);
       expect(JSON.stringify(keys)).not.toContain('must-not-leak');
-      expect(keys[0]).toMatchObject({ id: 'key_1', keyPrefix: 'ot_live_abcdef0', isActive: true });
+      expect(keys[0]).toMatchObject({
+        id: 'key_1',
+        keyPrefix: 'ot_live_abcdef0',
+        isActive: true,
+      });
     });
 
     it('reports an expired key as inactive', async () => {
@@ -653,6 +851,7 @@ describe('Universal AI Agent Deployment System', () => {
       const [key] = await deploymentService.listApiKeys(workspaceId);
 
       expect(key.isActive).toBe(false);
+      expect(key.status).toBe('expired');
     });
 
     it('revokes only within the caller workspace, and 404s on a foreign key', async () => {
@@ -664,34 +863,92 @@ describe('Universal AI Agent Deployment System', () => {
       });
 
       prisma.agentApiKey.updateMany = vi.fn().mockResolvedValue({ count: 0 });
-      await expect(deploymentService.revokeApiKey(workspaceId, 'key_of_another_tenant')).rejects.toThrow(
-        'API key not found',
-      );
+      await expect(
+        deploymentService.revokeApiKey(workspaceId, 'key_of_another_tenant'),
+      ).rejects.toThrow('API key not found');
     });
   });
 
   describe('6c. Deployment analytics come from recorded runs', () => {
-    const at = (hoursAgo: number) => new Date(Date.now() - hoursAgo * 3_600_000);
-    const viaSession = { prompt: 'Where is my order?', deploymentId: 'dep_mac_1', deploymentChannel: 'session' };
-    const viaApiKey = { prompt: 'Summarise ticket 42', deploymentChannel: 'api_key' };
+    const at = (hoursAgo: number) =>
+      new Date(Date.now() - hoursAgo * 3_600_000);
+    const viaSession = {
+      prompt: 'Where is my order?',
+      deploymentId: 'dep_mac_1',
+      deploymentChannel: 'session',
+    };
+    const viaApiKey = {
+      prompt: 'Summarise ticket 42',
+      deploymentChannel: 'api_key',
+    };
     const runs = [
-      { id: 'e1', status: 'COMPLETED', startedAt: at(1), latencyMs: 1000, tokensUsed: 100, totalCost: 0.001, toolCalls: [{ name: 'search_docs' }, { name: 'search_docs' }], errorsJson: null, stateJson: viaSession },
-      { id: 'e2', status: 'COMPLETED', startedAt: at(2), latencyMs: 3000, tokensUsed: 300, totalCost: 0.003, toolCalls: [{ name: 'create_task' }], errorsJson: null, stateJson: viaSession },
-      { id: 'e3', status: 'FAILED', startedAt: at(30), latencyMs: 500, tokensUsed: 0, totalCost: 0, toolCalls: [], errorsJson: { message: 'Request timed out after 30s' }, stateJson: viaApiKey },
-      { id: 'e4', status: 'WAITING_APPROVAL', startedAt: at(50), latencyMs: 800, tokensUsed: 50, totalCost: 0.0005, toolCalls: [], errorsJson: null, stateJson: viaSession },
+      {
+        id: 'e1',
+        status: 'COMPLETED',
+        startedAt: at(1),
+        latencyMs: 1000,
+        tokensUsed: 100,
+        totalCost: 0.001,
+        toolCalls: [{ name: 'search_docs' }, { name: 'search_docs' }],
+        errorsJson: null,
+        stateJson: viaSession,
+      },
+      {
+        id: 'e2',
+        status: 'COMPLETED',
+        startedAt: at(2),
+        latencyMs: 3000,
+        tokensUsed: 300,
+        totalCost: 0.003,
+        toolCalls: [{ name: 'create_task' }],
+        errorsJson: null,
+        stateJson: viaSession,
+      },
+      {
+        id: 'e3',
+        status: 'FAILED',
+        startedAt: at(30),
+        latencyMs: 500,
+        tokensUsed: 0,
+        totalCost: 0,
+        toolCalls: [],
+        errorsJson: { message: 'Request timed out after 30s' },
+        stateJson: viaApiKey,
+      },
+      {
+        id: 'e4',
+        status: 'WAITING_APPROVAL',
+        startedAt: at(50),
+        latencyMs: 800,
+        tokensUsed: 50,
+        totalCost: 0.0005,
+        toolCalls: [],
+        errorsJson: null,
+        stateJson: viaSession,
+      },
     ];
 
     beforeEach(() => {
       prisma.agentDeploymentSession.count = vi.fn().mockResolvedValue(2);
       prisma.aIExecution = { findMany: vi.fn().mockResolvedValue(runs) };
       prisma.approvalRequest = {
-        findMany: vi.fn().mockResolvedValue([{ state: 'APPROVED' }, { state: 'REJECTED' }, { state: 'PENDING' }]),
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            { state: 'APPROVED' },
+            { state: 'REJECTED' },
+            { state: 'PENDING' },
+          ]),
         count: vi.fn().mockResolvedValue(1),
       };
     });
 
     it('counts, averages and costs only what was recorded', async () => {
-      const a = await deploymentService.getDeploymentAnalytics(workspaceId, 'dep_mac_1', '7d');
+      const a = await deploymentService.getDeploymentAnalytics(
+        workspaceId,
+        'dep_mac_1',
+        '7d',
+      );
 
       expect(a).toMatchObject({
         totalRuns: 4,
@@ -708,18 +965,27 @@ describe('Universal AI Agent Deployment System', () => {
       });
       expect(a.estimatedCost).toBeCloseTo(0.0045, 4);
       expect(a.topTools[0]).toEqual({ name: 'search_docs', count: 2 });
-      expect(a.recentErrorCategories).toEqual([{ category: 'Timeout', count: 1 }]);
+      expect(a.recentErrorCategories).toEqual([
+        { category: 'Timeout', count: 1 },
+      ]);
       expect(a.approvalsPending).toBe(1);
       expect(a.channels).toEqual([
         { channel: 'session', count: 3 },
         { channel: 'api_key', count: 1 },
       ]);
       expect(a.recentRuns.map((r) => r.id)).toEqual(['e1', 'e2', 'e3', 'e4']);
-      expect(a.recentRuns[0]).toMatchObject({ channel: 'session', prompt: 'Where is my order?' });
+      expect(a.recentRuns[0]).toMatchObject({
+        channel: 'session',
+        prompt: 'Where is my order?',
+      });
     });
 
     it('counts only traffic through the deployment, not Studio test runs', async () => {
-      await deploymentService.getDeploymentAnalytics(workspaceId, 'dep_mac_1', '7d');
+      await deploymentService.getDeploymentAnalytics(
+        workspaceId,
+        'dep_mac_1',
+        '7d',
+      );
       const where = prisma.aIExecution.findMany.mock.calls[0][0].where;
       expect(where.OR).toEqual([
         { stateJson: { path: ['deploymentId'], equals: 'dep_mac_1' } },
@@ -728,7 +994,11 @@ describe('Universal AI Agent Deployment System', () => {
     });
 
     it('buckets runs hourly for a day and daily for longer periods, keeping quiet buckets', async () => {
-      const day = await deploymentService.getDeploymentAnalytics(workspaceId, 'dep_mac_1', '24h');
+      const day = await deploymentService.getDeploymentAnalytics(
+        workspaceId,
+        'dep_mac_1',
+        '24h',
+      );
       expect(day.series).toHaveLength(24);
       expect(day.series.reduce((n, b) => n + b.runs, 0)).toBe(2);
 
@@ -739,18 +1009,36 @@ describe('Universal AI Agent Deployment System', () => {
     });
 
     it('scopes the run query to this workspace, this agent and the period', async () => {
-      await deploymentService.getDeploymentAnalytics(workspaceId, 'dep_mac_1', '24h');
+      await deploymentService.getDeploymentAnalytics(
+        workspaceId,
+        'dep_mac_1',
+        '24h',
+      );
       const where = prisma.aIExecution.findMany.mock.calls[0][0].where;
       expect(where.workspaceId).toBe(workspaceId);
       expect(where.agentId).toBe(macAgentId);
-      expect(Date.now() - where.startedAt.gte.getTime()).toBeGreaterThan(23 * 3_600_000);
-      expect(Date.now() - where.startedAt.gte.getTime()).toBeLessThan(25 * 3_600_000);
+      expect(Date.now() - where.startedAt.gte.getTime()).toBeGreaterThan(
+        23 * 3_600_000,
+      );
+      expect(Date.now() - where.startedAt.gte.getTime()).toBeLessThan(
+        25 * 3_600_000,
+      );
     });
 
     it('reports zeros, not invented figures, when nothing has run', async () => {
       prisma.aIExecution.findMany = vi.fn().mockResolvedValue([]);
-      const a = await deploymentService.getDeploymentAnalytics(workspaceId, 'dep_mac_1');
-      expect(a).toMatchObject({ totalRuns: 0, successRate: 0, avgLatencyMs: 0, approvalsRequested: 0, totalTokens: 0, estimatedCost: 0 });
+      const a = await deploymentService.getDeploymentAnalytics(
+        workspaceId,
+        'dep_mac_1',
+      );
+      expect(a).toMatchObject({
+        totalRuns: 0,
+        successRate: 0,
+        avgLatencyMs: 0,
+        approvalsRequested: 0,
+        totalTokens: 0,
+        estimatedCost: 0,
+      });
       expect(a.recentErrorCategories).toEqual([]);
       expect(prisma.approvalRequest.findMany).not.toHaveBeenCalled();
     });
@@ -764,21 +1052,49 @@ describe('Universal AI Agent Deployment System', () => {
 
   describe('6d. Embed page and SDK safety', () => {
     const send = () => {
-      const res: any = { setHeader: vi.fn(), removeHeader: vi.fn(), send: vi.fn() };
+      const res: any = {
+        setHeader: vi.fn(),
+        removeHeader: vi.fn(),
+        send: vi.fn(),
+      };
       return res;
     };
 
     it('refuses an embed URL whose ids could break out of an HTML attribute', () => {
-      expect(() => publicController.getEmbedHtml('a"><script>alert(1)</script>', 'ot_pub_x', 'dark', send())).toThrow(
-        'plain identifiers',
-      );
-      expect(() => publicController.getEmbedHtml('agent_1', 'k" onload="x', 'dark', send())).toThrow('plain identifiers');
-      expect(() => publicController.getEmbedHtml(undefined as never, 'ot_pub_x', 'dark', send())).toThrow('plain identifiers');
+      expect(() =>
+        publicController.getEmbedHtml(
+          'a"><script>alert(1)</script>',
+          'ot_pub_x',
+          'dark',
+          send(),
+        ),
+      ).toThrow('plain identifiers');
+      expect(() =>
+        publicController.getEmbedHtml(
+          'agent_1',
+          'k" onload="x',
+          'dark',
+          send(),
+        ),
+      ).toThrow('plain identifiers');
+      expect(() =>
+        publicController.getEmbedHtml(
+          undefined as never,
+          'ot_pub_x',
+          'dark',
+          send(),
+        ),
+      ).toThrow('plain identifiers');
     });
 
     it('only ever renders the light or dark theme', () => {
       const res = send();
-      publicController.getEmbedHtml('agent_1', 'ot_pub_x', '"><img src=x onerror=1>', res);
+      publicController.getEmbedHtml(
+        'agent_1',
+        'ot_pub_x',
+        '"><img src=x onerror=1>',
+        res,
+      );
       const html = res.send.mock.calls[0][0] as string;
       expect(html).toContain('data-theme="dark"');
       expect(html).not.toContain('onerror');
@@ -797,29 +1113,59 @@ describe('Universal AI Agent Deployment System', () => {
   });
 
   describe('6e. The public surface authenticates itself', () => {
-    it('is exempt from the platform login guard, which embeds and customers\' backends have no account for', () => {
-      expect(Reflect.getMetadata(IS_PUBLIC_KEY, AgentPublicController)).toBe(true);
+    it("is exempt from the platform login guard, which embeds and customers' backends have no account for", () => {
+      expect(Reflect.getMetadata(IS_PUBLIC_KEY, AgentPublicController)).toBe(
+        true,
+      );
     });
 
     it('does not echo a provider credential error, which can quote part of the key, to an API caller', () => {
-      const leaked = publicRunError("Incorrect API key provided: nvapi-xa*********. You can find your API key at https://platform.openai.com");
+      const leaked = publicRunError(
+        'Incorrect API key provided: nvapi-xa*********. You can find your API key at https://platform.openai.com',
+      );
       expect(leaked).not.toContain('nvapi');
       expect(leaked).toContain('provider credentials');
-      expect(publicRunError('The tool call timed out')).toBe('The tool call timed out');
+      expect(publicRunError('The tool call timed out')).toBe(
+        'The tool call timed out',
+      );
+    });
+
+    it('lets only workspace admins create or revoke an API key', () => {
+      const { create, revoke } = AgentApiKeysController.prototype;
+      for (const route of [create, revoke]) {
+        expect(Reflect.getMetadata(WORKSPACE_PERMISSIONS_KEY, route)).toEqual([
+          WorkspacePermission.MANAGE_SETTINGS,
+        ]);
+      }
     });
 
     it('keeps the deployment management routes behind the login guard', () => {
-      expect(Reflect.getMetadata(IS_PUBLIC_KEY, AgentDeploymentController)).toBeUndefined();
+      expect(
+        Reflect.getMetadata(IS_PUBLIC_KEY, AgentDeploymentController),
+      ).toBeUndefined();
     });
 
-    it('refuses session reads and writes without that session\'s own token', async () => {
-      await expect(publicController.getSessionMessages('sess_mac_100')).rejects.toThrow('session token is required');
-      await expect(publicController.resetSession('sess_mac_100', undefined, 'Bearer not-a-session-token')).rejects.toThrow(
+    it("refuses session reads and writes without that session's own token", async () => {
+      await expect(
+        publicController.getSessionMessages('sess_mac_100'),
+      ).rejects.toThrow('session token is required');
+      await expect(
+        publicController.resetSession(
+          'sess_mac_100',
+          undefined,
+          'Bearer not-a-session-token',
+        ),
+      ).rejects.toThrow('session token is required');
+      await expect(publicController.getSession('sess_mac_100')).rejects.toThrow(
         'session token is required',
       );
-      await expect(publicController.getSession('sess_mac_100')).rejects.toThrow('session token is required');
       await expect(
-        publicController.sendSessionMessage('sess_mac_100', undefined, undefined, { message: 'hi', stream: false }),
+        publicController.sendSessionMessage(
+          'sess_mac_100',
+          undefined,
+          undefined,
+          { message: 'hi', stream: false },
+        ),
       ).rejects.toThrow('session token is required');
     });
 
@@ -830,29 +1176,60 @@ describe('Universal AI Agent Deployment System', () => {
       sessionToken: 'ot_sess_valid_token',
       status: 'ACTIVE',
       expiresAt: new Date(Date.now() + 3_600_000),
-      messages: [{ id: 'm1', role: 'assistant', content: 'Hello', timestamp: new Date().toISOString() }],
-      deployment: { ...sampleDeployment, status: 'ACTIVE', agent: macAgentRecord },
+      messages: [
+        {
+          id: 'm1',
+          role: 'assistant',
+          content: 'Hello',
+          timestamp: new Date().toISOString(),
+        },
+      ],
+      deployment: {
+        ...sampleDeployment,
+        status: 'ACTIVE',
+        agent: macAgentRecord,
+      },
     });
 
     it('refuses a token that belongs to a different session', async () => {
-      prisma.agentDeploymentSession.findUnique = vi.fn().mockResolvedValue(sessionRow());
-      await expect(publicController.getSessionMessages('sess_other', 'ot_sess_valid_token')).rejects.toThrow('mismatch');
+      prisma.agentDeploymentSession.findUnique = vi
+        .fn()
+        .mockResolvedValue(sessionRow());
+      await expect(
+        publicController.getSessionMessages(
+          'sess_other',
+          'ot_sess_valid_token',
+        ),
+      ).rejects.toThrow('mismatch');
     });
 
     it('serves a session its own messages, to its own token', async () => {
       prisma.agentDeploymentSession.findUnique = vi
         .fn()
-        .mockImplementation(({ where }: { where: { sessionToken?: string; id?: string } }) =>
-          Promise.resolve(where.sessionToken === 'ot_sess_valid_token' || where.id === 'sess_mac_100' ? sessionRow() : null),
+        .mockImplementation(
+          ({ where }: { where: { sessionToken?: string; id?: string } }) =>
+            Promise.resolve(
+              where.sessionToken === 'ot_sess_valid_token' ||
+                where.id === 'sess_mac_100'
+                ? sessionRow()
+                : null,
+            ),
         );
-      const messages = await publicController.getSessionMessages('sess_mac_100', 'ot_sess_valid_token');
+      const messages = await publicController.getSessionMessages(
+        'sess_mac_100',
+        'ot_sess_valid_token',
+      );
       expect(messages).toHaveLength(1);
       expect(messages[0].content).toBe('Hello');
     });
 
     it('needs a workspace API key to read or cancel a run', async () => {
-      await expect(publicController.getRun('run_1')).rejects.toThrow('valid API key');
-      await expect(publicController.cancelRun('run_1', 'ot_live_wrong')).rejects.toThrow('valid API key');
+      await expect(publicController.getRun('run_1')).rejects.toThrow(
+        'valid API key',
+      );
+      await expect(
+        publicController.cancelRun('run_1', 'ot_live_wrong'),
+      ).rejects.toThrow('valid API key');
     });
 
     it('never reports a run it does not know about as completed', async () => {
@@ -862,9 +1239,12 @@ describe('Universal AI Agent Deployment System', () => {
         isActive: true,
         expiresAt: null,
         keyHash: 'x',
+        scopes: ['agent:read'],
       });
       prisma.aIExecution = { findFirst: vi.fn().mockResolvedValue(null) };
-      await expect(publicController.getRun('run_does_not_exist', 'ot_live_valid')).rejects.toThrow('Run not found');
+      await expect(
+        publicController.getRun('run_does_not_exist', 'ot_live_valid'),
+      ).rejects.toThrow('Run not found');
     });
 
     it('lets a run be cancelled only from the workspace that started it', async () => {
@@ -908,12 +1288,22 @@ describe('Universal AI Agent Deployment System', () => {
         send: vi.fn(),
       };
 
-      publicController.getEmbedHtml(macAgentId, 'ot_pub_valid_key', 'system', mockRes);
+      publicController.getEmbedHtml(
+        macAgentId,
+        'ot_pub_valid_key',
+        'system',
+        mockRes,
+      );
 
-      expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'text/html; charset=utf-8');
+      expect(mockRes.setHeader).toHaveBeenCalledWith(
+        'Content-Type',
+        'text/html; charset=utf-8',
+      );
       // Must render inside a customer's iframe, unlike every other API response.
       expect(mockRes.removeHeader).toHaveBeenCalledWith('X-Frame-Options');
-      const csp = mockRes.setHeader.mock.calls.find(([h]: [string]) => h === 'Content-Security-Policy')?.[1] as string;
+      const csp = mockRes.setHeader.mock.calls.find(
+        ([h]: [string]) => h === 'Content-Security-Policy',
+      )?.[1] as string;
       expect(csp).toContain("script-src 'self'");
       expect(csp).toContain('frame-ancestors *');
       expect(mockRes.send).toHaveBeenCalled();
@@ -925,14 +1315,25 @@ describe('Universal AI Agent Deployment System', () => {
 
   describe('widget avatar', () => {
     it('prefers the widget image, then falls back to the agent avatar', () => {
-      expect(widgetAvatarUrl('https://cdn.example.com/a.png', 'https://x.test/b.png')).toBe('https://cdn.example.com/a.png');
-      expect(widgetAvatarUrl('', 'https://x.test/b.png')).toBe('https://x.test/b.png');
+      expect(
+        widgetAvatarUrl(
+          'https://cdn.example.com/a.png',
+          'https://x.test/b.png',
+        ),
+      ).toBe('https://cdn.example.com/a.png');
+      expect(widgetAvatarUrl('', 'https://x.test/b.png')).toBe(
+        'https://x.test/b.png',
+      );
       expect(widgetAvatarUrl(undefined, null)).toBeNull();
     });
 
     it('accepts same-origin paths and base64 image data URLs', () => {
-      expect(widgetAvatarUrl('/api/v1/files/avatar.png')).toBe('/api/v1/files/avatar.png');
-      expect(widgetAvatarUrl('data:image/png;base64,iVBORw0KGgo=')).toBe('data:image/png;base64,iVBORw0KGgo=');
+      expect(widgetAvatarUrl('/api/v1/files/avatar.png')).toBe(
+        '/api/v1/files/avatar.png',
+      );
+      expect(widgetAvatarUrl('data:image/png;base64,iVBORw0KGgo=')).toBe(
+        'data:image/png;base64,iVBORw0KGgo=',
+      );
     });
 
     it('refuses anything a third-party page should not load', () => {
@@ -946,7 +1347,11 @@ describe('Universal AI Agent Deployment System', () => {
 
   it('draws the avatar image in the embed SDK, with a bot glyph fallback', () => {
     const send = vi.fn();
-    new AgentPublicController({} as never, {} as never, {} as never).getWidgetSdk({ setHeader: vi.fn(), send } as never);
+    new AgentPublicController(
+      {} as never,
+      {} as never,
+      {} as never,
+    ).getWidgetSdk({ setHeader: vi.fn(), send } as never);
     const sdk = send.mock.calls[0][0] as string;
     expect(sdk).toContain('dep.avatarUrl');
     expect(sdk).toContain('BOT_ICON');

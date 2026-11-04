@@ -1,10 +1,26 @@
 import type { AIAgentDetail } from '@org/types';
 import { Badge, Button, EmptyState, ErrorState, LoadingState } from '@org/ui';
-import { Activity, CheckCircle2, Globe, History, KeyRound, Minus, Palette, Radio, Rocket, Settings2, Sparkles, Zap } from 'lucide-react';
+import {
+  Activity,
+  CheckCircle2,
+  Globe,
+  History,
+  KeyRound,
+  Minus,
+  Palette,
+  Radio,
+  Rocket,
+  Settings2,
+  Sparkles,
+  Zap,
+} from 'lucide-react';
 import { useState } from 'react';
 import { AgentTabPage } from './agent-tab-page.js';
 import { ApiKeysManager } from './deployment/api-keys-manager.js';
-import { OverviewPanel, type DeploymentSection } from './deployment/overview-panel.js';
+import {
+  OverviewPanel,
+  type DeploymentSection,
+} from './deployment/overview-panel.js';
 import { SettingsPanel } from './deployment/settings-panel.js';
 import { TargetsPanel } from './deployment/targets-panel.js';
 import { errorMessage, useDeployment } from './deployment/use-deployment.js';
@@ -45,7 +61,8 @@ export function AgentDeploymentTab({ agent }: { agent: AIAgentDetail }) {
     setPublishOpen(true);
   };
 
-  if (deploymentsQuery.isLoading) return <LoadingState label="Loading deployment…" />;
+  if (deploymentsQuery.isLoading)
+    return <LoadingState label="Loading deployment…" />;
 
   if (deploymentsQuery.isError) {
     return (
@@ -70,7 +87,9 @@ export function AgentDeploymentTab({ agent }: { agent: AIAgentDetail }) {
           description="You can restrict where it runs before anything goes live."
           action={
             <Button
-              onClick={() => api.create.mutate({ name: `${agent.name} deployment` })}
+              onClick={() =>
+                api.create.mutate({ name: `${agent.name} deployment` })
+              }
               loading={api.create.isPending}
               className="gap-2 font-semibold"
             >
@@ -89,8 +108,17 @@ export function AgentDeploymentTab({ agent }: { agent: AIAgentDetail }) {
     <AgentTabPage
       title="Deploy"
       description={
-        <span className="flex flex-wrap items-center gap-1.5">
-          <Badge variant={live ? 'success' : deployment.status === 'SUSPENDED' ? 'destructive' : 'outline'} className="font-mono text-2xs font-semibold uppercase tracking-wider">
+        <span className="gap-1.5 flex flex-wrap items-center">
+          <Badge
+            variant={
+              live
+                ? 'success'
+                : deployment.status === 'SUSPENDED'
+                  ? 'destructive'
+                  : 'outline'
+            }
+            className="font-semibold tracking-wider font-mono text-2xs uppercase"
+          >
             {deployment.status}
           </Badge>
           <Badge variant="outline" className="font-mono text-2xs text-primary">
@@ -99,7 +127,9 @@ export function AgentDeploymentTab({ agent }: { agent: AIAgentDetail }) {
           <Badge variant="outline" className="font-mono text-2xs">
             {deployment.publishedVersionTag ?? `v${deployment.versionNumber}`}
           </Badge>
-          <span>Embeds, the REST API, webhooks and the versions they serve.</span>
+          <span>
+            Embeds, the REST API, webhooks and the versions they serve.
+          </span>
         </span>
       }
       icon={<Rocket />}
@@ -137,30 +167,95 @@ export function AgentDeploymentTab({ agent }: { agent: AIAgentDetail }) {
         value: section,
         onValueChange: (value) => setSection(value as DeploymentSection),
         items: [
-            { value: 'overview', label: 'Overview', icon: <Activity className="size-4" /> },
-            { value: 'targets', label: 'Install & call', icon: <Globe className="size-4" /> },
-            { value: 'widget', label: widgetDirty ? 'Widget Studio •' : 'Widget Studio', icon: <Palette className="size-4" /> },
-            { value: 'webhooks', label: 'Webhooks', icon: <Zap className="size-4" />, count: api.webhooksQuery.data?.length || undefined },
-            { value: 'api-keys', label: 'API keys', icon: <KeyRound className="size-4" /> },
-            { value: 'versions', label: 'Versions', icon: <History className="size-4" /> },
-            { value: 'settings', label: 'Settings', icon: <Settings2 className="size-4" /> },
-          ],
+          {
+            value: 'overview',
+            label: 'Overview',
+            icon: <Activity className="size-4" />,
+          },
+          {
+            value: 'targets',
+            label: 'Install & call',
+            icon: <Globe className="size-4" />,
+          },
+          {
+            value: 'widget',
+            label: widgetDirty ? 'Widget Studio •' : 'Widget Studio',
+            icon: <Palette className="size-4" />,
+          },
+          {
+            value: 'webhooks',
+            label: 'Webhooks',
+            icon: <Zap className="size-4" />,
+            count: api.webhooksQuery.data?.length || undefined,
+          },
+          {
+            value: 'api-keys',
+            label: 'API keys',
+            icon: <KeyRound className="size-4" />,
+          },
+          {
+            value: 'versions',
+            label: 'Versions',
+            icon: <History className="size-4" />,
+          },
+          {
+            value: 'settings',
+            label: 'Settings',
+            icon: <Settings2 className="size-4" />,
+          },
+        ],
       }}
     >
       {section === 'overview' && (
-        <OverviewPanel api={api} deployment={deployment} toolCount={countTools(agent.tools)} onNavigate={setSection} />
+        <OverviewPanel
+          api={api}
+          deployment={deployment}
+          toolCount={countTools(agent.tools)}
+          onNavigate={setSection}
+        />
       )}
-      {section === 'targets' && <TargetsPanel deployment={deployment} agentId={agent.id} onNavigate={setSection} widgetDirty={widgetDirty} />}
+      {section === 'targets' && (
+        <TargetsPanel
+          deployment={deployment}
+          agentId={agent.id}
+          onNavigate={setSection}
+          widgetDirty={widgetDirty}
+        />
+      )}
       {/* Stays mounted so an unsaved draft survives a visit to Install & call. */}
       <div hidden={section !== 'widget'}>
-        <WidgetStudioPanel api={api} deployment={deployment} agentName={agent.name} agentAvatarUrl={deployment.agentAvatarUrl ?? agent.avatarUrl} onDirtyChange={setWidgetDirty} />
+        <WidgetStudioPanel
+          api={api}
+          deployment={deployment}
+          agentName={agent.name}
+          agentAvatarUrl={deployment.agentAvatarUrl ?? agent.avatarUrl}
+          onDirtyChange={setWidgetDirty}
+        />
       </div>
-      {section === 'webhooks' && <WebhooksPanel api={api} deployment={deployment} />}
-      {section === 'api-keys' && <ApiKeysManager workspaceId={api.workspaceId} />}
-      {section === 'versions' && <VersionsPanel api={api} deployment={deployment} onPublish={openPublish} />}
-      {section === 'settings' && <SettingsPanel api={api} deployment={deployment} />}
+      {section === 'webhooks' && (
+        <WebhooksPanel api={api} deployment={deployment} />
+      )}
+      {section === 'api-keys' && (
+        <ApiKeysManager workspaceId={api.workspaceId} agentId={agent.id} />
+      )}
+      {section === 'versions' && (
+        <VersionsPanel
+          api={api}
+          deployment={deployment}
+          onPublish={openPublish}
+        />
+      )}
+      {section === 'settings' && (
+        <SettingsPanel api={api} deployment={deployment} />
+      )}
 
-      <PublishDialog api={api} deployment={deployment} open={publishOpen} initialVersion={publishVersion} onOpenChange={setPublishOpen} />
+      <PublishDialog
+        api={api}
+        deployment={deployment}
+        open={publishOpen}
+        initialVersion={publishVersion}
+        onOpenChange={setPublishOpen}
+      />
     </AgentTabPage>
   );
 }

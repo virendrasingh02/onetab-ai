@@ -1,6 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Badge, Button, Card, CodeBlock, toast, Label, Textarea, Input, AppSelect, SegmentedControl } from '@org/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  CodeBlock,
+  toast,
+  Label,
+  Textarea,
+  Input,
+  AppSelect,
+  SegmentedControl,
+} from '@org/ui';
 import { StudioPage } from '../components/studio-page.js';
+import { buildSnippets } from '../components/agent-detail/deployment/snippets.js';
+import { apiBase } from '../components/agent-detail/deployment/use-deployment.js';
 import { cn } from '@org/utils';
 import {
   Code2,
@@ -14,7 +27,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { agentsApi, publicAgentApi, queryKeys } from '@org/api-client';
+import { agentApiKeysApi, publicAgentApi } from '@org/api-client';
 import { useNavigate } from '../router.js';
 import { useStudioSession } from '../session-guard.js';
 
@@ -26,14 +39,16 @@ export function DeveloperPage() {
   const [selectedLang, setSelectedLang] = useState('curl');
   const [selectedAgentId, setSelectedAgentId] = useState('');
   const [apiKeyInput, setApiKeyInput] = useState('');
-  const [testPayload, setTestPayload] = useState('{\n  "input": "Buy a 16-inch M3 Max MacBook Pro with 64GB RAM and 1TB SSD",\n  "stream": false\n}');
+  const [testPayload, setTestPayload] = useState(
+    '{\n  "prompt": "Summarise the open support tickets"\n}',
+  );
   const [testResponse, setTestResponse] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
 
-  // Load real workspace agents
+  // Only deployed agents: an API key can't run anything else.
   const agentsQuery = useQuery({
-    queryKey: queryKeys.agents.list(workspaceId),
-    queryFn: () => agentsApi.list(workspaceId),
+    queryKey: ['agent-api-keys', workspaceId, 'deployed-agents'],
+    queryFn: () => agentApiKeysApi.deployedAgents(workspaceId),
     enabled: !!workspaceId,
   });
 
@@ -45,52 +60,18 @@ export function DeveloperPage() {
     }
   }, [agents, selectedAgentId]);
 
-  const selectedAgent = agents.find((a) => a.id === selectedAgentId) || agents[0];
-  const currentAgentId = selectedAgent?.id || 'agent-universal-pro';
-  const platformUrl = window.location.origin;
-
+  const selectedAgent =
+    agents.find((a) => a.id === selectedAgentId) || agents[0];
+  const currentAgentId = selectedAgent?.id || 'AGENT_ID';
+  const restSnippets = buildSnippets({
+    apiBase: apiBase(),
+    agentId: currentAgentId,
+    publicKey: '',
+  });
   const snippets = {
-    curl: `curl -X POST "${platformUrl}/api/v1/agents/${currentAgentId}/execute" \\
-  -H "Authorization: Bearer \${ONETAB_ACCESS_TOKEN}" \\
-  -H "x-api-key: ${apiKeyInput || 'ot_live_secret_key'}" \\
-  -H "Content-Type: application/json" \\
-  -d '${testPayload.replace(/\n\s*/g, '')}'`,
-
-    javascript: `import { publicAgentApi } from '@org/api-client';
-
-// Execute the universal published agent
-const execution = await publicAgentApi.executeHeadless('${currentAgentId}', {
-  input: 'Buy a 16-inch M3 Max MacBook Pro with 64GB RAM and 1TB SSD',
-  context: {
-    workspaceId: '${workspaceId}',
-  },
-}, process.env.ONETAB_AGENT_KEY);
-
-console.log('Status:', execution.status);
-console.log('Result:', execution.result);
-if (execution.status === 'WAITING_FOR_APPROVAL') {
-  console.log('Action requires approval. Run ID:', execution.runId);
-}`,
-
-    python: `import requests
-import os
-
-url = "${platformUrl}/api/v1/agents/${currentAgentId}/execute"
-headers = {
-    "Content-Type": "application/json",
-    "x-api-key": os.getenv("ONETAB_AGENT_KEY", "${apiKeyInput || 'ot_live_secret_key'}")
-}
-payload = {
-    "input": "Buy a 16-inch M3 Max MacBook Pro with 64GB RAM and 1TB SSD",
-    "context": {
-        "workspaceId": "${workspaceId}"
-    }
-}
-
-response = requests.post(url, json=payload, headers=headers)
-data = response.json()
-print("Run Status:", data.get("status"))
-print("Result:", data.get("result"))`,
+    curl: restSnippets.curl,
+    javascript: restSnippets.node,
+    python: restSnippets.python,
   };
 
   const handleRunTest = async () => {
@@ -99,15 +80,20 @@ print("Result:", data.get("result"))`,
     const startTime = Date.now();
     try {
       const parsed = JSON.parse(testPayload);
-      const inputStr = typeof parsed.input === 'string' ? parsed.input : (parsed.query || JSON.stringify(parsed));
+      const prompt =
+        parsed.prompt ||
+        parsed.message ||
+        (typeof parsed.input === 'string'
+          ? parsed.input
+          : JSON.stringify(parsed));
 
       const run = await publicAgentApi.executeHeadless(
         currentAgentId,
         {
-          input: inputStr,
+          prompt,
           context: parsed.context || {},
         },
-        apiKeyInput || undefined,
+        apiKeyInput.trim(),
       );
 
       const latencyMs = Date.now() - startTime;
@@ -119,9 +105,8 @@ print("Result:", data.get("result"))`,
         data: {
           agentId: currentAgentId,
           agentName: selectedAgent?.name || currentAgentId,
-          output: run.result,
-          error: run.error,
-          tools: run.tools || [],
+          output: run.output,
+          tools: run.toolExecutions,
         },
       });
       toast.success(`Agent executed (${run.status}) in ${latencyMs}ms`);
@@ -140,79 +125,90 @@ print("Result:", data.get("result"))`,
 
   return (
     <StudioPage
-        icon={<Code2 />}
-        title="Developer Hub"
-        description="Call published agents and workflows from your own apps, pipelines and services."
-        actions={
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs font-mono">
-              v1 REST & Universal SDK
-            </Badge>
-            {selectedAgent && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate(`/agents/${selectedAgent.id}?tab=deploy`)}
-                className="text-xs gap-1.5 font-semibold"
-              >
-                <Rocket className="size-3.5 text-primary" />
-                Go to Deployment Center
-                <ArrowRight className="size-3" />
-              </Button>
-            )}
-          </div>
-        }
-      >
-
+      icon={<Code2 />}
+      title="Developer Hub"
+      description="Call published agents and workflows from your own apps, pipelines and services."
+      actions={
+        <div className="gap-2 flex items-center">
+          <Badge variant="outline" className="text-xs font-mono">
+            v1 REST & Universal SDK
+          </Badge>
+          {selectedAgent && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/agents/${selectedAgent.id}?tab=deploy`)}
+              className="text-xs gap-1.5 font-semibold"
+            >
+              <Rocket className="size-3.5 text-primary" />
+              Go to Deployment Center
+              <ArrowRight className="size-3" />
+            </Button>
+          )}
+        </div>
+      }
+    >
       {/* Quick Specs Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card className="p-4 shadow-2xs hover:border-primary/40 transition-colors">
+      <div className="gap-4 sm:grid-cols-3 grid grid-cols-1">
+        <Card className="p-4 shadow-2xs transition-colors hover:border-primary/40">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium">REST API Endpoint</span>
             <Globe className="size-4 text-primary" />
           </div>
-          <div className="mt-2 font-mono text-xs font-bold text-foreground">
-            {platformUrl}/api/v1
+          <div className="mt-2 text-xs font-bold font-mono text-foreground">
+            {apiBase()}
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">x-api-key or Bearer JWT authenticated</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            API key in x-api-key or a Bearer header
+          </p>
         </Card>
 
-        <Card className="p-4 shadow-2xs hover:border-primary/40 transition-colors">
+        <Card className="p-4 shadow-2xs transition-colors hover:border-primary/40">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium">Active Workspace</span>
             <Terminal className="size-4 text-primary" />
           </div>
-          <div className="mt-2 font-mono text-xs font-bold text-foreground truncate">
+          <div className="mt-2 text-xs font-bold truncate font-mono text-foreground">
             {workspaceId || 'Default Workspace'}
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">Workspace isolated sandbox</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Workspace isolated sandbox
+          </p>
         </Card>
 
-        <Card className="p-4 shadow-2xs hover:border-primary/40 transition-colors">
+        <Card className="p-4 shadow-2xs transition-colors hover:border-primary/40">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium">Rate Limits</span>
             <Zap className="size-4 text-success" />
           </div>
           <div className="mt-2 text-xs font-bold text-foreground">
-            600 req/min • 50 concurrent
+            30 runs per minute
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">Enterprise burst tier</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Per caller, on the execute endpoint
+          </p>
         </Card>
       </div>
 
       {/* Target Agent Selector */}
-      <Card className="p-4 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="size-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+      <Card className="p-4 shadow-2xs sm:flex-row sm:items-center gap-4 flex flex-col justify-between">
+        <div className="gap-3 flex items-center">
+          <div className="size-9 flex shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <Bot className="size-5" />
           </div>
           <div>
-            <span className="text-xs font-bold text-foreground">Target Agent</span>
-            <p className="text-xs text-muted-foreground">Select an agent from your workspace to test</p>
+            <span className="text-xs font-bold text-foreground">
+              Target Agent
+            </span>
+            <p className="text-xs text-muted-foreground">
+              {agentsQuery.isSuccess && agents.length === 0
+                ? 'No agent is deployed yet. Deploy one from its Deployment tab to call it here.'
+                : 'Only deployed agents can be called with an API key'}
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="gap-3 sm:w-auto flex w-full items-center">
           <AppSelect
             value={selectedAgentId}
             onValueChange={setSelectedAgentId}
@@ -220,7 +216,7 @@ print("Result:", data.get("result"))`,
             className="min-w-[240px]"
             options={agents.map((agent) => ({
               value: agent.id,
-              label: `${agent.name} (${agent.role || 'Agent'})`,
+              label: agent.name,
             }))}
           />
 
@@ -229,7 +225,7 @@ print("Result:", data.get("result"))`,
               variant="ghost"
               size="sm"
               onClick={() => navigate(`/agents/${selectedAgent.id}?tab=deploy`)}
-              className="text-xs gap-1 text-primary shrink-0"
+              className="text-xs gap-1 shrink-0 text-primary"
             >
               Open Deploy Center
               <ExternalLink className="size-3" />
@@ -239,11 +235,13 @@ print("Result:", data.get("result"))`,
       </Card>
 
       {/* Interactive Sandbox & Code Snippets */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="gap-6 lg:grid-cols-2 grid grid-cols-1">
         {/* Left: Code Snippets */}
-        <div className="rounded-xl border border-border bg-surface p-5 shadow-2xs space-y-4">
+        <div className="p-5 shadow-2xs space-y-4 rounded-xl border border-border bg-surface">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-foreground">Execution Code Snippet</h3>
+            <h3 className="text-sm font-semibold text-foreground">
+              Execution Code Snippet
+            </h3>
             <SegmentedControl
               aria-label="Language"
               size="sm"
@@ -265,16 +263,21 @@ print("Result:", data.get("result"))`,
         </div>
 
         {/* Right: Interactive Sandbox Runner */}
-        <div className="rounded-xl border border-border bg-surface p-5 shadow-2xs space-y-4">
+        <div className="p-5 shadow-2xs space-y-4 rounded-xl border border-border bg-surface">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-semibold text-foreground">Live Execution Sandbox</h3>
-              <p className="text-xs text-muted-foreground">Execute real requests against the universal agent runtime</p>
+              <h3 className="text-sm font-semibold text-foreground">
+                Live Execution Sandbox
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Execute real requests against the universal agent runtime
+              </p>
             </div>
             <Button
               size="sm"
               onClick={handleRunTest}
               loading={isRunning}
+              disabled={!apiKeyInput.trim() || !selectedAgent}
               className="gap-1.5 text-xs font-semibold"
             >
               <Play className="size-3.5" />
@@ -283,32 +286,56 @@ print("Result:", data.get("result"))`,
           </div>
 
           <div>
-            <Label className="text-xs font-semibold text-muted-foreground uppercase">Optional API Key</Label>
+            <Label className="text-xs font-semibold text-muted-foreground uppercase">
+              API Key
+            </Label>
             <Input
-              type="text"
+              type="password"
+              autoComplete="off"
               value={apiKeyInput}
               onChange={(e) => setApiKeyInput(e.target.value)}
-              placeholder="Leave blank to use current browser session credentials"
+              placeholder="ot_live_…"
+              className="mt-1 text-xs font-mono"
+            />
+            <Button
+              type="button"
+              variant="link"
+              size="xs"
+              className="mt-1 p-0 text-xs h-auto"
+              onClick={() => navigate('/settings?tab=api-keys')}
+            >
+              Create or manage keys
+            </Button>
+          </div>
+
+          <div>
+            <Label className="text-xs font-semibold text-muted-foreground uppercase">
+              Request Body (JSON)
+            </Label>
+            <Textarea
+              rows={4}
+              value={testPayload}
+              onChange={(e) => setTestPayload(e.target.value)}
               className="mt-1 text-xs font-mono"
             />
           </div>
 
-          <div>
-            <Label className="text-xs font-semibold text-muted-foreground uppercase">Request Body (JSON)</Label>
-            <Textarea rows={4} value={testPayload} onChange={(e) => setTestPayload(e.target.value)} className="mt-1 font-mono text-xs" />
-          </div>
-
           {testResponse && (
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase">
+              <div className="text-xs font-semibold flex items-center justify-between text-muted-foreground uppercase">
                 <span>Response Body</span>
                 <span
                   className={cn(
                     'font-bold',
-                    testResponse.statusCode === 200 ? 'text-success' : 'text-destructive',
+                    testResponse.statusCode === 200
+                      ? 'text-success'
+                      : 'text-destructive',
                   )}
                 >
-                  HTTP {testResponse.statusCode} {testResponse.latencyMs ? `(${testResponse.latencyMs}ms)` : ''}
+                  HTTP {testResponse.statusCode}{' '}
+                  {testResponse.latencyMs
+                    ? `(${testResponse.latencyMs}ms)`
+                    : ''}
                 </span>
               </div>
               <CodeBlock
