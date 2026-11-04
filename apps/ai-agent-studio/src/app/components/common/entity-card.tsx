@@ -1,11 +1,11 @@
-import { UserAvatar } from '@org/ui';
+import { Hint, UserAvatar } from '@org/ui';
 import { cn } from '@org/utils';
 import type { ReactNode } from 'react';
 
 /**
  * The one card Studio lists agents and workflows with, so the Agents and
  * Workflows tabs read the same: identity, status + subtitle, a two-line
- * description, chips, then one footer row of facts and actions.
+ * description, chips, what's inside, then one footer row of facts and actions.
  *
  * The whole card opens `onOpen`; anything interactive inside (menu, footer
  * actions) sits above that layer, so it never opens the card by accident.
@@ -14,10 +14,12 @@ export function EntityCard({
   name,
   avatar,
   status,
+  version,
   subtitle,
   menu,
   description,
   chips,
+  inside,
   facts,
   owner,
   actions,
@@ -28,12 +30,16 @@ export function EntityCard({
   name: string;
   avatar: ReactNode;
   status?: ReactNode;
+  /** Sits after the status; can carry its own tooltip. */
+  version?: ReactNode;
   subtitle?: ReactNode;
   /** The ⋯ menu, top right. */
   menu?: ReactNode;
   description?: string | null;
   /** Category, tags… Left out when there are none. */
   chips?: ReactNode;
+  /** What the entity is built from. Hover targets here need `pointer-events-auto`. */
+  inside?: ReactNode;
   /** Footer left: model, counts. */
   facts?: ReactNode;
   owner?: {
@@ -74,10 +80,15 @@ export function EntityCard({
           >
             {name}
           </h3>
-          {status || subtitle ? (
+          {status || version || subtitle ? (
             <div className="mt-1 min-w-0 gap-1.5 text-xs flex items-center text-muted-foreground">
               {status ? (
                 <span className="inline-flex shrink-0">{status}</span>
+              ) : null}
+              {version ? (
+                <span className="pointer-events-none relative z-10 inline-flex shrink-0">
+                  {version}
+                </span>
               ) : null}
               {subtitle ? <span className="truncate">{subtitle}</span> : null}
             </div>
@@ -100,9 +111,21 @@ export function EntityCard({
         {description || 'No description yet'}
       </p>
 
-      <div className="mb-4 mt-3 min-h-5 gap-1.5 flex flex-wrap items-center">
+      <div
+        className={cn(
+          'mt-3 min-h-5 gap-1.5 flex flex-wrap items-center',
+          !inside && 'mb-4',
+        )}
+      >
         {chips}
       </div>
+
+      {/* Above the open button so tooltips work; clicks between facts fall through to it. */}
+      {inside ? (
+        <div className="mb-4 mt-3 min-h-5 gap-x-3 gap-y-1 text-xs pointer-events-none relative z-10 flex flex-wrap items-center">
+          {inside}
+        </div>
+      ) : null}
 
       <div className="gap-2 pt-3 mt-auto flex items-center border-t border-border/60">
         <div className="min-w-0 gap-2 text-xs flex flex-1 items-center overflow-hidden">
@@ -166,21 +189,26 @@ export function EntityChips({
   );
 }
 
-/** An icon + count fact for the footer ("2 tools", "5 nodes"); dimmed at zero. */
+/** An icon + count fact ("2 tools", "5 nodes"); dimmed at zero. `hint` shows on hover or focus. */
 export function EntityCount({
   icon,
   count,
   label,
+  hint,
 }: {
   icon: ReactNode;
   count: number;
   label: string;
+  hint?: ReactNode;
 }) {
-  return (
+  const fact = (
     <span
+      tabIndex={hint ? 0 : undefined}
       className={cn(
         'gap-1 [&_svg]:size-3 inline-flex shrink-0 items-center text-muted-foreground',
         !count && 'opacity-60',
+        hint &&
+          'pointer-events-auto cursor-default rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
       )}
     >
       {icon}
@@ -190,4 +218,5 @@ export function EntityCount({
       {label}
     </span>
   );
+  return hint ? <Hint label={hint}>{fact}</Hint> : fact;
 }

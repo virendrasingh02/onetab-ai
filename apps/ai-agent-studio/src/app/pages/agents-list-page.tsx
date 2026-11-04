@@ -47,7 +47,6 @@ import {
   Trash2,
   Upload,
   Wand2,
-  Wrench,
 } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from '../router.js';
@@ -57,19 +56,22 @@ import {
   AIEntityModel,
   AIEntityOwner,
   AIEntityStatusBadge,
-  plural,
 } from '../components/common/ai-entity-summary.js';
+import {
+  agentContents,
+  agentVersionSummary,
+} from '../components/common/agent-contents.js';
+import {
+  AgentContentsFacts,
+  AgentVersionChip,
+} from '../components/common/agent-card-facts.js';
 import {
   useAiModels,
   useModelOptions,
 } from '../components/workflow-canvas/agent-config/use-agent-config-data.js';
 import { SectionHeader } from '../components/section-tabs.js';
 import { ListToolbar } from '../components/list-toolbar.js';
-import {
-  EntityCard,
-  EntityChips,
-  EntityCount,
-} from '../components/common/entity-card.js';
+import { EntityCard, EntityChips } from '../components/common/entity-card.js';
 
 const STATUS_FILTERS = [
   'all',
@@ -125,17 +127,6 @@ function isAgentDeleted(agent: any): boolean {
   return (
     Boolean(agent.deletedAt || config.deletedAt) || config.status === 'deleted'
   );
-}
-
-function countTools(tools: string | null | undefined): number {
-  if (!tools) return 0;
-  try {
-    const parsed: unknown =
-      typeof tools === 'string' ? JSON.parse(tools) : tools;
-    return Array.isArray(parsed) ? parsed.length : 0;
-  } catch {
-    return 0;
-  }
 }
 
 export function AgentsListPage() {
@@ -197,6 +188,15 @@ export function AgentsListPage() {
     queryKey: ['agents', activeWorkspace.id],
     queryFn: () => agentsApi.list(activeWorkspace.id),
   });
+
+  // Compiling every canvas is too much to repeat on each search keystroke.
+  const contentsById = useMemo(
+    () =>
+      new Map(
+        (rawAgents as any[]).map((agent) => [agent.id, agentContents(agent)]),
+      ),
+    [rawAgents],
+  );
 
   // Create Mutation
   const createMutation = useMutation({
@@ -679,7 +679,7 @@ export function AgentsListPage() {
                 agent.owner ||
                 (config.owner?.name ? { name: config.owner.name } : null);
               const isDeleted = isAgentDeleted(agent);
-              const toolsCount = countTools(agent.tools);
+              const contents = contentsById.get(agent.id);
 
               return (
                 <EntityCard
@@ -691,9 +691,15 @@ export function AgentsListPage() {
                       status={isDeleted ? 'trash' : status}
                     />
                   }
+                  version={
+                    <AgentVersionChip version={agentVersionSummary(config)} />
+                  }
                   subtitle={`${agent.role || 'Assistant'} · ${ENV_LABEL[env]}`}
                   description={agentSummary(agent)}
                   chips={<EntityChips category={config.category} tags={tags} />}
+                  inside={
+                    contents ? <AgentContentsFacts contents={contents} /> : null
+                  }
                   owner={owner}
                   onOpen={
                     isDeleted
@@ -703,18 +709,11 @@ export function AgentsListPage() {
                   openLabel={`Open ${agent.name} in Studio`}
                   dimmed={isDeleted}
                   facts={
-                    <>
-                      <AIEntityModel
-                        model={agent.model || null}
-                        provider={agent.provider || null}
-                        className="min-w-0 shrink"
-                      />
-                      <EntityCount
-                        icon={<Wrench />}
-                        count={toolsCount}
-                        label={plural(toolsCount, 'tool')}
-                      />
-                    </>
+                    <AIEntityModel
+                      model={agent.model || null}
+                      provider={agent.provider || null}
+                      className="min-w-0 shrink"
+                    />
                   }
                   actions={
                     !isDeleted ? (
