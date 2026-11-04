@@ -260,14 +260,25 @@ export function WorkflowEdge(props) {
     label === 'False' || data?.branch === 'false' || data?.sourceHandle === 'false';
   const isBranchFallback =
     label === 'Fallback' || data?.branch === 'fallback';
-  const isRunning = data?.status === 'running';
-  const isDone = data?.status === 'done';
+  // See edgeRunStatus in run-flow.ts
+  const runStatus = data?.status;
+  const isRunning = runStatus === 'running';
+  const isTravelling = runStatus === 'flowing';
+  const isLit = runStatus === 'done';
+  const isSkipped = runStatus === 'skipped';
+  const isDimmed = runStatus === 'pending' || isSkipped;
   // A user-chosen "flowing" wire, independent of run state
   const isFlowAnimated = data?.animated === true;
-  const isFlowing = isRunning || isFlowAnimated;
+  const isFlowing = isRunning || (isFlowAnimated && !runStatus);
 
-  // Quiet, neutral wires; colour only for meaning (branches, selection, a live run).
-  const defaultStroke = isBranchTrue
+  // Quiet, neutral wires; colour only for meaning (a live run, branches, selection).
+  const defaultStroke = isLit
+    ? 'var(--color-primary)'
+    : runStatus === 'failed'
+    ? 'var(--color-destructive)'
+    : runStatus === 'waiting'
+    ? 'var(--color-warning)'
+    : isBranchTrue
     ? 'var(--color-success)'
     : isBranchFalse
     ? 'var(--color-destructive)'
@@ -275,9 +286,8 @@ export function WorkflowEdge(props) {
     ? 'var(--color-warning)'
     : selected || isHovered || isRunning
     ? 'var(--color-primary)'
-    : isDone
-    ? 'color-mix(in oklab, var(--color-primary) 55%, var(--color-border-strong))'
     : 'var(--color-border-strong)';
+  const wireOpacity = isSkipped ? 0.3 : isDimmed ? 0.5 : 1;
 
   return (
     <>
@@ -287,15 +297,22 @@ export function WorkflowEdge(props) {
         markerEnd={markerEnd}
         style={{
           ...style,
-          strokeWidth: selected || isHovered ? 2 : 1.5,
+          strokeWidth: selected || isHovered || isLit ? 2 : 1.5,
           stroke: defaultStroke,
-          strokeDasharray: isFlowing ? '6 6' : style?.strokeDasharray,
+          opacity: wireOpacity,
+          strokeDasharray: isFlowing ? '6 6' : isSkipped ? '4 5' : style?.strokeDasharray,
           animation: isFlowing ? 'dash 1s linear infinite' : undefined,
-          transition: 'stroke 150ms ease, stroke-width 150ms ease',
+          transition: 'stroke 150ms ease, stroke-width 150ms ease, opacity 200ms ease',
         }}
         interactionWidth={28}
       />
-      <EdgeArrowhead {...arrowEnd} direction={arrowDirection} color={defaultStroke} />
+      {isTravelling && (
+        <>
+          <path className="run-wire-trail" d={edgePath} pathLength={1} />
+          <path className="run-wire-comet" d={edgePath} pathLength={1} />
+        </>
+      )}
+      <EdgeArrowhead {...arrowEnd} direction={arrowDirection} color={defaultStroke} opacity={wireOpacity} />
 
       {/* Invisible wider stroke for effortless hover hit-testing */}
       <path

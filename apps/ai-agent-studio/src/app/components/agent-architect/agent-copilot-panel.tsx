@@ -69,6 +69,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from '../../router.js';
 import type { CanvasNodeStatus } from '../workflow-canvas/run-console-drawer.js';
+import type { RunPlaybackMeta } from '../workflow-canvas/use-run-playback.js';
 import type { NodeRunResult } from '../workflow-canvas/node-chrome.js';
 import { ChangeList, FlowLine, IssueList, errorText } from './architect-ui.js';
 import { ActivityTimeline, ConnectApps, RichText, connectionsQueryKey, type ActivityStep } from './copilot-activity.js';
@@ -141,7 +142,10 @@ export interface AgentCopilotPanelProps {
   /** Saves unsaved canvas changes: a run uses the saved graph. */
   onBeforeRun: () => Promise<void>;
   /** Live step states for the canvas while a chat run goes (null clears them). */
-  onNodeStatuses?: (statuses: Record<string, CanvasNodeStatus> | null) => void;
+  onNodeStatuses?: (
+    statuses: Record<string, CanvasNodeStatus> | null,
+    meta?: RunPlaybackMeta,
+  ) => void;
   onNodeResults?: (results: Record<string, NodeRunResult>) => void;
   onClose: () => void;
   /** Opens with this greeting (an agent fresh from "Create with one prompt"). */

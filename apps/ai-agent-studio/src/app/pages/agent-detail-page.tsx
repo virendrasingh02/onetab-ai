@@ -229,6 +229,15 @@ import {
   type ModuleDraft,
 } from '../components/workflow-canvas/agent-config/agent-module-model.js';
 import type { ModuleActions } from '../components/workflow-canvas/agent-config/module-drawer.js';
+import {
+  activeStep,
+  edgeRunStatus,
+  revealResults,
+} from '../components/workflow-canvas/run-flow.js';
+import {
+  useRunPlayback,
+  type RunPlaybackMeta,
+} from '../components/workflow-canvas/use-run-playback.js';
 import type {
   NodeAnalyticsOverlayData,
   NodeRunResult,
@@ -2067,6 +2076,8 @@ export function AgentDetailPage() {
   const saveKeyRef = useRef('');
   const reactFlowRef = useRef<any>(null);
   // What each step produced in the latest test run — shown on the cards, never saved.
+  const runPlayback = useRunPlayback();
+  const pushRunStatuses = runPlayback.push;
   const [runResults, setRunResults] = useState<Record<string, NodeRunResult>>(
     {},
   );
@@ -2195,6 +2206,11 @@ export function AgentDetailPage() {
   const [isValidationOpen, setIsValidationOpen] = useState(false);
   const [validationResult, setValidationResult] = useState<any | null>(null);
   const [isTestDrawerOpen, setIsTestDrawerOpen] = useState(false);
+  const [testDrawerRequest, setTestDrawerRequest] = useState(0);
+  const openTestDrawer = () => {
+    setIsTestDrawerOpen(true);
+    setTestDrawerRequest((n) => n + 1);
+  };
   const [isSnapshotDialogOpen, setIsSnapshotDialogOpen] = useState(false);
   const [snapshotChangelog, setSnapshotChangelog] = useState('');
   const [diffModalTarget, setDiffModalTarget] = useState<AgentVersion | null>(
@@ -2705,27 +2721,36 @@ export function AgentDetailPage() {
     if (openedTest.current || !agent || searchParams.get('test') !== '1')
       return;
     openedTest.current = true;
-    setIsTestDrawerOpen(true);
+    openTestDrawer();
   }, [agent, searchParams]);
 
-  /** Shows a run's progress on the canvas (null clears it) without marking the graph edited. */
+  const shownRunStatuses = runPlayback.view?.shown ?? null;
+  const visibleResults = useMemo(
+    () => revealResults(runResults, shownRunStatuses),
+    [runResults, shownRunStatuses],
+  );
+
   /**
    * A step's latest result for its card. An Output step passes its input
    * through, so it shows what flowed into it when it has nothing of its own.
    */
   const resultFor = (n: Node): NodeRunResult | undefined => {
-    const own = runResults[n.id];
+    const own = visibleResults[n.id];
     if (
       String(n.type).toUpperCase() !== 'END' ||
-      (own && (own.output || own.error || own.cleared))
+      (own &&
+        (own.output || own.error || own.cleared || own.status === 'running'))
     )
       return own;
     const upstream =
-      runResults[
+      visibleResults[
         edges.find((e) => e.target === n.id && !isAttachmentEdge(e))?.source ??
           ''
       ];
     if (!upstream) return own;
+    // The answer is on its way down the wire: it lands when the run gets here
+    if (!own && upstream.status === 'success' && runPlayback.view?.settled === false)
+      return { status: 'running', output: '', tokens: 0, latencyMs: 0 };
     return {
       ...upstream,
       status: own?.status ?? upstream.status,
@@ -2734,8 +2759,13 @@ export function AgentDetailPage() {
     };
   };
 
+  /** Shows a run's progress on the canvas (null clears it) without marking the graph edited. */
   const showRunStatuses = useCallback(
-    (statuses: Record<string, CanvasNodeStatus> | null) => {
+    (
+      statuses: Record<string, CanvasNodeStatus> | null,
+      meta?: RunPlaybackMeta,
+    ) => {
+      pushRunStatuses(statuses, meta);
       // The console stopped watching (closed): don't leave cards saying "Running…".
       if (!statuses) {
         setRunResults((r) =>
@@ -2751,17 +2781,8 @@ export function AgentDetailPage() {
             : r,
         );
       }
-      setNodes((current) =>
-        current.map((n) => {
-          const status = statuses?.[n.id] ?? 'idle';
-          return (n.data as { status?: string }).status === status ||
-            (!statuses && !(n.data as { status?: string }).status)
-            ? n
-            : { ...n, data: { ...n.data, status } };
-        }),
-      );
     },
-    [],
+    [pushRunStatuses],
   );
 
   const errorMessage = (err: unknown, fallback: string) =>
@@ -3537,7 +3558,7 @@ export function AgentDetailPage() {
           },
         );
       },
-      runAgentTest: () => setIsTestDrawerOpen(true),
+      runAgentTest: openTestDrawer,
     };
   }, [
     selectedNode,
@@ -4792,7 +4813,7 @@ export function AgentDetailPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setIsTestDrawerOpen(true)}
+              onClick={openTestDrawer}
               className="h-8 gap-1.5 text-xs font-medium rounded-md border-success/30 bg-success/10 text-success hover:bg-success/20"
               title="Test run this agent workflow"
             >
@@ -5167,6 +5188,14 @@ export function AgentDetailPage() {
                         handleUpdateNodeMetadata(n.id, patch),
                       ...slotDecorations.get(n.id),
                       issues: issuesByNode.get(n.id),
+                      // Not dimmed: what's plugged into an agent (not a step of its own) and an Output showing the failure
+                      status: !shownRunStatuses
+                        ? 'idle'
+                        : (shownRunStatuses[n.id] ??
+                          (slotDecorations.get(n.id)?.attachedTo ||
+                          resultFor(n)?.error
+                            ? 'idle'
+                            : 'pending')),
                       run: resultFor(n),
                       onClearRun: () =>
                         setRunResults((r) => ({
@@ -5190,7 +5219,7 @@ export function AgentDetailPage() {
                         : {}),
                       onUpdateConfig: (patch: Record<string, unknown>) =>
                         handleUpdateNodeConfig(n.id, patch),
-                      onTest: () => setIsTestDrawerOpen(true),
+                      onTest: openTestDrawer,
                       onEdit: () => void requestOpenModule(n.id, null),
                       onDuplicate: () => handleDuplicateNode(n),
                       onDelete: () => handleDeleteNode(n.id),
@@ -5200,7 +5229,6 @@ export function AgentDetailPage() {
                   }))}
                   edges={edges.map((e) => {
                     const attachment = isAttachmentEdge(e);
-                    const sourceStatus = runResults[e.source]?.status;
                     return {
                       ...e,
                       type: 'workflow',
@@ -5214,12 +5242,12 @@ export function AgentDetailPage() {
                       data: {
                         ...e.data,
                         edgeStyle: workflowEdgeStyle,
-                        status:
-                          sourceStatus === 'running'
-                            ? 'running'
-                            : sourceStatus === 'success' && !attachment
-                              ? 'done'
-                              : undefined,
+                        status: edgeRunStatus(
+                          shownRunStatuses,
+                          e.source,
+                          e.target,
+                          attachment,
+                        ),
                         attachment,
                         onDelete: (id: string) => handleDeleteEdge(id),
                         isEditingLabel: editingEdgeLabelId === e.id,
@@ -5240,7 +5268,7 @@ export function AgentDetailPage() {
                   onAutoLayout={handleAutoLayout}
                   onDeleteNodes={handleDeleteNodes}
                   onDuplicateNode={handleDuplicateNode}
-                  onTestNode={() => setIsTestDrawerOpen(true)}
+                  onTestNode={openTestDrawer}
                   onInspectNode={(node) => setSelectedNode(node)}
                   onDeleteEdge={handleDeleteEdge}
                   onReconnectEdge={handleReconnectEdge}
@@ -5355,7 +5383,7 @@ export function AgentDetailPage() {
                 graph={copilotGraph}
                 welcome={copilotWelcome}
                 onApply={applyCopilotGraph}
-                onRunTest={() => setIsTestDrawerOpen(true)}
+                onRunTest={openTestDrawer}
                 onFocusNode={(nodeId) => {
                   const target = graphRef.current.nodes.find(
                     (n) => n.id === nodeId,
@@ -5424,7 +5452,7 @@ export function AgentDetailPage() {
                 action={
                   <Button
                     size="sm"
-                    onClick={() => setIsTestDrawerOpen(true)}
+                    onClick={openTestDrawer}
                     className="gap-1.5 text-xs"
                   >
                     <Play className="h-3.5 w-3.5" />
@@ -5881,6 +5909,12 @@ export function AgentDetailPage() {
           }}
           onNodeStatuses={showRunStatuses}
           onNodeResults={setRunResults}
+          onRunStart={() =>
+            reactFlowRef.current?.fitView({ padding: 0.15, duration: 400 })
+          }
+          openRequest={testDrawerRequest}
+          canvasStep={activeStep(shownRunStatuses)}
+          canvasSettled={runPlayback.view?.settled ?? false}
         />
       )}
 
@@ -6133,7 +6167,7 @@ export function AgentDetailPage() {
         onFocusNode={handleFocusNodeById}
         onAddNode={handleSelectCatalogItem}
         onAutoLayout={() => handleAutoLayout()}
-        onTestRun={() => setIsTestDrawerOpen(true)}
+        onTestRun={openTestDrawer}
         onValidate={handleValidateGraph}
         onSave={() => {
           if (isDirty && !saveMutation.isPending) saveMutation.mutate();

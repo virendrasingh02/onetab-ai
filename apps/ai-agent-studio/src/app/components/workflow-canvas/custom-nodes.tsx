@@ -24,6 +24,7 @@ import {
 } from '@xyflow/react';
 import {
   AlertTriangle,
+  Ban,
   BookOpen,
   Bot,
   Check,
@@ -60,6 +61,10 @@ import {
   Wrench,
   X,
   Zap,
+  Clock,
+  Loader2,
+  SkipForward,
+  type LucideIcon,
 } from 'lucide-react';
 import React, {
   memo,
@@ -115,13 +120,15 @@ import {
   type NodeRunResult,
   type NodeAnalyticsOverlayData,
 } from './node-chrome.js';
+import type { ShownNodeStatus } from './run-flow.js';
 
 export interface WorkflowNodePayload {
   title?: string;
   label: string;
   description?: string;
   subtitle?: string;
-  status?: 'idle' | 'running' | 'success' | 'failed' | 'waiting';
+  /** Where a run on the canvas has got to; `pending` is not reached yet. */
+  status?: ShownNodeStatus | 'pending';
   config?: Record<string, any>;
   direction?: WorkflowDirection;
   edgeStyle?: WorkflowEdgeStyle;
@@ -174,11 +181,71 @@ export interface WorkflowNodePayload {
 
 const statusBorderClasses: Record<string, string> = {
   idle: 'border-border',
-  running: 'border-primary ring-2 ring-primary/40 animate-pulse',
+  pending: 'border-border opacity-60',
+  entering: 'border-primary/50',
+  running: 'run-node-active border-primary/40 ring-4 ring-primary/15',
   success: 'border-success/80 ring-2 ring-success/20',
   failed: 'border-destructive ring-2 ring-destructive/30',
   waiting: 'border-warning ring-2 ring-warning/30',
+  skipped: 'border-dashed border-border opacity-50',
+  cancelled: 'border-border opacity-70',
 };
+
+/** The corner mark that says how a step stands in the run. */
+const RUN_BADGES: Record<
+  string,
+  { icon: LucideIcon; label: string; className: string }
+> = {
+  running: {
+    icon: Loader2,
+    label: 'Running',
+    className: 'bg-primary text-primary-foreground [&>svg]:animate-spin',
+  },
+  success: {
+    icon: Check,
+    label: 'Finished',
+    className: 'bg-success text-success-foreground',
+  },
+  failed: {
+    icon: X,
+    label: 'Failed',
+    className: 'bg-destructive text-destructive-foreground',
+  },
+  waiting: {
+    icon: Clock,
+    label: 'Waiting for a decision',
+    className: 'bg-warning text-warning-foreground',
+  },
+  skipped: {
+    icon: SkipForward,
+    label: 'Skipped',
+    className: 'bg-surface-raised text-muted-foreground',
+  },
+  cancelled: {
+    icon: Ban,
+    label: 'Cancelled',
+    className: 'bg-surface-raised text-muted-foreground',
+  },
+};
+
+function RunStatusBadge({ status }: { status?: string }) {
+  const badge = status ? RUN_BADGES[status] : undefined;
+  if (!badge) return null;
+  const Icon = badge.icon;
+  return (
+    <span
+      role="img"
+      aria-label={badge.label}
+      title={badge.label}
+      className={cn(
+        '-left-2 -top-2 size-5 absolute z-10 flex items-center justify-center rounded-full border-2 border-background shadow-sm animate-in fade-in zoom-in-50 duration-200 motion-reduce:animate-none',
+        badge.className,
+      )}
+    >
+      <Icon className="size-2.5" strokeWidth={3} aria-hidden="true" />
+    </span>
+  );
+}
 
 const CATEGORIES: { id: NodeCategory; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -1192,6 +1259,7 @@ function NodeShell({
   target = true,
   source = true,
   toolbar,
+  runFooter = true,
   children,
 }: {
   id: string;
@@ -1206,6 +1274,8 @@ function NodeShell({
   /** Default output handle with quick-add; false when the body draws its own outputs. */
   source?: boolean;
   toolbar?: { addHandleId?: string; canAddNext?: boolean };
+  /** Off for a card that shows the run itself. */
+  runFooter?: boolean;
   children?: React.ReactNode;
 }) {
   const accent = NODE_TONES[tone];
@@ -1219,6 +1289,7 @@ function NodeShell({
         className,
       )}
     >
+      <RunStatusBadge status={data.status} />
       <NodeActionToolbar
         id={id}
         data={data}
@@ -1238,7 +1309,7 @@ function NodeShell({
       />
       <AttachedChip data={data} />
       {children}
-      <NodeRunFooter run={data.run} />
+      {runFooter && <NodeRunFooter run={data.run} />}
       {source && (
         <SourceHandleWithQuickAdd
           colorClass={accent.dot}
@@ -2776,6 +2847,7 @@ export const EndNode = memo(({ id, data, selected }: NodeProps) => {
       selected={selected}
       tone="success"
       source={false}
+      runFooter={!run?.error}
       className="w-[300px]"
       header={{
         defaultTitle: 'Output',

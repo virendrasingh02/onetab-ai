@@ -12,10 +12,12 @@ import {
   finalRunStep,
   formatDuration,
   readableOutput,
+  runPlaybackMeta,
   runToCanvas,
   type CanvasNodeStatus,
 } from '../workflow-canvas/run-console-drawer.js';
 import type { NodeRunResult } from '../workflow-canvas/node-chrome.js';
+import type { RunPlaybackMeta } from '../workflow-canvas/use-run-playback.js';
 import { useCanvasRunControls } from '../workflow-canvas/use-canvas-run-controls.js';
 
 /** Steps shown before "+N more" — the run console has the full list. */
@@ -43,7 +45,10 @@ export interface CopilotRunCardProps {
   labels: Map<string, string>;
   /** Only the newest run drives the canvas highlights. */
   drivesCanvas: boolean;
-  onNodeStatuses?: (statuses: Record<string, CanvasNodeStatus> | null) => void;
+  onNodeStatuses?: (
+    statuses: Record<string, CanvasNodeStatus> | null,
+    meta?: RunPlaybackMeta,
+  ) => void;
   onNodeResults?: (results: Record<string, NodeRunResult>) => void;
   onOpenConsole: () => void;
   /** Called once the run settles, with how it ended. */
@@ -84,7 +89,7 @@ export function CopilotRunCard({
   useEffect(() => {
     if (!run || !drivesCanvas) return;
     const { statuses, results } = runToCanvas(run);
-    onNodeStatuses?.(statuses);
+    onNodeStatuses?.(statuses, runPlaybackMeta(run));
     onNodeResults?.(results);
   }, [run, drivesCanvas, onNodeStatuses, onNodeResults]);
 

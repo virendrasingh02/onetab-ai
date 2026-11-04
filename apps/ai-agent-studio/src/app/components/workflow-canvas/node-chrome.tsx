@@ -1,4 +1,5 @@
 import { cn } from '@org/utils';
+import type { CanvasNodeStatus } from './run-flow.js';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Fragment, useState, type ReactNode } from 'react';
 
@@ -8,7 +9,7 @@ import { Fragment, useState, type ReactNode } from 'react';
  * with the graph.
  */
 export interface NodeRunResult {
-  status: 'running' | 'success' | 'failed' | 'waiting' | 'idle';
+  status: CanvasNodeStatus;
   /** Readable output (or input, for a trigger). */
   output: string;
   tokens: number;
@@ -81,8 +82,9 @@ export function NodeRunFooter({ run, showTokens = true, extra }: { run?: NodeRun
   const [open, setOpen] = useState(false);
   const hasOutput = Boolean(run && (run.output || run.error));
   const running = run?.status === 'running';
-  // Only steps that actually spent tokens (or are mid-run) get the bar
-  if (!running && !((run?.tokens ?? 0) > 0)) return null;
+  const waiting = run?.status === 'waiting';
+  // Only steps that spent tokens, are mid-run or have something to say get the bar
+  if (!running && !waiting && !run?.error && !((run?.tokens ?? 0) > 0)) return null;
   return (
     <div className="nodrag nopan -mx-3.5 -mb-3.5 mt-3 rounded-b-xl border-t border-border/70 bg-surface-raised/30">
       <div className="flex items-center gap-2 px-3.5 py-1.5 text-2xs text-muted-foreground">
@@ -98,11 +100,11 @@ export function NodeRunFooter({ run, showTokens = true, extra }: { run?: NodeRun
           className="inline-flex items-center gap-1 rounded-md font-medium hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-default disabled:hover:text-muted-foreground"
         >
           {open ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
-          {running ? 'Running…' : 'View Results'}
+          {running ? 'Running…' : waiting ? 'Waiting for a decision' : run?.error ? 'View error' : 'View Results'}
         </button>
         <span className="ml-auto flex items-center gap-2 tabular-nums">
           {extra}
-          {showTokens && <span>{(run?.tokens ?? 0).toLocaleString()} tokens</span>}
+          {showTokens && (run?.tokens ?? 0) > 0 && <span>{run?.tokens.toLocaleString()} tokens</span>}
           <span>{formatSeconds(run?.latencyMs ?? 0)}</span>
         </span>
       </div>

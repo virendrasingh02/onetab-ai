@@ -41,18 +41,21 @@ import {
   X,
   XCircle,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStudioSession } from '../../session-guard.js';
-import type { NodeRunResult } from './node-chrome.js';
+import { formatSeconds, type NodeRunResult } from './node-chrome.js';
+import { stepOwner, type CanvasNodeStatus } from './run-flow.js';
 import { useCanvasRunControls } from './use-canvas-run-controls.js';
+import type { RunPlaybackMeta } from './use-run-playback.js';
 
 /** Run statuses after which nothing more will happen without someone acting. */
 export const SETTLED = new Set(['COMPLETED', 'FAILED', 'CANCELLED', 'SUCCESS']);
 /** How often an open run is re-read while it is still going. */
-export const POLL_MS = 1_500;
+export const POLL_MS = 1_000;
+/** A run that ended longer ago than this is shown as it ended, not played. */
+const REPLAY_WINDOW_MS = 15_000;
 
-export type CanvasNodeStatus =
-  'idle' | 'running' | 'success' | 'failed' | 'waiting';
+export type { CanvasNodeStatus };
 
 interface RunConsoleDrawerProps {
   agentId: string;
@@ -63,7 +66,18 @@ interface RunConsoleDrawerProps {
   /** Saves unsaved canvas changes first: a run uses the saved graph. */
   onBeforeRun: () => Promise<void>;
   /** Live step states for the canvas (null clears them). */
-  onNodeStatuses: (statuses: Record<string, CanvasNodeStatus> | null) => void;
+  onNodeStatuses: (
+    statuses: Record<string, CanvasNodeStatus> | null,
+    meta?: RunPlaybackMeta,
+  ) => void;
+  /** A run has started, so the canvas is about to play it. */
+  onRunStart?: () => void;
+  /** Goes up each time someone asks for the console, to bring it back from the run bar. */
+  openRequest?: number;
+  /** The step the canvas is on, if any is at work or being reached. */
+  canvasStep?: string;
+  /** The canvas has played the run to its end, which can be after the server finished. */
+  canvasSettled?: boolean;
   /** What each step produced in the latest run, for the cards' "View Results". */
   onNodeResults?: (results: Record<string, NodeRunResult>) => void;
 }
@@ -76,7 +90,18 @@ export const STEP_STATUS: Record<string, CanvasNodeStatus> = {
   SUCCESS: 'success',
   FAILED: 'failed',
   WAITING: 'waiting',
-  SKIPPED: 'idle',
+  SKIPPED: 'skipped',
+  CANCELLED: 'cancelled',
+};
+
+const TASK_STATUS: Record<string, CanvasNodeStatus> = {
+  RUNNING: 'running',
+  COMPLETED: 'success',
+  FAILED: 'failed',
+  CANCELLED: 'cancelled',
+  WAITING: 'waiting',
+  APPROVAL_REQUIRED: 'waiting',
+  PAUSED: 'waiting',
 };
 
 /** The text a step or run produced, for reading rather than as raw JSON. */
@@ -190,18 +215,18 @@ export function runToCanvas(run: CanvasAgentRunDetail): {
   results: Record<string, NodeRunResult>;
 } {
   const statuses: Record<string, CanvasNodeStatus> = {};
-  for (const step of run.steps)
-    statuses[step.stepId] = STEP_STATUS[step.status] ?? 'idle';
+  for (const step of run.steps) {
+    const status = STEP_STATUS[step.status] ?? 'idle';
+    const owner = stepOwner(step.stepId);
+    // A helper step finishing means its card's own work is next
+    statuses[owner] =
+      owner !== step.stepId && (status === 'success' || status === 'skipped')
+        ? 'running'
+        : status;
+  }
   for (const task of run.agentTasks) {
     if (statuses[task.agentKey] === undefined || task.status === 'RUNNING') {
-      statuses[task.agentKey] =
-        task.status === 'RUNNING'
-          ? 'running'
-          : task.status === 'FAILED'
-            ? 'failed'
-            : task.status === 'COMPLETED'
-              ? 'success'
-              : 'waiting';
+      statuses[task.agentKey] = TASK_STATUS[task.status] ?? 'idle';
     }
   }
   const results: Record<string, NodeRunResult> = {};
@@ -210,11 +235,15 @@ export function runToCanvas(run: CanvasAgentRunDetail): {
     const finished = step.finishedAt
       ? new Date(step.finishedAt).getTime()
       : Date.now();
-    results[step.stepId] = {
-      status: STEP_STATUS[step.status] ?? 'idle',
-      output: isTriggerStep(step)
-        ? triggerInput(step.outputJson)
-        : readableOutput(step.outputJson),
+    const owner = stepOwner(step.stepId);
+    results[owner] = {
+      status: statuses[owner] ?? 'idle',
+      output:
+        owner !== step.stepId
+          ? ''
+          : isTriggerStep(step)
+            ? triggerInput(step.outputJson)
+            : readableOutput(step.outputJson),
       tokens: step.tokensUsed ?? 0,
       latencyMs:
         step.latencyMs ||
@@ -239,7 +268,32 @@ export function runToCanvas(run: CanvasAgentRunDetail): {
       error: task.error ?? prev?.error,
     };
   }
+  // A run that ended can leave rows open (cancelled mid-step): nothing is still working
+  if (SETTLED.has(run.status)) {
+    const ended: CanvasNodeStatus =
+      run.status === 'FAILED'
+        ? 'failed'
+        : run.status === 'CANCELLED'
+          ? 'cancelled'
+          : 'success';
+    for (const [id, status] of Object.entries(statuses)) {
+      if (status !== 'running' && status !== 'waiting') continue;
+      statuses[id] = ended;
+      if (results[id]) results[id] = { ...results[id], status: ended };
+    }
+  }
   return { statuses, results };
+}
+
+/** How the canvas should treat this read of a run. */
+export function runPlaybackMeta(run: CanvasAgentRunDetail): RunPlaybackMeta {
+  return {
+    runId: run.id,
+    settled: SETTLED.has(run.status),
+    instant:
+      !!run.finishedAt &&
+      Date.now() - new Date(run.finishedAt).getTime() > REPLAY_WINDOW_MS,
+  };
 }
 
 /** The answer a finished run gave: its Output step, or else the last step that succeeded. */
@@ -301,6 +355,145 @@ function describeStartError(error: unknown): { title: string; detail: string } {
   };
 }
 
+/** The step a run is on, in the words of the canvas. */
+function currentStepLabel(
+  run: CanvasAgentRunDetail,
+  labels: Map<string, string>,
+  status: string,
+): string | undefined {
+  const step = [...run.steps].reverse().find((s) => s.status === status);
+  return step ? (labels.get(step.stepId) ?? step.stepId) : undefined;
+}
+
+/** A run at a glance, under the graph it is moving through. */
+function RunBar({
+  run,
+  labels,
+  step,
+  played,
+  needsApproval,
+  busy,
+  onControl,
+  onRunAgain,
+  onExpand,
+  onClose,
+}: {
+  run?: CanvasAgentRunDetail;
+  labels: Map<string, string>;
+  step?: string;
+  played: boolean;
+  needsApproval: boolean;
+  busy: boolean;
+  onControl: (action: 'pause' | 'resume' | 'cancel' | 'retry') => void;
+  onRunAgain: () => void;
+  onExpand: () => void;
+  onClose: () => void;
+}) {
+  // Holds the step's name through the moment between two steps
+  const lastStep = useRef(step);
+  if (step) lastStep.current = step;
+  // Tells the story at the canvas's pace, so it never gets ahead of the graph
+  const status = !run
+    ? 'STARTING'
+    : SETTLED.has(run.status) && !played
+      ? 'RUNNING'
+      : run.status;
+  const settled = SETTLED.has(status);
+  const failed = status === 'FAILED';
+  const cancelled = status === 'CANCELLED';
+  const done = settled && !failed && !cancelled;
+  const paused = status === 'PAUSED';
+
+  const title = !run
+    ? 'Starting…'
+    : needsApproval
+      ? 'Waiting for your approval'
+      : paused
+        ? 'Paused'
+        : done
+          ? 'Run finished'
+          : cancelled
+            ? 'Run cancelled'
+            : failed
+              ? `Failed at ${currentStepLabel(run, labels, 'FAILED') ?? 'a step'}`
+              : lastStep.current
+                ? `Running ${labels.get(lastStep.current) ?? lastStep.current}`
+                : 'Running…';
+  const detail =
+    run && settled
+      ? [
+          `${run.steps.length} steps`,
+          run.latencyMs ? formatSeconds(run.latencyMs) : null,
+          run.tokensUsed ? `${run.tokensUsed.toLocaleString()} tokens` : null,
+        ]
+          .filter(Boolean)
+          .join(' · ')
+      : null;
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="bottom-20 left-1/2 max-w-[calc(100vw-2rem)] gap-3 py-2 pl-3.5 pr-2 shadow-lg fixed z-40 flex -translate-x-1/2 items-center rounded-xl border border-border bg-surface"
+    >
+      {needsApproval || paused ? (
+        <Clock className="size-4 shrink-0 text-warning" aria-hidden="true" />
+      ) : done ? (
+        <CheckCircle2 className="size-4 shrink-0 text-success" aria-hidden="true" />
+      ) : failed ? (
+        <XCircle className="size-4 shrink-0 text-destructive" aria-hidden="true" />
+      ) : cancelled ? (
+        <Ban className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      ) : (
+        <Loader2 className="size-4 shrink-0 animate-spin text-primary" aria-hidden="true" />
+      )}
+      <div className="min-w-0">
+        <div className="max-w-64 text-xs font-semibold truncate text-foreground">
+          {title}
+        </div>
+        {detail && (
+          <div className="text-2xs tabular-nums text-muted-foreground">{detail}</div>
+        )}
+      </div>
+      <div className="gap-1 flex shrink-0 items-center">
+        {run?.status === 'RUNNING' && (
+          <Button variant="ghost" size="xs" disabled={busy} onClick={() => onControl('pause')} className="gap-1">
+            <Pause className="size-3.5" /> Pause
+          </Button>
+        )}
+        {paused && (
+          <Button variant="ghost" size="xs" disabled={busy} onClick={() => onControl('resume')} className="gap-1">
+            <Play className="size-3.5" /> Resume
+          </Button>
+        )}
+        {run && !SETTLED.has(run.status) && (
+          <Button variant="ghost" size="xs" disabled={busy} onClick={() => onControl('cancel')} className="gap-1 text-destructive">
+            <Ban className="size-3.5" /> Cancel
+          </Button>
+        )}
+        {(failed || cancelled) && (
+          <Button variant="ghost" size="xs" disabled={busy} onClick={() => onControl('retry')} className="gap-1">
+            <RotateCcw className="size-3.5" /> Retry
+          </Button>
+        )}
+        {done && (
+          <Button variant="ghost" size="xs" disabled={busy} onClick={onRunAgain} className="gap-1">
+            <Play className="size-3.5" /> Run again
+          </Button>
+        )}
+        <Button variant={needsApproval ? 'default' : 'outline'} size="xs" onClick={onExpand}>
+          {needsApproval ? 'Review' : 'Details'}
+        </Button>
+        {settled && (
+          <Button variant="ghost" size="icon-xs" onClick={onClose} aria-label="Close run">
+            <X className="size-4" />
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function RunConsoleDrawer({
   agentId,
   agentName,
@@ -310,6 +503,10 @@ export function RunConsoleDrawer({
   onBeforeRun,
   onNodeStatuses,
   onNodeResults,
+  onRunStart,
+  openRequest,
+  canvasStep,
+  canvasSettled = true,
 }: RunConsoleDrawerProps) {
   const { activeWorkspace } = useStudioSession();
   const workspaceId = activeWorkspace.id;
@@ -319,6 +516,10 @@ export function RunConsoleDrawer({
   const [runId, setRunId] = useState<string | null>(null);
   const [issues, setIssues] = useState<StudioGraphIssue[]>([]);
   const [selection, setSelection] = useState<Selection>(null);
+  // While a run plays the console folds into a bar, so the whole graph stays in view
+  const [minimized, setMinimized] = useState(false);
+
+  useEffect(() => setMinimized(false), [openRequest]);
 
   const labels = useMemo(() => {
     const map = new Map(
@@ -353,7 +554,7 @@ export function RunConsoleDrawer({
   useEffect(() => {
     if (!run) return;
     const { statuses, results } = runToCanvas(run);
-    onNodeStatuses(statuses);
+    onNodeStatuses(statuses, runPlaybackMeta(run));
     onNodeResults?.(results);
   }, [run, onNodeStatuses, onNodeResults]);
 
@@ -377,6 +578,9 @@ export function RunConsoleDrawer({
     onSuccess: (started) => {
       setRunId(started.runId);
       setSelection(null);
+      setMinimized(true);
+      onNodeStatuses({}, { runId: started.runId });
+      onRunStart?.();
       queryClient.invalidateQueries({
         queryKey: ['canvas-runs', workspaceId, agentId],
       });
@@ -428,6 +632,26 @@ export function RunConsoleDrawer({
     void navigator.clipboard.writeText(text);
     toast.success('Copied');
   };
+
+  if (minimized && runId) {
+    return (
+      <RunBar
+        run={run}
+        labels={labels}
+        step={canvasStep}
+        played={canvasSettled}
+        needsApproval={!!pendingApproval && !canvasStep}
+        busy={control.isPending || start.isPending}
+        onControl={(action) => control.mutate(action)}
+        onRunAgain={() => start.mutate()}
+        onExpand={() => setMinimized(false)}
+        onClose={() => {
+          setMinimized(false);
+          onClose();
+        }}
+      />
+    );
+  }
 
   return (
     <aside
@@ -500,8 +724,8 @@ export function RunConsoleDrawer({
           <Button
             variant="ghost"
             size="icon-xs"
-            onClick={onClose}
-            aria-label="Close run console"
+            onClick={() => (runId ? setMinimized(true) : onClose())}
+            aria-label={runId ? 'Back to the canvas' : 'Close run console'}
           >
             <X className="size-4" />
           </Button>

@@ -36,8 +36,78 @@
     stroke-dashoffset: -12;
   }
 }
+
+/*
+ * Canvas: a run moving through the graph. The pulse crosses a wire
+ * (run-flow.ts WIRE_TRAVEL_MS) and leaves it lit behind it; the step at work
+ * has a light circling its border.
+ */
+.run-wire-trail,
+.run-wire-comet {
+  fill: none;
+  stroke: var(--color-primary);
+  pointer-events: none;
+}
+.run-wire-trail {
+  stroke-width: 2;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: run-wire-trail 520ms ease-in-out forwards;
+}
+.run-wire-comet {
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-dasharray: 0.001 2;
+  filter: drop-shadow(0 0 5px var(--color-primary));
+  animation: run-wire-comet 520ms ease-in-out forwards;
+}
+@keyframes run-wire-trail {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes run-wire-comet {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -1;
+  }
+}
+
+@property --run-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+.run-node-active::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  z-index: 1;
+  padding: 2px;
+  border-radius: calc(var(--radius-xl, 0.75rem) + 2px);
+  background: conic-gradient(
+    from var(--run-angle),
+    transparent 62%,
+    var(--color-primary) 92%,
+    transparent
+  );
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+  pointer-events: none;
+  animation: run-node-orbit 1.4s linear infinite;
+}
+@keyframes run-node-orbit {
+  to {
+    --run-angle: 360deg;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .react-flow__edge path {
+  .react-flow__edge path,
+  .run-node-active::before {
     animation: none !important;
   }
 }
