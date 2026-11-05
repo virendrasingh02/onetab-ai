@@ -85,6 +85,8 @@ persisted (reload the page, or read it back from the API).
    activity, directory, members, files, docs, notes, tasks, projects, kanban,
    meetings, calls, schedule, automations, integrations, marketplace, analytics,
    settings (+ a couple of `settings/:section`), profile, billing, search.
+   Public `/account/delete` (signed out and signed in). Account deletion is
+   irreversible: only ever run it on a throwaway account you registered.
    Each must render a real page (not the error boundary / 404 / blank), with no
    4xx/5xx except expected 403s for non-admins (note which).
 4. Studio: open :4202 → signed in via shared session (or sign-in screen works) →
