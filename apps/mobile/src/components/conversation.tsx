@@ -15,6 +15,7 @@ import {
 import { Alert } from '../lib/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
+  checkMedia,
   downloadAndShare,
   pickFile,
   uploadToMatrix,
@@ -39,7 +40,14 @@ import { useAuthedImageSource } from '../lib/use-authed-uri';
 import { useRoomTimeline } from '../lib/use-room-timeline';
 import { secureStore } from '../lib/secure-store';
 import { useTheme } from '../theme/theme';
+import { queryKeys, safetyApi } from '@org/api-client';
+import { checkContent, CONTENT_BLOCKED_MESSAGE } from '@org/types';
+import { useQueryClient } from '@tanstack/react-query';
 import { showActionSheet } from './action-sheet';
+import { confirmMediaScanning } from './media-consent';
+import { showReportSheet } from './report';
+import { useBlockedMatrixIds } from '../lib/safety';
+import { withoutBlockedSenders } from '../lib/safety-core';
 import { useKeyboardAvoidingProps } from './navigation';
 import { maxContentWidth, radius, spacing } from '../theme/tokens';
 import {
@@ -92,6 +100,8 @@ export function Conversation({
   const [draft, setDraft] = useState('');
   const [pending, setPending] = useState<PendingItem[]>([]);
   const [uploading, setUploading] = useState(false);
+  const queryClient = useQueryClient();
+  const blockedIds = useBlockedMatrixIds();
   const [actionItem, setActionItem] = useState<TimelineItem | null>(null);
   const [replyingTo, setReplyingTo] = useState<TimelineItem | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -100,7 +110,10 @@ export function Conversation({
 
   const draftStorageKey = useMemo(
     () =>
-      `draft_${[roomId, threadRootId].filter(Boolean).join('_').replace(/[^a-zA-Z0-9_.-]/g, '_')}`,
+      `draft_${[roomId, threadRootId]
+        .filter(Boolean)
+        .join('_')
+        .replace(/[^a-zA-Z0-9_.-]/g, '_')}`,
     [roomId, threadRootId],
   );
 
@@ -122,9 +135,10 @@ export function Conversation({
       if (draftWrite.current) clearTimeout(draftWrite.current.timer);
       const flush = () => {
         // SecureStore values are capped around 2 KB; keep the head of long drafts.
-        void (text.trim()
-          ? secureStore.set(draftStorageKey, text.slice(0, MAX_DRAFT_CHARS))
-          : secureStore.remove(draftStorageKey)
+        void (
+          text.trim()
+            ? secureStore.set(draftStorageKey, text.slice(0, MAX_DRAFT_CHARS))
+            : secureStore.remove(draftStorageKey)
         ).catch(() => undefined);
       };
       if (immediate) {
@@ -203,10 +217,11 @@ export function Conversation({
 
   // Apply search filter if active
   const items = useMemo(() => {
-    if (!searchFilter.trim()) return allItems;
+    const visible = withoutBlockedSenders(allItems, blockedIds, client.userId);
+    if (!searchFilter.trim()) return visible;
     const q = searchFilter.trim().toLowerCase();
-    return allItems.filter((item) => item.body.toLowerCase().includes(q));
-  }, [allItems, searchFilter]);
+    return visible.filter((item) => item.body.toLowerCase().includes(q));
+  }, [allItems, blockedIds, client.userId, searchFilter]);
 
   const newestId = useMemo(
     () => [...items].reverse().find((i) => !i.id.startsWith('pending:'))?.id,
@@ -240,6 +255,10 @@ export function Conversation({
   const submit = async () => {
     const text = draft.trim();
     if (!text) return;
+    if (!checkContent(text).allowed) {
+      Alert.alert('Message not sent', CONTENT_BLOCKED_MESSAGE);
+      return;
+    }
     setDraft('');
     persistDraft('', true);
     const id = `pending:${newTxnId()}`;
@@ -303,6 +322,37 @@ export function Conversation({
     }
   };
 
+  const blockSender = (item: TimelineItem) => {
+    const name =
+      members.data?.[item.sender]?.displayName ?? localpartOf(item.sender);
+    Alert.alert(
+      `Block ${name}?`,
+      'You will stop seeing their messages. You can undo this in Settings.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: () => {
+            safetyApi
+              .block({ matrixUserId: item.sender })
+              .then(() =>
+                queryClient.invalidateQueries({
+                  queryKey: queryKeys.safety.blocks(),
+                }),
+              )
+              .catch((error: unknown) =>
+                Alert.alert(
+                  'Could not block',
+                  error instanceof Error ? error.message : 'Try again.',
+                ),
+              );
+          },
+        },
+      ],
+    );
+  };
+
   const showActions = (item: TimelineItem) => {
     if (item.id.startsWith('pending:') || item.kind === 'encrypted') return;
     haptics.medium();
@@ -313,7 +363,10 @@ export function Conversation({
     try {
       const file = await pickFile(source);
       if (!file) return;
+      if (!(await confirmMediaScanning())) return;
       setUploading(true);
+      // Encrypted rooms skip it: their content must stay end-to-end.
+      if (!state.encrypted) await checkMedia(file);
       const mxcUrl = await uploadToMatrix(
         client.uploadUrl(file.name),
         client.authHeaders,
@@ -573,7 +626,8 @@ export function Conversation({
       >
         {state.encrypted ? (
           <AppText variant="muted" style={styles.readOnly}>
-            🔒 This conversation is end-to-end encrypted. Use web/desktop to send.
+            🔒 This conversation is end-to-end encrypted. Use web/desktop to
+            send.
           </AppText>
         ) : !canPost ? (
           <AppText variant="muted" style={styles.readOnly}>
@@ -660,6 +714,22 @@ export function Conversation({
         onOpenThread={
           !threadRootId && onOpenThread
             ? (item) => onOpenThread(item.id)
+            : undefined
+        }
+        onReport={
+          actionItem && actionItem.sender !== client.userId
+            ? (item) =>
+                showReportSheet({
+                  targetType: 'MESSAGE',
+                  targetId: item.id,
+                  targetMatrixUserId: item.sender,
+                  excerpt: item.body.slice(0, 4000),
+                })
+            : undefined
+        }
+        onBlock={
+          actionItem && actionItem.sender !== client.userId
+            ? blockSender
             : undefined
         }
       />
@@ -986,11 +1056,7 @@ function AIToolExecutionCard({ body }: { body: string }) {
         />
       </Pressable>
       {expanded ? (
-        <AppText
-          variant="caption"
-          style={styles.toolPayload}
-          selectable
-        >
+        <AppText variant="caption" style={styles.toolPayload} selectable>
           {body}
         </AppText>
       ) : null}
@@ -1072,12 +1138,16 @@ function MessageActions({
   onReact,
   onReply,
   onOpenThread,
+  onReport,
+  onBlock,
 }: {
   item: TimelineItem | null;
   onClose: () => void;
   onReact: (item: TimelineItem, key: string) => void;
   onReply: (item: TimelineItem) => void;
   onOpenThread?: (item: TimelineItem) => void;
+  onReport?: (item: TimelineItem) => void;
+  onBlock?: (item: TimelineItem) => void;
 }) {
   const { colors } = useTheme();
   return (
@@ -1105,6 +1175,8 @@ function MessageActions({
                 return (
                   <Pressable
                     key={key}
+                    accessibilityRole="button"
+                    accessibilityLabel={`React with ${key}`}
                     onPress={() => {
                       if (item) onReact(item, key);
                       onClose();
@@ -1171,6 +1243,49 @@ function MessageActions({
                 <AppText variant="body">Reply in thread</AppText>
               </Pressable>
             ) : null}
+
+            {[
+              {
+                label: 'Report message',
+                icon: 'flag-outline' as const,
+                run: onReport,
+              },
+              {
+                label: 'Block sender',
+                icon: 'ban-outline' as const,
+                run: onBlock,
+              },
+            ].map((action) =>
+              action.run ? (
+                <Pressable
+                  key={action.label}
+                  accessibilityRole="button"
+                  onPress={() => {
+                    if (item) action.run?.(item);
+                    onClose();
+                  }}
+                  style={({ pressed }) => [
+                    styles.sheetAction,
+                    {
+                      borderTopColor: colors.border,
+                      backgroundColor: pressed ? colors.accent : 'transparent',
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name={action.icon}
+                    size={20}
+                    color={colors.destructiveText}
+                  />
+                  <AppText
+                    variant="body"
+                    style={{ color: colors.destructiveText }}
+                  >
+                    {action.label}
+                  </AppText>
+                </Pressable>
+              ) : null,
+            )}
           </View>
         </SafeAreaView>
       </Pressable>
@@ -1237,9 +1352,15 @@ function ConversationDetailsModal({
               <Divider />
 
               <View style={styles.detailsRow}>
-                <Ionicons name="people-outline" size={20} color={colors.subtle} />
+                <Ionicons
+                  name="people-outline"
+                  size={20}
+                  color={colors.subtle}
+                />
                 <View style={styles.flex}>
-                  <AppText variant="label">Participants ({memberCount})</AppText>
+                  <AppText variant="label">
+                    Participants ({memberCount})
+                  </AppText>
                   <AppText variant="caption">
                     {Object.values(members)
                       .slice(0, 5)

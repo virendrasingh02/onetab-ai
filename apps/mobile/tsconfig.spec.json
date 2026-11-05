@@ -20,7 +20,8 @@
     "src/lib/web-alert.ts",
     "src/lib/web-transfer.ts",
     "src/lib/blob-url-cache.ts",
-    "src/lib/chat-preferences-core.ts"
+    "src/lib/chat-preferences-core.ts",
+    "src/lib/safety-core.ts"
   ],
   "exclude": []
 }

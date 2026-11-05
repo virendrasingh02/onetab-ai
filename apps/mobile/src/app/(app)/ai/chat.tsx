@@ -1,9 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import {
-  aiApi,
-  aiFeedbackApi,
-  promptTemplateApi,
-} from '@org/api-client';
+import { aiApi, aiFeedbackApi, promptTemplateApi } from '@org/api-client';
 import type {
   AIChatMessage,
   AIModelMetadata,
@@ -39,6 +35,8 @@ import { secureStore } from '../../../lib/secure-store';
 import { useWorkspace } from '../../../lib/workspace';
 import { useTheme } from '../../../theme/theme';
 import { radius, spacing } from '../../../theme/tokens';
+import { withAiConsent } from '../../../components/ai-consent';
+import { showReportSheet } from '../../../components/report';
 
 interface ChatItem {
   id: string;
@@ -58,7 +56,7 @@ const DEFAULT_MODELS = [
   { id: 'llama3:latest', name: 'Llama 3 (Ollama)', provider: 'ollama' },
 ];
 
-export default function AIChatScreen() {
+function AIChatScreen() {
   const { workspaceId } = useWorkspace();
   const { colors } = useTheme();
   const keyboardAvoiding = useKeyboardAvoidingProps();
@@ -98,7 +96,8 @@ export default function AIChatScreen() {
   // Fetch available AI models
   const modelsQuery = useQuery({
     queryKey: ['mobile', 'ai-models', workspaceId],
-    queryFn: () => aiApi.getModels(workspaceId).catch(() => [] as AIModelMetadata[]),
+    queryFn: () =>
+      aiApi.getModels(workspaceId).catch(() => [] as AIModelMetadata[]),
     enabled: Boolean(workspaceId),
   });
 
@@ -139,7 +138,11 @@ export default function AIChatScreen() {
 
       // 2. If vision image is attached, analyze vision
       if (imageUri) {
-        const visionRes = await aiApi.analyzeVision(workspaceId, imageUri, userText);
+        const visionRes = await aiApi.analyzeVision(
+          workspaceId,
+          imageUri,
+          userText,
+        );
         return {
           reply: visionRes.analysis,
           tokens: 150,
@@ -182,11 +185,17 @@ export default function AIChatScreen() {
         sources: data.sources.length > 0 ? data.sources : undefined,
       };
       saveHistory([...messages, assistantItem]);
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+      setTimeout(
+        () => flatListRef.current?.scrollToEnd({ animated: true }),
+        100,
+      );
     },
     onError: (err) => {
       haptics.warning();
-      Alert.alert('AI Request Failed', err.message || 'Could not complete request.');
+      Alert.alert(
+        'AI Request Failed',
+        err.message || 'Could not complete request.',
+      );
     },
   });
 
@@ -226,24 +235,30 @@ export default function AIChatScreen() {
   };
 
   const handleClearChat = () => {
-    Alert.alert('Clear Conversation', 'Are you sure you want to clear chat history?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Clear',
-        style: 'destructive',
-        onPress: () => {
-          haptics.selection();
-          setMessages([]);
-          void secureStore.remove(storageKey);
+    Alert.alert(
+      'Clear Conversation',
+      'Are you sure you want to clear chat history?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: () => {
+            haptics.selection();
+            setMessages([]);
+            void secureStore.remove(storageKey);
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   const handleFeedback = (item: ChatItem, feedback: 'up' | 'down') => {
     haptics.selection();
     setMessages((prev) =>
-      prev.map((m) => (m.id === item.id ? { ...m, feedbackGiven: feedback } : m)),
+      prev.map((m) =>
+        m.id === item.id ? { ...m, feedbackGiven: feedback } : m,
+      ),
     );
     void aiFeedbackApi
       .submit(workspaceId, {
@@ -269,7 +284,11 @@ export default function AIChatScreen() {
                   { backgroundColor: colors.card, borderColor: colors.border },
                 ]}
               >
-                <AppText variant="caption" style={{ fontWeight: '600' }} numberOfLines={1}>
+                <AppText
+                  variant="caption"
+                  style={{ fontWeight: '600' }}
+                  numberOfLines={1}
+                >
                   {activeModelObj?.name || selectedModel}
                 </AppText>
                 <Ionicons name="chevron-down" size={12} color={colors.subtle} />
@@ -313,11 +332,21 @@ export default function AIChatScreen() {
                   }}
                   style={[
                     styles.starterChip,
-                    { backgroundColor: colors.card, borderColor: colors.border },
+                    {
+                      backgroundColor: colors.card,
+                      borderColor: colors.border,
+                    },
                   ]}
                 >
-                  <Ionicons name="bulb-outline" size={14} color={colors.primaryText} />
-                  <AppText variant="caption" style={{ color: colors.foreground }}>
+                  <Ionicons
+                    name="bulb-outline"
+                    size={14}
+                    color={colors.primaryText}
+                  />
+                  <AppText
+                    variant="caption"
+                    style={{ color: colors.foreground }}
+                  >
                     {starter}
                   </AppText>
                 </Pressable>
@@ -330,7 +359,9 @@ export default function AIChatScreen() {
             data={messages}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.messageList}
-            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            onContentSizeChange={() =>
+              flatListRef.current?.scrollToEnd({ animated: true })
+            }
             renderItem={({ item }) => {
               const isUser = item.role === 'user';
               return (
@@ -344,10 +375,16 @@ export default function AIChatScreen() {
                     style={[
                       styles.bubble,
                       isUser
-                        ? [styles.userBubble, { backgroundColor: colors.primary }]
+                        ? [
+                            styles.userBubble,
+                            { backgroundColor: colors.primary },
+                          ]
                         : [
                             styles.assistantBubble,
-                            { backgroundColor: colors.card, borderColor: colors.border },
+                            {
+                              backgroundColor: colors.card,
+                              borderColor: colors.border,
+                            },
                           ],
                     ]}
                   >
@@ -362,7 +399,9 @@ export default function AIChatScreen() {
                       variant="body"
                       selectable
                       style={{
-                        color: isUser ? colors.primaryForeground : colors.foreground,
+                        color: isUser
+                          ? colors.primaryForeground
+                          : colors.foreground,
                       }}
                     >
                       {item.content}
@@ -377,19 +416,24 @@ export default function AIChatScreen() {
                         >
                           Sources:
                         </AppText>
-                        {item.sources.map((s: { text: string; title?: string; score?: number }, idx: number) => (
-                          <View
-                            key={idx}
-                            style={[
-                              styles.sourceItem,
-                              { backgroundColor: colors.background },
-                            ]}
-                          >
-                            <AppText variant="caption" numberOfLines={2}>
-                              {s.text}
-                            </AppText>
-                          </View>
-                        ))}
+                        {item.sources.map(
+                          (
+                            s: { text: string; title?: string; score?: number },
+                            idx: number,
+                          ) => (
+                            <View
+                              key={idx}
+                              style={[
+                                styles.sourceItem,
+                                { backgroundColor: colors.background },
+                              ]}
+                            >
+                              <AppText variant="caption" numberOfLines={2}>
+                                {s.text}
+                              </AppText>
+                            </View>
+                          ),
+                        )}
                       </View>
                     ) : null}
 
@@ -397,12 +441,17 @@ export default function AIChatScreen() {
                     {!isUser ? (
                       <View style={styles.bubbleFooter}>
                         {item.tokensUsed ? (
-                          <AppText variant="caption" style={{ color: colors.subtle }}>
+                          <AppText
+                            variant="caption"
+                            style={{ color: colors.subtle }}
+                          >
                             {item.tokensUsed} tokens
                           </AppText>
                         ) : null}
                         <View style={styles.feedbackRow}>
                           <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel="Good response"
                             onPress={() => handleFeedback(item, 'up')}
                             hitSlop={8}
                           >
@@ -421,6 +470,8 @@ export default function AIChatScreen() {
                             />
                           </Pressable>
                           <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel="Bad response"
                             onPress={() => handleFeedback(item, 'down')}
                             hitSlop={8}
                           >
@@ -436,6 +487,25 @@ export default function AIChatScreen() {
                                   ? colors.destructive
                                   : colors.subtle
                               }
+                            />
+                          </Pressable>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel="Report this response"
+                            onPress={() =>
+                              showReportSheet({
+                                targetType: 'AI_OUTPUT',
+                                targetId: item.id,
+                                workspaceId,
+                                excerpt: item.content.slice(0, 4000),
+                              })
+                            }
+                            hitSlop={8}
+                          >
+                            <Ionicons
+                              name="flag-outline"
+                              size={14}
+                              color={colors.subtle}
                             />
                           </Pressable>
                         </View>
@@ -460,8 +530,13 @@ export default function AIChatScreen() {
 
         {/* Attached image preview banner */}
         {attachedImage ? (
-          <View style={[styles.attachedBanner, { backgroundColor: colors.card }]}>
-            <Image source={{ uri: attachedImage }} style={styles.attachedThumbnail} />
+          <View
+            style={[styles.attachedBanner, { backgroundColor: colors.card }]}
+          >
+            <Image
+              source={{ uri: attachedImage }}
+              style={styles.attachedThumbnail}
+            />
             <AppText variant="caption" style={{ flex: 1 }}>
               Image attached for multimodal vision
             </AppText>
@@ -474,7 +549,9 @@ export default function AIChatScreen() {
         ) : null}
 
         {/* Composer Toolbar */}
-        <View style={[styles.composerContainer, { backgroundColor: colors.card }]}>
+        <View
+          style={[styles.composerContainer, { backgroundColor: colors.card }]}
+        >
           <View style={styles.optionsToolbar}>
             <Pressable
               onPress={() => {
@@ -484,7 +561,9 @@ export default function AIChatScreen() {
               style={[
                 styles.toolPill,
                 {
-                  backgroundColor: webSearchEnabled ? colors.selected : colors.background,
+                  backgroundColor: webSearchEnabled
+                    ? colors.selected
+                    : colors.background,
                   borderColor: webSearchEnabled ? colors.ring : colors.border,
                 },
               ]}
@@ -497,7 +576,9 @@ export default function AIChatScreen() {
               <AppText
                 variant="caption"
                 style={{
-                  color: webSearchEnabled ? colors.primaryText : colors.foreground,
+                  color: webSearchEnabled
+                    ? colors.primaryText
+                    : colors.foreground,
                   fontWeight: webSearchEnabled ? '600' : '400',
                 }}
               >
@@ -512,10 +593,17 @@ export default function AIChatScreen() {
               }}
               style={[
                 styles.toolPill,
-                { backgroundColor: colors.background, borderColor: colors.border },
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                },
               ]}
             >
-              <Ionicons name="bookmarks-outline" size={14} color={colors.subtle} />
+              <Ionicons
+                name="bookmarks-outline"
+                size={14}
+                color={colors.subtle}
+              />
               <AppText variant="caption">Prompts</AppText>
             </Pressable>
 
@@ -523,7 +611,10 @@ export default function AIChatScreen() {
               onPress={handlePickImage}
               style={[
                 styles.toolPill,
-                { backgroundColor: colors.background, borderColor: colors.border },
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                },
               ]}
             >
               <Ionicons name="camera-outline" size={14} color={colors.subtle} />
@@ -549,7 +640,9 @@ export default function AIChatScreen() {
               ]}
             />
             <Pressable
-              disabled={(!input.trim() && !attachedImage) || chatMutation.isPending}
+              disabled={
+                (!input.trim() && !attachedImage) || chatMutation.isPending
+              }
               onPress={handleSend}
               accessibilityRole="button"
               accessibilityLabel="Send message"
@@ -557,7 +650,9 @@ export default function AIChatScreen() {
                 styles.sendBtn,
                 {
                   backgroundColor:
-                    input.trim() || attachedImage ? colors.primaryText : colors.border,
+                    input.trim() || attachedImage
+                      ? colors.primaryText
+                      : colors.border,
                 },
               ]}
             >
@@ -565,7 +660,9 @@ export default function AIChatScreen() {
                 name="arrow-up"
                 size={20}
                 color={
-                  input.trim() || attachedImage ? colors.background : colors.subtle
+                  input.trim() || attachedImage
+                    ? colors.background
+                    : colors.subtle
                 }
               />
             </Pressable>
@@ -601,7 +698,9 @@ export default function AIChatScreen() {
                     key={m.id}
                     icon="sparkles"
                     title={m.name}
-                    subtitle={m.provider ? `Provider: ${m.provider}` : undefined}
+                    subtitle={
+                      m.provider ? `Provider: ${m.provider}` : undefined
+                    }
                     right={
                       isSelected ? (
                         <Ionicons
@@ -647,7 +746,9 @@ export default function AIChatScreen() {
             <ScrollView style={styles.modelList}>
               {(promptsQuery.data ?? []).length === 0 ? (
                 <View style={styles.emptyPrompts}>
-                  <AppText variant="muted">No custom prompt templates found.</AppText>
+                  <AppText variant="muted">
+                    No custom prompt templates found.
+                  </AppText>
                 </View>
               ) : (
                 promptsQuery.data?.map((p) => (
@@ -857,3 +958,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
+
+export default withAiConsent(AIChatScreen);

@@ -26,17 +26,50 @@ import { haptics } from '../../../lib/haptics';
 import { useWorkspace } from '../../../lib/workspace';
 import { useTheme } from '../../../theme/theme';
 import { radius, spacing } from '../../../theme/tokens';
+import { withAiConsent } from '../../../components/ai-consent';
+import { showReportSheet } from '../../../components/report';
 
 const TEMPLATES = [
-  { id: 'email', label: 'Email Draft', prompt: 'Write a professional email regarding: ' },
-  { id: 'summary', label: 'Executive Summary', prompt: 'Summarize the following key points: ' },
-  { id: 'proposal', label: 'Project Proposal', prompt: 'Create a structured project proposal for: ' },
-  { id: 'blog', label: 'Blog / Article', prompt: 'Write an engaging informative article about: ' },
-  { id: 'update', label: 'Status Update', prompt: 'Draft a concise team status update detailing: ' },
-  { id: 'spec', label: 'Technical Spec', prompt: 'Outline technical requirements and architecture for: ' },
+  {
+    id: 'email',
+    label: 'Email Draft',
+    prompt: 'Write a professional email regarding: ',
+  },
+  {
+    id: 'summary',
+    label: 'Executive Summary',
+    prompt: 'Summarize the following key points: ',
+  },
+  {
+    id: 'proposal',
+    label: 'Project Proposal',
+    prompt: 'Create a structured project proposal for: ',
+  },
+  {
+    id: 'blog',
+    label: 'Blog / Article',
+    prompt: 'Write an engaging informative article about: ',
+  },
+  {
+    id: 'update',
+    label: 'Status Update',
+    prompt: 'Draft a concise team status update detailing: ',
+  },
+  {
+    id: 'spec',
+    label: 'Technical Spec',
+    prompt: 'Outline technical requirements and architecture for: ',
+  },
 ];
 
-const TONES = ['Professional', 'Casual', 'Direct', 'Persuasive', 'Friendly', 'Technical'];
+const TONES = [
+  'Professional',
+  'Casual',
+  'Direct',
+  'Persuasive',
+  'Friendly',
+  'Technical',
+];
 const FORMATS = ['Standard', 'Bullet Points', 'Executive Brief', 'Social Post'];
 
 const LANGUAGES = [
@@ -51,7 +84,7 @@ const LANGUAGES = [
   { code: 'ar', name: 'Arabic' },
 ];
 
-export default function AIWriterScreen() {
+function AIWriterScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { workspaceId } = useWorkspace();
@@ -107,7 +140,13 @@ ${prompt.trim()}`;
 
   // 3. Translate mutation
   const translateMutation = useMutation({
-    mutationFn: async ({ text, targetLang }: { text: string; targetLang: string }) => {
+    mutationFn: async ({
+      text,
+      targetLang,
+    }: {
+      text: string;
+      targetLang: string;
+    }) => {
       const res = await aiApi.translate(workspaceId, text, targetLang);
       return res.translatedText;
     },
@@ -195,7 +234,11 @@ ${prompt.trim()}`;
           <AppText variant="label" style={styles.sectionLabel}>
             Writing Templates
           </AppText>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.pillRow}
+          >
             {TEMPLATES.map((tmpl) => {
               const active = activeTemplate === tmpl.id;
               return (
@@ -209,7 +252,9 @@ ${prompt.trim()}`;
                   style={[
                     styles.pill,
                     {
-                      backgroundColor: active ? colors.primaryText : colors.card,
+                      backgroundColor: active
+                        ? colors.primaryText
+                        : colors.card,
                       borderColor: active ? colors.primaryText : colors.border,
                     },
                   ]}
@@ -232,10 +277,17 @@ ${prompt.trim()}`;
         {/* Tone and Format Controls */}
         <View style={styles.optionsCard}>
           <View style={styles.optionGroup}>
-            <AppText variant="caption" style={{ color: colors.subtle, marginBottom: 4 }}>
+            <AppText
+              variant="caption"
+              style={{ color: colors.subtle, marginBottom: 4 }}
+            >
               Tone
             </AppText>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillRow}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.pillRow}
+            >
               {TONES.map((t) => (
                 <Pressable
                   key={t}
@@ -246,15 +298,20 @@ ${prompt.trim()}`;
                   style={[
                     styles.smallPill,
                     {
-                      backgroundColor: activeTone === t ? colors.selected : colors.background,
-                      borderColor: activeTone === t ? colors.ring : colors.border,
+                      backgroundColor:
+                        activeTone === t ? colors.selected : colors.background,
+                      borderColor:
+                        activeTone === t ? colors.ring : colors.border,
                     },
                   ]}
                 >
                   <AppText
                     variant="caption"
                     style={{
-                      color: activeTone === t ? colors.primaryText : colors.foreground,
+                      color:
+                        activeTone === t
+                          ? colors.primaryText
+                          : colors.foreground,
                       fontWeight: activeTone === t ? '600' : '400',
                     }}
                   >
@@ -266,10 +323,17 @@ ${prompt.trim()}`;
           </View>
 
           <View style={[styles.optionGroup, { marginTop: spacing.sm }]}>
-            <AppText variant="caption" style={{ color: colors.subtle, marginBottom: 4 }}>
+            <AppText
+              variant="caption"
+              style={{ color: colors.subtle, marginBottom: 4 }}
+            >
               Format
             </AppText>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillRow}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.pillRow}
+            >
               {FORMATS.map((f) => (
                 <Pressable
                   key={f}
@@ -280,15 +344,22 @@ ${prompt.trim()}`;
                   style={[
                     styles.smallPill,
                     {
-                      backgroundColor: activeFormat === f ? colors.selected : colors.background,
-                      borderColor: activeFormat === f ? colors.ring : colors.border,
+                      backgroundColor:
+                        activeFormat === f
+                          ? colors.selected
+                          : colors.background,
+                      borderColor:
+                        activeFormat === f ? colors.ring : colors.border,
                     },
                   ]}
                 >
                   <AppText
                     variant="caption"
                     style={{
-                      color: activeFormat === f ? colors.primaryText : colors.foreground,
+                      color:
+                        activeFormat === f
+                          ? colors.primaryText
+                          : colors.foreground,
                       fontWeight: activeFormat === f ? '600' : '400',
                     }}
                   >
@@ -302,7 +373,9 @@ ${prompt.trim()}`;
 
         {/* Instructions / Prompt Card */}
         <Card style={styles.inputCard}>
-          <AppText variant="label">What do you want to write or refine?</AppText>
+          <AppText variant="label">
+            What do you want to write or refine?
+          </AppText>
           <TextInput
             placeholder="Enter instructions, notes, bullet points, or paste draft…"
             placeholderTextColor={colors.subtle}
@@ -324,7 +397,9 @@ ${prompt.trim()}`;
               label={isGenerating ? 'Writing…' : 'Generate Content'}
               icon="sparkles"
               disabled={!prompt.trim() || isGenerating}
-              onPress={() => generateMutation.mutate('Draft the content completely')}
+              onPress={() =>
+                generateMutation.mutate('Draft the content completely')
+              }
               style={{ flex: 1 }}
             />
           </View>
@@ -347,6 +422,18 @@ ${prompt.trim()}`;
                 onPress={handleShare}
               />
               <IconButton
+                icon="flag-outline"
+                label="Report this response"
+                disabled={!content.trim()}
+                onPress={() =>
+                  showReportSheet({
+                    targetType: 'AI_OUTPUT',
+                    targetId: `writer:${Date.now()}`,
+                    excerpt: content.slice(0, 4000),
+                  })
+                }
+              />
+              <IconButton
                 icon="save-outline"
                 label="Save as Document"
                 disabled={!content.trim() || saveDocMutation.isPending}
@@ -363,7 +450,11 @@ ${prompt.trim()}`;
                 disabled={isGenerating}
                 style={[styles.refineBtn, { borderColor: colors.border }]}
               >
-                <Ionicons name="contract-outline" size={14} color={colors.foreground} />
+                <Ionicons
+                  name="contract-outline"
+                  size={14}
+                  color={colors.foreground}
+                />
                 <AppText variant="caption">Summarize</AppText>
               </Pressable>
               <Pressable
@@ -375,7 +466,11 @@ ${prompt.trim()}`;
                 disabled={isGenerating}
                 style={[styles.refineBtn, { borderColor: colors.border }]}
               >
-                <Ionicons name="flash-outline" size={14} color={colors.foreground} />
+                <Ionicons
+                  name="flash-outline"
+                  size={14}
+                  color={colors.foreground}
+                />
                 <AppText variant="caption">Improve</AppText>
               </Pressable>
               <Pressable
@@ -387,7 +482,11 @@ ${prompt.trim()}`;
                 disabled={isGenerating}
                 style={[styles.refineBtn, { borderColor: colors.border }]}
               >
-                <Ionicons name="expand-outline" size={14} color={colors.foreground} />
+                <Ionicons
+                  name="expand-outline"
+                  size={14}
+                  color={colors.foreground}
+                />
                 <AppText variant="caption">Expand</AppText>
               </Pressable>
               <Pressable
@@ -395,7 +494,11 @@ ${prompt.trim()}`;
                 disabled={isGenerating}
                 style={[styles.refineBtn, { borderColor: colors.border }]}
               >
-                <Ionicons name="language-outline" size={14} color={colors.foreground} />
+                <Ionicons
+                  name="language-outline"
+                  size={14}
+                  color={colors.foreground}
+                />
                 <AppText variant="caption">Translate</AppText>
               </Pressable>
             </View>
@@ -562,3 +665,5 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
 });
+
+export default withAiConsent(AIWriterScreen);

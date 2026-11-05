@@ -1,13 +1,9 @@
+import { confirmMediaScanning } from '../../components/media-consent';
 import { queryKeys, uploadApi } from '@org/api-client';
 import type { Upload } from '@org/types';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 import { Alert } from '../../lib/alert';
 import {
   AppRefreshControl,
@@ -59,6 +55,7 @@ export default function FilesScreen() {
     try {
       const file = await pickFile(source);
       if (!file) return;
+      if (!(await confirmMediaScanning())) return;
       setProgress(0);
       await uploadToWorkspace(workspaceId, file, { onProgress: setProgress });
       await queryClient.invalidateQueries({
@@ -110,7 +107,7 @@ export default function FilesScreen() {
         <AppRefreshControl
           refreshing={list.isRefetching}
           onRefresh={() => void list.refetch()}
-          />
+        />
       }
       ListHeaderComponent={
         <Card style={styles.header}>

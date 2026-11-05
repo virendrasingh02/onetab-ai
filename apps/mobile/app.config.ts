@@ -30,6 +30,22 @@ const apiUrl =
   process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1';
 const webUrl = process.env.EXPO_PUBLIC_WEB_URL ?? 'http://localhost:4200';
 const easProjectId = process.env.EAS_PROJECT_ID;
+const privacyUrl = process.env.EXPO_PUBLIC_PRIVACY_URL || undefined;
+const termsUrl = process.env.EXPO_PUBLIC_TERMS_URL || undefined;
+const supportUrl = process.env.EXPO_PUBLIC_SUPPORT_URL || undefined;
+const linkHost = process.env.EXPO_PUBLIC_LINK_HOST || undefined;
+
+// A store build must never ship pointing at a dev machine or over plain HTTP,
+// and both stores need the legal links reachable from inside the app.
+if (variant === 'production') {
+  const required = { apiUrl, webUrl, privacyUrl, termsUrl, supportUrl };
+  const bad = Object.entries(required)
+    .filter(([, url]) => !url?.startsWith('https://'))
+    .map(([key]) => key);
+  if (bad.length > 0) {
+    throw new Error(`Production builds need https URLs for: ${bad.join(', ')}`);
+  }
+}
 
 const config: ExpoConfig = {
   name,
@@ -47,6 +63,31 @@ const config: ExpoConfig = {
     supportsTablet: true,
     buildNumber: '1',
     config: { usesNonExemptEncryption: false },
+    ...(linkHost ? { associatedDomains: [`applinks:${linkHost}`] } : {}),
+    // The app's own use of required-reason APIs. Native libraries bring their
+    // own manifests; EAS merges them into the build.
+    privacyManifests: {
+      NSPrivacyTracking: false,
+      NSPrivacyAccessedAPITypes: [
+        {
+          NSPrivacyAccessedAPIType: 'NSPrivacyAccessedAPICategoryUserDefaults',
+          NSPrivacyAccessedAPITypeReasons: ['CA92.1'],
+        },
+        {
+          NSPrivacyAccessedAPIType: 'NSPrivacyAccessedAPICategoryFileTimestamp',
+          NSPrivacyAccessedAPITypeReasons: ['C617.1'],
+        },
+        {
+          NSPrivacyAccessedAPIType:
+            'NSPrivacyAccessedAPICategorySystemBootTime',
+          NSPrivacyAccessedAPITypeReasons: ['35F9.1'],
+        },
+        {
+          NSPrivacyAccessedAPIType: 'NSPrivacyAccessedAPICategoryDiskSpace',
+          NSPrivacyAccessedAPITypeReasons: ['E174.1'],
+        },
+      ],
+    },
     infoPlist: {
       NSFaceIDUsageDescription: 'Use Face ID to unlock Onetab AI.',
       NSCameraUsageDescription: 'Take photos to share in chat and files.',
@@ -57,6 +98,9 @@ const config: ExpoConfig = {
   android: {
     package: identifier,
     versionCode: 1,
+    // Tokens live in the Keystore, and nothing else here is worth restoring
+    // onto another device.
+    allowBackup: false,
     // Android 14+ back-swipe preview (react-native-screens supports it).
     predictiveBackGestureEnabled: true,
     adaptiveIcon: {
@@ -85,6 +129,16 @@ const config: ExpoConfig = {
         category: ['BROWSABLE', 'DEFAULT'],
         data: [{ scheme: 'onetab' }],
       },
+      ...(linkHost
+        ? [
+            {
+              action: 'VIEW',
+              autoVerify: true,
+              category: ['BROWSABLE', 'DEFAULT'],
+              data: [{ scheme: 'https', host: linkHost, pathPrefix: '/w/' }],
+            },
+          ]
+        : []),
     ],
   },
   plugins: [
@@ -125,6 +179,9 @@ const config: ExpoConfig = {
     variant,
     apiUrl,
     webUrl,
+    privacyUrl,
+    termsUrl,
+    supportUrl,
     ...(easProjectId ? { eas: { projectId: easProjectId } } : {}),
   },
 };

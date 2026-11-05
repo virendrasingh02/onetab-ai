@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { routeForDeepLink, workspaceSlugOf } from './deep-links';
+import { nativePathForIncomingLink, pathForRoute } from './deep-links';
 
 describe('routeForDeepLink', () => {
   it('opens a channel by slug', () => {
@@ -184,5 +185,24 @@ describe('workspaceSlugOf', () => {
     );
     expect(workspaceSlugOf('onetab://w/my%20team/ai')).toBe('my team');
     expect(workspaceSlugOf('c/general')).toBeNull();
+  });
+});
+
+describe('incoming links', () => {
+  it('turns a web URL path into the matching native screen', () => {
+    expect(nativePathForIncomingLink('/w/acme/c/general')).toBe(
+      '/channel/general',
+    );
+    expect(nativePathForIncomingLink('w/acme/tasks/t1')).toBe('/tasks/t1');
+  });
+
+  it('keeps query params the route does not use as segments', () => {
+    expect(
+      pathForRoute({ pathname: '/executions', params: { run: 'r1' } }),
+    ).toBe('/executions?run=r1');
+  });
+
+  it('leaves native paths alone', () => {
+    expect(nativePathForIncomingLink('/settings')).toBe('/settings');
   });
 });

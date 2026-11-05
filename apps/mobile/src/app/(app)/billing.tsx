@@ -30,9 +30,9 @@ function money(cents: number, currency: string): string {
 /**
  * Plan, limits and invoices — read-only.
  *
- * Purchases deliberately do not happen in the app: App Store and Google Play
- * rules forbid steering to an external checkout for digital services from
- * inside a store app, so plan changes stay with a workspace admin on the web.
+ * Purchases deliberately do not happen in the app, and nothing here may point
+ * to where they do: outside the US storefront, App Store 3.1.3 bars encouraging
+ * another purchase method. Keep this copy free of "use the web" calls to action.
  */
 export default function BillingScreen() {
   const { workspaceId } = useWorkspace();
@@ -117,8 +117,8 @@ export default function BillingScreen() {
 
             <AppText variant="caption">
               {s.canManageBilling
-                ? 'To change plan, payment method or seats, use Billing in the Onetab AI web app.'
-                : 'Ask a workspace admin to change the plan.'}
+                ? 'Plans cannot be changed in this app.'
+                : 'Plans are managed by your workspace admin.'}
             </AppText>
 
             {s.canManageBilling ? (

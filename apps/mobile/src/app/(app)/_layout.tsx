@@ -86,47 +86,62 @@ function WorkspaceGate() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="channel/[slug]" options={{ title: 'Channel' }} />
       <Stack.Screen name="dm/[roomId]" options={{ title: 'Direct message' }} />
-      <Stack.Screen
-        name="dm/new"
-        options={modal('New message')}
-      />
+      <Stack.Screen name="dm/new" options={modal('New message')} />
       <Stack.Screen name="thread/[rootId]" options={{ title: 'Thread' }} />
-      <Stack.Screen
-        name="agent/new"
-        options={modal('New agent')}
-      />
+      <Stack.Screen name="agent/new" options={modal('New agent')} />
       <Stack.Screen name="agent/[agentId]/index" options={{ title: 'Agent' }} />
       <Stack.Screen name="agent/[agentId]/chat" options={{ title: 'Chat' }} />
       <Stack.Screen
         name="agent/[agentId]/edit"
         options={modal('Configure agent')}
       />
-      <Stack.Screen name="coworker/[coworkerId]" options={{ title: 'AI Coworker' }} />
       <Stack.Screen
-        name="automation/new"
-        options={modal('New automation')}
+        name="coworker/[coworkerId]"
+        options={{ title: 'AI Coworker' }}
       />
+      <Stack.Screen name="automation/new" options={modal('New automation')} />
       <Stack.Screen
         name="automation/[workflowId]"
         options={{ title: 'Automation' }}
       />
-      <Stack.Screen name="automation/studio" options={{ title: 'Agent Studio' }} />
+      <Stack.Screen
+        name="automation/studio"
+        options={{ title: 'Agent Studio' }}
+      />
       <Stack.Screen name="search" options={modal('Search Workspace')} />
       <Stack.Screen name="ai/chat" options={{ title: 'AI Assistant' }} />
       <Stack.Screen name="ai/writer" options={{ title: 'AI Writer' }} />
       <Stack.Screen name="ai/images" options={{ title: 'AI Image Studio' }} />
-      <Stack.Screen name="knowledge/index" options={{ title: 'Knowledge Base' }} />
-      <Stack.Screen name="knowledge/[kbId]" options={{ title: 'Knowledge Collection' }} />
-      <Stack.Screen name="admin/index" options={{ title: 'Workspace Administration' }} />
+      <Stack.Screen
+        name="knowledge/index"
+        options={{ title: 'Knowledge Base' }}
+      />
+      <Stack.Screen
+        name="knowledge/[kbId]"
+        options={{ title: 'Knowledge Collection' }}
+      />
+      <Stack.Screen
+        name="admin/index"
+        options={{ title: 'Workspace Administration' }}
+      />
       <Stack.Screen name="executions" options={{ title: 'Executions' }} />
       <Stack.Screen name="approvals" options={{ title: 'Approvals' }} />
       <Stack.Screen name="tasks/index" options={{ title: 'Tasks & Kanban' }} />
       <Stack.Screen name="tasks/[taskId]" options={{ title: 'Task' }} />
       <Stack.Screen name="documents/index" options={{ title: 'Documents' }} />
       <Stack.Screen name="documents/[docId]" options={{ title: 'Document' }} />
-      <Stack.Screen name="meetings/index" options={{ title: 'Meetings & Reminders' }} />
-      <Stack.Screen name="meetings/[meetingId]" options={{ title: 'Meeting' }} />
-      <Stack.Screen name="timesheet/index" options={{ title: 'Timesheet & Attendance' }} />
+      <Stack.Screen
+        name="meetings/index"
+        options={{ title: 'Meetings & Reminders' }}
+      />
+      <Stack.Screen
+        name="meetings/[meetingId]"
+        options={{ title: 'Meeting' }}
+      />
+      <Stack.Screen
+        name="timesheet/index"
+        options={{ title: 'Timesheet & Attendance' }}
+      />
       <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
       <Stack.Screen name="integrations" options={{ title: 'Integrations' }} />
       <Stack.Screen name="analytics" options={{ title: 'Analytics' }} />
@@ -136,9 +151,14 @@ function WorkspaceGate() {
       <Stack.Screen name="profile" options={{ title: 'Profile' }} />
       <Stack.Screen name="settings" options={{ title: 'Settings' }} />
       <Stack.Screen
-        name="workspaces"
-        options={modal('Switch workspace')}
+        name="delete-account"
+        options={{ title: 'Delete account' }}
       />
+      <Stack.Screen
+        name="blocked-users"
+        options={{ title: 'Blocked people' }}
+      />
+      <Stack.Screen name="workspaces" options={modal('Switch workspace')} />
     </Stack>
   );
 }

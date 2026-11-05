@@ -14,6 +14,7 @@ import {
   Platform,
   Pressable,
   RefreshControl,
+  type RefreshControlProps,
   ScrollView,
   StyleSheet,
   Switch,
@@ -44,21 +45,23 @@ export const keyboardDismissMode = isIOS ? 'interactive' : 'on-drag';
 /**
  * Pull-to-refresh with the platform's spinner colours and a light tick when
  * the refresh actually starts.
+ *
+ * Keep forwarding `rest`: on Android and web the ScrollView clones this element
+ * with the scroll content as `children`, so dropping them blanks the screen.
  */
 export function AppRefreshControl({
   refreshing,
   onRefresh,
-}: {
-  refreshing: boolean;
-  onRefresh: () => void;
-}) {
+  ...rest
+}: RefreshControlProps) {
   const { colors } = useTheme();
   return (
     <RefreshControl
+      {...rest}
       refreshing={refreshing}
       onRefresh={() => {
         haptics.light();
-        onRefresh();
+        onRefresh?.();
       }}
       tintColor={colors.primaryText}
       colors={[colors.primary]}
@@ -567,8 +570,12 @@ export function Avatar({
   // An agent/coworker built-in identity (`icon:bot:emerald`) isn't an image:
   // draw it on its chosen colour instead of trying to load it.
   const identity = parseAiEntityAvatar(uri);
-  const identityHex = identity.type === 'icon' ? aiEntityColorHex(identity.color) : undefined;
-  const source = useAuthedImageSource(identity.type === 'photo' ? uri : null, headers);
+  const identityHex =
+    identity.type === 'icon' ? aiEntityColorHex(identity.color) : undefined;
+  const source = useAuthedImageSource(
+    identity.type === 'photo' ? uri : null,
+    headers,
+  );
   const box = { width: size, height: size, borderRadius: size / 2 };
   if (source) {
     return (
@@ -582,7 +589,11 @@ export function Avatar({
   }
   return (
     <View
-      style={[box, styles.center, { backgroundColor: identityHex ?? colors.selected }]}
+      style={[
+        box,
+        styles.center,
+        { backgroundColor: identityHex ?? colors.selected },
+      ]}
       accessible={false}
     >
       <Text

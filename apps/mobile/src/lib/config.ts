@@ -4,6 +4,9 @@ interface Extra {
   variant?: string;
   apiUrl?: string;
   webUrl?: string;
+  privacyUrl?: string;
+  termsUrl?: string;
+  supportUrl?: string;
   eas?: { projectId?: string };
 }
 
@@ -15,6 +18,9 @@ export const appConfig = {
   apiUrl: extra.apiUrl ?? 'http://localhost:3000/api/v1',
   webUrl: (extra.webUrl ?? 'http://localhost:4200').replace(/\/+$/, ''),
   easProjectId: extra.eas?.projectId ?? Constants.easConfig?.projectId ?? null,
+  privacyUrl: extra.privacyUrl ?? null,
+  termsUrl: extra.termsUrl ?? null,
+  supportUrl: extra.supportUrl ?? null,
 };
 
 /** A link into the web app for the areas that stay web-only (checkout, OAuth connects). */

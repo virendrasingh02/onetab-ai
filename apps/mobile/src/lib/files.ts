@@ -164,6 +164,38 @@ export async function uploadToWorkspace(
   return body as unknown as Upload;
 }
 
+/**
+ * Asks the API whether a file may be posted. Chat media goes straight to Matrix,
+ * so this is the only look the safety check gets at it. Throws the content
+ * rules message when it may not.
+ */
+export async function checkMedia(file: PickedFile): Promise<void> {
+  const url = apiUrl('/safety/media-check');
+  const result: TransferResult = await withFreshToken(async (token) =>
+    isWeb
+      ? uploadMultipart(fetch, url, await blobOf(file), {
+          filename: file.name,
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      : new File(file.uri).upload(url, {
+          httpMethod: 'POST',
+          uploadType: UploadType.MULTIPART,
+          fieldName: 'file',
+          mimeType: file.mimeType,
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+  );
+  if (result.status >= 200 && result.status < 300) return;
+  const body = result.body
+    ? (JSON.parse(result.body) as Record<string, unknown>)
+    : {};
+  throw new Error(
+    typeof body['message'] === 'string'
+      ? body['message']
+      : `Could not check this file (${result.status}).`,
+  );
+}
+
 /** Uploads raw bytes to the Matrix media repo and returns the `mxc://` URI. */
 export async function uploadToMatrix(
   uploadUrl: string,

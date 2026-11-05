@@ -105,6 +105,24 @@ export default function SignInScreen() {
             void WebBrowser.openBrowserAsync(`${appConfig.webUrl}/register`)
           }
         />
+        {appConfig.privacyUrl ? (
+          <Button
+            label="Privacy policy"
+            variant="ghost"
+            onPress={() =>
+              void WebBrowser.openBrowserAsync(appConfig.privacyUrl as string)
+            }
+          />
+        ) : null}
+        {appConfig.termsUrl ? (
+          <Button
+            label="Terms of service"
+            variant="ghost"
+            onPress={() =>
+              void WebBrowser.openBrowserAsync(appConfig.termsUrl as string)
+            }
+          />
+        ) : null}
       </Screen>
     </KeyboardAvoidingView>
   );

@@ -29,6 +29,8 @@ import { haptics } from '../../../../lib/haptics';
 import { useWorkspace } from '../../../../lib/workspace';
 import { useTheme } from '../../../../theme/theme';
 import { maxContentWidth, radius, spacing } from '../../../../theme/tokens';
+import { withAiConsent } from '../../../../components/ai-consent';
+import { showReportSheet } from '../../../../components/report';
 
 const SUGGESTIONS = [
   'What can you help me with?',
@@ -37,7 +39,7 @@ const SUGGESTIONS = [
   'Check system status',
 ];
 
-export default function AgentChatScreen() {
+function AgentChatScreen() {
   const { agentId } = useLocalSearchParams<{ agentId: string }>();
   const { workspaceId } = useWorkspace();
   const { colors, dark } = useTheme();
@@ -151,11 +153,7 @@ export default function AgentChatScreen() {
         ListHeaderComponent={
           send.isPending ? (
             <View style={[styles.bubbleRow, styles.bubbleRowOther]}>
-              <Avatar
-                name={agentName}
-                uri={agent.data?.avatarUrl}
-                size={28}
-              />
+              <Avatar name={agentName} uri={agent.data?.avatarUrl} size={28} />
               <View
                 style={[
                   styles.bubble,
@@ -165,13 +163,22 @@ export default function AgentChatScreen() {
               >
                 <View style={styles.typingRow}>
                   <View
-                    style={[styles.typingDot, { backgroundColor: colors.primary }]}
+                    style={[
+                      styles.typingDot,
+                      { backgroundColor: colors.primary },
+                    ]}
                   />
                   <View
-                    style={[styles.typingDot, { backgroundColor: colors.primary, opacity: 0.7 }]}
+                    style={[
+                      styles.typingDot,
+                      { backgroundColor: colors.primary, opacity: 0.7 },
+                    ]}
                   />
                   <View
-                    style={[styles.typingDot, { backgroundColor: colors.primary, opacity: 0.4 }]}
+                    style={[
+                      styles.typingDot,
+                      { backgroundColor: colors.primary, opacity: 0.4 },
+                    ]}
                   />
                   <AppText variant="caption" style={{ marginLeft: 6 }}>
                     {agentName} is thinking…
@@ -184,11 +191,7 @@ export default function AgentChatScreen() {
         ListEmptyComponent={
           <View style={styles.invert}>
             <View style={styles.welcomeBox}>
-              <Avatar
-                name={agentName}
-                uri={agent.data?.avatarUrl}
-                size={48}
-              />
+              <Avatar name={agentName} uri={agent.data?.avatarUrl} size={48} />
               <AppText variant="heading" style={styles.welcomeTitle}>
                 {agentName}
               </AppText>
@@ -298,7 +301,11 @@ export default function AgentChatScreen() {
                       />
                       <AppText
                         variant="label"
-                        style={{ fontSize: 12, color: colors.primaryText, flex: 1 }}
+                        style={{
+                          fontSize: 12,
+                          color: colors.primaryText,
+                          flex: 1,
+                        }}
                       >
                         Action Executed
                       </AppText>
@@ -313,11 +320,7 @@ export default function AgentChatScreen() {
                     </AppText>
                   </View>
                 ) : (
-                  <AppText
-                    variant="body"
-                    selectable
-                    style={styles.bubbleText}
-                  >
+                  <AppText variant="body" selectable style={styles.bubbleText}>
                     {item.content}
                   </AppText>
                 )}
@@ -333,7 +336,19 @@ export default function AgentChatScreen() {
                       size={14}
                       color={colors.primaryText}
                     />
-                  ) : null}
+                  ) : (
+                    <IconButton
+                      icon="flag-outline"
+                      label="Report this response"
+                      onPress={() =>
+                        showReportSheet({
+                          targetType: 'AI_OUTPUT',
+                          targetId: `agent:${agentId}:${item.at}`,
+                          excerpt: item.content.slice(0, 4000),
+                        })
+                      }
+                    />
+                  )}
                 </View>
               </View>
             </View>
@@ -417,9 +432,7 @@ export default function AgentChatScreen() {
               name="send"
               size={18}
               color={
-                draft.trim()
-                  ? colors.primaryForeground
-                  : colors.mutedForeground
+                draft.trim() ? colors.primaryForeground : colors.mutedForeground
               }
             />
           </Pressable>
@@ -589,3 +602,5 @@ const styles = StyleSheet.create({
     marginBottom: 1,
   },
 });
+
+export default withAiConsent(AgentChatScreen);

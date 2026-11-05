@@ -199,6 +199,35 @@ export function routeForDeepLink(link: string | null | undefined): MobileRoute {
   }
 }
 
+/**
+ * The concrete path for a route: `/channel/[slug]` + `{slug}` → `/channel/x`.
+ * Whatever is not a path segment becomes the query string.
+ */
+export function pathForRoute({ pathname, params = {} }: MobileRoute): string {
+  const query = new URLSearchParams();
+  const used = new Set<string>();
+  const path = pathname.replace(/\[([^\]]+)\]/g, (_, name: string) => {
+    used.add(name);
+    return encodeURIComponent(params[name] ?? '');
+  });
+  for (const [key, value] of Object.entries(params)) {
+    if (!used.has(key)) query.set(key, value);
+  }
+  const search = query.toString();
+  return search ? `${path}?${search}` : path;
+}
+
+/**
+ * What the router should open for an incoming link. The web's `/w/:slug/…` URLs
+ * are not routes here, so they are translated; anything else is already a
+ * native path and passes through.
+ */
+export function nativePathForIncomingLink(path: string): string {
+  return /(?:^|\/)w\/[^/]+/.test(path)
+    ? pathForRoute(routeForDeepLink(path))
+    : path;
+}
+
 /** The workspace slug in an absolute or `w/:slug/…` link, if it has one. */
 export function workspaceSlugOf(
   link: string | null | undefined,

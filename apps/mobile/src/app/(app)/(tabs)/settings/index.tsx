@@ -3,8 +3,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Application from 'expo-application';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import {
+  readAiConsent,
+  writeAiConsent,
+} from '../../../../components/ai-consent';
 import { Alert } from '../../../../lib/alert';
 import {
   Badge,
@@ -17,12 +22,12 @@ import {
   SectionHeader,
   ToggleRow,
 } from '../../../../components/ui';
-import { biometricSupport, type BiometricSupport } from '../../../../lib/biometrics';
-import { appConfig } from '../../../../lib/config';
 import {
-  registerForPush,
-  unregisterForPush,
-} from '../../../../lib/push';
+  biometricSupport,
+  type BiometricSupport,
+} from '../../../../lib/biometrics';
+import { appConfig } from '../../../../lib/config';
+import { registerForPush, unregisterForPush } from '../../../../lib/push';
 import { useSession } from '../../../../lib/session';
 import { useWorkspace } from '../../../../lib/workspace';
 import { spacing } from '../../../../theme/tokens';
@@ -35,10 +40,20 @@ export default function SettingsTab() {
 
   const [support, setSupport] = useState<BiometricSupport | null>(null);
   const [signingOut, setSigningOut] = useState(false);
+  const [aiConsent, setAiConsent] = useState(false);
 
   useEffect(() => {
     void biometricSupport().then(setSupport);
+    void readAiConsent().then(setAiConsent);
   }, []);
+
+  const legalLinks = (
+    [
+      ['Privacy policy', appConfig.privacyUrl, 'lock-closed-outline'],
+      ['Terms of service', appConfig.termsUrl, 'document-text-outline'],
+      ['Help & support', appConfig.supportUrl, 'help-circle-outline'],
+    ] as const
+  ).flatMap(([title, url, icon]) => (url ? [{ title, url, icon }] : []));
 
   // Notification preferences
   const prefs = useQuery({
@@ -202,6 +217,43 @@ export default function SettingsTab() {
           title="Plan & Billing"
           subtitle="Subscription tier, limits and invoices"
           onPress={() => router.push('/billing')}
+        />
+      </Card>
+
+      <SectionHeader title="Privacy & Safety" />
+      <Card>
+        <ToggleRow
+          label="Share data with AI services"
+          description="Lets AI features send your prompts, attachments and the content you ask about to the provider running the model."
+          value={aiConsent}
+          onValueChange={(value) => {
+            setAiConsent(value);
+            void writeAiConsent(value);
+          }}
+        />
+        <Divider inset={rowDividerInset} />
+        <ListRow
+          icon="ban-outline"
+          title="Blocked people"
+          subtitle="See and undo who you have blocked"
+          onPress={() => router.push('/blocked-users')}
+        />
+        {legalLinks.map((link) => (
+          <View key={link.title}>
+            <Divider inset={rowDividerInset} />
+            <ListRow
+              icon={link.icon}
+              title={link.title}
+              onPress={() => void WebBrowser.openBrowserAsync(link.url)}
+            />
+          </View>
+        ))}
+        <Divider inset={rowDividerInset} />
+        <ListRow
+          icon="trash-outline"
+          title="Delete account"
+          subtitle="Permanently delete your account and data"
+          onPress={() => router.push('/delete-account')}
         />
       </Card>
 

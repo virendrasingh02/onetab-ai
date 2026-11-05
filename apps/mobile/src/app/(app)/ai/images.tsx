@@ -27,6 +27,8 @@ import { secureStore } from '../../../lib/secure-store';
 import { useWorkspace } from '../../../lib/workspace';
 import { useTheme } from '../../../theme/theme';
 import { radius, spacing } from '../../../theme/tokens';
+import { withAiConsent } from '../../../components/ai-consent';
+import { showReportSheet } from '../../../components/report';
 
 interface ImageRecord {
   id: string;
@@ -38,17 +40,41 @@ interface ImageRecord {
 }
 
 const STYLE_PRESETS = [
-  { id: 'photorealistic', label: 'Photorealistic', suffix: ', highly detailed 8k photography, realistic lighting' },
-  { id: 'digital-art', label: 'Digital Art', suffix: ', vibrant digital concept art, trending on artstation' },
-  { id: '3d-render', label: '3D Render', suffix: ', smooth octane render, volumetric lighting, 3d isometric' },
-  { id: 'anime', label: 'Anime / Manga', suffix: ', detailed anime illustration, makoto shinkai aesthetic' },
-  { id: 'minimalist', label: 'Minimalist', suffix: ', clean vector art, minimalist shapes, elegant composition' },
-  { id: 'cyberpunk', label: 'Cyberpunk', suffix: ', neon-lit cyberpunk metropolis, futuristic aesthetic' },
+  {
+    id: 'photorealistic',
+    label: 'Photorealistic',
+    suffix: ', highly detailed 8k photography, realistic lighting',
+  },
+  {
+    id: 'digital-art',
+    label: 'Digital Art',
+    suffix: ', vibrant digital concept art, trending on artstation',
+  },
+  {
+    id: '3d-render',
+    label: '3D Render',
+    suffix: ', smooth octane render, volumetric lighting, 3d isometric',
+  },
+  {
+    id: 'anime',
+    label: 'Anime / Manga',
+    suffix: ', detailed anime illustration, makoto shinkai aesthetic',
+  },
+  {
+    id: 'minimalist',
+    label: 'Minimalist',
+    suffix: ', clean vector art, minimalist shapes, elegant composition',
+  },
+  {
+    id: 'cyberpunk',
+    label: 'Cyberpunk',
+    suffix: ', neon-lit cyberpunk metropolis, futuristic aesthetic',
+  },
 ];
 
 const ASPECT_RATIOS = ['1:1', '16:9', '9:16', '4:3'];
 
-export default function AIImageStudioScreen() {
+function AIImageStudioScreen() {
   const { workspaceId } = useWorkspace();
   const { colors } = useTheme();
 
@@ -122,7 +148,9 @@ export default function AIImageStudioScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         {/* Prompt Card */}
         <Card style={styles.promptCard}>
-          <AppText variant="label">Describe the image you want to create</AppText>
+          <AppText variant="label">
+            Describe the image you want to create
+          </AppText>
           <TextInput
             placeholder="e.g. Modern glass office in a lush forest during golden hour sunset…"
             placeholderTextColor={colors.subtle}
@@ -141,7 +169,10 @@ export default function AIImageStudioScreen() {
           />
 
           {/* Style Presets */}
-          <AppText variant="caption" style={{ color: colors.subtle, marginTop: 4 }}>
+          <AppText
+            variant="caption"
+            style={{ color: colors.subtle, marginTop: 4 }}
+          >
             Style Preset
           </AppText>
           <ScrollView
@@ -161,7 +192,9 @@ export default function AIImageStudioScreen() {
                   style={[
                     styles.presetPill,
                     {
-                      backgroundColor: active ? colors.primaryText : colors.background,
+                      backgroundColor: active
+                        ? colors.primaryText
+                        : colors.background,
                       borderColor: active ? colors.primaryText : colors.border,
                     },
                   ]}
@@ -195,15 +228,20 @@ export default function AIImageStudioScreen() {
                 style={[
                   styles.ratioPill,
                   {
-                    backgroundColor: selectedRatio === r ? colors.selected : colors.background,
-                    borderColor: selectedRatio === r ? colors.ring : colors.border,
+                    backgroundColor:
+                      selectedRatio === r ? colors.selected : colors.background,
+                    borderColor:
+                      selectedRatio === r ? colors.ring : colors.border,
                   },
                 ]}
               >
                 <AppText
                   variant="caption"
                   style={{
-                    color: selectedRatio === r ? colors.primaryText : colors.foreground,
+                    color:
+                      selectedRatio === r
+                        ? colors.primaryText
+                        : colors.foreground,
                     fontWeight: selectedRatio === r ? '600' : '400',
                   }}
                 >
@@ -214,7 +252,11 @@ export default function AIImageStudioScreen() {
           </View>
 
           <Button
-            label={generateMutation.isPending ? 'Generating Image…' : 'Generate Image'}
+            label={
+              generateMutation.isPending
+                ? 'Generating Image…'
+                : 'Generate Image'
+            }
             icon="sparkles"
             disabled={!prompt.trim() || generateMutation.isPending}
             onPress={() => generateMutation.mutate()}
@@ -225,7 +267,10 @@ export default function AIImageStudioScreen() {
         {generateMutation.isPending ? (
           <Card style={styles.loadingCard}>
             <ActivityIndicator size="large" color={colors.primaryText} />
-            <AppText variant="body" style={{ marginTop: spacing.sm, fontWeight: '600' }}>
+            <AppText
+              variant="body"
+              style={{ marginTop: spacing.sm, fontWeight: '600' }}
+            >
               Synthesizing visuals…
             </AppText>
             <AppText variant="caption" style={{ color: colors.subtle }}>
@@ -237,7 +282,11 @@ export default function AIImageStudioScreen() {
             <View style={styles.resultHeader}>
               <View style={{ flex: 1 }}>
                 <AppText variant="heading">Latest Creation</AppText>
-                <AppText variant="caption" numberOfLines={1} style={{ color: colors.subtle }}>
+                <AppText
+                  variant="caption"
+                  numberOfLines={1}
+                  style={{ color: colors.subtle }}
+                >
                   "{history[0].prompt}"
                 </AppText>
               </View>
@@ -245,6 +294,17 @@ export default function AIImageStudioScreen() {
                 icon="share-outline"
                 label="Share"
                 onPress={() => handleDownload(history[0])}
+              />
+              <IconButton
+                icon="flag-outline"
+                label="Report this image"
+                onPress={() =>
+                  showReportSheet({
+                    targetType: 'AI_OUTPUT',
+                    targetId: history[0].url.slice(0, 255),
+                    excerpt: history[0].prompt.slice(0, 4000),
+                  })
+                }
               />
             </View>
 
@@ -290,7 +350,10 @@ export default function AIImageStudioScreen() {
                   onPress={() => setActivePreview(item)}
                   style={styles.galleryThumbWrapper}
                 >
-                  <Image source={{ uri: item.url }} style={styles.galleryThumb} />
+                  <Image
+                    source={{ uri: item.url }}
+                    style={styles.galleryThumb}
+                  />
                 </Pressable>
               ))}
             </View>
@@ -338,8 +401,12 @@ export default function AIImageStudioScreen() {
                 <AppText variant="body" style={{ color: '#ffffff' }}>
                   {activePreview.prompt}
                 </AppText>
-                <AppText variant="caption" style={{ color: '#ffffff99', marginTop: 4 }}>
-                  Style: {activePreview.style} · Ratio: {activePreview.aspectRatio}
+                <AppText
+                  variant="caption"
+                  style={{ color: '#ffffff99', marginTop: 4 }}
+                >
+                  Style: {activePreview.style} · Ratio:{' '}
+                  {activePreview.aspectRatio}
                 </AppText>
               </View>
             </View>
@@ -458,3 +525,5 @@ const styles = StyleSheet.create({
     width: '100%',
   },
 });
+
+export default withAiConsent(AIImageStudioScreen);
