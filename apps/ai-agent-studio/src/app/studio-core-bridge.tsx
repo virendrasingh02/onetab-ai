@@ -2,14 +2,7 @@ import { useAuthStore } from '@org/auth';
 import { RealtimeProvider } from '@org/realtime';
 import { LoadingState } from '@org/ui';
 import { Activity, ShieldAlert } from 'lucide-react';
-import { WorkflowCanvasView } from '@org/web-automations';
-import {
-  AgentCreatePage,
-  AgentDetailPage,
-  AgentLibrary,
-} from '@org/web-automations';
-import { AIApprovalsSection, AIRunsSection } from '@org/web-ai';
-import { useEffect, type ComponentProps, type ReactNode } from 'react';
+import { lazy, useEffect, type ComponentProps, type ReactNode } from 'react';
 import {
   LEGACY_SEGMENTS,
   Navigate,
@@ -22,9 +15,33 @@ import {
 
 import { SectionHeader } from './components/section-tabs.js';
 import { StudioPage } from './components/studio-page.js';
-import { StudioHomePage } from './pages/studio-home-page.js';
 
 import { useStudioSession } from './session-guard.js';
+
+const corePages = () => import('./pages/core-pages.js');
+const AgentCreatePage = lazy(() =>
+  corePages().then((module) => ({ default: module.AgentCreatePage })),
+);
+const AgentDetailPage = lazy(() =>
+  corePages().then((module) => ({ default: module.AgentDetailPage })),
+);
+const AgentLibrary = lazy(() =>
+  corePages().then((module) => ({ default: module.AgentLibrary })),
+);
+const AIApprovalsSection = lazy(() =>
+  corePages().then((module) => ({ default: module.AIApprovalsSection })),
+);
+const AIRunsSection = lazy(() =>
+  corePages().then((module) => ({ default: module.AIRunsSection })),
+);
+const WorkflowCanvasView = lazy(() =>
+  corePages().then((module) => ({ default: module.WorkflowCanvasView })),
+);
+const StudioHomePage = lazy(() =>
+  import('./pages/studio-home-page.js').then((module) => ({
+    default: module.StudioHomePage,
+  })),
+);
 
 /**
  * Plan-first agents (the in-app Studio: describe → plan → test → run → approve)

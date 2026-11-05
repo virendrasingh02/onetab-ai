@@ -61,12 +61,12 @@ export {
   type EmployeeInfoSource,
 } from './lib/employee-info-context.js';
 
+export { Composer, InlineMessageEditor } from './lib/lazy-editors.js';
+export type { ComposerProps } from './lib/composer.js';
 export {
-  Composer,
   buildGroupMentions,
   roomMembersToMentionCandidates,
-  type ComposerProps,
-} from './lib/composer.js';
+} from './lib/composer-mentions.js';
 export type {
   ComposerConnectorItem,
   ComposerConnectorKind,
@@ -114,10 +114,7 @@ export {
   type ReplyPreview,
 } from './lib/reply-quote.js';
 
-export {
-  InlineMessageEditor,
-  type InlineMessageEditorProps,
-} from './lib/inline-message-editor.js';
+export type { InlineMessageEditorProps } from './lib/inline-message-editor.js';
 export {
   LexicalComposerInput,
   LexicalToolbar,
@@ -489,7 +486,4 @@ export {
   type EntityBadgeKind,
 } from './lib/entity-kind-badge.js';
 
-export {
-  CommandChips,
-  MessagePreview,
-} from './lib/message-preview.js';
+export { CommandChips, MessagePreview } from './lib/message-preview.js';

@@ -30,6 +30,46 @@
       "autoPort": false
     },
     {
+      "name": "web-prod",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "node_modules/vite/bin/vite.js",
+        "preview",
+        "apps/web",
+        "--port",
+        "4310"
+      ],
+      "port": 4310,
+      "autoPort": false
+    },
+    {
+      "name": "admin-prod",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "node_modules/vite/bin/vite.js",
+        "preview",
+        "apps/admin",
+        "--port",
+        "4311"
+      ],
+      "env": { "API_PORT": "3000" },
+      "port": 4311,
+      "autoPort": false
+    },
+    {
+      "name": "studio-prod",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "node_modules/vite/bin/vite.js",
+        "preview",
+        "apps/ai-agent-studio",
+        "--port",
+        "4204"
+      ],
+      "port": 4204,
+      "autoPort": false
+    },
+    {
       "name": "mobile-web",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["expo", "start", "--web", "--port", "8082", "--clear"],

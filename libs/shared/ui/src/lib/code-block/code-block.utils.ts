@@ -6,6 +6,7 @@ import {
   LANGUAGE_NAMES,
   CORE_SHIKI_LANGUAGES,
 } from './code-block.constants.js';
+import type { HighlighterCore, LanguageInput } from 'shiki/core';
 import type { DiffLine, DiffResult, HighlightedToken } from './types.js';
 
 /**
@@ -81,10 +82,18 @@ export function detectLanguage(code: string): string {
       trimmed,
     )
   ) {
-    if (/\b(interface|type\s+\w+\s*=|:\s*(string|number|boolean|any|void))\b/.test(trimmed)) {
-      return trimmed.includes('</') || trimmed.includes('/>') ? 'tsx' : 'typescript';
+    if (
+      /\b(interface|type\s+\w+\s*=|:\s*(string|number|boolean|any|void))\b/.test(
+        trimmed,
+      )
+    ) {
+      return trimmed.includes('</') || trimmed.includes('/>')
+        ? 'tsx'
+        : 'typescript';
     }
-    return trimmed.includes('</') || trimmed.includes('/>') ? 'jsx' : 'javascript';
+    return trimmed.includes('</') || trimmed.includes('/>')
+      ? 'jsx'
+      : 'javascript';
   }
 
   // Python
@@ -107,7 +116,9 @@ export function detectLanguage(code: string): string {
   }
 
   // YAML
-  if (/^([a-zA-Z0-9_-]+:\s*.+(\n\s+-[^\n]+|\n[a-zA-Z0-9_-]+:)*)/m.test(trimmed)) {
+  if (
+    /^([a-zA-Z0-9_-]+:\s*.+(\n\s+-[^\n]+|\n[a-zA-Z0-9_-]+:)*)/m.test(trimmed)
+  ) {
     return 'yaml';
   }
 
@@ -219,8 +230,14 @@ export async function copyToClipboard(text: string): Promise<boolean> {
 /**
  * Triggers a client-side file download.
  */
-export function downloadAsFile(content: string, filename: string, mimeType?: string): void {
-  const blob = new Blob([content], { type: mimeType || 'text/plain;charset=utf-8' });
+export function downloadAsFile(
+  content: string,
+  filename: string,
+  mimeType?: string,
+): void {
+  const blob = new Blob([content], {
+    type: mimeType || 'text/plain;charset=utf-8',
+  });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -243,7 +260,9 @@ export function computeDiff(originalCode = '', modifiedCode = ''): DiffResult {
   const m = modifiedLines.length;
 
   // Build LCS matrix
-  const matrix: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+  const matrix: number[][] = Array.from({ length: n + 1 }, () =>
+    new Array(m + 1).fill(0),
+  );
   for (let i = 0; i < n; i++) {
     for (let j = 0; j < m; j++) {
       if (originalLines[i] === modifiedLines[j]) {
@@ -301,38 +320,94 @@ export function computeDiff(originalCode = '', modifiedCode = ''): DiffResult {
 // Shiki Highlighter Singleton Manager
 // ---------------------------------------------------------------------------
 
-type ShikiHighlighter = any;
+type ShikiHighlighter = HighlighterCore;
 
 let highlighterPromise: Promise<ShikiHighlighter | null> | null = null;
-const loadedLanguages = new Set<string>();
+/** One load per language, shared by every block asking for it at the same time. */
+const languageLoads = new Map<string, Promise<boolean>>();
 const tokenCache = new Map<string, HighlightedToken[][]>();
+/** Shiki's name → `import()` map. Holds no grammars; each one is its own chunk. */
+let languageLoaders: Record<string, LanguageInput> = {};
 
 /**
  * Initializes and returns the shared Shiki highlighter instance.
+ *
+ * Everything here is behind `import()`, so nothing of Shiki is fetched until a
+ * code block needs highlighting. It starts from `shiki/core` with the two themes
+ * and the core grammars; other languages load on demand in `ensureLanguage`.
+ * Oniguruma stays the engine so tokens match the full `shiki` bundle exactly.
  */
 export async function getHighlighter(): Promise<ShikiHighlighter | null> {
   if (highlighterPromise) return highlighterPromise;
 
   highlighterPromise = (async () => {
     try {
-      const shiki = await import('shiki');
-      const highlighter = await shiki.createHighlighter({
-        themes: [DEFAULT_THEMES.light, DEFAULT_THEMES.dark],
-        langs: [...CORE_SHIKI_LANGUAGES],
+      const [
+        { createHighlighterCore },
+        { createOnigurumaEngine },
+        { bundledLanguages },
+      ] = await Promise.all([
+        import('shiki/core'),
+        import('shiki/engine/oniguruma'),
+        import('shiki/langs'),
+      ]);
+      languageLoaders = bundledLanguages;
+
+      const highlighter = await createHighlighterCore({
+        themes: [
+          import('shiki/themes/github-light.mjs'),
+          import('shiki/themes/github-dark.mjs'),
+        ],
+        langs: CORE_SHIKI_LANGUAGES.map((lang) => bundledLanguages[lang]),
+        engine: createOnigurumaEngine(import('shiki/wasm')),
       });
 
       for (const lang of CORE_SHIKI_LANGUAGES) {
-        loadedLanguages.add(lang);
+        languageLoads.set(lang, Promise.resolve(true));
       }
 
       return highlighter;
     } catch (err) {
-      console.warn('Failed to initialize Shiki syntax highlighter, falling back to plain text:', err);
+      console.warn(
+        'Failed to initialize Shiki syntax highlighter, falling back to plain text:',
+        err,
+      );
+      // The chunks come over the network now, so a failure may not be permanent.
+      highlighterPromise = null;
       return null;
     }
   })();
 
   return highlighterPromise;
+}
+
+/** Loads a grammar once. Resolves false for a language Shiki does not know. */
+function ensureLanguage(
+  highlighter: ShikiHighlighter,
+  lang: string,
+): Promise<boolean> {
+  const pending = languageLoads.get(lang);
+  if (pending) return pending;
+
+  const loader = languageLoaders[lang];
+  if (!loader) return Promise.resolve(false);
+
+  const load = highlighter.loadLanguage(loader).then(
+    () => true,
+    () => {
+      languageLoads.delete(lang);
+      return false;
+    },
+  );
+  languageLoads.set(lang, load);
+  return load;
+}
+
+/** Shiki's built-in names that need no grammar. */
+function isSpecialLang(lang: string): boolean {
+  return (
+    lang === 'ansi' || lang === 'text' || lang === 'plain' || lang === 'txt'
+  );
 }
 
 /**
@@ -357,15 +432,12 @@ export async function highlightCodeToTokens(
     const highlighter = await getHighlighter();
     if (!highlighter) return plainTextToTokens(code);
 
-    // Lazy load language if not already loaded
-    if (!loadedLanguages.has(normalized)) {
-      try {
-        await highlighter.loadLanguage(normalized);
-        loadedLanguages.add(normalized);
-      } catch {
-        // Unknown or unsupported language in Shiki, fall back
-        return plainTextToTokens(code);
-      }
+    // Unknown or unsupported language in Shiki, fall back
+    if (
+      !isSpecialLang(normalized) &&
+      !(await ensureLanguage(highlighter, normalized))
+    ) {
+      return plainTextToTokens(code);
     }
 
     const result = highlighter.codeToTokens(code, {

@@ -1,38 +1,130 @@
-import { CommandPalette, type CommandItem, LoadingState, ScrollArea } from '@org/ui';
+import {
+  CommandPalette,
+  type CommandItem,
+  LoadingState,
+  ScrollArea,
+} from '@org/ui';
 import { Wand2 } from 'lucide-react';
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Route, Routes, useLocation, useNavigate } from './router.js';
 import { StudioHeader } from './components/studio-header.js';
 import { STUDIO_SECTIONS } from './components/section-tabs.js';
 import { StudioSidebar, buildNavGroups } from './components/studio-sidebar.js';
-import { AgentDetailPage } from './pages/agent-detail-page.js';
-import { AgentsListPage } from './pages/agents-list-page.js';
-import { AnalyticsPage } from './pages/analytics-page.js';
-import { CreateAgentPage } from './pages/create-agent-page.js';
-import { DeveloperPage } from './pages/developer-page.jsx';
-import { ExecutionsPage } from './pages/executions-page.js';
-import { KnowledgePage } from './pages/knowledge-page.js';
-import { McpPage } from './pages/mcp-page.js';
-import { SettingsPage } from './pages/settings-page.js';
-import { TemplatesPage } from './pages/templates-page.js';
-import { ToolAccessPage } from './pages/tool-access-page.js';
-import { ToolsPage } from './pages/tools-page.js';
-import { ConnectorsPage } from './pages/connectors-page.js';
-import { CoworkersPage } from './pages/coworkers-page.js';
-import { ConnectorDetailPage } from './pages/connector-detail-page.js';
-import { ConnectorGroupsPage } from './pages/connector-groups-page.js';
-import { CustomConnectorPage } from './pages/custom-connector-page.js';
-import { UserChatPage } from './pages/user-chat-page.jsx';
-import { WorkflowsPage } from './pages/workflows-page.jsx';
-import { WidgetCenterPage } from './pages/widget-center-page.js';
-import { WidgetBuilderPage } from './pages/widget-builder-page.js';
 import { Providers } from './providers.js';
 import { studioCoreRoutes } from './studio-core-bridge.js';
 import { SessionGuard, useStudioSession } from './session-guard.js';
 
+/** Each page is its own chunk: the shell should not wait for the canvas or charts. */
+const AgentDetailPage = lazy(() =>
+  import('./pages/agent-detail-page.js').then((module) => ({
+    default: module.AgentDetailPage,
+  })),
+);
+const AgentsListPage = lazy(() =>
+  import('./pages/agents-list-page.js').then((module) => ({
+    default: module.AgentsListPage,
+  })),
+);
+const AnalyticsPage = lazy(() =>
+  import('./pages/analytics-page.js').then((module) => ({
+    default: module.AnalyticsPage,
+  })),
+);
+const CreateAgentPage = lazy(() =>
+  import('./pages/create-agent-page.js').then((module) => ({
+    default: module.CreateAgentPage,
+  })),
+);
+const DeveloperPage = lazy(() =>
+  import('./pages/developer-page.jsx').then((module) => ({
+    default: module.DeveloperPage,
+  })),
+);
+const ExecutionsPage = lazy(() =>
+  import('./pages/executions-page.js').then((module) => ({
+    default: module.ExecutionsPage,
+  })),
+);
+const KnowledgePage = lazy(() =>
+  import('./pages/knowledge-page.js').then((module) => ({
+    default: module.KnowledgePage,
+  })),
+);
+const McpPage = lazy(() =>
+  import('./pages/mcp-page.js').then((module) => ({ default: module.McpPage })),
+);
+const SettingsPage = lazy(() =>
+  import('./pages/settings-page.js').then((module) => ({
+    default: module.SettingsPage,
+  })),
+);
+const TemplatesPage = lazy(() =>
+  import('./pages/templates-page.js').then((module) => ({
+    default: module.TemplatesPage,
+  })),
+);
+const ToolAccessPage = lazy(() =>
+  import('./pages/tool-access-page.js').then((module) => ({
+    default: module.ToolAccessPage,
+  })),
+);
+const ToolsPage = lazy(() =>
+  import('./pages/tools-page.js').then((module) => ({
+    default: module.ToolsPage,
+  })),
+);
+const ConnectorsPage = lazy(() =>
+  import('./pages/connectors-page.js').then((module) => ({
+    default: module.ConnectorsPage,
+  })),
+);
+const CoworkersPage = lazy(() =>
+  import('./pages/coworkers-page.js').then((module) => ({
+    default: module.CoworkersPage,
+  })),
+);
+const ConnectorDetailPage = lazy(() =>
+  import('./pages/connector-detail-page.js').then((module) => ({
+    default: module.ConnectorDetailPage,
+  })),
+);
+const ConnectorGroupsPage = lazy(() =>
+  import('./pages/connector-groups-page.js').then((module) => ({
+    default: module.ConnectorGroupsPage,
+  })),
+);
+const CustomConnectorPage = lazy(() =>
+  import('./pages/custom-connector-page.js').then((module) => ({
+    default: module.CustomConnectorPage,
+  })),
+);
+const UserChatPage = lazy(() =>
+  import('./pages/user-chat-page.jsx').then((module) => ({
+    default: module.UserChatPage,
+  })),
+);
+const WorkflowsPage = lazy(() =>
+  import('./pages/workflows-page.jsx').then((module) => ({
+    default: module.WorkflowsPage,
+  })),
+);
+const WidgetCenterPage = lazy(() =>
+  import('./pages/widget-center-page.js').then((module) => ({
+    default: module.WidgetCenterPage,
+  })),
+);
+const WidgetBuilderPage = lazy(() =>
+  import('./pages/widget-builder-page.js').then((module) => ({
+    default: module.WidgetBuilderPage,
+  })),
+);
+
 const BREADCRUMB_MAP: Record<string, { section: string; page: string }> = {
   '/create': { section: 'Build & Orchestrate', page: 'Create with AI' },
-  '/connectors/new': { section: 'Intelligence & Tools', page: 'New Custom Connector' },
+  '/connectors/new': {
+    section: 'Intelligence & Tools',
+    page: 'New Custom Connector',
+  },
   '/agents': { section: 'Agents & Workflows', page: 'Agents' },
   '/coworkers': { section: 'Agents & Workflows', page: 'AI Coworkers' },
   '/workflows': { section: 'Agents & Workflows', page: 'Workflows' },
@@ -44,9 +136,15 @@ const BREADCRUMB_MAP: Record<string, { section: string; page: string }> = {
   '/tools': { section: 'Intelligence & Tools', page: 'Tools' },
   '/tool-access': { section: 'Intelligence & Tools', page: 'Tools' },
   '/mcp': { section: 'Intelligence & Tools', page: 'Tools' },
-  '/executions': { section: 'Operations & Governance', page: 'Agent Chat Logs' },
+  '/executions': {
+    section: 'Operations & Governance',
+    page: 'Agent Chat Logs',
+  },
   '/approvals': { section: 'Operations & Governance', page: 'Human Approvals' },
-  '/analytics': { section: 'Operations & Governance', page: 'Studio Analytics' },
+  '/analytics': {
+    section: 'Operations & Governance',
+    page: 'Studio Analytics',
+  },
   '/settings': { section: 'Platform & Config', page: 'Settings & Security' },
   '/developer': { section: 'Platform & Config', page: 'Developer Hub' },
 };
@@ -62,12 +160,16 @@ function getBreadcrumb(pathname: string): { section: string; page: string } {
     approvals: 'Human Approvals',
     studio: 'Planned Agent',
   };
-  if (first === 'agents') return { section: 'Agents & Workflows', page: 'Planned' };
+  if (first === 'agents')
+    return { section: 'Agents & Workflows', page: 'Planned' };
   if (first in core) {
     return { section: 'Plan, Run & Approve', page: core[first] };
   }
-  if (/^\/workflows\/[^/]+/.test(rest)) return { section: 'Plan, Run & Approve', page: 'Workflow Canvas' };
-  const key = rest.startsWith('/my-agents') ? rest.replace('/my-agents', '/agents') : rest;
+  if (/^\/workflows\/[^/]+/.test(rest))
+    return { section: 'Plan, Run & Approve', page: 'Workflow Canvas' };
+  const key = rest.startsWith('/my-agents')
+    ? rest.replace('/my-agents', '/agents')
+    : rest;
   if (BREADCRUMB_MAP[key]) return BREADCRUMB_MAP[key];
   for (const [prefix, value] of Object.entries(BREADCRUMB_MAP)) {
     if (key.startsWith(prefix)) return value;
@@ -89,10 +191,15 @@ function StudioShell() {
   const { activeWorkspace } = useStudioSession();
   const location = useLocation();
   const navigate = useNavigate();
-  const isAgentCanvas = /^\/w\/[^/]+\/ai\/my-agents\/[^/]+/.test(location.pathname);
+  const isAgentCanvas = /^\/w\/[^/]+\/ai\/my-agents\/[^/]+/.test(
+    location.pathname,
+  );
   const isUserChat = /^\/w\/[^/]+\/ai\/chat\/[^/]+/.test(location.pathname);
 
-  const breadcrumb = useMemo(() => getBreadcrumb(location.pathname), [location.pathname]);
+  const breadcrumb = useMemo(
+    () => getBreadcrumb(location.pathname),
+    [location.pathname],
+  );
 
   const toggleCollapsed = () => {
     setCollapsed((prev) => {
@@ -147,7 +254,13 @@ function StudioShell() {
         });
       }
       for (const { to, label, icon: Icon, match } of group.items) {
-        commands.push({ id: to, category: group.title, label, icon: <Icon className="size-4" />, action: go(to) });
+        commands.push({
+          id: to,
+          category: group.title,
+          label,
+          icon: <Icon className="size-4" />,
+          action: go(to),
+        });
         // A row with `match` stands for a section: list its sibling pages too.
         if (!match) continue;
         const section = Object.values(STUDIO_SECTIONS).find((pages) =>
@@ -173,13 +286,25 @@ function StudioShell() {
 
   if (isUserChat) {
     return (
-      <Routes>{studioCoreRoutes(<Route path="chat/:agentId" element={<UserChatPage />} />)}</Routes>
+      <Suspense fallback={<LoadingState fullPage />}>
+        <Routes>
+          {studioCoreRoutes(
+            <Route path="chat/:agentId" element={<UserChatPage />} />,
+          )}
+        </Routes>
+      </Suspense>
     );
   }
 
   if (isAgentCanvas) {
     return (
-      <Routes>{studioCoreRoutes(<Route path="my-agents/:agentId" element={<AgentDetailPage />} />)}</Routes>
+      <Suspense fallback={<LoadingState fullPage />}>
+        <Routes>
+          {studioCoreRoutes(
+            <Route path="my-agents/:agentId" element={<AgentDetailPage />} />,
+          )}
+        </Routes>
+      </Suspense>
     );
   }
 
@@ -222,13 +347,31 @@ function StudioShell() {
                       <Route path="templates" element={<TemplatesPage />} />
                       <Route path="executions" element={<ExecutionsPage />} />
                       <Route path="connectors" element={<ConnectorsPage />} />
-                      <Route path="connectors/groups" element={<ConnectorGroupsPage />} />
-                      <Route path="connectors/new" element={<CustomConnectorPage />} />
-                      <Route path="connectors/:connectorId" element={<ConnectorDetailPage />} />
-                      <Route path="connectors/:connectorId/edit" element={<CustomConnectorPage />} />
+                      <Route
+                        path="connectors/groups"
+                        element={<ConnectorGroupsPage />}
+                      />
+                      <Route
+                        path="connectors/new"
+                        element={<CustomConnectorPage />}
+                      />
+                      <Route
+                        path="connectors/:connectorId"
+                        element={<ConnectorDetailPage />}
+                      />
+                      <Route
+                        path="connectors/:connectorId/edit"
+                        element={<CustomConnectorPage />}
+                      />
                       <Route path="widgets" element={<WidgetCenterPage />} />
-                      <Route path="widgets/new" element={<WidgetBuilderPage />} />
-                      <Route path="widgets/:widgetId" element={<WidgetBuilderPage />} />
+                      <Route
+                        path="widgets/new"
+                        element={<WidgetBuilderPage />}
+                      />
+                      <Route
+                        path="widgets/:widgetId"
+                        element={<WidgetBuilderPage />}
+                      />
                       <Route path="tools" element={<ToolsPage />} />
                       <Route path="tool-access" element={<ToolAccessPage />} />
                       <Route path="mcp" element={<McpPage />} />

@@ -38,11 +38,14 @@ export {
   PieChart,
   StackedBarChart,
   TimeSeriesChart,
-  type BarChartProps,
-  type ChartSeries,
-  type DonutChartProps,
-  type DonutSegment,
-  type TimeSeriesChartProps,
+} from './lib/charts/lazy-charts.js';
+
+export type {
+  BarChartProps,
+  ChartSeries,
+  DonutChartProps,
+  DonutSegment,
+  TimeSeriesChartProps,
 } from './lib/charts/charts.js';
 
 export {

@@ -44,7 +44,7 @@ export interface ChartSeries {
   fillOpacity?: number;
 }
 
-interface CartesianChartProps {
+export interface CartesianChartProps {
   data: ReadonlyArray<Record<string, unknown>>;
   xAxisKey: string;
   series: ChartSeries[];
@@ -84,7 +84,9 @@ function legend() {
     <Legend
       content={({ payload }) => (
         <ChartLegendContent
-          payload={payload as ReadonlyArray<{ value?: unknown; color?: string }>}
+          payload={
+            payload as ReadonlyArray<{ value?: unknown; color?: string }>
+          }
         />
       )}
     />
@@ -101,7 +103,12 @@ function Frame({
   children: ReactElement;
 }) {
   return (
-    <div role="img" aria-label={ariaLabel} className="w-full" style={{ height }}>
+    <div
+      role="img"
+      aria-label={ariaLabel}
+      className="w-full"
+      style={{ height }}
+    >
       <ResponsiveContainer width="100%" height="100%">
         {children}
       </ResponsiveContainer>
@@ -126,9 +133,17 @@ export function LineChart({
 }: CartesianChartProps) {
   return (
     <Frame height={height} ariaLabel={ariaLabel}>
-      <RechartsLineChart data={data as Record<string, unknown>[]} margin={MARGIN}>
+      <RechartsLineChart
+        data={data as Record<string, unknown>[]}
+        margin={MARGIN}
+      >
         <CartesianGrid {...CHART_GRID_PROPS} />
-        <XAxis dataKey={xAxisKey} {...CHART_AXIS_PROPS} tickFormatter={xAxisFormatter} minTickGap={16} />
+        <XAxis
+          dataKey={xAxisKey}
+          {...CHART_AXIS_PROPS}
+          tickFormatter={xAxisFormatter}
+          minTickGap={16}
+        />
         <YAxis {...CHART_AXIS_PROPS} tickFormatter={valueFormatter} />
         {tooltip(valueFormatter, tooltipLabelFormatter)}
         {showLegend ? legend() : null}
@@ -143,7 +158,11 @@ export function LineChart({
               stroke={color}
               strokeWidth={2}
               strokeDasharray={s.strokeDasharray}
-              dot={data.length <= 31 ? { r: 2.5, fill: color, strokeWidth: 0 } : false}
+              dot={
+                data.length <= 31
+                  ? { r: 2.5, fill: color, strokeWidth: 0 }
+                  : false
+              }
               activeDot={{ r: 4.5 }}
             />
           );
@@ -175,7 +194,10 @@ export function AreaChart({
 
   return (
     <Frame height={height} ariaLabel={ariaLabel}>
-      <RechartsAreaChart data={data as Record<string, unknown>[]} margin={MARGIN}>
+      <RechartsAreaChart
+        data={data as Record<string, unknown>[]}
+        margin={MARGIN}
+      >
         <defs>
           {series.map((s, i) => {
             const color = seriesColor(i, s.color);
@@ -188,14 +210,23 @@ export function AreaChart({
                 x2="0"
                 y2="1"
               >
-                <stop offset="5%" stopColor={color} stopOpacity={s.fillOpacity ?? 0.35} />
+                <stop
+                  offset="5%"
+                  stopColor={color}
+                  stopOpacity={s.fillOpacity ?? 0.35}
+                />
                 <stop offset="95%" stopColor={color} stopOpacity={0} />
               </linearGradient>
             );
           })}
         </defs>
         <CartesianGrid {...CHART_GRID_PROPS} />
-        <XAxis dataKey={xAxisKey} {...CHART_AXIS_PROPS} tickFormatter={xAxisFormatter} minTickGap={16} />
+        <XAxis
+          dataKey={xAxisKey}
+          {...CHART_AXIS_PROPS}
+          tickFormatter={xAxisFormatter}
+          minTickGap={16}
+        />
         <YAxis {...CHART_AXIS_PROPS} tickFormatter={valueFormatter} />
         {tooltip(valueFormatter, tooltipLabelFormatter)}
         {showLegend ? legend() : null}
@@ -251,10 +282,18 @@ export function BarChart({
         layout={layout}
         margin={{ ...MARGIN, left: isVertical ? 8 : MARGIN.left }}
       >
-        <CartesianGrid {...CHART_GRID_PROPS} vertical={isVertical} horizontal={!isVertical} />
+        <CartesianGrid
+          {...CHART_GRID_PROPS}
+          vertical={isVertical}
+          horizontal={!isVertical}
+        />
         {isVertical ? (
           <>
-            <XAxis type="number" {...CHART_AXIS_PROPS} tickFormatter={valueFormatter} />
+            <XAxis
+              type="number"
+              {...CHART_AXIS_PROPS}
+              tickFormatter={valueFormatter}
+            />
             <YAxis
               type="category"
               dataKey={xAxisKey}
@@ -265,7 +304,12 @@ export function BarChart({
           </>
         ) : (
           <>
-            <XAxis dataKey={xAxisKey} {...CHART_AXIS_PROPS} tickFormatter={xAxisFormatter} minTickGap={8} />
+            <XAxis
+              dataKey={xAxisKey}
+              {...CHART_AXIS_PROPS}
+              tickFormatter={xAxisFormatter}
+              minTickGap={8}
+            />
             <YAxis {...CHART_AXIS_PROPS} tickFormatter={valueFormatter} />
           </>
         )}
@@ -367,7 +411,9 @@ export function DonutChart({
             content={({ active, payload }) => (
               <ChartTooltipContent
                 active={active}
-                payload={payload as ReadonlyArray<ChartPayloadEntry> | undefined}
+                payload={
+                  payload as ReadonlyArray<ChartPayloadEntry> | undefined
+                }
                 valueFormatter={valueFormatter}
                 total={total}
               />
@@ -378,12 +424,14 @@ export function DonutChart({
       </ResponsiveContainer>
       {centerLabel || centerValue !== undefined ? (
         <div
-          className={`pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center justify-center ${
+          className={`inset-x-0 top-0 pointer-events-none absolute flex flex-col items-center justify-center ${
             showLegend ? 'bottom-[10%]' : 'bottom-0'
           }`}
         >
           {centerValue !== undefined ? (
-            <span className="text-xl font-bold tracking-tight tabular-nums">{centerValue}</span>
+            <span className="text-xl font-bold tracking-tight tabular-nums">
+              {centerValue}
+            </span>
           ) : null}
           {centerLabel ? (
             <span className="text-xs text-muted-foreground">{centerLabel}</span>
@@ -394,7 +442,9 @@ export function DonutChart({
   );
 }
 
-export function PieChart(props: Omit<DonutChartProps, 'innerRadius' | 'centerLabel' | 'centerValue'>) {
+export function PieChart(
+  props: Omit<DonutChartProps, 'innerRadius' | 'centerLabel' | 'centerValue'>,
+) {
   return <DonutChart {...props} innerRadius={0} />;
 }
 
@@ -428,7 +478,9 @@ export function TimeSeriesChart({
 }: TimeSeriesChartProps) {
   const total = points.reduce((sum, p) => sum + p.value, 0);
   const ariaLabel = `${formatCompactNumber(total)} ${valueLabel} across ${points.length} periods, from ${formatTooltipDate(points.at(0)?.date)} to ${formatTooltipDate(points.at(-1)?.date)}`;
-  const series: ChartSeries[] = [{ dataKey: 'value', name: valueLabel, color: accent }];
+  const series: ChartSeries[] = [
+    { dataKey: 'value', name: valueLabel, color: accent },
+  ];
   const shared = {
     data: points as unknown as ReadonlyArray<Record<string, unknown>>,
     xAxisKey: 'date',

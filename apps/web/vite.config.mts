@@ -6,6 +6,11 @@ import react from '@vitejs/plugin-react';
 import wasm from 'vite-plugin-wasm';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- build tooling, not app code
+import {
+  precompressAndGuardPlugin,
+  productionBuild,
+} from '../../scripts/vite-production.mts';
 
 /**
  * Proxies `/api/*` server-side to the locally running Nest API, so the browser
@@ -44,9 +49,7 @@ const ORG_WORKSPACE_PACKAGES = (() => {
     '../../node_modules/@org',
   );
   try {
-    return fs
-      .readdirSync(orgModulesDir)
-      .map((name) => `@org/${name}`);
+    return fs.readdirSync(orgModulesDir).map((name) => `@org/${name}`);
   } catch {
     return [];
   }
@@ -65,7 +68,10 @@ function syncEmojibasePlugin() {
         execFileSync(
           process.execPath,
           [
-            path.resolve(import.meta.dirname, '../../scripts/sync-emojibase.mjs'),
+            path.resolve(
+              import.meta.dirname,
+              '../../scripts/sync-emojibase.mjs',
+            ),
             path.resolve(import.meta.dirname, 'public'),
           ],
           { stdio: 'inherit' },
@@ -73,7 +79,10 @@ function syncEmojibasePlugin() {
       } catch (error) {
         // A missing dataset shouldn't break the build — the picker falls back
         // to frimousse's CDN default.
-        console.warn('[vite] emojibase sync skipped:', (error as Error).message);
+        console.warn(
+          '[vite] emojibase sync skipped:',
+          (error as Error).message,
+        );
       }
     },
   };
@@ -152,13 +161,18 @@ function cspPlugin() {
     transformIndexHtml: {
       order: 'post' as const,
       handler(html: string) {
+        // Browsers hash the parsed script, and parsing normalises newlines, so a
+        // CRLF checkout must not hash its raw bytes or the script gets blocked.
         const hashes = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(
           (m) =>
-            `'sha256-${createHash('sha256').update(m[1]).digest('base64')}'`,
+            `'sha256-${createHash('sha256').update(m[1].replace(/\r\n?/g, '\n')).digest('base64')}'`,
         );
         const meta = `<meta http-equiv="Content-Security-Policy" content="${policyFor(hashes)}" />`;
-        return html.replace('<head>', `<head>
-    ${meta}`);
+        return html.replace(
+          '<head>',
+          `<head>
+    ${meta}`,
+        );
       },
     },
   };
@@ -197,7 +211,7 @@ export default defineConfig(() => ({
      * Router component; No QueryClient set) — a bug dev mode never showed,
      * since it never bundles. preserveSymlinks=true makes every lib resolve
      * relative to its symlinked path instead, which lines the two views back
-     * up. See the node_modules check in manualChunks below for the half of
+     * up. See `vendorChunk` in scripts/vite-production.mts for the half of
      * this that keeps chunking working.
      */
     preserveSymlinks: true,
@@ -242,6 +256,7 @@ export default defineConfig(() => ({
      * build target supports top-level await natively regardless.
      */
     wasm(),
+    precompressAndGuardPlugin(),
   ],
   optimizeDeps: {
     // Pre-bundling react and matrix-js-sdk ensures single React instance across packages.
@@ -313,64 +328,7 @@ export default defineConfig(() => ({
     // pre-bundle path so edits to their source show up without a restart.
     exclude: ['@matrix-org/matrix-sdk-crypto-wasm', ...ORG_WORKSPACE_PACKAGES],
   },
-  build: {
-    outDir: './dist',
-    emptyOutDir: true,
-    target: 'es2022',
-    sourcemap: true,
-    // Gzipping every chunk just to print a number measurably slows CI builds.
-    reportCompressedSize: false,
-    commonjsOptions: {
-      transformMixedEsModules: true,
-    },
-    rollupOptions: {
-      output: {
-        /**
-         * Split rarely-changing vendor code out of the app chunk so a feature
-         * deploy does not invalidate the browser cache for all of React.
-         *
-         * Vite 8 bundles with Rolldown, which accepts only the function form
-         * of `manualChunks` — the object form throws at config time.
-         */
-        manualChunks(id: string) {
-          // `@org/*` libs are npm-workspace symlinks that `preserveSymlinks`
-          // (above) resolves through `node_modules/@org/*` — they're this
-          // app's own source, not a vendor dependency, so they still get
-          // automatic per-route chunking instead of being swept into a
-          // vendor bucket wholesale.
-          if (
-            !id.includes('node_modules') ||
-            /[\\/]node_modules[\\/]@org[\\/]/.test(id)
-          )
-            return;
-          if (
-            // `@remix-run/router` is react-router-dom's own router/history
-            // engine, published as a separate package it depends on — not
-            // matched by the `react-router` patterns above it.
-            /[\\/](react|react-dom|react-router|react-router-dom|@remix-run|scheduler)[\\/]/.test(
-              id,
-            )
-          )
-            return 'vendor-react';
-          if (
-            /[\\/](@tanstack|axios|zustand|@reduxjs|react-redux)[\\/]/.test(id)
-          )
-            return 'vendor-data';
-          if (/[\\/](react-hook-form|@hookform|zod)[\\/]/.test(id))
-            return 'vendor-forms';
-          if (
-            /[\\/](@radix-ui|lucide-react|framer-motion|sonner)[\\/]/.test(id)
-          )
-            return 'vendor-ui';
-          // Matrix is large and versions independently of everything else, so
-          // it gets its own chunk rather than invalidating the shared vendor.
-          if (/[\\/](matrix-js-sdk|@matrix-org)[\\/]/.test(id))
-            return 'vendor-matrix';
-          return 'vendor';
-        },
-      },
-    },
-  },
+  build: productionBuild(),
   test: {
     name: '@org/web',
     globals: true,

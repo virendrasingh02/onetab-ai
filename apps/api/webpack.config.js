@@ -1,4 +1,5 @@
 const { NxAppWebpackPlugin } = require('@nx/webpack/app-plugin');
+const TerserPlugin = require('terser-webpack-plugin');
 const { join } = require('path');
 
 /**
@@ -28,6 +29,40 @@ class SetSwcTargetPlugin {
       };
     }
   }
+}
+
+/**
+ * Replaces Nx's minimizer, which turns mangling off entirely. Local names are
+ * safe to shorten; class and function names are not: Nest reads them for logger
+ * contexts, Swagger schemas and error names (`this.constructor.name`), so both
+ * are kept. Property names are never mangled, which keeps route handlers and
+ * reflection metadata intact.
+ */
+class ApiMinimizerPlugin {
+  apply(compiler) {
+    const keepNames = { keep_classnames: true, keep_fnames: true };
+    compiler.options.optimization.minimizer = [
+      new TerserPlugin({
+        minify: TerserPlugin.swcMinify,
+        extractComments: false,
+        terserOptions: {
+          compress: keepNames,
+          mangle: keepNames,
+          format: { comments: false },
+        },
+      }),
+    ];
+  }
+}
+
+const isProduction = process.env.NODE_ENV === 'production';
+
+/** Dev keeps full maps. Production has none unless asked, and then unreferenced. */
+function sourceMapSetting() {
+  if (!isProduction) return true;
+  return process.env.GENERATE_SOURCEMAP === 'true'
+    ? 'hidden-source-map'
+    : false;
 }
 
 module.exports = {
@@ -64,11 +99,13 @@ module.exports = {
       main: './src/main.ts',
       tsConfig: './tsconfig.app.json',
       assets: ['./src/assets'],
-      optimization: false,
+      // Nx's own flag (boolean or { scripts, styles }), not webpack's `optimization`.
+      optimization: isProduction,
       outputHashing: 'none',
       generatePackageJson: false,
-      sourceMap: true,
+      sourceMap: sourceMapSetting(),
     }),
     new SetSwcTargetPlugin(),
+    ...(isProduction ? [new ApiMinimizerPlugin()] : []),
   ],
 };

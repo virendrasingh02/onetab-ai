@@ -30,7 +30,8 @@
   "extraResources": [
     {
       "from": "apps/web/dist",
-      "to": "web"
+      "to": "web",
+      "filter": ["**/*", "!**/*.map", "!**/*.br", "!**/*.gz"]
     },
     {
       "from": "apps/desktop/resources/app-update.yml",

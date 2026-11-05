@@ -3,6 +3,11 @@ import path from 'node:path';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- build tooling, not app code
+import {
+  precompressAndGuardPlugin,
+  productionBuild,
+} from '../../scripts/vite-production.mts';
 
 const API_PROXY = {
   '/api': {
@@ -163,25 +168,13 @@ export default defineConfig(() => ({
     ],
     exclude: ORG_WORKSPACE_PACKAGES,
   },
-  plugins: [react(), tailwindcss(), workspaceLiveSourcePlugin()],
-  build: {
-    outDir: './dist',
-    emptyOutDir: true,
-    reportCompressedSize: true,
-    commonjsOptions: {
-      transformMixedEsModules: true,
-    },
-    rolldownOptions: {
-      output: {
-        // Lexical's code highlighter and the media preview share Prism's
-        // grammar files, which are side-effect scripts needing a `Prism`
-        // global. Without this, Rolldown hoists them into shared chunks that
-        // run before Prism core initialises and the whole app fails to boot
-        // ("Prism is not defined").
-        strictExecutionOrder: true,
-      },
-    },
-  },
+  plugins: [
+    react(),
+    tailwindcss(),
+    workspaceLiveSourcePlugin(),
+    precompressAndGuardPlugin(),
+  ],
+  build: productionBuild(),
   test: {
     name: '@org/ai-agent-studio',
     watch: false,

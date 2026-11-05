@@ -16,7 +16,9 @@
       "{workspaceRoot}/package-lock.json",
       "{workspaceRoot}/eslint.config.mjs",
       "{workspaceRoot}/prisma/schema.prisma",
-      "{workspaceRoot}/.github/workflows/ci.yml"
+      "{workspaceRoot}/.github/workflows/ci.yml",
+      "{workspaceRoot}/scripts/vite-production.mts",
+      { "env": "GENERATE_SOURCEMAP" }
     ]
   },
   "plugins": [

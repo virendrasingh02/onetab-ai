@@ -30,6 +30,7 @@
     "format:check": "nx format:check",
     "validate": "nx run-many -t lint typecheck test build",
     "affected": "nx affected -t lint typecheck test build",
+    "analyze:bundles": "node scripts/analyze-bundles.mjs --budget",
     "graph": "nx graph",
     "sync": "nx sync",
     "db:generate": "prisma generate",

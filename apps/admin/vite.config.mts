@@ -3,6 +3,11 @@ import path from 'node:path';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- build tooling, not app code
+import {
+  precompressAndGuardPlugin,
+  productionBuild,
+} from '../../scripts/vite-production.mts';
 
 /**
  * Proxies `/api/*` server-side to the locally running Nest API, so the browser
@@ -115,7 +120,10 @@ export default defineConfig(() => ({
     dedupe: ['react', 'react-dom'],
     alias: {
       react: path.resolve(import.meta.dirname, '../../node_modules/react'),
-      'react-dom': path.resolve(import.meta.dirname, '../../node_modules/react-dom'),
+      'react-dom': path.resolve(
+        import.meta.dirname,
+        '../../node_modules/react-dom',
+      ),
       '@lobehub/ui/base-ui': path.resolve(
         import.meta.dirname,
         '../../libs/shared/ui/src/lib/ai/lobe-ui-shim.js',
@@ -134,7 +142,12 @@ export default defineConfig(() => ({
       ),
     },
   },
-  plugins: [react(), tailwindcss(), workspaceLiveSourcePlugin()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    workspaceLiveSourcePlugin(),
+    precompressAndGuardPlugin(),
+  ],
   optimizeDeps: {
     // use-sync-external-store/shim/with-selector.js is CJS-only and needs
     // esbuild's pre-bundling pass for its default-export interop — see
@@ -172,33 +185,7 @@ export default defineConfig(() => ({
     // ORG_WORKSPACE_PACKAGES above.
     exclude: ORG_WORKSPACE_PACKAGES,
   },
-  build: {
-    outDir: './dist',
-    emptyOutDir: true,
-    target: 'es2022',
-    sourcemap: true,
-    reportCompressedSize: false,
-    commonjsOptions: {
-      transformMixedEsModules: true,
-    },
-    rollupOptions: {
-      output: {
-        // Rolldown (Vite 8) requires the function form — see apps/web.
-        manualChunks(id: string) {
-          // @org libs resolve through node_modules/@org/* (preserveSymlinks
-          // above) but are this app's own source, not a vendor dependency —
-          // see apps/web/vite.config.mts.
-          if (!id.includes('node_modules') || /[\\/]node_modules[\\/]@org[\\/]/.test(id)) return;
-          if (/[\\/](react|react-dom|react-router|react-router-dom|@remix-run|scheduler)[\\/]/.test(id))
-            return 'vendor-react';
-          if (/[\\/](@tanstack|axios|zustand|@reduxjs|react-redux)[\\/]/.test(id)) return 'vendor-data';
-          if (/[\\/](@radix-ui|lucide-react|framer-motion|sonner)[\\/]/.test(id))
-            return 'vendor-ui';
-          return 'vendor';
-        },
-      },
-    },
-  },
+  build: productionBuild(),
   test: {
     name: '@org/admin',
     globals: true,

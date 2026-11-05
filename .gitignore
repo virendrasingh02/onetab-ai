@@ -2,6 +2,7 @@
 
 # compiled output
 dist
+dist-sourcemaps
 
 # Emoji dataset copied in by scripts/sync-emojibase.mjs (see vite.config.mts)
 apps/web/public/emojibase
