@@ -414,7 +414,7 @@ export function RequirementsView() {
                       id="isBlocking"
                       checked={newIsBlocking}
                       onChange={(e) => setNewIsBlocking(e.target.checked)}
-                      className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4"
+                      className="rounded border-gray-300 text-primary focus:ring-ring h-4 w-4"
                     />
                     <Label htmlFor="isBlocking" className="text-xs cursor-pointer font-medium">
                       Block release if unresolved (Strict Release Gate)
@@ -770,7 +770,7 @@ export function RequirementsView() {
                     id="editIsBlocking"
                     checked={editIsBlocking}
                     onChange={(e) => setEditIsBlocking(e.target.checked)}
-                    className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4"
+                    className="rounded border-gray-300 text-primary focus:ring-ring h-4 w-4"
                   />
                   <Label
                     htmlFor="editIsBlocking"

@@ -210,7 +210,7 @@ export function ReactionBar({
                     'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
                     'disabled:cursor-default disabled:active:scale-100',
                     reaction.reactedByMe
-                      ? 'border-primary/60 bg-primary/12 text-primary hover:bg-primary/20'
+                      ? 'border-brand/60 bg-brand/12 text-brand-text hover:bg-brand/20'
                       : 'border-border/70 bg-surface-raised text-muted-foreground hover:border-border hover:bg-accent hover:text-foreground',
                   )}
                 >

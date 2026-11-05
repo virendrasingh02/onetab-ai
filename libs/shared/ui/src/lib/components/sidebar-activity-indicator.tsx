@@ -239,7 +239,7 @@ export function SidebarBadge({
         'h-4 min-w-4 px-1 py-0 shrink-0 justify-center font-mono text-[10px] leading-none tabular-nums',
         tone === 'mention'
           ? 'border-transparent'
-          : 'border-transparent bg-primary/15 text-primary-text',
+          : 'border-transparent bg-activity/15 text-activity-text',
         className,
       )}
     >
@@ -363,7 +363,7 @@ export function SidebarActivityIndicator({
       role="img"
       aria-label={resolved.label}
       className={cn(
-        'size-2 block shrink-0 rounded-full bg-primary',
+        'size-2 block shrink-0 rounded-full bg-activity',
         collapsed && 'right-1 top-1 absolute ring-2 ring-background',
         className,
       )}
@@ -404,7 +404,7 @@ export function WorkspaceActivityIndicator({
       aria-label={resolved.label}
       className={cn(
         'size-2 block shrink-0 rounded-full',
-        resolved.tone === 'mention' ? 'bg-destructive' : 'bg-primary/70',
+        resolved.tone === 'mention' ? 'bg-destructive' : 'bg-activity/70',
         overlay && 'ring-2 ring-background',
         className,
       )}

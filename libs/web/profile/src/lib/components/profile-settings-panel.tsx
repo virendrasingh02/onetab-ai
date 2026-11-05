@@ -628,7 +628,7 @@ export function ProfileSettingsPanel() {
                 You are viewing your active profile within{' '}
                 <strong className="text-foreground">{workspace.name}</strong> as
                 an{' '}
-                <span className="font-semibold text-primary">
+                <span className="font-semibold text-brand-text">
                   {workspace.role}
                 </span>
                 .

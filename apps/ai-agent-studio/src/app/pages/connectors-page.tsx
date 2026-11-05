@@ -313,7 +313,7 @@ export function ConnectorCard({
           <div className="flex flex-wrap items-center gap-1" aria-label="What agents can do with it">
             <Bot className="size-3.5 text-primary" aria-hidden="true" />
             {c.agentCapabilities.slice(0, 4).map((tag) => (
-              <span key={tag} className="rounded-md bg-primary/10 px-1.5 py-0.5 text-2xs font-medium text-primary-text">
+              <span key={tag} className="rounded-md bg-brand/10 px-1.5 py-0.5 text-2xs font-medium text-brand-text">
                 {AGENT_CAPABILITY_LABELS[tag]}
               </span>
             ))}

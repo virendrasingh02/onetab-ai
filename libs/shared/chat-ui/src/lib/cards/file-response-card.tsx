@@ -32,7 +32,7 @@ export function FileResponseCard({
     if (file.codeSnippet || file.name.endsWith('.ts') || file.name.endsWith('.js') || file.name.endsWith('.py')) {
       return <FileCode className="size-4 text-info-text" />;
     }
-    return <FileText className="size-4 text-primary" />;
+    return <FileText className="size-4 text-brand-text" />;
   };
 
   return (
@@ -40,7 +40,7 @@ export function FileResponseCard({
       data-message-id={message.id}
       className={cn(
         'group/file-card relative my-2 rounded-2xl border border-border/80 bg-surface/95 backdrop-blur-sm p-4 transition-all duration-200 shadow-xs hover:shadow-md max-w-lg',
-        isHighlighted && 'ring-2 ring-primary/60',
+        isHighlighted && 'ring-2 ring-brand/60',
       )}
     >
       <header className="border-b border-border/60 pb-2.5">

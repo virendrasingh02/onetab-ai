@@ -1023,7 +1023,7 @@ function WorkflowEditor({
             onChange={(e) => setName(e.target.value)}
             readOnly={!canEdit}
             aria-label="Workflow name"
-            className="h-8 w-44 px-1.5 text-sm font-semibold sm:w-64 border-transparent bg-transparent shadow-none hover:border-border focus-visible:border-primary"
+            className="h-8 w-44 px-1.5 text-sm font-semibold sm:w-64 border-transparent bg-transparent shadow-none hover:border-border focus-visible:border-ring"
           />
           {workflow ? (
             <Badge

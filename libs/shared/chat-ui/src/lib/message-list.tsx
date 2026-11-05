@@ -1450,14 +1450,14 @@ export function MessageList({
         >
           {/* Opaque card (not a translucent strip) so message content and the
               hover toolbar never bleed through or collide with the actions. */}
-          <div className="h-8 gap-1 pl-3 pr-1 text-xs font-medium pointer-events-auto flex items-center justify-between rounded-lg border border-primary/25 bg-surface text-primary-text shadow-md">
+          <div className="h-8 gap-1 pl-3 pr-1 text-xs font-medium pointer-events-auto flex items-center justify-between rounded-lg border border-activity/25 bg-surface text-activity-text shadow-md">
             <button
               type="button"
               onClick={scrollToBottom}
               className="gap-2 min-w-0 flex h-full flex-1 items-center text-left"
             >
               <span
-                className="size-1.5 shrink-0 rounded-full bg-primary"
+                className="size-1.5 shrink-0 rounded-full bg-activity"
                 aria-hidden
               />
               <span className="truncate">
@@ -1471,7 +1471,7 @@ export function MessageList({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 px-2 text-xs shrink-0 text-primary-text hover:bg-primary/10"
+                className="h-6 px-2 text-xs shrink-0 text-brand-text hover:bg-brand/10"
                 onClick={() => {
                   onMarkRead();
                   setNewMessagesCount(0);

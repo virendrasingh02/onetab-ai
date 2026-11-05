@@ -169,8 +169,8 @@ function StepIcon({ state }: { state: StepState }) {
         <X className="size-3.5 text-destructive" strokeWidth={2.5} />
       ) : state === 'active' ? (
         <>
-          <span className="size-2.5 animate-ping absolute rounded-full bg-primary/40 motion-reduce:hidden" />
-          <span className="size-2 relative rounded-full bg-primary" />
+          <span className="size-2.5 animate-ping absolute rounded-full bg-brand/40 motion-reduce:hidden" />
+          <span className="size-2 relative rounded-full bg-brand" />
         </>
       ) : (
         <span className="size-2 rounded-full border border-muted-foreground/40" />
@@ -226,7 +226,7 @@ const SHIMMER_CSS = `
     to { background-position: -200% 0; }
   }
   .agent-run-text {
-    background-image: linear-gradient(90deg, currentColor 35%, var(--color-primary, #16a34a) 50%, currentColor 65%);
+    background-image: linear-gradient(90deg, currentColor 35%, var(--color-brand, #16a34a) 50%, currentColor 65%);
     background-size: 200% 100%;
     -webkit-background-clip: text;
     background-clip: text;
@@ -365,7 +365,7 @@ export function AgentRunProgress({
           aria-hidden
         >
           {pending ? (
-            <Loader2 className="size-4 animate-spin text-primary motion-reduce:animate-none" />
+            <Loader2 className="size-4 animate-spin text-brand-text motion-reduce:animate-none" />
           ) : (
             <Check className="size-4" strokeWidth={2.5} />
           )}

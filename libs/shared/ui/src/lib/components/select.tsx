@@ -28,9 +28,9 @@ export function SelectTrigger({
        * text field with a select sit crooked.
        */
       className={cn(
-        'gap-2 flex w-fit items-center justify-between rounded-input border border-input bg-surface',
+        'gap-2 flex w-fit items-center justify-between rounded-input border border-input theme-fixed bg-field',
         'text-xs whitespace-nowrap text-foreground',
-        'hover:border-border-strong',
+        'hover:border-field-border',
         'transition-[color,border-color,box-shadow] duration-(--duration-fast) ease-standard',
         'focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 focus-visible:outline-none',
         'disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-disabled disabled:opacity-100',

@@ -100,7 +100,7 @@ export function AIEntityProfileHero({
       <div
         className={cn(
           'h-20 w-full border-b border-border/60 bg-gradient-to-br',
-          coverClassName ?? 'from-primary/15 via-primary/5 to-transparent',
+          coverClassName ?? 'from-brand/15 via-brand/5 to-transparent',
         )}
       />
       <div className="px-5">
@@ -140,7 +140,7 @@ export function AIEntityProfileHero({
           ) : (
             <p className="mt-0.5 font-mono text-xs text-muted-foreground">{handle}</p>
           ))}
-        {subtitle && <p className="mt-1 text-xs font-medium text-primary-text">{subtitle}</p>}
+        {subtitle && <p className="mt-1 text-xs font-medium text-brand-text">{subtitle}</p>}
 
         {actions && <div className="mt-4 flex items-center gap-2">{actions}</div>}
       </div>
@@ -194,7 +194,7 @@ export function AIEntityProfileSection({
     <section className="mx-5 border-t border-border/60 py-4 last:pb-6">
       <div className="mb-2.5 flex items-center justify-between gap-2">
         <h4 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          <Icon className="size-3.5 text-primary" />
+          <Icon className="size-3.5 text-brand-text" />
           {title}
         </h4>
         {count !== undefined && (
@@ -572,7 +572,7 @@ export function AIEntityProfilePrompt({
               type="button"
               onClick={() => setExpanded((v) => !v)}
               aria-expanded={expanded}
-              className="flex w-full items-center justify-center gap-1 border-t border-border/60 py-1 text-[11px] font-medium text-primary-text hover:bg-muted/40"
+              className="flex w-full items-center justify-center gap-1 border-t border-border/60 py-1 text-[11px] font-medium text-brand-text hover:bg-muted/40"
             >
               {expanded ? 'Show less' : 'Show full prompt'}
               <ChevronDown className={cn('size-3 transition-transform', expanded && 'rotate-180')} />

@@ -124,7 +124,7 @@ export function ForwardedMessageCard({
       {/* A labelled header strip — not a side rail — so a forward never reads
           like a reply quote: it says plainly where the message came from. */}
       <div className="gap-1.5 px-3 py-1.5 text-xs flex items-center border-b border-border bg-muted/50 text-muted-foreground">
-        <Forward className="size-3.5 shrink-0 text-primary-text" aria-hidden />
+        <Forward className="size-3.5 shrink-0 text-brand-text" aria-hidden />
         <span className="font-medium shrink-0 text-foreground">Forwarded</span>
         <span className="shrink-0" aria-hidden>
           from
@@ -187,7 +187,7 @@ export function ForwardedMessageCard({
               <button
                 type="button"
                 onClick={() => setExpanded((value) => !value)}
-                className="mt-0.5 text-xs font-medium cursor-pointer text-primary-text hover:underline"
+                className="mt-0.5 text-xs font-medium cursor-pointer text-brand-text hover:underline"
               >
                 {expanded ? 'Show less' : 'Show more'}
               </button>
@@ -202,7 +202,7 @@ export function ForwardedMessageCard({
         <button
           type="button"
           onClick={onOpen}
-          className="gap-1 px-3 py-1.5 text-xs font-medium flex w-full cursor-pointer items-center justify-between border-t border-border text-muted-foreground transition-colors hover:bg-muted/50 hover:text-primary-text focus-visible:bg-muted/50 focus-visible:outline-none"
+          className="gap-1 px-3 py-1.5 text-xs font-medium flex w-full cursor-pointer items-center justify-between border-t border-border text-muted-foreground transition-colors hover:bg-muted/50 hover:text-brand-text focus-visible:bg-muted/50 focus-visible:outline-none"
         >
           View original message
           <ArrowUpRight

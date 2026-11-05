@@ -225,7 +225,7 @@ export function AIModelSelector({
           'transition-all duration-(--duration-fast) hover:bg-accent hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
           variant === 'compact' && 'h-6 gap-1 px-1.5',
           variant === 'subtle' && 'border-transparent bg-transparent shadow-none',
-          isOpen && 'border-primary ring-1 ring-primary/30'
+          isOpen && 'border-brand ring-1 ring-brand/30'
         )}
       >
         <AIModelIcon
@@ -264,7 +264,7 @@ export function AIModelSelector({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search models, providers or reasoning..."
-              className="w-full h-8 pl-8 pr-2 text-xs rounded-md border border-border bg-surface-inset text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40"
+              className="w-full h-8 pl-8 pr-2 text-xs rounded-md border border-border bg-surface-inset text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring/40"
             />
           </div>
 
@@ -319,7 +319,7 @@ export function AIModelSelector({
                               <div className="flex items-center gap-1.5">
                                 <span className="font-semibold text-foreground truncate">{m.name}</span>
                                 {m.recommended && (
-                                  <span className="rounded-xs bg-primary/15 text-primary-text px-1 py-0.2 text-[9px] font-bold shrink-0">
+                                  <span className="rounded-xs bg-brand/15 text-brand-text px-1 py-0.2 text-[9px] font-bold shrink-0">
                                     REC
                                   </span>
                                 )}
@@ -349,7 +349,7 @@ export function AIModelSelector({
                             </div>
                           </div>
 
-                          {isSelected && <Check className="size-4 text-primary shrink-0 mt-0.5" />}
+                          {isSelected && <Check className="size-4 text-brand-text shrink-0 mt-0.5" />}
                         </button>
                       );
                     })}

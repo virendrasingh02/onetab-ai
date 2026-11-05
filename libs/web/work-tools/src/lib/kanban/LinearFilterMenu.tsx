@@ -160,7 +160,7 @@ export function LinearFilterMenu({
     >
       {/* Search Header */}
       <div className="relative mb-1 px-1.5 py-1">
-        <div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/40 px-2 py-1.5 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20">
+        <div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/40 px-2 py-1.5 focus-within:border-ring focus-within:ring-1 focus-within:ring-ring/20">
           <Search className="size-3.5 text-muted-foreground shrink-0" />
           <input
             type="text"
@@ -215,7 +215,7 @@ export function LinearFilterMenu({
 
                 <div className="flex items-center gap-1">
                   {cat.activeCount > 0 && (
-                    <span className="rounded-full bg-primary/20 text-primary px-1.5 py-0.2 text-[10px] font-semibold">
+                    <span className="rounded-full bg-brand/20 text-brand-text px-1.5 py-0.2 text-[10px] font-semibold">
                       {cat.activeCount}
                     </span>
                   )}

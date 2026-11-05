@@ -109,7 +109,7 @@ export function PricingCard({
             {plan.trialDays ? (
               <Badge
                 variant="secondary"
-                className="text-[10px] font-medium border border-primary/20 bg-primary/5 text-primary"
+                className="text-[10px] font-medium border border-brand/20 bg-brand/5 text-brand-text"
               >
                 {plan.trialDays}-Day Free Trial
               </Badge>

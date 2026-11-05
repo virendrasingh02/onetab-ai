@@ -51,7 +51,7 @@ function ProgressBar({ value, className }: { value: number; className?: string }
       className={cn('h-1 w-full overflow-hidden rounded-full bg-foreground/10', className)}
     >
       <div
-        className="h-full rounded-full bg-primary transition-[width] duration-200 ease-out"
+        className="h-full rounded-full bg-brand transition-[width] duration-200 ease-out"
         style={{ width: `${Math.max(2, Math.min(100, value))}%` }}
       />
     </div>

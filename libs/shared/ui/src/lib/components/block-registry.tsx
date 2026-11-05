@@ -34,7 +34,7 @@ export function BlockRenderer({ block }: { block: PageBlockConfig }) {
         <section className="relative overflow-hidden rounded-card border border-border bg-gradient-to-b from-primary/10 via-surface-raised/40 to-surface p-8 sm:p-12 text-center shadow-xs">
           <div className="mx-auto max-w-2xl space-y-4">
             {block.badge && (
-              <Badge variant="secondary" className="border-primary/30 text-primary-text bg-primary/10 font-medium">
+              <Badge variant="secondary" className="border-brand/30 text-brand-text bg-brand/10 font-medium">
                 {block.badge}
               </Badge>
             )}

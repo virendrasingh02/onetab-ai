@@ -111,7 +111,7 @@ export function PeoplePicker({
                   onClick={() => onToggle(member.user.id)}
                   className={cn(
                     'gap-2.5 p-2 flex w-full items-center rounded-md text-left transition-colors hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none',
-                    isSelected && 'bg-primary/10 hover:bg-primary/15',
+                    isSelected && 'bg-brand/10 hover:bg-brand/15',
                   )}
                 >
                   <UserAvatar
@@ -120,7 +120,7 @@ export function PeoplePicker({
                     seed={member.user.id}
                     presence={toPresenceStatus(member.user.presence)}
                     className={cn(
-                      kind === 'agent' && 'ring-2 ring-primary/40',
+                      kind === 'agent' && 'ring-2 ring-brand/40',
                       kind === 'app' && 'ring-2 ring-accent-violet/40',
                     )}
                   />
@@ -150,7 +150,7 @@ export function PeoplePicker({
                     className={cn(
                       'size-4 shrink-0 rounded-[5px] border flex items-center justify-center transition-colors',
                       isSelected
-                        ? 'border-primary bg-primary text-primary-foreground'
+                        ? 'border-brand bg-brand text-brand-foreground'
                         : 'border-border',
                     )}
                   >

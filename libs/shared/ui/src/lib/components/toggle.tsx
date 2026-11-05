@@ -8,8 +8,8 @@ export const toggleVariants = cva(
     variants: {
       variant: {
         default: 'bg-transparent text-muted-foreground hover:bg-accent hover:text-foreground data-[state=on]:bg-surface-raised data-[state=on]:text-foreground data-[state=on]:shadow-xs',
-        outline: 'border border-border bg-transparent hover:bg-accent hover:text-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-primary',
-        subtle: 'bg-surface-raised text-muted-foreground hover:bg-selected data-[state=on]:bg-primary data-[state=on]:text-primary-foreground',
+        outline: 'border border-border bg-transparent hover:bg-accent hover:text-foreground data-[state=on]:border-brand data-[state=on]:bg-brand/10 data-[state=on]:text-brand-text',
+        subtle: 'bg-surface-raised text-muted-foreground hover:bg-selected data-[state=on]:bg-brand data-[state=on]:text-brand-foreground',
       },
       size: {
         xs: 'h-6 px-2 text-[11px] [&_svg]:size-3.5',

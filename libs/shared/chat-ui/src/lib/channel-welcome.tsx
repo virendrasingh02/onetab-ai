@@ -47,7 +47,7 @@ type WelcomeTone = 'primary' | 'info' | 'success' | 'warning' | 'neutral';
 
 /** Tinted icon tile per tone. */
 const TONE_TILE: Record<WelcomeTone, string> = {
-  primary: 'bg-primary/10 text-primary-text ring-primary/15',
+  primary: 'bg-brand/10 text-brand-text ring-brand/15',
   info: 'bg-info/10 text-info-text ring-info/15',
   success: 'bg-success/10 text-success-text ring-success/15',
   warning: 'bg-warning/10 text-warning-text ring-warning/15',
@@ -319,7 +319,7 @@ export function ChannelWelcome({
       >
         <button
           type="button"
-          className="rounded-sm font-medium text-foreground underline-offset-2 transition-colors hover:text-primary-text hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-text"
+          className="rounded-sm font-medium text-foreground underline-offset-2 transition-colors hover:text-brand-text hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-text"
         >
           {createdByName}
         </button>
@@ -374,7 +374,7 @@ export function ChannelWelcome({
       <div className="gap-4 flex items-center">
         <span
           aria-hidden
-          className="size-14 flex shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary-text ring-1 ring-primary/15 ring-inset"
+          className="size-14 flex shrink-0 items-center justify-center rounded-2xl bg-brand/10 text-brand-text ring-1 ring-brand/15 ring-inset"
         >
           {isPrivate ? (
             <Lock className="size-6" />
@@ -493,7 +493,7 @@ export function ChannelWelcome({
         </p>
 
         {description ? (
-          <div className="group/desc mt-3 max-w-prose gap-2 py-0.5 pl-3 flex items-start border-l-2 border-primary/30">
+          <div className="group/desc mt-3 max-w-prose gap-2 py-0.5 pl-3 flex items-start border-l-2 border-brand/30">
             <p className="min-w-0 text-sm leading-relaxed flex-1 text-foreground">
               {description}
             </p>

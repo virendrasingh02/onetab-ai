@@ -47,7 +47,7 @@ export function MobileDevicePairPage() {
             placeholder="ABC-123"
             value={code}
             onChange={handleInputChange}
-            className="w-full text-center font-mono text-2xl font-bold tracking-widest h-14 uppercase rounded-input bg-surface border border-input text-foreground placeholder:text-subtle outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 transition-[color,background-color,border-color,box-shadow]"
+            className="w-full text-center font-mono text-2xl font-bold tracking-widest h-14 uppercase rounded-input theme-fixed bg-field border border-input text-foreground placeholder:text-subtle outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 transition-[color,background-color,border-color,box-shadow]"
             maxLength={7}
           />
           {error && <p className="text-xs text-destructive">{error}</p>}

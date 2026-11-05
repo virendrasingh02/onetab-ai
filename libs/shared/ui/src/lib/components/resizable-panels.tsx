@@ -154,7 +154,7 @@ export function ResizablePanels({
         onKeyDown={handleKeyDown}
         onDoubleClick={handleDoubleClick}
         className={cn(
-          'group relative z-10 flex items-center justify-center bg-border transition-colors hover:bg-primary/70 shrink-0 select-none outline-none focus-visible:ring-2 focus-visible:ring-primary',
+          'group relative z-10 flex items-center justify-center bg-border transition-colors hover:bg-primary/70 shrink-0 select-none outline-none focus-visible:ring-2 focus-visible:ring-ring',
           orientation === 'horizontal'
             ? 'w-1.5 cursor-col-resize hover:w-2'
             : 'h-1.5 cursor-row-resize hover:h-2',

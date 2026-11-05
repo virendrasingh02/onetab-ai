@@ -129,7 +129,7 @@ export function Slider({
         className="relative h-1.5 w-full grow overflow-hidden rounded-full bg-surface-raised border border-border"
       >
         <div
-          className="absolute h-full bg-primary transition-all duration-75"
+          className="absolute h-full bg-brand transition-all duration-75"
           style={{
             left: `${rangeStartPercent}%`,
             width: `${rangeEndPercent - rangeStartPercent}%`,
@@ -168,10 +168,10 @@ export function Slider({
               }
             }}
             className={cn(
-              'absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary bg-surface shadow-xs',
+              'absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-brand bg-surface shadow-xs',
               'transition-transform duration-(--duration-fast) outline-none',
               'hover:scale-110 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:scale-110',
-              isDragging && 'scale-125 border-primary shadow-md',
+              isDragging && 'scale-125 border-brand shadow-md',
             )}
             style={{ left: `${percent}%` }}
           >

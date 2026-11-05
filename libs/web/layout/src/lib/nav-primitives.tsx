@@ -367,7 +367,7 @@ export function NavMoreMenu({
     hasActivity && !open ? (
       <span
         className={cn(
-          'size-1.5 shrink-0 rounded-full bg-primary',
+          'size-1.5 shrink-0 rounded-full bg-activity',
           collapsed ? 'top-1.5 right-1.5 absolute' : 'mr-1 ml-auto',
         )}
         aria-label="Unread activity"
@@ -513,7 +513,7 @@ export function NavGroup({
           <span className="flex-1 truncate">{label}</span>
           {!open && hasActivity ? (
             <span
-              className="size-1.5 mr-1 shrink-0 rounded-full bg-primary"
+              className="size-1.5 mr-1 shrink-0 rounded-full bg-activity"
               aria-label="Unread activity"
             />
           ) : null}

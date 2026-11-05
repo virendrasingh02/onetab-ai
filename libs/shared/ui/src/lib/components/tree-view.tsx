@@ -130,7 +130,7 @@ export function TreeView({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={searchPlaceholder}
-            className="h-7 w-full rounded-input border border-input bg-surface pl-8 pr-2.5 text-xs text-foreground placeholder:text-subtle outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
+            className="h-7 w-full rounded-input border border-input theme-fixed bg-field pl-8 pr-2.5 text-xs text-foreground placeholder:text-subtle outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
           />
         </div>
       )}

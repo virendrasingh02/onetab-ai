@@ -172,16 +172,16 @@ export function Calendar({
                 'size-8 text-xs font-normal flex items-center justify-center rounded-md transition-colors focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none',
                 !isCurrentMonth && 'text-muted-foreground/40',
                 isInRange &&
-                  'bg-primary/15 text-foreground hover:bg-primary/25',
+                  'bg-brand/15 text-foreground hover:bg-brand/25',
                 isCurrentMonth &&
                   !isSelected &&
                   !isInRange &&
                   'text-foreground hover:bg-accent hover:text-accent-foreground',
                 isCurrentDay &&
                   !isSelected &&
-                  'font-semibold text-primary ring-1 ring-primary/40',
+                  'font-semibold text-brand-text ring-1 ring-brand/40',
                 isSelected &&
-                  'font-semibold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90',
+                  'font-semibold shadow-xs bg-brand text-brand-foreground hover:bg-brand/90',
                 isDisabled &&
                   'cursor-not-allowed opacity-30 hover:bg-transparent hover:text-inherit',
               )}

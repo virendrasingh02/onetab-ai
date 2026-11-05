@@ -158,17 +158,15 @@ A palette preset may **only** override tokens from this list. This is the themea
 ```
 --primary            --primary-foreground
 --accent             --accent-foreground
---ring
---brand              --brand-foreground
 --sidebar-primary    --sidebar-primary-foreground
 --chart-1 … --chart-5
 ```
 
 Full skins (rare — a whole different look, not just a brand color) may additionally override
 `--background --foreground --card --card-foreground --popover --popover-foreground --muted
---muted-foreground --secondary --secondary-foreground --border --input --sidebar --sidebar-accent`.
+--muted-foreground --secondary --secondary-foreground --border --sidebar --sidebar-accent`.
 
-Three hard rules:
+Four hard rules:
 
 1. **A preset never invents a token.** If `ocean` defines `--wave` and no other theme does, every
    component using `bg-wave` breaks on every other theme. Add it to the base for all themes or
@@ -176,6 +174,17 @@ Three hard rules:
 2. **State tokens are not themeable.** `success`, `warning`, `info`, `destructive` stay constant
    across palettes — status shouldn't change meaning because someone picked a different accent.
 3. **Every preset defines both modes.** A preset with only a light block is broken by definition.
+4. **Functional UI is not themeable.** A workspace theme paints its own chrome: primary buttons, the
+   selected nav row, the active tab, page icon tiles. It never paints what people read as signal or
+   type into, so these look the same in every workspace and follow light/dark only:
+   - `--brand*` — labels, badges, form controls, the composer, chat content. Same mint as the
+     default `--primary`, but pinned. Reach for `primary` only for workspace chrome.
+   - `--activity*` — unread dots and quiet count pills.
+   - `--field`, `--field-border`, `--input`, `--ring` — what an input is drawn with, and all focus.
+   - `.theme-fixed` — resets the neutrals a preset tints, for a field and everything inside it.
+     `Badge`, `Input`, `Select` and the composer already carry it.
+
+   `theme-color-generator.spec.ts` fails if a preset, accent block or the generator sets any of them.
 
 ```css
 /* themes.css — imported after globals.css */

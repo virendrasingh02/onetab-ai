@@ -114,12 +114,12 @@ export function FormCard({
       className={cn(
         'group/form relative my-2 rounded-2xl border border-border/80 bg-surface/95 backdrop-blur-sm p-4 transition-all duration-200 shadow-xs hover:shadow-md max-w-lg',
         isSubmitted && 'border-success/40 bg-success/5',
-        isHighlighted && 'ring-2 ring-primary/60',
+        isHighlighted && 'ring-2 ring-brand/60',
       )}
     >
       <header className="flex items-center justify-between border-b border-border/60 pb-3">
         <div className="flex items-center gap-2">
-          <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+          <div className="size-8 rounded-lg bg-brand/10 text-brand-text flex items-center justify-center">
             <FileText className="size-4" />
           </div>
           <div>

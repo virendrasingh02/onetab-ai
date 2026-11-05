@@ -49,7 +49,7 @@ export function getNodeIcon(type: string | undefined): LucideIcon {
 }
 
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
-  running: { label: 'Running', className: 'border-primary/30 bg-primary/10 text-primary' },
+  running: { label: 'Running', className: 'border-brand/30 bg-brand/10 text-brand-text' },
   success: { label: 'Done', className: 'border-success/30 bg-success/10 text-success' },
   failed: { label: 'Failed', className: 'border-destructive/30 bg-destructive/10 text-destructive' },
   waiting: { label: 'Waiting', className: 'border-warning/30 bg-warning/10 text-warning' },

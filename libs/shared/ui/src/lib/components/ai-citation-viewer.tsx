@@ -36,10 +36,10 @@ export function AICitationViewer({ citations, inline: _inline = false, className
               type="button"
               className={cn(
                 'inline-flex items-center gap-1 rounded-btn border border-border bg-surface px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground shadow-xs cursor-pointer',
-                'transition-all duration-(--duration-fast) hover:border-primary/50 hover:bg-selected hover:text-foreground outline-none',
+                'transition-all duration-(--duration-fast) hover:border-brand/50 hover:bg-selected hover:text-foreground outline-none',
               )}
             >
-              {c.url ? <Globe className="size-2.5 text-primary" /> : <FileText className="size-2.5 text-info" />}
+              {c.url ? <Globe className="size-2.5 text-brand-text" /> : <FileText className="size-2.5 text-info" />}
               <span className="font-semibold text-foreground">[{idx + 1}]</span>
               <span className="max-w-24 truncate">{c.sourceName ?? c.title}</span>
             </button>
@@ -55,8 +55,8 @@ export function AICitationViewer({ citations, inline: _inline = false, className
             </div>
 
             {c.snippet && (
-              <div className="mt-2 rounded-sm bg-surface-raised p-2 text-[11px] text-muted-foreground italic leading-relaxed border-l-2 border-primary flex items-start gap-1.5">
-                <Quote className="size-3 shrink-0 text-primary mt-0.5" />
+              <div className="mt-2 rounded-sm bg-surface-raised p-2 text-[11px] text-muted-foreground italic leading-relaxed border-l-2 border-brand flex items-start gap-1.5">
+                <Quote className="size-3 shrink-0 text-brand-text mt-0.5" />
                 <span>&ldquo;{c.snippet}&rdquo;</span>
               </div>
             )}
@@ -68,7 +68,7 @@ export function AICitationViewer({ citations, inline: _inline = false, className
                   href={c.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                  className="inline-flex items-center gap-1 font-medium text-brand-text hover:underline"
                 >
                   Visit source
                   <ExternalLink className="size-3" />

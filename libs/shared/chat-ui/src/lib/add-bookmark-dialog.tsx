@@ -69,7 +69,7 @@ export function AddBookmarkDialog({
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <div className="flex items-center gap-2">
-              <div className="flex size-8 items-center justify-center rounded-lg border border-border bg-surface-raised text-primary">
+              <div className="flex size-8 items-center justify-center rounded-lg border border-border bg-surface-raised text-brand-text">
                 <Bookmark className="size-4" />
               </div>
               <div>

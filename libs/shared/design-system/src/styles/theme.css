@@ -119,6 +119,25 @@
   --color-group-mention: #fae7e0;
   --color-group-mention-foreground: #b93300;
 
+  /*
+   * `primary` is the workspace's colour and moves with its theme. Everything
+   * below is Onetab's own and never does, so these stay the same in every
+   * workspace: `brand` for labels, badges, form controls, the composer and
+   * chat content; `activity` for unread dots; `field` for what an input is
+   * drawn with. They follow light and dark mode only. `.dark` is the one place
+   * besides `:root` that may set them, never a `[data-accent]` block or
+   * `generateThemeVariables`. `ring`, `input` and the status colours are held
+   * to the same rule. `theme-color-generator.spec.ts` guards it.
+   */
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-text: var(--brand-text);
+  --color-activity: var(--activity);
+  --color-activity-text: var(--activity-text);
+  --color-field: var(--field);
+  --color-field-border: var(--field-border);
+
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
   --color-input: var(--input);
@@ -319,6 +338,23 @@
   --primary-foreground: #11271f;
   --primary-hover: #4fb576;
 
+  /*
+   * The same mint as the default `primary`, but pinned: see the note on
+   * `--color-brand` above. `brand-text` is its forest, for the brand as type.
+   */
+  --brand: #60c686;
+  --brand-foreground: #11271f;
+  --brand-hover: #4fb576;
+  --brand-text: #037152;
+
+  /* Unread dots and quiet count pills. Its own token so it can move alone. */
+  --activity: var(--brand);
+  --activity-text: var(--brand-text);
+
+  /* Input fill, and the stronger edge used on hover and around the composer. */
+  --field: #ffffff;
+  --field-border: #ddd9cf;
+
   --secondary: #f5f5f5;
   --secondary-foreground: #33473f;
 
@@ -474,6 +510,14 @@
   --primary-foreground: #11271f;
   --primary-hover: #7ad49c;
   --primary-focus: #60c686;
+
+  --brand: #60c686;
+  --brand-foreground: #11271f;
+  --brand-hover: #7ad49c;
+  --brand-text: #60c686;
+
+  --field: #171717;
+  --field-border: #3d3d3d;
 
   /* Deep forest — marketer's own dark secondary surface. */
   --secondary: #071812;
@@ -673,112 +717,164 @@
   --primary: var(--accent-violet);
   --primary-foreground: #ffffff;
   --primary-hover: #6a4bc0;
-  --ring: var(--accent-violet);
 }
 .dark[data-accent='violet'],
 [data-accent='violet'].dark {
   --primary: #a899f8;
   --primary-foreground: #1c1438;
   --primary-hover: #b9acf9;
-  --ring: #a899f8;
 }
 
 [data-accent='blue'] {
   --primary: var(--accent-blue);
   --primary-foreground: #ffffff;
   --primary-hover: #3d5dc6;
-  --ring: var(--accent-blue);
 }
 .dark[data-accent='blue'],
 [data-accent='blue'].dark {
   --primary: #9eb4f6;
   --primary-foreground: #0d1a3a;
   --primary-hover: #b2c4f8;
-  --ring: #9eb4f6;
 }
 
 [data-accent='cyan'] {
   --primary: var(--accent-cyan);
   --primary-foreground: #ffffff;
   --primary-hover: #158c9f;
-  --ring: var(--accent-cyan);
 }
 .dark[data-accent='cyan'],
 [data-accent='cyan'].dark {
   --primary: #63d4e8;
   --primary-foreground: #09262c;
   --primary-hover: #7ee0f0;
-  --ring: #63d4e8;
 }
 
 [data-accent='teal'] {
   --primary: var(--accent-teal);
   --primary-foreground: #ffffff;
   --primary-hover: #0d7967;
-  --ring: var(--accent-teal);
 }
 .dark[data-accent='teal'],
 [data-accent='teal'].dark {
   --primary: #45ccb6;
   --primary-foreground: #072621;
   --primary-hover: #5ed6c3;
-  --ring: #45ccb6;
 }
 
 [data-accent='amber'] {
   --primary: var(--accent-amber);
   --primary-foreground: #2a1f08;
   --primary-hover: #c48924;
-  --ring: var(--accent-amber);
 }
 .dark[data-accent='amber'],
 [data-accent='amber'].dark {
   --primary: #f5be74;
   --primary-foreground: #2d1a04;
   --primary-hover: #f7ca8c;
-  --ring: #f5be74;
 }
 
 [data-accent='orange'] {
   --primary: var(--accent-orange);
   --primary-foreground: #ffffff;
   --primary-hover: #e86342;
-  --ring: var(--accent-orange);
 }
 .dark[data-accent='orange'],
 [data-accent='orange'].dark {
   --primary: #ffa06d;
   --primary-foreground: #341207;
   --primary-hover: #ffb187;
-  --ring: #ffa06d;
 }
 
 [data-accent='rose'] {
   --primary: var(--accent-rose);
   --primary-foreground: #ffffff;
   --primary-hover: #cb324b;
-  --ring: var(--accent-rose);
 }
 .dark[data-accent='rose'],
 [data-accent='rose'].dark {
   --primary: #ff787b;
   --primary-foreground: #360a0f;
   --primary-hover: #ff8e91;
-  --ring: #ff787b;
 }
 
 [data-accent='indigo'] {
   --primary: var(--accent-indigo);
   --primary-foreground: #ffffff;
   --primary-hover: #3547a4;
-  --ring: var(--accent-indigo);
 }
 .dark[data-accent='indigo'],
 [data-accent='indigo'].dark {
   --primary: #9aaaf5;
   --primary-foreground: #0f1638;
   --primary-hover: #aebcf7;
-  --ring: #9aaaf5;
+}
+
+/* --------------------------------------------------- Theme-fixed scope ----
+ *
+ * A workspace theme repaints more than the accent: a preset also tints the
+ * neutrals (text, borders, muted fills) with its hue. Fields and composers must
+ * look the same in every workspace, so anything carrying `theme-fixed` puts the
+ * default palette back for itself and everything inside it. The theme's values
+ * sit on `:root` with `!important`, but that only wins on the root element; a
+ * custom property declared here wins for this subtree.
+ *
+ * These mirror the `:root` and `.dark` values above. A spec keeps them in step.
+ */
+.theme-fixed {
+  --primary: var(--brand);
+  --primary-foreground: var(--brand-foreground);
+  --primary-hover: var(--brand-hover);
+  --primary-text: var(--brand-text);
+
+  --foreground: #11271f;
+  --card: #ffffff;
+  --card-foreground: #11271f;
+  --popover: #ffffff;
+  --popover-foreground: #11271f;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #33473f;
+  --muted: #f8f8f8;
+  --muted-foreground: #67766f;
+  --accent: #f1f0ec;
+  --accent-foreground: #11271f;
+  --selected: #e6ede8;
+  --border: #eeece6;
+  --border-strong: #ddd9cf;
+  --surface: #ffffff;
+  --surface-muted: #faf9f6;
+  --surface-raised: #f4f2ec;
+  --surface-inset: #eeece5;
+}
+
+.dark .theme-fixed {
+  --foreground: #fafafa;
+  --card: #171717;
+  --card-foreground: #fafafa;
+  --popover: #1f1f1f;
+  --popover-foreground: #fafafa;
+  --secondary: #071812;
+  --secondary-foreground: #fafafa;
+  --muted: #262626;
+  --muted-foreground: #aeaeae;
+  --accent: #262626;
+  --accent-foreground: #fafafa;
+  --selected: #0d2c21;
+  --border: #2e2e2e;
+  --border-strong: #3d3d3d;
+  --surface: #171717;
+  --surface-muted: #1c1c1c;
+  --surface-raised: #212121;
+  --surface-inset: #262626;
+}
+
+/*
+ * Text inherits the colour `body` already resolved, so resetting the variable
+ * alone leaves it tinted. In a layer so `text-*` utilities still win here.
+ */
+@layer base {
+  .theme-fixed {
+    color: var(--foreground);
+  }
 }
 
 /* ------------------------------------------------- App content panel ----
@@ -913,7 +1009,7 @@ html:not(.dark) .app-content-panel {
    * the brand mint keeps the text itself readable rather than knocking it out.
    */
   ::selection {
-    background-color: color-mix(in oklch, var(--primary) 24%, transparent);
+    background-color: color-mix(in oklch, var(--brand) 24%, transparent);
     color: var(--foreground);
   }
 
@@ -1247,11 +1343,11 @@ html:not(.dark) .app-content-panel {
   }
 }
 
-/* Deep-link / jump-to-message highlight: a soft primary wash that fades out. */
+/* Deep-link / jump-to-message highlight: a soft brand wash that fades out. */
 @keyframes message-flash {
   0%,
   45% {
-    background-color: color-mix(in oklab, var(--primary) 20%, transparent);
+    background-color: color-mix(in oklab, var(--brand) 20%, transparent);
   }
   100% {
     background-color: transparent;

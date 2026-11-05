@@ -291,7 +291,7 @@ export function CallModal() {
           className="w-full max-w-sm rounded-3xl border border-border bg-surface p-6 shadow-overlay space-y-6 text-center"
         >
           <div className="relative mx-auto size-20 flex items-center justify-center">
-            <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary/20" />
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-brand/20" />
             <UserAvatar
               name={peer.name}
               src={peer.avatarUrl}
@@ -611,7 +611,7 @@ export function CallModal() {
                     >
                       <span className="truncate">{d.label}</span>
                       {selectedAudioInput === d.deviceId && (
-                        <Check className="size-3.5 text-primary shrink-0" />
+                        <Check className="size-3.5 text-brand-text shrink-0" />
                       )}
                     </DropdownMenuItem>
                   ))}
@@ -632,7 +632,7 @@ export function CallModal() {
                     >
                       <span className="truncate">{d.label}</span>
                       {selectedVideoInput === d.deviceId && (
-                        <Check className="size-3.5 text-primary shrink-0" />
+                        <Check className="size-3.5 text-brand-text shrink-0" />
                       )}
                     </DropdownMenuItem>
                   ))}
@@ -657,7 +657,7 @@ export function CallModal() {
                     >
                       <span className="truncate">{d.label}</span>
                       {selectedAudioOutput === d.deviceId && (
-                        <Check className="size-3.5 text-primary shrink-0" />
+                        <Check className="size-3.5 text-brand-text shrink-0" />
                       )}
                     </DropdownMenuItem>
                   ))}

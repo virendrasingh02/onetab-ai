@@ -154,7 +154,7 @@ export function CustomApiModal({
                 setTestResult(null);
               }}
               placeholder="https://api.example.com/v1"
-              className="w-full mt-1.5 px-3 py-2 text-xs rounded-lg border border-border bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+              className="w-full mt-1.5 px-3 py-2 text-xs rounded-lg border border-border bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-ring font-mono"
             />
             <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
               <ShieldCheck className="size-3 text-success" />
@@ -202,7 +202,7 @@ export function CustomApiModal({
                 value={bearerToken}
                 onChange={(e) => setBearerToken(e.target.value)}
                 placeholder="Bearer secret token..."
-                className="w-full mt-1 px-3 py-1.5 text-xs rounded-lg border border-border bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+                className="w-full mt-1 px-3 py-1.5 text-xs rounded-lg border border-border bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-ring font-mono"
               />
             </div>
           )}
@@ -216,7 +216,7 @@ export function CustomApiModal({
                   value={apiKeyHeader}
                   onChange={(e) => setApiKeyHeader(e.target.value)}
                   placeholder="X-API-Key"
-                  className="w-full mt-1 px-3 py-1.5 text-xs rounded-lg border border-border bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+                  className="w-full mt-1 px-3 py-1.5 text-xs rounded-lg border border-border bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-ring font-mono"
                 />
               </div>
               <div>
@@ -226,7 +226,7 @@ export function CustomApiModal({
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
                   placeholder="Secret API key..."
-                  className="w-full mt-1 px-3 py-1.5 text-xs rounded-lg border border-border bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+                  className="w-full mt-1 px-3 py-1.5 text-xs rounded-lg border border-border bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-ring font-mono"
                 />
               </div>
             </div>
@@ -241,7 +241,7 @@ export function CustomApiModal({
                   value={basicUsername}
                   onChange={(e) => setBasicUsername(e.target.value)}
                   placeholder="Username"
-                  className="w-full mt-1 px-3 py-1.5 text-xs rounded-lg border border-border bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full mt-1 px-3 py-1.5 text-xs rounded-lg border border-border bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 />
               </div>
               <div>
@@ -251,7 +251,7 @@ export function CustomApiModal({
                   value={basicPassword}
                   onChange={(e) => setBasicPassword(e.target.value)}
                   placeholder="Password"
-                  className="w-full mt-1 px-3 py-1.5 text-xs rounded-lg border border-border bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+                  className="w-full mt-1 px-3 py-1.5 text-xs rounded-lg border border-border bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-ring font-mono"
                 />
               </div>
             </div>

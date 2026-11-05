@@ -337,7 +337,7 @@ export function PromptComposer({
         <form
           onSubmit={submit}
           aria-busy={busy || undefined}
-          className="px-2 py-1.5 rounded-xl border border-border bg-background shadow-sm transition-colors focus-within:border-ring"
+          className="px-2 py-1.5 rounded-xl border border-input theme-fixed bg-field shadow-sm transition-colors focus-within:border-ring"
         >
           <label htmlFor={fieldId} className="sr-only">
             {label}

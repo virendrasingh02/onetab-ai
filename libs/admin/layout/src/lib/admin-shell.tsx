@@ -323,7 +323,7 @@ function AdminNavRow({
         <RailNavLink to={to} end={end} onClick={onNavigate} aria-label={label}>
           <Icon className="size-4 shrink-0" />
           {badge ? (
-            <span className="absolute right-1 top-1 size-2 rounded-full bg-primary ring-2 ring-card" />
+            <span className="absolute right-1 top-1 size-2 rounded-full bg-activity ring-2 ring-card" />
           ) : null}
         </RailNavLink>
       </Hint>
@@ -387,7 +387,7 @@ function AdminNavSection({
                   ? 'bg-destructive/12 text-destructive border-destructive/20'
                   : badge.includes('Degraded')
                     ? 'bg-amber-500/12 text-amber-500 border-amber-500/20'
-                    : 'bg-primary/12 text-primary border-primary/20',
+                    : 'bg-brand/12 text-brand-text border-brand/20',
               )}
             >
               {badge}
@@ -1072,7 +1072,7 @@ export function AdminShell() {
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-semibold leading-tight text-foreground flex items-center gap-1.5">
                       <span>Onetab AI</span>
-                      <span className="text-[10px] font-mono uppercase px-1.5 py-0.2 rounded bg-primary/10 text-primary border border-primary/20 font-semibold">
+                      <span className="text-[10px] font-mono uppercase px-1.5 py-0.2 rounded bg-brand/10 text-brand-text border border-brand/20 font-semibold">
                         Admin
                       </span>
                     </div>
@@ -1403,7 +1403,7 @@ export function AdminShell() {
                     <p className="text-sm font-semibold leading-none text-foreground truncate max-w-[150px]">
                       {displayName}
                     </p>
-                    <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 font-semibold">
+                    <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-brand/10 text-brand-text border border-brand/20 font-semibold">
                       {currentUser?.systemRole || 'SUPERADMIN'}
                     </span>
                   </div>

@@ -1251,7 +1251,7 @@ export function ChatBubble({
                 isGrouped && !isSaved ? 'py-0.5' : 'pt-2.5 pb-0.5',
               ),
           // Keep the tint on hover — the neutral hover wash used to wipe it.
-          isSaved && 'bg-primary/[0.05] hover:bg-primary/[0.08]',
+          isSaved && 'bg-brand/[0.05] hover:bg-brand/[0.08]',
           isPinned && 'bg-warning/[0.05] hover:bg-warning/[0.08]',
           isHighlighted && CHAT_ROW_HIGHLIGHT,
           showSending && 'opacity-70',
@@ -1337,7 +1337,7 @@ export function ChatBubble({
                   className={cn(
                     isCompact ? 'size-8' : 'size-10',
                     'cursor-pointer rounded-full shadow-xs transition-transform hover:scale-105 hover:opacity-90',
-                    isAgent && 'ring-2 ring-primary/40',
+                    isAgent && 'ring-2 ring-brand/40',
                     isApp && 'ring-2 ring-accent-violet/40',
                     isDoc && 'ring-2 ring-info-text/40',
                     (isTask || isKanban) && 'ring-2 ring-success/40',
@@ -1537,7 +1537,7 @@ export function ChatBubble({
                       onClick={onAssignToMe}
                       className="gap-1 px-2 py-0.5 text-xs font-semibold flex cursor-pointer items-center rounded-md border border-border bg-surface text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                     >
-                      <UserCheck className="size-3 text-primary" />
+                      <UserCheck className="size-3 text-brand-text" />
                       <span>Assign to me</span>
                     </button>
                   ) : null}
@@ -1572,9 +1572,9 @@ export function ChatBubble({
                   {onAskAI ? (
                     <button
                       onClick={onAskAI}
-                      className="gap-1 px-2 py-0.5 text-xs font-semibold flex cursor-pointer items-center rounded-md border border-primary/30 bg-primary/10 text-primary-text transition-colors hover:bg-primary/20"
+                      className="gap-1 px-2 py-0.5 text-xs font-semibold flex cursor-pointer items-center rounded-md border border-brand/30 bg-brand/10 text-brand-text transition-colors hover:bg-brand/20"
                     >
-                      <Bot className="size-3 text-primary" />
+                      <Bot className="size-3 text-brand-text" />
                       <span>Ask AI</span>
                     </button>
                   ) : null}
@@ -1879,9 +1879,9 @@ export function JumpToDatePicker({
                       'text-foreground hover:bg-accent',
                     isCurrentDay &&
                       !isSelected &&
-                      'font-semibold text-primary ring-1 ring-primary/40',
+                      'font-semibold text-brand-text ring-1 ring-brand/40',
                     isSelected &&
-                      'font-bold bg-primary text-primary-foreground shadow-md hover:bg-primary-hover',
+                      'font-bold bg-brand text-brand-foreground shadow-md hover:bg-brand-hover',
                   )}
                 >
                   {format(day, 'd')}
@@ -2122,7 +2122,7 @@ export function MessageActionToolbar({
             aria-label={isSaved ? 'Remove from saved' : 'Save for later'}
             aria-pressed={isSaved}
             onClick={onToggleSave}
-            className={cn(TOOLBAR_BTN, isSaved && 'text-primary-text')}
+            className={cn(TOOLBAR_BTN, isSaved && 'text-brand-text')}
           >
             <Bookmark
               className={cn(

@@ -335,7 +335,7 @@ export function SystemEventEntityAvatar({
       size="md"
       className={cn(
         'size-10 rounded-full shadow-xs',
-        entity.kind === 'agent' && 'ring-2 ring-primary/40',
+        entity.kind === 'agent' && 'ring-2 ring-brand/40',
       )}
       indicator={false}
     />

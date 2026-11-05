@@ -724,7 +724,7 @@ function renderBlocks(markdown: string, options: InlineOptions): ReactNode[] {
       blocks.push(
         <blockquote
           key={`quote-${index}`}
-          className="my-1 rounded-r py-1 pl-3 border-l-4 border-primary bg-surface-inset/60 italic"
+          className="my-1 rounded-r py-1 pl-3 border-l-4 border-brand bg-surface-inset/60 italic"
         >
           {quoted.map((quotedLine, lineIndex) => (
             <p key={lineIndex}>
@@ -1027,7 +1027,7 @@ function MarkdownTable({
                         className={cn(
                           'size-3 shrink-0',
                           active
-                            ? 'text-primary'
+                            ? 'text-brand-text'
                             : 'opacity-0 group-hover/th:opacity-60',
                         )}
                         aria-hidden
@@ -1067,7 +1067,7 @@ function MarkdownTable({
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="font-semibold text-primary hover:underline"
+            className="font-semibold text-brand-text hover:underline"
           >
             {expanded ? 'Show less' : 'Show all'}
           </button>

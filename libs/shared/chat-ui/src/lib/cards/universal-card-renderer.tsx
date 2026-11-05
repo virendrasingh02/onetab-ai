@@ -251,12 +251,12 @@ export const UniversalCardRenderer = memo(function UniversalCardRenderer({
       <article
         className={cn(
           'my-2 rounded-2xl border border-border/80 bg-surface/90 p-4 text-xs font-mono shadow-xs',
-          isHighlighted && 'ring-2 ring-primary/60',
+          isHighlighted && 'ring-2 ring-brand/60',
           className,
         )}
       >
         <div className="flex items-center gap-2 font-bold text-muted-foreground mb-2">
-          <HelpCircle className="size-4 text-primary" />
+          <HelpCircle className="size-4 text-brand-text" />
           <span>Universal Card: {cardId || 'Unknown'} {version ? `(v${version})` : ''}</span>
         </div>
         <p className="text-muted-foreground mb-2">Card definition unavailable in local registry. Raw structured data payload:</p>
@@ -590,7 +590,7 @@ export const UniversalCardRenderer = memo(function UniversalCardRenderer({
               </div>
             )}
             <div className="h-2 w-full rounded-full bg-surface-raised overflow-hidden border border-border/60">
-              <div className="h-full bg-primary transition-all duration-300" style={{ width: `${pct}%` }} />
+              <div className="h-full bg-brand transition-all duration-300" style={{ width: `${pct}%` }} />
             </div>
           </div>
         );
@@ -630,7 +630,7 @@ export const UniversalCardRenderer = memo(function UniversalCardRenderer({
       data-card-version={card.version}
       className={cn(
         'group/card relative my-2 rounded-2xl border border-border/80 bg-surface/90 backdrop-blur-sm p-4 transition-all duration-200 shadow-xs hover:shadow-md max-w-2xl',
-        isHighlighted && 'ring-2 ring-primary/60',
+        isHighlighted && 'ring-2 ring-brand/60',
         className,
       )}
     >

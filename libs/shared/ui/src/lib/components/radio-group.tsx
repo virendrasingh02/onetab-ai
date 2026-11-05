@@ -31,12 +31,12 @@ export interface RadioGroupItemProps
 
 const itemClass = cn(
   'mt-0.5 size-4 flex shrink-0 items-center justify-center rounded-full border border-border-strong bg-surface transition-colors',
-  'hover:border-primary/70 focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none',
-  'data-[state=checked]:border-primary data-[state=checked]:bg-primary',
+  'hover:border-brand/70 focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none',
+  'data-[state=checked]:border-brand data-[state=checked]:bg-brand',
   'disabled:cursor-not-allowed',
 );
 
-const dotClass = 'size-1.5 rounded-full bg-primary-foreground';
+const dotClass = 'size-1.5 rounded-full bg-brand-foreground';
 
 export function RadioGroupItem({
   label,
@@ -97,7 +97,7 @@ export function RadioCardItem({
       className={cn(
         'group gap-2.5 p-3 flex w-full items-start rounded-lg border border-border bg-surface-raised text-left transition-colors',
         'hover:border-border-strong focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none',
-        'data-[state=checked]:border-primary data-[state=checked]:bg-primary/5',
+        'data-[state=checked]:border-brand data-[state=checked]:bg-brand/5',
         'disabled:cursor-not-allowed disabled:opacity-60',
         className,
       )}
@@ -120,7 +120,7 @@ export function RadioCardItem({
       </span>
       <span
         aria-hidden="true"
-        className="mt-0.5 size-4 flex shrink-0 items-center justify-center rounded-full border border-border-strong bg-surface group-data-[state=checked]:border-primary group-data-[state=checked]:bg-primary"
+        className="mt-0.5 size-4 flex shrink-0 items-center justify-center rounded-full border border-border-strong bg-surface group-data-[state=checked]:border-brand group-data-[state=checked]:bg-brand"
       >
         <RadioGroupPrimitive.Indicator>
           <span className={dotClass} />

@@ -247,7 +247,7 @@ export function CardRegistryView() {
                         {card.name}
                       </h3>
                       <div className="flex items-center gap-1.5 mt-0.5 font-mono text-[10px] text-muted-foreground">
-                        <span className="uppercase font-semibold text-primary">{card.category}</span>
+                        <span className="uppercase font-semibold text-brand-text">{card.category}</span>
                         <span>·</span>
                         <span>v{card.version}</span>
                       </div>

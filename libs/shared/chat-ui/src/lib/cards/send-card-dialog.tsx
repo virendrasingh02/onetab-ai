@@ -128,7 +128,7 @@ export function SendCardDialog({ open, onOpenChange, onSendCard }: SendCardDialo
       case 'Sparkles':
         return <Sparkles className="size-4 text-accent-violet" />;
       default:
-        return <LayoutGrid className="size-4 text-primary" />;
+        return <LayoutGrid className="size-4 text-brand-text" />;
     }
   };
 
@@ -139,7 +139,7 @@ export function SendCardDialog({ open, onOpenChange, onSendCard }: SendCardDialo
         <DialogHeader className="p-4 border-b border-border/60">
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center gap-2 text-base font-bold">
-              <LayoutGrid className="size-4 text-primary" />
+              <LayoutGrid className="size-4 text-brand-text" />
               <span>Send Universal Card</span>
             </DialogTitle>
             <div className="flex items-center gap-2 text-xs">
@@ -148,7 +148,7 @@ export function SendCardDialog({ open, onOpenChange, onSendCard }: SendCardDialo
                 onClick={() => setStep('select')}
                 className={cn(
                   'px-2 py-1 rounded-md font-semibold transition-colors',
-                  step === 'select' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground',
+                  step === 'select' ? 'bg-brand/10 text-brand-text' : 'text-muted-foreground hover:text-foreground',
                 )}
               >
                 1. Select Card
@@ -159,7 +159,7 @@ export function SendCardDialog({ open, onOpenChange, onSendCard }: SendCardDialo
                 onClick={() => setStep('configure')}
                 className={cn(
                   'px-2 py-1 rounded-md font-semibold transition-colors',
-                  step === 'configure' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground',
+                  step === 'configure' ? 'bg-brand/10 text-brand-text' : 'text-muted-foreground hover:text-foreground',
                 )}
               >
                 2. Enter Data &amp; Preview
@@ -215,7 +215,7 @@ export function SendCardDialog({ open, onOpenChange, onSendCard }: SendCardDialo
                     className={cn(
                       'p-3 rounded-xl border text-left transition-all flex flex-col justify-between gap-2 cursor-pointer',
                       isSelected
-                        ? 'border-primary bg-primary/5 ring-1 ring-primary/40 shadow-xs'
+                        ? 'border-brand bg-brand/5 ring-1 ring-brand/40 shadow-xs'
                         : 'border-border/80 bg-surface-raised hover:bg-accent/60',
                     )}
                   >
@@ -249,7 +249,7 @@ export function SendCardDialog({ open, onOpenChange, onSendCard }: SendCardDialo
             <div className="p-4 border-r border-border/60 overflow-y-auto space-y-3">
               <div className="flex items-center justify-between border-b border-border/60 pb-2">
                 <span className="font-bold text-xs text-foreground flex items-center gap-1.5">
-                  <FileText className="size-3.5 text-primary" />
+                  <FileText className="size-3.5 text-brand-text" />
                   <span>Card Data Fields</span>
                 </span>
                 <span className="text-2xs text-muted-foreground font-mono">

@@ -254,7 +254,7 @@ export function DataGrid<T extends Record<string, any>>({
                   setCurrentPage(1);
                 }}
                 placeholder={searchPlaceholder}
-                className="h-8 w-full rounded-input border border-input bg-surface pl-8 pr-3 text-xs text-foreground placeholder:text-subtle outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
+                className="h-8 w-full rounded-input border border-input theme-fixed bg-field pl-8 pr-3 text-xs text-foreground placeholder:text-subtle outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
               />
               {searchQuery && (
                 <button
@@ -451,7 +451,7 @@ export function DataGrid<T extends Record<string, any>>({
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleSelectRow(rowId)}
-                          className="size-4 rounded border-border accent-primary cursor-pointer"
+                          className="size-4 rounded border-border accent-brand cursor-pointer"
                         />
                         <span>{isSelected ? 'Selected' : 'Select'}</span>
                       </label>
@@ -498,7 +498,7 @@ export function DataGrid<T extends Record<string, any>>({
                       if (el) el.indeterminate = isSomeCurrentSelected;
                     }}
                     onChange={toggleSelectAll}
-                    className="size-3.5 rounded border-border accent-primary cursor-pointer"
+                    className="size-3.5 rounded border-border accent-brand cursor-pointer"
                   />
                 </th>
               )}
@@ -588,7 +588,7 @@ export function DataGrid<T extends Record<string, any>>({
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleSelectRow(rowId)}
-                          className="size-3.5 rounded border-border accent-primary cursor-pointer"
+                          className="size-3.5 rounded border-border accent-brand cursor-pointer"
                         />
                       </td>
                     )}
@@ -633,7 +633,7 @@ export function DataGrid<T extends Record<string, any>>({
                                   col.onCellEdit?.(row, editValue);
                                   setEditingCell(null);
                                 }}
-                                className="h-6 w-full rounded-sm border border-primary bg-surface px-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-primary"
+                                className="h-6 w-full rounded-sm border border-primary bg-surface px-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring"
                               />
                             </div>
                           ) : col.cell ? (

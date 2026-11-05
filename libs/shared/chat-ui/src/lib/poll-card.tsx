@@ -178,7 +178,7 @@ export function PollCard({
                 role="listitem"
                 className={cn(
                   'px-3 py-2.5 relative overflow-hidden rounded-lg border',
-                  isMine ? 'border-primary/50' : 'border-border',
+                  isMine ? 'border-brand/50' : 'border-border',
                   'bg-surface-raised',
                 )}
               >
@@ -187,7 +187,7 @@ export function PollCard({
                   className={cn(
                     'inset-y-0 left-0 ease-out absolute transition-[width] duration-500',
                     isMine || isWinner
-                      ? 'bg-primary/15'
+                      ? 'bg-brand/15'
                       : 'bg-foreground/[0.06]',
                   )}
                   style={{ width: `${percent}%` }}
@@ -206,7 +206,7 @@ export function PollCard({
                     ) : null}
                     {isMine ? (
                       <Check
-                        className="size-3.5 shrink-0 text-primary-text"
+                        className="size-3.5 shrink-0 text-brand-text"
                         aria-label="Your vote"
                       />
                     ) : null}
@@ -243,7 +243,7 @@ export function PollCard({
                 'gap-3 px-3 py-2.5 text-sm font-medium flex w-full items-center justify-between rounded-lg border text-left transition-colors',
                 'focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none',
                 isSelected
-                  ? 'border-primary bg-primary/10 text-foreground'
+                  ? 'border-brand bg-brand/10 text-foreground'
                   : 'border-border bg-surface-raised text-foreground hover:border-border-strong hover:bg-accent',
                 'disabled:cursor-not-allowed disabled:opacity-70',
               )}
@@ -258,7 +258,7 @@ export function PollCard({
                   'size-5 flex shrink-0 items-center justify-center border-2 transition-colors',
                   multi ? 'rounded-md' : 'rounded-full',
                   isSelected
-                    ? 'border-primary bg-primary text-primary-foreground'
+                    ? 'border-brand bg-brand text-brand-foreground'
                     : 'border-muted-foreground/50',
                 )}
               >

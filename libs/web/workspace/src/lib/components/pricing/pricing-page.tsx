@@ -136,7 +136,7 @@ export function PricingPage({ embedded = false }: PricingPageProps) {
     <div className={`space-y-12 ${embedded ? 'py-2' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10'}`}>
       {/* 1. Header Section */}
       <div className="text-center space-y-4 max-w-3xl mx-auto">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/20 bg-primary/5 text-primary text-xs font-semibold">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-brand/20 bg-brand/5 text-brand-text text-xs font-semibold">
           <Sparkles className="size-3.5" />
           Predictable, Transparent AI Pricing
         </div>

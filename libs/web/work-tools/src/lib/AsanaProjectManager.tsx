@@ -842,7 +842,7 @@ export function AsanaProjectManager() {
                 );
                 toast.success(`Copied prefix ${activeProject.ticketPrefix}`);
               }}
-              className="gap-1 font-bold px-2 py-0.5 rounded inline-flex cursor-pointer items-center border border-primary/30 bg-primary/10 font-mono text-[11px] text-primary transition-colors hover:bg-primary/20"
+              className="gap-1 font-bold px-2 py-0.5 rounded inline-flex cursor-pointer items-center border border-brand/30 bg-brand/10 font-mono text-[11px] text-brand-text transition-colors hover:bg-brand/20"
               title="Click to copy ticket prefix"
             >
               <Hash className="size-3" />
@@ -952,7 +952,7 @@ export function AsanaProjectManager() {
               <Filter className="size-3.5 text-muted-foreground" />
               <span>Filter</span>
               {filterCount > 0 ? (
-                <Badge variant="count" className="bg-primary/20 text-primary">
+                <Badge variant="count" className="bg-brand/20 text-brand-text">
                   {filterCount}
                 </Badge>
               ) : null}

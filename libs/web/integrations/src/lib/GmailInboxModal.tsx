@@ -282,7 +282,7 @@ export function GmailInboxModal({
                       value={composeTo}
                       onChange={(e) => setComposeTo(e.target.value)}
                       placeholder="recipient@example.com"
-                      className="w-full mt-1 px-3 py-1.5 text-xs rounded-md border border-border bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="w-full mt-1 px-3 py-1.5 text-xs rounded-md border border-border bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                   </div>
 
@@ -293,7 +293,7 @@ export function GmailInboxModal({
                       value={composeSubject}
                       onChange={(e) => setComposeSubject(e.target.value)}
                       placeholder="Subject line"
-                      className="w-full mt-1 px-3 py-1.5 text-xs rounded-md border border-border bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="w-full mt-1 px-3 py-1.5 text-xs rounded-md border border-border bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                   </div>
 
@@ -304,7 +304,7 @@ export function GmailInboxModal({
                       value={composeBody}
                       onChange={(e) => setComposeBody(e.target.value)}
                       placeholder="Write your email here..."
-                      className="w-full mt-1 p-3 text-xs rounded-md border border-border bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none font-sans"
+                      className="w-full mt-1 p-3 text-xs rounded-md border border-border bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none font-sans"
                     />
                   </div>
                 </div>
@@ -406,7 +406,7 @@ export function GmailInboxModal({
                       value={replyBody}
                       onChange={(e) => setReplyBody(e.target.value)}
                       placeholder="Type your reply..."
-                      className="w-full p-2.5 text-xs rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none font-sans"
+                      className="w-full p-2.5 text-xs rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none font-sans"
                     />
 
                     <div className="flex justify-end">

@@ -404,7 +404,7 @@ export function CallSummaryView({
       {/* Header */}
       <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border bg-surface">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary-text shrink-0">
+          <div className="size-8 rounded-lg bg-brand/10 flex items-center justify-center text-brand-text shrink-0">
             <Sparkles className="size-4" />
           </div>
           <div className="min-w-0">
@@ -520,7 +520,7 @@ export function CallSummaryView({
               </div>
             ) : !summary ? (
               <EmptyState
-                icon={<Sparkles className="size-8 text-primary-text" />}
+                icon={<Sparkles className="size-8 text-brand-text" />}
                 title={isLive ? 'The summary is written when the call ends' : 'No summary yet'}
                 description="Decisions, action items and key points are extracted from the call's notes and transcript."
                 action={
@@ -587,7 +587,7 @@ export function CallSummaryView({
                 {/* Overview */}
                 <div className="p-4 rounded-xl border border-border bg-surface space-y-2">
                   <SectionHeading
-                    icon={<Sparkles className="size-3.5 text-primary-text" />}
+                    icon={<Sparkles className="size-3.5 text-brand-text" />}
                     actions={
                       <>
                         <Button
@@ -666,7 +666,7 @@ export function CallSummaryView({
                     <ul className="space-y-1.5">
                       {summary.keyPoints.map((point, idx) => (
                         <li key={idx} className="flex items-start gap-2 text-xs text-foreground">
-                          <span className="size-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
+                          <span className="size-1.5 rounded-full bg-brand mt-1.5 shrink-0" />
                           <span className="leading-relaxed">{point}</span>
                         </li>
                       ))}
@@ -708,7 +708,7 @@ export function CallSummaryView({
 
                 <div className="space-y-2">
                   <SectionHeading
-                    icon={<ListTodo className="size-3.5 text-primary-text" />}
+                    icon={<ListTodo className="size-3.5 text-brand-text" />}
                     actions={
                       <Button
                         variant="ghost"
@@ -785,7 +785,7 @@ export function CallSummaryView({
                               href={link.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-primary-text hover:underline"
+                              className="inline-flex items-center gap-1 text-brand-text hover:underline"
                             >
                               {link.title}
                               <ExternalLink className="size-3" />
@@ -868,14 +868,14 @@ export function CallSummaryView({
                   disabled={assistBusy}
                   className="text-[11px] gap-1 h-7 whitespace-nowrap"
                 >
-                  <Sparkles className="size-3 text-primary-text" />
+                  <Sparkles className="size-3 text-brand-text" />
                   {label}
                 </Button>
               ))}
               {assistBusy ? <Loader2 className="size-3.5 animate-spin text-muted-foreground" /> : null}
             </div>
 
-            <div className="flex-1 flex flex-col min-h-[260px] rounded-xl border border-border bg-surface overflow-hidden focus-within:ring-1 focus-within:ring-ring">
+            <div className="flex-1 flex flex-col min-h-[260px] rounded-xl border border-input theme-fixed bg-field overflow-hidden focus-within:ring-1 focus-within:ring-ring">
               <Textarea
                 value={notes.content}
                 onChange={(e) => notes.updateContent(e.target.value)}
@@ -1107,7 +1107,7 @@ export function CallSummaryView({
                       <span className="font-semibold text-foreground">{t.speakerName}</span>
                       <span className="font-mono text-[10px] tabular-nums">{clock(t.timestamp)}</span>
                     </div>
-                    <p className="text-foreground leading-relaxed pl-2 border-l-2 border-primary/40">
+                    <p className="text-foreground leading-relaxed pl-2 border-l-2 border-brand/40">
                       {t.text}
                     </p>
                   </div>
@@ -1122,7 +1122,7 @@ export function CallSummaryView({
           <div className="absolute inset-x-0 bottom-0 top-1/4 z-30 flex flex-col border-t border-border bg-surface shadow-overlay animate-in slide-in-from-bottom-5">
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
               <div className="flex items-center gap-2 text-xs font-semibold">
-                <Bot className="size-4 text-primary-text" />
+                <Bot className="size-4 text-brand-text" />
                 Ask about this call
               </div>
               <Button variant="ghost" size="icon-sm" onClick={() => setAskOpen(false)} aria-label="Close">
@@ -1153,7 +1153,7 @@ export function CallSummaryView({
 
               {answers.map((item, idx) => (
                 <div key={idx} className="space-y-1.5">
-                  <div className="ml-auto w-fit max-w-[85%] rounded-xl bg-primary/10 p-2.5 font-medium text-primary-text">
+                  <div className="ml-auto w-fit max-w-[85%] rounded-xl bg-brand/10 p-2.5 font-medium text-brand-text">
                     {item.q}
                   </div>
                   <div className="rounded-xl border border-border bg-background p-3 text-foreground leading-relaxed whitespace-pre-wrap">

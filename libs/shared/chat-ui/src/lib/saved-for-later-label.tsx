@@ -29,7 +29,7 @@ export function SavedForLaterLabel({
       )}
     >
       <span aria-hidden className={cn(isCompact ? 'w-8' : 'w-10', 'shrink-0')} />
-      <span className="gap-1 inline-flex items-center text-xs font-semibold text-primary-text">
+      <span className="gap-1 inline-flex items-center text-xs font-semibold text-brand-text">
         <Bookmark className="size-3 shrink-0 fill-current" aria-hidden />
         Saved for later
         {canOpen ? (
@@ -43,7 +43,7 @@ export function SavedForLaterLabel({
                 event.stopPropagation();
                 openSaved(messageId);
               }}
-              className="rounded-sm font-semibold text-primary-text hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="rounded-sm font-semibold text-brand-text hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               View Saved
             </button>

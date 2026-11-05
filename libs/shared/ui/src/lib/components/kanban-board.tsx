@@ -181,7 +181,7 @@ export function KanbanBoard({
                       onClick={() => onCardClick?.(card)}
                       className={cn(
                         'group relative flex flex-col gap-2 rounded-btn border border-border bg-surface p-3 text-xs shadow-xs cursor-grab active:cursor-grabbing outline-none',
-                        'transition-all duration-(--duration-fast) hover:border-border-strong hover:shadow-sm focus-visible:ring-2 focus-visible:ring-primary',
+                        'transition-all duration-(--duration-fast) hover:border-border-strong hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring',
                         isDragging && 'opacity-40 border-dashed border-primary',
                       )}
                     >
@@ -250,7 +250,7 @@ export function KanbanBoard({
                                 className="size-5 rounded-full object-cover border border-border"
                               />
                             ) : (
-                              <div className="flex size-5 items-center justify-center rounded-full bg-primary/10 text-[9px] font-bold text-primary">
+                              <div className="flex size-5 items-center justify-center rounded-full bg-brand/10 text-[9px] font-bold text-brand-text">
                                 {card.assignee.initials ?? card.assignee.name.slice(0, 2).toUpperCase()}
                               </div>
                             )}

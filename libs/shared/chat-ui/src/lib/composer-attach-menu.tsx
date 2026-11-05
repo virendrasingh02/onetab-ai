@@ -140,7 +140,7 @@ export function ComposerAttachMenu({
           <button
             type="button"
             aria-label="Attach files or use connected tools"
-            className="size-8 flex touch-target shrink-0 items-center justify-center rounded-full border border-primary/25 bg-primary/10 text-primary-text transition-colors hover:border-primary/40 hover:bg-primary/20 active:scale-95"
+            className="size-8 flex touch-target shrink-0 items-center justify-center rounded-full border border-brand/25 bg-brand/10 text-brand-text transition-colors hover:border-brand/40 hover:bg-brand/20 active:scale-95"
           >
             <Plus className="size-4" aria-hidden="true" />
           </button>

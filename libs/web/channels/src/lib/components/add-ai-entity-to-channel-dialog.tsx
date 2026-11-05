@@ -283,7 +283,7 @@ export function AddAiEntityToChannelDialog({
                           <span className="text-xs font-bold text-foreground">
                             {item.name}
                           </span>
-                          <span className="text-[11px] font-mono text-primary">
+                          <span className="text-[11px] font-mono text-brand-text">
                             {item.handle}
                           </span>
                           <Badge

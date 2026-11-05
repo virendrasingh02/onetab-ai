@@ -53,7 +53,6 @@ function toPreset(seed: PresetSeed): ThemePreset {
       neutralColor: seed.neutralColor,
       colors: {
         primary: seed.brandColor,
-        ring: seed.brandColor,
         ...seed.colors,
       },
       ...(seed.gradients ? { gradients: seed.gradients } : {}),

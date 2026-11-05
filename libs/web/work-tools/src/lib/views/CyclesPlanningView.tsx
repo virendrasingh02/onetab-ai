@@ -229,7 +229,7 @@ export function CyclesPlanningView({
                 >
                   <div className="flex items-center gap-2.5 truncate pr-2">
                     <StatusIcon status={task.status} className="size-3.5 shrink-0" />
-                    <span className="font-mono text-[10px] text-primary/80 font-bold">
+                    <span className="font-mono text-[10px] text-brand-text/80 font-bold">
                       {task.identifier || 'TASK'}
                     </span>
                     <span className="text-xs text-foreground font-medium truncate">
@@ -292,7 +292,7 @@ export function CyclesPlanningView({
                 >
                   <div className="flex items-center gap-2.5 truncate pr-2">
                     <StatusIcon status={task.status} className="size-3.5 shrink-0" />
-                    <span className="font-mono text-[10px] text-primary/80 font-bold">
+                    <span className="font-mono text-[10px] text-brand-text/80 font-bold">
                       {task.identifier || 'TASK'}
                     </span>
                     <span className="text-xs text-foreground font-medium truncate">

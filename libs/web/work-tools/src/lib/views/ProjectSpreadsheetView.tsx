@@ -103,7 +103,7 @@ export function ProjectSpreadsheetView({
                 >
                   {/* Identifier */}
                   <td className="py-2 px-3 font-semibold text-primary shrink-0">
-                    <span className="inline-flex items-center gap-1 font-mono text-[11px] bg-primary/10 text-primary px-1.5 py-0.5 rounded border border-primary/20">
+                    <span className="inline-flex items-center gap-1 font-mono text-[11px] bg-brand/10 text-brand-text px-1.5 py-0.5 rounded border border-brand/20">
                       {task.identifier || `TASK-${task.ticketNumber ?? ''}`}
                     </span>
                   </td>

@@ -67,7 +67,7 @@ export function SystemMessageCard({
       className={cn(
         'group/system-card relative my-2 rounded-xl border p-3.5 text-xs transition-all shadow-2xs max-w-lg',
         style.border,
-        isHighlighted && 'ring-2 ring-primary/60',
+        isHighlighted && 'ring-2 ring-brand/60',
       )}
     >
       <div className="flex items-start gap-2.5">

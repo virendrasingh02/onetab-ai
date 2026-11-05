@@ -115,7 +115,7 @@ export function SeenBy({
               className,
             )}
           >
-            <CheckCheck className="size-3 text-primary shrink-0" aria-hidden="true" />
+            <CheckCheck className="size-3 text-brand-text shrink-0" aria-hidden="true" />
             <span>{labelText}</span>
           </button>
         </PopoverTrigger>
@@ -174,7 +174,7 @@ export function SeenBy({
             className,
           )}
         >
-          <CheckCheck className="size-3 text-primary shrink-0" aria-hidden="true" />
+          <CheckCheck className="size-3 text-brand-text shrink-0" aria-hidden="true" />
           {variant !== 'text' && (
             <UserAvatarGroup
               users={avatarUsers}
@@ -227,7 +227,7 @@ export function SeenByPopoverContent({ readers }: { readers: MessageReader[] }) 
               <button
                 type="button"
                 onClick={() => setShowAll(true)}
-                className="w-full py-1 text-xs font-medium text-primary hover:underline"
+                className="w-full py-1 text-xs font-medium text-brand-text hover:underline"
               >
                 View all {count} readers
               </button>

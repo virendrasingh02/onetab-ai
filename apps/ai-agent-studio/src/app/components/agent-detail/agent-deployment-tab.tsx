@@ -121,7 +121,7 @@ export function AgentDeploymentTab({ agent }: { agent: AIAgentDetail }) {
           >
             {deployment.status}
           </Badge>
-          <Badge variant="outline" className="font-mono text-2xs text-primary">
+          <Badge variant="outline" className="font-mono text-2xs text-brand-text">
             {deployment.environment}
           </Badge>
           <Badge variant="outline" className="font-mono text-2xs">

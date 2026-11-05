@@ -202,7 +202,7 @@ export function ScheduleView() {
                                 ? 'bg-success/10 text-success'
                                 : msg.status === 'FAILED'
                                   ? 'bg-destructive/10 text-destructive'
-                                  : 'bg-primary/10 text-primary',
+                                  : 'bg-brand/10 text-brand-text',
                             )}
                           >
                             <MessageSquare className="size-4" aria-hidden />

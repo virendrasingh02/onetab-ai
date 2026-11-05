@@ -400,7 +400,7 @@ export function StatusModal({
             >
               What's your status?
             </label>
-            <div className="gap-1 pl-1 pr-2 flex h-10 items-center rounded-input border border-border bg-surface transition-colors focus-within:border-primary focus-within:ring-[3px] focus-within:ring-ring/30">
+            <div className="gap-1 pl-1 pr-2 flex h-10 items-center rounded-input border border-input theme-fixed bg-field transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/30">
               <Popover
                 open={isEmojiPickerOpen}
                 onOpenChange={setIsEmojiPickerOpen}

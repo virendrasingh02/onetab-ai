@@ -310,7 +310,7 @@ export function CardBuilderView() {
             <Input
               value={card.name}
               onChange={(e) => setCard((prev) => ({ ...prev, name: e.target.value }))}
-              className="h-8 text-xs font-bold w-48 sm:w-64 bg-transparent border-transparent hover:border-border focus:border-primary px-2"
+              className="h-8 text-xs font-bold w-48 sm:w-64 bg-transparent border-transparent hover:border-border focus:border-ring px-2"
             />
             <Badge variant="outline" className="text-[10px] font-mono py-0 h-5">
               v{card.version} · <span className="capitalize">{card.status}</span>

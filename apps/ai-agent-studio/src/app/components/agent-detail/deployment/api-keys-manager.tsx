@@ -90,7 +90,7 @@ function KeyRow({
       <div className="min-w-0 space-y-1.5">
         <div className="gap-2 flex flex-wrap items-center">
           <span className="text-xs font-bold text-foreground">{k.name}</span>
-          <code className="px-2 py-0.5 text-xs font-bold rounded-md bg-primary/10 font-mono text-primary">
+          <code className="px-2 py-0.5 text-xs font-bold rounded-md bg-brand/10 font-mono text-brand-text">
             {k.keyPrefix}••••••••
           </code>
           {k.status === 'expired' ? (

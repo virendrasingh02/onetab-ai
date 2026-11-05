@@ -236,7 +236,7 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
         <div>
           <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <span>AI Providers & API Keys</span>
-            <Badge variant="neutral" className="bg-primary/10 text-primary border-primary/20 text-[10px] font-semibold">
+            <Badge variant="neutral" className="bg-brand/10 text-brand-text border-brand/20 text-[10px] font-semibold">
               Multi-Provider
             </Badge>
           </h1>
@@ -294,7 +294,7 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
                       <div className="flex items-center gap-2">
                         <h3 className="text-sm font-bold text-foreground">{provider.name}</h3>
                         {isDefault && (
-                          <Badge variant="neutral" className="text-[10px] bg-primary/10 text-primary border-primary/20 font-semibold px-1.5 py-0">
+                          <Badge variant="neutral" className="text-[10px] bg-brand/10 text-brand-text border-brand/20 font-semibold px-1.5 py-0">
                             Default
                           </Badge>
                         )}
@@ -410,7 +410,7 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
                       {model.provider}
                     </Badge>
                     {model.default && (
-                      <Badge variant="neutral" className="text-[10px] bg-primary/10 text-primary border-primary/20 font-semibold px-1.5 py-0">
+                      <Badge variant="neutral" className="text-[10px] bg-brand/10 text-brand-text border-brand/20 font-semibold px-1.5 py-0">
                         Default
                       </Badge>
                     )}

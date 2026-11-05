@@ -183,7 +183,7 @@ export function StudioHeader({
 
         {/* Studio Badge & Breadcrumb Navigation */}
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="hidden md:inline-flex items-center rounded-md bg-primary/10 px-1.5 py-0.5 text-2xs font-semibold text-primary ring-1 ring-primary/20 ring-inset">
+          <span className="hidden md:inline-flex items-center rounded-md bg-brand/10 px-1.5 py-0.5 text-2xs font-semibold text-brand-text ring-1 ring-brand/20 ring-inset">
             Studio
           </span>
           <nav aria-label="Breadcrumbs" className="flex items-center gap-1.5 text-xs font-medium truncate">

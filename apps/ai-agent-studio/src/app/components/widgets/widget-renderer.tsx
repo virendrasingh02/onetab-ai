@@ -970,7 +970,7 @@ function ActionCardContent({
     <div className="flex flex-col justify-between h-full space-y-3 py-1">
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Badge variant="outline" className="text-2xs text-primary border-primary/30">
+          <Badge variant="outline" className="text-2xs text-brand-text border-brand/30">
             {connectorName}
           </Badge>
           <span className="inline-flex items-center gap-1 text-2xs text-success-text font-medium">

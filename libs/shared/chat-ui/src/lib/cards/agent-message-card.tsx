@@ -272,17 +272,17 @@ export function AgentMessageCard({
         return {
           label: 'Starting',
           variant: 'primary' as const,
-          icon: <Loader2 className="size-3 animate-spin text-primary" />,
-          color: 'text-primary',
-          border: 'border-primary/40',
+          icon: <Loader2 className="size-3 animate-spin text-brand-text" />,
+          color: 'text-brand-text',
+          border: 'border-brand/40',
         };
       case 'running':
         return {
           label: 'Running',
           variant: 'primary' as const,
-          icon: <Loader2 className="size-3 animate-spin text-primary" />,
-          color: 'text-primary',
-          border: 'border-primary shadow-sm shadow-primary/10',
+          icon: <Loader2 className="size-3 animate-spin text-brand-text" />,
+          color: 'text-brand-text',
+          border: 'border-brand shadow-sm shadow-brand/10',
         };
       case 'waiting':
         return {
@@ -574,7 +574,7 @@ export function AgentMessageCard({
           data-message-id={message.id}
           className={cn(
             'group/card my-1.5 p-3 relative rounded-xl border border-border/80 bg-surface transition-colors hover:border-border',
-            isHighlighted && 'ring-2 ring-primary/60',
+            isHighlighted && 'ring-2 ring-brand/60',
           )}
         >
           <div className="gap-3 flex items-center justify-between">
@@ -656,7 +656,7 @@ export function AgentMessageCard({
           CHAT_ROW_INSET,
           CHAT_ROW_HOVER,
           actionsPinned && 'bg-foreground/[0.035]',
-          isSaved && 'bg-primary/[0.05] hover:bg-primary/[0.08]',
+          isSaved && 'bg-brand/[0.05] hover:bg-brand/[0.08]',
           isPinned && 'bg-warning/[0.05] hover:bg-warning/[0.08]',
           isHighlighted && CHAT_ROW_HIGHLIGHT,
         )}
@@ -823,13 +823,13 @@ export function AgentMessageCard({
 
           {/* 6. REASONING / THINKING PROCESS (Collapsible) */}
           {event.reasoning && (
-            <div className="mt-3 overflow-hidden rounded-xl border border-primary/20 bg-primary/5">
+            <div className="mt-3 overflow-hidden rounded-xl border border-brand/20 bg-brand/5">
               <button
                 type="button"
                 onClick={() => setReasoningExpanded((prev) => !prev)}
-                className="px-3 py-2 flex w-full cursor-pointer items-center justify-between text-left transition-colors hover:bg-primary/10"
+                className="px-3 py-2 flex w-full cursor-pointer items-center justify-between text-left transition-colors hover:bg-brand/10"
               >
-                <div className="gap-2 text-xs font-semibold flex items-center text-primary">
+                <div className="gap-2 text-xs font-semibold flex items-center text-brand-text">
                   <Cpu className="size-3.5 animate-pulse" />
                   <span>
                     Reasoning &amp; Chain-of-Thought{' '}
@@ -844,13 +844,13 @@ export function AgentMessageCard({
                 </div>
                 <ChevronDown
                   className={cn(
-                    'size-3.5 text-primary transition-transform duration-200',
+                    'size-3.5 text-brand-text transition-transform duration-200',
                     reasoningExpanded && 'rotate-180',
                   )}
                 />
               </button>
               {reasoningExpanded && event.reasoning.details && (
-                <div className="px-3 py-2.5 text-xs leading-relaxed border-t border-primary/15 bg-background/50 font-mono whitespace-pre-wrap text-muted-foreground">
+                <div className="px-3 py-2.5 text-xs leading-relaxed border-t border-brand/15 bg-background/50 font-mono whitespace-pre-wrap text-muted-foreground">
                   {event.reasoning.details}
                 </div>
               )}
@@ -906,7 +906,7 @@ export function AgentMessageCard({
                 onClick={() => setSourcesExpanded((prev) => !prev)}
                 className="gap-1.5 text-xs font-semibold flex cursor-pointer items-center text-muted-foreground transition-colors hover:text-foreground"
               >
-                <Search className="size-3.5 text-primary" />
+                <Search className="size-3.5 text-brand-text" />
                 <span>{event.sources.length} Sources &amp; Citations</span>
                 <ChevronDown
                   className={cn(
@@ -988,7 +988,7 @@ export function AgentMessageCard({
                       className="p-3 gap-3 text-xs flex items-center justify-between rounded-xl border border-border bg-surface-raised"
                     >
                       <div className="gap-2.5 min-w-0 flex items-center">
-                        <div className="size-8 flex shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <div className="size-8 flex shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand-text">
                           {isImage ? (
                             <ImageIcon className="size-4" />
                           ) : file.codeSnippet ? (
@@ -1062,7 +1062,7 @@ export function AgentMessageCard({
                         setFollowUpSent(true);
                         onFollowUp(prompt);
                       }}
-                      className="group/fu gap-1.5 px-3 py-1 text-xs font-medium shadow-2xs active:translate-y-0 inline-flex max-w-full items-center rounded-full border border-primary/30 bg-primary/10 text-primary-text transition-all hover:-translate-y-px hover:border-primary hover:bg-primary hover:text-primary-foreground hover:shadow-sm focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none"
+                      className="group/fu gap-1.5 px-3 py-1 text-xs font-medium shadow-2xs active:translate-y-0 inline-flex max-w-full items-center rounded-full border border-brand/30 bg-brand/10 text-brand-text transition-all hover:-translate-y-px hover:border-brand hover:bg-brand hover:text-brand-foreground hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
                     >
                       <CornerDownRight
                         className="size-3 shrink-0 opacity-70 group-hover/fu:opacity-100"
@@ -1135,7 +1135,7 @@ export function AgentMessageCard({
               <DialogContent className="max-w-2xl border-border bg-surface">
                 <DialogHeader>
                   <DialogTitle className="text-sm gap-2 flex items-center font-mono">
-                    <Terminal className="size-4 text-primary" />
+                    <Terminal className="size-4 text-brand-text" />
                     <span>Raw Event Payload: {message.id}</span>
                   </DialogTitle>
                 </DialogHeader>

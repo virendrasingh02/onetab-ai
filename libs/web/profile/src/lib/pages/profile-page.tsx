@@ -136,7 +136,7 @@ export function ProfilePage() {
                   <p className="text-muted-foreground leading-relaxed">
                     You are viewing your active profile within{' '}
                     <strong className="text-foreground">{workspace.name}</strong> as an{' '}
-                    <span className="text-primary font-semibold">{workspace.role}</span>.
+                    <span className="text-brand-text font-semibold">{workspace.role}</span>.
                   </p>
                 </div>
               )}

@@ -420,8 +420,8 @@ function ForwardMessageForm({
             mentions and markdown shortcuts all behave as they do in chat. */}
         <div
           className={cn(
-            'relative flex flex-col overflow-hidden rounded-xl border border-border-strong bg-surface',
-            'transition-[border-color,box-shadow] duration-200 focus-within:border-primary/70 focus-within:ring-4 focus-within:ring-primary/15',
+            'relative flex flex-col overflow-hidden rounded-xl border border-field-border theme-fixed bg-field',
+            'transition-[border-color,box-shadow] duration-200 focus-within:border-brand/70 focus-within:ring-4 focus-within:ring-brand/15',
             '[&_[contenteditable]]:min-h-14 [&_[contenteditable]]:max-h-48',
             isSending && 'pointer-events-none opacity-60',
           )}

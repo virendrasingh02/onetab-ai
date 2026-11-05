@@ -51,7 +51,7 @@ export function Input({
         data-slot="input-affix"
         aria-invalid={isInvalid}
         className={cn(
-          'flex w-full items-center gap-1.5 rounded-input border border-input bg-surface text-foreground',
+          'flex w-full items-center gap-1.5 rounded-input border border-input theme-fixed bg-field text-foreground',
           sizeClasses,
           // Comfortable tap height on touch; the global 16px font rule below
           // `sm` needs the extra room anyway.
@@ -94,7 +94,7 @@ export function Input({
       data-slot="input"
       aria-invalid={isInvalid}
       className={cn(
-        'min-w-0 flex w-full rounded-input border border-input bg-surface text-foreground',
+        'min-w-0 flex w-full rounded-input border border-input theme-fixed bg-field text-foreground',
         sizeClasses,
         'pointer-coarse:min-h-11',
         'placeholder:text-subtle',
@@ -151,7 +151,7 @@ export function InputGroup({
   return (
     <div
       className={cn(
-        'inline-flex w-full items-stretch rounded-input border border-input bg-surface focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/25 overflow-hidden',
+        'inline-flex w-full items-stretch rounded-input border border-input theme-fixed bg-field focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/25 overflow-hidden',
         className,
       )}
       {...props}
@@ -193,7 +193,7 @@ export function Textarea({
       aria-invalid={isInvalid}
       minRows={minRows ?? rows ?? 2}
       className={cn(
-        'min-h-16 px-3 py-2 text-xs flex w-full rounded-input border border-input bg-surface text-foreground',
+        'min-h-16 px-3 py-2 text-xs flex w-full rounded-input border border-input theme-fixed bg-field text-foreground',
         'resize-none placeholder:text-subtle',
         'transition-[color,background-color,border-color,box-shadow] duration-(--duration-fast) outline-none',
         'focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25',

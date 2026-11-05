@@ -1234,7 +1234,7 @@ export function WorkspaceSettingsPage({
                         <p className="text-xs text-muted-foreground">
                           {user.email}
                         </p>
-                        <span className="px-2.5 py-0.5 font-semibold inline-block rounded-full bg-primary/10 text-[10px] text-primary">
+                        <span className="px-2.5 py-0.5 font-semibold inline-block rounded-full bg-brand/10 text-[10px] text-brand-text">
                           {workspace.role}
                         </span>
                       </div>
@@ -3347,7 +3347,7 @@ export function WorkspaceSettingsPage({
                   </h2>
                   <Badge
                     variant="outline"
-                    className="font-medium border-primary/20 bg-primary/10 text-[10px] text-primary"
+                    className="font-medium border-brand/20 bg-brand/10 text-[10px] text-brand-text"
                   >
                     {sessionsQuery.data?.length ?? 1} signed in
                   </Badge>
@@ -3399,7 +3399,7 @@ export function WorkspaceSettingsPage({
                               {sess.browser} on {sess.os}
                             </h4>
                             {sess.isCurrent && (
-                              <Badge className="font-semibold bg-primary text-[10px] text-primary-foreground">
+                              <Badge className="font-semibold bg-brand text-[10px] text-brand-foreground">
                                 Current session
                               </Badge>
                             )}

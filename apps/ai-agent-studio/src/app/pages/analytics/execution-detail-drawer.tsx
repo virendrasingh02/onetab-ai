@@ -62,7 +62,7 @@ export function ExecutionDetailDrawer({
                     ? 'bg-success/10 text-success-text'
                     : raw.status === 'FAILED' || raw.status === 'failed'
                     ? 'bg-destructive/10 text-destructive-text'
-                    : 'bg-primary/10 text-primary',
+                    : 'bg-brand/10 text-brand-text',
                 )}
               >
                 <Activity className="size-5" />

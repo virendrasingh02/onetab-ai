@@ -207,6 +207,12 @@ export type GeneratedThemeCssVariables = Record<string, string>;
 
 /**
  * Computes all CSS variables for custom themes dynamically from brand/neutral or full ThemeConfig.
+ *
+ * A theme paints the workspace's own surfaces and nothing else. The focus ring,
+ * input border and status colours are deliberately absent, as are the fixed
+ * tokens in `theme.css` (`brand`, `activity`, `field`): those look the same in
+ * every workspace, so a value for them here would repaint what must not move.
+ * Older saves may still hold `colors.ring`/`input`/`success`/…; they are ignored.
  */
 export function generateThemeVariables(
   brandHexOrConfig: string | ThemeConfig,
@@ -278,7 +284,6 @@ export function generateThemeVariables(
 
     const border = customColors.border || hslToHex({ h: darkHue, s: darkSat, l: 18 });
     const borderStrong = hslToHex({ h: darkHue, s: darkSat, l: 24 });
-    const input = customColors.input || 'rgba(255, 255, 255, 0.15)';
 
     const muted = customColors.muted || hslToHex({ h: darkHue, s: darkSat, l: 15 });
     const mutedFg = customColors.mutedForeground || hslToHex({ h: darkHue, s: Math.max(5, darkSat * 0.4), l: 68 });
@@ -289,16 +294,6 @@ export function generateThemeVariables(
     const primaryHover = adjustLightness(safeBrand, 8);
     const primaryText = adjustLightness(safeBrand, 12);
 
-    // Status
-    const destructive = customColors.destructive || '#ff6568';
-    const destructiveFg = customColors.destructiveForeground || '#2b0a0c';
-    const success = customColors.success || '#37b06f';
-    const successFg = customColors.successForeground || '#071812';
-    const warning = customColors.warning || '#e8a33c';
-    const warningFg = customColors.warningForeground || '#2a1f08';
-    const info = customColors.info || '#92aaf0';
-    const infoFg = customColors.infoForeground || '#080d20';
-
     Object.assign(variables, {
       '--primary': safeBrand,
       '--color-primary': safeBrand,
@@ -307,8 +302,6 @@ export function generateThemeVariables(
       '--primary-hover': primaryHover,
       '--color-primary-hover': primaryHover,
       '--primary-text': primaryText,
-      '--ring': customColors.ring || safeBrand,
-      '--color-ring': customColors.ring || safeBrand,
 
       '--secondary': customColors.secondary || '#071812',
       '--color-secondary': customColors.secondary || '#071812',
@@ -343,8 +336,6 @@ export function generateThemeVariables(
       '--color-border': border,
       '--border-strong': borderStrong,
       '--color-border-strong': borderStrong,
-      '--input': input,
-      '--color-input': input,
 
       '--muted': muted,
       '--color-muted': muted,
@@ -357,33 +348,12 @@ export function generateThemeVariables(
       '--color-accent-foreground': accentFg,
       '--selected': selected,
 
-      '--destructive': destructive,
-      '--color-destructive': destructive,
-      '--destructive-foreground': destructiveFg,
-      '--color-destructive-foreground': destructiveFg,
-
-      '--success': success,
-      '--color-success': success,
-      '--success-foreground': successFg,
-      '--color-success-foreground': successFg,
-
-      '--warning': warning,
-      '--color-warning': warning,
-      '--warning-foreground': warningFg,
-      '--color-warning-foreground': warningFg,
-
-      '--info': info,
-      '--color-info': info,
-      '--info-foreground': infoFg,
-      '--color-info-foreground': infoFg,
-
       '--sidebar': customColors.sidebar || bg,
       '--color-sidebar': customColors.sidebar || bg,
       '--sidebar-foreground': customColors.sidebarForeground || fg,
       '--color-sidebar-foreground': customColors.sidebarForeground || fg,
       '--sidebar-border': customColors.sidebarBorder || border,
       '--color-sidebar-border': customColors.sidebarBorder || border,
-      '--sidebar-ring': safeBrand,
     });
   } else {
     const lightHue = neutralHsl.h;
@@ -401,7 +371,6 @@ export function generateThemeVariables(
 
     const border = customColors.border || hslToHex({ h: lightHue, s: lightSat, l: 92 });
     const borderStrong = hslToHex({ h: lightHue, s: lightSat, l: 85 });
-    const input = customColors.input || hslToHex({ h: lightHue, s: lightSat, l: 90 });
 
     const muted = customColors.muted || hslToHex({ h: lightHue, s: lightSat, l: 96 });
     const mutedFg = customColors.mutedForeground || hslToHex({ h: lightHue, s: Math.max(5, lightSat * 0.8), l: 45 });
@@ -412,16 +381,6 @@ export function generateThemeVariables(
     const primaryHover = adjustLightness(safeBrand, -8);
     const primaryText = adjustLightness(safeBrand, -20);
 
-    // Status
-    const destructive = customColors.destructive || '#e40014';
-    const destructiveFg = customColors.destructiveForeground || '#ffffff';
-    const success = customColors.success || '#037152';
-    const successFg = customColors.successForeground || '#ffffff';
-    const warning = customColors.warning || '#e8a33c';
-    const warningFg = customColors.warningForeground || '#2a1f08';
-    const info = customColors.info || '#4d6dd6';
-    const infoFg = customColors.infoForeground || '#ffffff';
-
     Object.assign(variables, {
       '--primary': safeBrand,
       '--color-primary': safeBrand,
@@ -430,8 +389,6 @@ export function generateThemeVariables(
       '--primary-hover': primaryHover,
       '--color-primary-hover': primaryHover,
       '--primary-text': primaryText,
-      '--ring': customColors.ring || primaryText,
-      '--color-ring': customColors.ring || primaryText,
 
       '--secondary': customColors.secondary || '#f5f5f5',
       '--color-secondary': customColors.secondary || '#f5f5f5',
@@ -466,8 +423,6 @@ export function generateThemeVariables(
       '--color-border': border,
       '--border-strong': borderStrong,
       '--color-border-strong': borderStrong,
-      '--input': input,
-      '--color-input': input,
 
       '--muted': muted,
       '--color-muted': muted,
@@ -480,33 +435,12 @@ export function generateThemeVariables(
       '--color-accent-foreground': accentFg,
       '--selected': selected,
 
-      '--destructive': destructive,
-      '--color-destructive': destructive,
-      '--destructive-foreground': destructiveFg,
-      '--color-destructive-foreground': destructiveFg,
-
-      '--success': success,
-      '--color-success': success,
-      '--success-foreground': successFg,
-      '--color-success-foreground': successFg,
-
-      '--warning': warning,
-      '--color-warning': warning,
-      '--warning-foreground': warningFg,
-      '--color-warning-foreground': warningFg,
-
-      '--info': info,
-      '--color-info': info,
-      '--info-foreground': infoFg,
-      '--color-info-foreground': infoFg,
-
       '--sidebar': customColors.sidebar || bg,
       '--color-sidebar': customColors.sidebar || bg,
       '--sidebar-foreground': customColors.sidebarForeground || fg,
       '--color-sidebar-foreground': customColors.sidebarForeground || fg,
       '--sidebar-border': customColors.sidebarBorder || border,
       '--color-sidebar-border': customColors.sidebarBorder || border,
-      '--sidebar-ring': primaryText,
     });
   }
 

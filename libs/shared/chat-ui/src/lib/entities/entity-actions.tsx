@@ -104,7 +104,7 @@ export function EntityActions({
                 }}
                 className="gap-2"
               >
-                <UserCheck className="size-3.5 text-primary" />
+                <UserCheck className="size-3.5 text-brand-text" />
                 <span>Assign to Me</span>
               </DropdownMenuItem>
             )}

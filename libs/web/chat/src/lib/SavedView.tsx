@@ -302,7 +302,7 @@ export function SavedView() {
         <div>
           {isLoading ? (
             <div className="h-48 flex items-center justify-center">
-              <Spinner className="size-6 text-primary" />
+              <Spinner className="size-6 text-brand-text" />
             </div>
           ) : isError ? (
             <EmptyState
@@ -396,7 +396,7 @@ export function SavedView() {
                             className="mt-0.5 shrink-0"
                           />
                         ) : (
-                          <div className="size-8 mt-0.5 flex shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          <div className="size-8 mt-0.5 flex shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand-text">
                             <ItemIcon className="size-4" />
                           </div>
                         )}

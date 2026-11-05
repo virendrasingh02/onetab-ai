@@ -554,7 +554,7 @@ function QuickAddMenu({
                 ? `Search ${view.app} actions…`
                 : 'Search nodes…'
           }
-          className="pl-8 pr-7 py-1.5 text-xs w-full rounded-md border border-border bg-surface text-foreground transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-1 focus:ring-primary focus:outline-hidden"
+          className="pl-8 pr-7 py-1.5 text-xs w-full rounded-md border border-border bg-surface text-foreground transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-1 focus:ring-ring focus:outline-hidden"
         />
         {search ? (
           <button
@@ -1062,7 +1062,7 @@ function ToolbarButton({
         // Joined segments: outer corners rounded, shared borders collapsed
         'size-7 relative flex cursor-pointer items-center justify-center border border-border bg-surface transition-colors',
         'not-first:border-l-0 first:rounded-l-[10px] last:rounded-r-[10px]',
-        'focus:outline-none focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-primary/60',
+        'focus:outline-none focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-ring/60',
         tone === 'danger'
           ? 'text-foreground hover:bg-destructive/15 hover:text-destructive'
           : 'text-foreground hover:bg-surface-raised',
@@ -2335,7 +2335,7 @@ export const AppConnectorNode = memo(
               }
             : {
                 label: 'Writes',
-                className: 'border-primary/25 bg-primary/10 text-primary',
+                className: 'border-brand/25 bg-brand/10 text-brand-text',
               };
     const sensitive =
       Boolean(app.capability?.requiresConfirmation) && !(actionIds && asTool);
@@ -2982,7 +2982,7 @@ export const GenericStudioNode = memo(({ id, data, selected }: NodeProps) => {
         icon: Cpu,
         iconBg: 'bg-primary/10 text-primary',
         badge: nodeData.badge ? (
-          <span className="px-1.5 py-0.5 font-semibold rounded-full bg-primary/10 text-2xs text-primary">
+          <span className="px-1.5 py-0.5 font-semibold rounded-full bg-brand/10 text-2xs text-brand-text">
             {nodeData.badge}
           </span>
         ) : undefined,
@@ -3303,7 +3303,7 @@ export const WidgetNode = memo(({ id, type, data, selected }: NodeProps) => {
         icon: LayoutDashboard,
         iconBg: 'bg-primary/15 text-primary',
         badge: (
-          <span className="px-1.5 py-0.5 font-semibold rounded-full bg-primary/10 text-2xs text-primary">
+          <span className="px-1.5 py-0.5 font-semibold rounded-full bg-brand/10 text-2xs text-brand-text">
             {type.replace('WIDGET_', '')}
           </span>
         ),

@@ -44,7 +44,7 @@ export function PickerSearch({
         onChange={(e) => onChange(e.target.value)}
         placeholder={effectivePlaceholder}
         aria-label={effectivePlaceholder}
-        className="h-8 w-full rounded-input border border-border/60 bg-surface-inset pl-8 pr-8 text-xs text-foreground outline-none transition-colors placeholder:text-subtle focus:border-primary"
+        className="h-8 w-full rounded-input border border-border/60 bg-surface-inset pl-8 pr-8 text-xs text-foreground outline-none transition-colors placeholder:text-subtle focus:border-ring"
         {...inputProps}
       />
       {value ? (
@@ -55,7 +55,7 @@ export function PickerSearch({
             onChange('');
             onClear?.();
           }}
-          className="absolute right-2 text-muted-foreground hover:text-foreground p-0.5 rounded-sm transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+          className="absolute right-2 text-muted-foreground hover:text-foreground p-0.5 rounded-sm transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         >
           <X className="size-3.5" aria-hidden="true" />
         </button>

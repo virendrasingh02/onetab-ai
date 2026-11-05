@@ -157,7 +157,7 @@ function StagedAttachmentChip({
         </Hint>
       ) : (
         <div className="w-52 gap-2.5 px-3 flex h-[72px] items-center rounded-xl bg-muted/70">
-          <span className="size-10 font-bold tracking-wide flex shrink-0 items-center justify-center rounded-lg bg-primary/15 text-2xs text-primary-text">
+          <span className="size-10 font-bold tracking-wide flex shrink-0 items-center justify-center rounded-lg bg-brand/15 text-2xs text-brand-text">
             {ext || <FileIcon className="size-4" />}
           </span>
           <span className="min-w-0 flex-1">
@@ -191,7 +191,7 @@ function StagedAttachmentChip({
 const ACTION_BUTTON_CLASS =
   'size-8 flex touch-target shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40';
 const ACTION_BUTTON_ACTIVE_CLASS =
-  'bg-primary/15 text-primary-text hover:bg-primary/20 hover:text-primary-text';
+  'bg-brand/15 text-brand-text hover:bg-brand/20 hover:text-brand-text';
 
 function ActionDivider() {
   return (
@@ -1069,7 +1069,7 @@ export function Composer({
         style={{ paddingBottom: composerPadBottom }}
       >
         {contextSlot}
-        <div className="gap-2.5 px-4 py-3.5 text-xs flex items-center rounded-2xl border border-dashed border-border-strong bg-surface-muted text-muted-foreground">
+        <div className="gap-2.5 px-4 py-3.5 text-xs flex items-center rounded-2xl border border-dashed border-field-border bg-surface-muted text-muted-foreground">
           <Lock className="size-4 shrink-0" aria-hidden />
           <span>{readOnlyMessage}</span>
         </div>
@@ -1088,7 +1088,7 @@ export function Composer({
       {contextSlot}
 
       {anon && anonAllowed ? (
-        <div className="gap-1.5 mb-2 px-3 py-1.5 font-medium text-xs flex items-center rounded-lg border border-primary/20 bg-primary/10 text-primary-text">
+        <div className="gap-1.5 mb-2 px-3 py-1.5 font-medium text-xs flex items-center rounded-lg border border-brand/20 bg-brand/10 text-brand-text">
           <VenetianMask className="size-3.5" />
           This message will be posted as “Anonymous Participant”.
         </div>
@@ -1104,10 +1104,10 @@ export function Composer({
         <div
           ref={composerBoxRef}
           className={cn(
-            // Raised card with a soft primary halo on focus, so the composer
+            // Raised card with a soft brand halo on focus, so the composer
             // reads as the page's main input rather than one more bordered box.
-            'relative flex flex-col rounded-2xl border border-border-strong bg-surface shadow-elevated transition-[border-color,box-shadow] duration-200 focus-within:border-primary/70 focus-within:ring-4 focus-within:ring-primary/15 hover:border-primary/40',
-            isDraggingOver && 'border-primary ring-4 ring-primary/25',
+            'relative flex flex-col rounded-2xl border border-field-border theme-fixed bg-field shadow-elevated transition-[border-color,box-shadow] duration-200 focus-within:border-brand/70 focus-within:ring-4 focus-within:ring-brand/15 hover:border-brand/40',
+            isDraggingOver && 'border-brand ring-4 ring-brand/25',
             disabled && 'pointer-events-none opacity-60',
           )}
           onPaste={(event) => {
@@ -1139,8 +1139,8 @@ export function Composer({
                   }}
                   className="p-3 pointer-events-none z-[1000] bg-background/70 backdrop-blur-[2px]"
                 >
-                  <div className="gap-3 flex h-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-primary bg-primary/10 text-primary-text">
-                    <div className="size-14 flex items-center justify-center rounded-full bg-primary/15">
+                  <div className="gap-3 flex h-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-brand bg-brand/10 text-brand-text">
+                    <div className="size-14 flex items-center justify-center rounded-full bg-brand/15">
                       <Plus className="size-7" aria-hidden="true" />
                     </div>
                     <div className="text-base font-semibold">
@@ -1390,7 +1390,7 @@ export function Composer({
                       ACTION_BUTTON_CLASS,
                       // Stays solid (not the soft active tint) — it's a live mic.
                       speech.listening &&
-                        'motion-safe:animate-pulse bg-primary text-primary-foreground hover:bg-primary-hover hover:text-primary-foreground',
+                        'motion-safe:animate-pulse bg-brand text-brand-foreground hover:bg-brand-hover hover:text-brand-foreground',
                     )}
                   >
                     <Speech className="size-4" />
@@ -1440,7 +1440,7 @@ export function Composer({
                           <ChevronLeft className="size-4" />
                         </Button>
                       ) : (
-                        <CalendarClock className="size-3.5 text-primary" />
+                        <CalendarClock className="size-3.5 text-brand-text" />
                       )}
                       <span>
                         {scheduleView === 'custom'
@@ -1586,7 +1586,7 @@ export function Composer({
                   className={cn(
                     'size-8 flex touch-target shrink-0 items-center justify-center rounded-lg transition-[background-color,color,box-shadow,transform] duration-150',
                     canSend && !disabled
-                      ? 'bg-primary text-primary-foreground shadow-sm hover:bg-primary-hover active:scale-95'
+                      ? 'bg-brand text-brand-foreground shadow-sm hover:bg-brand-hover active:scale-95'
                       : 'bg-surface-inset text-muted-foreground/50',
                   )}
                 >

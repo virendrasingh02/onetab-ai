@@ -160,7 +160,7 @@ export function LanguageSelect({
                       </div>
                     </div>
                     {isSelected && (
-                      <Check className="size-3.5 text-primary shrink-0 ml-2" aria-hidden />
+                      <Check className="size-3.5 text-brand-text shrink-0 ml-2" aria-hidden />
                     )}
                   </button>
                 );

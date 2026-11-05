@@ -72,7 +72,7 @@ export function AIExecutionTimeline({
 
   const getStepIcon = (type: AIExecutionStepType, status: AIExecutionStepStatus) => {
     if (status === 'running') {
-      return <Loader2 className="size-3.5 text-primary animate-spin" />;
+      return <Loader2 className="size-3.5 text-brand-text animate-spin" />;
     }
     if (status === 'failed') {
       return <AlertTriangle className="size-3.5 text-destructive" />;
@@ -91,7 +91,7 @@ export function AIExecutionTimeline({
       case 'code':
         return <Code2 className="size-3.5 text-accent-violet" />;
       case 'generating':
-        return <Sparkles className="size-3.5 text-primary" />;
+        return <Sparkles className="size-3.5 text-brand-text" />;
       case 'queued':
       default:
         return <Clock className="size-3.5 text-muted-foreground" />;
@@ -109,7 +109,7 @@ export function AIExecutionTimeline({
       {/* Header bar with summary */}
       <div className="flex items-center justify-between border-b border-border pb-2.5 mb-3">
         <div className="flex items-center gap-2">
-          <Terminal className="size-4 text-primary" />
+          <Terminal className="size-4 text-brand-text" />
           <span className="font-semibold text-foreground">Agent Execution Trace</span>
         </div>
 
@@ -148,7 +148,7 @@ export function AIExecutionTimeline({
               <div
                 className={cn(
                   'flex-1 rounded-md border border-border bg-surface-raised/50 p-2.5 transition-all',
-                  step.status === 'running' && 'border-primary/40 bg-primary/5',
+                  step.status === 'running' && 'border-brand/40 bg-brand/5',
                   step.status === 'failed' && 'border-destructive/30 bg-destructive/5',
                 )}
               >

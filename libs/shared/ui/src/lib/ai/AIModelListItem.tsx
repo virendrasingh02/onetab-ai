@@ -60,7 +60,7 @@ export const AIModelListItem = memo(function AIModelListItem({
           <div className="flex items-center gap-1.5">
             <span className="truncate font-medium text-foreground">{meta.displayName}</span>
             {isRecommended && (
-              <span className="rounded-xs bg-primary/15 text-primary-text px-1 py-0.2 text-[9px] font-bold">
+              <span className="rounded-xs bg-brand/15 text-brand-text px-1 py-0.2 text-[9px] font-bold">
                 REC
               </span>
             )}
@@ -84,7 +84,7 @@ export const AIModelListItem = memo(function AIModelListItem({
           </span>
         )}
         {isSelected ? (
-          <Check className="size-3.5 text-primary shrink-0" aria-hidden="true" />
+          <Check className="size-3.5 text-brand-text shrink-0" aria-hidden="true" />
         ) : (
           <div className="size-3.5" />
         )}

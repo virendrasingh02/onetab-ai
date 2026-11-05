@@ -172,7 +172,7 @@ export function ConversationPinsPanel({
     <div className="min-h-0 flex flex-1 flex-col">
       <div className="mx-4 pt-3 pb-2.5 sm:mx-6 border-b border-border/40">
         <h3 className="gap-2 text-sm font-semibold flex items-center text-foreground">
-          <Pin className="size-4 text-primary" />
+          <Pin className="size-4 text-brand-text" />
           <span>Pinned messages</span>
         </h3>
         <p className="mt-0.5 text-xs text-muted-foreground">

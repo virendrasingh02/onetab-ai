@@ -87,7 +87,7 @@ export function AppResponseCard({
       case 'calendar':
         return <CalendarIcon className="size-4 text-warning-text" />;
       default:
-        return <Blocks className="size-4 text-primary" />;
+        return <Blocks className="size-4 text-brand-text" />;
     }
   };
 
@@ -200,7 +200,7 @@ export function AppResponseCard({
         {/* 2. CARD TITLE & SUBTITLE */}
         <div className="mt-3">
           <div className="gap-2 flex items-start justify-between">
-            <h3 className="text-sm font-bold gap-2 flex items-center text-foreground transition-colors hover:text-primary">
+            <h3 className="text-sm font-bold gap-2 flex items-center text-foreground transition-colors hover:text-brand-text">
               {getCardIcon()}
               <span>{event.title}</span>
             </h3>

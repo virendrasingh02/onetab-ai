@@ -227,7 +227,7 @@ export function NotificationCenterList({
                 <div className="pt-1 flex shrink-0 flex-col items-center justify-center">
                   {!n.read ? (
                     <span
-                      className="size-2 shadow-xs rounded-full bg-primary"
+                      className="size-2 shadow-xs rounded-full bg-activity"
                       title="Unread"
                       aria-label="Unread"
                     />

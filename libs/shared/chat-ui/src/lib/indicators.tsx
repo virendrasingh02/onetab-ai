@@ -208,14 +208,14 @@ export function UnreadMentionsPill({
       className={cn(
         'h-8 gap-1.5 rounded-full pl-2.5 pr-3 text-xs font-semibold',
         'bg-surface/95 text-foreground shadow-md backdrop-blur',
-        'hover:bg-surface hover:text-primary-text hover:border-border-strong',
+        'hover:bg-surface hover:text-brand-text hover:border-border-strong',
         'animate-in fade-in slide-in-from-bottom-2 duration-200',
         'motion-reduce:animate-none motion-reduce:transition-none',
         className,
       )}
     >
       <Arrow
-        className="size-3.5 text-primary-text transition-transform motion-reduce:transition-none"
+        className="size-3.5 text-brand-text transition-transform motion-reduce:transition-none"
         aria-hidden
       />
       <span>{label}</span>

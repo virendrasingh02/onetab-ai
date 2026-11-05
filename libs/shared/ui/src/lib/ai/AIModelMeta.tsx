@@ -33,7 +33,7 @@ export const AIModelMeta = memo(function AIModelMeta({
       )}
 
       {meta.capabilities?.reasoning && (
-        <span className="px-1 py-0.2 rounded bg-primary/10 border border-primary/20 text-primary font-medium">
+        <span className="px-1 py-0.2 rounded bg-brand/10 border border-brand/20 text-brand-text font-medium">
           Reasoning
         </span>
       )}

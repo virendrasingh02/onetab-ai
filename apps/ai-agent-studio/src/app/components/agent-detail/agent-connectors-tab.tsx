@@ -214,7 +214,7 @@ export function AgentConnectorsTab({ agent, onChanged }: { agent: AgentWithApps;
                   title={unavailable ? c.unavailableReason || 'Not set up on this server yet' : undefined}
                   className={cn(
                     'group flex items-center gap-3 rounded-xl border border-border bg-surface p-3.5 text-left outline-none transition-colors',
-                    'focus-visible:ring-2 focus-visible:ring-primary/50',
+                    'focus-visible:ring-2 focus-visible:ring-ring/50',
                     unavailable ? 'cursor-not-allowed opacity-55' : 'cursor-pointer hover:border-border-strong hover:bg-surface-raised',
                   )}
                 >

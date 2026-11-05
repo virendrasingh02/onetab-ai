@@ -175,7 +175,7 @@ export function EntityPreviewDrawer({
                 }}
                 className="gap-1.5 text-xs h-8"
               >
-                <UserCheck className="size-3.5 text-primary" />
+                <UserCheck className="size-3.5 text-brand-text" />
                 <span>Assign to me</span>
               </Button>
             )}

@@ -302,7 +302,7 @@ export function TabsTriggerContent({
             'inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-tight transition-colors',
             'bg-muted-foreground/15 text-muted-foreground',
             'group-hover:bg-muted-foreground/25 group-hover:text-foreground',
-            'group-data-[state=active]:bg-primary/15 group-data-[state=active]:text-primary',
+            'group-data-[state=active]:bg-brand/15 group-data-[state=active]:text-brand-text',
           )}
         >
           {count}

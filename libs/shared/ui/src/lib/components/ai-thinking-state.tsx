@@ -37,7 +37,7 @@ export function AIThinkingState({
   return (
     <div
       className={cn(
-        'rounded-card border border-primary/20 bg-primary/5 p-3 text-xs shadow-xs transition-all duration-(--duration-fast)',
+        'rounded-card border border-brand/20 bg-brand/5 p-3 text-xs shadow-xs transition-all duration-(--duration-fast)',
         isStreaming && 'animate-pulse',
         className,
       )}
@@ -46,16 +46,16 @@ export function AIThinkingState({
       <button
         type="button"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="flex w-full items-center justify-between gap-2 text-left font-medium text-primary-text outline-none cursor-pointer"
+        className="flex w-full items-center justify-between gap-2 text-left font-medium text-brand-text outline-none cursor-pointer"
       >
         <div className="flex items-center gap-2">
-          <div className="flex size-5 items-center justify-center rounded-full bg-primary/20 text-primary">
+          <div className="flex size-5 items-center justify-center rounded-full bg-brand/20 text-brand-text">
             <Brain className="size-3.5" />
           </div>
           <span>{title}</span>
           {isStreaming ? (
-            <span className="flex items-center gap-1 font-mono text-[10px] text-primary">
-              <span className="size-1.5 rounded-full bg-primary animate-ping" />
+            <span className="flex items-center gap-1 font-mono text-[10px] text-brand-text">
+              <span className="size-1.5 rounded-full bg-brand animate-ping" />
               {seconds}s
             </span>
           ) : (
@@ -75,9 +75,9 @@ export function AIThinkingState({
 
       {/* Expanded thoughts */}
       {isExpanded && (
-        <div className="mt-2.5 pt-2 border-t border-primary/15 text-[11px] font-mono text-foreground/80 leading-relaxed max-h-60 overflow-y-auto whitespace-pre-wrap scrollbar-subtle">
+        <div className="mt-2.5 pt-2 border-t border-brand/15 text-[11px] font-mono text-foreground/80 leading-relaxed max-h-60 overflow-y-auto whitespace-pre-wrap scrollbar-subtle">
           {thinkingText}
-          {isStreaming && <span className="inline-block w-1.5 h-3.5 bg-primary ml-0.5 animate-pulse" />}
+          {isStreaming && <span className="inline-block w-1.5 h-3.5 bg-brand ml-0.5 animate-pulse" />}
         </div>
       )}
     </div>

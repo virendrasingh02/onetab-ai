@@ -1014,7 +1014,7 @@ export function AddAgentToChannelDialog({
                           <span className="text-xs font-bold text-foreground">
                             {agent.name}
                           </span>
-                          <span className="font-mono text-[11px] text-primary">
+                          <span className="font-mono text-[11px] text-brand-text">
                             {agent.handle}
                           </span>
                           <Badge
@@ -1378,7 +1378,7 @@ export function ChannelWorkflowsDialog({
                 <p className="text-xs mt-1 leading-relaxed text-muted-foreground">
                   {wf.description}
                 </p>
-                <span className="gap-1 mt-1.5 flex items-center font-mono text-[10px] text-primary">
+                <span className="gap-1 mt-1.5 flex items-center font-mono text-[10px] text-brand-text">
                   <Zap className="size-3" />
                   <span>Trigger: {wf.trigger}</span>
                 </span>

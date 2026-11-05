@@ -37,15 +37,9 @@ type ColorKey =
   | 'accent'
   | 'background'
   | 'foreground'
-  | 'ring'
   | 'card'
   | 'muted'
-  | 'border'
-  | 'input'
-  | 'success'
-  | 'warning'
-  | 'destructive'
-  | 'info';
+  | 'border';
 
 interface ColorField {
   key: ColorKey;
@@ -62,27 +56,15 @@ const COLOR_GROUPS: ReadonlyArray<{ title: string; columns: string; fields: Colo
       { key: 'accent', label: 'Accent & hover' },
       { key: 'background', label: 'Background canvas' },
       { key: 'foreground', label: 'Text / foreground' },
-      { key: 'ring', label: 'Focus ring' },
     ],
   },
   {
     title: 'Surfaces, muted & borders',
-    columns: 'lg:grid-cols-4',
+    columns: 'lg:grid-cols-3',
     fields: [
       { key: 'card', label: 'Card & panel' },
       { key: 'muted', label: 'Muted elements' },
       { key: 'border', label: 'Border hairline' },
-      { key: 'input', label: 'Input background' },
-    ],
-  },
-  {
-    title: 'Status & notification',
-    columns: 'lg:grid-cols-4',
-    fields: [
-      { key: 'success', label: 'Success' },
-      { key: 'warning', label: 'Warning' },
-      { key: 'destructive', label: 'Destructive' },
-      { key: 'info', label: 'Info' },
     ],
   },
 ];
@@ -104,7 +86,6 @@ const LEGACY_SURFACE_KEYS: ColorKey[] = [
   'card',
   'muted',
   'border',
-  'input',
 ];
 
 function blankConfig(mode: ThemeConfig['mode']): ThemeConfig {
@@ -612,7 +593,7 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-border">
-            <div className="h-8 rounded-md border border-input bg-card px-2.5 flex items-center text-xs text-muted-foreground">
+            <div className="h-8 rounded-md border border-input theme-fixed bg-field px-2.5 flex items-center text-xs text-muted-foreground">
               Input field
             </div>
             <div className="flex items-center gap-1.5 flex-wrap">

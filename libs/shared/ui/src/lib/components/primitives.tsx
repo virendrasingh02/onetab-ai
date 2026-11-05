@@ -67,7 +67,7 @@ export function Switch({
         'peer h-5 w-9 shadow-xs inline-flex shrink-0 items-center rounded-full border-2 border-transparent transition-colors',
         'focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none',
         'disabled:cursor-not-allowed disabled:opacity-50',
-        'data-[state=checked]:bg-primary data-[state=unchecked]:bg-input',
+        'data-[state=checked]:bg-brand data-[state=unchecked]:bg-input',
         className,
       )}
       {...props}

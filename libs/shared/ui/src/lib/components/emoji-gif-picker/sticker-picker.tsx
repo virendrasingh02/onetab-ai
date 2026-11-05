@@ -60,7 +60,7 @@ function StickerGrid({
           onClick={() => onSelect(sticker)}
           title={sticker.name || sticker.alt}
           aria-label={sticker.name || sticker.alt}
-          className="flex aspect-square w-full items-center justify-center rounded-xl p-2 transition-all hover:scale-105 hover:bg-accent/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="flex aspect-square w-full items-center justify-center rounded-xl p-2 transition-all hover:scale-105 hover:bg-accent/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <img
             src={sticker.thumbnail || sticker.url}

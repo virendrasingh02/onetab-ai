@@ -257,7 +257,7 @@ export function EncryptionSecurityPanel() {
     <div className="space-y-6">
       <div>
         <h2 className="text-base font-semibold tracking-tight text-foreground flex items-center gap-2">
-          <Lock className="size-4 text-primary" />
+          <Lock className="size-4 text-brand-text" />
           End-to-End Encryption &amp; Security
         </h2>
         <p className="text-xs mt-1 text-muted-foreground">
@@ -362,10 +362,10 @@ export function EncryptionSecurityPanel() {
 
       {/* 2. SAS VERIFICATION ACTIVE MODAL / CARD */}
       {activeVerification ? (
-        <div className="rounded-xl border-2 border-primary/40 bg-primary/5 shadow-xs p-5 space-y-4 animate-in fade-in">
+        <div className="rounded-xl border-2 border-brand/40 bg-brand/5 shadow-xs p-5 space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Shield className="size-4 text-primary" />
+              <Shield className="size-4 text-brand-text" />
               <h4 className="text-sm font-semibold text-foreground">
                 Device Verification in Progress
               </h4>

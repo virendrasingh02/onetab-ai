@@ -190,7 +190,7 @@ export function PdfPreviewCard({
   return (
     <div
       className={cn(
-        'mt-1.5 max-w-sm rounded-xl border border-border bg-surface overflow-hidden shadow-xs transition-colors hover:border-primary/40',
+        'mt-1.5 max-w-sm rounded-xl border border-border bg-surface overflow-hidden shadow-xs transition-colors hover:border-brand/40',
         className,
       )}
     >
@@ -948,7 +948,7 @@ export function AttachmentGrid({ items }: AttachmentGridProps) {
             )}
           >
             {downloadingAll ? (
-              <Loader2 className="size-3.5 animate-spin text-primary" />
+              <Loader2 className="size-3.5 animate-spin text-brand-text" />
             ) : (
               <CloudDownload className="size-3.5" />
             )}

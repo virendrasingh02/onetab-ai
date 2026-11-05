@@ -621,7 +621,7 @@ function CardDetailsBody({
                 navigator.clipboard.writeText(idStr);
                 toast.success(`Copied ${idStr}`);
               }}
-              className="gap-1 font-bold px-2 py-0.5 rounded inline-flex cursor-pointer items-center border border-primary/30 bg-primary/10 font-mono text-[11px] text-primary transition-colors hover:bg-primary/20"
+              className="gap-1 font-bold px-2 py-0.5 rounded inline-flex cursor-pointer items-center border border-brand/30 bg-brand/10 font-mono text-[11px] text-brand-text transition-colors hover:bg-brand/20"
               title="Click to copy ticket identifier"
             >
               <span>
@@ -1051,7 +1051,7 @@ function CardDetailsBody({
                         onChange={(e) => setLogHours(e.target.value)}
                         placeholder="0"
                         aria-label="Hours"
-                        className="w-16 text-xs px-2 py-1 rounded-md border border-border bg-surface outline-none focus:border-primary"
+                        className="w-16 text-xs px-2 py-1 rounded-md border border-border bg-surface outline-none focus:border-ring"
                       />
                       <span className="text-xs text-muted-foreground">h</span>
                       <input
@@ -1062,7 +1062,7 @@ function CardDetailsBody({
                         onChange={(e) => setLogMinutes(e.target.value)}
                         placeholder="0"
                         aria-label="Minutes"
-                        className="w-16 text-xs px-2 py-1 rounded-md border border-border bg-surface outline-none focus:border-primary"
+                        className="w-16 text-xs px-2 py-1 rounded-md border border-border bg-surface outline-none focus:border-ring"
                       />
                       <span className="text-xs text-muted-foreground">m</span>
                     </div>
@@ -1566,7 +1566,7 @@ function CardDetailsBody({
                         value={newChecklistText}
                         onChange={(e) => setNewChecklistText(e.target.value)}
                         placeholder="Add new action item..."
-                        className="text-xs px-2 py-1 flex-1 rounded-md border border-border bg-surface outline-none focus:border-primary"
+                        className="text-xs px-2 py-1 flex-1 rounded-md border border-border bg-surface outline-none focus:border-ring"
                       />
                       <Button size="sm" type="submit" className="h-7 text-xs">
                         Add
@@ -1655,7 +1655,7 @@ function CardDetailsBody({
                       value={newSubIssueText}
                       onChange={(e) => setNewSubIssueText(e.target.value)}
                       placeholder="Add sub-issue title..."
-                      className="text-xs px-2 py-1 flex-1 rounded-md border border-border bg-surface outline-none focus:border-primary"
+                      className="text-xs px-2 py-1 flex-1 rounded-md border border-border bg-surface outline-none focus:border-ring"
                     />
                     <Button size="sm" type="submit" className="h-7 text-xs">
                       Add

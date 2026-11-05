@@ -58,7 +58,7 @@ function WorkspaceRoleBadge({
       className={cn(
         'gap-1 px-1.5 py-0.5 font-semibold inline-flex items-center rounded-md border text-2xs whitespace-nowrap',
         role === 'OWNER' && 'border-warning/30 bg-warning/10 text-warning-text',
-        role === 'ADMIN' && 'border-primary/30 bg-primary/10 text-primary-text',
+        role === 'ADMIN' && 'border-brand/30 bg-brand/10 text-brand-text',
         role === 'GUEST' &&
           'border-border bg-surface-inset text-muted-foreground',
         className,
@@ -337,7 +337,7 @@ export function UserProfileCard({
 
           {/* Custom status banner */}
           {(statusText || statusEmoji) && (
-            <div className="mt-2.5 gap-2 px-2.5 py-1.5 text-xs flex items-center rounded-lg border border-primary/20 bg-primary/5 text-foreground">
+            <div className="mt-2.5 gap-2 px-2.5 py-1.5 text-xs flex items-center rounded-lg border border-brand/20 bg-brand/5 text-foreground">
               <span className="text-base shrink-0">{statusEmoji || '💬'}</span>
               <span className="font-medium truncate">
                 {statusText || 'Status set'}
@@ -373,7 +373,7 @@ export function UserProfileCard({
                 }}
                 className="text-xs font-semibold flex-1 border-border bg-surface text-foreground hover:bg-accent"
               >
-                <MessageSquare className="mr-1.5 size-3.5 text-primary-text" />
+                <MessageSquare className="mr-1.5 size-3.5 text-brand-text" />
                 Send Message
               </Button>
             </div>
@@ -546,7 +546,7 @@ export function UserProfileRightPanel({
               ) : powerLevel >= 50 ? (
                 <Badge
                   variant="primary"
-                  className="bg-primary text-2xs text-primary-foreground"
+                  className="bg-brand text-2xs text-brand-foreground"
                 >
                   {powerLevel >= 100 ? 'Admin' : 'Moderator'}
                 </Badge>
@@ -554,7 +554,7 @@ export function UserProfileRightPanel({
             </div>
 
             {resolvedTitle ? (
-              <p className="text-xs font-semibold text-primary-text">
+              <p className="text-xs font-semibold text-brand-text">
                 {resolvedTitle}
               </p>
             ) : null}
@@ -579,7 +579,7 @@ export function UserProfileRightPanel({
 
           {/* Custom Status Banner */}
           {(statusText || statusEmoji) && (
-            <div className="gap-2 px-3 py-2 text-xs flex items-center rounded-xl border border-primary/20 bg-primary/5 text-foreground">
+            <div className="gap-2 px-3 py-2 text-xs flex items-center rounded-xl border border-brand/20 bg-brand/5 text-foreground">
               <span className="text-base shrink-0">{statusEmoji || '💬'}</span>
               <span className="font-medium truncate">
                 {statusText || 'Status set'}
@@ -613,7 +613,7 @@ export function UserProfileRightPanel({
             <div className="gap-2 grid grid-cols-2">
               <div className="p-2.5 rounded-xl border border-border bg-surface-inset/50">
                 <div className="gap-1.5 font-bold tracking-wider flex items-center text-2xs text-muted-foreground uppercase">
-                  <Shield className="size-3 text-primary-text" />
+                  <Shield className="size-3 text-brand-text" />
                   <span>Role</span>
                 </div>
                 <p className="mt-0.5 text-xs font-semibold text-foreground">

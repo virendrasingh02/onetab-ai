@@ -104,7 +104,7 @@ export function RegionSelect({
                   className={cn(
                     'px-2.5 py-1.5 text-xs flex w-full items-center justify-between rounded-md text-left transition-colors',
                     isSelected
-                      ? 'font-medium bg-primary/10 text-primary'
+                      ? 'font-medium bg-brand/10 text-brand-text'
                       : 'text-foreground hover:bg-accent',
                   )}
                 >
@@ -118,7 +118,7 @@ export function RegionSelect({
                     </span>
                   </span>
                   {isSelected && (
-                    <Check className="size-3.5 shrink-0 text-primary" />
+                    <Check className="size-3.5 shrink-0 text-brand-text" />
                   )}
                 </button>
               );

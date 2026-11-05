@@ -384,7 +384,7 @@ export function InviteMembersDialog({
               onClick={() => emailInputRef.current?.focus()}
               className={cn(
                 'p-2 gap-1.5 min-h-24 max-h-44 flex w-full cursor-text flex-wrap content-start items-start overflow-y-auto',
-                'rounded-input border border-input bg-surface transition-[border-color,box-shadow] duration-(--duration-fast)',
+                'rounded-input border border-input theme-fixed bg-field transition-[border-color,box-shadow] duration-(--duration-fast)',
                 'focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/25',
                 (invalidEmails.length > 0 || tooMany) &&
                   'border-destructive focus-within:border-destructive focus-within:ring-destructive/20',
@@ -572,7 +572,7 @@ export function InviteMembersDialog({
               <PopoverAnchor asChild>
                 <div
                   onClick={() => channelSearchRef.current?.focus()}
-                  className="min-h-9 px-2 py-1 gap-1.5 flex w-full cursor-text flex-wrap items-center rounded-input border border-input bg-surface transition-[border-color,box-shadow] duration-(--duration-fast) focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/25"
+                  className="min-h-9 px-2 py-1 gap-1.5 flex w-full cursor-text flex-wrap items-center rounded-input border border-input theme-fixed bg-field transition-[border-color,box-shadow] duration-(--duration-fast) focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/25"
                 >
                   {selected ? (
                     <span className="h-7 pl-2 pr-1 gap-1 text-xs font-medium flex items-center rounded-md border border-border bg-surface-inset text-foreground select-none">

@@ -165,7 +165,7 @@ export function GifPicker({ onGifSelect, className, autoFocus }: GifPickerProps)
                   onClick={() => handleSelect(gif)}
                   title={gif.title}
                   aria-label={gif.title}
-                  className="h-18 shrink-0 overflow-hidden rounded-lg border border-border bg-surface-inset transition-colors hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  className="h-18 shrink-0 overflow-hidden rounded-lg border border-border bg-surface-inset transition-colors hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   style={{ aspectRatio: `${gif.width} / ${gif.height}` }}
                 >
                   <img
@@ -206,7 +206,7 @@ export function GifPicker({ onGifSelect, className, autoFocus }: GifPickerProps)
                   type="button"
                   onClick={() => handleSelect(gif)}
                   title={gif.title}
-                  className="group relative mb-2 block w-full overflow-hidden rounded-lg border border-border bg-surface-inset transition-transform hover:z-10 hover:scale-[1.02] hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  className="group relative mb-2 block w-full overflow-hidden rounded-lg border border-border bg-surface-inset transition-transform hover:z-10 hover:scale-[1.02] hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <img
                     src={gif.previewUrl}

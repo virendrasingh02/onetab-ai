@@ -283,7 +283,7 @@ export function ConnectorDetailPage() {
                     {c.agentCapabilities.map((tag) => (
                       <span
                         key={tag}
-                        className="px-2 py-0.5 font-medium rounded-md bg-primary/10 text-2xs text-primary-text"
+                        className="px-2 py-0.5 font-medium rounded-md bg-brand/10 text-2xs text-brand-text"
                       >
                         {AGENT_CAPABILITY_LABELS[tag]}
                       </span>

@@ -180,7 +180,7 @@ export function getAiEntityTone(kind: AiEntityKind, name: string, avatarUrl?: st
   const chosen = parsed.type === 'icon' && parsed.color ? COLOR_BY_ID.get(parsed.color) : undefined;
   if (chosen) return chosen.tone;
   return kind === 'agent'
-    ? 'bg-primary/10 text-primary border-primary/20'
+    ? 'bg-brand/10 text-brand-text border-brand/20'
     : cn('bg-gradient-to-br', getAiEntityGradient(name));
 }
 
@@ -193,7 +193,7 @@ export function getAiEntityCover(name: string, avatarUrl?: string | null, kind: 
   const parsed = parseAiEntityAvatar(avatarUrl);
   const chosen = parsed.type === 'icon' && parsed.color ? COLOR_BY_ID.get(parsed.color) : undefined;
   if (chosen) return chosen.cover;
-  return kind === 'agent' ? 'from-primary/40 via-primary/15 to-primary/5' : getAiEntityGradient(name);
+  return kind === 'agent' ? 'from-brand/40 via-brand/15 to-brand/5' : getAiEntityGradient(name);
 }
 
 const SIZES = {

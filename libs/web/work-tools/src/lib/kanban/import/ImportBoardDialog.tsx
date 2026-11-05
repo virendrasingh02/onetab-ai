@@ -67,7 +67,7 @@ export interface ImportBoardDialogProps {
 }
 
 const inputClass =
-  'w-full px-3 py-1.5 bg-surface border border-border rounded-md text-xs text-foreground placeholder:text-subtle focus:outline-none focus:ring-1 focus:ring-primary';
+  'w-full px-3 py-1.5 bg-surface border border-border rounded-md text-xs text-foreground placeholder:text-subtle focus:outline-none focus:ring-1 focus:ring-ring';
 
 export function ImportBoardDialog({
   open,

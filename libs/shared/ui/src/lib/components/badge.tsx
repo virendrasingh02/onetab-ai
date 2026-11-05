@@ -8,10 +8,12 @@ import type { ComponentProps } from 'react';
  * status hue for text and border and wash it back for the fill — on a white
  * card a solid status block is far too loud for something this small, and the
  * previous fixed hexes were picked against a near-black surface.
+ * `theme-fixed` because a label reads the same in every workspace, and that
+ * includes the neutrals a preset would otherwise tint.
  */
 const badgeVariants = cva(
   [
-    'gap-1 inline-flex w-fit shrink-0 items-center justify-center',
+    'theme-fixed gap-1 inline-flex w-fit shrink-0 items-center justify-center',
     'px-1.5 py-0.5 font-medium tracking-tight rounded-sm border text-[11px] whitespace-nowrap',
     "[&_svg:not([class*='size-'])]:size-3 [&_svg]:pointer-events-none",
   ],
@@ -20,7 +22,7 @@ const badgeVariants = cva(
       variant: {
         neutral: 'border-border bg-surface-raised text-muted-foreground',
         secondary: 'border-border bg-surface-raised text-muted-foreground',
-        primary: 'border-primary/25 bg-primary/10 text-primary-text',
+        primary: 'border-brand/25 bg-brand/10 text-brand-text',
 
         success: 'border-success/25 bg-success/10 text-success-text',
         warning: 'border-warning/30 bg-warning/12 text-warning-text',

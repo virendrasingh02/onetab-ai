@@ -63,7 +63,7 @@ export function AIAgentCard({
 }: AIAgentCardProps) {
   const statusConfig: Record<AgentStatus, { label: string; dotClass: string; badgeClass: string }> = {
     online: { label: 'Available', dotClass: 'bg-success animate-pulse', badgeClass: 'text-success-text bg-success/10 border-success/20' },
-    running: { label: 'Running', dotClass: 'bg-primary animate-ping', badgeClass: 'text-primary-text bg-primary/15 border-primary/30' },
+    running: { label: 'Running', dotClass: 'bg-brand animate-ping', badgeClass: 'text-brand-text bg-brand/15 border-brand/30' },
     idle: { label: 'Idle', dotClass: 'bg-warning', badgeClass: 'text-warning-text bg-warning/10 border-warning/20' },
     offline: { label: 'Offline', dotClass: 'bg-muted-foreground', badgeClass: 'text-muted-foreground bg-muted border-border' },
     error: { label: 'Error', dotClass: 'bg-destructive', badgeClass: 'text-destructive-text bg-destructive/10 border-destructive/20' },
@@ -82,7 +82,7 @@ export function AIAgentCard({
         {...props}
       >
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="relative flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary border border-primary/20">
+          <div className="relative flex size-7 shrink-0 items-center justify-center rounded-md bg-brand/10 text-brand-text border border-brand/20">
             {avatarUrl ? (
               <img src={avatarUrl} alt={name} className="size-full rounded-md object-cover" />
             ) : (
@@ -124,7 +124,7 @@ export function AIAgentCard({
             {avatarUrl ? (
               <img src={avatarUrl} alt={name} className="size-full rounded-lg object-cover" />
             ) : (
-              icon || <Bot className="size-5 text-primary" />
+              icon || <Bot className="size-5 text-brand-text" />
             )}
             <span className={cn('absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-surface', currentStatus.dotClass)} />
           </div>
@@ -172,7 +172,7 @@ export function AIAgentCard({
       className={cn(
         'group relative flex flex-col justify-between rounded-card border border-border bg-surface p-4 text-xs shadow-xs transition-all duration-(--duration-fast)',
         'hover:border-border-strong hover:shadow-sm',
-        variant === 'featured' && 'border-primary/40 bg-gradient-to-b from-primary/5 to-transparent',
+        variant === 'featured' && 'border-brand/40 bg-gradient-to-b from-brand/5 to-transparent',
         className,
       )}
       {...props}
@@ -185,7 +185,7 @@ export function AIAgentCard({
               {avatarUrl ? (
                 <img src={avatarUrl} alt={name} className="size-full rounded-lg object-cover" />
               ) : (
-                icon || <Bot className="size-5 text-primary" />
+                icon || <Bot className="size-5 text-brand-text" />
               )}
               <span className={cn('absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-surface', currentStatus.dotClass)} />
             </div>
@@ -194,7 +194,7 @@ export function AIAgentCard({
               <div className="flex items-center gap-1.5">
                 <h3 className="font-semibold text-foreground tracking-tight">{name}</h3>
                 {variant === 'featured' && (
-                  <Sparkles className="size-3.5 text-primary shrink-0" />
+                  <Sparkles className="size-3.5 text-brand-text shrink-0" />
                 )}
               </div>
               <div className="mt-1">
@@ -224,7 +224,7 @@ export function AIAgentCard({
               )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={onRun}>
-                <Play className="size-3.5 mr-2 text-primary" />
+                <Play className="size-3.5 mr-2 text-brand-text" />
                 Run Agent
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -269,7 +269,7 @@ export function AIAgentCard({
           )}
           {avgLatency && (
             <span title="Average response latency" className="flex items-center gap-0.5">
-              <Activity className="size-3 text-primary" />
+              <Activity className="size-3 text-brand-text" />
               {avgLatency}
             </span>
           )}

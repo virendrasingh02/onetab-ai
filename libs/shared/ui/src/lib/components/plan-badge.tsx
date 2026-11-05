@@ -67,10 +67,10 @@ export function PlanBadge({
       Icon = Sparkles;
       styleClasses =
         variant === 'gradient'
-          ? 'bg-gradient-to-r from-primary/20 via-primary/10 to-transparent text-primary border-primary/30'
+          ? 'bg-gradient-to-r from-brand/20 via-brand/10 to-transparent text-brand-text border-brand/30'
           : variant === 'solid'
-            ? 'bg-primary text-primary-foreground border-transparent'
-            : 'bg-primary/10 text-primary border-primary/25';
+            ? 'bg-brand text-brand-foreground border-transparent'
+            : 'bg-brand/10 text-brand-text border-brand/25';
       break;
 
     case 'free':

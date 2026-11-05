@@ -102,7 +102,7 @@ export function ApprovalCard({
           : localStatus === 'approved'
             ? 'border-success/40 bg-success/5'
             : 'border-border',
-        isHighlighted && 'ring-2 ring-primary/60',
+        isHighlighted && 'ring-2 ring-brand/60',
       )}
     >
       {/* Header */}

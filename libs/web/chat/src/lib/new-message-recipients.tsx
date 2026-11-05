@@ -235,7 +235,7 @@ export function NewMessageRecipients({
       <PopoverAnchor asChild>
         <div
           className={cn(
-            'gap-1.5 px-2.5 py-2 min-h-11 flex flex-wrap items-center rounded-lg border border-border bg-surface text-sm transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary',
+            'gap-1.5 px-2.5 py-2 min-h-11 flex flex-wrap items-center rounded-lg border border-input theme-fixed bg-field text-sm transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring',
             className,
           )}
           onClick={() => inputRef.current?.focus()}
@@ -373,7 +373,7 @@ export function NewMessageRecipients({
                         'size-6',
                         (row.person.kind === 'agent' ||
                           row.person.kind === 'coworker') &&
-                          'ring-2 ring-primary/40',
+                          'ring-2 ring-brand/40',
                         row.person.kind === 'app' &&
                           'ring-2 ring-accent-violet/40',
                       )}
@@ -464,7 +464,7 @@ function Token({
   onRemove: () => void;
 }) {
   return (
-    <span className="gap-1 px-1 py-0.5 max-w-56 inline-flex items-center rounded-md bg-primary/10 text-xs font-medium text-primary">
+    <span className="gap-1 px-1 py-0.5 max-w-56 inline-flex items-center rounded-md bg-brand/10 text-xs font-medium text-brand-text">
       <span className="flex shrink-0 items-center">{icon}</span>
       <span className="truncate">{label}</span>
       <button
@@ -472,7 +472,7 @@ function Token({
         onMouseDown={(event) => event.preventDefault()}
         onClick={onRemove}
         aria-label={`Remove ${label}`}
-        className="shrink-0 rounded-sm p-0.5 text-primary/70 transition-colors hover:bg-primary/15 hover:text-primary"
+        className="shrink-0 rounded-sm p-0.5 text-brand-text/70 transition-colors hover:bg-brand/15 hover:text-brand-text"
       >
         <X className="size-3" />
       </button>

@@ -64,7 +64,7 @@ function getKindMeta(item: ActivityFeedItem): KindMeta {
     return {
       icon: AtSign,
       label: 'Mention',
-      tone: 'bg-primary/10 text-primary',
+      tone: 'bg-brand/10 text-brand-text',
     };
   }
 
@@ -772,7 +772,7 @@ export function InboxView() {
                     value={notificationSearch}
                     onChange={(e) => setNotificationSearch(e.target.value)}
                     placeholder="Filter activity..."
-                    className="pl-8 pr-7 py-1 text-xs w-full rounded-lg border border-border/80 bg-background text-foreground placeholder:text-muted-foreground focus:ring-1 focus:ring-primary focus:outline-none"
+                    className="pl-8 pr-7 py-1 text-xs w-full rounded-lg border border-border/80 bg-background text-foreground placeholder:text-muted-foreground focus:ring-1 focus:ring-ring focus:outline-none"
                   />
                   {notificationSearch && (
                     <button
@@ -977,7 +977,7 @@ export function InboxView() {
                     value={taskSearch}
                     onChange={(e) => setTaskSearch(e.target.value)}
                     placeholder="Search assigned tasks..."
-                    className="pl-8 pr-7 py-1 text-xs w-full rounded-lg border border-border/80 bg-background text-foreground placeholder:text-muted-foreground focus:ring-1 focus:ring-primary focus:outline-none"
+                    className="pl-8 pr-7 py-1 text-xs w-full rounded-lg border border-border/80 bg-background text-foreground placeholder:text-muted-foreground focus:ring-1 focus:ring-ring focus:outline-none"
                   />
                   {taskSearch && (
                     <button
@@ -1028,7 +1028,7 @@ export function InboxView() {
                           <Link to={taskHref} className="min-w-0 block flex-1">
                             <div className="gap-2 flex flex-wrap items-center">
                               {task.identifier ? (
-                                <span className="font-bold px-1.5 py-0.2 rounded bg-primary/10 font-mono text-[11px] text-primary">
+                                <span className="font-bold px-1.5 py-0.2 rounded bg-brand/10 font-mono text-[11px] text-brand-text">
                                   {task.identifier}
                                 </span>
                               ) : null}

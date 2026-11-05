@@ -74,7 +74,7 @@ export function LinkPreviewCard({
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm font-semibold text-primary transition-colors hover:underline focus-visible:underline focus-visible:outline-hidden line-clamp-2"
+            className="text-sm font-semibold text-brand-text transition-colors hover:underline focus-visible:underline focus-visible:outline-hidden line-clamp-2"
           >
             {title}
           </a>
@@ -83,7 +83,7 @@ export function LinkPreviewCard({
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs font-semibold text-primary truncate hover:underline"
+            className="text-xs font-semibold text-brand-text truncate hover:underline"
           >
             {url}
           </a>

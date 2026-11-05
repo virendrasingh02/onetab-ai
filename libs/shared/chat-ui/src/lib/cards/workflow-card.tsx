@@ -44,14 +44,14 @@ export function WorkflowCard({
       data-message-id={message.id}
       className={cn(
         'group/workflow relative my-2 rounded-2xl border border-border/80 bg-surface/95 backdrop-blur-sm p-4 transition-all duration-200 shadow-xs hover:shadow-md max-w-2xl',
-        isRunning && 'ring-1 ring-primary/40',
-        isHighlighted && 'ring-2 ring-primary/60',
+        isRunning && 'ring-1 ring-brand/40',
+        isHighlighted && 'ring-2 ring-brand/60',
       )}
     >
       {/* Header */}
       <header className="flex items-start justify-between gap-3 border-b border-border/60 pb-3">
         <div className="flex items-start gap-3 min-w-0">
-          <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 ring-2 ring-primary/20">
+          <div className="size-10 rounded-xl bg-brand/10 text-brand-text flex items-center justify-center shrink-0 ring-2 ring-brand/20">
             <Workflow className="size-5" />
           </div>
 
@@ -109,7 +109,7 @@ export function WorkflowCard({
                   className={cn(
                     'w-full p-2.5 rounded-xl border text-xs text-left transition-all flex items-center justify-between gap-3 cursor-pointer',
                     isSelected
-                      ? 'border-primary bg-primary/10 text-foreground font-semibold shadow-xs'
+                      ? 'border-brand bg-brand/10 text-foreground font-semibold shadow-xs'
                       : 'border-border/70 bg-surface-raised hover:bg-accent text-muted-foreground',
                   )}
                 >
@@ -118,7 +118,7 @@ export function WorkflowCard({
                       {step.status === 'completed' ? (
                         <CheckCircle2 className="size-4 text-success" />
                       ) : step.status === 'running' ? (
-                        <Loader2 className="size-4 animate-spin text-primary" />
+                        <Loader2 className="size-4 animate-spin text-brand-text" />
                       ) : step.status === 'failed' ? (
                         <XCircle className="size-4 text-destructive" />
                       ) : (
@@ -168,7 +168,7 @@ export function WorkflowCard({
         <div className="mt-4 rounded-xl border border-border bg-surface-inset p-3 text-xs font-mono">
           <div className="flex items-center justify-between border-b border-border/60 pb-2 mb-2">
             <span className="font-bold text-foreground flex items-center gap-1.5">
-              <Terminal className="size-3.5 text-primary" />
+              <Terminal className="size-3.5 text-brand-text" />
               <span>Step Details: {selectedStep.name}</span>
             </span>
 

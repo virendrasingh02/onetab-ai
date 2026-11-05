@@ -10,7 +10,7 @@ const VARIANT_STYLES: Record<AIModelBadgeVariant, string> = {
   subtle: 'bg-surface-raised border border-border/80 text-foreground hover:bg-accent/60',
   compact: 'bg-surface-inset border border-border/60 text-foreground text-[10px] py-0 px-1.5 h-5 gap-1',
   outline: 'border border-border text-foreground bg-transparent hover:bg-surface-raised',
-  filled: 'bg-primary/10 border border-primary/20 text-primary font-medium hover:bg-primary/15',
+  filled: 'bg-brand/10 border border-brand/20 text-brand-text font-medium hover:bg-brand/15',
   ghost: 'bg-transparent text-foreground hover:bg-accent/50',
 };
 

@@ -691,7 +691,7 @@ export function PinnedMessageCard({
               className={cn(
                 'size-7 flex items-center justify-center rounded-md transition-colors hover:bg-accent',
                 isSaved
-                  ? 'fill-current text-primary'
+                  ? 'fill-current text-brand-text'
                   : 'text-muted-foreground hover:text-foreground',
               )}
             >
@@ -1062,7 +1062,7 @@ export function ThreadListPanel({
                     />
                   ))}
                 </span>
-                <span className="text-xs font-medium text-primary-text">
+                <span className="text-xs font-medium text-brand-text">
                   {thread.replyCount}{' '}
                   {thread.replyCount === 1 ? 'reply' : 'replies'}
                 </span>

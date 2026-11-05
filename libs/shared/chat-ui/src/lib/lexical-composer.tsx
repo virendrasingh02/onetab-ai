@@ -189,7 +189,7 @@ const EDITOR_THEME = {
     nested: { listitem: 'list-none' },
   },
   quote:
-    'border-l-4 border-primary pl-3 py-1 my-1 text-muted-foreground italic bg-surface-inset/50 rounded-r',
+    'border-l-4 border-brand pl-3 py-1 my-1 text-muted-foreground italic bg-surface-inset/50 rounded-r',
   code: 'block rounded-lg bg-surface-inset p-2.5 font-mono text-xs text-success-text border border-border my-1 whitespace-pre-wrap',
   hr: 'my-2 h-px border-0 bg-border',
   // Inline chips mirror MarkdownMessage so a draft looks like the sent message.
@@ -1265,7 +1265,7 @@ function MentionsPlugin({
               onSelect={() => selectOptionAndCleanUp(option)}
             >
               {isGroup ? (
-                <span className="size-6 font-bold flex shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary-text">
+                <span className="size-6 font-bold flex shrink-0 items-center justify-center rounded-full bg-brand/20 text-brand-text">
                   @
                 </span>
               ) : isAgent || isCoworker ? (
@@ -1564,7 +1564,7 @@ function CommandName({ name, query }: { name: string; query: string }) {
   return (
     <>
       /{body.slice(0, at)}
-      <span className="text-primary">{body.slice(at, at + query.length)}</span>
+      <span className="text-brand-text">{body.slice(at, at + query.length)}</span>
       {body.slice(at + query.length)}
     </>
   );
@@ -1816,7 +1816,7 @@ function SlashCommandsPlugin({
                             className={cn(
                               'size-8 flex shrink-0 items-center justify-center rounded-lg border transition-colors',
                               selected
-                                ? 'border-primary/25 bg-primary/10 text-primary'
+                                ? 'border-brand/25 bg-brand/10 text-brand-text'
                                 : 'border-border/60 bg-muted/60 text-foreground/70',
                             )}
                           >
@@ -1973,7 +1973,7 @@ type BlockType =
 
 const TOOL_BUTTON_BASE =
   'size-7 flex shrink-0 items-center justify-center rounded-md transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/60 [&_svg]:size-4';
-const TOOL_BUTTON_ON = 'bg-primary/15 text-primary-text';
+const TOOL_BUTTON_ON = 'bg-brand/15 text-brand-text';
 const TOOL_BUTTON_OFF = 'text-foreground hover:bg-accent hover:text-foreground';
 
 /**
@@ -2301,7 +2301,7 @@ export function ToolbarContent({
                   editor.focus();
                 }
               }}
-              className="w-48 text-xs px-2.5 py-1 rounded-lg border border-border bg-background text-foreground transition-colors outline-none placeholder:text-subtle focus:border-primary"
+              className="w-48 text-xs px-2.5 py-1 rounded-lg border border-border bg-background text-foreground transition-colors outline-none placeholder:text-subtle focus:border-ring"
             />
             <button
               type="button"

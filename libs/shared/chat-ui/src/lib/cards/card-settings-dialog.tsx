@@ -26,7 +26,7 @@ export function CardSettingsDialog({ open, onOpenChange }: CardSettingsDialogPro
       <DialogContent className="max-w-md bg-surface text-foreground border-border">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base font-bold">
-            <Sliders className="size-4 text-primary" />
+            <Sliders className="size-4 text-brand-text" />
             <span>AI &amp; App Card Display Settings</span>
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
@@ -46,7 +46,7 @@ export function CardSettingsDialog({ open, onOpenChange }: CardSettingsDialogPro
                   onClick={() => prefs.setDensity(mode)}
                   className={`px-3 py-2 rounded-lg border text-xs font-medium capitalize transition-all text-center ${
                     prefs.density === mode
-                      ? 'border-primary bg-primary/10 text-primary font-bold shadow-xs'
+                      ? 'border-brand bg-brand/10 text-brand-text font-bold shadow-xs'
                       : 'border-border bg-surface-raised text-muted-foreground hover:bg-accent hover:text-foreground'
                   }`}
                 >

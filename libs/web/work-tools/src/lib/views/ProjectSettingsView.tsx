@@ -145,7 +145,7 @@ export function ProjectSettingsView({
               <span className="text-[11px] text-muted-foreground font-medium">
                 Next Issue:
               </span>
-              <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
+              <span className="font-mono text-xs font-bold text-brand-text bg-brand/10 px-2 py-0.5 rounded border border-brand/30">
                 {previewTicket}
               </span>
             </div>

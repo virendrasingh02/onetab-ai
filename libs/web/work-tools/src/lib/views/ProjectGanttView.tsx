@@ -133,7 +133,7 @@ export function ProjectGanttView({
                 className="h-10 px-3 flex items-center justify-between hover:bg-muted/50 cursor-pointer transition-colors group"
               >
                 <div className="flex items-center gap-2 truncate pr-2">
-                  <span className="font-mono text-[10px] text-primary/80 font-bold shrink-0">
+                  <span className="font-mono text-[10px] text-brand-text/80 font-bold shrink-0">
                     {task.identifier || 'TASK'}
                   </span>
                   <span className="truncate text-foreground group-hover:text-primary transition-colors font-medium">

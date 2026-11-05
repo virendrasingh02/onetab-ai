@@ -117,7 +117,7 @@ export function AIThinkingRow({ density = 'comfortable' }: { density?: AIDensity
       )}
       role="status"
     >
-      <Sparkles className="size-4 animate-pulse text-primary" aria-hidden />
+      <Sparkles className="size-4 animate-pulse text-brand-text" aria-hidden />
       <span>Thinking…</span>
     </div>
   );

@@ -110,7 +110,7 @@ export function TimezoneSelect({
           <button
             type="button"
             onClick={() => select(systemZone)}
-            className="gap-2 px-3 py-2 text-xs flex w-full items-center border-b border-border text-left text-primary hover:bg-accent"
+            className="gap-2 px-3 py-2 text-xs flex w-full items-center border-b border-border text-left text-brand-text hover:bg-accent"
           >
             <Globe className="size-3.5 shrink-0" aria-hidden />
             <span className="truncate">
@@ -141,7 +141,7 @@ export function TimezoneSelect({
                 >
                   <Check
                     className={cn(
-                      'size-3.5 shrink-0 text-primary',
+                      'size-3.5 shrink-0 text-brand-text',
                       isSelected ? 'opacity-100' : 'opacity-0',
                     )}
                     aria-hidden

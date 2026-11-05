@@ -74,7 +74,7 @@ export function InlineMessageEditor({
   return (
     <div
       onKeyDown={handleKeyDown}
-      className="my-1 w-full overflow-hidden rounded-xl border border-primary/40 bg-background shadow-xs focus-within:border-primary/70 focus-within:ring-2 focus-within:ring-primary/15"
+      className="my-1 w-full overflow-hidden rounded-xl border border-brand/40 theme-fixed bg-field shadow-xs focus-within:border-ring/70 focus-within:ring-2 focus-within:ring-ring/15"
     >
       <LexicalComposerInput
         autoFocus

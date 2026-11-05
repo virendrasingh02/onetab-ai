@@ -10,7 +10,7 @@ const VARIANT_STYLES: Record<AIProviderBadgeVariant, string> = {
   subtle: 'bg-surface-raised border border-border/80 text-foreground',
   compact: 'bg-surface-inset border border-border/60 text-foreground text-[10px] py-0 px-1.5 h-5 gap-1',
   outline: 'border border-border text-foreground bg-transparent',
-  filled: 'bg-primary/10 border border-primary/20 text-primary font-medium',
+  filled: 'bg-brand/10 border border-brand/20 text-brand-text font-medium',
 };
 
 /**

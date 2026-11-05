@@ -85,8 +85,8 @@ function EmployeeInfoBody({ userId, source }: { userId: string; source: Employee
   return (
     <div className="space-y-3 text-xs">
       {celebrations.length > 0 && (
-        <div className="p-3 space-y-1.5 rounded-xl border border-primary/25 bg-primary/5">
-          <div className="gap-1.5 font-bold tracking-wider flex items-center text-2xs text-primary-text uppercase">
+        <div className="p-3 space-y-1.5 rounded-xl border border-brand/25 bg-brand/5">
+          <div className="gap-1.5 font-bold tracking-wider flex items-center text-2xs text-brand-text uppercase">
             <PartyPopper className="size-3" aria-hidden />
             <span>Celebrations</span>
           </div>
@@ -109,7 +109,7 @@ function EmployeeInfoBody({ userId, source }: { userId: string; source: Employee
       )}
 
       {(hasWork || canEditHr) && (
-        <Card icon={<Briefcase className="size-3 text-primary-text" />} label="Work">
+        <Card icon={<Briefcase className="size-3 text-brand-text" />} label="Work">
           {info.hasLeft && (
             <Badge variant="neutral" className="text-2xs">
               Left the organization
@@ -151,7 +151,7 @@ function EmployeeInfoBody({ userId, source }: { userId: string; source: Employee
         <Card icon={<Phone className="size-3 text-success-text" />} label="Phone">
           <a
             href={`tel:${info.phone}`}
-            className="text-xs font-semibold text-foreground hover:text-primary-text"
+            className="text-xs font-semibold text-foreground hover:text-brand-text"
           >
             {phone}
           </a>
@@ -184,7 +184,7 @@ function EmployeeInfoBody({ userId, source }: { userId: string; source: Employee
                   href={l.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-semibold text-primary-text hover:underline"
+                  className="font-semibold text-brand-text hover:underline"
                 >
                   {l.label}
                 </a>

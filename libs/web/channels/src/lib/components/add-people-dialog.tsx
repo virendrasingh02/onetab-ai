@@ -563,7 +563,7 @@ export function AddPeopleDialog({
             onClick={() => inputRef.current?.focus()}
             className={cn(
               'px-2.5 py-1.5 gap-1.5 min-h-10 max-h-28 flex w-full cursor-text flex-wrap items-center overflow-y-auto',
-              'rounded-input border border-input bg-surface transition-[border-color,box-shadow] duration-(--duration-fast)',
+              'rounded-input border border-input theme-fixed bg-field transition-[border-color,box-shadow] duration-(--duration-fast)',
               'focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/25',
             )}
           >

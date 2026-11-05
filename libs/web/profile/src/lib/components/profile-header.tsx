@@ -231,7 +231,7 @@ export function ProfileHeader({
               {workspaceRole}
             </Badge>
             {user.jobTitle && (
-              <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-primary/10 text-primary-text">
+              <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-brand/10 text-brand-text">
                 {user.jobTitle}
               </span>
             )}

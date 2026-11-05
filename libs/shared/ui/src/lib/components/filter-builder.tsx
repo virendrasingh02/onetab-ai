@@ -98,7 +98,7 @@ export function FilterBuilder({
     >
       <div className="flex items-center justify-between border-b border-border pb-2">
         <div className="flex items-center gap-1.5 font-semibold text-foreground">
-          <Filter className="size-3.5 text-primary" />
+          <Filter className="size-3.5 text-brand-text" />
           <span>Filter Rules</span>
         </div>
         <button
@@ -158,7 +158,7 @@ export function FilterBuilder({
                     value={rule.value}
                     onChange={(e) => updateRule(rule.id, { value: e.target.value })}
                     placeholder="Value..."
-                    className="h-7 min-w-32 flex-1 rounded-btn border border-input bg-surface px-2 text-xs text-foreground placeholder:text-subtle outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
+                    className="h-7 min-w-32 flex-1 rounded-btn border border-input theme-fixed bg-field px-2 text-xs text-foreground placeholder:text-subtle outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
                   />
                 )
               )}

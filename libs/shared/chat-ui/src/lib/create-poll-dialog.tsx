@@ -153,7 +153,7 @@ export function CreatePollDialog({
         <form onSubmit={submit} noValidate>
           <DialogHeader>
             <div className="gap-2 flex items-center">
-              <div className="size-8 flex items-center justify-center rounded-lg border border-border bg-surface-raised text-primary">
+              <div className="size-8 flex items-center justify-center rounded-lg border border-border bg-surface-raised text-brand-text">
                 <BarChart3 className="size-4" aria-hidden />
               </div>
               <div>
@@ -217,7 +217,7 @@ export function CreatePollDialog({
                             : 'Add an emoji'
                         }
                         className={cn(
-                          'size-9 text-base flex shrink-0 items-center justify-center rounded-input border border-input bg-surface transition-colors hover:bg-accent',
+                          'size-9 text-base flex shrink-0 items-center justify-center rounded-input border border-input theme-fixed bg-field transition-colors hover:bg-accent',
                           'focus-visible:ring-2 focus-visible:ring-ring/25 focus-visible:outline-none',
                         )}
                       >

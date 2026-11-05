@@ -70,7 +70,7 @@ function getStatusIcon(status?: string, kind?: string) {
     return <CheckCircle2 className="size-4 text-success shrink-0" />;
   }
   if (status === 'IN_PROGRESS') {
-    return <Clock className="size-4 text-primary shrink-0 animate-pulse" />;
+    return <Clock className="size-4 text-brand-text shrink-0 animate-pulse" />;
   }
   return <Circle className="size-4 text-muted-foreground shrink-0" />;
 }

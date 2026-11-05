@@ -264,7 +264,7 @@ export function WorkspaceBillingSettings({
             {isTrialing && (
               <Badge
                 variant="secondary"
-                className="font-semibold text-[10px] border border-primary/20 bg-primary/10 text-primary"
+                className="font-semibold text-[10px] border border-brand/20 bg-brand/10 text-brand-text"
               >
                 FREE TRIAL
               </Badge>

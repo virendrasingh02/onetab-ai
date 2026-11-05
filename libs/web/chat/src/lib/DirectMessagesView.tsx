@@ -455,7 +455,7 @@ function DirectConversation({
             {/* "Add bookmark" lives in the tab bar, beside the tabs. */}
             <div className="pb-2.5 border-b border-border/40">
               <h3 className="text-sm font-semibold gap-2 flex items-center text-foreground">
-                <Bookmark className="size-4 text-primary" />
+                <Bookmark className="size-4 text-brand-text" />
                 <span>{isSelf ? 'Saved links' : 'My Bookmarks'}</span>
               </h3>
               <p className="text-xs mt-0.5 text-muted-foreground">
@@ -503,7 +503,7 @@ function DirectConversation({
                         />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate text-foreground transition-colors group-hover:text-primary">
+                        <p className="text-sm font-medium truncate text-foreground transition-colors group-hover:text-brand-text">
                           {bm.label}
                         </p>
                         <p className="text-xs mt-0.5 truncate text-muted-foreground">

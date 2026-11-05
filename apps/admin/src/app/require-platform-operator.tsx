@@ -186,7 +186,7 @@ export function RequirePlatformOperator({ children }: { children: ReactNode }) {
             <span className="text-sm font-semibold tracking-tight text-foreground">
               Onetab AI
             </span>
-            <span className="font-semibold tracking-wider px-1.5 py-0.5 rounded-md border border-primary/20 bg-primary/10 text-[10px] text-primary uppercase">
+            <span className="font-semibold tracking-wider px-1.5 py-0.5 rounded-md border border-brand/20 bg-brand/10 text-[10px] text-brand-text uppercase">
               Admin
             </span>
             <span className={cn(

@@ -121,7 +121,7 @@ export function SocialAuthButtons({
             className={cn(
               'h-9 px-4 text-xs sm:text-sm font-medium w-full rounded-lg transition-all duration-150',
               'gap-2.5 flex items-center justify-center',
-              'border border-input bg-background text-foreground shadow-xs hover:bg-accent',
+              'border border-input bg-surface text-foreground shadow-xs hover:bg-accent',
               'focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
               'disabled:cursor-not-allowed disabled:opacity-50',
             )}
@@ -175,7 +175,7 @@ export function SocialAuthButtons({
             className={cn(
               'h-9 px-4 text-xs sm:text-sm font-medium w-full rounded-lg transition-all duration-150',
               'gap-2.5 flex items-center justify-center',
-              'border border-input bg-background text-foreground shadow-xs hover:bg-accent',
+              'border border-input bg-surface text-foreground shadow-xs hover:bg-accent',
               'focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
               'disabled:cursor-not-allowed disabled:opacity-50',
             )}

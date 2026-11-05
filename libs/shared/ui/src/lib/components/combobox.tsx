@@ -332,7 +332,7 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
             )}
           </div>
           {checked && (
-            <Check className="size-3.5 text-primary shrink-0 ml-auto" aria-hidden="true" />
+            <Check className="size-3.5 text-brand-text shrink-0 ml-auto" aria-hidden="true" />
           )}
         </button>
       );
@@ -364,9 +364,9 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
               disabled={disabled}
               onKeyDown={handleTriggerKeyDown}
               className={cn(
-                'flex min-h-8 w-full items-center justify-between gap-1.5 rounded-input border border-input bg-surface px-2.5 py-1 text-xs text-foreground cursor-pointer',
+                'flex min-h-8 w-full items-center justify-between gap-1.5 rounded-input border border-input theme-fixed bg-field px-2.5 py-1 text-xs text-foreground cursor-pointer',
                 'transition-colors duration-(--duration-fast) ease-standard outline-none text-left',
-                'hover:border-border-strong focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25',
+                'hover:border-field-border focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25',
                 disabled && 'pointer-events-none opacity-50 bg-surface-muted cursor-not-allowed',
               )}
             >
@@ -498,7 +498,7 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
               >
                 {loading ? (
                   <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">
-                    <Loader2 className="size-3.5 animate-spin text-primary" />
+                    <Loader2 className="size-3.5 animate-spin text-brand-text" />
                     <span>{loadingText}</span>
                   </div>
                 ) : filteredOptions.length === 0 ? (
@@ -511,7 +511,7 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
                         <button
                           type="button"
                           onClick={handleCreate}
-                          className="mt-2 inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline cursor-pointer"
+                          className="mt-2 inline-flex items-center gap-1 text-xs text-brand-text font-medium hover:underline cursor-pointer"
                         >
                           <Plus className="size-3.5" />
                           <span>Create &ldquo;{searchQuery}&rdquo;</span>

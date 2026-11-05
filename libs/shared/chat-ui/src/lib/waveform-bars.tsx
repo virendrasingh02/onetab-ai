@@ -42,7 +42,7 @@ export function WaveformBars({
             key={index}
             className={cn(
               'flex-1 rounded-full',
-              played ? 'bg-primary' : 'bg-muted-foreground/30',
+              played ? 'bg-brand' : 'bg-muted-foreground/30',
             )}
             style={{ height: `${Math.max(10, sample * 100)}%` }}
           />

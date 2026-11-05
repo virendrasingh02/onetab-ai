@@ -67,7 +67,7 @@ export function CallSummaryMessageCard({
       >
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="size-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary-text shrink-0">
+            <div className="size-9 rounded-xl bg-brand/10 flex items-center justify-center text-brand-text shrink-0">
               <PhoneCall className="size-4" />
             </div>
             <div className="min-w-0">

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   checkContrast,
@@ -11,6 +13,7 @@ import {
   rgbToHex,
   rgbToHsl,
 } from './theme-color-generator.js';
+import { THEME_PRESETS } from './theme-presets.js';
 
 describe('theme-color-generator', () => {
   describe('color conversions', () => {
@@ -103,6 +106,119 @@ describe('theme-color-generator', () => {
       expect(vars['--font-sans-stack']).toContain('Inter');
       expect(vars['--radius']).toBe('8px');
       expect(vars['--gradient-primary']).toBeDefined();
+    });
+  });
+
+  /*
+   * These look the same in every workspace. A theme that sets one repaints the
+   * unread dots, labels, inputs or composer, which is the bug this guards.
+   */
+  describe('tokens a workspace theme must not touch', () => {
+    const PINNED = [
+      '--brand',
+      '--brand-foreground',
+      '--brand-hover',
+      '--brand-text',
+      '--activity',
+      '--activity-text',
+      '--field',
+      '--field-border',
+      '--ring',
+      '--sidebar-ring',
+      '--input',
+      '--destructive',
+      '--destructive-foreground',
+      '--destructive-text',
+      '--success',
+      '--success-foreground',
+      '--success-text',
+      '--warning',
+      '--warning-foreground',
+      '--warning-text',
+      '--info',
+      '--info-foreground',
+      '--info-text',
+    ];
+
+    const expectNonePinned = (vars: Record<string, string>) => {
+      for (const token of PINNED) {
+        expect(vars[token]).toBeUndefined();
+        expect(vars[token.replace('--', '--color-')]).toBeUndefined();
+      }
+    };
+
+    it.each(['light', 'dark'] as const)(
+      'ignores pinned values saved in an older %s theme',
+      (mode) => {
+        const rose = '#f43f5e';
+        const vars = generateThemeVariables(
+          {
+            mode,
+            type: 'custom',
+            brandColor: rose,
+            neutralColor: rose,
+            colors: {
+              primary: rose,
+              ring: rose,
+              input: rose,
+              success: rose,
+              warning: rose,
+              destructive: rose,
+              info: rose,
+            },
+          },
+          undefined,
+          mode,
+        );
+
+        expect(vars['--primary']).toBe(rose);
+        expectNonePinned(vars);
+      },
+    );
+
+    it.each(THEME_PRESETS.map((preset) => [preset.id, preset] as const))(
+      'keeps the %s preset to its own surfaces',
+      (_id, preset) => {
+        expect(preset.config.colors?.ring).toBeUndefined();
+        expectNonePinned(generateThemeVariables(preset.config, undefined, 'light'));
+        expectNonePinned(generateThemeVariables(preset.config, undefined, 'dark'));
+      },
+    );
+
+    it('keeps the theme-fixed scope in step with the default palette', () => {
+      const css = readFileSync(resolve(__dirname, '../styles/theme.css'), 'utf8');
+      const block = (selector: string) => {
+        const start = css.indexOf(`\n${selector} {`);
+        expect(start).toBeGreaterThan(-1);
+        return css.slice(start, css.indexOf('\n}', start));
+      };
+      const declared = (text: string) =>
+        Object.fromEntries(
+          [...text.matchAll(/^\s*(--[\w-]+):\s*([^;]+);/gm)].map((m) => [m[1], m[2].trim()]),
+        );
+
+      const root = declared(block(':root'));
+      const dark = declared(block('.dark'));
+      const fixed = declared(block('.theme-fixed'));
+      const fixedDark = declared(block('.dark .theme-fixed'));
+
+      for (const [token, value] of Object.entries(fixedDark)) {
+        expect(value).toBe(dark[token]);
+        expect(fixed[token]).toBe(root[token]);
+      }
+    });
+
+    it('keeps them out of the accent blocks in theme.css', () => {
+      const css = readFileSync(resolve(__dirname, '../styles/theme.css'), 'utf8');
+      const start = css.indexOf('Accent Themes');
+      const end = css.indexOf('App content panel');
+      expect(start).toBeGreaterThan(-1);
+      expect(end).toBeGreaterThan(start);
+
+      const accents = css.slice(start, end);
+      for (const token of PINNED) {
+        expect(accents).not.toMatch(new RegExp(String.raw`${token}\s*:`));
+      }
     });
   });
 });

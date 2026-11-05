@@ -115,7 +115,7 @@ export function AutomationSettingsTab() {
               id="notifyFailure"
               checked={notifyOnFailure}
               onChange={(e) => setNotifyOnFailure(e.target.checked)}
-              className="rounded border-border text-primary focus:ring-primary"
+              className="rounded border-border text-primary focus:ring-ring"
             />
             <label htmlFor="notifyFailure" className="text-sm font-medium text-foreground cursor-pointer">
               Send failure notifications to the automation owner and workspace alert channel
@@ -138,7 +138,7 @@ export function AutomationSettingsTab() {
               id="approvalRequired"
               checked={requireApprovalForExternalWrites}
               onChange={(e) => setRequireApprovalForExternalWrites(e.target.checked)}
-              className="rounded border-border text-primary focus:ring-primary"
+              className="rounded border-border text-primary focus:ring-ring"
             />
             <label htmlFor="approvalRequired" className="text-sm font-medium text-foreground cursor-pointer">
               Enforce human review before executing high-impact external actions (bulk emails, document deletion, financial operations)

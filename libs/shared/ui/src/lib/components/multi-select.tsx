@@ -138,8 +138,8 @@ export function MultiSelect({
             }}
             className={cn(
               'min-h-[42px] w-full px-2.5 py-1.5 rounded-xl border border-border bg-surface-raised flex flex-wrap items-center gap-1.5 cursor-text transition-colors',
-              'hover:border-border-strong focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/25',
-              open && 'border-primary ring-1 ring-primary/25',
+              'hover:border-field-border focus-within:border-ring focus-within:ring-1 focus-within:ring-ring/25',
+              open && 'border-brand ring-1 ring-brand/25',
               disabled && 'opacity-50 cursor-not-allowed pointer-events-none bg-muted/40',
             )}
           >

@@ -74,7 +74,7 @@ const TYPE_OPTIONS: Array<{ value: CustomConnectorParamType; label: string }> = 
 const CATEGORY_OPTIONS = CONNECTOR_CATEGORIES.map((c) => ({ value: c.id, label: c.label }));
 const METHOD_STYLE: Record<CustomConnectorMethod, string> = {
   GET: 'bg-success/15 text-success-text',
-  POST: 'bg-primary/15 text-primary-text',
+  POST: 'bg-brand/15 text-brand-text',
   PUT: 'bg-warning/15 text-warning-text',
   PATCH: 'bg-warning/15 text-warning-text',
   DELETE: 'bg-destructive/15 text-destructive-text',

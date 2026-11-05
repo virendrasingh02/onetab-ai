@@ -34,6 +34,10 @@ with status + body excerpt, or the DB/API value you checked).
 
 ## 1. Browser gotchas (these have bitten before)
 
+- Reading computed colours (theme checks): inject
+  `*{transition:none !important;animation:none !important}` first. `getComputedStyle` returns the
+  start of a running transition, so `transition-*` elements look unchanged and pass falsely. A
+  hidden pane has no page focus, so `:focus` styles only apply after a real `computer` click.
 - Before sweeping routes on Vite dev, run
   `performance.setResourceTimingBufferSize(1e5); performance.clearResourceTimings()`,
   otherwise failed requests past the 250th entry are silently missed.

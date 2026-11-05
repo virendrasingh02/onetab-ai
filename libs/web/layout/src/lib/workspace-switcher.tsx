@@ -341,7 +341,7 @@ export function WorkspaceMenu({
                         ) : null}
                       </div>
                       {/* {isActive ? (
-                        <span className="rounded px-1.5 py-0.5 font-semibold tracking-wide shrink-0 bg-primary/10 text-[9px] text-primary uppercase">
+                        <span className="rounded px-1.5 py-0.5 font-semibold tracking-wide shrink-0 bg-brand/10 text-[9px] text-brand-text uppercase">
                           Active
                         </span>
                       ) : (

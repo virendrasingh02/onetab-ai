@@ -1227,7 +1227,7 @@ export function OverviewDashboardView() {
                   overview.recentEvents.map((act: AdminLiveActivityItem) => (
                     <TableRow key={act.id} className="border-b border-border/40 hover:bg-muted/30 transition-colors">
                       <TableCell className="px-6 py-3.5">
-                        <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary font-mono uppercase">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-brand/20 bg-brand/10 px-2 py-0.5 text-[10px] font-semibold text-brand-text font-mono uppercase">
                           <Radio className="size-2.5 animate-pulse" />
                           {act.type}
                         </span>

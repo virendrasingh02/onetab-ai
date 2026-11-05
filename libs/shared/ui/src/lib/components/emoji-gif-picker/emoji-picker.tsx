@@ -85,7 +85,7 @@ export function EmojiPicker({
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search emoji…"
-              className="h-8 w-full rounded-input border border-border/60 bg-surface-inset pl-8 pr-8 text-xs text-foreground outline-none transition-colors placeholder:text-subtle focus:border-primary"
+              className="h-8 w-full rounded-input border border-border/60 bg-surface-inset pl-8 pr-8 text-xs text-foreground outline-none transition-colors placeholder:text-subtle focus:border-ring"
             />
             {search ? (
               <button
@@ -115,7 +115,7 @@ export function EmojiPicker({
                     key={emoji}
                     type="button"
                     onClick={() => handleSelect({ emoji, label: emoji })}
-                    className="flex h-9 w-full items-center justify-center rounded-lg text-[22px] transition-transform hover:scale-110 hover:bg-accent focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                    className="flex h-9 w-full items-center justify-center rounded-lg text-[22px] transition-transform hover:scale-110 hover:bg-accent focus:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   >
                     {emoji}
                   </button>

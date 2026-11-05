@@ -1109,7 +1109,7 @@ function WorkflowCanvasInner({
               className={cn(
                 'copilot-shine h-8.5 pl-2.5 pr-3 gap-1.5 flex shrink-0 cursor-pointer items-center rounded-full',
                 'text-xs font-semibold text-primary-foreground transition-transform duration-200',
-                'hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-95',
+                'hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95',
               )}
             >
               <Sparkles className="size-4" />

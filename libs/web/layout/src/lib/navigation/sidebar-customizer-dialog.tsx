@@ -645,7 +645,7 @@ export function SidebarCustomizerDialog({
                     ? 'Search sections (e.g. Channels, DMs, Projects, Docs, AI Agents)...'
                     : 'Search navigation (e.g. Tasks, Docs, AI Chat)...'
                 }
-                className="pl-8.5 pr-3 py-1.5 text-xs w-full rounded-lg border border-border bg-surface-muted text-foreground transition-all outline-none placeholder:text-muted-foreground focus:border-primary/80 focus:ring-1 focus:ring-primary/40"
+                className="pl-8.5 pr-3 py-1.5 text-xs w-full rounded-lg border border-border bg-surface-muted text-foreground transition-all outline-none placeholder:text-muted-foreground focus:border-ring/80 focus:ring-1 focus:ring-ring/40"
               />
             </div>
           )}
