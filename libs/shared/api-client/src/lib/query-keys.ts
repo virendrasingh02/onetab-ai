@@ -428,6 +428,14 @@ export const queryKeys = {
     packs: () => ['stickers', 'packs'] as const,
     search: (q: string) => ['stickers', 'search', q] as const,
   },
+  account: {
+    deletionPreview: () => ['account', 'deletion-preview'] as const,
+  },
+  safety: {
+    blocks: () => ['safety', 'blocks'] as const,
+    reports: (status?: string) =>
+      ['safety', 'reports', status ?? 'all'] as const,
+  },
   notifications: {
     all: (workspaceId: string) => ['notifications', workspaceId] as const,
     preferences: (workspaceId: string) =>

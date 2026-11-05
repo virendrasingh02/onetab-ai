@@ -35,6 +35,7 @@ export const ApiErrorCode = {
   NOT_FOUND: 'NOT_FOUND',
   CONFLICT: 'CONFLICT',
   RATE_LIMITED: 'RATE_LIMITED',
+  CONTENT_BLOCKED: 'CONTENT_BLOCKED',
   INTERNAL: 'INTERNAL',
 } as const;
 export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode];

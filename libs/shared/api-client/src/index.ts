@@ -61,6 +61,8 @@ export {
   syncApi,
   uploadApi,
   userApi,
+  safetyApi,
+  adminSafetyApi,
   workToolsApi,
   workspaceApi,
   billingApi,

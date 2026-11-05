@@ -6,6 +6,7 @@ export * from './lib/anonymous.schema.js';
 export * from './lib/email.schema.js';
 export * from './lib/huddle.schema.js';
 export * from './lib/profile.schema.js';
+export * from './lib/safety.schema.js';
 export * from './lib/scheduled-status.schema.js';
 export * from './lib/scheduled-message.schema.js';
 export * from './lib/work-tools.schema.js';

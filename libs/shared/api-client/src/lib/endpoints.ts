@@ -1,4 +1,9 @@
 import type {
+  AccountDeletionPreview,
+  AccountDeletionResult,
+  BlockedUserDto,
+  ContentReportDto,
+  ContentReportReceipt,
   CelebrationPrefs,
   EmployeeDirectoryPage,
   EmployeePrivacy,
@@ -378,6 +383,10 @@ import type {
 } from '@org/types';
 
 import type {
+  BlockUserInput,
+  CreateContentReportInput,
+  DeleteAccountInput,
+  ResolveContentReportInput,
   AddChannelMembersInput,
   ChannelPreferencesInput,
   ChannelTabsInput,
@@ -1448,7 +1457,54 @@ export const invitationApi = {
     ),
 };
 
+/** Reporting objectionable content and blocking people. */
+export const safetyApi = {
+  /** Rejects with the content rules message when the file may not be posted. */
+  checkMedia: (file: Blob, filename: string) => {
+    const form = new FormData();
+    form.append('file', file, filename);
+    return request<{ allowed: true; scanned: boolean }>(
+      http.post('/safety/media-check', form, { timeout: 60_000 }),
+    );
+  },
+
+  report: (input: CreateContentReportInput) =>
+    request<ContentReportReceipt>(http.post('/safety/reports', input)),
+
+  blocks: () => request<BlockedUserDto[]>(http.get('/safety/blocks')),
+
+  block: (input: BlockUserInput) =>
+    request<{ blocked: true; chatEnforced: boolean }>(
+      http.post('/safety/blocks', input),
+    ),
+
+  unblock: (userId: string) =>
+    request<{ blocked: false; chatEnforced: boolean }>(
+      http.delete(`/safety/blocks/${userId}`),
+    ),
+};
+
+/** The operator queue behind `safetyApi.report`. */
+export const adminSafetyApi = {
+  reports: (status?: string) =>
+    request<ContentReportDto[]>(
+      http.get('/admin/safety/reports', { params: status ? { status } : {} }),
+    ),
+
+  resolve: (id: string, input: ResolveContentReportInput) =>
+    request<{ id: string; status: string }>(
+      http.patch(`/admin/safety/reports/${id}`, input),
+    ),
+};
+
 export const userApi = {
+  deletionPreview: () =>
+    request<AccountDeletionPreview>(http.get('/users/me/deletion-preview')),
+
+  /** Irreversible. The server re-checks the password and second factor. */
+  deleteAccount: (input: DeleteAccountInput) =>
+    request<AccountDeletionResult>(http.post('/users/me/delete', input)),
+
   preferences: () =>
     request<UserPreferences>(http.get('/users/me/preferences')),
 

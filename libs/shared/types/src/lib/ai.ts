@@ -20,13 +20,7 @@ export type AIProvider =
   | 'ollama';
 
 export type AIModelType =
-  | 'llm'
-  | 'vision'
-  | 'image'
-  | 'video'
-  | 'audio'
-  | 'embedding'
-  | 'reranking';
+  'llm' | 'vision' | 'image' | 'video' | 'audio' | 'embedding' | 'reranking';
 
 export interface AIModelCapabilities {
   chat: boolean;
@@ -144,7 +138,8 @@ export type AIErrorCode =
   | 'AI_PROVIDER_ERROR'
   | 'AI_CAPABILITY_UNSUPPORTED'
   | 'AI_CONTEXT_OVERFLOW'
-  | 'AI_INVALID_REQUEST';
+  | 'AI_INVALID_REQUEST'
+  | 'CONTENT_FILTERED';
 
 export interface AIToolCall {
   id: string;
@@ -193,7 +188,6 @@ export interface AIChatResponse {
   finishReason?: string;
 }
 
-
 /* ------------------------------------------------------------- Streaming --- */
 
 export interface AIStreamStartEvent {
@@ -229,7 +223,6 @@ export interface AIStreamUsageEvent {
   type: 'usage';
   usage: AIChatUsage;
 }
-
 
 export interface AIStreamCompleteEvent {
   type: 'message_complete';

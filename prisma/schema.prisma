@@ -59,6 +59,9 @@ model User {
   updatedAt                 DateTime                    @updatedAt
   /// Bridged Matrix identity, provisioned lazily on first chat use.
   matrixUserId              String?                     @unique
+  /// Set when the person deleted their account. The row stays, scrubbed of
+  /// personal data, so content the workspace keeps has an author to point at.
+  deletedAt                 DateTime?
   identities                UserIdentity[]
   createdAgents             AIAgent[]
   channelCoworkersAdded     ChannelCoworker[]           @relation("ChannelCoworkerAddedBy")
@@ -147,9 +150,60 @@ model User {
   widgetDefinitions         WidgetDefinition[]
   agentConversations        AgentConversation[]
   scimGroupMembers          SCIMGroupMember[]
+  contentReportsFiled       ContentReport[]             @relation("ContentReportReporter")
+  contentReportsAgainst     ContentReport[]             @relation("ContentReportTarget")
+  contentReportsResolved    ContentReport[]             @relation("ContentReportResolver")
+  blocksMade                UserBlock[]                 @relation("UserBlockBlocker")
+  blocksReceived            UserBlock[]                 @relation("UserBlockBlocked")
 
   @@index([presence, lastSeenAt])
   @@map("users")
+}
+
+/// A report of objectionable content or behaviour, reviewed by platform
+/// operators. `excerpt` is a copy of what was reported, because a chat message
+/// can be edited or redacted before anyone reads the report.
+model ContentReport {
+  id             String    @id @default(cuid())
+  reporterId     String?
+  targetUserId   String?
+  workspaceId    String?
+  /// MESSAGE | USER | AI_OUTPUT | AGENT | FILE | OTHER
+  targetType     String
+  /// The event, user, execution or file id, as the reporting surface knows it.
+  targetId       String
+  /// SPAM | HARASSMENT | HATE | SEXUAL | VIOLENCE | SELF_HARM | ILLEGAL | MISINFORMATION | OTHER
+  reason         String
+  details        String?
+  excerpt        String?
+  /// OPEN | REVIEWING | ACTIONED | DISMISSED
+  status         String    @default("OPEN")
+  resolutionNote String?
+  resolvedById   String?
+  resolvedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  reporter       User?     @relation("ContentReportReporter", fields: [reporterId], references: [id], onDelete: SetNull)
+  targetUser     User?     @relation("ContentReportTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+  resolvedBy     User?     @relation("ContentReportResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@unique([reporterId, targetType, targetId])
+  @@index([status, createdAt])
+  @@map("content_reports")
+}
+
+/// One person hiding another. Chat enforcement is the homeserver's own
+/// `m.ignored_user_list`, written from this table.
+model UserBlock {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+  blocker   User     @relation("UserBlockBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("UserBlockBlocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
+  @@map("user_blocks")
 }
 
 /// A user's sidebar customization — section/item visibility and order,

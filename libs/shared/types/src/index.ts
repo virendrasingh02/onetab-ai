@@ -506,6 +506,8 @@ export * from './lib/custom-connector.js';
 export * from './lib/plans.js';
 export * from './lib/billing-pricing.js';
 export * from './lib/billing.js';
+export * from './lib/safety.js';
+export * from './lib/content-filter.js';
 export * from './lib/enterprise-sso.js';
 export * from './lib/compliance.js';
 export {
