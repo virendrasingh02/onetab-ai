@@ -30,7 +30,11 @@ import { existsSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const resources = join(dirname(fileURLToPath(import.meta.url)), '..', 'resources');
+const resources = join(
+  dirname(fileURLToPath(import.meta.url)),
+  '..',
+  'resources',
+);
 const file = join(resources, 'desktop-config.json');
 const updateFile = join(resources, 'app-update.yml');
 /** Must match the folder an installed build already uses, or a pending download is orphaned. */
@@ -48,16 +52,36 @@ function absoluteUrl(value) {
   }
 }
 
-const apiUrl = absoluteUrl(process.env.ONETAB_API_URL ?? process.env.VITE_API_URL);
+const apiUrl = absoluteUrl(
+  process.env.ONETAB_API_URL ?? process.env.VITE_API_URL,
+);
 const webUrl = absoluteUrl(process.env.ONETAB_WEB_URL);
 const updateUrl = absoluteUrl(process.env.ONETAB_UPDATE_URL);
+
+// A release must never ship pointing at localhost or plain HTTP.
+if (process.env.ONETAB_RELEASE === '1') {
+  const insecure = Object.entries({ apiUrl, webUrl, updateUrl }).filter(
+    ([, url]) => !url?.startsWith('https://'),
+  );
+  if (insecure.length > 0) {
+    console.error(
+      `[desktop] ONETAB_RELEASE=1 needs https URLs for: ${insecure.map(([name]) => name).join(', ')}`,
+    );
+    process.exit(1);
+  }
+}
 
 if (existsSync(file)) rmSync(file);
 if (existsSync(updateFile)) rmSync(updateFile);
 if (updateUrl) {
   writeFileSync(
     updateFile,
-    [`provider: generic`, `url: ${updateUrl}`, `updaterCacheDirName: ${UPDATER_CACHE_DIR}`, ``].join('\n'),
+    [
+      `provider: generic`,
+      `url: ${updateUrl}`,
+      `updaterCacheDirName: ${UPDATER_CACHE_DIR}`,
+      ``,
+    ].join('\n'),
   );
 }
 
@@ -66,7 +90,10 @@ if (!apiUrl && !webUrl && !updateUrl) {
     '[desktop] VITE_API_URL / ONETAB_WEB_URL / ONETAB_UPDATE_URL are not absolute URLs: the installer will fall back to http://localhost:3000/api/v1 and cannot install updates itself.',
   );
 } else {
-  writeFileSync(file, `${JSON.stringify({ apiUrl, webUrl, updateUrl }, null, 2)}\n`);
+  writeFileSync(
+    file,
+    `${JSON.stringify({ apiUrl, webUrl, updateUrl }, null, 2)}\n`,
+  );
   console.log(
     `[desktop] Wrote desktop-config.json (api: ${apiUrl ?? '—'}, web: ${webUrl ?? '—'}, updates: ${updateUrl ?? '—'})`,
   );

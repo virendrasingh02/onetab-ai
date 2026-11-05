@@ -1,8 +1,21 @@
-import { app, BrowserWindow, clipboard, Menu, nativeTheme, screen, shell } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  clipboard,
+  Menu,
+  nativeTheme,
+  screen,
+  shell,
+} from 'electron';
 import { IPC_EVENT, type DesktopWindowState } from '../shared/ipc.js';
 import { buildContextMenuTemplate } from './context-menu.js';
 import { logger } from './logger.js';
-import { getPreference, readStore, setPreference, writeStore } from './store.js';
+import {
+  getPreference,
+  readStore,
+  setPreference,
+  writeStore,
+} from './store.js';
 import { showTrayHint } from './tray-hint.js';
 import {
   defaultMinimizeToTray,
@@ -19,7 +32,9 @@ export const TITLE_BAR_INSET = process.platform === 'darwin' ? 78 : 0;
 export const WINDOW_BACKGROUND = { light: '#fbfbfc', dark: '#0c0d0e' } as const;
 
 export function windowBackground(): string {
-  return nativeTheme.shouldUseDarkColors ? WINDOW_BACKGROUND.dark : WINDOW_BACKGROUND.light;
+  return nativeTheme.shouldUseDarkColors
+    ? WINDOW_BACKGROUND.dark
+    : WINDOW_BACKGROUND.light;
 }
 
 let mainWindow: BrowserWindow | null = null;
@@ -39,7 +54,11 @@ export function isQuitting(): boolean {
 }
 
 function readWindowState() {
-  const saved = readStore().window ?? { width: 1380, height: 900, isMaximized: false };
+  const saved = readStore().window ?? {
+    width: 1380,
+    height: 900,
+    isMaximized: false,
+  };
   const area = screen.getPrimaryDisplay().workArea;
 
   // A window restored onto a monitor that has since been unplugged would open
@@ -124,7 +143,9 @@ function applyNavigationPolicy(window: BrowserWindow, appOrigin: string): void {
   });
 
   // Nothing in this app needs a WebView; allowing one is a sandbox escape.
-  window.webContents.on('will-attach-webview', (event) => event.preventDefault());
+  window.webContents.on('will-attach-webview', (event) =>
+    event.preventDefault(),
+  );
 }
 
 /** Native context menu: spelling fixes, links, images, text editing. */
@@ -136,8 +157,10 @@ function applyContextMenu(window: BrowserWindow): void {
       {
         openExternal: (url) => void shell.openExternal(url),
         copyText: (text) => clipboard.writeText(text),
-        replaceMisspelling: (suggestion) => webContents.replaceMisspelling(suggestion),
-        addToDictionary: (word) => webContents.session.addWordToSpellCheckerDictionary(word),
+        replaceMisspelling: (suggestion) =>
+          webContents.replaceMisspelling(suggestion),
+        addToDictionary: (word) =>
+          webContents.session.addWordToSpellCheckerDictionary(word),
         copyImage: (x, y) => webContents.copyImageAt(x, y),
         inspect: (x, y) => webContents.inspectElement(x, y),
       },
@@ -192,6 +215,7 @@ export function createMainWindow({
       sandbox: true,
       webviewTag: false,
       webSecurity: true,
+      devTools: !app.isPackaged,
       spellcheck: true,
     },
   });
@@ -206,7 +230,10 @@ export function createMainWindow({
   applyContextMenu(window);
 
   window.webContents.on('render-process-gone', (_event, details) => {
-    logger.error('Window', `Renderer process gone (reason: ${details.reason}, exitCode: ${details.exitCode})`);
+    logger.error(
+      'Window',
+      `Renderer process gone (reason: ${details.reason}, exitCode: ${details.exitCode})`,
+    );
     if (details.reason !== 'clean-exit' && !quitting) {
       logger.info('Window', 'Attempting to reload main window after crash');
       setTimeout(() => {
@@ -251,7 +278,10 @@ export function createMainWindow({
     // out), so background notifications keep arriving.
     const action = resolveCloseAction({
       quitting,
-      minimizeToTray: getPreference(MINIMIZE_TO_TRAY_KEY, defaultMinimizeToTray(process.platform)),
+      minimizeToTray: getPreference(
+        MINIMIZE_TO_TRAY_KEY,
+        defaultMinimizeToTray(process.platform),
+      ),
       hintShown: getPreference(TRAY_HINT_SHOWN_KEY, false),
       platform: process.platform,
     });
@@ -290,7 +320,9 @@ export function moveMainWindowToCurrentDisplay(): void {
   const window = mainWindow;
   if (!window || window.isDestroyed()) return;
 
-  const { workArea } = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+  const { workArea } = screen.getDisplayNearestPoint(
+    screen.getCursorScreenPoint(),
+  );
   const wasMaximized = window.isMaximized();
   if (window.isFullScreen()) window.setFullScreen(false);
   if (wasMaximized) window.unmaximize();

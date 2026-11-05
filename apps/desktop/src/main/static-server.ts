@@ -46,8 +46,30 @@ export interface StaticServer {
   close: () => Promise<void>;
 }
 
+/**
+ * A page on any website can reach a loopback port, and DNS rebinding can make
+ * it look same-origin. Only requests addressed to this server by name pass.
+ */
+export function isAllowedHost(host: string | undefined, port: number): boolean {
+  return host === `localhost:${port}` || host === `127.0.0.1:${port}`;
+}
+
+/** Sent with every response; the page's own CSP arrives as a `<meta>` tag. */
+export const SECURITY_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Content-Security-Policy': "frame-ancestors 'none'",
+  'Referrer-Policy': 'no-referrer',
+  'Cross-Origin-Resource-Policy': 'same-origin',
+} as const;
+
 function resolveWithinRoot(root: string, urlPath: string): string | null {
-  const decoded = decodeURIComponent(urlPath.split('?')[0] ?? '/');
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(urlPath.split('?')[0] ?? '/');
+  } catch {
+    return null; // `/%E0%A4%A`: a bad escape must not take the app down.
+  }
   const candidate = resolve(join(root, normalize(decoded)));
 
   // Reject anything that escapes the bundle directory via `..` traversal.
@@ -88,15 +110,27 @@ function listen(server: Server, port: number): Promise<boolean> {
 export async function startStaticServer(root: string): Promise<StaticServer> {
   const rootDir = resolve(root);
 
+  let boundPort = 0;
   const server = createServer((request, response) => {
+    if (
+      !isAllowedHost(request.headers.host, boundPort) ||
+      (request.method !== 'GET' && request.method !== 'HEAD')
+    ) {
+      response.writeHead(403, SECURITY_HEADERS);
+      response.end();
+      return;
+    }
+
     const urlPath = request.url ?? '/';
     const file = resolveWithinRoot(rootDir, urlPath);
 
     if (file) {
-      const type = MIME_TYPES[extname(file).toLowerCase()] ?? 'application/octet-stream';
+      const type =
+        MIME_TYPES[extname(file).toLowerCase()] ?? 'application/octet-stream';
       // Hashed asset filenames make long-lived caching safe; index.html is
       // served through the SPA fallback below and stays uncached.
       response.writeHead(200, {
+        ...SECURITY_HEADERS,
         'Content-Type': type,
         'Cache-Control': 'public, max-age=31536000, immutable',
       });
@@ -107,12 +141,16 @@ export async function startStaticServer(root: string): Promise<StaticServer> {
     // SPA fallback: any unknown path is a client route, not a missing asset.
     const indexHtml = join(rootDir, 'index.html');
     if (!existsSync(indexHtml)) {
-      response.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+      response.writeHead(500, {
+        ...SECURITY_HEADERS,
+        'Content-Type': 'text/plain; charset=utf-8',
+      });
       response.end('Web bundle is missing. Run `nx build @org/web` first.');
       return;
     }
 
     response.writeHead(200, {
+      ...SECURITY_HEADERS,
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'no-store',
     });
@@ -121,6 +159,7 @@ export async function startStaticServer(root: string): Promise<StaticServer> {
 
   for (let offset = 0; offset < PORT_RANGE_LENGTH; offset += 1) {
     const port = PORT_RANGE_START + offset;
+    boundPort = port;
     if (await listen(server, port)) {
       return {
         origin: `http://localhost:${port}`,

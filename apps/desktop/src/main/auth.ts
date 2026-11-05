@@ -26,9 +26,9 @@ interface StoredEncryptedSession {
    */
   accessToken?: string | null;
   encryptedAccessToken?: string; // base64 of safeStorage encrypted buffer
-  plainAccessToken?: string; // fallback if safeStorage is unavailable
+  plainAccessToken?: string; // read once to migrate old files, never written
   encryptedRefreshToken?: string; // base64 of safeStorage encrypted buffer
-  plainRefreshToken?: string; // fallback if safeStorage is unavailable in environment
+  plainRefreshToken?: string; // read once to migrate old files, never written
 }
 
 let pendingPKCE: PendingPKCE | null = null;
@@ -50,10 +50,14 @@ function extractRefreshToken(response: Response): string | null {
   const getSetCookie = (
     response.headers as Headers & { getSetCookie?: () => string[] }
   ).getSetCookie?.bind(response.headers);
-  const cookies = getSetCookie ? getSetCookie() : [response.headers.get('set-cookie') ?? ''];
+  const cookies = getSetCookie
+    ? getSetCookie()
+    : [response.headers.get('set-cookie') ?? ''];
 
   for (const cookie of cookies) {
-    const match = new RegExp(`(?:^|;\\s*)${REFRESH_COOKIE_NAME}=([^;]+)`).exec(cookie);
+    const match = new RegExp(`(?:^|;\\s*)${REFRESH_COOKIE_NAME}=([^;]+)`).exec(
+      cookie,
+    );
     if (match) {
       try {
         return decodeURIComponent(match[1]);
@@ -66,28 +70,48 @@ function extractRefreshToken(response: Response): string | null {
 }
 
 /** Generates high-entropy PKCE pair (RFC 7636 S256). */
-export function generatePKCE(): { verifier: string; challenge: string; state: string } {
+export function generatePKCE(): {
+  verifier: string;
+  challenge: string;
+  state: string;
+} {
   const verifier = randomBytes(48).toString('base64url');
   const challenge = createHash('sha256').update(verifier).digest('base64url');
   const state = randomBytes(24).toString('base64url');
   return { verifier, challenge, state };
 }
 
+/**
+ * On Linux with no keyring Electron reports encryption as available but uses a
+ * hardcoded password (the `basic_text` backend), which protects nothing.
+ */
+function hasRealEncryption(): boolean {
+  if (!safeStorage.isEncryptionAvailable()) return false;
+  return (
+    process.platform !== 'linux' ||
+    safeStorage.getSelectedStorageBackend() !== 'basic_text'
+  );
+}
+
 /** Safely encrypts a secret using Electron's native OS credential store. */
-function encryptSecret(plaintext: string): { encrypted?: string; plain?: string } {
+function encryptSecret(plaintext: string): { encrypted?: string } {
   try {
-    if (safeStorage.isEncryptionAvailable()) {
+    if (hasRealEncryption()) {
       const buffer = safeStorage.encryptString(plaintext);
       return { encrypted: buffer.toString('base64') };
     }
   } catch (err) {
-    logger.warn('Auth', 'safeStorage encryption failed, using fallback protection', err);
+    logger.warn('Auth', 'safeStorage encryption failed', err);
   }
-  return { plain: plaintext };
+  // Never written in the clear: the session then lasts until the app quits.
+  return {};
 }
 
 /** Safely decrypts a secret using Electron's native OS credential store. */
-function decryptSecret(record: { encrypted?: string; plain?: string }): string | null {
+function decryptSecret(record: {
+  encrypted?: string;
+  plain?: string;
+}): string | null {
   if (record.encrypted) {
     try {
       if (safeStorage.isEncryptionAvailable()) {
@@ -95,7 +119,11 @@ function decryptSecret(record: { encrypted?: string; plain?: string }): string |
         return safeStorage.decryptString(buffer);
       }
     } catch (err) {
-      logger.error('Auth', 'Failed to decrypt secure token with safeStorage', err);
+      logger.error(
+        'Auth',
+        'Failed to decrypt secure token with safeStorage',
+        err,
+      );
     }
   }
   return record.plain ?? null;
@@ -119,9 +147,7 @@ export function saveSecureSession(session: DesktopAuthSession): void {
     const payload: StoredEncryptedSession = {
       user: session.user,
       encryptedAccessToken: accessRecord.encrypted,
-      plainAccessToken: accessRecord.plain,
       encryptedRefreshToken: refreshRecord.encrypted,
-      plainRefreshToken: refreshRecord.plain,
     };
 
     writeFileSync(path, JSON.stringify(payload, null, 2), 'utf8');
@@ -160,6 +186,15 @@ export function loadSecureSession(): DesktopAuthSession | null {
       accessToken,
       refreshToken,
     };
+
+    // A file from an older build may hold tokens in the clear: rewrite it now.
+    if (
+      parsed.plainRefreshToken ||
+      parsed.plainAccessToken ||
+      parsed.accessToken
+    ) {
+      saveSecureSession(currentSession);
+    }
 
     logger.info('Auth', 'Secure session loaded from disk');
     return currentSession;
@@ -219,32 +254,46 @@ async function doRefreshSecureSession(): Promise<DesktopAuthSession | null> {
 
   let response: Response;
   try {
-    response = await fetch(`${configuredApiUrl.replace(/\/+$/, '')}/auth/refresh`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Cookie: `${REFRESH_COOKIE_NAME}=${stored.refreshToken}`,
+    response = await fetch(
+      `${configuredApiUrl.replace(/\/+$/, '')}/auth/refresh`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: `${REFRESH_COOKIE_NAME}=${stored.refreshToken}`,
+        },
       },
-    });
+    );
   } catch (error) {
-    logger.warn('Auth', 'Desktop session refresh could not reach the API', error);
+    logger.warn(
+      'Auth',
+      'Desktop session refresh could not reach the API',
+      error,
+    );
     return null;
   }
 
   if (response.status === 401 || response.status === 403) {
-    logger.warn('Auth', 'Desktop refresh token was rejected; clearing stored session');
+    logger.warn(
+      'Auth',
+      'Desktop refresh token was rejected; clearing stored session',
+    );
     clearSecureSession();
     throw new Error(`Refresh rejected with status ${response.status}`);
   }
 
   if (!response.ok) {
-    logger.warn('Auth', `Desktop session refresh failed with status ${response.status}`);
+    logger.warn(
+      'Auth',
+      `Desktop session refresh failed with status ${response.status}`,
+    );
     return null;
   }
 
   try {
     const data = (await response.json()) as { accessToken: string };
-    const rotatedRefreshToken = extractRefreshToken(response) ?? stored.refreshToken;
+    const rotatedRefreshToken =
+      extractRefreshToken(response) ?? stored.refreshToken;
 
     const session: DesktopAuthSession = {
       user: stored.user,
@@ -256,7 +305,11 @@ async function doRefreshSecureSession(): Promise<DesktopAuthSession | null> {
     logger.info('Auth', 'Desktop session refreshed successfully');
     return session;
   } catch (error) {
-    logger.warn('Auth', 'Desktop session refresh returned an unreadable response', error);
+    logger.warn(
+      'Auth',
+      'Desktop session refresh returned an unreadable response',
+      error,
+    );
     return null;
   }
 }
@@ -312,7 +365,10 @@ export async function startBrowserLogin(
     });
   }, BROWSER_LOGIN_TIMEOUT_MS);
 
-  const targetUrl = new URL(intent === 'sign-up' ? '/register' : '/login', webAppUrl);
+  const targetUrl = new URL(
+    intent === 'sign-up' ? '/register' : '/login',
+    webAppUrl,
+  );
   targetUrl.searchParams.set('desktop', 'true');
   targetUrl.searchParams.set('state', pkce.state);
   targetUrl.searchParams.set('code_challenge', pkce.challenge);
@@ -324,11 +380,16 @@ export async function startBrowserLogin(
   try {
     await shell.openExternal(targetUrl.toString());
   } catch (error) {
-    logger.error('Auth', 'Could not open the system browser for sign-in', error);
+    logger.error(
+      'Auth',
+      'Could not open the system browser for sign-in',
+      error,
+    );
     clearPendingLogin();
     emitFlowStatus({
       state: 'error',
-      message: 'Could not open your browser. Check that a default browser is set.',
+      message:
+        'Could not open your browser. Check that a default browser is set.',
     });
     return false;
   }
@@ -351,9 +412,15 @@ export function cancelBrowserLogin(): void {
  * on the hand-off page. A mismatched state belongs to some other attempt and
  * is ignored.
  */
-export function handleAuthCallbackError(error: string, state: string | undefined): void {
+export function handleAuthCallbackError(
+  error: string,
+  state: string | undefined,
+): void {
   if (!pendingPKCE || (state && pendingPKCE.state !== state)) {
-    logger.warn('Auth', 'Ignoring an auth error callback for no pending attempt');
+    logger.warn(
+      'Auth',
+      'Ignoring an auth error callback for no pending attempt',
+    );
     return;
   }
   clearPendingLogin();
@@ -362,7 +429,10 @@ export function handleAuthCallbackError(error: string, state: string | undefined
   emitFlowStatus(
     cancelled
       ? { state: 'cancelled', message: 'Sign-in was cancelled in the browser.' }
-      : { state: 'error', message: 'Sign-in could not be completed in the browser.' },
+      : {
+          state: 'error',
+          message: 'Sign-in could not be completed in the browser.',
+        },
   );
 }
 
@@ -379,14 +449,18 @@ export async function handleAuthCallback(
     // Onetab AI Desktop", a browser that fired the link twice): the app is
     // already signed in, so reporting "expired" would only confuse.
     if (Date.now() - lastLoginSucceededAt < DUPLICATE_CALLBACK_WINDOW_MS) {
-      logger.info('Auth', 'Ignoring a duplicate callback for a completed sign-in');
+      logger.info(
+        'Auth',
+        'Ignoring a duplicate callback for a completed sign-in',
+      );
       return false;
     }
     // Already consumed, timed out, or from a previous launch of the app.
     logger.warn('Auth', 'No pending PKCE state found for callback');
     emitFlowStatus({
       state: 'expired',
-      message: 'That sign-in link has expired or was already used. Start again from the app.',
+      message:
+        'That sign-in link has expired or was already used. Start again from the app.',
     });
     return false;
   }
@@ -396,14 +470,18 @@ export async function handleAuthCallback(
     logger.warn('Auth', 'State mismatch in callback');
     emitFlowStatus({
       state: 'error',
-      message: 'That sign-in link belongs to a different attempt. Use the most recent browser tab.',
+      message:
+        'That sign-in link belongs to a different attempt. Use the most recent browser tab.',
     });
     return false;
   }
 
   if (Date.now() - pendingPKCE.createdAt > BROWSER_LOGIN_TIMEOUT_MS) {
     clearPendingLogin();
-    emitFlowStatus({ state: 'expired', message: 'That sign-in took too long. Start again.' });
+    emitFlowStatus({
+      state: 'expired',
+      message: 'That sign-in took too long. Start again.',
+    });
     return false;
   }
 
@@ -424,17 +502,22 @@ export async function handleAuthCallback(
 
     if (!response.ok) {
       const errBody = await response.text();
-      logger.error('Auth', `Exchange failed with status ${response.status}: ${errBody}`);
+      logger.error(
+        'Auth',
+        `Exchange failed with status ${response.status}: ${errBody}`,
+      );
       const expired = [400, 401, 403, 404, 410].includes(response.status);
       emitFlowStatus(
         expired
           ? {
               state: 'expired',
-              message: 'That sign-in code expired before the app could use it. Start again.',
+              message:
+                'That sign-in code expired before the app could use it. Start again.',
             }
           : {
               state: 'error',
-              message: 'The server could not complete sign-in. Try again in a moment.',
+              message:
+                'The server could not complete sign-in. Try again in a moment.',
             },
       );
       return false;

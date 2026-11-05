@@ -39,7 +39,11 @@ import {
   startBrowserLogin,
 } from './auth.js';
 import { resetBadgeOnSignOut } from './background-sync.js';
-import { detectDesktopCapabilities, detectDistribution, isMasBuild } from './capabilities.js';
+import {
+  detectDesktopCapabilities,
+  detectDistribution,
+  isMasBuild,
+} from './capabilities.js';
 import type { DesktopRuntimeConfig } from './config.js';
 import {
   collectDiagnostics,
@@ -56,7 +60,13 @@ import {
   setupWindowsJumpList,
 } from './jump-list.js';
 import { displayMediaBroker } from './display-media.js';
-import { dockBounce, focusApp, quitApp, restartApp, showAboutPanel } from './lifecycle.js';
+import {
+  dockBounce,
+  focusApp,
+  quitApp,
+  restartApp,
+  showAboutPanel,
+} from './lifecycle.js';
 import { logger } from './logger.js';
 import { getStartupState, setStartupState } from './startup.js';
 import { checkForUpdates, downloadUpdate, installUpdate } from './updater.js';
@@ -93,12 +103,22 @@ const MIME_BY_EXTENSION: Record<string, string> = {
  * disagree about the default.
  */
 function preferenceDefault(key: string): unknown {
-  return key === MINIMIZE_TO_TRAY_KEY ? defaultMinimizeToTray(process.platform) : null;
+  return key === MINIMIZE_TO_TRAY_KEY
+    ? defaultMinimizeToTray(process.platform)
+    : null;
 }
 
 function guessMimeType(path: string): string {
-  return MIME_BY_EXTENSION[extname(path).toLowerCase()] ?? 'application/octet-stream';
+  return (
+    MIME_BY_EXTENSION[extname(path).toLowerCase()] ?? 'application/octet-stream'
+  );
 }
+
+/**
+ * Paths the person picked in a native dialog this session. A compromised
+ * renderer must not be able to probe the disk through "show in folder".
+ */
+const userChosenPaths = new Set<string>();
 
 function fromMainWindow(event: IpcMainInvokeEvent): boolean {
   const window = getMainWindow();
@@ -126,12 +146,18 @@ async function readPickedFile(path: string): Promise<DesktopPickedFile> {
     name: basename(path),
     size: info.size,
     mimeType: guessMimeType(path),
-    data: oversized || info.isDirectory() ? undefined : (await readFile(path)).toString('base64'),
+    data:
+      oversized || info.isDirectory()
+        ? undefined
+        : (await readFile(path)).toString('base64'),
     truncated: oversized,
   };
 }
 
-export function registerIpcHandlers(isDev: boolean, config: DesktopRuntimeConfig): void {
+export function registerIpcHandlers(
+  isDev: boolean,
+  config: DesktopRuntimeConfig,
+): void {
   ipcMain.handle(
     IPC.appInfo,
     guard((): DesktopAppInfo => ({
@@ -155,15 +181,16 @@ export function registerIpcHandlers(isDev: boolean, config: DesktopRuntimeConfig
       name: 'onetab-ai',
       productName: 'Onetab AI',
       version: app.getVersion() || '0.0.1',
-      build: process.env['BUILD_ID'] || '2026.08.1-prod',
+      build: process.env['BUILD_ID'] || app.getVersion(),
       publisher: 'Onetab AI Inc.',
       copyright: 'Copyright © Onetab AI Inc. All rights reserved.',
       website: 'https://onetab.ai',
       supportUrl: 'https://onetab.ai/support',
       privacyUrl: 'https://onetab.ai/privacy',
       termsUrl: 'https://onetab.ai/terms',
-      license: 'MIT / Proprietary Enterprise',
-      description: 'Onetab AI — Unified Collaborative Workspace & AI Agents Platform',
+      license: 'Proprietary',
+      description:
+        'Onetab AI — Unified Collaborative Workspace & AI Agents Platform',
     })),
   );
 
@@ -177,11 +204,17 @@ export function registerIpcHandlers(isDev: boolean, config: DesktopRuntimeConfig
   ipcMain.handle(
     IPC.authStartBrowserLogin,
     guard(async (_event, intent?: unknown) => {
-      return startBrowserLogin(config.webUrl, intent === 'sign-up' ? 'sign-up' : 'sign-in');
+      return startBrowserLogin(
+        config.webUrl,
+        intent === 'sign-up' ? 'sign-up' : 'sign-in',
+      );
     }),
   );
 
-  ipcMain.handle(IPC.authCancelBrowserLogin, guard(() => cancelBrowserLogin()));
+  ipcMain.handle(
+    IPC.authCancelBrowserLogin,
+    guard(() => cancelBrowserLogin()),
+  );
 
   ipcMain.handle(
     IPC.authGetSession,
@@ -204,11 +237,17 @@ export function registerIpcHandlers(isDev: boolean, config: DesktopRuntimeConfig
   // definitive rejection (expired/revoked refresh token), and that throw is
   // meant to propagate — `ipcRenderer.invoke` turns it into a rejected
   // promise, which is the renderer's signal to sign out rather than retry.
-  ipcMain.handle(IPC.authRefreshSession, guard(() => refreshSecureSession()));
+  ipcMain.handle(
+    IPC.authRefreshSession,
+    guard(() => refreshSecureSession()),
+  );
 
   /* --- window controls -------------------------------------------------- */
 
-  ipcMain.handle(IPC.windowState, guard(() => windowState()));
+  ipcMain.handle(
+    IPC.windowState,
+    guard(() => windowState()),
+  );
 
   ipcMain.handle(
     IPC.windowMinimize,
@@ -297,7 +336,8 @@ export function registerIpcHandlers(isDev: boolean, config: DesktopRuntimeConfig
   ipcMain.handle(
     IPC.openAppOrWeb,
     guard(async (_event, request: DesktopHandoffRequest) => {
-      const targetUrl = request.fallbackUrl || `${config.webUrl}${request.route}`;
+      const targetUrl =
+        request.fallbackUrl || `${config.webUrl}${request.route}`;
       if (!/^https?:\/\//i.test(targetUrl)) return false;
       await shell.openExternal(targetUrl);
       return true;
@@ -307,7 +347,7 @@ export function registerIpcHandlers(isDev: boolean, config: DesktopRuntimeConfig
   ipcMain.handle(
     IPC.showItemInFolder,
     guard((_event, path: string) => {
-      shell.showItemInFolder(path);
+      if (userChosenPaths.has(path)) shell.showItemInFolder(path);
     }),
   );
 
@@ -338,39 +378,51 @@ export function registerIpcHandlers(isDev: boolean, config: DesktopRuntimeConfig
 
   ipcMain.handle(
     IPC.openFiles,
-    guard(async (_event, request: DesktopOpenFilesRequest = {}): Promise<DesktopPickedFile[]> => {
-      const window = getMainWindow();
-      if (!window) return [];
+    guard(
+      async (
+        _event,
+        request: DesktopOpenFilesRequest = {},
+      ): Promise<DesktopPickedFile[]> => {
+        const window = getMainWindow();
+        if (!window) return [];
 
-      const result = await dialog.showOpenDialog(window, {
-        filters: request.filters,
-        properties: [
-          request.directories ? 'openDirectory' : 'openFile',
-          ...(request.multiple ? (['multiSelections'] as const) : []),
-        ],
-      });
+        const result = await dialog.showOpenDialog(window, {
+          filters: request.filters,
+          properties: [
+            request.directories ? 'openDirectory' : 'openFile',
+            ...(request.multiple ? (['multiSelections'] as const) : []),
+          ],
+        });
 
-      if (result.canceled) return [];
-      return Promise.all(result.filePaths.map(readPickedFile));
-    }),
+        if (result.canceled) return [];
+        result.filePaths.forEach((path) => userChosenPaths.add(path));
+        return Promise.all(result.filePaths.map(readPickedFile));
+      },
+    ),
   );
 
   ipcMain.handle(
     IPC.saveFile,
-    guard(async (_event, request: DesktopSaveFileRequest): Promise<DesktopSaveResult> => {
-      const window = getMainWindow();
-      if (!window) return { canceled: true };
+    guard(
+      async (
+        _event,
+        request: DesktopSaveFileRequest,
+      ): Promise<DesktopSaveResult> => {
+        const window = getMainWindow();
+        if (!window) return { canceled: true };
 
-      const result = await dialog.showSaveDialog(window, {
-        defaultPath: join(app.getPath('downloads'), request.suggestedName),
-        filters: request.filters,
-      });
+        const result = await dialog.showSaveDialog(window, {
+          defaultPath: join(app.getPath('downloads'), request.suggestedName),
+          filters: request.filters,
+        });
 
-      if (result.canceled || !result.filePath) return { canceled: true };
+        if (result.canceled || !result.filePath) return { canceled: true };
 
-      await writeFile(result.filePath, Buffer.from(request.data, 'base64'));
-      return { canceled: false, path: result.filePath };
-    }),
+        userChosenPaths.add(result.filePath);
+        await writeFile(result.filePath, Buffer.from(request.data, 'base64'));
+        return { canceled: false, path: result.filePath };
+      },
+    ),
   );
 
   ipcMain.handle(
@@ -398,7 +450,9 @@ export function registerIpcHandlers(isDev: boolean, config: DesktopRuntimeConfig
 
   ipcMain.handle(
     IPC.getPreference,
-    guard((_event, key: string) => getPreference<unknown>(key, preferenceDefault(key))),
+    guard((_event, key: string) =>
+      getPreference<unknown>(key, preferenceDefault(key)),
+    ),
   );
 
   ipcMain.handle(
@@ -406,7 +460,8 @@ export function registerIpcHandlers(isDev: boolean, config: DesktopRuntimeConfig
     guard((_event, key: string, value: unknown) => {
       // Login-item state belongs to the startup service (it also owns the
       // hidden-launch flag and the unsupported-platform fallbacks).
-      if (key === 'launchAtLogin') setStartupState({ openAtLogin: Boolean(value) });
+      if (key === 'launchAtLogin')
+        setStartupState({ openAtLogin: Boolean(value) });
       else setPreference(key, value);
       refreshTrayMenu();
     }),
@@ -418,7 +473,8 @@ export function registerIpcHandlers(isDev: boolean, config: DesktopRuntimeConfig
       nativeTheme.themeSource = source;
       setPreference('theme', source);
       const window = getMainWindow();
-      if (window && !window.isDestroyed()) window.setBackgroundColor(windowBackground());
+      if (window && !window.isDestroyed())
+        window.setBackgroundColor(windowBackground());
     }),
   );
 
@@ -491,13 +547,19 @@ export function registerIpcHandlers(isDev: boolean, config: DesktopRuntimeConfig
 
   ipcMain.handle(
     IPC.setAccessibilitySupport,
-    guard((_event, enabled: boolean) => setAccessibilitySupport(Boolean(enabled))),
+    guard((_event, enabled: boolean) =>
+      setAccessibilitySupport(Boolean(enabled)),
+    ),
   );
 
   ipcMain.handle(
     IPC.setUserActivity,
     guard((_event, activity: DesktopUserActivityPayload) =>
-      setUserActivity(activity.activityType, activity.userInfo, activity.webpageURL),
+      setUserActivity(
+        activity.activityType,
+        activity.userInfo,
+        activity.webpageURL,
+      ),
     ),
   );
 
@@ -525,7 +587,9 @@ export function registerIpcHandlers(isDev: boolean, config: DesktopRuntimeConfig
 
   ipcMain.handle(
     IPC.setStartup,
-    guard((_event, request: unknown) => setStartupState(request as DesktopStartupRequest)),
+    guard((_event, request: unknown) =>
+      setStartupState(request as DesktopStartupRequest),
+    ),
   );
 
   ipcMain.handle(
@@ -545,49 +609,56 @@ export function registerIpcHandlers(isDev: boolean, config: DesktopRuntimeConfig
 
   ipcMain.handle(
     IPC.agentExecute,
-    guard(async (_event, req: DesktopAgentExecuteRequest): Promise<DesktopAgentExecuteResponse> => {
-      try {
-        const session = await loadSecureSession();
-        const token = req.apiKey || session?.accessToken;
-        const targetUrl = `${config.apiUrl}/agents/${encodeURIComponent(req.agentId)}/execute`;
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json',
-        };
-        if (req.apiKey) {
-          headers['x-api-key'] = req.apiKey;
-        } else if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-        }
+    guard(
+      async (
+        _event,
+        req: DesktopAgentExecuteRequest,
+      ): Promise<DesktopAgentExecuteResponse> => {
+        try {
+          const session = await loadSecureSession();
+          const token = req.apiKey || session?.accessToken;
+          const targetUrl = `${config.apiUrl}/agents/${encodeURIComponent(req.agentId)}/execute`;
+          const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+          };
+          if (req.apiKey) {
+            headers['x-api-key'] = req.apiKey;
+          } else if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
 
-        const res = await fetch(targetUrl, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            input: req.input,
-            sessionId: req.sessionId,
-            context: req.context,
-          }),
-        });
+          const res = await fetch(targetUrl, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              input: req.input,
+              sessionId: req.sessionId,
+              context: req.context,
+            }),
+          });
 
-        if (!res.ok) {
-          const errText = await res.text();
+          if (!res.ok) {
+            const errText = await res.text();
+            return {
+              runId: '',
+              status: 'FAILED',
+              error: `Agent execution failed (${res.status}): ${errText}`,
+            };
+          }
+
+          const data = (await res.json()) as DesktopAgentExecuteResponse;
+          return data;
+        } catch (err: unknown) {
+          logger.error('IPC', 'Failed to execute agent on desktop', {
+            error: err,
+          });
           return {
             runId: '',
             status: 'FAILED',
-            error: `Agent execution failed (${res.status}): ${errText}`,
+            error: (err as Error)?.message || 'Unknown desktop execution error',
           };
         }
-
-        const data = (await res.json()) as DesktopAgentExecuteResponse;
-        return data;
-      } catch (err: unknown) {
-        logger.error('IPC', 'Failed to execute agent on desktop', { error: err });
-        return {
-          runId: '',
-          status: 'FAILED',
-          error: (err as Error)?.message || 'Unknown desktop execution error',
-        };
-      }
-    }),
+      },
+    ),
   );
 }

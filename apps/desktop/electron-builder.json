@@ -45,9 +45,21 @@
       "schemes": ["onetab", "mie"]
     }
   ],
+  "electronFuses": {
+    "runAsNode": false,
+    "enableCookieEncryption": true,
+    "enableNodeOptionsEnvironmentVariable": false,
+    "enableNodeCliInspectArguments": false,
+    "enableEmbeddedAsarIntegrityValidation": true,
+    "onlyLoadAppFromAsar": true,
+    "loadBrowserProcessSpecificV8Snapshot": false,
+    "grantFileProtocolExtraPrivileges": false,
+    "resetAdHocDarwinSignature": true
+  },
   "win": {
     "target": ["nsis"],
-    "icon": "apps/desktop/resources/icon.png"
+    "icon": "apps/desktop/resources/icon.png",
+    "legalTrademarks": "Onetab AI"
   },
   "nsis": {
     "oneClick": false,
@@ -57,7 +69,16 @@
     "createStartMenuShortcut": true
   },
   "mac": {
-    "target": ["dmg", "zip"],
+    "target": [
+      {
+        "target": "dmg",
+        "arch": ["x64", "arm64"]
+      },
+      {
+        "target": "zip",
+        "arch": ["x64", "arm64"]
+      }
+    ],
     "category": "public.app-category.productivity",
     "icon": "apps/desktop/resources/icon.png",
     "hardenedRuntime": true,
@@ -76,6 +97,7 @@
       "entry": {
         "MimeType": "x-scheme-handler/onetab;x-scheme-handler/mie;"
       }
-    }
+    },
+    "maintainer": "Onetab AI Inc."
   }
 }
