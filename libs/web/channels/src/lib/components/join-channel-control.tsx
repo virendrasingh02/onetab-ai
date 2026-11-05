@@ -29,6 +29,34 @@ export interface JoinChannelControlProps {
 }
 
 /**
+ * The composer's read-only notice for someone viewing a public channel they
+ * have not joined: posting and history both come with membership.
+ */
+export function JoinToPostNotice({
+  workspaceId,
+  channelId,
+}: {
+  workspaceId: string | undefined;
+  channelId: string;
+}) {
+  const join = useJoinChannel(workspaceId);
+
+  return (
+    <>
+      Join this channel to read its messages and post.{' '}
+      <button
+        type="button"
+        disabled={join.isPending}
+        className="font-medium text-foreground underline underline-offset-2"
+        onClick={() => join.mutate({ channelId })}
+      >
+        Join channel
+      </button>
+    </>
+  );
+}
+
+/**
  * "Join" split button for a public channel: the main press joins permanently,
  * the caret offers timed joins — 24h / 48h / 1 week / custom (brief §8).
  */

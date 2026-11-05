@@ -802,8 +802,11 @@ export class ChannelService {
           },
         });
       }
+    } else {
+      // An existing PERMANENT member: nothing to do — never downgrade access,
+      // and no event, or the channel gets a second "joined" row.
+      return;
     }
-    // An existing PERMANENT member: nothing to do — never downgrade access.
 
     this.events.emit(AppEvent.ChannelMembershipChanged, {
       workspaceId,

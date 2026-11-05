@@ -70,6 +70,24 @@ function setCachedChannels(
   }
 }
 
+/**
+ * Drops the bootstrap copy once membership changes. It counts as fresh for
+ * `staleTime` after a reload, so a copy from before a join would show the
+ * Join prompt to someone who is already in the channel.
+ */
+function clearCachedChannels(workspaceId: string | undefined): void {
+  if (!workspaceId || typeof window === 'undefined') return;
+  try {
+    for (const includeArchived of [false, true]) {
+      window.localStorage.removeItem(
+        `${CHANNELS_BOOTSTRAP_KEY_PREFIX}${workspaceId}:${includeArchived}`,
+      );
+    }
+  } catch {
+    // Storage blocked — there is nothing to clear.
+  }
+}
+
 export function useChannels(
   workspaceId: string | undefined,
   includeArchived = false,
@@ -546,6 +564,7 @@ export function useJoinChannel(workspaceId: string | undefined) {
         durationHours: durationHours ?? null,
       }),
     onSuccess: (_data, { durationHours }) => {
+      clearCachedChannels(workspaceId);
       toast.success(
         durationHours ? 'Joined channel temporarily' : 'Joined channel',
       );

@@ -339,3 +339,42 @@ describe('ChannelService — channel settings', () => {
     });
   });
 });
+
+describe('ChannelService — join', () => {
+  const setup = (existing: { membershipType: string } | null) => {
+    const prisma: any = {
+      channel: {
+        findFirst: vi.fn().mockResolvedValue({ id: 'chan-1' }),
+        findUniqueOrThrow: vi
+          .fn()
+          .mockResolvedValue({ visibility: 'PUBLIC', isArchived: false }),
+      },
+      channelMember: {
+        findUnique: vi.fn().mockResolvedValue(existing),
+        create: vi.fn().mockResolvedValue({}),
+      },
+    };
+    const events = { emit: vi.fn() };
+    return { service: new ChannelService(prisma, events as any), prisma, events };
+  };
+
+  it('announces a new member', async () => {
+    const { service, prisma, events } = setup(null);
+
+    await service.join('ws-1', 'chan-1', 'user-1');
+
+    expect(prisma.channelMember.create).toHaveBeenCalled();
+    expect(events.emit).toHaveBeenCalledWith(
+      AppEvent.ChannelMembershipChanged,
+      expect.objectContaining({ action: 'join', userId: 'user-1' }),
+    );
+  });
+
+  it('does not announce someone who is already a permanent member', async () => {
+    const { service, events } = setup({ membershipType: 'PERMANENT' });
+
+    await service.join('ws-1', 'chan-1', 'user-1');
+
+    expect(events.emit).not.toHaveBeenCalled();
+  });
+});

@@ -55,6 +55,12 @@ export interface ChannelChatProps {
     allowed: boolean;
     onSendAnonymously: (text: string) => void | Promise<void>;
   };
+  /**
+   * False for someone viewing a public channel they have not joined. Only
+   * channel members are in the Matrix room, so there is nothing to connect to
+   * until they join, and the host supplies the read-only notice saying so.
+   */
+  isMember?: boolean;
   /** Whether the caller may manage this channel — see `ChatSurface`. */
   canManageConversation?: boolean;
   /** Off hides every "start a huddle" affordance — see `ChatSurface`. */
@@ -98,9 +104,13 @@ export function ChannelChat({
   huddlesEnabled,
   huddleLink,
   memberSuggestions,
+  isMember = true,
 }: ChannelChatProps) {
   const { enabled } = useMatrix();
-  const { roomId, error } = useChannelRoom(channelId, matrixRoomId);
+  const { roomId, error } = useChannelRoom(
+    isMember ? channelId : undefined,
+    isMember ? matrixRoomId : null,
+  );
   const membership = useChannelMembership(channelId, roomId);
 
   // A channel member who is not joined to the room cannot post — say so
@@ -186,6 +196,7 @@ export function ChannelChat({
       huddlesEnabled={huddlesEnabled}
       huddleLink={huddleLink}
       composerReadOnlyMessage={readOnlyMessage}
+      noRoomExpected={!isMember}
       threadComposerReadOnlyMessage={threadComposerReadOnlyMessage}
       anonymousPosting={anonymousPosting}
       canManageConversation={canManageConversation}

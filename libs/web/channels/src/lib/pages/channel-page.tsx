@@ -91,7 +91,10 @@ import { AddAppDialog } from '../components/add-app-dialog.js';
 import { buildChannelActions } from '../channel-actions.js';
 import { channelComposerLocks } from '../channel-composer-locks.js';
 import { useCanManageChannel } from '../use-can-manage-channel.js';
-import { JoinChannelControl } from '../components/join-channel-control.js';
+import {
+  JoinChannelControl,
+  JoinToPostNotice,
+} from '../components/join-channel-control.js';
 import { TemporaryMembershipBanner } from '../components/temporary-membership-banner.js';
 import { AnonymousModerationDialog } from '../components/anonymous-moderation-dialog.js';
 import {
@@ -1058,7 +1061,19 @@ export function ChannelPage({
             /* The roster lives in the right rail's details panel. */
             showMembers={false}
             huddleRequest={huddleRequest}
-            {...channelComposerLocks(channel)}
+            isMember={!!channel.membership}
+            {...(channel.membership
+              ? channelComposerLocks(channel)
+              : {
+                  composerReadOnlyMessage: channel.isArchived ? (
+                    'This channel is archived.'
+                  ) : (
+                    <JoinToPostNotice
+                      workspaceId={workspaceId}
+                      channelId={channel.id}
+                    />
+                  ),
+                })}
             anonymousPosting={
               anonSettings.data?.canPostAnonymously
                 ? {

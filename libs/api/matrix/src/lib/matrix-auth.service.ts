@@ -183,6 +183,17 @@ export class MatrixAuthService {
       );
     }
 
+    // The room is created as the caller, which puts them in it. Opening a
+    // public channel must not do that for a non-member: they would hold PL100
+    // and could post without ever joining. Their join creates the room instead.
+    const membership = await this.prisma.channelMember.findUnique({
+      where: { channelId_userId: { channelId, userId: creatorUserId } },
+      select: { id: true },
+    });
+    if (!membership) {
+      throw new ForbiddenException('Join this channel to open its chat.');
+    }
+
     const creatorMatrixId = await this.ensureIdentity(creatorUserId);
     if (!creatorMatrixId) return null;
 

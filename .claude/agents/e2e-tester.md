@@ -102,7 +102,7 @@ persisted (reload the page, or read it back from the API).
 
 - **Messaging**: send a message in a channel, edit it, react, reply in thread, reload
   → all persist. DM a seeded user. Composer `/` menu opens.
-- **Channels**: create channel, open its settings tab, files tab, pins tab.
+- **Channels**: create channel, open its settings tab, files tab, pins tab. The sidebar lists joined channels only; public channels they have not joined are in Browse channels. Opening one shows the "Join this channel" bar instead of the composer, with no false "not connected" error; create the room first (`POST /matrix/channels/:id/room`) or the test does not match real channels.
 - **Tasks/Kanban/Projects**: create a task, move it across columns, reload → persisted.
 - **Docs/Notes**: create a doc, type, reload → content saved.
 - **Saved/Bookmarks**: save a message → shows in Saved.

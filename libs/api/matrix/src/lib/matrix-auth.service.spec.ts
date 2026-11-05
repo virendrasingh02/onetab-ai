@@ -57,4 +57,41 @@ describe('MatrixAuthService channel membership mirror', () => {
     await expect(service.ensureChannelRoomJoined('c1', 'u1')).resolves.toBe(false);
     expect(admin.ensureJoined).not.toHaveBeenCalled();
   });
+
+  describe('linkChannelToRoom', () => {
+    const unlinkedChannel = {
+      id: 'c1',
+      name: 'general',
+      topic: null,
+      visibility: 'PUBLIC',
+      matrixRoomId: null,
+      isArchived: false,
+      workspace: { archivedAt: null },
+    };
+
+    beforeEach(() => {
+      prisma.channel.findFirst = vi.fn().mockResolvedValue(unlinkedChannel);
+      admin.createRoom = vi.fn().mockResolvedValue('!new:hs');
+    });
+
+    it('does not let a non-member create the room of a public channel', async () => {
+      prisma.channelMember.findUnique.mockResolvedValue(null);
+
+      await expect(service.linkChannelToRoom('c1', 'u1')).rejects.toThrow(
+        'Join this channel',
+      );
+      expect(admin.createRoom).not.toHaveBeenCalled();
+    });
+
+    it('still hands a non-member the id of an existing room', async () => {
+      prisma.channel.findFirst.mockResolvedValue({
+        ...unlinkedChannel,
+        matrixRoomId: '!room:hs',
+      });
+
+      await expect(service.linkChannelToRoom('c1', 'u1')).resolves.toBe(
+        '!room:hs',
+      );
+    });
+  });
 });

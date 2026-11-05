@@ -147,6 +147,8 @@ export interface ChatPanelProps {
   onTrackTracker?: (message: Message) => void;
   /** Replaces the composer with a read-only notice — see `ChatSurface`. */
   composerReadOnlyMessage?: ReactNode;
+  /** No room is coming (the viewer has not joined), so show no loading state. */
+  noRoomExpected?: boolean;
   /** Same, for the thread reply composer specifically — see `ChatSurface`. */
   threadComposerReadOnlyMessage?: ReactNode;
   /** Anonymous-posting toggle for the composer (brief §2). */
@@ -187,6 +189,7 @@ export function ChatPanel({
   onAssignScheduler,
   onTrackTracker,
   composerReadOnlyMessage,
+  noRoomExpected = false,
   threadComposerReadOnlyMessage,
   anonymousPosting,
   canManageConversation,
@@ -956,7 +959,7 @@ export function ChatPanel({
       messages={isConnecting ? [] : room.messages}
       members={isConnecting ? [] : room.members}
       typingNames={isConnecting ? [] : room.typingNames}
-      isLoading={isConnecting || room.isLoading}
+      isLoading={!noRoomExpected && (isConnecting || room.isLoading)}
       isLoadingOlder={room.isLoadingOlder}
       hasMore={room.hasMore}
       error={room.error}
