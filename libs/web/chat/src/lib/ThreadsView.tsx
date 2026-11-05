@@ -9,6 +9,7 @@ import {
   PendingUploadMessage,
   useMentionNotices,
   MentionAliasesProvider,
+  ReactorDirectoryProvider,
 } from '@org/chat-ui';
 import type { ComposerContext } from '@org/types';
 import type { Message, RoomKind, RoomMember } from '@org/matrix-client';
@@ -445,7 +446,7 @@ function ThreadDetail({
                   onReact={
                     canReact
                       ? (key) =>
-                          void actions.toggleReaction(
+                          actions.toggleReaction(
                             reply.id,
                             key,
                             reply.reactions.some(
@@ -667,6 +668,14 @@ function ThreadRow({
     [members],
   );
 
+  const resolveReactor = useCallback(
+    (userId: string) => {
+      const name = members.find((m) => m.userId === userId)?.displayName;
+      return name ? { name } : undefined;
+    },
+    [members],
+  );
+
   const threadParticipants = useMemo<RoomMember[]>(
     () =>
       thread.participants.map((participant) => ({
@@ -700,6 +709,104 @@ function ThreadRow({
           </span>
         </button>
         {open ? (
+          <ReactorDirectoryProvider
+            resolve={resolveReactor}
+            myUserId={myUserId}
+          >
+            <ThreadDetail
+              thread={thread}
+              channelLink={channelLink}
+              channelId={channelId}
+              isPrivate={isPrivate}
+              members={members}
+              mentionNames={mentionNames}
+              actions={actions}
+              myUserId={myUserId}
+              editing={editing}
+              setEditing={setEditing}
+              attachmentSlot={attachmentSlot}
+              density={density}
+              messageActions={messageActions}
+            />
+          </ReactorDirectoryProvider>
+        ) : null}
+        {messageActions.forwardDialog}
+      </li>
+    );
+  }
+  const root = thread.root;
+
+  return (
+    <ReactorDirectoryProvider resolve={resolveReactor} myUserId={myUserId}>
+      <li>
+        <MessageRenderer
+          message={root}
+          isOwn={root.senderId === myUserId}
+          roomKind={thread.roomKind}
+          density={density}
+          mentionNames={mentionNames}
+          threadReplyCount={thread.replyCount}
+          threadHasUnread={thread.hasUnread}
+          threadParticipants={threadParticipants}
+          lastReplyAt={thread.lastReplyAt}
+          onOpenThread={() => onToggle(thread.id)}
+          onReact={(key) =>
+            actions.toggleReaction(
+              root.id,
+              key,
+              root.reactions.some(
+                (reaction) => reaction.key === key && reaction.reactedByMe,
+              ),
+            )
+          }
+          onEdit={
+            root.senderId === myUserId
+              ? () => {
+                  setEditing(root);
+                  if (!open) onToggle(thread.id);
+                }
+              : undefined
+          }
+          onDelete={
+            root.senderId === myUserId
+              ? () => void actions.remove(root.id)
+              : undefined
+          }
+          onRetry={
+            root.sendState === 'failed'
+              ? () => void actions.retry(root.id)
+              : undefined
+          }
+          onCopyText={() => void navigator.clipboard?.writeText(root.body)}
+          onCopyLink={() => copyThreadMessageLink(channelLink, root.id)}
+          onOpenInConversation={() => messageActions.openInConversation(root)}
+          onForward={
+            root.sendState === 'failed'
+              ? undefined
+              : () => messageActions.forward(root)
+          }
+          isSaved={messageActions.isSaved(root.id)}
+          onToggleSave={() => messageActions.toggleSave(root)}
+          isPinned={messageActions.isPinned(root.id)}
+          onTogglePin={
+            messageActions.togglePin
+              ? () => void messageActions.togglePin?.(root)
+              : undefined
+          }
+          onMarkUnread={() => void messageActions.markUnread(root)}
+          onRemind={
+            messageActions.remind
+              ? (at) => void messageActions.remind?.(root, at)
+              : undefined
+          }
+          replyNotificationsMuted={messageActions.replyNotificationsMuted}
+          onToggleReplyNotifications={() =>
+            void messageActions.toggleReplyNotifications()
+          }
+          attachmentSlot={attachmentSlot(root)}
+        />
+
+        {open ? (
           <ThreadDetail
             thread={thread}
             channelLink={channelLink}
@@ -718,98 +825,7 @@ function ThreadRow({
         ) : null}
         {messageActions.forwardDialog}
       </li>
-    );
-  }
-  const root = thread.root;
-
-  return (
-    <li>
-      <MessageRenderer
-        message={root}
-        isOwn={root.senderId === myUserId}
-        roomKind={thread.roomKind}
-        density={density}
-        mentionNames={mentionNames}
-        threadReplyCount={thread.replyCount}
-        threadHasUnread={thread.hasUnread}
-        threadParticipants={threadParticipants}
-        lastReplyAt={thread.lastReplyAt}
-        onOpenThread={() => onToggle(thread.id)}
-        onReact={(key) =>
-          void actions.toggleReaction(
-            root.id,
-            key,
-            root.reactions.some(
-              (reaction) => reaction.key === key && reaction.reactedByMe,
-            ),
-          )
-        }
-        onEdit={
-          root.senderId === myUserId
-            ? () => {
-                setEditing(root);
-                if (!open) onToggle(thread.id);
-              }
-            : undefined
-        }
-        onDelete={
-          root.senderId === myUserId
-            ? () => void actions.remove(root.id)
-            : undefined
-        }
-        onRetry={
-          root.sendState === 'failed'
-            ? () => void actions.retry(root.id)
-            : undefined
-        }
-        onCopyText={() => void navigator.clipboard?.writeText(root.body)}
-        onCopyLink={() => copyThreadMessageLink(channelLink, root.id)}
-        onOpenInConversation={() => messageActions.openInConversation(root)}
-        onForward={
-          root.sendState === 'failed'
-            ? undefined
-            : () => messageActions.forward(root)
-        }
-        isSaved={messageActions.isSaved(root.id)}
-        onToggleSave={() => messageActions.toggleSave(root)}
-        isPinned={messageActions.isPinned(root.id)}
-        onTogglePin={
-          messageActions.togglePin
-            ? () => void messageActions.togglePin?.(root)
-            : undefined
-        }
-        onMarkUnread={() => void messageActions.markUnread(root)}
-        onRemind={
-          messageActions.remind
-            ? (at) => void messageActions.remind?.(root, at)
-            : undefined
-        }
-        replyNotificationsMuted={messageActions.replyNotificationsMuted}
-        onToggleReplyNotifications={() =>
-          void messageActions.toggleReplyNotifications()
-        }
-        attachmentSlot={attachmentSlot(root)}
-      />
-
-      {open ? (
-        <ThreadDetail
-          thread={thread}
-          channelLink={channelLink}
-          channelId={channelId}
-          isPrivate={isPrivate}
-          members={members}
-          mentionNames={mentionNames}
-          actions={actions}
-          myUserId={myUserId}
-          editing={editing}
-          setEditing={setEditing}
-          attachmentSlot={attachmentSlot}
-          density={density}
-          messageActions={messageActions}
-        />
-      ) : null}
-      {messageActions.forwardDialog}
-    </li>
+    </ReactorDirectoryProvider>
   );
 }
 

@@ -1,4 +1,5 @@
-import { getAccessToken, matrixApi } from '@org/api-client';
+import { getAccessToken, matrixApi, safetyApi } from '@org/api-client';
+import { toast } from '@org/ui';
 import {
   createMatrixClient,
   MatrixError,
@@ -201,6 +202,19 @@ export function MatrixProvider({ children }: { children: ReactNode }) {
           // device-bound sessions cannot do end-to-end encryption either.
           enableEncryption: config.encryption,
           now: serverNow,
+          mediaGuard: async (file) => {
+            try {
+              await safetyApi.checkMedia(file, file.name);
+            } catch (error) {
+              // A multi-file send only reports "failed", so say why here.
+              toast.error(
+                error instanceof Error
+                  ? error.message
+                  : 'Could not check this file.',
+              );
+              throw error;
+            }
+          },
         });
         instance = created;
 

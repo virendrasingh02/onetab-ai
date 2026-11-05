@@ -64,6 +64,7 @@ import { useComposerControl } from './use-composer-control.js';
 import { SlashHelpDialog } from './slash-help-dialog.js';
 import { useSlashCommands } from './use-slash-commands.js';
 import { useMentionAddActions } from './use-mention-add-actions.js';
+import { useSafetyActions } from './use-safety-actions.js';
 import {
   MentionNoticeRow,
   interleaveMentionNotices,
@@ -385,7 +386,7 @@ export interface ChatSurfaceProps {
     eventId: string,
     key: string,
     alreadyReacted: boolean,
-  ) => void | Promise<void>;
+  ) => void | Promise<unknown>;
   onTyping?: (isTyping: boolean) => void;
   onAttach?: (files: FileList, threadRootId?: string) => void | Promise<void>;
   onSendVoice?: (
@@ -470,7 +471,7 @@ export function ChatSurface({
   myUserId,
   conversationId,
   workspaceId,
-  messages,
+  messages: allMessages,
   members,
   typingNames,
   isLoading = false,
@@ -540,6 +541,11 @@ export function ChatSurface({
   onViewSystemEventEntity,
   composerContext,
 }: ChatSurfaceProps) {
+  const {
+    visibleMessages: messages,
+    reportMessage,
+    blockSender,
+  } = useSafetyActions(allMessages, myUserId);
   const messageDensity = useMessageDensity();
   const contentWidth = useChatContentWidth();
   const openPosition = useOpenChatPosition();
@@ -1630,7 +1636,7 @@ export function ChatSurface({
           onReact={
             onReact
               ? (key: string) =>
-                  void onReact(
+                  onReact(
                     message.id,
                     key,
                     message.reactions.some(
@@ -1726,6 +1732,16 @@ export function ChatSurface({
             );
           })()}
           onMarkUnread={onMarkUnread ? () => onMarkUnread(message) : undefined}
+          onReport={
+            message.senderId === myUserId
+              ? undefined
+              : (reason) => reportMessage(message, reason)
+          }
+          onBlock={
+            message.senderId === myUserId
+              ? undefined
+              : () => void blockSender(message)
+          }
           onRemind={
             onRemind
               ? (remindAt: Date) => onRemind(message, remindAt)
@@ -2245,7 +2261,7 @@ export function ChatSurface({
                 onReact={
                   onReact
                     ? (messageId, key, reactedByMe) =>
-                        void onReact(messageId, key, reactedByMe)
+                        onReact(messageId, key, reactedByMe)
                     : undefined
                 }
                 onOpenThread={(messageId) => openThreadPanel(messageId)}

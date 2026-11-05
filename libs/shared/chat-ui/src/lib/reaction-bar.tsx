@@ -84,7 +84,8 @@ export interface ReactionBarProps {
   reactions: readonly Reaction[];
   /**
    * Adds the reader's reaction, or takes it back when they already reacted —
-   * one click either way, like Slack and Discord.
+   * one click either way, like Slack and Discord. Resolving `false` (or
+   * rejecting) means it failed, and the pill goes back at once.
    */
   onToggle?: (key: string, reactedByMe: boolean) => void | Promise<unknown>;
   /** The trailing "add reaction" control (a picker trigger). */
@@ -119,7 +120,8 @@ export function ReactionBar({
       let changed = false;
       const next = new Map(current);
       for (const [key, wanted] of current) {
-        const actual = reactions.find((r) => r.key === key)?.reactedByMe ?? false;
+        const actual =
+          reactions.find((r) => r.key === key)?.reactedByMe ?? false;
         if (actual === wanted) {
           next.delete(key);
           changed = true;
@@ -132,7 +134,8 @@ export function ReactionBar({
   const shown = useMemo(() => {
     const list = reactions.map((reaction) => {
       const wanted = pending.get(reaction.key);
-      if (wanted === undefined || wanted === reaction.reactedByMe) return reaction;
+      if (wanted === undefined || wanted === reaction.reactedByMe)
+        return reaction;
       const userIds = wanted
         ? [...reaction.userIds, ...(myUserId ? [myUserId] : [])]
         : reaction.userIds.filter((id) => id !== myUserId);
@@ -159,9 +162,15 @@ export function ReactionBar({
           return next;
         });
       Promise.resolve(onToggle(reaction.key, reaction.reactedByMe)).then(
-        // Normally the echo clears the override first; this only stops a
-        // lost echo (or a handler that can't report failure) pinning it.
-        () => window.setTimeout(settle, PENDING_TIMEOUT_MS),
+        (result) => {
+          if (result === false) {
+            settle();
+            return;
+          }
+          // Normally the echo clears the override first; this only stops a
+          // lost echo (or a handler that can't report failure) pinning it.
+          window.setTimeout(settle, PENDING_TIMEOUT_MS);
+        },
         settle,
       );
     },
@@ -191,12 +200,14 @@ export function ReactionBar({
                   }}
                   aria-pressed={reaction.reactedByMe}
                   aria-label={`${reaction.key} ${reaction.count}: ${who || 'reaction'}${
-                    reaction.reactedByMe ? '. Click to remove your reaction' : ''
+                    reaction.reactedByMe
+                      ? '. Click to remove your reaction'
+                      : ''
                   }`}
                   className={cn(
-                    'h-7 min-w-11 gap-1.5 pl-2 pr-2.5 flex items-center justify-center rounded-full border text-xs font-semibold',
-                    'select-none transition-[background-color,border-color,color,transform] duration-150 active:scale-95',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    'h-7 min-w-11 gap-1.5 pl-2 pr-2.5 text-xs font-semibold flex items-center justify-center rounded-full border',
+                    'transition-[background-color,border-color,color,transform] duration-150 select-none active:scale-95',
+                    'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
                     'disabled:cursor-default disabled:active:scale-100',
                     reaction.reactedByMe
                       ? 'border-primary/60 bg-primary/12 text-primary hover:bg-primary/20'
@@ -206,12 +217,14 @@ export function ReactionBar({
                   <span aria-hidden="true" className="text-base leading-none">
                     {reaction.key}
                   </span>
-                  <span className="tabular-nums leading-none">{reaction.count}</span>
+                  <span className="leading-none tabular-nums">
+                    {reaction.count}
+                  </span>
                 </button>
               </TooltipTrigger>
               <TooltipContent
                 side="top"
-                className="max-w-60 px-3 py-2.5 flex flex-col items-center gap-1.5 text-center"
+                className="max-w-60 px-3 py-2.5 gap-1.5 flex flex-col items-center text-center"
               >
                 <span aria-hidden="true" className="text-3xl leading-none">
                   {reaction.key}
@@ -224,7 +237,9 @@ export function ReactionBar({
                 </span>
                 {onToggle ? (
                   <span className="text-2xs text-muted-foreground">
-                    {reaction.reactedByMe ? 'Click to remove' : 'Click to react'}
+                    {reaction.reactedByMe
+                      ? 'Click to remove'
+                      : 'Click to react'}
                   </span>
                 ) : null}
               </TooltipContent>

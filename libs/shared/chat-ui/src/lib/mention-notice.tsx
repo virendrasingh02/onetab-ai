@@ -33,7 +33,9 @@ export interface MentionNoticeCopy {
 
 function isOneToOne(surfaceKind: ComposerSurfaceKind): boolean {
   return (
-    surfaceKind === 'agent' || surfaceKind === 'coworker' || surfaceKind === 'app'
+    surfaceKind === 'agent' ||
+    surfaceKind === 'coworker' ||
+    surfaceKind === 'app'
   );
 }
 
@@ -97,9 +99,13 @@ export function getMentionNoticeCopy({
     };
   }
 
-  const clause = it ? `but it isn't in ${where}.` : `but they aren't in ${where}.`;
+  const clause = it
+    ? `but it isn't in ${where}.`
+    : `but they aren't in ${where}.`;
   const addable = targets.filter((t) => t.addAction !== 'none');
-  const actionLabel = addable[0] ? formatActionLabel(addable[0].addAction) : null;
+  const actionLabel = addable[0]
+    ? formatActionLabel(addable[0].addAction)
+    : null;
 
   if (surfaceKind === 'dm') {
     return {
@@ -184,7 +190,7 @@ function TargetIcon({ kind }: { kind: MentionNoticeTarget['kind'] }) {
 /** One mentioned name, styled like the mention pills in a sent message. */
 function TargetChip({ target }: { target: MentionNoticeTarget }) {
   return (
-    <span className="gap-0.5 rounded-md px-1 font-semibold inline-flex items-center border border-primary/30 bg-primary/10 align-baseline text-[0.9em] text-primary-text">
+    <span className="gap-0.5 px-1 font-semibold inline-flex items-center rounded-md bg-mention align-baseline text-[0.9em] text-mention-foreground">
       <TargetIcon kind={target.kind} />@{target.name}
     </span>
   );
@@ -194,7 +200,9 @@ function TargetChip({ target }: { target: MentionNoticeTarget }) {
 function TargetList({ targets }: { targets: MentionNoticeTarget[] }) {
   const shown = targets.slice(0, MAX_NAMED_TARGETS);
   const rest = targets.length - shown.length;
-  const parts: ReactNode[] = shown.map((t) => <TargetChip key={t.id} target={t} />);
+  const parts: ReactNode[] = shown.map((t) => (
+    <TargetChip key={t.id} target={t} />
+  ));
   if (rest > 0) {
     parts.push(
       <span key="rest" className="font-semibold">
@@ -254,7 +262,13 @@ export function MentionNotice({
 }: MentionNoticeProps) {
   if (targets.length === 0) return null;
 
-  const copyInput = { targets, surfaceKind, conversationName, peerName, isPrivate };
+  const copyInput = {
+    targets,
+    surfaceKind,
+    conversationName,
+    peerName,
+    isPrivate,
+  };
   const copy = getMentionNoticeCopy(copyInput);
   const added = status === 'added';
   const adding = status === 'adding';
@@ -328,7 +342,7 @@ export function MentionNotice({
         </p>
       ) : (
         <>
-          <p className="text-message leading-relaxed text-foreground">
+          <p className="leading-relaxed text-message text-foreground">
             You mentioned <TargetList targets={targets} />, {copy.clause}
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">{copy.detail}</p>

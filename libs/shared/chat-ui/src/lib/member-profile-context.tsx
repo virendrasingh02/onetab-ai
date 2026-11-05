@@ -35,6 +35,29 @@ export function useMemberProfile(userId?: string): MemberProfile | undefined {
   return userId && resolve ? resolve(userId) : undefined;
 }
 
+export interface ProfileConversationTarget {
+  userId: string;
+  entityKind?: 'user' | 'agent' | 'app' | 'coworker';
+  entityId?: string;
+}
+
+export type OpenProfileConversation = (
+  target: ProfileConversationTarget,
+) => void;
+
+const ProfileConversationContext =
+  createContext<OpenProfileConversation | null>(null);
+
+/**
+ * Opens a conversation with whoever a profile card shows. Chat UI can't route,
+ * so the app supplies this; without it the card has no message action.
+ */
+export const ProfileConversationProvider = ProfileConversationContext.Provider;
+
+export function useOpenProfileConversation(): OpenProfileConversation | null {
+  return useContext(ProfileConversationContext);
+}
+
 export const MEMBER_ROLE_LABELS: Record<MemberWorkspaceRole, string> = {
   OWNER: 'Workspace Owner',
   ADMIN: 'Workspace Admin',

@@ -14,6 +14,7 @@ import {
   browserSupportsPasskeys,
   formErrorMessage,
   passkeyErrorMessage,
+  AccountDeletionPanel,
   useAuthStore,
   useCurrentUser,
 } from '@org/auth';
@@ -3446,6 +3447,13 @@ export function WorkspaceSettingsPage({
 
           {/* 4. MATRIX END-TO-END ENCRYPTION & KEY BACKUP */}
           {encryptionSecurityPanel}
+          <SettingsSectionHeader
+            title={<>Delete account</>}
+            description={
+              <>Permanently delete your account and personal data.</>
+            }
+          />
+          <AccountDeletionPanel />
         </div>
       )}
 

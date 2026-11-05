@@ -72,7 +72,8 @@ function toDocItem(
     status: meta.status ?? 'Draft',
     // The company row already stands for the parent, so a doc directly under it
     // is top-level as far as the sidebar is concerned.
-    parentId: doc.parentId && doc.parentId !== companyId ? doc.parentId : undefined,
+    parentId:
+      doc.parentId && doc.parentId !== companyId ? doc.parentId : undefined,
     blocks,
     comments,
   };
@@ -83,7 +84,11 @@ function toDocItem(
 function starterBlocks(title: string, template?: string): NotionBlock[] {
   if (template === 'prd') {
     return [
-      { id: blockId(), type: 'h1', content: 'Product Requirements Document (PRD)' },
+      {
+        id: blockId(),
+        type: 'h1',
+        content: 'Product Requirements Document (PRD)',
+      },
       {
         id: blockId(),
         type: 'callout',
@@ -93,7 +98,12 @@ function starterBlocks(title: string, template?: string): NotionBlock[] {
           'Define problem, target user persona, scope, and key deliverables.',
       },
       { id: blockId(), type: 'h2', content: 'User Stories & Goals' },
-      { id: blockId(), type: 'checklist', checked: false, content: 'First user story' },
+      {
+        id: blockId(),
+        type: 'checklist',
+        checked: false,
+        content: 'First user story',
+      },
       { id: blockId(), type: 'h2', content: 'Technical Architecture' },
       {
         id: blockId(),
@@ -132,7 +142,10 @@ function starterBlocks(title: string, template?: string): NotionBlock[] {
 }
 
 const TEMPLATE_META: Record<string, Pick<DocMeta, 'icon' | 'cover'>> = {
-  prd: { icon: '🚀', cover: 'linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)' },
+  prd: {
+    icon: '🚀',
+    cover: 'linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)',
+  },
   meeting: {
     icon: '📊',
     cover: 'linear-gradient(135deg, #10b981 0%, #06b6d4 100%)',
@@ -173,7 +186,8 @@ export interface DocsWorkspace {
   updateDocCover: (docId: string, cover: string) => void;
   updateDocIcon: (docId: string, icon: string, iconColor?: string) => void;
   toggleFavorite: (docId: string) => void;
-  updateDocBlocks: (docId: string, blocks: NotionBlock[]) => void;
+  /** Resolves to whether the server accepted the blocks. */
+  updateDocBlocks: (docId: string, blocks: NotionBlock[]) => Promise<boolean>;
   addComment: (docId: string, author: string, text: string) => void;
 
   isSaving: boolean;
@@ -244,7 +258,7 @@ export function useDocsWorkspace(
       },
     ) => {
       const entry = decoded.find((candidate) => candidate.doc.id === docId);
-      if (!entry) return;
+      if (!entry) return Promise.resolve(false);
 
       const current = {
         meta: entry.meta,
@@ -253,16 +267,23 @@ export function useDocsWorkspace(
       };
       const next = patch(current);
 
-      mutations.update.mutate({
-        docId,
-        input: {
-          content: encodeDocContent({
-            meta: next.meta ?? current.meta,
-            blocks: next.blocks ?? current.blocks,
-            comments: next.comments ?? current.comments,
-          }),
-        },
-      });
+      // Resolves, never rejects: the mutation cache already shows the error,
+      // and the caller only needs to know whether the text is safe on the server.
+      return mutations.update
+        .mutateAsync({
+          docId,
+          input: {
+            content: encodeDocContent({
+              meta: next.meta ?? current.meta,
+              blocks: next.blocks ?? current.blocks,
+              comments: next.comments ?? current.comments,
+            }),
+          },
+        })
+        .then(
+          () => true,
+          () => false,
+        );
     },
     [decoded, mutations.update],
   );
@@ -304,7 +325,8 @@ export function useDocsWorkspace(
       }
 
       const name =
-        title ?? (template ? TEMPLATE_TITLES[template] : undefined) ??
+        title ??
+        (template ? TEMPLATE_TITLES[template] : undefined) ??
         'Untitled Document';
 
       const created = await mutations.create.mutateAsync({
@@ -350,7 +372,12 @@ export function useDocsWorkspace(
         parentId: company.id,
         kind: DocumentKind.DOC,
         content: encodeDocContent({
-          meta: { category: 'General', status: 'Draft', icon: '📝', cover: DEFAULT_COVER },
+          meta: {
+            category: 'General',
+            status: 'Draft',
+            icon: '📝',
+            cover: DEFAULT_COVER,
+          },
           blocks: starterBlocks(`${name.trim()} Overview`),
           comments: [],
         }),

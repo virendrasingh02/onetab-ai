@@ -6,6 +6,7 @@ import type {
   RoomMember,
   Thread,
 } from '@org/matrix-client';
+import { toast } from '@org/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMatrix } from './matrix-provider.js';
 import { uploadFiles } from './pending-uploads.js';
@@ -101,7 +102,10 @@ export interface UseRoomOptions {
  * Matrix timeline is a push stream, not a cache to invalidate, and modelling
  * it as a query would mean refetching a room every time an event arrives.
  */
-export function useRoom(roomId: RoomId | undefined, options: UseRoomOptions = {}) {
+export function useRoom(
+  roomId: RoomId | undefined,
+  options: UseRoomOptions = {},
+) {
   const { trackRead = true } = options;
   const { client } = useMatrix();
   const [state, setState] = useState<ChatState>(() =>
@@ -134,7 +138,9 @@ export function useRoom(roomId: RoomId | undefined, options: UseRoomOptions = {}
     if (!waitingForRoom || !client || !roomId) return;
     const settle = () =>
       setState((current) =>
-        current.isLoading ? { ...loadRoomState(client, roomId), isLoading: false } : current,
+        current.isLoading
+          ? { ...loadRoomState(client, roomId), isLoading: false }
+          : current,
       );
     const stop = client.on((event) => {
       if (event.type === 'room.upserted' && event.room.id === roomId) {
@@ -255,7 +261,9 @@ export function useRoom(roomId: RoomId | undefined, options: UseRoomOptions = {}
             const messages = current.messages.map((message) => {
               const fresh =
                 byId.get(message.id) ??
-                (message.transactionId ? byTxn.get(message.transactionId) : undefined);
+                (message.transactionId
+                  ? byTxn.get(message.transactionId)
+                  : undefined);
               if (!fresh) return message;
               byId.delete(fresh.id);
               changed = true;
@@ -284,7 +292,8 @@ export function useRoom(roomId: RoomId | undefined, options: UseRoomOptions = {}
             // Only other members' receipts change who has seen my messages —
             // and "Seen" is only shown under my own messages.
             const myUserId = client.getSession()?.userId;
-            if (event.receipts.every((receipt) => receipt.userId === myUserId)) return;
+            if (event.receipts.every((receipt) => receipt.userId === myUserId))
+              return;
           }
           setState((current) => {
             const myUserId = client.getSession()?.userId;
@@ -331,7 +340,9 @@ export function useRoom(roomId: RoomId | undefined, options: UseRoomOptions = {}
       if (!state.messages[i].threadRootId) latest = state.messages[i];
     }
     if (latest && latest.sendState !== 'sending') {
-      void client.markRead(roomId, latest.id, { private: !readReceiptsEnabled });
+      void client.markRead(roomId, latest.id, {
+        private: !readReceiptsEnabled,
+      });
     }
   }, [client, roomId, readReceiptsEnabled, trackRead, state.messages]);
 
@@ -451,7 +462,8 @@ export function useRoomThreads(roomId: RoomId | undefined): Thread[] {
     return client.on((event) => {
       if (
         event.type === 'thread.updated' ||
-        (event.type === 'message.received' && event.message.roomId === roomId) ||
+        (event.type === 'message.received' &&
+          event.message.roomId === roomId) ||
         (event.type === 'receipt' && event.roomId === roomId) ||
         (event.type === 'notifications' && event.roomId === roomId)
       ) {
@@ -641,14 +653,28 @@ export function useRoomActions(roomId: RoomId | undefined) {
     [client, roomId],
   );
 
-  /** Adds the reaction, or removes it when the user already reacted. */
+  /**
+   * Adds the reaction, or removes it when the user already reacted. Failure is
+   * reported here, once for every surface, and resolves `false` so a pill
+   * showing the change optimistically can take it back straight away.
+   */
   const toggleReaction = useCallback(
     async (eventId: string, key: string, alreadyReacted: boolean) => {
-      if (!client || !roomId) return;
-      if (alreadyReacted) {
-        await client.removeReaction(roomId, eventId, key);
-      } else {
-        await client.react(roomId, eventId, key);
+      if (!client || !roomId) return false;
+      try {
+        if (alreadyReacted) {
+          await client.removeReaction(roomId, eventId, key);
+        } else {
+          await client.react(roomId, eventId, key);
+        }
+        return true;
+      } catch {
+        toast.error(
+          alreadyReacted
+            ? 'Could not remove your reaction. Try again.'
+            : 'Could not add your reaction. Try again.',
+        );
+        return false;
       }
     },
     [client, roomId],

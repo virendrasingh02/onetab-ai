@@ -35,6 +35,7 @@ import { EmployeeInfoSection } from './employee-info-section.js';
 import {
   MEMBER_ROLE_LABELS,
   useMemberProfile,
+  useOpenProfileConversation,
   type MemberWorkspaceRole,
 } from './member-profile-context.js';
 
@@ -80,7 +81,7 @@ function profileHandle(
 ): string | null {
   if (username) return `@${username}`;
   const local = userId.replace(/^@/, '').split(':')[0];
-  return /^onetab_/i.test(local) ? null : `@${local}`;
+  return /^(onetab_|agent-|app-|coworker-)/i.test(local) ? null : `@${local}`;
 }
 
 /**
@@ -118,6 +119,10 @@ export interface UserProfileCardProps {
   children: ReactNode;
   onSendDirectMessage?: (userId: string) => void;
   onStartCall?: (userId: string) => void;
+  /** Replaces the default click, for a surface that opens profiles itself. */
+  onOpenProfile?: () => void;
+  /** Overrides the trigger's layout, e.g. `inline` for text inside a sentence. */
+  triggerClassName?: string;
 }
 
 export function UserProfileCard({
@@ -139,9 +144,17 @@ export function UserProfileCard({
   children,
   onSendDirectMessage,
   onStartCall: _onStartCall,
+  onOpenProfile,
+  triggerClassName,
 }: UserProfileCardProps) {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const openProfilePanel = useRightPanelStore((s) => s.openProfile);
+  const openConversation = useOpenProfileConversation();
+  const sendMessage = onSendDirectMessage
+    ? () => onSendDirectMessage(userId)
+    : openConversation
+      ? () => openConversation({ userId, entityKind, entityId })
+      : undefined;
   // Real workspace role/title/zone from the roster; agents, apps and
   // coworkers aren't workspace members, so they never get a role pill.
   const member = useMemberProfile(
@@ -187,6 +200,10 @@ export function UserProfileCard({
     e.stopPropagation();
     cancelHoverTimer();
     setPopoverOpen(false);
+    if (onOpenProfile) {
+      onOpenProfile();
+      return;
+    }
     openProfilePanel({
       entityKind,
       entityId,
@@ -208,13 +225,20 @@ export function UserProfileCard({
 
   return (
     /* Hover Popover Preview Card */
-    <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+    <Popover
+      open={popoverOpen}
+      // Only hover opens the card. The trigger's own click toggle would reopen
+      // it on top of the rail profile that same click just opened.
+      onOpenChange={(open) => {
+        if (!open) setPopoverOpen(false);
+      }}
+    >
       <PopoverTrigger asChild>
         <span
           onClick={handleClick}
           onMouseEnter={() => scheduleHover(true, HOVER_OPEN_DELAY_MS)}
           onMouseLeave={() => scheduleHover(false, HOVER_CLOSE_DELAY_MS)}
-          className="inline-block cursor-pointer"
+          className={cn('inline-block cursor-pointer', triggerClassName)}
         >
           {children}
         </span>
@@ -337,21 +361,23 @@ export function UserProfileCard({
           </div>
 
           {/* Bottom Actions */}
-          <div className="mt-4 gap-2 flex">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                cancelHoverTimer();
-                setPopoverOpen(false);
-                onSendDirectMessage?.(userId);
-              }}
-              className="text-xs font-semibold flex-1 border-border bg-surface text-foreground hover:bg-accent"
-            >
-              <MessageSquare className="mr-1.5 size-3.5 text-primary-text" />
-              Send Message
-            </Button>
-          </div>
+          {sendMessage ? (
+            <div className="mt-4 gap-2 flex">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  cancelHoverTimer();
+                  setPopoverOpen(false);
+                  sendMessage();
+                }}
+                className="text-xs font-semibold flex-1 border-border bg-surface text-foreground hover:bg-accent"
+              >
+                <MessageSquare className="mr-1.5 size-3.5 text-primary-text" />
+                Send Message
+              </Button>
+            </div>
+          ) : null}
         </div>
       </PopoverContent>
     </Popover>

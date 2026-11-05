@@ -196,6 +196,7 @@ export function DocumentEditor() {
     null,
   );
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [saveFailed, setSaveFailed] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /**
@@ -218,9 +219,14 @@ export function DocumentEditor() {
     pending.current = null;
     if (!outstanding) return;
 
-    updateDocBlocks(outstanding.docId, outstanding.blocks);
-    setPendingBlocks(null);
-    setSavedAt(Date.now());
+    void updateDocBlocks(outstanding.docId, outstanding.blocks).then((ok) => {
+      // A rejected save keeps the local copy: the person must be able to fix
+      // what they typed, and must not be told it was saved.
+      setSaveFailed(!ok);
+      if (!ok) return;
+      setSavedAt(Date.now());
+      if (!pending.current) setPendingBlocks(null);
+    });
   }, [updateDocBlocks]);
 
   const handleBlocksChange = useCallback(
@@ -229,6 +235,7 @@ export function DocumentEditor() {
       // Held locally so the editor stays responsive between saves; the query
       // cache catches up when the debounce fires.
       setPendingBlocks(blocks);
+      setSaveFailed(false);
       pending.current = { docId: currentDoc.id, blocks };
 
       if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -241,11 +248,17 @@ export function DocumentEditor() {
   useEffect(() => () => flush(), [flush]);
 
   const activeDocId = currentDoc?.id;
+  const shownDocId = useRef(activeDocId);
   useEffect(() => {
+    // `flush` changes identity on every save, so compare the document itself:
+    // resetting on a re-render would wipe text a rejected save left in place.
+    if (shownDocId.current === activeDocId) return;
+    shownDocId.current = activeDocId;
     // Switching documents commits whatever the previous one had outstanding,
     // rather than discarding it along with the local copy.
     if (pending.current && pending.current.docId !== activeDocId) flush();
     setPendingBlocks(null);
+    setSaveFailed(false);
   }, [activeDocId, flush]);
 
   // The badge is transient: it confirms a save happened, it is not a status.
@@ -278,7 +291,14 @@ export function DocumentEditor() {
         title="Docs"
         hasTabs
         meta={
-          isSaving ? (
+          saveFailed ? (
+            <Badge
+              variant="destructive"
+              className="gap-1 px-1.5 py-0 h-4.5 text-[11px]"
+            >
+              Not saved
+            </Badge>
+          ) : isSaving ? (
             <Badge
               variant="neutral"
               className="gap-1 px-1.5 py-0 h-4.5 text-[11px]"

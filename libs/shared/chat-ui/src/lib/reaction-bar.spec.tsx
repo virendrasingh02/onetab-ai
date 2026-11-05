@@ -26,14 +26,18 @@ const reaction = (overrides: Partial<Reaction>): Reaction => ({
 describe('describeReactors', () => {
   it('names one, two and three people naturally', () => {
     expect(describeReactors(['@alice:x'], resolve)).toBe('Alice');
-    expect(describeReactors(['@alice:x', '@bob:x'], resolve)).toBe('Alice and Bob');
+    expect(describeReactors(['@alice:x', '@bob:x'], resolve)).toBe(
+      'Alice and Bob',
+    );
     expect(describeReactors(['@alice:x', '@bob:x', '@carol:x'], resolve)).toBe(
       'Alice, Bob and Carol',
     );
   });
 
   it('puts the reader first as "You"', () => {
-    expect(describeReactors(['@alice:x', '@me:x'], resolve, '@me:x')).toBe('You and Alice');
+    expect(describeReactors(['@alice:x', '@me:x'], resolve, '@me:x')).toBe(
+      'You and Alice',
+    );
   });
 
   it('falls back to the id localpart and folds long lists', () => {
@@ -51,7 +55,13 @@ describe('ReactionBar', () => {
     render(
       <ReactorDirectoryProvider resolve={resolve} myUserId="@me:x">
         <ReactionBar
-          reactions={[reaction({ count: 2, reactedByMe: true, userIds: ['@me:x', '@alice:x'] as any })]}
+          reactions={[
+            reaction({
+              count: 2,
+              reactedByMe: true,
+              userIds: ['@me:x', '@alice:x'] as any,
+            }),
+          ]}
           onToggle={onToggle}
         />
       </ReactorDirectoryProvider>,
@@ -61,7 +71,22 @@ describe('ReactionBar', () => {
     await user.click(pill);
 
     expect(onToggle).toHaveBeenCalledWith('👍', true);
-    expect(screen.getByRole('button', { pressed: false })).toHaveTextContent('1');
+    expect(screen.getByRole('button', { pressed: false })).toHaveTextContent(
+      '1',
+    );
+  });
+
+  it('goes back at once when the toggle reports failure', async () => {
+    const user = userEvent.setup();
+    render(
+      <ReactionBar reactions={[reaction({})]} onToggle={async () => false} />,
+    );
+
+    await user.click(screen.getByRole('button'));
+
+    expect(
+      await screen.findByRole('button', { pressed: false }),
+    ).toHaveTextContent('1');
   });
 
   it('ignores a second click while the first toggle is in flight', async () => {
@@ -79,7 +104,9 @@ describe('ReactionBar', () => {
     render(
       <ReactorDirectoryProvider resolve={resolve} myUserId="@me:x">
         <ReactionBar
-          reactions={[reaction({ reactedByMe: true, userIds: ['@me:x'] as any })]}
+          reactions={[
+            reaction({ reactedByMe: true, userIds: ['@me:x'] as any }),
+          ]}
           onToggle={() => new Promise<void>(() => undefined)}
         />
       </ReactorDirectoryProvider>,

@@ -112,6 +112,7 @@ const ROOT_STATIC_TITLES: Record<string, string> = {
   '/login': 'Sign in',
   '/register': 'Create your account',
   '/forgot-password': 'Reset your password',
+  '/account/delete': 'Delete your account',
   '/reset-password': 'Reset your password',
   '/workspaces/new': 'Create a workspace',
   '/settings': 'Settings',

@@ -57,7 +57,7 @@ export interface SystemEventCardProps {
   /** Whether the viewer may manage this conversation — gates "Delete event" /
    * "Hide event" in the More menu (brief §12). */
   canManage?: boolean;
-  onReact?: (key: string) => void;
+  onReact?: (key: string) => void | Promise<unknown>;
   /** A named entity was clicked — the host resolves `kind` to whatever it
    * already uses to open a profile/details view (brief §10, §11). */
   onViewEntity?: (entity: SystemEventEntity) => void;
@@ -497,7 +497,7 @@ function SystemEventActions({
 }: {
   message: Message;
   event: SystemActivityEventContent;
-  onReact?: (key: string) => void;
+  onReact?: (key: string) => void | Promise<unknown>;
   onCopy: () => void;
   onDelete?: () => void;
 }) {

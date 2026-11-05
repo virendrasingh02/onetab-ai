@@ -22,6 +22,7 @@ import { compactBlankLineCount } from './blank-lines.js';
 import { LinkHoverCard } from './link-hover-card.js';
 import { CommandChips } from './message-preview.js';
 import { useMentionAliases } from './mention-aliases.js';
+import { UserProfileCard } from './user-profile-card.js';
 
 /**
  * Renders the markdown a message body carries.
@@ -126,6 +127,8 @@ type InlineOptions = {
    * right profile. Undefined when the handle matches nobody on the roster.
    */
   resolveMention?: (handle: string) => string | undefined;
+  /** Who a chip's name belongs to, so hovering it can show their profile card. */
+  mentionProfile?: (name: string) => RightPanelProfile | undefined;
   /** Lower-cased names of connected apps, which may carry an account suffix. */
   appNames?: Set<string>;
   /** Link hover cards also fetch the page's title/description/thumbnail. */
@@ -153,7 +156,7 @@ const CHIP_BASE_CLASS =
  * (bare URL, markdown `[label](url)`) looks the same inside the sentence.
  */
 const LINK_CHIP_CLASS = cn(
-  'rounded-[0.2em] font-medium align-baseline transition-colors',
+  'font-medium rounded-[0.2em] align-baseline transition-colors',
   '[overflow-wrap:anywhere] text-info-text underline decoration-info-text/40 underline-offset-[0.2em] [&_span]:text-inherit [&_strong]:text-inherit',
   'hover:decoration-info-text',
   'focus-visible:ring-1 focus-visible:ring-info focus-visible:outline-none',
@@ -165,14 +168,14 @@ const CHIP_ICON_CLASS =
 
 const MENTION_CHIP_CLASS = cn(
   CHIP_BASE_CLASS,
-  'cursor-pointer bg-primary/15 text-primary-text',
-  'hover:bg-primary/25',
-  'focus-visible:ring-1 focus-visible:ring-primary focus-visible:outline-none',
+  'cursor-pointer bg-mention text-mention-foreground',
+  'hover:bg-mention-hover',
+  'focus-visible:ring-1 focus-visible:ring-mention-foreground focus-visible:outline-none',
 );
 
 const GROUP_MENTION_CHIP_CLASS = cn(
   CHIP_BASE_CLASS,
-  'bg-warning/20 text-foreground',
+  'bg-group-mention text-group-mention-foreground',
 );
 
 const HASHTAG_CHIP_CLASS = cn(CHIP_BASE_CLASS, 'bg-info/10 text-info-text');
@@ -405,6 +408,40 @@ function renderInline(
       }
 
       const isGroupMention = GROUP_MENTIONS.has(mention.toLowerCase());
+      const profile = options.mentionProfile?.(mention.slice(1));
+      const fallbackTitle = profile ? undefined : `View profile for ${mention}`;
+      const chip = (
+        <span
+          key={key}
+          role="button"
+          tabIndex={0}
+          data-mention={mention.slice(1)}
+          // With a card, its trigger owns the click so the card closes too.
+          onClick={
+            profile
+              ? undefined
+              : (e) => {
+                  e.stopPropagation();
+                  options.onMentionClick?.(mention);
+                }
+          }
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              e.stopPropagation();
+              options.onMentionClick?.(mention);
+            }
+          }}
+          title={
+            accountLabel
+              ? `${mention} · connected as ${accountLabel}`
+              : fallbackTitle
+          }
+          className={MENTION_CHIP_CLASS}
+        >
+          {mention}
+        </span>
+      );
       nodes.push(
         isGroupMention ? (
           <span
@@ -414,32 +451,22 @@ function renderInline(
           >
             {mention}
           </span>
-        ) : (
-          <span
+        ) : profile ? (
+          <UserProfileCard
             key={key}
-            role="button"
-            tabIndex={0}
-            data-mention={mention.slice(1)}
-            onClick={(e) => {
-              e.stopPropagation();
-              options.onMentionClick?.(mention);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                e.stopPropagation();
-                options.onMentionClick?.(mention);
-              }
-            }}
-            title={
-              accountLabel
-                ? `${mention} · connected as ${accountLabel}`
-                : `View profile for ${mention}`
-            }
-            className={MENTION_CHIP_CLASS}
+            userId={profile.userId}
+            name={profile.name}
+            avatarUrl={profile.avatarUrl}
+            powerLevel={profile.powerLevel}
+            entityKind={profile.entityKind}
+            entityId={profile.entityId}
+            onOpenProfile={() => options.onMentionClick?.(mention)}
+            triggerClassName="inline"
           >
-            {mention}
-          </span>
+            {chip}
+          </UserProfileCard>
+        ) : (
+          chip
         ),
       );
     } else if (groups['hashtag']) {
@@ -882,6 +909,7 @@ export function MarkdownMessage({
       mentionNames: cleaned,
       onMentionClick: handleMentionClick,
       resolveMention,
+      mentionProfile: (name) => mentionProfiles?.[name.trim().toLowerCase()],
       appNames,
       enrichLinks,
     };

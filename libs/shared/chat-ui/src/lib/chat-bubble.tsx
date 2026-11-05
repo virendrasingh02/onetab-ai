@@ -52,6 +52,8 @@ import {
   Copy,
   FileText,
   FolderKanban,
+  Ban,
+  Flag,
   Forward,
   Hash,
   Link2,
@@ -70,6 +72,32 @@ import {
   Trash2,
   UserCheck,
 } from 'lucide-react';
+
+export type ReportReasonValue =
+  | 'SPAM'
+  | 'HARASSMENT'
+  | 'HATE'
+  | 'SEXUAL'
+  | 'VIOLENCE'
+  | 'SELF_HARM'
+  | 'ILLEGAL'
+  | 'MISINFORMATION'
+  | 'OTHER';
+
+const REPORT_REASON_OPTIONS: ReadonlyArray<{
+  value: ReportReasonValue;
+  label: string;
+}> = [
+  { value: 'SPAM', label: 'Spam or scam' },
+  { value: 'HARASSMENT', label: 'Harassment or bullying' },
+  { value: 'HATE', label: 'Hate speech' },
+  { value: 'SEXUAL', label: 'Sexual content' },
+  { value: 'VIOLENCE', label: 'Violence or threats' },
+  { value: 'SELF_HARM', label: 'Self-harm' },
+  { value: 'ILLEGAL', label: 'Illegal content' },
+  { value: 'MISINFORMATION', label: 'False or harmful information' },
+  { value: 'OTHER', label: 'Something else' },
+];
 import {
   addMonths,
   eachDayOfInterval,
@@ -121,7 +149,7 @@ export interface ChatBubbleProps {
   isGrouped?: boolean;
   senderBadge?: ReactNode;
   avatarSlot?: ReactNode;
-  onReact?: (key: string) => void;
+  onReact?: (key: string) => void | Promise<unknown>;
   onReply?: () => void;
   /**
    * The message this one replies to (`message.replyToId`), resolved by the
@@ -202,6 +230,10 @@ export interface ChatBubbleProps {
   showReadReceipt?: boolean;
   /** "Mark unread" from this message. Hidden when absent. */
   onMarkUnread?: () => void;
+  /** Reports this message; absent on your own messages. */
+  onReport?: (reason: ReportReasonValue) => void;
+  /** Blocks the sender; absent on your own messages. */
+  onBlock?: () => void;
   /** "Remind me about this" — called with the chosen time. Hidden when absent. */
   onRemind?: (remindAt: Date) => void;
   /** Turns reply notifications for this message's thread off / on. */
@@ -580,6 +612,8 @@ export function ChatBubble({
   roomKind,
   showReadReceipt = false,
   onMarkUnread,
+  onReport,
+  onBlock,
   onRemind,
   onToggleReplyNotifications,
   replyNotificationsMuted = false,
@@ -1027,6 +1061,29 @@ export function ChatBubble({
         shortcut: 'U',
         hidden: !onMarkUnread,
         run: onMarkUnread,
+      },
+      {
+        id: 'report',
+        group: 'danger',
+        label: 'Report message',
+        icon: Flag,
+        hidden: !onReport,
+        children: onReport
+          ? REPORT_REASON_OPTIONS.map((option): EntityAction => ({
+              id: `report-${option.value}`,
+              label: option.label,
+              run: () => onReport(option.value),
+            }))
+          : [],
+      },
+      {
+        id: 'block-sender',
+        group: 'danger',
+        label: 'Block sender',
+        icon: Ban,
+        destructive: true,
+        hidden: !onBlock,
+        run: onBlock,
       },
       {
         id: 'remind',
@@ -1981,7 +2038,7 @@ export function MessageActionToolbar({
   onReactionOpenChange: (open: boolean) => void;
   actionsPinned: boolean;
   onPinnedChange: (pinned: boolean) => void;
-  onReact?: (key: string) => void;
+  onReact?: (key: string) => void | Promise<unknown>;
   onOpenInConversation?: () => void;
   /** Picks the "Open in …" wording and icon. */
   roomKind?: RoomKind;

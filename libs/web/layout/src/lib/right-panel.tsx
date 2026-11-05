@@ -1,5 +1,5 @@
 import { UserProfileRightPanel } from '@org/chat-ui';
-import type { CurrentUser } from '@org/types';
+import { toPlatformUserId, type CurrentUser } from '@org/types';
 import { Button, Hint, useRightPanelStore } from '@org/ui';
 import { X } from 'lucide-react';
 import { useCallback, type ReactNode } from 'react';
@@ -55,7 +55,7 @@ export function RightPanel({
   const openDirectMessage = useCallback(
     (targetUserId?: string) => {
       if (targetUserId) {
-        navigate(`/w/${workspaceSlug}/dms/${targetUserId}`);
+        navigate(`/w/${workspaceSlug}/dms/${toPlatformUserId(targetUserId)}`);
       } else {
         navigate(`/w/${workspaceSlug}/dms`);
       }
@@ -93,10 +93,7 @@ export function RightPanel({
 
   if (view === 'details' && hosted.details) {
     return hosted.details.title ? (
-      <PanelFrame
-        title={hosted.details.title}
-        onClose={onClose}
-      >
+      <PanelFrame title={hosted.details.title} onClose={onClose}>
         <HostedSlot slotRef={setDetailsSlot} />
       </PanelFrame>
     ) : (
@@ -123,10 +120,10 @@ export function RightPanel({
       (person?.userId?.startsWith('coworker-')
         ? 'coworker'
         : person?.userId?.startsWith('agent-')
-        ? 'agent'
-        : person?.userId?.startsWith('app-')
-        ? 'app'
-        : 'user');
+          ? 'agent'
+          : person?.userId?.startsWith('app-')
+            ? 'app'
+            : 'user');
 
     if (kind === 'coworker' && person) {
       return (
@@ -183,14 +180,18 @@ export function RightPanel({
             statusText={person?.statusText ?? currentUser.statusText}
             onSendDirectMessage={openDirectMessage}
             onStartCall={(targetUserId: string) => {
-              navigate(`/w/${workspaceSlug}/dms/${targetUserId}?call=voice`);
+              navigate(
+                `/w/${workspaceSlug}/dms/${toPlatformUserId(targetUserId)}?call=voice`,
+              );
             }}
             onStartVideoCall={(targetUserId: string) => {
-              navigate(`/w/${workspaceSlug}/dms/${targetUserId}?call=video`);
+              navigate(
+                `/w/${workspaceSlug}/dms/${toPlatformUserId(targetUserId)}?call=video`,
+              );
             }}
             profileLink={
               person
-                ? `${window.location.origin}/w/${workspaceSlug}/dms/${person.userId}`
+                ? `${window.location.origin}/w/${workspaceSlug}/dms/${toPlatformUserId(person.userId)}`
                 : undefined
             }
           />
@@ -256,9 +257,11 @@ function PanelFrame({
       <div className="h-12 px-3 flex shrink-0 items-center justify-between border-b border-border">
         <div className="min-w-0 gap-2 flex items-center text-foreground">
           <div className="min-w-0">
-            <h2 className="truncate text-base font-semibold tracking-tight leading-tight">{title}</h2>
+            <h2 className="text-base font-semibold tracking-tight leading-tight truncate">
+              {title}
+            </h2>
             {subtitle ? (
-              <div className="text-[11px] font-normal text-muted-foreground truncate leading-tight">
+              <div className="font-normal leading-tight truncate text-[11px] text-muted-foreground">
                 {subtitle}
               </div>
             ) : null}

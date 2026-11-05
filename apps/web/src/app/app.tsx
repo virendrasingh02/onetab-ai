@@ -1,5 +1,6 @@
 import {
   DesktopAuthCallbackPage,
+  AccountDeletionPage,
   ForgotPasswordPage,
   LoginPage,
   LogoutPage,
@@ -605,6 +606,7 @@ function App() {
         <Route path="/invite/:token" element={<AcceptInvitationPage />} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/logout" element={<LogoutPage />} />
+        <Route path="/account/delete" element={<AccountDeletionPage />} />
         <Route element={<PublicOnlyRoute />}>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />

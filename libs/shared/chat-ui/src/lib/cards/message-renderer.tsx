@@ -9,7 +9,7 @@ import type {
 import { memo, type ReactNode } from 'react';
 import type { RightPanelProfile } from '@org/ui';
 import { cn } from '@org/utils';
-import { ChatBubble } from '../chat-bubble.js';
+import { ChatBubble, type ReportReasonValue } from '../chat-bubble.js';
 import { CHAT_ROW, CHAT_ROW_HIGHLIGHT } from '../chat-row.js';
 import type { ReplyPreview } from '../reply-quote.js';
 import { AgentMessageCard } from './agent-message-card.js';
@@ -48,7 +48,7 @@ export interface MessageRendererProps {
   threadHasUnread?: boolean;
   threadParticipants?: RoomMember[];
   lastReplyAt?: number;
-  onReact?: (key: string) => void;
+  onReact?: (key: string) => void | Promise<unknown>;
   onReply?: () => void;
   /** The quoted original of an inline reply — see `ChatBubble`. */
   replyTo?: ReplyPreview | null;
@@ -100,6 +100,8 @@ export interface MessageRendererProps {
   roomKind?: RoomKind;
   /** "Mark unread" from this message — see `ChatBubble`. */
   onMarkUnread?: () => void;
+  onReport?: (reason: ReportReasonValue) => void;
+  onBlock?: () => void;
   /** "Remind me about this" with the chosen time — see `ChatBubble`. */
   onRemind?: (remindAt: Date) => void;
   /** Turns reply notifications for this message's thread off / on. */

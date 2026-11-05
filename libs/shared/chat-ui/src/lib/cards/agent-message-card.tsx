@@ -116,7 +116,7 @@ export interface AgentMessageCardProps {
   onDelete?: () => void;
   canModerateMessages?: boolean;
   /** Same reaction + thread affordances a normal message row has. */
-  onReact?: (key: string) => void;
+  onReact?: (key: string) => void | Promise<unknown>;
   threadReplyCount?: number;
   threadHasUnread?: boolean;
   threadParticipants?: RoomMember[];

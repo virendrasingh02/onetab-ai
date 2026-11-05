@@ -1,3 +1,5 @@
+import { checkContent, CONTENT_BLOCKED_MESSAGE } from '@org/types';
+import { toast } from '@org/ui';
 import {
   $createCodeNode,
   $isCodeNode,
@@ -72,7 +74,7 @@ import {
   COMMAND_PRIORITY_HIGH,
   COMMAND_PRIORITY_NORMAL,
   CONTROLLED_TEXT_INSERTION_COMMAND,
-  ElementNode,
+  type ElementNode,
   type Klass,
   FORMAT_TEXT_COMMAND,
   IS_APPLE,
@@ -192,11 +194,15 @@ const EDITOR_THEME = {
   hr: 'my-2 h-px border-0 bg-border',
   // Inline chips mirror MarkdownMessage so a draft looks like the sent message.
   link: 'font-medium cursor-pointer text-info-text underline decoration-info-text/40 underline-offset-[0.2em] hover:decoration-info-text',
-  hashtag: 'rounded-[0.3em] px-[0.3em] py-px font-medium box-decoration-clone bg-info/10 text-info-text',
-  mention: 'rounded-[0.3em] px-[0.3em] py-px font-medium box-decoration-clone bg-primary/15 text-primary-text',
+  hashtag:
+    'rounded-[0.3em] px-[0.3em] py-px font-medium box-decoration-clone bg-info/10 text-info-text',
+  mention:
+    'rounded-[0.3em] px-[0.3em] py-px font-medium box-decoration-clone bg-mention text-mention-foreground',
   // Same warm chip the sent message draws for @everyone / @channel / @here.
-  groupMention: 'rounded-[0.3em] px-[0.3em] py-px font-medium box-decoration-clone bg-warning/20 text-foreground',
-  command: 'rounded-[0.3em] px-[0.3em] py-px font-medium box-decoration-clone bg-info/10 text-info-text',
+  groupMention:
+    'rounded-[0.3em] px-[0.3em] py-px font-medium box-decoration-clone bg-group-mention text-group-mention-foreground',
+  command:
+    'rounded-[0.3em] px-[0.3em] py-px font-medium box-decoration-clone bg-info/10 text-info-text',
 };
 
 /** Every node type the composer can hold. Anything missing here throws at runtime. */
@@ -262,10 +268,7 @@ export interface LexicalComposerInputProps {
    * unlike the debounced `onMentionsChange`, it cannot miss a chip inserted a
    * beat before Enter.
    */
-  onSend: (
-    text: string,
-    mentions: DetectedMention[],
-  ) => void | Promise<void>;
+  onSend: (text: string, mentions: DetectedMention[]) => void | Promise<void>;
   /** When false, bare Enter inserts a newline and Ctrl/Cmd+Enter sends. Defaults to true. */
   enterToSend?: boolean;
   /**
@@ -362,10 +365,7 @@ function EditorApiPlugin({
   hasPendingAttachments = false,
   enterToSend = true,
 }: {
-  onSend: (
-    text: string,
-    mentions: DetectedMention[],
-  ) => void | Promise<void>;
+  onSend: (text: string, mentions: DetectedMention[]) => void | Promise<void>;
   onTyping?: (isTyping: boolean) => void;
   onRegisterRef?: (ref: LexicalEditorRef) => void;
   hasPendingAttachments?: boolean;
@@ -397,6 +397,12 @@ function EditorApiPlugin({
     // A message with nothing but staged attachments is still a message —
     // only bail out when there's neither text nor anything else going out.
     if (!body && !hasPendingAttachments) return false;
+
+    // Before `reset()`: the person keeps their draft and can edit it.
+    if (!checkContent(body).allowed) {
+      toast.error(CONTENT_BLOCKED_MESSAGE);
+      return true;
+    }
 
     let mentions: DetectedMention[] = [];
     editor.getEditorState().read(() => {
@@ -1011,14 +1017,18 @@ function MenuShell({
       ref={menuRef}
       role="region"
       aria-label={`${label} suggestions`}
-      className={cn('left-0 mb-5 absolute bottom-full z-120', MENU_CLASS, className)}
+      className={cn(
+        'left-0 mb-5 absolute bottom-full z-120',
+        MENU_CLASS,
+        className,
+      )}
     >
       <ul
         id={id}
         role="listbox"
         aria-label={label}
         className={cn(
-          'max-h-72 p-1.5 overflow-y-auto overscroll-contain scrollbar-thin',
+          'max-h-72 p-1.5 scrollbar-thin overflow-y-auto overscroll-contain',
           listClassName,
         )}
       >
@@ -1026,19 +1036,19 @@ function MenuShell({
       </ul>
       {showFooter && (
         <div className="px-3 py-1.5 flex items-center justify-between border-t border-border/40 bg-muted/20 text-2xs text-muted-foreground/75 select-none">
-          <span className="flex items-center gap-1.5">
-            <kbd className="rounded-md border border-border/60 bg-muted/60 px-1 py-0.5 font-mono text-2xs text-foreground/70">
+          <span className="gap-1.5 flex items-center">
+            <kbd className="px-1 py-0.5 rounded-md border border-border/60 bg-muted/60 font-mono text-2xs text-foreground/70">
               ↑↓
             </kbd>
             <span>navigate</span>
             <span className="opacity-30">·</span>
-            <kbd className="rounded-md border border-border/60 bg-muted/60 px-1 py-0.5 font-mono text-2xs text-foreground/70">
+            <kbd className="px-1 py-0.5 rounded-md border border-border/60 bg-muted/60 font-mono text-2xs text-foreground/70">
               ↵
             </kbd>
             <span>select</span>
           </span>
-          <span className="flex items-center gap-1">
-            <kbd className="rounded-md border border-border/60 bg-muted/60 px-1 py-0.5 font-mono text-2xs text-foreground/70">
+          <span className="gap-1 flex items-center">
+            <kbd className="px-1 py-0.5 rounded-md border border-border/60 bg-muted/60 font-mono text-2xs text-foreground/70">
               esc
             </kbd>
             <span>close</span>
@@ -1094,7 +1104,7 @@ function MenuItem({
         onClick={onSelect}
         className={`group gap-2.5 px-2.5 py-2 text-xs flex w-full items-center rounded-xl text-left transition-colors duration-100 ${
           isSelected
-            ? 'bg-accent text-accent-foreground font-medium shadow-xs'
+            ? 'font-medium bg-accent text-accent-foreground shadow-xs'
             : 'text-foreground/90 hover:bg-muted/70'
         }`}
       >
@@ -1292,20 +1302,24 @@ function MentionsPlugin({
                 <span className="gap-1.5 text-sm font-semibold flex items-center text-foreground">
                   <span className="truncate">{option.candidate.name}</span>
                   {option.candidate.isSelf ? (
-                    <span className="px-1 py-0 font-bold tracking-wider rounded-md shrink-0 bg-muted text-2xs text-muted-foreground uppercase">
+                    <span className="px-1 py-0 font-bold tracking-wider shrink-0 rounded-md bg-muted text-2xs text-muted-foreground uppercase">
                       You
                     </span>
                   ) : null}
                   {isAgent ? (
                     <EntityKindBadge kind="agent" size="sm" />
                   ) : isCoworker ? (
-                    <EntityKindBadge kind="coworker" size="sm" label="Coworker" />
+                    <EntityKindBadge
+                      kind="coworker"
+                      size="sm"
+                      label="Coworker"
+                    />
                   ) : isApp ? (
                     <EntityKindBadge kind="app" size="sm" />
                   ) : null}
                 </span>
                 {option.candidate.subtitle ? (
-                  <span className="block truncate text-xs text-muted-foreground">
+                  <span className="text-xs block truncate text-muted-foreground">
                     {option.candidate.subtitle}
                   </span>
                 ) : null}
@@ -1323,7 +1337,7 @@ function MentionsPlugin({
         ) =>
           shown.length > 0 ? (
             <Fragment key={title}>
-              <li className="mt-1 px-2.5 py-1.5 text-2xs font-semibold tracking-wider text-muted-foreground uppercase select-none">
+              <li className="mt-1 px-2.5 py-1.5 font-semibold tracking-wider text-2xs text-muted-foreground uppercase select-none">
                 {title} — {total}
               </li>
               {shown.map(renderOption)}
@@ -1336,11 +1350,7 @@ function MentionsPlugin({
           ) : null;
 
         return createPortal(
-          <MenuShell
-            label="Mention"
-            onClose={handleClose}
-            showFooter={false}
-          >
+          <MenuShell label="Mention" onClose={handleClose} showFooter={false}>
             {options.length === 0 ? (
               <li className="px-3 py-6 text-xs text-center text-muted-foreground">
                 No matching members found
@@ -1348,7 +1358,7 @@ function MentionsPlugin({
             ) : (
               <>
                 {groups.length > 0 ? (
-                  <li className="px-2.5 py-1.5 text-2xs font-semibold tracking-wider text-muted-foreground uppercase select-none">
+                  <li className="px-2.5 py-1.5 font-semibold tracking-wider text-2xs text-muted-foreground uppercase select-none">
                     Group mentions
                   </li>
                 ) : null}
@@ -1454,10 +1464,7 @@ function ChannelMentionsPlugin({
         if (!anchorRef.current) return null;
 
         return createPortal(
-          <MenuShell
-            label="Channel"
-            onClose={handleClose}
-          >
+          <MenuShell label="Channel" onClose={handleClose}>
             {options.length === 0 ? (
               <li className="px-3 py-6 text-xs text-center text-muted-foreground">
                 No matching channels found
@@ -1480,7 +1487,7 @@ function ChannelMentionsPlugin({
                       {option.candidate.name}
                     </span>
                     {option.candidate.subtitle ? (
-                      <span className="block truncate text-xs text-muted-foreground">
+                      <span className="text-xs block truncate text-muted-foreground">
                         {option.candidate.subtitle}
                       </span>
                     ) : null}
@@ -1508,7 +1515,11 @@ function SlashSourceIcon({ source }: { source: SlashCommandSource }) {
     );
   }
   const Icon =
-    source.kind === 'agent' ? Bot : source.kind === 'coworker' ? Sparkles : Blocks;
+    source.kind === 'agent'
+      ? Bot
+      : source.kind === 'coworker'
+        ? Sparkles
+        : Blocks;
   return (
     <span className="size-7 flex shrink-0 items-center justify-center rounded-md border border-accent-violet/20 bg-accent-violet-soft text-accent-violet">
       <Icon className="size-3.5" />
@@ -1663,49 +1674,52 @@ function SlashCommandsPlugin({
       let runNow = false;
       editor.update(
         () => {
-        // A prompt-scaffold command (AI Studio's `/summarize`, …) drops its
-        // text at the caret for the user to keep typing from — it's a
-        // starting point, not a tagged action, so it isn't a chip.
-        if (option.command.expandsTo) {
-          const text = $createTextNode(option.command.expandsTo);
-          if (nodeToReplace) {
-            nodeToReplace.replace(text);
-          } else {
-            $insertNodes([text]);
+          // A prompt-scaffold command (AI Studio's `/summarize`, …) drops its
+          // text at the caret for the user to keep typing from — it's a
+          // starting point, not a tagged action, so it isn't a chip.
+          if (option.command.expandsTo) {
+            const text = $createTextNode(option.command.expandsTo);
+            if (nodeToReplace) {
+              nodeToReplace.replace(text);
+            } else {
+              $insertNodes([text]);
+            }
+            text.selectEnd();
+            closeMenu();
+            return;
           }
-          text.selectEnd();
-          closeMenu();
-          return;
-        }
 
-        const { insert } = option.command;
-        const chip = insert?.mention
-          ? $createMentionNode(
-              insert.mention.name,
-              insert.mention.id,
-              insert.mention.kind,
-            )
-          : $createCommandNode(option.command.name);
-        if (nodeToReplace) {
-          nodeToReplace.replace(chip);
-        } else {
-          $insertNodes([chip]);
-        }
-        const spacer = $createTextNode(insert?.text ? ` ${insert.text}` : ' ');
-        chip.insertAfter(spacer);
-        spacer.selectEnd();
-        closeMenu();
-        // An argument-less command (`/help`, `/away`, …) has nothing left to
-        // type, so it runs now — unless the message already holds other text.
-        runNow =
-          !!option.command.runOnSelect &&
-          $getRoot().getTextContent().trim() === option.command.name;
+          const { insert } = option.command;
+          const chip = insert?.mention
+            ? $createMentionNode(
+                insert.mention.name,
+                insert.mention.id,
+                insert.mention.kind,
+              )
+            : $createCommandNode(option.command.name);
+          if (nodeToReplace) {
+            nodeToReplace.replace(chip);
+          } else {
+            $insertNodes([chip]);
+          }
+          const spacer = $createTextNode(
+            insert?.text ? ` ${insert.text}` : ' ',
+          );
+          chip.insertAfter(spacer);
+          spacer.selectEnd();
+          closeMenu();
+          // An argument-less command (`/help`, `/away`, …) has nothing left to
+          // type, so it runs now — unless the message already holds other text.
+          runNow =
+            !!option.command.runOnSelect &&
+            $getRoot().getTextContent().trim() === option.command.name;
         },
         {
           // Sent once the chip is committed — `send` reads the committed
           // state, and this runs inside the menu's own Enter handler.
           onUpdate: () => {
-            if (runNow) editor.dispatchCommand(SUBMIT_MESSAGE_COMMAND, undefined);
+            if (runNow)
+              editor.dispatchCommand(SUBMIT_MESSAGE_COMMAND, undefined);
           },
         },
       );
@@ -1743,7 +1757,7 @@ function SlashCommandsPlugin({
             listClassName="max-h-80"
           >
             {options.length === 0 ? (
-              <li className="px-3 py-7 flex flex-col items-center gap-1.5 text-center">
+              <li className="px-3 py-7 gap-1.5 flex flex-col items-center text-center">
                 <span className="size-8 flex items-center justify-center rounded-lg bg-muted text-muted-foreground">
                   <Slash className="size-4" />
                 </span>
@@ -1760,7 +1774,7 @@ function SlashCommandsPlugin({
                   <li
                     role="presentation"
                     className={cn(
-                      'px-2.5 pb-1 flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wide text-muted-foreground/80 select-none',
+                      'px-2.5 pb-1 gap-1.5 font-semibold tracking-wide flex items-center text-2xs text-muted-foreground/80 uppercase select-none',
                       sectionIndex === 0
                         ? 'pt-1'
                         : 'mt-1 pt-2.5 border-t border-border/40',
@@ -1774,7 +1788,7 @@ function SlashCommandsPlugin({
                             ? 'Agent'
                             : 'Coworker'}
                         <span className="opacity-40">·</span>
-                        <span className="normal-case tracking-normal text-foreground/70">
+                        <span className="tracking-normal text-foreground/70 normal-case">
                           {section.label}
                         </span>
                       </>
@@ -1810,28 +1824,31 @@ function SlashCommandsPlugin({
                           </span>
                         )}
                         <span className="min-w-0 flex-1">
-                          <span className="flex min-w-0 items-baseline gap-1.5">
-                            <span className="truncate font-semibold text-foreground">
+                          <span className="min-w-0 gap-1.5 flex items-baseline">
+                            <span className="font-semibold truncate text-foreground">
                               {source ? (
                                 (command.title ?? command.name)
                               ) : (
-                                <CommandName name={command.name} query={needle} />
+                                <CommandName
+                                  name={command.name}
+                                  query={needle}
+                                />
                               )}
                             </span>
                             {command.args && !source ? (
-                              <span className="truncate font-mono text-2xs font-normal text-muted-foreground/80">
+                              <span className="font-normal truncate font-mono text-2xs text-muted-foreground/80">
                                 {command.args}
                               </span>
                             ) : null}
                           </span>
-                          <span className="mt-0.5 block truncate text-2xs font-normal text-muted-foreground">
+                          <span className="mt-0.5 font-normal block truncate text-2xs text-muted-foreground">
                             {command.description}
                           </span>
                         </span>
                         {selected ? (
-                          <span className="flex shrink-0 items-center gap-1 text-2xs font-normal text-muted-foreground">
+                          <span className="gap-1 font-normal flex shrink-0 items-center text-2xs text-muted-foreground">
                             {command.runOnSelect ? 'Run' : 'Use'}
-                            <kbd className="rounded-md border border-border/60 bg-background/70 px-1.5 py-0.5 font-mono text-2xs text-foreground/70">
+                            <kbd className="px-1.5 py-0.5 rounded-md border border-border/60 bg-background/70 font-mono text-2xs text-foreground/70">
                               ↵
                             </kbd>
                           </span>
@@ -1957,8 +1974,7 @@ type BlockType =
 const TOOL_BUTTON_BASE =
   'size-7 flex shrink-0 items-center justify-center rounded-md transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/60 [&_svg]:size-4';
 const TOOL_BUTTON_ON = 'bg-primary/15 text-primary-text';
-const TOOL_BUTTON_OFF =
-  'text-foreground hover:bg-accent hover:text-foreground';
+const TOOL_BUTTON_OFF = 'text-foreground hover:bg-accent hover:text-foreground';
 
 /**
  * One formatting control. `onMouseDown` swallows focus so the editor keeps its
@@ -1985,7 +2001,10 @@ function ToolButton({
         aria-pressed={active}
         onMouseDown={(e) => e.preventDefault()}
         onClick={onClick}
-        className={cn(TOOL_BUTTON_BASE, active ? TOOL_BUTTON_ON : TOOL_BUTTON_OFF)}
+        className={cn(
+          TOOL_BUTTON_BASE,
+          active ? TOOL_BUTTON_ON : TOOL_BUTTON_OFF,
+        )}
       >
         {children}
       </button>
@@ -2188,33 +2207,54 @@ export function ToolbarContent({
       role="toolbar"
       aria-label="Formatting tools"
       className={cn(
-        'gap-px p-0.5 border-border inline-flex items-center rounded-lg border bg-popover text-popover-foreground whitespace-nowrap select-none',
+        'p-0.5 inline-flex items-center gap-px rounded-lg border border-border bg-popover whitespace-nowrap text-popover-foreground select-none',
         floating
-          ? 'shadow-xl ring-1 ring-black/5 dark:ring-white/10'
+          ? 'shadow-xl ring-black/5 dark:ring-white/10 ring-1'
           : 'shadow-lg',
       )}
     >
       {/* Bold Button */}
-      <ToolButton label="Bold" shortcut="Ctrl+B" active={formats.bold} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')}>
-          <span className="font-bold text-[15px] leading-none">B</span>
+      <ToolButton
+        label="Bold"
+        shortcut="Ctrl+B"
+        active={formats.bold}
+        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')}
+      >
+        <span className="font-bold text-[15px] leading-none">B</span>
       </ToolButton>
 
       {/* Italic Button */}
-      <ToolButton label="Italic" shortcut="Ctrl+I" active={formats.italic} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')}>
-          <span className="font-serif font-semibold text-[15px] leading-none italic">
-            I
-          </span>
+      <ToolButton
+        label="Italic"
+        shortcut="Ctrl+I"
+        active={formats.italic}
+        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')}
+      >
+        <span className="font-serif font-semibold text-[15px] leading-none italic">
+          I
+        </span>
       </ToolButton>
 
       {/* Strikethrough Button */}
-      <ToolButton label="Strikethrough" shortcut="Ctrl+Shift+X" active={formats.strikethrough} onClick={() =>
-          editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'strikethrough')}>
-          <Strikethrough />
+      <ToolButton
+        label="Strikethrough"
+        shortcut="Ctrl+Shift+X"
+        active={formats.strikethrough}
+        onClick={() =>
+          editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'strikethrough')
+        }
+      >
+        <Strikethrough />
       </ToolButton>
 
       {/* Inline Code Button */}
-      <ToolButton label="Inline code" shortcut="Ctrl+Shift+C" active={formats.code} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code')}>
-          <Code />
+      <ToolButton
+        label="Inline code"
+        shortcut="Ctrl+Shift+C"
+        active={formats.code}
+        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code')}
+      >
+        <Code />
       </ToolButton>
 
       {/* Link Button & Popover */}
@@ -2237,17 +2277,13 @@ export function ToolbarContent({
               isLink || linkDraft !== null ? TOOL_BUTTON_ON : TOOL_BUTTON_OFF,
             )}
           >
-            {isLink ? (
-              <Link2Off />
-            ) : (
-              <Link2 />
-            )}
+            {isLink ? <Link2Off /> : <Link2 />}
           </button>
         </Hint>
 
         {linkDraft !== null ? (
-          <div className="left-0 mt-1.5 gap-1.5 p-1.5 shadow-lg border-border absolute top-full z-50 flex items-center rounded-xl border bg-popover text-popover-foreground">
-            <Link2 className="size-3.5 text-muted-foreground ml-1 shrink-0" />
+          <div className="left-0 mt-1.5 gap-1.5 p-1.5 absolute top-full z-50 flex items-center rounded-xl border border-border bg-popover text-popover-foreground shadow-lg">
+            <Link2 className="size-3.5 ml-1 shrink-0 text-muted-foreground" />
             <input
               ref={linkInputRef}
               type="url"
@@ -2265,7 +2301,7 @@ export function ToolbarContent({
                   editor.focus();
                 }
               }}
-              className="w-48 text-xs bg-background text-foreground placeholder:text-subtle px-2.5 py-1 border-border rounded-lg border transition-colors outline-none focus:border-primary"
+              className="w-48 text-xs px-2.5 py-1 rounded-lg border border-border bg-background text-foreground transition-colors outline-none placeholder:text-subtle focus:border-primary"
             />
             <button
               type="button"
@@ -2283,7 +2319,7 @@ export function ToolbarContent({
                 setLinkDraft(null);
                 editor.focus();
               }}
-              className="size-6 text-muted-foreground hover:text-foreground hover:bg-accent flex items-center justify-center rounded-lg transition-colors"
+              className="size-6 flex items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               aria-label="Cancel link"
             >
               <X className="size-3.5" />
@@ -2292,33 +2328,53 @@ export function ToolbarContent({
         ) : null}
       </div>
 
-      <span className="mx-0.5 h-4 bg-border w-px shrink-0" />
+      <span className="mx-0.5 h-4 w-px shrink-0 bg-border" />
 
       {/* Bulleted List Button */}
-      <ToolButton label="Bulleted list" shortcut="Ctrl+Shift+8" active={blockType === 'ul'} onClick={() => setBlock('ul')}>
-          <List />
+      <ToolButton
+        label="Bulleted list"
+        shortcut="Ctrl+Shift+8"
+        active={blockType === 'ul'}
+        onClick={() => setBlock('ul')}
+      >
+        <List />
       </ToolButton>
 
       {/* Numbered List Button */}
-      <ToolButton label="Numbered list" shortcut="Ctrl+Shift+7" active={blockType === 'ol'} onClick={() => setBlock('ol')}>
-          <ListOrdered />
+      <ToolButton
+        label="Numbered list"
+        shortcut="Ctrl+Shift+7"
+        active={blockType === 'ol'}
+        onClick={() => setBlock('ol')}
+      >
+        <ListOrdered />
       </ToolButton>
 
-      <span className="mx-0.5 h-4 bg-border w-px shrink-0" />
+      <span className="mx-0.5 h-4 w-px shrink-0 bg-border" />
 
       {/* Quote Button */}
-      <ToolButton label="Quote" shortcut="Ctrl+Shift+9" active={blockType === 'quote'} onClick={() => setBlock('quote')}>
-          <Quote />
+      <ToolButton
+        label="Quote"
+        shortcut="Ctrl+Shift+9"
+        active={blockType === 'quote'}
+        onClick={() => setBlock('quote')}
+      >
+        <Quote />
       </ToolButton>
 
       {/* Code Block Button */}
-      <ToolButton label="Code block" shortcut="```" active={blockType === 'code'} onClick={() => setBlock('code')}>
-          <SquareCode />
+      <ToolButton
+        label="Code block"
+        shortcut="```"
+        active={blockType === 'code'}
+        onClick={() => setBlock('code')}
+      >
+        <SquareCode />
       </ToolButton>
 
       {toolbarSlot && !floating ? (
         <>
-          <span className="mx-0.5 h-4 bg-border w-px shrink-0" />
+          <span className="mx-0.5 h-4 w-px shrink-0 bg-border" />
           {toolbarSlot}
         </>
       ) : null}

@@ -107,6 +107,18 @@
   --color-warning-text: var(--warning-text);
   --color-info-text: var(--info-text);
 
+  /*
+   * Mention chips look the same everywhere, so these are literal values rather
+   * than `var()`s: no accent, `.dark` or workspace theme can repaint them. The
+   * fills are opaque for the same reason — a translucent tint would pick up
+   * whatever surface sits behind it. Do not redefine these per theme.
+   */
+  --color-mention: #e8f1ff;
+  --color-mention-hover: #d6e6ff;
+  --color-mention-foreground: #1d5fd6;
+  --color-group-mention: #fae7e0;
+  --color-group-mention-foreground: #b93300;
+
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
   --color-input: var(--input);
@@ -207,9 +219,12 @@
   --text-2xs--line-height: 1.4;
 
   --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
-  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.08);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.08);
+  --shadow-sm:
+    0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.08);
+  --shadow-md:
+    0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.08);
+  --shadow-lg:
+    0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.08);
   --shadow-elevated: var(--shadow-elevated-value);
   --shadow-overlay: var(--shadow-overlay-value);
 
@@ -406,7 +421,8 @@
   --sidebar-border: #eeece6;
   --sidebar-ring: #037152;
 
-  --app-gradient: radial-gradient(
+  --app-gradient:
+    radial-gradient(
       circle at 0% 0%,
       color-mix(in oklch, var(--primary) 7%, transparent) 0%,
       transparent 35%
@@ -417,7 +433,11 @@
       transparent 30%
     ),
     var(--background);
-  --surface-gradient: linear-gradient(180deg, var(--surface) 0%, var(--surface-muted) 100%);
+  --surface-gradient: linear-gradient(
+    180deg,
+    var(--surface) 0%,
+    var(--surface-muted) 100%
+  );
 
   /*
    * Elevation stays quiet: a tight contact shadow plus a wider, very low-alpha
@@ -535,7 +555,8 @@
   --sidebar-border: #2e2e2e;
   --sidebar-ring: #60c686;
 
-  --app-gradient: radial-gradient(
+  --app-gradient:
+    radial-gradient(
       circle at 0% 0%,
       color-mix(in oklch, var(--primary) 8%, transparent) 0%,
       transparent 38%
@@ -546,7 +567,11 @@
       transparent 32%
     ),
     var(--background);
-  --surface-gradient: linear-gradient(180deg, var(--surface) 0%, var(--surface-muted) 100%);
+  --surface-gradient: linear-gradient(
+    180deg,
+    var(--surface) 0%,
+    var(--surface-muted) 100%
+  );
 
   --shadow-elevated-value:
     0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.32);
@@ -556,21 +581,21 @@
 
 /* ---------------------------------------------------- Density Modes ---- */
 :root,
-[data-density="default"] {
+[data-density='default'] {
   --density-gap: 12px;
   --density-padding: 12px;
   --density-height: 36px;
   --density-font-size: 14px;
 }
 
-[data-density="compact"] {
+[data-density='compact'] {
   --density-gap: 8px;
   --density-padding: 8px;
   --density-height: 30px;
   --density-font-size: 13px;
 }
 
-[data-density="comfortable"] {
+[data-density='comfortable'] {
   --density-gap: 16px;
   --density-padding: 16px;
   --density-height: 42px;
@@ -578,7 +603,7 @@
 }
 
 /* --------------------------------------------------- Radius Presets ---- */
-[data-radius="xs"] {
+[data-radius='xs'] {
   --radius: 4px;
   --radius-sm: 2px;
   --radius-md: 4px;
@@ -591,7 +616,7 @@
   --radius-dialog: 6px;
 }
 
-[data-radius="sm"] {
+[data-radius='sm'] {
   --radius: 6px;
   --radius-sm: 4px;
   --radius-md: 6px;
@@ -604,7 +629,7 @@
   --radius-dialog: 8px;
 }
 
-[data-radius="md"] {
+[data-radius='md'] {
   --radius: 8px;
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -617,7 +642,7 @@
   --radius-dialog: 12px;
 }
 
-[data-radius="lg"] {
+[data-radius='lg'] {
   --radius: 10px;
   --radius-sm: 6px;
   --radius-md: 10px;
@@ -630,7 +655,7 @@
   --radius-dialog: 14px;
 }
 
-[data-radius="xl"] {
+[data-radius='xl'] {
   --radius: 14px;
   --radius-sm: 8px;
   --radius-md: 14px;
@@ -644,112 +669,112 @@
 }
 
 /* ---------------------------------------------------- Accent Themes ---- */
-[data-accent="violet"] {
+[data-accent='violet'] {
   --primary: var(--accent-violet);
   --primary-foreground: #ffffff;
   --primary-hover: #6a4bc0;
   --ring: var(--accent-violet);
 }
-.dark[data-accent="violet"],
-[data-accent="violet"].dark {
+.dark[data-accent='violet'],
+[data-accent='violet'].dark {
   --primary: #a899f8;
   --primary-foreground: #1c1438;
   --primary-hover: #b9acf9;
   --ring: #a899f8;
 }
 
-[data-accent="blue"] {
+[data-accent='blue'] {
   --primary: var(--accent-blue);
   --primary-foreground: #ffffff;
   --primary-hover: #3d5dc6;
   --ring: var(--accent-blue);
 }
-.dark[data-accent="blue"],
-[data-accent="blue"].dark {
+.dark[data-accent='blue'],
+[data-accent='blue'].dark {
   --primary: #9eb4f6;
   --primary-foreground: #0d1a3a;
   --primary-hover: #b2c4f8;
   --ring: #9eb4f6;
 }
 
-[data-accent="cyan"] {
+[data-accent='cyan'] {
   --primary: var(--accent-cyan);
   --primary-foreground: #ffffff;
   --primary-hover: #158c9f;
   --ring: var(--accent-cyan);
 }
-.dark[data-accent="cyan"],
-[data-accent="cyan"].dark {
+.dark[data-accent='cyan'],
+[data-accent='cyan'].dark {
   --primary: #63d4e8;
   --primary-foreground: #09262c;
   --primary-hover: #7ee0f0;
   --ring: #63d4e8;
 }
 
-[data-accent="teal"] {
+[data-accent='teal'] {
   --primary: var(--accent-teal);
   --primary-foreground: #ffffff;
   --primary-hover: #0d7967;
   --ring: var(--accent-teal);
 }
-.dark[data-accent="teal"],
-[data-accent="teal"].dark {
+.dark[data-accent='teal'],
+[data-accent='teal'].dark {
   --primary: #45ccb6;
   --primary-foreground: #072621;
   --primary-hover: #5ed6c3;
   --ring: #45ccb6;
 }
 
-[data-accent="amber"] {
+[data-accent='amber'] {
   --primary: var(--accent-amber);
   --primary-foreground: #2a1f08;
   --primary-hover: #c48924;
   --ring: var(--accent-amber);
 }
-.dark[data-accent="amber"],
-[data-accent="amber"].dark {
+.dark[data-accent='amber'],
+[data-accent='amber'].dark {
   --primary: #f5be74;
   --primary-foreground: #2d1a04;
   --primary-hover: #f7ca8c;
   --ring: #f5be74;
 }
 
-[data-accent="orange"] {
+[data-accent='orange'] {
   --primary: var(--accent-orange);
   --primary-foreground: #ffffff;
   --primary-hover: #e86342;
   --ring: var(--accent-orange);
 }
-.dark[data-accent="orange"],
-[data-accent="orange"].dark {
+.dark[data-accent='orange'],
+[data-accent='orange'].dark {
   --primary: #ffa06d;
   --primary-foreground: #341207;
   --primary-hover: #ffb187;
   --ring: #ffa06d;
 }
 
-[data-accent="rose"] {
+[data-accent='rose'] {
   --primary: var(--accent-rose);
   --primary-foreground: #ffffff;
   --primary-hover: #cb324b;
   --ring: var(--accent-rose);
 }
-.dark[data-accent="rose"],
-[data-accent="rose"].dark {
+.dark[data-accent='rose'],
+[data-accent='rose'].dark {
   --primary: #ff787b;
   --primary-foreground: #360a0f;
   --primary-hover: #ff8e91;
   --ring: #ff787b;
 }
 
-[data-accent="indigo"] {
+[data-accent='indigo'] {
   --primary: var(--accent-indigo);
   --primary-foreground: #ffffff;
   --primary-hover: #3547a4;
   --ring: var(--accent-indigo);
 }
-.dark[data-accent="indigo"],
-[data-accent="indigo"].dark {
+.dark[data-accent='indigo'],
+[data-accent='indigo'].dark {
   --primary: #9aaaf5;
   --primary-foreground: #0f1638;
   --primary-hover: #aebcf7;
@@ -834,7 +859,16 @@ html:not(.dark) .app-content-panel {
    * click delay legacy touch handling still adds on some engines. `:where()`
    * keeps specificity at 0 so any component can override.
    */
-  :where(button, a, summary, label, [role='button'], [role='tab'], [role='menuitem'], [role='option']) {
+  :where(
+    button,
+    a,
+    summary,
+    label,
+    [role='button'],
+    [role='tab'],
+    [role='menuitem'],
+    [role='option']
+  ) {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
@@ -849,10 +883,12 @@ html:not(.dark) .app-content-panel {
    */
   @media (max-width: 639px) {
     :where(
-        input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='button']):not([type='submit']):not([type='reset']),
-        textarea,
-        select
-      ) {
+      input:not([type='checkbox']):not([type='radio']):not([type='range']):not(
+          [type='color']
+        ):not([type='button']):not([type='submit']):not([type='reset']),
+      textarea,
+      select
+    ) {
       font-size: 16px;
     }
   }

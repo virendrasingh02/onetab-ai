@@ -73,7 +73,9 @@ if (desktopApiForRefresh) {
       // main process); anything else resolves `null` instead. A rejection
       // here always means "sign out," never "try again."
       throw new SessionRejectedError(
-        error instanceof Error ? error.message : 'Desktop session refresh was rejected.',
+        error instanceof Error
+          ? error.message
+          : 'Desktop session refresh was rejected.',
       );
     }
     if (!session?.accessToken) {
@@ -137,7 +139,10 @@ export function useSessionBootstrap(): void {
           const desktopSession = await desktopApi.auth.getSession();
           if (desktopSession?.user && desktopSession.accessToken) {
             setAccessToken(desktopSession.accessToken);
-            setSession(desktopSession.user as unknown as CurrentUser, desktopSession.accessToken);
+            setSession(
+              desktopSession.user as unknown as CurrentUser,
+              desktopSession.accessToken,
+            );
             try {
               const me = await authApi.me();
               // `me()` may have silently gone through the axios interceptor's
@@ -148,7 +153,8 @@ export function useSessionBootstrap(): void {
               // would immediately 401 the next request and restart the whole
               // refresh dance — see the matrix-provider backoff, which relies
               // on the token staying put once a sync attempt has run.
-              if (!cancelled) setSession(me, getAccessToken() ?? desktopSession.accessToken);
+              if (!cancelled)
+                setSession(me, getAccessToken() ?? desktopSession.accessToken);
               return;
             } catch {
               // The stored access token is a JWT with a short TTL (minutes);
@@ -161,14 +167,19 @@ export function useSessionBootstrap(): void {
                 if (refreshed?.user && refreshed.accessToken) {
                   setAccessToken(refreshed.accessToken);
                   const me = await authApi.me();
-                  if (!cancelled) setSession(me, getAccessToken() ?? refreshed.accessToken);
+                  if (!cancelled)
+                    setSession(me, getAccessToken() ?? refreshed.accessToken);
                   return;
                 }
                 // Transient failure (offline, API restarting): keep the
                 // cached identity showing rather than bounce to /login for a
                 // blip, matching the cookie path's "unreachable" fallback.
                 if (user) {
-                  if (!cancelled) setSession(user, getAccessToken() ?? desktopSession.accessToken);
+                  if (!cancelled)
+                    setSession(
+                      user,
+                      getAccessToken() ?? desktopSession.accessToken,
+                    );
                   return;
                 }
               } catch {
@@ -225,7 +236,8 @@ export function useSessionBootstrap(): void {
           }
 
           // Unreachable, not refused. Keep whoever was signed in here.
-          if (user && getAccessToken()) setSession(user, getAccessToken() ?? '');
+          if (user && getAccessToken())
+            setSession(user, getAccessToken() ?? '');
           else clear();
           return;
         }
@@ -425,8 +437,7 @@ export function useVerifyMagicLink() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: MagicLinkVerifyInput) =>
-      authApi.verifyMagicLink(input),
+    mutationFn: (input: MagicLinkVerifyInput) => authApi.verifyMagicLink(input),
     onSuccess: (data) => {
       // Two-factor on: the link was only the first step.
       if (isTwoFactorChallenge(data)) return;
@@ -460,6 +471,7 @@ const PUBLIC_AUTH_PATH_PREFIXES = [
   '/login',
   '/register',
   '/forgot-password',
+  '/account/delete',
   '/reset-password',
   '/logout',
   '/invite/',
@@ -469,7 +481,9 @@ const PUBLIC_AUTH_PATH_PREFIXES = [
 ];
 
 export function isPublicAuthPath(pathname: string): boolean {
-  return PUBLIC_AUTH_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  return PUBLIC_AUTH_PATH_PREFIXES.some((prefix) =>
+    pathname.startsWith(prefix),
+  );
 }
 
 /**

@@ -536,7 +536,11 @@ export interface PinnedMessageCardProps {
   message: Message;
   onJump?: (messageId: string) => void;
   onUnpin?: (messageId: string) => void;
-  onReact?: (messageId: string, emoji: string, reactedByMe: boolean) => void;
+  onReact?: (
+    messageId: string,
+    emoji: string,
+    reactedByMe: boolean,
+  ) => void | Promise<unknown>;
   onOpenThread?: (messageId: string) => void;
   onForward?: (message: Message) => void;
   onToggleSave?: (messageId: string) => void;
@@ -585,29 +589,29 @@ export function PinnedMessageCard({
       role="article"
       aria-label={`Pinned message from ${message.senderName}`}
       className={cn(
-        'group/pinned-card relative rounded-xl border border-border/80 bg-surface p-3.5 sm:p-4 shadow-xs transition-all duration-150',
-        'hover:border-border hover:shadow-sm focus-within:border-border',
+        'group/pinned-card p-3.5 sm:p-4 relative rounded-xl border border-border/80 bg-surface shadow-xs transition-all duration-150',
+        'focus-within:border-border hover:border-border hover:shadow-sm',
       )}
     >
       {/* Top author row */}
-      <div className="flex items-start gap-2.5">
+      <div className="gap-2.5 flex items-start">
         <UserAvatar
           name={message.senderName}
           src={message.senderAvatarUrl}
           seed={message.senderId}
           size="sm"
-          className="size-8.5 rounded-lg shrink-0 mt-0.5"
+          className="size-8.5 mt-0.5 shrink-0 rounded-lg"
         />
 
-        <div className="min-w-0 flex-1 pr-24">
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+        <div className="min-w-0 pr-24 flex-1">
+          <div className="gap-x-2 gap-y-0.5 flex flex-wrap items-baseline">
             <span
               onClick={() => onJump?.(message.id)}
-              className="text-xs sm:text-sm font-semibold text-foreground truncate cursor-pointer hover:underline"
+              className="text-xs sm:text-sm font-semibold cursor-pointer truncate text-foreground hover:underline"
             >
               {message.senderName}
             </span>
-            <span className="text-xs text-muted-foreground font-normal shrink-0">
+            <span className="text-xs font-normal shrink-0 text-muted-foreground">
               {formatPinnedTimestamp(message.timestamp)}
             </span>
           </div>
@@ -617,8 +621,8 @@ export function PinnedMessageCard({
       {/* Floating action toolbar (top-right) */}
       <div
         className={cn(
-          'absolute top-2.5 right-2.5 flex items-center rounded-lg border border-border bg-surface-raised/95 backdrop-blur-xs shadow-xs px-1 py-0.5 gap-0.5 z-10',
-          'opacity-0 group-hover/pinned-card:opacity-100 group-focus-within/pinned-card:opacity-100 transition-opacity duration-150',
+          'top-2.5 right-2.5 backdrop-blur-xs px-1 py-0.5 gap-0.5 absolute z-10 flex items-center rounded-lg border border-border bg-surface-raised/95 shadow-xs',
+          'opacity-0 transition-opacity duration-150 group-focus-within/pinned-card:opacity-100 group-hover/pinned-card:opacity-100',
         )}
       >
         {onReact ? (
@@ -636,7 +640,7 @@ export function PinnedMessageCard({
             <button
               type="button"
               aria-label="Add reaction"
-              className="size-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              className="size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               <Smile className="size-3.5" />
             </button>
@@ -652,7 +656,7 @@ export function PinnedMessageCard({
                 onOpenThread(message.threadRootId ?? message.id);
               }}
               aria-label="Reply in thread"
-              className="size-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              className="size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               <MessageSquare className="size-3.5" />
             </button>
@@ -668,7 +672,7 @@ export function PinnedMessageCard({
                 onForward(message);
               }}
               aria-label="Forward message"
-              className="size-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              className="size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               <Forward className="size-3.5" />
             </button>
@@ -685,9 +689,9 @@ export function PinnedMessageCard({
               }}
               aria-label={isSaved ? 'Remove from saved' : 'Save message'}
               className={cn(
-                'size-7 flex items-center justify-center rounded-md hover:bg-accent transition-colors',
+                'size-7 flex items-center justify-center rounded-md transition-colors hover:bg-accent',
                 isSaved
-                  ? 'text-primary fill-current'
+                  ? 'fill-current text-primary'
                   : 'text-muted-foreground hover:text-foreground',
               )}
             >
@@ -701,7 +705,7 @@ export function PinnedMessageCard({
             <button
               type="button"
               aria-label="More options"
-              className="size-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              className="size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               <MoreHorizontal className="size-3.5" />
             </button>
@@ -735,7 +739,7 @@ export function PinnedMessageCard({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => onUnpin(message.id)}
-                  className="gap-2 text-xs text-destructive hover:bg-destructive/10 cursor-pointer"
+                  className="gap-2 text-xs cursor-pointer text-destructive hover:bg-destructive/10"
                 >
                   <PinOff className="size-3.5" />
                   <span>Unpin from channel</span>
@@ -748,11 +752,11 @@ export function PinnedMessageCard({
 
       {/* Message content */}
       <div
-        className="mt-2 text-sm leading-relaxed text-foreground/95 cursor-pointer"
+        className="mt-2 text-sm leading-relaxed cursor-pointer text-foreground/95"
         onClick={() => onJump?.(message.id)}
       >
         {message.isRedacted ? (
-          <p className="italic text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground italic">
             This message was deleted.
           </p>
         ) : (
@@ -814,14 +818,18 @@ export interface PinnedBannerProps {
 }
 
 /** Slim strip above the timeline showing the newest pin; click to jump to it. */
-export function PinnedBanner({ messages, onJump, onViewAll }: PinnedBannerProps) {
+export function PinnedBanner({
+  messages,
+  onJump,
+  onViewAll,
+}: PinnedBannerProps) {
   const latest = messages[0];
   if (!latest) return null;
   const preview =
     latest.body.replace(/\s+/g, ' ').trim() ||
     (latest.attachment ? 'Attachment' : 'Message');
   return (
-    <div className="gap-2 border-b border-border bg-warning/[0.06] px-3 py-1.5 flex shrink-0 items-center text-xs">
+    <div className="gap-2 px-3 py-1.5 text-xs flex shrink-0 items-center border-b border-border bg-warning/[0.06]">
       <Pin className="size-3.5 shrink-0 text-warning-text" aria-hidden />
       <button
         type="button"
@@ -829,7 +837,7 @@ export function PinnedBanner({ messages, onJump, onViewAll }: PinnedBannerProps)
         className="gap-1.5 min-w-0 flex flex-1 items-center text-left hover:underline"
         aria-label={`Jump to pinned message from ${latest.senderName}`}
       >
-        <span className="shrink-0 font-semibold text-foreground">
+        <span className="font-semibold shrink-0 text-foreground">
           {latest.senderName}
         </span>
         <MessageText
@@ -841,7 +849,7 @@ export function PinnedBanner({ messages, onJump, onViewAll }: PinnedBannerProps)
         <button
           type="button"
           onClick={onViewAll}
-          className="shrink-0 font-medium text-muted-foreground hover:text-foreground"
+          className="font-medium shrink-0 text-muted-foreground hover:text-foreground"
         >
           {messages.length > 1 ? `${messages.length} pinned` : 'View pinned'}
         </button>
@@ -854,7 +862,11 @@ export interface PinnedPanelProps {
   messages: Message[];
   onJump?: (messageId: string) => void;
   onUnpin?: (messageId: string) => void;
-  onReact?: (messageId: string, emoji: string, reactedByMe: boolean) => void;
+  onReact?: (
+    messageId: string,
+    emoji: string,
+    reactedByMe: boolean,
+  ) => void | Promise<unknown>;
   onOpenThread?: (messageId: string) => void;
   onForward?: (message: Message) => void;
   onToggleSave?: (messageId: string) => void;
@@ -885,7 +897,10 @@ export function PinnedPanel({
   }
 
   return (
-    <ScrollArea className="h-full min-h-0 flex-1" contentClassName="p-3.5 sm:p-4 space-y-3">
+    <ScrollArea
+      className="min-h-0 h-full flex-1"
+      contentClassName="p-3.5 sm:p-4 space-y-3"
+    >
       {messages.map((message) => (
         <PinnedMessageCard
           key={message.id}
@@ -908,7 +923,11 @@ export interface SavedPanelProps {
   messages: Message[];
   onJump?: (messageId: string) => void;
   onRemove?: (messageId: string) => void;
-  onReact?: (messageId: string, emoji: string, reactedByMe: boolean) => void;
+  onReact?: (
+    messageId: string,
+    emoji: string,
+    reactedByMe: boolean,
+  ) => void | Promise<unknown>;
   onOpenThread?: (messageId: string) => void;
   onForward?: (message: Message) => void;
   onCopyLink?: (message: Message) => void;
@@ -936,7 +955,10 @@ export function SavedPanel({
   }
 
   return (
-    <ScrollArea className="h-full min-h-0 flex-1" contentClassName="p-3.5 sm:p-4 space-y-3">
+    <ScrollArea
+      className="min-h-0 h-full flex-1"
+      contentClassName="p-3.5 sm:p-4 space-y-3"
+    >
       {messages.map((message) => (
         <PinnedMessageCard
           key={message.id}
@@ -1012,7 +1034,7 @@ export function ThreadListPanel({
                 <span className="text-sm font-semibold truncate">
                   {thread.root.senderName}
                 </span>
-                <span className="shrink-0 text-xs text-subtle">
+                <span className="text-xs shrink-0 text-subtle">
                   {formatListTimestamp(thread.root.timestamp)}
                 </span>
                 {thread.hasUnread ? (
@@ -1139,7 +1161,7 @@ export function UnreadDivider({ label = 'New' }: { label?: string }) {
       role="separator"
       aria-label={`${label} messages below`}
     >
-      <span className="px-2 py-0.5 font-semibold tracking-wide rounded-full bg-destructive text-2xs text-destructive-foreground uppercase shrink-0">
+      <span className="px-2 py-0.5 font-semibold tracking-wide shrink-0 rounded-full bg-destructive text-2xs text-destructive-foreground uppercase">
         {label}
       </span>
       <span

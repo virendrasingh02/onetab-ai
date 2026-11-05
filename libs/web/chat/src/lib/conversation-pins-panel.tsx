@@ -17,7 +17,9 @@ const pinnedMessageKey = (roomId: string | undefined, eventId: string) =>
  * How many messages are pinned in a room — `m.room.pinned_events` state, so it
  * updates live for everyone in the room. Drives the Pins tab's count badge.
  */
-export function useConversationPinCount(roomId: string | null | undefined): number {
+export function useConversationPinCount(
+  roomId: string | null | undefined,
+): number {
   const { room } = useRoomSummary(roomId ?? undefined);
   return room?.pinnedEventIds?.length ?? 0;
 }
@@ -38,7 +40,10 @@ export interface ConversationPinsPanelProps {
  * event is fetched on its own and cached per id, so pinning one more message
  * fetches only that one.
  */
-export function ConversationPinsPanel({ roomId, onShowInChat }: ConversationPinsPanelProps) {
+export function ConversationPinsPanel({
+  roomId,
+  onShowInChat,
+}: ConversationPinsPanelProps) {
   const { client, configStatus } = useMatrix();
   const { room } = useRoomSummary(roomId ?? undefined);
   const actions = useRoomActions(roomId ?? undefined);
@@ -55,7 +60,9 @@ export function ConversationPinsPanel({ roomId, onShowInChat }: ConversationPins
       enabled: !!client && !!roomId,
       staleTime: 5 * 60_000,
       queryFn: async () =>
-        client && roomId ? ((await client.fetchMessage(roomId, eventId)) ?? null) : null,
+        client && roomId
+          ? ((await client.fetchMessage(roomId, eventId)) ?? null)
+          : null,
     })),
   });
 
@@ -119,7 +126,7 @@ export function ConversationPinsPanel({ roomId, onShowInChat }: ConversationPins
   const handleReact = useCallback(
     async (messageId: string, key: string, reactedByMe: boolean) => {
       try {
-        await actions.toggleReaction(messageId, key, reactedByMe);
+        return await actions.toggleReaction(messageId, key, reactedByMe);
       } finally {
         // Fetched messages are a snapshot; refetch so the pill reflects it.
         void queryClient.invalidateQueries({
@@ -162,9 +169,9 @@ export function ConversationPinsPanel({ roomId, onShowInChat }: ConversationPins
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="mx-4 border-b border-border/40 pt-3 pb-2.5 sm:mx-6">
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+    <div className="min-h-0 flex flex-1 flex-col">
+      <div className="mx-4 pt-3 pb-2.5 sm:mx-6 border-b border-border/40">
+        <h3 className="gap-2 text-sm font-semibold flex items-center text-foreground">
           <Pin className="size-4 text-primary" />
           <span>Pinned messages</span>
         </h3>
@@ -178,7 +185,7 @@ export function ConversationPinsPanel({ roomId, onShowInChat }: ConversationPins
         messages={messages}
         onJump={handleJump}
         onUnpin={canPin ? (id) => void handleUnpin(id) : undefined}
-        onReact={(id, key, reactedByMe) => void handleReact(id, key, reactedByMe)}
+        onReact={handleReact}
         onOpenThread={(id) => showInChat(id, id)}
         onCopyLink={(message) => void handleCopyLink(message)}
       />

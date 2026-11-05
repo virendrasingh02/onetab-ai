@@ -1,6 +1,7 @@
 import {
   ClientEvent,
   Direction,
+  EventStatus,
   HttpApiEvent,
   MatrixEventEvent,
   NotificationCountType,
@@ -109,6 +110,16 @@ import {
   type StructuredChatMessage,
   formatSystemEventFallbackText,
 } from './types.js';
+import { checkContent, CONTENT_BLOCKED_MESSAGE } from '@org/types';
+
+/**
+ * Backstop behind the composer's own check, for every other caller: retries,
+ * slash commands, the new-DM flow. Text-only: Matrix never sees through to us,
+ * so a client other than ours is not stopped here.
+ */
+function assertSendable(body: string): void {
+  if (!checkContent(body).allowed) throw new Error(CONTENT_BLOCKED_MESSAGE);
+}
 
 /** Upper bound on saved messages kept in account data. */
 const MAX_SAVED_MESSAGES = 500;
@@ -207,6 +218,11 @@ export interface MatrixClientOptions {
   initialSyncLimit?: number;
   /** Clock for optimistic local echoes; pass a server-aligned one so they match what the server will stamp. */
   now?: () => number;
+  /**
+   * Runs before media leaves for an unencrypted room and rejects to stop it.
+   * Encrypted rooms skip it: their content must not reach a server in the clear.
+   */
+  mediaGuard?: (file: File) => Promise<void>;
 }
 
 export interface LoginCredentials {
@@ -223,17 +239,26 @@ export interface LoginCredentials {
  * package boundary. Consumers get plain domain objects and one typed event
  * stream, which is what makes the transport swappable.
  */
+/** Identifies one reaction of the local user: a message and an emoji. */
+function reactionSlot(eventId: EventId, key: string): string {
+  return `${eventId}\n${key}`;
+}
+
 export class OneTabMatrixClient {
   private sdk: SdkClient | null = null;
   private session: MatrixSession | null = null;
   private readonly listeners = new Set<MatrixEventListener>();
   private status: ConnectionStatus = { state: 'disconnected' };
   private readonly sessionStore: SessionStore;
-  private readonly options: Required<Omit<MatrixClientOptions, 'sessionStore'>>;
+  private readonly options: Required<
+    Omit<MatrixClientOptions, 'sessionStore' | 'mediaGuard'>
+  >;
   /** Local echoes awaiting acknowledgement, keyed by transaction id. */
   private readonly pendingEchoes = new Map<string, Message>();
   /** Reaction event id → the message it reacts to (see the redaction handler). */
   private readonly reactionTargets = new Map<string, string>();
+  /** Reactions on their way to the homeserver, by `reactionSlot`. */
+  private readonly reactionSends = new Map<string, Promise<unknown>>();
   /** Rooms whose automatic read receipts are held after "Mark unread". */
   private readonly readHolds = new Set<RoomId>();
   private readonly verification = new VerificationManager(
@@ -247,7 +272,10 @@ export class OneTabMatrixClient {
   );
   private readonly searchService = new MatrixSearchService(() => this.sdk);
 
+  private readonly mediaGuard?: (file: File) => Promise<void>;
+
   constructor(options: MatrixClientOptions) {
+    this.mediaGuard = options.mediaGuard;
     this.sessionStore = options.sessionStore ?? new LocalStorageSessionStore();
     this.options = {
       homeserverUrl: options.homeserverUrl,
@@ -1069,6 +1097,7 @@ export class OneTabMatrixClient {
   /** Sets or updates a room avatar image. */
   async setRoomAvatar(roomId: RoomId, file: File): Promise<string> {
     const sdk = this.require();
+    await this.screenMedia(roomId, file);
     const upload = await withRetry(() =>
       sdk.uploadContent(file, {
         name: file.name,
@@ -1389,6 +1418,7 @@ export class OneTabMatrixClient {
       mentions?: { userId: string; label: string }[];
     } = {},
   ): Promise<string> {
+    assertSendable(body);
     const { alsoSendToChannel, mentions, ...rest } = options;
     const roomMention = hasRoomMention(body);
     const mentionContent =
@@ -1734,6 +1764,7 @@ export class OneTabMatrixClient {
     newBody: string,
     mentions?: { userId: string; label: string }[],
   ): Promise<void> {
+    assertSendable(newBody);
     const sdk = this.require();
 
     // Editing a forward edits only the note: the forwarded original rides
@@ -1810,9 +1841,59 @@ export class OneTabMatrixClient {
     );
   }
 
+  /** The local user's own reactions with this key, failed sends included. */
+  private myReactions(
+    sdk: SdkClient,
+    room: SdkRoom,
+    eventId: EventId,
+    key: string,
+  ): MatrixEvent[] {
+    const myUserId = sdk.getUserId();
+    return (
+      room
+        .getUnfilteredTimelineSet()
+        .relations?.getChildEventsForEvent(
+          eventId,
+          'm.annotation',
+          'm.reaction',
+        )
+        ?.getRelations()
+        .filter(
+          (event) =>
+            event.getSender() === myUserId &&
+            event.getRelation()?.key === key &&
+            !event.isRedacted(),
+        ) ?? []
+    );
+  }
+
+  /** Re-reads a message, for changes that have no event of their own. */
+  private refreshMessage(
+    sdk: SdkClient,
+    room: SdkRoom,
+    eventId: EventId,
+  ): void {
+    const target = room.findEventById(eventId);
+    const message = target ? toMessage(sdk, target, room) : null;
+    if (message) this.emit({ type: 'message.updated', message });
+  }
+
+  /**
+   * Adds the local user's reaction. It shows at once through the SDK's local
+   * echo, which is taken back if the send fails: the SDK keeps a failed echo
+   * until it's cancelled, leaving a reaction nobody else can see.
+   */
   async react(roomId: RoomId, eventId: EventId, key: string): Promise<void> {
     const sdk = this.require();
-    await withRetry(() =>
+    const room = sdk.getRoom(roomId);
+    const failed = (event: MatrixEvent) =>
+      event.status === EventStatus.NOT_SENT;
+    // The homeserver refuses a duplicate, so a double-fire stops here.
+    const existing = room ? this.myReactions(sdk, room, eventId, key) : [];
+    if (existing.some((event) => !failed(event))) return;
+
+    const slot = reactionSlot(eventId, key);
+    const send = withRetry(() =>
       sdk.sendEvent(
         roomId,
         'm.reaction' as never,
@@ -1821,6 +1902,21 @@ export class OneTabMatrixClient {
         } as never,
       ),
     );
+    this.reactionSends.set(slot, send);
+    try {
+      await send;
+    } catch (error) {
+      if (room) {
+        // `withRetry` leaves one failed echo per attempt.
+        this.myReactions(sdk, room, eventId, key)
+          .filter(failed)
+          .forEach((event) => sdk.cancelPendingEvent(event));
+        this.refreshMessage(sdk, room, eventId);
+      }
+      throw error;
+    } finally {
+      this.reactionSends.delete(slot);
+    }
   }
 
   /** Removes the local user's reaction. No-op when they have not reacted. */
@@ -1831,29 +1927,20 @@ export class OneTabMatrixClient {
   ): Promise<void> {
     const sdk = this.require();
     const room = sdk.getRoom(roomId);
-    const myUserId = sdk.getUserId();
-    if (!room || !myUserId) return;
+    if (!room) return;
 
-    const mine = room
-      .getUnfilteredTimelineSet()
-      .relations?.getChildEventsForEvent(eventId, 'm.annotation', 'm.reaction')
-      ?.getRelations()
-      .find(
-        (event) =>
-          event.getSender() === myUserId &&
-          event.getRelation()?.key === key &&
-          !event.isRedacted(),
-      );
+    // A reaction still sending has only a local id, which can't be redacted.
+    await this.reactionSends
+      .get(reactionSlot(eventId, key))
+      ?.catch(() => undefined);
 
-    const reactionId = mine?.getId();
+    const reactionId = this.myReactions(sdk, room, eventId, key)[0]?.getId();
     if (!reactionId) return;
     await this.deleteMessage(roomId, reactionId);
 
     // Refresh the message now rather than trusting the redaction echo to find
     // its way back to it.
-    const target = room.findEventById(eventId);
-    const message = target ? toMessage(sdk, target, room) : null;
-    if (message) this.emit({ type: 'message.updated', message });
+    this.refreshMessage(sdk, room, eventId);
   }
 
   // --- polls ---------------------------------------------------------------
@@ -2461,6 +2548,7 @@ export class OneTabMatrixClient {
     } = {},
   ): Promise<void> {
     const sdk = this.require();
+    await this.screenMedia(roomId, file);
     const [contentUri, size] = await Promise.all([
       this.uploadFile(file, options.onProgress),
       readImageSize(file),
@@ -2509,6 +2597,7 @@ export class OneTabMatrixClient {
       while (next < files.length) {
         const index = next++;
         try {
+          await this.screenMedia(roomId, files[index]);
           const [uri, size] = await Promise.all([
             this.uploadFile(files[index], (percent) =>
               options.onFileProgress?.(index, percent),
@@ -2556,6 +2645,12 @@ export class OneTabMatrixClient {
     }
 
     return { failed };
+  }
+
+  private async screenMedia(roomId: RoomId, file: File): Promise<void> {
+    if (!this.mediaGuard) return;
+    if (await this.isRoomEncrypted(roomId)) return;
+    await this.mediaGuard(file);
   }
 
   private async uploadFile(

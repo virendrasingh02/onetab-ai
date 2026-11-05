@@ -560,6 +560,40 @@ describe('MessageRenderer', () => {
       expect(minutesAhead).toBeLessThan(62);
     });
 
+    it('offers report and block on messages from other people', async () => {
+      const user = userEvent.setup();
+      const onBlock = vi.fn();
+      renderWithProviders(
+        <MessageRenderer
+          message={createMockMessage({ timestamp: Date.now() })}
+          onReport={vi.fn()}
+          onBlock={onBlock}
+        />,
+      );
+
+      await openMenu(user);
+      expect(
+        screen.getByRole('menuitem', { name: /report message/i }),
+      ).toBeInTheDocument();
+      await user.click(screen.getByRole('menuitem', { name: /block sender/i }));
+      expect(onBlock).toHaveBeenCalledTimes(1);
+    });
+
+    it('hides report and block when no handler is wired', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(
+        <MessageRenderer
+          message={createMockMessage({ timestamp: Date.now() })}
+          isOwn
+        />,
+      );
+
+      await openMenu(user);
+      expect(
+        screen.queryByRole('menuitem', { name: /report message/i }),
+      ).not.toBeInTheDocument();
+    });
+
     it('honours the keyboard shortcuts it shows', async () => {
       const user = userEvent.setup();
       const onEdit = vi.fn();

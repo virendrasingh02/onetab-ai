@@ -3,13 +3,25 @@ import { describe, expect, it, vi } from 'vitest';
 
 const client = {
   sendFile: vi.fn(async () => undefined),
+  react: vi.fn(),
 };
 
 vi.mock('./matrix-provider.js', () => ({
-  useMatrix: () => ({ client, status: { state: 'connected' }, enabled: true, error: null }),
+  useMatrix: () => ({
+    client,
+    status: { state: 'connected' },
+    enabled: true,
+    error: null,
+  }),
 }));
 
 import { useRoomActions } from './use-chat.js';
+
+const toastError = vi.hoisted(() => vi.fn());
+vi.mock('@org/ui', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  toast: { error: toastError },
+}));
 
 describe('useRoomActions().sendVoice', () => {
   it('sends the clip as an MSC3245 voice note via sendFile', async () => {
@@ -22,7 +34,11 @@ describe('useRoomActions().sendVoice', () => {
     await act(async () => {
       await result.current.sendVoice(
         blob,
-        { durationMs: 4200, waveform: [0.1, 0.5, 0.9], mimeType: 'audio/webm;codecs=opus' },
+        {
+          durationMs: 4200,
+          waveform: [0.1, 0.5, 0.9],
+          mimeType: 'audio/webm;codecs=opus',
+        },
         onProgress,
       );
     });
@@ -71,5 +87,19 @@ describe('useRoomActions().sendVoice', () => {
     });
 
     expect(client.sendFile).not.toHaveBeenCalled();
+  });
+});
+
+describe('useRoomActions().toggleReaction', () => {
+  it('reports a failed reaction and resolves false', async () => {
+    client.react.mockRejectedValue(new Error('nope'));
+    const { result } = renderHook(() => useRoomActions('!room:x'));
+
+    const outcome = await result.current.toggleReaction('$e', '👍', false);
+
+    expect(outcome).toBe(false);
+    expect(toastError).toHaveBeenCalledWith(
+      'Could not add your reaction. Try again.',
+    );
   });
 });

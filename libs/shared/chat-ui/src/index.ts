@@ -49,11 +49,15 @@ export {
 
 export {
   MemberProfileProvider,
+  ProfileConversationProvider,
   useMemberProfile,
+  useOpenProfileConversation,
   MEMBER_ROLE_LABELS,
   type MemberProfile,
   type MemberProfileResolver,
   type MemberWorkspaceRole,
+  type OpenProfileConversation,
+  type ProfileConversationTarget,
 } from './lib/member-profile-context.js';
 export {
   EmployeeInfoProvider,

@@ -87,6 +87,8 @@ export { LogoutPage } from './lib/pages/logout-page.js';
 export { MagicLinkVerifyPage } from './lib/pages/magic-link-verify-page.js';
 export { RegisterPage } from './lib/pages/register-page.js';
 export { ForgotPasswordPage } from './lib/pages/forgot-password-page.js';
+export { AccountDeletionPage } from './lib/pages/account-deletion-page.js';
+export { AccountDeletionPanel } from './lib/components/account-deletion-panel.js';
 export { ResetPasswordPage } from './lib/pages/reset-password-page.js';
 export { DesktopAuthCallbackPage } from './lib/pages/desktop-auth-callback-page.js';
 export { MobileDeviceConfirmPage } from './lib/pages/mobile-device-confirm-page.js';

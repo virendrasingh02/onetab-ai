@@ -26,7 +26,9 @@ const PerformanceMonitoringView = lazy(() =>
   })),
 );
 const ErrorTrackingView = lazy(() =>
-  import('@org/admin-analytics').then((m) => ({ default: m.ErrorTrackingView })),
+  import('@org/admin-analytics').then((m) => ({
+    default: m.ErrorTrackingView,
+  })),
 );
 
 const OverviewDashboardView = lazy(() =>
@@ -211,6 +213,11 @@ const AdminBillingView = lazy(() =>
   })),
 );
 
+const SafetyReportsView = lazy(() =>
+  import('./safety-reports-view').then((m) => ({
+    default: m.SafetyReportsView,
+  })),
+);
 const EmailDeliveriesView = lazy(() =>
   import('./email-deliveries-view').then((m) => ({
     default: m.EmailDeliveriesView,
@@ -239,120 +246,133 @@ export function App() {
     <RequirePlatformOperator>
       <Suspense fallback={<LoadingState fullPage />}>
         <Routes>
-        <Route element={<AdminShell />}>
-          {/* Overview & Platform Intelligence Dashboard */}
-          <Route path="/" element={<Navigate to="/overview" replace />} />
-          <Route path="/overview" element={<OverviewDashboardView />} />
+          <Route element={<AdminShell />}>
+            {/* Overview & Platform Intelligence Dashboard */}
+            <Route path="/" element={<Navigate to="/overview" replace />} />
+            <Route path="/overview" element={<OverviewDashboardView />} />
 
-          {/* Analytics Intelligence Routes */}
-          <Route path="/analytics/users" element={<UserAnalyticsView />} />
-          <Route
-            path="/analytics/platform-usage"
-            element={<PlatformUsageView />}
-          />
-          <Route
-            path="/analytics/workspaces"
-            element={<WorkspaceAnalyticsView />}
-          />
-          <Route
-            path="/analytics/workspaces/:workspaceId"
-            element={<WorkspaceDetailAnalyticsView />}
-          />
-          <Route path="/analytics/apis" element={<ApiAnalyticsView />} />
-          <Route
-            path="/analytics/messaging"
-            element={<MessagingAnalyticsView />}
-          />
-          <Route path="/analytics/storage" element={<StorageAnalyticsView />} />
-          <Route path="/analytics/devices" element={<DeviceAnalyticsView />} />
-          <Route
-            path="/analytics/locations"
-            element={<LocationAnalyticsView />}
-          />
-          <Route path="/analytics/revenue" element={<RevenueAnalyticsView />} />
-          <Route
-            path="/analytics/subscriptions"
-            element={<SubscriptionAnalyticsView />}
-          />
-          <Route
-            path="/analytics/engagement"
-            element={<EngagementAnalyticsView />}
-          />
-          <Route path="/analytics/live" element={<LiveActivityView />} />
+            {/* Analytics Intelligence Routes */}
+            <Route path="/analytics/users" element={<UserAnalyticsView />} />
+            <Route
+              path="/analytics/platform-usage"
+              element={<PlatformUsageView />}
+            />
+            <Route
+              path="/analytics/workspaces"
+              element={<WorkspaceAnalyticsView />}
+            />
+            <Route
+              path="/analytics/workspaces/:workspaceId"
+              element={<WorkspaceDetailAnalyticsView />}
+            />
+            <Route path="/analytics/apis" element={<ApiAnalyticsView />} />
+            <Route
+              path="/analytics/messaging"
+              element={<MessagingAnalyticsView />}
+            />
+            <Route
+              path="/analytics/storage"
+              element={<StorageAnalyticsView />}
+            />
+            <Route
+              path="/analytics/devices"
+              element={<DeviceAnalyticsView />}
+            />
+            <Route
+              path="/analytics/locations"
+              element={<LocationAnalyticsView />}
+            />
+            <Route
+              path="/analytics/revenue"
+              element={<RevenueAnalyticsView />}
+            />
+            <Route
+              path="/analytics/subscriptions"
+              element={<SubscriptionAnalyticsView />}
+            />
+            <Route
+              path="/analytics/engagement"
+              element={<EngagementAnalyticsView />}
+            />
+            <Route path="/analytics/live" element={<LiveActivityView />} />
 
-          {/* System Operations */}
-          <Route path="/health" element={<HealthDashboardView />} />
-          <Route path="/performance" element={<PerformanceMonitoringView />} />
-          <Route path="/errors" element={<ErrorTrackingView />} />
-          <Route path="/emails" element={<EmailDeliveriesView />} />
+            {/* System Operations */}
+            <Route path="/health" element={<HealthDashboardView />} />
+            <Route
+              path="/performance"
+              element={<PerformanceMonitoringView />}
+            />
+            <Route path="/errors" element={<ErrorTrackingView />} />
+            <Route path="/emails" element={<EmailDeliveriesView />} />
+            <Route path="/safety" element={<SafetyReportsView />} />
 
-          {/* Plans, Tiers & Promotional Code Management */}
-          <Route path="/plans" element={<AdminPlansView />} />
-          <Route path="/billing" element={<AdminBillingView />} />
+            {/* Plans, Tiers & Promotional Code Management */}
+            <Route path="/plans" element={<AdminPlansView />} />
+            <Route path="/billing" element={<AdminBillingView />} />
 
-          <Route path="/versions" element={<VersionsManagementView />} />
+            <Route path="/versions" element={<VersionsManagementView />} />
 
-          <Route path="/enterprise" element={<EnterpriseDashboardView />} />
-          <Route path="/enterprise/sso" element={<SSOConfigView />} />
-          <Route path="/enterprise/audit-logs" element={<AuditLogView />} />
+            <Route path="/enterprise" element={<EnterpriseDashboardView />} />
+            <Route path="/enterprise/sso" element={<SSOConfigView />} />
+            <Route path="/enterprise/audit-logs" element={<AuditLogView />} />
 
-          <Route path="/compliance" element={<ComplianceDashboardView />} />
-          <Route
-            path="/compliance/platforms"
-            element={<CompliancePlatformsView />}
-          />
-          <Route
-            path="/compliance/countries"
-            element={<ComplianceCountriesView />}
-          />
-          <Route
-            path="/compliance/requirements"
-            element={<ComplianceRequirementsView />}
-          />
-          <Route
-            path="/compliance/checklist"
-            element={<ComplianceChecklistView />}
-          />
-          <Route
-            path="/compliance/issues"
-            element={<ComplianceIssuesView />}
-          />
-          <Route
-            path="/compliance/versions"
-            element={<ComplianceVersionsView />}
-          />
-          <Route
-            path="/compliance/legal"
-            element={<ComplianceLegalLinksView />}
-          />
-          <Route
-            path="/compliance/audit-logs"
-            element={<ComplianceAuditLogView />}
-          />
+            <Route path="/compliance" element={<ComplianceDashboardView />} />
+            <Route
+              path="/compliance/platforms"
+              element={<CompliancePlatformsView />}
+            />
+            <Route
+              path="/compliance/countries"
+              element={<ComplianceCountriesView />}
+            />
+            <Route
+              path="/compliance/requirements"
+              element={<ComplianceRequirementsView />}
+            />
+            <Route
+              path="/compliance/checklist"
+              element={<ComplianceChecklistView />}
+            />
+            <Route
+              path="/compliance/issues"
+              element={<ComplianceIssuesView />}
+            />
+            <Route
+              path="/compliance/versions"
+              element={<ComplianceVersionsView />}
+            />
+            <Route
+              path="/compliance/legal"
+              element={<ComplianceLegalLinksView />}
+            />
+            <Route
+              path="/compliance/audit-logs"
+              element={<ComplianceAuditLogView />}
+            />
 
-          <Route path="/marketplace" element={<MarketplaceHomeView />} />
-          <Route path="/marketplace/plugins" element={<PluginSDKView />} />
-          <Route path="/marketplace/themes" element={<ThemeStoreView />} />
-          <Route path="/marketplace/agents" element={<AgentStoreView />} />
-          <Route
-            path="/marketplace/workflows"
-            element={<WorkflowTemplatesView />}
-          />
-          <Route
-            path="/marketplace/components"
-            element={<ComponentMarketplaceView />}
-          />
-          <Route
-            path="/marketplace/integrations"
-            element={<IntegrationStoreView />}
-          />
-          <Route
-            path="/marketplace/templates"
-            element={<CommunityTemplatesView />}
-          />
+            <Route path="/marketplace" element={<MarketplaceHomeView />} />
+            <Route path="/marketplace/plugins" element={<PluginSDKView />} />
+            <Route path="/marketplace/themes" element={<ThemeStoreView />} />
+            <Route path="/marketplace/agents" element={<AgentStoreView />} />
+            <Route
+              path="/marketplace/workflows"
+              element={<WorkflowTemplatesView />}
+            />
+            <Route
+              path="/marketplace/components"
+              element={<ComponentMarketplaceView />}
+            />
+            <Route
+              path="/marketplace/integrations"
+              element={<IntegrationStoreView />}
+            />
+            <Route
+              path="/marketplace/templates"
+              element={<CommunityTemplatesView />}
+            />
 
-          <Route path="*" element={<NotFoundPage />} />
-        </Route>
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
         </Routes>
       </Suspense>
     </RequirePlatformOperator>
