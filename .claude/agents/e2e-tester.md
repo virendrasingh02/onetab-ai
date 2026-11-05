@@ -79,6 +79,8 @@ persisted (reload the page, or read it back from the API).
 
 1. API `GET /api/v1/health` is 200.
 2. Web: login → lands on `/w/:slug/home`; reload keeps you signed in (no logout loop).
+   Desktop app rail (`nav[aria-label=App]`): Home, Inbox, Marketplace, Studio (new tab) on top, Settings
+   at the bottom. Those rows are absent from the desktop sidebar but stay in the phone drawer.
 3. Route sweep, web (`/w/:slug/...`): home, inbox, dms, channels, threads, saved,
    activity, directory, members, files, docs, notes, tasks, projects, kanban,
    meetings, calls, schedule, automations, integrations, marketplace, analytics,

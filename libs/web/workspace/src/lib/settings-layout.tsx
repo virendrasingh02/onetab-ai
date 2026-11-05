@@ -7,12 +7,21 @@ import {
   AlertDialogTitle,
   Badge,
   Button,
+  Hint,
   Input,
-  KbdShortcut,
   toast,
+  WorkspaceAvatar,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { NotificationEnableBar } from '@org/notifications';
+import {
+  DesktopTitleBarInset,
+  DesktopWindowControls,
+  DRAG,
+  NO_DRAG,
+  useClaimsWindowChrome,
+  useDesktop,
+} from '@org/web-desktop';
 import {
   channelApi,
   integrationsApi,
@@ -27,6 +36,7 @@ import {
   WorkspaceRole,
   hasWorkspaceRole,
   type PlanFeature,
+  type WorkspaceSummary,
 } from '@org/types';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -405,6 +415,73 @@ function readCollapsed(): Record<string, boolean> {
   }
 }
 
+/**
+ * The top bar of the settings surface: the same row as `AppHeader` (height,
+ * drag strip, traffic-light inset, window controls), so moving between the
+ * workspace and settings doesn't shift the window chrome on desktop. Settings
+ * renders outside `AppShell`, so it has to draw and claim this row itself.
+ */
+function SettingsHeader({
+  workspace,
+  onBack,
+}: {
+  workspace?: WorkspaceSummary;
+  onBack: () => void;
+}) {
+  const { toggleMaximize } = useDesktop();
+  useClaimsWindowChrome();
+
+  return (
+    <header
+      style={DRAG}
+      onDoubleClick={toggleMaximize}
+      className="h-11 gap-2 px-2.5 sm:gap-3 sm:px-4 flex shrink-0 items-center select-none"
+    >
+      <div className="min-w-0 gap-1.5 sm:gap-2 flex flex-1 items-center">
+        <DesktopTitleBarInset />
+        <Hint label="Back to workspace" shortcut="Esc" side="bottom">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onBack}
+            aria-label="Close settings"
+            style={NO_DRAG}
+            className="size-7 p-0 touch-target shrink-0 cursor-pointer text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="size-4" />
+          </Button>
+        </Hint>
+        <p className="text-base font-semibold shrink-0 text-foreground">
+          Settings
+        </p>
+        {/* Which workspace these settings belong to, in the same identity the
+            switcher uses — a chip, not a path, because Settings isn't a child
+            page of the name beside it. */}
+        {workspace ? (
+          <span className="ml-1 h-7 min-w-0 max-w-56 gap-1.5 pl-1 pr-2.5 text-xs font-medium shadow-2xs flex items-center rounded-lg border border-border/80 bg-card text-foreground">
+            <WorkspaceAvatar
+              name={workspace.name}
+              src={workspace.avatarUrl}
+              icon={workspace.icon}
+              iconColor={workspace.iconColor}
+              seed={workspace.id}
+              size="xs"
+              className="shrink-0 rounded-sm"
+            />
+            <span className="truncate">{workspace.name}</span>
+          </span>
+        ) : null}
+      </div>
+
+      {/* Windows/Linux window controls, at the same spot as in AppHeader */}
+      <DesktopWindowControls
+        className="-mr-2.5 ml-1 sm:-mr-4"
+        buttonClassName="h-11"
+      />
+    </header>
+  );
+}
+
 export function SettingsLayout({
   activeTab,
   onTabChange,
@@ -596,183 +673,164 @@ export function SettingsLayout({
     setCollapsed((current) => ({ ...current, [id]: !current[id] }));
 
   return (
-    <div className="gap-1.5 p-1.5 flex h-full w-full flex-col overflow-hidden bg-background font-sans text-foreground">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-background bg-app-gradient font-sans text-foreground">
       {/* Live-apply preferences (font size, …) so a change previews here. */}
       <WorkspacePreferencesEffects workspaceId={workspaceId} />
       {/* Rounds trips the automations/schedule/pulse/documents/files/general
           tab fields to the server instead of leaving them localStorage-only. */}
       <WorkspaceMemberPreferencesSync workspaceId={workspaceId} />
 
-      {/* Main Settings Card Box */}
-      <div className="min-h-0 flex h-full w-full flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-xs">
-        {/* Inner Content Area: Sidebar + Scrollable Main Content */}
-        <div className="min-h-0 flex flex-1 overflow-hidden">
-          {/* Left Dedicated Settings Sidebar */}
-          <aside className="w-64 sm:w-72 flex h-full shrink-0 flex-col border-r border-border bg-card select-none">
-            {/* Title + the way back to the workspace */}
-            <div className="gap-2 px-3 pt-3 flex items-center">
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label="Close settings"
-                title="Back to workspace"
-                onClick={() => guardedLeave(() => navigate(backUrl))}
-                className="size-8 p-0 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
-              >
-                <ArrowLeft className="size-4" />
-              </Button>
-              <div className="min-w-0 flex-1">
-                <p className="text-base font-semibold leading-tight text-foreground">
-                  Settings
-                </p>
-                {workspace?.name ? (
-                  <p className="text-xs leading-tight truncate text-muted-foreground">
-                    {workspace.name}
-                  </p>
-                ) : null}
-              </div>
-              <KbdShortcut
-                keys={['Escape']}
-                size="lg"
-                variant="muted"
-                responsive
-              />
-            </div>
+      <SettingsHeader
+        workspace={workspace}
+        onBack={() => guardedLeave(() => navigate(backUrl))}
+      />
 
-            {/* Search Input */}
-            <div className="p-3">
-              <div className="relative">
-                <Input
-                  type="text"
-                  placeholder="Search settings..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  leadingIcon={
-                    <Search className="size-3.5 text-muted-foreground" />
-                  }
-                  className="h-8 text-sm pr-7 rounded-lg border-border bg-surface-inset placeholder:text-muted-foreground"
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery('')}
-                    aria-label="Clear search"
-                    className="right-2 p-0.5 absolute top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="size-3.5" />
-                  </button>
+      <div className="min-h-0 gap-1.5 p-1.5 pt-0 flex flex-1 flex-col overflow-hidden">
+        {/* Main Settings Card Box */}
+        <div className="min-h-0 flex h-full w-full flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-xs">
+          {/* Inner Content Area: Sidebar + Scrollable Main Content */}
+          <div className="min-h-0 flex flex-1 overflow-hidden">
+            {/* Left Dedicated Settings Sidebar */}
+            <aside className="w-64 sm:w-72 flex h-full shrink-0 flex-col border-r border-border bg-card select-none">
+              {/* Search Input */}
+              <div className="p-3">
+                <div className="relative">
+                  <Input
+                    type="text"
+                    placeholder="Search settings..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    leadingIcon={
+                      <Search className="size-3.5 text-muted-foreground" />
+                    }
+                    className="h-8 text-sm pr-7 rounded-lg border-border bg-surface-inset placeholder:text-muted-foreground"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      aria-label="Clear search"
+                      className="right-2 p-0.5 absolute top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Native Scrollable Nav Items */}
+              <div className="min-h-0 py-1 px-3 space-y-3 flex-1 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent] overflow-x-hidden overflow-y-auto">
+                {groupsToRender.length === 0 ? (
+                  <div className="px-2.5 py-10 text-center">
+                    <Search className="size-5 mb-2 mx-auto text-muted-foreground/60" />
+                    <p className="text-xs text-muted-foreground">
+                      No settings match “{searchQuery}”.
+                    </p>
+                  </div>
+                ) : (
+                  groupsToRender.map(({ group, items }) => {
+                    const isCollapsed = !isSearching && collapsed[group.id];
+
+                    return (
+                      <div key={group.id} className="space-y-1">
+                        <button
+                          type="button"
+                          onClick={() => toggleGroup(group.id)}
+                          aria-expanded={!isCollapsed}
+                          className="group/hdr px-2.5 py-1 flex w-full items-center justify-between rounded-md text-left transition-colors hover:bg-accent/40"
+                        >
+                          <span className="gap-1.5 font-semibold tracking-wider text-xs flex items-center text-muted-foreground uppercase">
+                            {group.title}
+                            <span className="font-semibold text-xs text-muted-foreground/80 normal-case tabular-nums">
+                              {items.length}
+                            </span>
+                          </span>
+                          {!isSearching ? (
+                            <ChevronDown
+                              className={cn(
+                                'size-3.5 text-muted-foreground/60 transition-transform group-hover/hdr:text-muted-foreground',
+                                isCollapsed && '-rotate-90',
+                              )}
+                            />
+                          ) : null}
+                        </button>
+
+                        {!isCollapsed ? (
+                          <div className="space-y-0.5">
+                            {items.map((item) => {
+                              const Icon = item.icon;
+                              const isActive = activeTab === item.id;
+
+                              return (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  onClick={() =>
+                                    guardedLeave(() => {
+                                      if (item.href) navigate(item.href);
+                                      else onTabChange(item.id);
+                                    })
+                                  }
+                                  aria-current={isActive ? 'page' : undefined}
+                                  className={cn(
+                                    'px-2.5 py-1.5 font-medium text-sm flex w-full cursor-pointer items-center justify-between rounded-xl text-left transition-all',
+                                    isActive
+                                      ? 'font-semibold bg-accent text-foreground dark:bg-primary/15'
+                                      : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                                  )}
+                                >
+                                  <div className="gap-2.5 min-w-0 flex items-center">
+                                    <Icon
+                                      className={cn(
+                                        'size-4 shrink-0',
+                                        isActive
+                                          ? 'text-primary'
+                                          : 'text-muted-foreground',
+                                      )}
+                                    />
+                                    <span className="truncate">
+                                      {item.label}
+                                    </span>
+                                  </div>
+                                  {item.locked || item.badge ? (
+                                    <div className="gap-1.5 flex shrink-0 items-center">
+                                      {item.locked ? (
+                                        <Lock className="size-3 text-muted-foreground/70" />
+                                      ) : null}
+                                      {item.badge ? (
+                                        <Badge
+                                          variant="neutral"
+                                          className="px-1.5 py-0 font-semibold text-xs"
+                                        >
+                                          {item.badge}
+                                        </Badge>
+                                      ) : null}
+                                    </div>
+                                  ) : null}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })
                 )}
               </div>
-            </div>
+            </aside>
 
-            {/* Native Scrollable Nav Items */}
-            <div className="min-h-0 py-1 px-3 space-y-3 flex-1 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent] overflow-x-hidden overflow-y-auto">
-              {groupsToRender.length === 0 ? (
-                <div className="px-2.5 py-10 text-center">
-                  <Search className="size-5 mb-2 mx-auto text-muted-foreground/60" />
-                  <p className="text-xs text-muted-foreground">
-                    No settings match “{searchQuery}”.
-                  </p>
-                </div>
-              ) : (
-                groupsToRender.map(({ group, items }) => {
-                  const isCollapsed = !isSearching && collapsed[group.id];
-
-                  return (
-                    <div key={group.id} className="space-y-1">
-                      <button
-                        type="button"
-                        onClick={() => toggleGroup(group.id)}
-                        aria-expanded={!isCollapsed}
-                        className="group/hdr px-2.5 py-1 flex w-full items-center justify-between rounded-md text-left transition-colors hover:bg-accent/40"
-                      >
-                        <span className="gap-1.5 font-semibold tracking-wider text-xs flex items-center text-muted-foreground uppercase">
-                          {group.title}
-                          <span className="font-semibold text-xs text-muted-foreground/80 normal-case tabular-nums">
-                            {items.length}
-                          </span>
-                        </span>
-                        {!isSearching ? (
-                          <ChevronDown
-                            className={cn(
-                              'size-3.5 text-muted-foreground/60 transition-transform group-hover/hdr:text-muted-foreground',
-                              isCollapsed && '-rotate-90',
-                            )}
-                          />
-                        ) : null}
-                      </button>
-
-                      {!isCollapsed ? (
-                        <div className="space-y-0.5">
-                          {items.map((item) => {
-                            const Icon = item.icon;
-                            const isActive = activeTab === item.id;
-
-                            return (
-                              <button
-                                key={item.id}
-                                type="button"
-                                onClick={() =>
-                                  guardedLeave(() => {
-                                    if (item.href) navigate(item.href);
-                                    else onTabChange(item.id);
-                                  })
-                                }
-                                aria-current={isActive ? 'page' : undefined}
-                                className={cn(
-                                  'px-2.5 py-1.5 font-medium text-sm flex w-full cursor-pointer items-center justify-between rounded-xl text-left transition-all',
-                                  isActive
-                                    ? 'font-semibold bg-accent text-foreground dark:bg-primary/15'
-                                    : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                                )}
-                              >
-                                <div className="gap-2.5 min-w-0 flex items-center">
-                                  <Icon
-                                    className={cn(
-                                      'size-4 shrink-0',
-                                      isActive
-                                        ? 'text-primary'
-                                        : 'text-muted-foreground',
-                                    )}
-                                  />
-                                  <span className="truncate">{item.label}</span>
-                                </div>
-                                {item.locked || item.badge ? (
-                                  <div className="gap-1.5 flex shrink-0 items-center">
-                                    {item.locked ? (
-                                      <Lock className="size-3 text-muted-foreground/70" />
-                                    ) : null}
-                                    {item.badge ? (
-                                      <Badge
-                                        variant="neutral"
-                                        className="px-1.5 py-0 font-semibold text-xs"
-                                      >
-                                        {item.badge}
-                                      </Badge>
-                                    ) : null}
-                                  </div>
-                                ) : null}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </aside>
-
-          {/* Main Settings Content Area (Native Scrolling) */}
-          <main className="min-h-0 p-6 md:p-10 flex flex-1 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent] flex-col overflow-x-hidden overflow-y-auto bg-surface-inset/20">
-            <div className="max-w-4xl space-y-8 mx-auto w-full">{children}</div>
-          </main>
+            {/* Main Settings Content Area (Native Scrolling) */}
+            <main className="min-h-0 p-6 md:p-10 relative flex flex-1 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent] flex-col overflow-x-hidden overflow-y-auto bg-surface-inset/20">
+              <div className="max-w-4xl space-y-8 mx-auto w-full">
+                {children}
+              </div>
+            </main>
+          </div>
         </div>
-      </div>
 
-      {/* Bottom Managed Notification Bar */}
-      <NotificationEnableBar workspaceId={workspaceId} />
+        {/* Bottom Managed Notification Bar */}
+        <NotificationEnableBar workspaceId={workspaceId} />
+      </div>
 
       {/* Unsaved-changes guard */}
       <AlertDialog
