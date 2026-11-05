@@ -122,6 +122,7 @@ import {
 import type { LiveRoomActivity } from '@org/web-chat';
 import { ChannelOrganizationMenu } from './navigation/channel-organization-menu.js';
 import { resolveNavigation } from './navigation/navigation-resolver.js';
+import { APP_RAIL_NAV_ITEM_IDS } from './navigation/navigation.config.js';
 import {
   buildChannelSignals,
   CHANNEL_PRIORITY_LABELS,
@@ -628,6 +629,8 @@ export interface ChannelNavProps {
   onBrowseChannels: () => void;
   /** Whether sidebar is in collapsed icon rail mode */
   isCollapsed?: boolean;
+  /** Leave out the items the desktop app rail already shows. */
+  hideAppRailItems?: boolean;
 }
 
 export function ChannelNav({
@@ -645,6 +648,7 @@ export function ChannelNav({
   onCreateChannel,
   onBrowseChannels,
   isCollapsed = false,
+  hideAppRailItems = false,
 }: ChannelNavProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -717,6 +721,22 @@ export function ChannelNav({
         inboxUnread,
       }),
     [itemsPrefs, workspaceSlug, inboxUnread],
+  );
+
+  /* The primary rows this sidebar lists; the app rail owns the rest. */
+  const sidebarNavGroups = useMemo(
+    () =>
+      hideAppRailItems
+        ? resolvedNav.groups
+            .map((group) => ({
+              ...group,
+              items: group.items.filter(
+                (item) => !APP_RAIL_NAV_ITEM_IDS.has(item.id),
+              ),
+            }))
+            .filter((group) => group.items.length > 0)
+        : resolvedNav.groups,
+    [resolvedNav.groups, hideAppRailItems],
   );
 
   /*
@@ -1493,7 +1513,11 @@ export function ChannelNav({
         <div className="min-h-0 px-1 w-full flex-1 scrollbar-on-hover overflow-y-auto">
           <div className="gap-1.5 py-1 flex flex-col items-center">
             {resolvedNav.visibleItems
-              .filter((item) => item.group !== 'more')
+              .filter(
+                (item) =>
+                  item.group !== 'more' &&
+                  !(hideAppRailItems && APP_RAIL_NAV_ITEM_IDS.has(item.id)),
+              )
               .map((item) => (
                 <IconOnlyNavRow
                   key={item.id}
@@ -1569,7 +1593,7 @@ export function ChannelNav({
                   surface={navSurfaceFor(item.id)}
                 />
               );
-              return resolvedNav.groups.map((group) => {
+              return sidebarNavGroups.map((group) => {
                 if (group.id === 'more') {
                   return (
                     <NavMoreMenu

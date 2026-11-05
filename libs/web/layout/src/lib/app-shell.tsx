@@ -93,6 +93,7 @@ import {
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AddAccountDialog } from './add-account-dialog.js';
 import { AppHeader } from './app-header.js';
+import { AppRail } from './app-rail.js';
 import { liveRoomForChannel } from './activity-conversation-list.js';
 import { ChannelNav } from './channel-nav.js';
 import { MobileBottomNav } from './mobile-bottom-nav.js';
@@ -652,6 +653,7 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
       onCreateChannel={() => setCreateChannelOpen(true)}
       onBrowseChannels={() => navigate(`/w/${slug}/channels`)}
       isCollapsed={isSidebarCollapsed && !isMobile}
+      hideAppRailItems={!isMobile}
     />
   );
 
@@ -709,6 +711,12 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
                 'cursor-col-resize select-none',
             )}
           >
+            {/* App rail: sits on the shell background, outside the three boxes,
+              and stays visible when the sidebar is collapsed or hidden. */}
+            {!isMobile ? (
+              <AppRail workspaceSlug={slug} inboxUnread={totalUnreadBadge} />
+            ) : null}
+
             {/*
             Column 1 / Box 1: navigation rail.
             Both rails sit one step *below* the editor panel — `surface-muted`

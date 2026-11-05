@@ -32,6 +32,9 @@
   ],
   "references": [
     {
+      "path": "../../shared/platform/tsconfig.lib.json"
+    },
+    {
       "path": "../automations/tsconfig.lib.json"
     },
     {

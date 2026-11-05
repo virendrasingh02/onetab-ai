@@ -39,6 +39,16 @@ export interface NavItemConfig {
   keywords?: string[];
 }
 
+/**
+ * Items shown in the desktop app rail instead of the sidebar. Phones have no
+ * rail, so the navigation drawer keeps listing them there.
+ */
+export const APP_RAIL_NAV_ITEM_IDS: ReadonlySet<string> = new Set([
+  'home',
+  'inbox',
+  'marketplace',
+]);
+
 export const DEFAULT_NAV_GROUPS: readonly NavGroupConfig[] = [
   {
     id: 'workspace',
