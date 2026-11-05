@@ -3199,13 +3199,16 @@ export const agentsApi = {
     ),
 
   /** One chat turn; the server keeps the conversation and replays it as history. */
+  /** One agent turn: several model and tool rounds, so often well over the default timeout. */
   chat: (
     workspaceId: string,
     agentId: string,
     body: { message: string; conversationId?: string },
   ) =>
     request<AgentChatResult>(
-      http.post(`/workspaces/${workspaceId}/agents/${agentId}/chat`, body),
+      http.post(`/workspaces/${workspaceId}/agents/${agentId}/chat`, body, {
+        timeout: 180_000,
+      }),
     ),
 
   listConversations: (workspaceId: string, agentId: string) =>

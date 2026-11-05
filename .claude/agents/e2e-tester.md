@@ -54,6 +54,12 @@ with status + body excerpt, or the DB/API value you checked).
   a message "missing" after a reload.
 - Text-search flags like "404" match numbers on the page (e.g. "40452ms"); read the
   surrounding text before reporting.
+- Doc editor blocks are inputs/textareas, so `innerText` misses their text: read
+  `element.value` before calling a doc body "missing".
+- Studio `/chat/:agentId` errors at the 15s client timeout while the server finishes:
+  reload and reopen the conversation to read the reply before calling a turn failed.
+- Many quick reloads on Vite dev can 429 a lazy module and trip the error boundary
+  ("Failed to fetch dynamically imported module"): reload once before reporting it.
 - Editing API code makes the user's watch-mode API rebuild and restart. If
   `/api/v1/health` isn't back within ~60s, start it with `preview_start {name:"api"}`
   (port 3000 is pinned via `autoPort: false`) and say so in the report.

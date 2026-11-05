@@ -15,6 +15,7 @@
 /* Register library sources explicitly for Tailwind v4 scanner */
 @source '../../../libs/shared/ui/src';
 @source '../../../libs/shared/design-system/src';
+@source '../../../libs/shared/chat-ui/src';
 @source '../../../libs/web';
 @source './**/*.{ts,tsx,js,jsx}';
 
@@ -28,7 +29,6 @@
 .react-flow__renderer:has(.quick-add-open) {
   z-index: 6;
 }
-
 
 /* Canvas: a wire whose step is running "flows" (WorkflowEdge, strokeDasharray 6 6). */
 @keyframes dash {
@@ -131,7 +131,12 @@
   inset: -40% auto -40% -60%;
   width: 45%;
   z-index: -1;
-  background: linear-gradient(100deg, transparent, rgb(255 255 255 / 0.45), transparent);
+  background: linear-gradient(
+    100deg,
+    transparent,
+    rgb(255 255 255 / 0.45),
+    transparent
+  );
   transform: skewX(-20deg);
   animation: copilot-sweep 3.6s ease-in-out infinite;
   pointer-events: none;
@@ -158,10 +163,12 @@
 @keyframes copilot-glow {
   0%,
   100% {
-    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-foreground) 0%, transparent);
+    box-shadow: 0 0 0 0
+      color-mix(in oklab, var(--color-foreground) 0%, transparent);
   }
   50% {
-    box-shadow: 0 0 14px 1px color-mix(in oklab, var(--color-foreground) 22%, transparent);
+    box-shadow: 0 0 14px 1px
+      color-mix(in oklab, var(--color-foreground) 22%, transparent);
   }
 }
 @media (prefers-reduced-motion: reduce) {
