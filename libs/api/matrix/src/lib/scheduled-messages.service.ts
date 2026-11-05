@@ -1,3 +1,4 @@
+import { assertContentAllowed } from '@org/api-common';
 import {
   BadRequestException,
   ForbiddenException,
@@ -88,6 +89,7 @@ export class ScheduledMessagesService {
     authorId: string,
     input: CreateScheduledMessageInput,
   ): Promise<ScheduledMessageView> {
+    assertContentAllowed(input.body);
     const scheduledFor = new Date(input.scheduledFor);
     if (scheduledFor.getTime() <= Date.now()) {
       throw new BadRequestException('Scheduled time must be in the future.');
@@ -125,6 +127,7 @@ export class ScheduledMessagesService {
     id: string,
     input: UpdateScheduledMessageInput,
   ): Promise<ScheduledMessageView> {
+    assertContentAllowed(input.body);
     await this.assertOwned(workspaceId, authorId, id);
     const scheduledFor = input.scheduledFor
       ? new Date(input.scheduledFor)

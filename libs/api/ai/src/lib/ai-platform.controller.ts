@@ -1,3 +1,4 @@
+import { ContentModerationService } from './content-moderation.service.js';
 import {
   Body,
   Controller,
@@ -48,7 +49,8 @@ import {
 export class AIPlatformController {
   constructor(
     private readonly aiService: AIInfrastructureService,
-    private readonly credentialService: AICredentialService
+    private readonly credentialService: AICredentialService,
+    private readonly moderation: ContentModerationService,
   ) {}
 
   @Get('providers')
@@ -59,7 +61,7 @@ export class AIPlatformController {
   @Get('providers/:provider')
   getProvider(
     @WorkspaceId() workspaceId: string,
-    @Param('provider') provider: AIProvider
+    @Param('provider') provider: AIProvider,
   ) {
     return this.credentialService.getWorkspaceProvider(workspaceId, provider);
   }
@@ -71,14 +73,15 @@ export class AIPlatformController {
   saveCredential(
     @WorkspaceId() workspaceId: string,
     @Param('provider') provider: AIProvider,
-    @Body(zodBody(saveProviderCredentialSchema)) body: SaveProviderCredentialInput,
-    @CurrentUser() user?: AuthenticatedUser
+    @Body(zodBody(saveProviderCredentialSchema))
+    body: SaveProviderCredentialInput,
+    @CurrentUser() user?: AuthenticatedUser,
   ) {
     return this.credentialService.saveCredential(
       workspaceId,
       provider,
       body,
-      user?.id
+      user?.id,
     );
   }
 
@@ -87,14 +90,15 @@ export class AIPlatformController {
   updateCredential(
     @WorkspaceId() workspaceId: string,
     @Param('provider') provider: AIProvider,
-    @Body(zodBody(saveProviderCredentialSchema)) body: SaveProviderCredentialInput,
-    @CurrentUser() user?: AuthenticatedUser
+    @Body(zodBody(saveProviderCredentialSchema))
+    body: SaveProviderCredentialInput,
+    @CurrentUser() user?: AuthenticatedUser,
   ) {
     return this.credentialService.saveCredential(
       workspaceId,
       provider,
       body,
-      user?.id
+      user?.id,
     );
   }
 
@@ -103,12 +107,12 @@ export class AIPlatformController {
   deleteCredential(
     @WorkspaceId() workspaceId: string,
     @Param('provider') provider: AIProvider,
-    @CurrentUser() user?: AuthenticatedUser
+    @CurrentUser() user?: AuthenticatedUser,
   ) {
     return this.credentialService.deleteCredential(
       workspaceId,
       provider,
-      user?.id
+      user?.id,
     );
   }
 
@@ -117,12 +121,12 @@ export class AIPlatformController {
   testProvider(
     @WorkspaceId() workspaceId: string,
     @Param('provider') provider: AIProvider,
-    @Body() body: { model?: string }
+    @Body() body: { model?: string },
   ) {
     return this.credentialService.testWorkspaceConnection(
       workspaceId,
       provider,
-      body?.model
+      body?.model,
     );
   }
 
@@ -131,13 +135,9 @@ export class AIPlatformController {
   updateModelSetting(
     @WorkspaceId() workspaceId: string,
     @Param('model') model: string,
-    @Body(zodBody(updateModelSettingsSchema)) body: UpdateModelSettingsInput
+    @Body(zodBody(updateModelSettingsSchema)) body: UpdateModelSettingsInput,
   ) {
-    return this.credentialService.updateModelSettings(
-      workspaceId,
-      model,
-      body
-    );
+    return this.credentialService.updateModelSettings(workspaceId, model, body);
   }
 
   @Get('models')
@@ -149,12 +149,12 @@ export class AIPlatformController {
   @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
   testConnection(
     @WorkspaceId() workspaceId: string,
-    @Body() body: { provider: AIProvider; model?: string }
+    @Body() body: { provider: AIProvider; model?: string },
   ) {
     return this.credentialService.testWorkspaceConnection(
       workspaceId,
       body.provider,
-      body.model
+      body.model,
     );
   }
 
@@ -172,7 +172,7 @@ export class AIPlatformController {
       stream?: boolean;
       tools?: Array<Record<string, unknown>>;
       structuredOutput?: Record<string, unknown>;
-    }
+    },
   ) {
     const provider = body.provider || 'nvidia';
     const cred = await this.credentialService.resolveCredential(provider, {
@@ -181,6 +181,7 @@ export class AIPlatformController {
     });
     return this.aiService.chat({
       ...body,
+      moderate: 'all',
       provider,
       model: body.model || cred.defaultModel,
       apiKey: cred.apiKey,
@@ -202,7 +203,7 @@ export class AIPlatformController {
       tools?: Array<Record<string, unknown>>;
       structuredOutput?: Record<string, unknown>;
     },
-    @Res() res: Response
+    @Res() res: Response,
   ) {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -217,6 +218,7 @@ export class AIPlatformController {
       });
       for await (const event of this.aiService.streamChat({
         ...body,
+        moderate: 'all',
         provider,
         model: body.model || cred.defaultModel,
         apiKey: cred.apiKey,
@@ -239,32 +241,39 @@ export class AIPlatformController {
   }
 
   @Post('summarize')
-  summarize(@WorkspaceId() _workspaceId: string, @Body() body: { text: string }) {
+  async summarize(
+    @WorkspaceId() _workspaceId: string,
+    @Body() body: { text: string },
+  ) {
+    await this.moderation.assertTextAllowed(body.text);
     return this.aiService.summarizeThread(body.text);
   }
 
   @Post('translate')
-  translate(
+  async translate(
     @WorkspaceId() _workspaceId: string,
-    @Body() body: { text: string; targetLanguage: string }
+    @Body() body: { text: string; targetLanguage: string },
   ) {
+    await this.moderation.assertTextAllowed(body.text);
     return this.aiService.translateText(body.text, body.targetLanguage);
   }
 
   @Post('generate-image')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  generateImage(
+  async generateImage(
     @WorkspaceId() _workspaceId: string,
-    @Body() body: { prompt: string; provider?: string }
+    @Body() body: { prompt: string; provider?: string },
   ) {
+    await this.moderation.assertTextAllowed(body.prompt);
     return this.aiService.generateImage(body.prompt, body.provider);
   }
 
   @Post('vision')
-  analyzeVision(
+  async analyzeVision(
     @WorkspaceId() _workspaceId: string,
-    @Body() body: { imageUrl: string; prompt?: string }
+    @Body() body: { imageUrl: string; prompt?: string },
   ) {
+    await this.moderation.assertTextAllowed(body.prompt);
     return this.aiService.analyzeVision(body.imageUrl, body.prompt);
   }
 
@@ -274,7 +283,7 @@ export class AIPlatformController {
   @Post('rag-search')
   ragSearch(
     @WorkspaceId() workspaceId: string,
-    @Body() body: { query: string; limit?: number }
+    @Body() body: { query: string; limit?: number },
   ) {
     return this.aiService.queryRAG(workspaceId, body.query, body.limit);
   }

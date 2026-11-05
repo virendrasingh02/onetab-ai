@@ -1,3 +1,4 @@
+import { assertContentAllowed } from '@org/api-common';
 import {
   BadRequestException,
   ConflictException,
@@ -9,7 +10,11 @@ import {
   type OnModuleInit,
 } from '@nestjs/common';
 import { PrismaService } from '@org/database';
-import { compareSemver, evaluateAgentPackage, parseAccess } from './agent-manifest.js';
+import {
+  compareSemver,
+  evaluateAgentPackage,
+  parseAccess,
+} from './agent-manifest.js';
 import {
   CATEGORIES_BY_KIND,
   DEFAULT_PAGE_SIZE,
@@ -94,17 +99,34 @@ function parseTools(raw: unknown): string[] {
  * workspace: version history/lifecycle bookkeeping and anything that smells like
  * a credential. Shared listings are readable by other workspaces.
  */
-function stripWorkspaceSpecific(config: Record<string, any>): Record<string, unknown> {
-  const dropped = new Set(['versions', 'status', 'publishedAt', 'currentVersion', 'marketplace']);
-  const sensitive = /secret|token|password|credential|api[-_]?key|webhook|variables/i;
+function stripWorkspaceSpecific(
+  config: Record<string, any>,
+): Record<string, unknown> {
+  const dropped = new Set([
+    'versions',
+    'status',
+    'publishedAt',
+    'currentVersion',
+    'marketplace',
+  ]);
+  const sensitive =
+    /secret|token|password|credential|api[-_]?key|webhook|variables/i;
   return Object.fromEntries(
-    Object.entries(config).filter(([key]) => !dropped.has(key) && !sensitive.test(key)),
+    Object.entries(config).filter(
+      ([key]) => !dropped.has(key) && !sensitive.test(key),
+    ),
   );
 }
 
 /** Publisher fields a listing response is allowed to carry. */
 const PUBLISHER_SELECT = {
-  select: { name: true, slug: true, isVerified: true, websiteUrl: true, supportEmail: true },
+  select: {
+    name: true,
+    slug: true,
+    isVerified: true,
+    websiteUrl: true,
+    supportEmail: true,
+  },
 } as const;
 
 /**
@@ -268,7 +290,10 @@ export class MarketplaceService implements OnModuleInit {
    */
   async browse(query: BrowseQuery, workspaceId?: string) {
     const pageSize = Math.min(
-      Math.max(Number(query.pageSize ?? DEFAULT_PAGE_SIZE) || DEFAULT_PAGE_SIZE, 1),
+      Math.max(
+        Number(query.pageSize ?? DEFAULT_PAGE_SIZE) || DEFAULT_PAGE_SIZE,
+        1,
+      ),
       MAX_PAGE_SIZE,
     );
     const page = Math.max(Number(query.page ?? 1) || 1, 1);
@@ -287,8 +312,8 @@ export class MarketplaceService implements OnModuleInit {
       ...(query.entityType === 'AGENT'
         ? { kind: 'AGENT' }
         : query.entityType === 'APP'
-        ? { kind: { not: 'AGENT' } }
-        : {}),
+          ? { kind: { not: 'AGENT' } }
+          : {}),
       ...(query.category ? { category: query.category } : {}),
       ...(query.pricing ? { pricingModel: query.pricing.toUpperCase() } : {}),
       ...(query.featured === true || query.featured === 'true'
@@ -393,7 +418,9 @@ export class MarketplaceService implements OnModuleInit {
 
     const [installed, owners] = workspaceId
       ? await Promise.all([
-          this.installedListingIds(workspaceId, [listing.id]).then((ids) => ids.has(listing.id)),
+          this.installedListingIds(workspaceId, [listing.id]).then((ids) =>
+            ids.has(listing.id),
+          ),
           this.listingOwners(workspaceId, [listing]),
         ])
       : [undefined, undefined];
@@ -420,7 +447,10 @@ export class MarketplaceService implements OnModuleInit {
       _count: { _all: true },
       orderBy: { category: 'asc' },
     });
-    return rows.map((row) => ({ category: row.category, count: row._count._all }));
+    return rows.map((row) => ({
+      category: row.category,
+      count: row._count._all,
+    }));
   }
 
   // -------------------------------------------------------------------------
@@ -433,6 +463,7 @@ export class MarketplaceService implements OnModuleInit {
    * know whether the listing already exists.
    */
   async publish(input: PublishListingInput) {
+    assertContentAllowed(input.name, input.tagline, input.description);
     if (!isListingKind(input.kind)) {
       throw new BadRequestException(
         `Unknown listing kind '${input.kind}'. Expected one of: ${LISTING_KINDS.join(', ')}.`,
@@ -447,7 +478,8 @@ export class MarketplaceService implements OnModuleInit {
     if (!slug) throw new BadRequestException('A slug or name is required.');
 
     const publisherId = input.publisherSlug
-      ? (await this.ensurePublisher(input.publisherSlug, input.publisherName)).id
+      ? (await this.ensurePublisher(input.publisherSlug, input.publisherName))
+          .id
       : null;
 
     const data = {
@@ -474,7 +506,9 @@ export class MarketplaceService implements OnModuleInit {
       include: { publisher: PUBLISHER_SELECT },
     });
 
-    this.logger.log(`Published ${listing.kind} listing '${listing.slug}' v${listing.version}`);
+    this.logger.log(
+      `Published ${listing.kind} listing '${listing.slug}' v${listing.version}`,
+    );
     return this.toSummary(listing);
   }
 
@@ -582,7 +616,10 @@ export class MarketplaceService implements OnModuleInit {
   async uninstall(workspaceId: string, listingSlug: string) {
     const listing = await this.requireListing(listingSlug);
     assertNotAgent(listing.kind);
-    const installation = await this.requireInstallation(workspaceId, listing.id);
+    const installation = await this.requireInstallation(
+      workspaceId,
+      listing.id,
+    );
 
     await this.prisma.marketplaceInstallation.update({
       where: { id: installation.id },
@@ -672,7 +709,10 @@ export class MarketplaceService implements OnModuleInit {
   ): Promise<InstallationView> {
     const listing = await this.requireListing(listingSlug);
     assertNotAgent(listing.kind);
-    const installation = await this.requireInstallation(workspaceId, listing.id);
+    const installation = await this.requireInstallation(
+      workspaceId,
+      listing.id,
+    );
 
     const existingSettings = parseJson<Record<string, unknown>>(
       installation.settingsJson,
@@ -727,24 +767,40 @@ export class MarketplaceService implements OnModuleInit {
     description?: string;
     category: string;
     capabilities?: string[];
-    permissions?: Array<{ scope: string; name: string; level: string; description: string }>;
+    permissions?: Array<{
+      scope: string;
+      name: string;
+      level: string;
+      description: string;
+    }>;
     commands?: Array<{ command: string; description: string; args?: string }>;
     examplePrompts?: string[];
     iconUrl?: string;
     version?: string;
   }): Promise<ListingSummary> {
+    assertContentAllowed(input.name, input.tagline, input.description);
     if (input.kind === 'AGENT') {
       throw new BadRequestException(
         'AI agents are published from AI Agent Studio (open the agent → Marketplace tab).',
       );
     }
     const slug = toSlug(input.slug || input.name);
-    const publisher = await this.ensurePublisher('community-developer', 'Community Developer');
+    const publisher = await this.ensurePublisher(
+      'community-developer',
+      'Community Developer',
+    );
 
     // Re-publishing a custom listing is fine; taking over an official or
     // Studio-published one by reusing its slug is not.
-    const taken = await this.prisma.marketplaceListing.findUnique({ where: { slug } });
-    if (taken && (taken.isOfficial || taken.sourceAgentId || taken.publisherId !== publisher.id)) {
+    const taken = await this.prisma.marketplaceListing.findUnique({
+      where: { slug },
+    });
+    if (
+      taken &&
+      (taken.isOfficial ||
+        taken.sourceAgentId ||
+        taken.publisherId !== publisher.id)
+    ) {
       throw new ConflictException(`The slug '${slug}' is already taken.`);
     }
 
@@ -778,7 +834,10 @@ export class MarketplaceService implements OnModuleInit {
         version: input.version ?? '1.0.0',
         iconUrl: input.iconUrl ?? null,
         previewUrl: null,
-        tags: JSON.stringify([input.category.toLowerCase(), input.kind.toLowerCase()]),
+        tags: JSON.stringify([
+          input.category.toLowerCase(),
+          input.kind.toLowerCase(),
+        ]),
         manifestJson: JSON.stringify(manifest),
         payloadJson: JSON.stringify({}),
         pricingModel: 'FREE',
@@ -810,7 +869,10 @@ export class MarketplaceService implements OnModuleInit {
   ) {
     const listing = await this.requireListing(listingSlug);
     assertNotAgent(listing.kind);
-    const installation = await this.requireInstallation(workspaceId, listing.id);
+    const installation = await this.requireInstallation(
+      workspaceId,
+      listing.id,
+    );
 
     const updated = await this.prisma.marketplaceInstallation.update({
       where: { id: installation.id },
@@ -827,7 +889,10 @@ export class MarketplaceService implements OnModuleInit {
   ) {
     const listing = await this.requireListing(listingSlug);
     assertNotAgent(listing.kind);
-    const installation = await this.requireInstallation(workspaceId, listing.id);
+    const installation = await this.requireInstallation(
+      workspaceId,
+      listing.id,
+    );
 
     const updated = await this.prisma.marketplaceInstallation.update({
       where: { id: installation.id },
@@ -870,7 +935,9 @@ export class MarketplaceService implements OnModuleInit {
   ): Promise<ReviewView> {
     const rating = Math.round(Number(input.rating));
     if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
-      throw new BadRequestException('A rating must be a whole number from 1 to 5.');
+      throw new BadRequestException(
+        'A rating must be a whole number from 1 to 5.',
+      );
     }
     const listing = await this.requireListing(listingSlug);
 
@@ -910,7 +977,10 @@ export class MarketplaceService implements OnModuleInit {
       // increment instead of a read-modify-write that can lose a concurrent vote.
       this.prisma.marketplaceListing.update({
         where: { id: listing.id },
-        data: { ratingSum: { increment: rating }, ratingCount: { increment: 1 } },
+        data: {
+          ratingSum: { increment: rating },
+          ratingCount: { increment: 1 },
+        },
       }),
     ]);
 
@@ -934,14 +1004,23 @@ export class MarketplaceService implements OnModuleInit {
   private orderFor(sort: BrowseQuery['sort']) {
     switch (sort) {
       case 'rating':
-        return [{ ratingSum: 'desc' as const }, { installCount: 'desc' as const }];
+        return [
+          { ratingSum: 'desc' as const },
+          { installCount: 'desc' as const },
+        ];
       case 'newest':
-        return [{ publishedAt: 'desc' as const }, { createdAt: 'desc' as const }];
+        return [
+          { publishedAt: 'desc' as const },
+          { createdAt: 'desc' as const },
+        ];
       case 'name':
         return [{ name: 'asc' as const }];
       case 'popular':
       default:
-        return [{ isFeatured: 'desc' as const }, { installCount: 'desc' as const }];
+        return [
+          { isFeatured: 'desc' as const },
+          { installCount: 'desc' as const },
+        ];
     }
   }
 
@@ -966,7 +1045,11 @@ export class MarketplaceService implements OnModuleInit {
    */
   private async listingOwners(
     workspaceId: string,
-    rows: Array<{ id: string; ownerWorkspaceId?: string | null; sourceAgentId?: string | null }>,
+    rows: Array<{
+      id: string;
+      ownerWorkspaceId?: string | null;
+      sourceAgentId?: string | null;
+    }>,
   ): Promise<Map<string, ListingOwner>> {
     const owners = new Map<string, ListingOwner>();
     if (rows.length === 0) return owners;
@@ -996,9 +1079,15 @@ export class MarketplaceService implements OnModuleInit {
     ]);
 
     const creatorByAgent = new Map(agents.map((a) => [a.id, a.creatorId]));
-    const pick = new Map<string, { userId: string; relation: ListingOwner['relation'] }>();
+    const pick = new Map<
+      string,
+      { userId: string; relation: ListingOwner['relation'] }
+    >();
     for (const install of installs) {
-      pick.set(install.listingId, { userId: install.installedById as string, relation: 'INSTALLED' });
+      pick.set(install.listingId, {
+        userId: install.installedById as string,
+        relation: 'INSTALLED',
+      });
     }
     for (const row of studioRows) {
       const creatorId = creatorByAgent.get(row.sourceAgentId as string);
@@ -1007,7 +1096,9 @@ export class MarketplaceService implements OnModuleInit {
     if (pick.size === 0) return owners;
 
     const users = await this.prisma.user.findMany({
-      where: { id: { in: [...new Set([...pick.values()].map((p) => p.userId))] } },
+      where: {
+        id: { in: [...new Set([...pick.values()].map((p) => p.userId))] },
+      },
       select: { id: true, name: true, displayName: true, avatarUrl: true },
     });
     const userById = new Map(users.map((u) => [u.id, u]));
@@ -1032,17 +1123,25 @@ export class MarketplaceService implements OnModuleInit {
   async getStudioListing(workspaceId: string, agentId: string) {
     const row = await this.prisma.marketplaceListing.findUnique({
       where: {
-        ownerWorkspaceId_sourceAgentId: { ownerWorkspaceId: workspaceId, sourceAgentId: agentId },
+        ownerWorkspaceId_sourceAgentId: {
+          ownerWorkspaceId: workspaceId,
+          sourceAgentId: agentId,
+        },
       },
       include: { publisher: PUBLISHER_SELECT },
     });
     if (!row) return null;
     const live = await this.prisma.marketplaceInstallation.groupBy({
       by: ['version'],
-      where: { listingId: row.id, status: { in: ['ACTIVE', 'DISABLED', 'UPDATING'] } },
+      where: {
+        listingId: row.id,
+        status: { in: ['ACTIVE', 'DISABLED', 'UPDATING'] },
+      },
       _count: { _all: true },
     });
-    const byVersion = Object.fromEntries(live.map((g) => [g.version, g._count._all]));
+    const byVersion = Object.fromEntries(
+      live.map((g) => [g.version, g._count._all]),
+    );
     const behind = live
       .filter((g) => compareSemver(row.version, g.version) > 0)
       .reduce((n, g) => n + g._count._all, 0);
@@ -1060,11 +1159,33 @@ export class MarketplaceService implements OnModuleInit {
    * accept it as an installable package. Writes nothing, so a creator can check
    * permissions and manifest problems before anyone installs it.
    */
-  async validateStudioAgent(workspaceId: string, agentId: string, userId: string, input: PublishStudioAgentInput = {}) {
-    const { evaluated, data } = await this.buildStudioPackage(workspaceId, agentId, userId, input);
+  async validateStudioAgent(
+    workspaceId: string,
+    agentId: string,
+    userId: string,
+    input: PublishStudioAgentInput = {},
+  ) {
+    const { evaluated, data } = await this.buildStudioPackage(
+      workspaceId,
+      agentId,
+      userId,
+      input,
+    );
     return evaluated.ok
-      ? { valid: true as const, version: data.version, permissions: evaluated.permissions, configFields: evaluated.manifest.configFields, issues: [] }
-      : { valid: false as const, version: data.version, permissions: [], configFields: [], issues: evaluated.issues };
+      ? {
+          valid: true as const,
+          version: data.version,
+          permissions: evaluated.permissions,
+          configFields: evaluated.manifest.configFields,
+          issues: [],
+        }
+      : {
+          valid: false as const,
+          version: data.version,
+          permissions: [],
+          configFields: [],
+          issues: evaluated.issues,
+        };
   }
 
   private async buildStudioPackage(
@@ -1080,7 +1201,9 @@ export class MarketplaceService implements OnModuleInit {
     if (!agent) throw new NotFoundException('Agent not found.');
 
     const config = (agent.configuration as Record<string, any>) ?? {};
-    const versions: any[] = Array.isArray(config.versions) ? config.versions : [];
+    const versions: any[] = Array.isArray(config.versions)
+      ? config.versions
+      : [];
     const latest = versions[0];
     if (config.status !== 'published' || !latest) {
       throw new BadRequestException(
@@ -1095,23 +1218,37 @@ export class MarketplaceService implements OnModuleInit {
 
     const existing = await this.prisma.marketplaceListing.findUnique({
       where: {
-        ownerWorkspaceId_sourceAgentId: { ownerWorkspaceId: workspaceId, sourceAgentId: agentId },
+        ownerWorkspaceId_sourceAgentId: {
+          ownerWorkspaceId: workspaceId,
+          sourceAgentId: agentId,
+        },
       },
     });
 
     // Anything not sent keeps what the listing already says, so a re-publish
     // ships a new version without silently resetting its storefront details.
-    const visibility = (input.visibility ?? existing?.visibility) === 'PUBLIC' ? 'PUBLIC' : 'WORKSPACE';
-    const versionNumber = Number(latest.version) || Number(config.currentVersion) || 1;
+    const visibility =
+      (input.visibility ?? existing?.visibility) === 'PUBLIC'
+        ? 'PUBLIC'
+        : 'WORKSPACE';
+    const versionNumber =
+      Number(latest.version) || Number(config.currentVersion) || 1;
     const version = `${versionNumber}.0.0`;
     const name = (input.name ?? agent.name).trim() || agent.name;
-    const tagline = (input.tagline?.trim() || existing?.tagline || agent.description || '').slice(0, 160);
+    const tagline = (
+      input.tagline?.trim() ||
+      existing?.tagline ||
+      agent.description ||
+      ''
+    ).slice(0, 160);
     // An agent's role ("Assistant") is rarely a storefront category; one that
     // isn't would never show up under the marketplace's category filters.
     const category =
       input.category?.trim() ||
       existing?.category ||
-      (CATEGORIES_BY_KIND.AGENT.includes(agent.role) ? agent.role : 'Operations');
+      (CATEGORIES_BY_KIND.AGENT.includes(agent.role)
+        ? agent.role
+        : 'Operations');
     const rawTools = latest.tools ?? agent.tools;
     const tools = parseTools(rawTools);
 
@@ -1134,11 +1271,15 @@ export class MarketplaceService implements OnModuleInit {
       {
         version,
         date: new Date().toISOString().slice(0, 10),
-        notes: input.changeNotes?.trim() || latest.changeSummary || 'Published from AI Agent Studio',
+        notes:
+          input.changeNotes?.trim() ||
+          latest.changeSummary ||
+          'Published from AI Agent Studio',
       },
-      ...(Array.isArray(previous['changelog']) ? previous['changelog'] : []).filter(
-        (c: any) => c?.version !== version,
-      ),
+      ...(Array.isArray(previous['changelog'])
+        ? previous['changelog']
+        : []
+      ).filter((c: any) => c?.version !== version),
     ].slice(0, 20);
 
     const manifest = {
@@ -1148,7 +1289,9 @@ export class MarketplaceService implements OnModuleInit {
       capabilities: tools,
       permissions: [],
       commands: [],
-      examplePrompts: Array.isArray(config.examplePrompts) ? config.examplePrompts.slice(0, 6) : [],
+      examplePrompts: Array.isArray(config.examplePrompts)
+        ? config.examplePrompts.slice(0, 6)
+        : [],
       requiresAdmin: false,
       security: {
         dataAccessed: ['Workspace context'],
@@ -1189,11 +1332,15 @@ export class MarketplaceService implements OnModuleInit {
     userId: string,
     input: PublishStudioAgentInput = {},
   ): Promise<ListingSummary> {
-    const { data, existing, visibility, name, evaluated } = await this.buildStudioPackage(workspaceId, agentId, userId, input);
+    const { data, existing, visibility, name, evaluated } =
+      await this.buildStudioPackage(workspaceId, agentId, userId, input);
+    assertContentAllowed(name, data.description);
     if (!evaluated.ok) {
       throw new UnprocessableEntityException({
         code: 'INVALID_PACKAGE',
-        message: evaluated.issues[0]?.message ?? 'This agent cannot be packaged for install.',
+        message:
+          evaluated.issues[0]?.message ??
+          'This agent cannot be packaged for install.',
         issues: evaluated.issues,
       });
     }
@@ -1218,7 +1365,9 @@ export class MarketplaceService implements OnModuleInit {
       : await this.prisma.marketplaceListing.create({
           data: {
             ...listingData,
-            slug: await this.uniqueSlug(`${toSlug(name) || 'agent'}-${workspaceId.slice(-6).toLowerCase()}`),
+            slug: await this.uniqueSlug(
+              `${toSlug(name) || 'agent'}-${workspaceId.slice(-6).toLowerCase()}`,
+            ),
             ownerWorkspaceId: workspaceId,
             sourceAgentId: agentId,
             publishedAt: new Date(),
@@ -1236,10 +1385,14 @@ export class MarketplaceService implements OnModuleInit {
   async unpublishStudioAgent(workspaceId: string, agentId: string) {
     const existing = await this.prisma.marketplaceListing.findUnique({
       where: {
-        ownerWorkspaceId_sourceAgentId: { ownerWorkspaceId: workspaceId, sourceAgentId: agentId },
+        ownerWorkspaceId_sourceAgentId: {
+          ownerWorkspaceId: workspaceId,
+          sourceAgentId: agentId,
+        },
       },
     });
-    if (!existing) throw new NotFoundException('This agent is not on the marketplace.');
+    if (!existing)
+      throw new NotFoundException('This agent is not on the marketplace.');
     const row = await this.prisma.marketplaceListing.update({
       where: { id: existing.id },
       data: { status: 'DEPRECATED' },
@@ -1250,7 +1403,11 @@ export class MarketplaceService implements OnModuleInit {
 
   private async uniqueSlug(base: string) {
     let slug = base;
-    for (let i = 2; await this.prisma.marketplaceListing.findUnique({ where: { slug } }); i++) {
+    for (
+      let i = 2;
+      await this.prisma.marketplaceListing.findUnique({ where: { slug } });
+      i++
+    ) {
       slug = `${base}-${i}`;
     }
     return slug;
@@ -1287,7 +1444,9 @@ export class MarketplaceService implements OnModuleInit {
       where: { listingId_workspaceId: { listingId, workspaceId } },
     });
     if (!installation) {
-      throw new NotFoundException('This listing is not installed in the workspace.');
+      throw new NotFoundException(
+        'This listing is not installed in the workspace.',
+      );
     }
     return installation;
   }
@@ -1367,9 +1526,10 @@ export class MarketplaceService implements OnModuleInit {
     listing: ListingRow;
   }): InstallationView {
     const settings = parseJson<Record<string, unknown>>(row.settingsJson, {});
-    const approvalRequest = settings['approvalRequest'] as
-      | Record<string, unknown>
-      | null;
+    const approvalRequest = settings['approvalRequest'] as Record<
+      string,
+      unknown
+    > | null;
     const lastActivityAt =
       (settings['lastActivityAt'] as string) || row.installedAt.toISOString();
     const isAgent = row.listing.kind === 'AGENT';
@@ -1397,14 +1557,20 @@ export class MarketplaceService implements OnModuleInit {
       health: parseHealth(row.healthJson),
       approvedPermissions: parseJson<string[]>(row.approvedPermissions, []),
       latestVersion: row.listing.version,
-      updateAvailable: isAgent && compareSemver(row.listing.version, row.version) > 0,
+      updateAvailable:
+        isAgent && compareSemver(row.listing.version, row.version) > 0,
     };
   }
 }
 
 function parseHealth(raw: string | undefined): InstallationView['health'] {
-  const value = parseJson<Partial<NonNullable<InstallationView['health']>>>(raw, {});
-  return Array.isArray(value.checks) ? (value as NonNullable<InstallationView['health']>) : null;
+  const value = parseJson<Partial<NonNullable<InstallationView['health']>>>(
+    raw,
+    {},
+  );
+  return Array.isArray(value.checks)
+    ? (value as NonNullable<InstallationView['health']>)
+    : null;
 }
 
 /** Agents have a lifecycle (permissions, config, health, rollback) the generic install lacks. */

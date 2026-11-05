@@ -1,3 +1,4 @@
+import { ContentModerationModule } from './content-moderation.module.js';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { CacheModule } from '@org/api-cache';
@@ -34,7 +35,13 @@ import { AIMemoryService } from './ai-memory.service.js';
 import { AIMemoryController } from './ai-memory.controller.js';
 
 @Module({
-  imports: [ConfigModule, AuthModule, PrismaModule, CacheModule],
+  imports: [
+    ConfigModule,
+    AuthModule,
+    PrismaModule,
+    CacheModule,
+    ContentModerationModule,
+  ],
   controllers: [
     AIPlatformController,
     PromptTemplateController,
@@ -70,6 +77,7 @@ import { AIMemoryController } from './ai-memory.controller.js';
     AIMemoryService,
   ],
   exports: [
+    ContentModerationModule,
     AIEncryptionService,
     ProviderRegistryService,
     ModelRegistryService,

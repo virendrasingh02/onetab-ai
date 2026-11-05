@@ -33,15 +33,24 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       // `systemRole` is read here rather than carried in the JWT so that
       // revoking an operator takes effect on the next request, not whenever
       // their current access token happens to expire.
-      select: { id: true, email: true, name: true, systemRole: true },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        systemRole: true,
+        deletedAt: true,
+      },
     });
 
-    if (!user) {
+    // A deleted account keeps a scrubbed row, so existence alone is not enough.
+    if (!user || user.deletedAt) {
       throw new UnauthorizedException('The account no longer exists.');
     }
 
     return {
-      ...user,
+      id: user.id,
+      email: user.email,
+      name: user.name,
       systemRole: user.systemRole as SystemRole,
       sid: payload.sid,
     };

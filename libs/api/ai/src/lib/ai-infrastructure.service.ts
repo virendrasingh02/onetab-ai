@@ -1,3 +1,5 @@
+import { checkContent } from '@org/types';
+import { ContentModerationService } from './content-moderation.service.js';
 import {
   Injectable,
   Logger,
@@ -38,6 +40,12 @@ export interface ChatCompletionOptions {
   signal?: AbortSignal;
   apiKey?: string;
   baseUrl?: string;
+  /**
+   * `all` screens the person's latest message and the reply with the safety
+   * model; `output` only the reply, for callers that already checked the
+   * prompt. Left unset, replies still pass the local word filter.
+   */
+  moderate?: 'all' | 'output';
 }
 
 export interface VectorEmbedding {
@@ -105,7 +113,14 @@ export const AI_MODEL_REGISTRY: AIModelMetadata[] = [
     name: 'OpenAI GPT-4o Mini',
     enabled: true,
     default: false,
-    capabilities: ['chat', 'coding', 'agent', 'tool_calling', 'vision', 'streaming'],
+    capabilities: [
+      'chat',
+      'coding',
+      'agent',
+      'tool_calling',
+      'vision',
+      'streaming',
+    ],
   },
   {
     id: 'claude-sonnet',
@@ -114,7 +129,14 @@ export const AI_MODEL_REGISTRY: AIModelMetadata[] = [
     name: 'Claude Sonnet 4.5',
     enabled: true,
     default: false,
-    capabilities: ['chat', 'reasoning', 'coding', 'agent', 'tool_calling', 'streaming'],
+    capabilities: [
+      'chat',
+      'reasoning',
+      'coding',
+      'agent',
+      'tool_calling',
+      'streaming',
+    ],
   },
   {
     id: 'gemini-pro',
@@ -131,6 +153,29 @@ export const AI_MODEL_REGISTRY: AIModelMetadata[] = [
   // them to AI_ENABLED_PROVIDERS / AI_ENABLED_MODELS and restoring entries here.
 ];
 
+const AI_REPLY_BLOCKED_MESSAGE =
+  'This response was withheld because it may break our content rules.';
+
+function blockedStreamEvent(): AIStreamEvent {
+  return {
+    type: 'error',
+    error: { code: 'CONTENT_FILTERED', message: AI_REPLY_BLOCKED_MESSAGE },
+  };
+}
+
+/** What the person just typed: earlier turns were already checked. */
+function latestUserText(messages: AIChatMessage[]): string {
+  const latest = [...messages].reverse().find((m) => m.role === 'user');
+  const content: unknown = latest?.content;
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return '';
+  return content
+    .map((part: { text?: unknown }) =>
+      typeof part?.text === 'string' ? part.text : '',
+    )
+    .join(' ');
+}
+
 @Injectable()
 export class AIInfrastructureService implements OnModuleInit {
   private readonly logger = new Logger(AIInfrastructureService.name);
@@ -140,6 +185,7 @@ export class AIInfrastructureService implements OnModuleInit {
     private readonly modelRegistry: ModelRegistryService,
     private readonly modelResolver: ModelResolverService,
     private readonly vectorStore: QdrantVectorService,
+    private readonly moderation?: ContentModerationService,
   ) {}
 
   onModuleInit(): void {
@@ -207,6 +253,12 @@ export class AIInfrastructureService implements OnModuleInit {
       }
     }
 
+    if (options.moderate === 'all') {
+      await this.moderation?.assertTextAllowed(
+        latestUserText(options.messages),
+      );
+    }
+
     try {
       const response = await adapter.chat({
         model,
@@ -221,7 +273,7 @@ export class AIInfrastructureService implements OnModuleInit {
       });
 
       return {
-        ...response,
+        ...(await this.screenReply(response, options)),
         provider,
         model,
       };
@@ -252,7 +304,14 @@ export class AIInfrastructureService implements OnModuleInit {
       `AI Gateway streaming chat turn [Provider: ${provider}, Model: ${model}]`,
     );
 
-    yield* adapter.stream({
+    if (options.moderate === 'all') {
+      await this.moderation?.assertTextAllowed(
+        latestUserText(options.messages),
+      );
+    }
+
+    let reply = '';
+    for await (const event of adapter.stream({
       model,
       messages: options.messages,
       temperature: options.temperature,
@@ -262,7 +321,53 @@ export class AIInfrastructureService implements OnModuleInit {
       signal: options.signal,
       apiKey: options.apiKey,
       baseUrl: options.baseUrl,
-    });
+    })) {
+      if (event.type === 'content_delta') {
+        reply += event.content;
+        // Checked before this delta goes out, so a matched term never reaches
+        // the reader. The safety model only sees the finished reply, below.
+        if (!checkContent(reply).allowed) {
+          yield blockedStreamEvent();
+          return;
+        }
+      }
+      if (event.type === 'message_complete' && options.moderate && reply) {
+        const verdict = await this.moderation?.moderateText(reply);
+        if (verdict && !verdict.allowed) {
+          yield blockedStreamEvent();
+          return;
+        }
+      }
+      yield event;
+    }
+  }
+
+  /** Tool calls and structured output are machine input, not something to read. */
+  private async screenReply(
+    response: AIChatResponse,
+    options: ChatCompletionOptions,
+  ): Promise<AIChatResponse> {
+    const { content, toolCalls } = response.message;
+    if (
+      typeof content !== 'string' ||
+      !content ||
+      options.structuredOutput ||
+      toolCalls?.length
+    ) {
+      return response;
+    }
+    const allowed =
+      checkContent(content).allowed &&
+      (!options.moderate ||
+        !this.moderation ||
+        (await this.moderation.moderateText(content)).allowed);
+    return allowed
+      ? response
+      : {
+          ...response,
+          message: { ...response.message, content: AI_REPLY_BLOCKED_MESSAGE },
+          finishReason: 'content_filter',
+        };
   }
 
   /**
@@ -376,10 +481,7 @@ export class AIInfrastructureService implements OnModuleInit {
    * configured, so RAG fails loudly upstream instead of silently degrading
    * to noise.
    */
-  async generateEmbedding(
-    text: string,
-    model?: string,
-  ): Promise<number[]> {
+  async generateEmbedding(text: string, model?: string): Promise<number[]> {
     const [vector] = await this.generateEmbeddings([text], model, 'query');
     if (!vector || vector.length === 0) {
       throw new ServiceUnavailableException(
@@ -394,7 +496,12 @@ export class AIInfrastructureService implements OnModuleInit {
     if (/^text-embedding-/i.test(model)) return 'openai';
     if (/^embed-/i.test(model)) return 'cohere';
     if (/^nvidia\//i.test(model)) return 'nvidia';
-    if (/^(nomic-embed|mxbai-embed|all-minilm|snowflake-arctic-embed|bge-)/i.test(model)) return 'ollama';
+    if (
+      /^(nomic-embed|mxbai-embed|all-minilm|snowflake-arctic-embed|bge-)/i.test(
+        model,
+      )
+    )
+      return 'ollama';
     return undefined;
   }
 
@@ -415,7 +522,9 @@ export class AIInfrastructureService implements OnModuleInit {
     // A named model pins its own provider: vectors from different models are
     // not comparable (and differ in dimension), so no cross-provider fallback.
     const pinned = model ? this.embeddingProviderFor(model) : undefined;
-    const order: AIProvider[] = pinned ? [pinned] : ['openai', 'cohere', 'nvidia', 'ollama'];
+    const order: AIProvider[] = pinned
+      ? [pinned]
+      : ['openai', 'cohere', 'nvidia', 'ollama'];
     const errors: string[] = [];
 
     for (const provider of order) {
@@ -428,14 +537,20 @@ export class AIInfrastructureService implements OnModuleInit {
         continue;
       }
       try {
-        const vectors = await adapter.generateEmbeddings(texts, pinned ? model : undefined, kind);
+        const vectors = await adapter.generateEmbeddings(
+          texts,
+          pinned ? model : undefined,
+          kind,
+        );
         if (
           vectors.length === texts.length &&
           vectors.every((v) => v.length > 0)
         ) {
           return vectors;
         }
-        errors.push(`${provider}: returned ${vectors.length}/${texts.length} vectors`);
+        errors.push(
+          `${provider}: returned ${vectors.length}/${texts.length} vectors`,
+        );
       } catch (err) {
         errors.push(
           `${provider}: ${err instanceof Error ? err.message : String(err)}`,

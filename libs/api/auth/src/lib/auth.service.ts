@@ -863,6 +863,42 @@ export class AuthService {
     return null;
   }
 
+  /**
+   * Fresh proof that the caller is the account holder, for actions a stolen
+   * session must not be able to take alone. Accounts with no password (social
+   * or passkey only) have only the second factor, when it is on.
+   */
+  async assertAccountOwnership(
+    userId: string,
+    input: { password?: string; twoFactorCode?: string },
+  ): Promise<void> {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { passwordHash: true, twoFactorAuth: true },
+    });
+    const reject = (message: string) =>
+      new UnauthorizedException({
+        code: ApiErrorCode.INVALID_CREDENTIALS,
+        message,
+      });
+
+    if (
+      user.passwordHash &&
+      !(await bcrypt.compare(input.password ?? '', user.passwordHash))
+    ) {
+      throw reject('That password is not right.');
+    }
+    if (
+      user.twoFactorAuth?.isEnabled &&
+      !(await this.redeemSecondFactor(
+        user.twoFactorAuth,
+        input.twoFactorCode ?? '',
+      ))
+    ) {
+      throw reject('That code is not right.');
+    }
+  }
+
   async changePassword(
     userId: string,
     input: ChangePasswordInput,

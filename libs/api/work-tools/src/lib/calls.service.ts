@@ -6,7 +6,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { AppEvent, PUBLIC_USER_SELECT } from '@org/api-common';
+import {
+  assertContentAllowed,
+  AppEvent,
+  PUBLIC_USER_SELECT,
+} from '@org/api-common';
 import { PrismaService } from '@org/database';
 import type {
   CallActionItemView,
@@ -46,7 +50,9 @@ import { WorkToolsService } from './work-tools.service.js';
 
 const CALL_STATUSES: readonly CallSessionStatus[] = ['ACTIVE', 'ENDED'];
 const isUniqueViolation = (err: unknown) =>
-  typeof err === 'object' && err !== null && (err as { code?: string }).code === 'P2002';
+  typeof err === 'object' &&
+  err !== null &&
+  (err as { code?: string }).code === 'P2002';
 
 @Injectable()
 export class CallsService {
@@ -88,7 +94,11 @@ export class CallsService {
 
     const joinActive = async (): Promise<CallView | null> => {
       const active = await this.prisma.call.findFirst({
-        where: { workspaceId, conversationId: input.conversationId, status: 'ACTIVE' },
+        where: {
+          workspaceId,
+          conversationId: input.conversationId,
+          status: 'ACTIVE',
+        },
         select: { id: true, matrixCallId: true, startedById: true },
       });
       if (!active) return null;
@@ -218,7 +228,10 @@ export class CallsService {
     void this.summaryService
       .generateSummary(workspaceId, actorId, callId)
       .catch((err) =>
-        this.logger.error(`Background summary generation failed for call ${callId}`, err),
+        this.logger.error(
+          `Background summary generation failed for call ${callId}`,
+          err,
+        ),
       );
     return true;
   }
@@ -226,7 +239,11 @@ export class CallsService {
   async listCalls(
     workspaceId: string,
     userId: string,
-    filters: { conversationId?: string; meetingId?: string; status?: string } = {},
+    filters: {
+      conversationId?: string;
+      meetingId?: string;
+      status?: string;
+    } = {},
   ): Promise<CallView[]> {
     const status = filters.status as CallSessionStatus | undefined;
     if (status && !CALL_STATUSES.includes(status)) {
@@ -237,7 +254,9 @@ export class CallsService {
       where: {
         AND: [
           this.access.visibleWhere(workspaceId, userId),
-          filters.conversationId ? { conversationId: filters.conversationId } : {},
+          filters.conversationId
+            ? { conversationId: filters.conversationId }
+            : {},
           filters.meetingId ? { meetingId: filters.meetingId } : {},
           status ? { status } : {},
         ],
@@ -245,7 +264,12 @@ export class CallsService {
       include: {
         ...CALL_INCLUDE,
         _count: {
-          select: { notes: true, actionItems: true, decisions: true, transcripts: true },
+          select: {
+            notes: true,
+            actionItems: true,
+            decisions: true,
+            transcripts: true,
+          },
         },
       },
       orderBy: { startedAt: 'desc' },
@@ -256,7 +280,10 @@ export class CallsService {
   }
 
   /** A meeting's calls — meeting-linked calls are visible to the workspace. */
-  async listMeetingCalls(workspaceId: string, meetingId: string): Promise<CallView[]> {
+  async listMeetingCalls(
+    workspaceId: string,
+    meetingId: string,
+  ): Promise<CallView[]> {
     const rows = await this.prisma.call.findMany({
       where: { workspaceId, meetingId },
       include: CALL_INCLUDE,
@@ -281,7 +308,10 @@ export class CallsService {
           include: { author: { select: PUBLIC_USER_SELECT } },
           orderBy: { createdAt: 'asc' },
         },
-        actionItems: { include: ACTION_ITEM_INCLUDE, orderBy: { createdAt: 'asc' } },
+        actionItems: {
+          include: ACTION_ITEM_INCLUDE,
+          orderBy: { createdAt: 'asc' },
+        },
         decisions: {
           include: { madeBy: { select: PUBLIC_USER_SELECT } },
           orderBy: { createdAt: 'asc' },
@@ -319,7 +349,9 @@ export class CallsService {
       where: { id: callId },
       data: {
         ...(input.title ? { title: input.title } : {}),
-        ...(input.recordingUrl !== undefined ? { recordingUrl: input.recordingUrl } : {}),
+        ...(input.recordingUrl !== undefined
+          ? { recordingUrl: input.recordingUrl }
+          : {}),
       },
       include: CALL_INCLUDE,
     });
@@ -349,6 +381,7 @@ export class CallsService {
     userId: string,
     input: CreateCallNoteInput,
   ): Promise<CallNoteView> {
+    assertContentAllowed(input.content);
     await this.access.assertCanView(workspaceId, userId, callId);
     const note = await this.prisma.callNote.create({
       data: { callId, workspaceId, authorId: userId, content: input.content },
@@ -385,11 +418,22 @@ export class CallsService {
           include: { author: { select: PUBLIC_USER_SELECT } },
         })
       : await this.prisma.callNote.create({
-          data: { callId, workspaceId, authorId: userId, content: input.content },
+          data: {
+            callId,
+            workspaceId,
+            authorId: userId,
+            content: input.content,
+          },
           include: { author: { select: PUBLIC_USER_SELECT } },
         });
 
-    this.emitNoteChange(workspaceId, userId, callId, note.id, existing ? 'updated' : 'created');
+    this.emitNoteChange(
+      workspaceId,
+      userId,
+      callId,
+      note.id,
+      existing ? 'updated' : 'created',
+    );
     return toNoteView(note);
   }
 
@@ -400,6 +444,7 @@ export class CallsService {
     userId: string,
     input: UpdateCallNoteInput,
   ): Promise<CallNoteView> {
+    assertContentAllowed(input.content);
     await this.assertOwnNote(workspaceId, callId, noteId, userId);
     const updated = await this.prisma.callNote.update({
       where: { id: noteId },
@@ -514,8 +559,12 @@ export class CallsService {
       where: { id },
       data: {
         ...(input.title ? { title: input.title } : {}),
-        ...(input.description !== undefined ? { description: input.description } : {}),
-        ...(input.assigneeId !== undefined ? { assigneeId: input.assigneeId } : {}),
+        ...(input.description !== undefined
+          ? { description: input.description }
+          : {}),
+        ...(input.assigneeId !== undefined
+          ? { assigneeId: input.assigneeId }
+          : {}),
         ...(input.dueDate !== undefined
           ? { dueDate: input.dueDate ? new Date(input.dueDate) : null }
           : {}),
@@ -535,9 +584,19 @@ export class CallsService {
     if (item.taskId && input.status && updated.task) {
       const taskStatus = updated.task.status;
       if (input.status === 'DONE' && taskStatus !== 'DONE') {
-        await this.workTools.updateTask(workspaceId, item.taskId, { status: 'DONE' }, userId);
+        await this.workTools.updateTask(
+          workspaceId,
+          item.taskId,
+          { status: 'DONE' },
+          userId,
+        );
       } else if (input.status === 'TODO' && taskStatus === 'DONE') {
-        await this.workTools.updateTask(workspaceId, item.taskId, { status: 'TODO' }, userId);
+        await this.workTools.updateTask(
+          workspaceId,
+          item.taskId,
+          { status: 'TODO' },
+          userId,
+        );
       }
     }
 
@@ -550,7 +609,8 @@ export class CallsService {
       title: updated.title,
       // Only present when this request actually (re)assigned someone, so the
       // notification listener doesn't re-notify on unrelated field edits.
-      assigneeId: input.assigneeId !== undefined ? updated.assigneeId : undefined,
+      assigneeId:
+        input.assigneeId !== undefined ? updated.assigneeId : undefined,
     });
 
     return toActionItemView(updated);
@@ -566,7 +626,8 @@ export class CallsService {
     const removed = await this.prisma.callActionItem.deleteMany({
       where: { id, callId, workspaceId },
     });
-    if (removed.count === 0) throw new NotFoundException('Action item not found.');
+    if (removed.count === 0)
+      throw new NotFoundException('Action item not found.');
 
     this.events.emit(AppEvent.CallActionItemUpdated, {
       workspaceId,
@@ -597,7 +658,9 @@ export class CallsService {
     if (!item) throw new NotFoundException('Action item not found.');
 
     if (item.taskId) {
-      const stillThere = await this.prisma.task.count({ where: { id: item.taskId } });
+      const stillThere = await this.prisma.task.count({
+        where: { id: item.taskId },
+      });
       if (stillThere > 0) return this.getActionItemView(id);
     }
 
@@ -605,7 +668,8 @@ export class CallsService {
       workspaceId,
       {
         title: item.title,
-        description: item.description ?? `Action item from the call "${item.call.title}".`,
+        description:
+          item.description ?? `Action item from the call "${item.call.title}".`,
         assigneeId: item.assigneeId,
         dueDate: item.dueDate?.toISOString() ?? null,
         priority: item.priority,
@@ -623,7 +687,9 @@ export class CallsService {
       data: { taskId: task.id },
     });
     if (linked.count === 0) {
-      await this.prisma.task.delete({ where: { id: task.id } }).catch(() => undefined);
+      await this.prisma.task
+        .delete({ where: { id: task.id } })
+        .catch(() => undefined);
     }
 
     this.emitCallChange(workspaceId, userId, callId, 'action_item', 'updated');
@@ -787,7 +853,13 @@ export class CallsService {
     noteId: string,
     action: 'created' | 'updated' | 'deleted',
   ): void {
-    this.events.emit(AppEvent.CallNoteUpdated, { workspaceId, actorId, callId, noteId, action });
+    this.events.emit(AppEvent.CallNoteUpdated, {
+      workspaceId,
+      actorId,
+      callId,
+      noteId,
+      action,
+    });
   }
 
   private emitDecisionChange(
@@ -814,6 +886,12 @@ export class CallsService {
     entity: 'call' | 'action_item' | 'transcript' = 'call',
     action = 'updated',
   ): void {
-    this.events.emit(AppEvent.CallUpdated, { workspaceId, actorId, callId, entity, action });
+    this.events.emit(AppEvent.CallUpdated, {
+      workspaceId,
+      actorId,
+      callId,
+      entity,
+      action,
+    });
   }
 }

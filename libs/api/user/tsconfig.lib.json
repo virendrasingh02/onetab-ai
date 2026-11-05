@@ -19,19 +19,22 @@
   ],
   "references": [
     {
-      "path": "../../shared/types/tsconfig.lib.json"
-    },
-    {
-      "path": "../../shared/validation/tsconfig.lib.json"
+      "path": "../ai/tsconfig.lib.json"
     },
     {
       "path": "../common/tsconfig.lib.json"
     },
     {
-      "path": "../auth/tsconfig.lib.json"
+      "path": "../../shared/validation/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/types/tsconfig.lib.json"
     },
     {
       "path": "../database/tsconfig.lib.json"
+    },
+    {
+      "path": "../workspace/tsconfig.lib.json"
     },
     {
       "path": "../storage/tsconfig.lib.json"
@@ -41,6 +44,12 @@
     },
     {
       "path": "../matrix/tsconfig.lib.json"
+    },
+    {
+      "path": "../integrations/tsconfig.lib.json"
+    },
+    {
+      "path": "../auth/tsconfig.lib.json"
     }
   ]
 }

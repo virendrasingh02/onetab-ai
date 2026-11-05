@@ -43,7 +43,9 @@ export class ComplianceService implements OnModuleInit {
     try {
       await this.seedOfficialGuidelines();
     } catch (error) {
-      this.logger.warn(`Compliance seeding skipped or failed: ${(error as Error).message}`);
+      this.logger.warn(
+        `Compliance seeding skipped or failed: ${(error as Error).message}`,
+      );
     }
   }
 
@@ -102,21 +104,33 @@ export class ComplianceService implements OnModuleInit {
     });
 
     const issues = await this.prisma.complianceIssue.findMany();
-    const openIssues = issues.filter((i) => i.status !== 'RESOLVED' && i.status !== 'ACCEPTED');
+    const openIssues = issues.filter(
+      (i) => i.status !== 'RESOLVED' && i.status !== 'ACCEPTED',
+    );
 
-    const criticalCount = openIssues.filter((i) => i.severity === 'CRITICAL').length;
+    const criticalCount = openIssues.filter(
+      (i) => i.severity === 'CRITICAL',
+    ).length;
     const highCount = openIssues.filter((i) => i.severity === 'HIGH').length;
-    const mediumCount = openIssues.filter((i) => i.severity === 'MEDIUM').length;
+    const mediumCount = openIssues.filter(
+      (i) => i.severity === 'MEDIUM',
+    ).length;
     const lowCount = openIssues.filter((i) => i.severity === 'LOW').length;
-    const resolvedCount = issues.filter((i) => i.status === 'RESOLVED' || i.status === 'ACCEPTED').length;
+    const resolvedCount = issues.filter(
+      (i) => i.status === 'RESOLVED' || i.status === 'ACCEPTED',
+    ).length;
 
     // Calculate platform scores
     const webReview = reviews.find((r) => r.platform.code === 'web');
     const winDirectReview = reviews.find(
       (r) => r.platform.code === 'windows' && r.distributionId === null,
     );
-    const msStoreReview = reviews.find((r) => r.distribution?.code === 'microsoft-store');
-    const macAppStoreReview = reviews.find((r) => r.distribution?.code === 'mac-app-store');
+    const msStoreReview = reviews.find(
+      (r) => r.distribution?.code === 'microsoft-store',
+    );
+    const macAppStoreReview = reviews.find(
+      (r) => r.distribution?.code === 'mac-app-store',
+    );
     const macDirectReview = reviews.find(
       (r) => r.platform.code === 'macos' && r.distributionId === null,
     );
@@ -144,7 +158,9 @@ export class ComplianceService implements OnModuleInit {
 
     const countriesRequiringAttention = countriesWithIssues.map((c) => {
       const crit = c.issues.filter((i) => i.severity === 'CRITICAL').length;
-      const warn = c.issues.filter((i) => i.severity === 'HIGH' || i.severity === 'MEDIUM').length;
+      const warn = c.issues.filter(
+        (i) => i.severity === 'HIGH' || i.severity === 'MEDIUM',
+      ).length;
       return {
         code: c.code,
         name: c.name,
@@ -160,14 +176,21 @@ export class ComplianceService implements OnModuleInit {
         platform: p.code,
         platformName: p.name,
         currentVersion: current ? current.version : p.currentVersion,
-        status: (current ? current.status : 'IN_PROGRESS') as ComplianceReviewStatus,
+        status: (current
+          ? current.status
+          : 'IN_PROGRESS') as ComplianceReviewStatus,
         readinessScore: p.code === 'web' ? webScore : desktopScore,
       };
     });
 
     return {
       overallScore,
-      overallStatus: criticalCount > 0 ? 'FAILED' : overallScore >= 90 ? 'PASSED' : 'WARNING',
+      overallStatus:
+        criticalCount > 0
+          ? 'FAILED'
+          : overallScore >= 90
+            ? 'PASSED'
+            : 'WARNING',
       webReadiness: webScore,
       desktopReadiness: desktopScore,
       storeReadiness: {
@@ -299,7 +322,9 @@ export class ComplianceService implements OnModuleInit {
       isActive?: boolean;
     },
   ): Promise<CompliancePlatformView> {
-    const existing = await this.prisma.compliancePlatform.findUnique({ where: { id } });
+    const existing = await this.prisma.compliancePlatform.findUnique({
+      where: { id },
+    });
     if (!existing) throw new NotFoundException('Platform not found');
 
     const updated = await this.prisma.compliancePlatform.update({
@@ -377,7 +402,9 @@ export class ComplianceService implements OnModuleInit {
       regionCode: c.region.code,
       regionName: c.region.name,
       applicableRequirementsCount: c.scopes.length,
-      countrySpecificRequirementsCount: c.scopes.filter((s) => s.countryId === c.id).length,
+      countrySpecificRequirementsCount: c.scopes.filter(
+        (s) => s.countryId === c.id,
+      ).length,
       openIssuesCount: c.issues.length,
       status: c.issues.length > 0 ? 'WARNING' : 'PASSED',
     }));
@@ -509,7 +536,9 @@ export class ComplianceService implements OnModuleInit {
       where: { code: data.code },
     });
     if (existing) {
-      throw new BadRequestException(`Requirement code '${data.code}' already exists`);
+      throw new BadRequestException(
+        `Requirement code '${data.code}' already exists`,
+      );
     }
 
     const created = await this.prisma.complianceRequirement.create({
@@ -529,16 +558,24 @@ export class ComplianceService implements OnModuleInit {
     if (data.scopes && data.scopes.length > 0) {
       for (const sc of data.scopes) {
         const country = sc.countryCode
-          ? await this.prisma.complianceCountry.findUnique({ where: { code: sc.countryCode } })
+          ? await this.prisma.complianceCountry.findUnique({
+              where: { code: sc.countryCode },
+            })
           : null;
         const region = sc.regionCode
-          ? await this.prisma.complianceRegion.findUnique({ where: { code: sc.regionCode } })
+          ? await this.prisma.complianceRegion.findUnique({
+              where: { code: sc.regionCode },
+            })
           : null;
         const platform = sc.platformCode
-          ? await this.prisma.compliancePlatform.findUnique({ where: { code: sc.platformCode } })
+          ? await this.prisma.compliancePlatform.findUnique({
+              where: { code: sc.platformCode },
+            })
           : null;
         const distribution = sc.distributionCode
-          ? await this.prisma.complianceDistribution.findUnique({ where: { code: sc.distributionCode } })
+          ? await this.prisma.complianceDistribution.findUnique({
+              where: { code: sc.distributionCode },
+            })
           : null;
 
         await this.prisma.complianceRequirementScope.create({
@@ -581,7 +618,9 @@ export class ComplianceService implements OnModuleInit {
       externalUrl: string;
     }>,
   ): Promise<ComplianceRequirementView> {
-    const existing = await this.prisma.complianceRequirement.findUnique({ where: { id } });
+    const existing = await this.prisma.complianceRequirement.findUnique({
+      where: { id },
+    });
     if (!existing) throw new NotFoundException('Requirement not found');
 
     const updated = await this.prisma.complianceRequirement.update({
@@ -611,7 +650,9 @@ export class ComplianceService implements OnModuleInit {
   }
 
   async deleteRequirement(actorEmail: string, id: string): Promise<void> {
-    const existing = await this.prisma.complianceRequirement.findUnique({ where: { id } });
+    const existing = await this.prisma.complianceRequirement.findUnique({
+      where: { id },
+    });
     if (!existing) throw new NotFoundException('Requirement not found');
 
     await this.prisma.complianceRequirement.delete({ where: { id } });
@@ -665,7 +706,9 @@ export class ComplianceService implements OnModuleInit {
         name: data.name,
         description: data.description,
         version: data.version ?? '1.0.0',
-        effectiveDate: data.effectiveDate ? new Date(data.effectiveDate) : new Date(),
+        effectiveDate: data.effectiveDate
+          ? new Date(data.effectiveDate)
+          : new Date(),
         externalGuidelineRef: data.externalGuidelineRef,
         externalGuidelineUrl: data.externalGuidelineUrl,
       },
@@ -794,12 +837,17 @@ export class ComplianceService implements OnModuleInit {
   // EVALUATION & REVIEWS
   // ---------------------------------------------------------------------------
 
-  async evaluate(context: ComplianceEvaluationContext): Promise<ComplianceEvaluationResult> {
+  async evaluate(
+    context: ComplianceEvaluationContext,
+  ): Promise<ComplianceEvaluationResult> {
     const allRequirements = await this.listRequirements();
     return this.ruleEngine.evaluate(allRequirements, context);
   }
 
-  async listReviews(params?: { platformId?: string; status?: string }): Promise<ComplianceReviewView[]> {
+  async listReviews(params?: {
+    platformId?: string;
+    status?: string;
+  }): Promise<ComplianceReviewView[]> {
     const reviews = await this.prisma.complianceReview.findMany({
       where: {
         platformId: params?.platformId,
@@ -911,11 +959,15 @@ export class ComplianceService implements OnModuleInit {
     if (!version) throw new NotFoundException('Version not found');
 
     const country = data.countryId
-      ? await this.prisma.complianceCountry.findUnique({ where: { id: data.countryId } })
+      ? await this.prisma.complianceCountry.findUnique({
+          where: { id: data.countryId },
+        })
       : null;
 
     const distribution = data.distributionId
-      ? await this.prisma.complianceDistribution.findUnique({ where: { id: data.distributionId } })
+      ? await this.prisma.complianceDistribution.findUnique({
+          where: { id: data.distributionId },
+        })
       : null;
 
     // Evaluate applicable requirements for this review context
@@ -1073,17 +1125,20 @@ export class ComplianceService implements OnModuleInit {
       if (i.status === 'PASSED') passed++;
       else if (i.status === 'FAILED') {
         failed++;
-        if (i.requirement.severity === 'CRITICAL' || i.requirement.isBlocking) blocked++;
+        if (i.requirement.severity === 'CRITICAL' || i.requirement.isBlocking)
+          blocked++;
       } else if (i.status === 'WARNING') warning++;
       else if (i.status === 'NOT_APPLICABLE') notApplicable++;
     }
 
     const totalEvaluable = allItems.length - notApplicable;
-    const overallScore = totalEvaluable <= 0 ? 100 : Math.round((passed / totalEvaluable) * 100);
+    const overallScore =
+      totalEvaluable <= 0 ? 100 : Math.round((passed / totalEvaluable) * 100);
 
     let reviewStatus: ComplianceReviewStatus = 'IN_PROGRESS';
     if (blocked > 0 || failed > 0) reviewStatus = 'BLOCKED';
-    else if (overallScore >= 95 && warning === 0) reviewStatus = 'READY_FOR_SUBMISSION';
+    else if (overallScore >= 95 && warning === 0)
+      reviewStatus = 'READY_FOR_SUBMISSION';
 
     await this.prisma.complianceReview.update({
       where: { id: existing.reviewId },
@@ -1296,7 +1351,9 @@ export class ComplianceService implements OnModuleInit {
       severity?: string;
     },
   ): Promise<ComplianceIssueView> {
-    const existing = await this.prisma.complianceIssue.findUnique({ where: { id } });
+    const existing = await this.prisma.complianceIssue.findUnique({
+      where: { id },
+    });
     if (!existing) throw new NotFoundException('Issue not found');
 
     const updated = await this.prisma.complianceIssue.update({
@@ -1307,7 +1364,10 @@ export class ComplianceService implements OnModuleInit {
         resolution: data.resolution,
         reviewerNotes: data.reviewerNotes,
         severity: data.severity as any,
-        resolvedAt: data.status === 'RESOLVED' || data.status === 'ACCEPTED' ? new Date() : undefined,
+        resolvedAt:
+          data.status === 'RESOLVED' || data.status === 'ACCEPTED'
+            ? new Date()
+            : undefined,
       },
       include: {
         appVersion: true,
@@ -1473,7 +1533,9 @@ export class ComplianceService implements OnModuleInit {
     },
   ): Promise<ComplianceReleaseOverrideView> {
     if (!data.reason || data.reason.trim().length < 10) {
-      throw new BadRequestException('A valid reason of at least 10 characters is required for an override');
+      throw new BadRequestException(
+        'A valid reason of at least 10 characters is required for an override',
+      );
     }
 
     const review = await this.prisma.complianceReview.findUnique({
@@ -1659,20 +1721,38 @@ export class ComplianceService implements OnModuleInit {
     const regionCount = await this.prisma.complianceRegion.count();
     if (regionCount > 0) return;
 
-    this.logger.log('Seeding compliance regions, platforms, and official guidelines...');
+    this.logger.log(
+      'Seeding compliance regions, platforms, and official guidelines...',
+    );
 
     // 1. Regions
     await this.prisma.complianceRegion.create({
-      data: { code: 'GLOBAL', name: 'Global', description: 'Universal platform baseline' },
+      data: {
+        code: 'GLOBAL',
+        name: 'Global',
+        description: 'Universal platform baseline',
+      },
     });
     const apacReg = await this.prisma.complianceRegion.create({
-      data: { code: 'APAC', name: 'Asia Pacific', description: 'APAC region compliance' },
+      data: {
+        code: 'APAC',
+        name: 'Asia Pacific',
+        description: 'APAC region compliance',
+      },
     });
     const emeaReg = await this.prisma.complianceRegion.create({
-      data: { code: 'EMEA', name: 'Europe, Middle East, Africa', description: 'EU/GDPR jurisdiction' },
+      data: {
+        code: 'EMEA',
+        name: 'Europe, Middle East, Africa',
+        description: 'EU/GDPR jurisdiction',
+      },
     });
     const naReg = await this.prisma.complianceRegion.create({
-      data: { code: 'NA', name: 'North America', description: 'US & Canada compliance' },
+      data: {
+        code: 'NA',
+        name: 'North America',
+        description: 'US & Canada compliance',
+      },
     });
 
     // 2. Countries
@@ -1735,16 +1815,32 @@ export class ComplianceService implements OnModuleInit {
       data: { code: 'web', name: 'Production Web', platformId: webPlat.id },
     });
     const winDirect = await this.prisma.complianceDistribution.create({
-      data: { code: 'direct-win', name: 'Windows Direct (NSIS)', platformId: winPlat.id },
+      data: {
+        code: 'direct-win',
+        name: 'Windows Direct (NSIS)',
+        platformId: winPlat.id,
+      },
     });
     const msStore = await this.prisma.complianceDistribution.create({
-      data: { code: 'microsoft-store', name: 'Microsoft Store', platformId: winPlat.id },
+      data: {
+        code: 'microsoft-store',
+        name: 'Microsoft Store',
+        platformId: winPlat.id,
+      },
     });
     await this.prisma.complianceDistribution.create({
-      data: { code: 'direct-mac', name: 'macOS Direct (DMG/ZIP Notarized)', platformId: macPlat.id },
+      data: {
+        code: 'direct-mac',
+        name: 'macOS Direct (DMG/ZIP Notarized)',
+        platformId: macPlat.id,
+      },
     });
     const macStore = await this.prisma.complianceDistribution.create({
-      data: { code: 'mac-app-store', name: 'Mac App Store (MAS)', platformId: macPlat.id },
+      data: {
+        code: 'mac-app-store',
+        name: 'Mac App Store (MAS)',
+        platformId: macPlat.id,
+      },
     });
 
     // 5. Initial App Versions
@@ -1809,7 +1905,8 @@ export class ComplianceService implements OnModuleInit {
         name: 'Apple App Store Review Guidelines',
         version: '2026-Q1',
         externalGuidelineRef: 'App Store Review Guidelines 5.1 & 2.4.5',
-        externalGuidelineUrl: 'https://developer.apple.com/app-store/review/guidelines/',
+        externalGuidelineUrl:
+          'https://developer.apple.com/app-store/review/guidelines/',
       },
     });
     const msPolicy = await this.prisma.compliancePolicy.create({
@@ -1818,7 +1915,8 @@ export class ComplianceService implements OnModuleInit {
         name: 'Microsoft Store Policies',
         version: '10.0',
         externalGuidelineRef: 'Microsoft Store Policies 10.1, 10.5, 10.13',
-        externalGuidelineUrl: 'https://learn.microsoft.com/en-us/windows/apps/publish/store-policies',
+        externalGuidelineUrl:
+          'https://learn.microsoft.com/en-us/windows/apps/publish/store-policies',
       },
     });
 
@@ -1837,7 +1935,8 @@ export class ComplianceService implements OnModuleInit {
         policyId: applePolicy.id,
         remediationGuide:
           'Provide a "Delete Account" button in user settings that initiates complete data erasure or 30-day revocation flow.',
-        externalUrl: 'https://developer.apple.com/support/offering-account-deletion-in-your-app/',
+        externalUrl:
+          'https://developer.apple.com/support/offering-account-deletion-in-your-app/',
       },
     });
 
@@ -1894,7 +1993,8 @@ export class ComplianceService implements OnModuleInit {
     const reqSandbox = await this.prisma.complianceRequirement.create({
       data: {
         code: 'REQ-MAC-APP-SANDBOX',
-        title: 'macOS: App Sandbox Entitlement (com.apple.security.app-sandbox)',
+        title:
+          'macOS: App Sandbox Entitlement (com.apple.security.app-sandbox)',
         description:
           'All macOS apps distributed via the Mac App Store must be sandboxed using the com.apple.security.app-sandbox entitlement. Arbitrary filesystem access is forbidden.',
         category: 'SECURITY',
@@ -1904,7 +2004,8 @@ export class ComplianceService implements OnModuleInit {
         policyId: applePolicy.id,
         remediationGuide:
           'Enable App Sandbox in entitlements.mac.plist and verify native dialogs, IPC, and deep links function under sandbox.',
-        externalUrl: 'https://developer.apple.com/documentation/security/app_sandbox',
+        externalUrl:
+          'https://developer.apple.com/documentation/security/app_sandbox',
       },
     });
     // Scope to Mac App Store distribution
@@ -1920,7 +2021,8 @@ export class ComplianceService implements OnModuleInit {
     const reqNoUpdater = await this.prisma.complianceRequirement.create({
       data: {
         code: 'REQ-MAS-NO-EXTERNAL-UPDATER',
-        title: 'Mac App Store: Disable electron-updater / In-App Binary Updates',
+        title:
+          'Mac App Store: Disable electron-updater / In-App Binary Updates',
         description:
           'Mac App Store builds must not include an internal auto-updater mechanism (e.g. electron-updater). All app updates must be delivered exclusively through the App Store.',
         category: 'SECURITY',
@@ -2010,7 +2112,8 @@ export class ComplianceService implements OnModuleInit {
         key: 'privacy_policy',
         title: 'Privacy Policy',
         url: 'https://onetab.ai/privacy',
-        contentMarkdown: '# Privacy Policy\n\nOnetab AI respects user privacy and secures data.',
+        contentMarkdown:
+          '# Privacy Policy\n\nOnetab AI respects user privacy and secures data.',
       },
     });
     await this.prisma.complianceLegalLink.create({
@@ -2018,7 +2121,8 @@ export class ComplianceService implements OnModuleInit {
         key: 'terms_of_service',
         title: 'Terms of Service',
         url: 'https://onetab.ai/terms',
-        contentMarkdown: '# Terms of Service\n\nStandard platform terms and conditions.',
+        contentMarkdown:
+          '# Terms of Service\n\nStandard platform terms and conditions.',
       },
     });
     await this.prisma.complianceLegalLink.create({
@@ -2026,7 +2130,8 @@ export class ComplianceService implements OnModuleInit {
         key: 'account_deletion',
         title: 'Account Deletion & Data Purge',
         url: 'https://onetab.ai/settings/account/delete',
-        contentMarkdown: '# Account Deletion\n\nUsers can permanently delete their account.',
+        contentMarkdown:
+          '# Account Deletion\n\nUsers can permanently delete their account.',
       },
     });
     await this.prisma.complianceLegalLink.create({
@@ -2066,8 +2171,9 @@ export class ComplianceService implements OnModuleInit {
       data: {
         reviewId: winReview.id,
         requirementId: reqDelete.id,
-        status: 'PASSED',
-        notes: 'In-app account deletion verified on Windows client.',
+        status: 'WARNING',
+        notes:
+          'Implemented in Settings on web, desktop and mobile. Needs review against a production build before this is marked verified.',
       },
     });
     await this.prisma.complianceChecklistItem.create({
@@ -2100,14 +2206,16 @@ export class ComplianceService implements OnModuleInit {
         reviewId: macReview.id,
         requirementId: reqSandbox.id,
         status: 'FAILED',
-        notes: 'com.apple.security.app-sandbox not declared in entitlements.mac.plist.',
+        notes:
+          'com.apple.security.app-sandbox not declared in entitlements.mac.plist.',
       },
     });
 
     // 10. Sample Issue
     await this.prisma.complianceIssue.create({
       data: {
-        title: 'Mac App Store: Missing com.apple.security.app-sandbox Entitlement',
+        title:
+          'Mac App Store: Missing com.apple.security.app-sandbox Entitlement',
         description:
           'Review of apps/desktop/resources/entitlements.mac.plist found that the mandatory App Sandbox entitlement is missing.',
         category: 'SECURITY',
@@ -2115,7 +2223,8 @@ export class ComplianceService implements OnModuleInit {
         status: 'OPEN',
         source: 'INTERNAL_AUDIT',
         reviewerNotes: 'Required before MAS submission can pass review.',
-        remediation: 'Enable app sandbox and verify all file dialog and IPC operations.',
+        remediation:
+          'Enable app sandbox and verify all file dialog and IPC operations.',
         appVersionId: macVersion.id,
         platformId: macPlat.id,
         requirementId: reqSandbox.id,

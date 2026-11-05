@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
+  assertContentAllowed,
   AppEvent,
   PUBLIC_USER_SELECT,
   toChannel,
@@ -231,6 +232,7 @@ export class ChannelService {
     userId: string,
     input: CreateChannelInput,
   ): Promise<Channel> {
+    assertContentAllowed(input.name, input.topic, input.description);
     const [member, settings] = await Promise.all([
       this.prisma.workspaceMember.findUnique({
         where: { workspaceId_userId: { workspaceId, userId } },
@@ -334,6 +336,7 @@ export class ChannelService {
     userId: string,
     input: UpdateChannelInput,
   ): Promise<Channel> {
+    assertContentAllowed(input.name, input.topic, input.description);
     await this.assertCanManage(workspaceId, channelId, userId);
 
     // A rename moves the slug too, so it must stay unique in the workspace —

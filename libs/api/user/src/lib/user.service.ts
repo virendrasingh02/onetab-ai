@@ -1,3 +1,4 @@
+import { ContentModerationService } from '@org/api-ai';
 import {
   BadRequestException,
   ConflictException,
@@ -6,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
+  assertContentAllowed,
   AppEvent,
   PUBLIC_PROFILE_EXTRAS_SELECT,
   PUBLIC_USER_SELECT,
@@ -48,6 +50,7 @@ export class UserService {
     private readonly storage: StorageService,
     private readonly imageProcessing: ImageProcessingService,
     private readonly events: EventEmitter2,
+    private readonly moderation: ContentModerationService,
   ) {}
 
   /** Every personal-settings write reaches the user's other open sessions/tabs this way — see `AppEvent.SettingsUpdated`. */
@@ -71,6 +74,7 @@ export class UserService {
     if (!file?.buffer?.length) {
       throw new BadRequestException('Avatar file is empty.');
     }
+    await this.moderation.assertFileAllowed(file);
 
     // Process avatar into square webp variants (256x256 main, plus 32, 48, 64, 96, 128, 512)
     const { main, variants } = await this.imageProcessing.processAvatar(
@@ -140,6 +144,7 @@ export class UserService {
     if (!file?.buffer?.length) {
       throw new BadRequestException('Cover file is empty.');
     }
+    await this.moderation.assertFileAllowed(file);
 
     const { coverImage } = await this.imageProcessing
       .generateVariants(file.buffer, ['coverImage'])
@@ -312,6 +317,13 @@ export class UserService {
     userId: string,
     input: UpdateProfileInput,
   ): Promise<CurrentUser> {
+    assertContentAllowed(
+      input.name,
+      input.displayName,
+      input.username,
+      input.bio,
+      input.jobTitle,
+    );
     const before = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: {
@@ -478,6 +490,7 @@ export class UserService {
     userId: string,
     input: UpdateStatusInput,
   ): Promise<CurrentUser> {
+    assertContentAllowed(input.statusText);
     const data: {
       statusText?: string | null;
       statusEmoji?: string | null;

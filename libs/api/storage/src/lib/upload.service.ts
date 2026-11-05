@@ -1,3 +1,4 @@
+import { ContentModerationService } from '@org/api-ai';
 import {
   BadRequestException,
   Injectable,
@@ -5,6 +6,7 @@ import {
   NotFoundException,
   OnModuleInit,
   PayloadTooLargeException,
+  Optional,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { randomUUID } from 'node:crypto';
@@ -73,9 +75,28 @@ const ALLOWED_MIME_EXACT = new Set<string>([
 const ALLOWED_MIME_PREFIXES = ['image/', 'video/', 'audio/', 'text/'];
 
 const BLOCKED_EXTENSIONS = new Set<string>([
-  '.html', '.htm', '.xhtml', '.svg', '.xml', '.js', '.mjs', '.exe', '.dll',
-  '.bat', '.cmd', '.com', '.msi', '.sh', '.bash', '.ps1', '.scr', '.vbs',
-  '.jar', '.app', '.deb', '.rpm',
+  '.html',
+  '.htm',
+  '.xhtml',
+  '.svg',
+  '.xml',
+  '.js',
+  '.mjs',
+  '.exe',
+  '.dll',
+  '.bat',
+  '.cmd',
+  '.com',
+  '.msi',
+  '.sh',
+  '.bash',
+  '.ps1',
+  '.scr',
+  '.vbs',
+  '.jar',
+  '.app',
+  '.deb',
+  '.rpm',
 ]);
 
 function isAllowedUpload(filename: string, mimeType: string): boolean {
@@ -162,7 +183,9 @@ function encodeCursor(createdAt: Date, id: string): string {
 }
 function decodeCursor(cursor: string): { ms: number; id: string } | null {
   try {
-    const [ms, id] = Buffer.from(cursor, 'base64url').toString('utf8').split('_');
+    const [ms, id] = Buffer.from(cursor, 'base64url')
+      .toString('utf8')
+      .split('_');
     if (!ms || !id) return null;
     return { ms: Number(ms), id };
   } catch {
@@ -181,6 +204,7 @@ export class UploadService implements OnModuleInit {
     private readonly imageProcessing: ImageProcessingService,
     private readonly imageSecurity: ImageSecurityService,
     private readonly mediaQueue: MediaQueueService,
+    @Optional() private readonly moderation?: ContentModerationService,
   ) {}
 
   /**
@@ -248,7 +272,9 @@ export class UploadService implements OnModuleInit {
 
     const raw = (input.contextType ?? 'WORKSPACE').toUpperCase();
     if (!CONTEXT_TYPES.includes(raw as UploadContextType)) {
-      throw new BadRequestException(`Unknown upload context "${input.contextType}".`);
+      throw new BadRequestException(
+        `Unknown upload context "${input.contextType}".`,
+      );
     }
     const type = raw as UploadContextType;
     const id = (input.contextId ?? input.channelId ?? '').trim() || null;
@@ -275,7 +301,10 @@ export class UploadService implements OnModuleInit {
 
     if (type === 'CHANNEL') {
       return found(
-        this.prisma.channel.findFirst({ where: { id, workspaceId }, select: { id: true } }),
+        this.prisma.channel.findFirst({
+          where: { id, workspaceId },
+          select: { id: true },
+        }),
         'Channel',
       );
     }
@@ -290,7 +319,10 @@ export class UploadService implements OnModuleInit {
     }
     if (type === 'AGENT') {
       return found(
-        this.prisma.aIAgent.findFirst({ where: { id, workspaceId }, select: { id: true } }),
+        this.prisma.aIAgent.findFirst({
+          where: { id, workspaceId },
+          select: { id: true },
+        }),
         'Agent',
       );
     }
@@ -330,7 +362,10 @@ export class UploadService implements OnModuleInit {
   }
 
   /** One page of the Files hub — current versions only, newest first, keyset-paginated. */
-  async list(workspaceId: string, query: UploadListQuery = {}): Promise<UploadPage> {
+  async list(
+    workspaceId: string,
+    query: UploadListQuery = {},
+  ): Promise<UploadPage> {
     const limit = Math.min(
       Math.max(1, query.limit ?? DEFAULT_PAGE_SIZE),
       MAX_PAGE_SIZE,
@@ -380,7 +415,8 @@ export class UploadService implements OnModuleInit {
           this.urlsFor(row),
         ),
       ),
-      nextCursor: hasMore && last ? encodeCursor(last.createdAt, last.id) : null,
+      nextCursor:
+        hasMore && last ? encodeCursor(last.createdAt, last.id) : null,
     };
   }
 
@@ -404,7 +440,9 @@ export class UploadService implements OnModuleInit {
       slug: string | null = null,
       parentId: string | null = null,
     ) => out.set(`${type}:${id}`, { type, id, label, slug, parentId });
-    const idsFor = (type: UploadContextType) => [...(idsByType.get(type) ?? [])];
+    const idsFor = (type: UploadContextType) => [
+      ...(idsByType.get(type) ?? []),
+    ];
 
     const channelIds = idsFor('CHANNEL');
     if (channelIds.length) {
@@ -458,7 +496,13 @@ export class UploadService implements OnModuleInit {
         select: { id: true, title: true, identifier: true, projectId: true },
       });
       for (const t of hits) {
-        put('ISSUE', t.id, t.identifier ? `${t.identifier} ${t.title}` : t.title, null, t.projectId);
+        put(
+          'ISSUE',
+          t.id,
+          t.identifier ? `${t.identifier} ${t.title}` : t.title,
+          null,
+          t.projectId,
+        );
       }
     }
 
@@ -486,6 +530,7 @@ export class UploadService implements OnModuleInit {
     contextInput: UploadContextInput = {},
   ): Promise<Upload> {
     this.assertUploadable(file, await this.resolveMaxUploadBytes(workspaceId));
+    await this.moderation?.assertFileAllowed(file);
 
     const usage = await this.storageUsage(workspaceId);
     if (isLimitReached(usage.usedBytes + file.size, usage.limitBytes)) {
@@ -540,6 +585,7 @@ export class UploadService implements OnModuleInit {
     file: IncomingFile,
   ): Promise<Upload> {
     this.assertUploadable(file, await this.resolveMaxUploadBytes(workspaceId));
+    await this.moderation?.assertFileAllowed(file);
 
     const current = await this.prisma.upload.findFirst({
       where: { id: uploadId, workspaceId, isCurrent: true },
@@ -637,7 +683,8 @@ export class UploadService implements OnModuleInit {
 
     if (patch.filename !== undefined) {
       const name = safeFilename(patch.filename);
-      if (!name) throw new BadRequestException('The file name cannot be empty.');
+      if (!name)
+        throw new BadRequestException('The file name cannot be empty.');
       data['filename'] = name;
     }
 
@@ -696,7 +743,12 @@ export class UploadService implements OnModuleInit {
         where: { workspaceId, status: 'ACTIVE' },
         select: {
           user: {
-            select: { id: true, name: true, displayName: true, avatarUrl: true },
+            select: {
+              id: true,
+              name: true,
+              displayName: true,
+              avatarUrl: true,
+            },
           },
         },
       }),
@@ -705,7 +757,11 @@ export class UploadService implements OnModuleInit {
     return {
       channels: channels.map((c) => ({ id: c.id, name: c.name, slug: c.slug })),
       projects: projects.map((p) => ({ id: p.id, name: p.name, slug: p.slug })),
-      agents: agents.map((a) => ({ id: a.id, name: a.name, avatarUrl: a.avatarUrl })),
+      agents: agents.map((a) => ({
+        id: a.id,
+        name: a.name,
+        avatarUrl: a.avatarUrl,
+      })),
       apps: apps.map((a) => ({ id: a.id, name: a.displayName ?? a.provider })),
       people: members
         .map((m) => ({
@@ -766,7 +822,11 @@ export class UploadService implements OnModuleInit {
     let targetMime = row.mimeType;
 
     if (variant && row.mimeType.startsWith('image/')) {
-      const variantKey = this.storage.buildVariantKey(row.storageKey, variant, 'webp');
+      const variantKey = this.storage.buildVariantKey(
+        row.storageKey,
+        variant,
+        'webp',
+      );
       const variantExists = await this.storage.exists(variantKey);
       if (variantExists) {
         targetKey = variantKey;
@@ -777,13 +837,19 @@ export class UploadService implements OnModuleInit {
           const original = await this.storage.get(row.storageKey);
           const generated = await this.imageProcessing.generateThumbnail(
             original,
-            STANDARD_IMAGE_PRESETS[variant] || { width: 320, height: 320, fit: 'cover' },
+            STANDARD_IMAGE_PRESETS[variant] || {
+              width: 320,
+              height: 320,
+              fit: 'cover',
+            },
           );
           await this.storage.put(variantKey, generated.buffer);
           targetKey = variantKey;
           targetMime = generated.mimeType;
         } catch (err) {
-          this.logger.warn(`On-demand variant generation failed for ${variant}: ${err}`);
+          this.logger.warn(
+            `On-demand variant generation failed for ${variant}: ${err}`,
+          );
         }
       }
     }
@@ -803,9 +869,15 @@ export class UploadService implements OnModuleInit {
   async readByToken(
     token: string,
     requestedVariant?: string | null,
-  ): Promise<{ filename: string; mimeType: string; content: Buffer; download: boolean }> {
+  ): Promise<{
+    filename: string;
+    mimeType: string;
+    content: Buffer;
+    download: boolean;
+  }> {
     const verified = this.storage.verifyContentToken(token);
-    if (!verified) throw new NotFoundException('This link is invalid or has expired.');
+    if (!verified)
+      throw new NotFoundException('This link is invalid or has expired.');
     const variant = verified.variant || requestedVariant || null;
     const file = await this.read(null, verified.uploadId, variant);
     return { ...file, download: verified.download };
@@ -823,11 +895,14 @@ export class UploadService implements OnModuleInit {
     const ids: string[] = [head.id];
     let cursor = head.supersedesId;
     for (let i = 0; cursor && i < 200; i += 1) {
-      const prev: { id: string; storageKey: string; supersedesId: string | null } | null =
-        await this.prisma.upload.findUnique({
-          where: { id: cursor },
-          select: { id: true, storageKey: true, supersedesId: true },
-        });
+      const prev: {
+        id: string;
+        storageKey: string;
+        supersedesId: string | null;
+      } | null = await this.prisma.upload.findUnique({
+        where: { id: cursor },
+        select: { id: true, storageKey: true, supersedesId: true },
+      });
       if (!prev) break;
       keys.push(prev.storageKey);
       ids.push(prev.id);
@@ -881,14 +956,18 @@ export class UploadService implements OnModuleInit {
     if (file.mimetype?.startsWith('image/')) {
       const sniffed = this.imageSecurity.sniffFormat(file.buffer);
       if (!sniffed) {
-        throw new BadRequestException('The image file content is invalid or corrupted.');
+        throw new BadRequestException(
+          'The image file content is invalid or corrupted.',
+        );
       }
       if (sniffed.format === 'svg') {
         try {
           this.imageSecurity.validateSvg(file.buffer);
         } catch (err) {
           throw new BadRequestException(
-            err instanceof Error ? err.message : 'Invalid or malicious SVG file.',
+            err instanceof Error
+              ? err.message
+              : 'Invalid or malicious SVG file.',
           );
         }
       }

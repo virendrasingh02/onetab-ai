@@ -5,7 +5,11 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { PUBLIC_USER_SELECT, toPublicUser } from '@org/api-common';
+import {
+  assertContentAllowed,
+  PUBLIC_USER_SELECT,
+  toPublicUser,
+} from '@org/api-common';
 import { PrismaService } from '@org/database';
 import {
   ANON_DISPLAY_NAME,
@@ -100,8 +104,7 @@ export class AnonymousMessagingService {
       isEnabled: setting.isEnabled,
       allowedRoles: setting.allowedRoles,
       allowReplies: setting.allowReplies,
-      canPostAnonymously:
-        setting.isEnabled && !!isMember && roleAllowed,
+      canPostAnonymously: setting.isEnabled && !!isMember && roleAllowed,
       canModerate: this.moderates(callerRole),
     };
   }
@@ -123,7 +126,9 @@ export class AnonymousMessagingService {
         allowReplies: input.allowReplies ?? true,
       },
       update: {
-        ...(input.isEnabled !== undefined ? { isEnabled: input.isEnabled } : {}),
+        ...(input.isEnabled !== undefined
+          ? { isEnabled: input.isEnabled }
+          : {}),
         ...(input.allowedRoles !== undefined
           ? { allowedRoles: input.allowedRoles }
           : {}),
@@ -134,7 +139,12 @@ export class AnonymousMessagingService {
     });
 
     // Callers that hit this route hold MANAGE_SETTINGS ⇒ they also moderate.
-    return this.getSettings(workspaceId, channelId, '', 'ADMIN' as WorkspaceRole);
+    return this.getSettings(
+      workspaceId,
+      channelId,
+      '',
+      'ADMIN' as WorkspaceRole,
+    );
   }
 
   async postMessage(
@@ -144,6 +154,7 @@ export class AnonymousMessagingService {
     callerRole: WorkspaceRole,
     input: PostAnonymousMessageInput,
   ): Promise<{ eventId: string }> {
+    assertContentAllowed(input.text);
     const channel = await this.assertChannel(workspaceId, channelId);
     const setting = await this.loadSetting(workspaceId, channelId);
 
@@ -163,9 +174,7 @@ export class AnonymousMessagingService {
       setting.allowedRoles.length > 0 &&
       !setting.allowedRoles.includes(callerRole)
     ) {
-      throw new ForbiddenException(
-        'Your role may not post anonymously here.',
-      );
+      throw new ForbiddenException('Your role may not post anonymously here.');
     }
     if (input.threadRootId && !setting.allowReplies) {
       throw new ForbiddenException(
@@ -196,9 +205,7 @@ export class AnonymousMessagingService {
     }
     await this.admin
       .joinRoomAs(anonMatrixId, channel.matrixRoomId)
-      .catch((error) =>
-        this.logger.warn(`anon join failed: ${String(error)}`),
-      );
+      .catch((error) => this.logger.warn(`anon join failed: ${String(error)}`));
 
     const eventId = await this.bot.sendText(
       channel.matrixRoomId,

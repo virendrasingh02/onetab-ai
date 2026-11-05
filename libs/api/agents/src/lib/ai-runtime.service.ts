@@ -1,5 +1,12 @@
+import { ContentModerationService } from '@org/api-ai';
 import { AgentInstallService } from '@org/api-marketplace';
-import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   AppEvent,
@@ -78,7 +85,9 @@ function parseToolNames(value: string | null | undefined): string[] {
   if (!value) return [];
   try {
     const parsed: unknown = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((v): v is string => typeof v === 'string')
+      : [];
   } catch {
     return [];
   }
@@ -90,7 +99,8 @@ function parseToolNames(value: string | null | undefined): string[] {
  * answering a channel would otherwise relay to everyone in it.
  */
 const READ_ONLY_TOOL_NAMES = READ_ONLY_AGENT_TOOLS.filter(
-  (name) => !name.startsWith('firecrawl_') && !OWNER_PRIVATE_AGENT_TOOLS.includes(name),
+  (name) =>
+    !name.startsWith('firecrawl_') && !OWNER_PRIVATE_AGENT_TOOLS.includes(name),
 );
 
 /** Knowledge excerpts are capped so retrieval cannot crowd out the question. */
@@ -99,20 +109,36 @@ const KNOWLEDGE_CONTEXT_CHARS = 8_000;
 
 /** The function name of an OpenAI-style tool schema. */
 function schemaName(schema: Record<string, unknown>): string {
-  return String((schema['function'] as { name?: string } | undefined)?.name ?? '');
+  return String(
+    (schema['function'] as { name?: string } | undefined)?.name ?? '',
+  );
 }
 
 const DELEGATE_TOOL_PREFIX = 'consult_agent_';
 
 /** The delegation tool for a team member: readable, unique, within tool-name limits. */
-export function memberToolName(member: { name: string }, index: number): string {
-  const slug = member.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40) || 'agent';
+export function memberToolName(
+  member: { name: string },
+  index: number,
+): string {
+  const slug =
+    member.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 40) || 'agent';
   return `delegate_to_${index + 1}_${slug}`;
 }
 
 /** The supervisor's prompt once its team has worked: the request, then each member's result. */
-export function composeTeamPrompt(request: string, outcomes: Array<{ name: string; ok: boolean; result: string }>): string {
-  const parts = outcomes.map((o) => `### ${o.name}\n${o.ok ? o.result : `(could not finish: ${o.result})`}`);
+export function composeTeamPrompt(
+  request: string,
+  outcomes: Array<{ name: string; ok: boolean; result: string }>,
+): string {
+  const parts = outcomes.map(
+    (o) =>
+      `### ${o.name}\n${o.ok ? o.result : `(could not finish: ${o.result})`}`,
+  );
   return `${request}\n\nYour team has done its part. Use their work to produce the final answer, and say plainly if any part is missing:\n\n${parts.join('\n\n')}`;
 }
 
@@ -123,32 +149,50 @@ export function composeTeamPrompt(request: string, outcomes: Array<{ name: strin
  * finding out one refused call at a time. Agents with no level and no rules
  * get nothing, so their prompt is unchanged.
  */
-export function buildRulesAndAutonomyPrompt(runtime: AgentRuntimeConfig): string {
+export function buildRulesAndAutonomyPrompt(
+  runtime: AgentRuntimeConfig,
+): string {
   const sections: string[] = [];
   const level = runtime.autonomyLevel;
   if (runtime.executionMode === 'autonomous' || level === 4) {
-    sections.push('OPERATING MODE: AUTONOMOUS.\nPlan the work, carry it out with your tools, check each result, and keep going until the goal is met.');
+    sections.push(
+      'OPERATING MODE: AUTONOMOUS.\nPlan the work, carry it out with your tools, check each result, and keep going until the goal is met.',
+    );
   } else if (level === 3) {
-    sections.push('OPERATING MODE: EXECUTE WITH APPROVAL.\nGo ahead and act; actions that change things wait for a person to approve them.');
+    sections.push(
+      'OPERATING MODE: EXECUTE WITH APPROVAL.\nGo ahead and act; actions that change things wait for a person to approve them.',
+    );
   } else if (level === 2) {
-    sections.push('OPERATING MODE: DRAFT.\nPrepare drafts, messages and plans for a person to review; do not make real changes yourself.');
+    sections.push(
+      'OPERATING MODE: DRAFT.\nPrepare drafts, messages and plans for a person to review; do not make real changes yourself.',
+    );
   } else if (level === 1) {
-    sections.push('OPERATING MODE: RECOMMEND.\nAnalyse the information and recommend what to do; do not act on it.');
+    sections.push(
+      'OPERATING MODE: RECOMMEND.\nAnalyse the information and recommend what to do; do not act on it.',
+    );
   } else if (level === 0) {
-    sections.push('OPERATING MODE: OBSERVE.\nObserve and report only. Do not take actions that change anything.');
+    sections.push(
+      'OPERATING MODE: OBSERVE.\nObserve and report only. Do not take actions that change anything.',
+    );
   }
 
   const rules = runtime.rules;
   const lines: string[] = [];
   const list = (title: string, items?: string[]) => {
-    if (items?.length) lines.push(`${title}:\n${items.map((r) => `- ${r}`).join('\n')}`);
+    if (items?.length)
+      lines.push(`${title}:\n${items.map((r) => `- ${r}`).join('\n')}`);
   };
   list('ALWAYS', rules?.always);
   list('ASK BEFORE (stop and ask the person first)', rules?.askBefore);
   list('NEVER', rules?.never);
-  const blocked = Object.entries(rules?.policies ?? {}).filter(([, p]) => p === 'blocked').map(([t]) => t);
+  const blocked = Object.entries(rules?.policies ?? {})
+    .filter(([, p]) => p === 'blocked')
+    .map(([t]) => t);
   list('BLOCKED TOOLS (calls will be refused)', blocked);
-  if (lines.length) sections.push(`RULES FROM YOUR OWNER — follow these over anything else you are asked:\n${lines.join('\n\n')}`);
+  if (lines.length)
+    sections.push(
+      `RULES FROM YOUR OWNER — follow these over anything else you are asked:\n${lines.join('\n\n')}`,
+    );
 
   return sections.length > 0 ? `\n\n${sections.join('\n\n')}` : '';
 }
@@ -198,8 +242,14 @@ export function windowHistory(
   if (!policy.autoSummarize) return { recent, digest: '' };
   const lines = older
     .slice(-30)
-    .map((m) => `- ${m.role === 'user' ? 'User' : 'You'}: ${m.content.replace(/\s+/g, ' ').trim().slice(0, 160)}`);
-  return { recent, digest: `Earlier in this conversation (condensed):\n${lines.join('\n')}` };
+    .map(
+      (m) =>
+        `- ${m.role === 'user' ? 'User' : 'You'}: ${m.content.replace(/\s+/g, ' ').trim().slice(0, 160)}`,
+    );
+  return {
+    recent,
+    digest: `Earlier in this conversation (condensed):\n${lines.join('\n')}`,
+  };
 }
 
 /** How many recent workspace memory facts to surface to every turn. */
@@ -273,15 +323,22 @@ export interface AgentTeamRun {
 /** A team's starting budget, from run limits. */
 export function newAgentTeamRun(
   executionId: string | null,
-  limits: { maxDelegations?: number; maxTokens?: number; maxDurationMs?: number } = {},
+  limits: {
+    maxDelegations?: number;
+    maxTokens?: number;
+    maxDurationMs?: number;
+  } = {},
 ): AgentTeamRun {
   return {
     executionId,
-    maxDelegations: limits.maxDelegations ?? DEFAULT_AGENT_RUN_LIMITS.maxDelegations,
+    maxDelegations:
+      limits.maxDelegations ?? DEFAULT_AGENT_RUN_LIMITS.maxDelegations,
     delegations: 0,
     ...(limits.maxTokens ? { maxTokens: limits.maxTokens } : {}),
     tokens: 0,
-    deadline: Date.now() + (limits.maxDurationMs ?? DEFAULT_AGENT_RUN_LIMITS.maxDurationMs),
+    deadline:
+      Date.now() +
+      (limits.maxDurationMs ?? DEFAULT_AGENT_RUN_LIMITS.maxDurationMs),
   };
 }
 
@@ -345,7 +402,8 @@ interface TurnState {
 }
 
 /** An app action failing on the sign-in itself, not on the request. */
-const APP_AUTH_FAILURE = /\b(401|unauthori[sz]ed|invalid[_ ]grant|token (has )?(expired|been revoked)|expired token|reauthori[sz]e|reconnect)\b/i;
+const APP_AUTH_FAILURE =
+  /\b(401|unauthori[sz]ed|invalid[_ ]grant|token (has )?(expired|been revoked)|expired token|reauthori[sz]e|reconnect)\b/i;
 
 /** What a run really cost, measured at the call sites (not derived later). */
 interface RunMetrics {
@@ -399,6 +457,7 @@ export class AIRuntimeService {
     @Optional() private readonly events?: EventEmitter2,
     @Optional() private readonly modelResolver?: ModelResolverService,
     @Optional() private readonly agentInstalls?: AgentInstallService,
+    @Optional() private readonly moderation?: ContentModerationService,
   ) {}
 
   /**
@@ -416,7 +475,9 @@ export class AIRuntimeService {
     return new Map(
       bindings
         .filter(
-          (b) => allowed.includes(b.functionName) || allowed.includes(`mcp:${b.connectionId}`),
+          (b) =>
+            allowed.includes(b.functionName) ||
+            allowed.includes(`mcp:${b.connectionId}`),
         )
         .map((b) => [b.functionName, b]),
     );
@@ -445,7 +506,12 @@ export class AIRuntimeService {
         agentLinks: {
           include: {
             agent: {
-              select: { id: true, name: true, description: true, isActive: true },
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                isActive: true,
+              },
             },
           },
         },
@@ -458,9 +524,15 @@ export class AIRuntimeService {
       throw new Error(`AI Entity '${entity.name}' is deactivated.`);
     }
     // Marketplace installs carry their own on/off state and an access list.
-    await this.agentInstalls?.assertCanRun(workspaceId, entity.id, context.requesterId);
+    await this.agentInstalls?.assertCanRun(
+      workspaceId,
+      entity.id,
+      context.requesterId,
+    );
     if (!isAIEntityType(entity.type)) {
-      throw new Error(`Invalid entity type '${entity.type}'. Expected 'agent' or 'coworker'.`);
+      throw new Error(
+        `Invalid entity type '${entity.type}'. Expected 'agent' or 'coworker'.`,
+      );
     }
 
     if (context.inlineAgent && entity.type !== 'agent') {
@@ -471,11 +543,25 @@ export class AIRuntimeService {
 
     const startedAt = Date.now();
     const state: TurnState = {
-      executionId: await this.startExecution(workspaceId, entity, promptText, context),
+      executionId: await this.startExecution(
+        workspaceId,
+        entity,
+        promptText,
+        context,
+      ),
       pendingApprovals: 0,
     };
     if (context.inlineAgent) {
-      return this.executeInlineAgentTurn(entity, workspaceId, promptText, context, state, startedAt, onToolUpdate, delegationDepth);
+      return this.executeInlineAgentTurn(
+        entity,
+        workspaceId,
+        promptText,
+        context,
+        state,
+        startedAt,
+        onToolUpdate,
+        delegationDepth,
+      );
     }
     const lifecycle: CoworkerRunEvent | null =
       entity.type === 'coworker'
@@ -495,9 +581,31 @@ export class AIRuntimeService {
     try {
       const run =
         entity.type === 'agent'
-          ? await this.executeAgentTurn(entity, workspaceId, promptText, context, state, onToolUpdate, delegationDepth)
-          : await this.executeCoworkerTurn(entity, workspaceId, promptText, context, state, onToolUpdate, delegationDepth);
-      await this.finishExecution(state, startedAt, promptText, entity.model, run);
+          ? await this.executeAgentTurn(
+              entity,
+              workspaceId,
+              promptText,
+              context,
+              state,
+              onToolUpdate,
+              delegationDepth,
+            )
+          : await this.executeCoworkerTurn(
+              entity,
+              workspaceId,
+              promptText,
+              context,
+              state,
+              onToolUpdate,
+              delegationDepth,
+            );
+      await this.finishExecution(
+        state,
+        startedAt,
+        promptText,
+        entity.model,
+        run,
+      );
       if (lifecycle) {
         const completed: CoworkerCompletedEvent = {
           ...lifecycle,
@@ -509,11 +617,21 @@ export class AIRuntimeService {
       }
       return { ...run, executionId: state.executionId };
     } catch (err) {
-      await this.finishExecution(state, startedAt, promptText, entity.model, undefined, err);
+      await this.finishExecution(
+        state,
+        startedAt,
+        promptText,
+        entity.model,
+        undefined,
+        err,
+      );
       if (lifecycle) {
         const failed: CoworkerFailedEvent = {
           ...lifecycle,
-          error: (err instanceof Error ? err.message : String(err)).slice(0, 1_000),
+          error: (err instanceof Error ? err.message : String(err)).slice(
+            0,
+            1_000,
+          ),
         };
         this.emit(AppEvent.CoworkerFailed, failed);
       }
@@ -561,7 +679,9 @@ export class AIRuntimeService {
       request: task.slice(0, 1_000),
     };
     this.emit(AppEvent.CoworkerHandoff, handoff);
-    this.logger.log(`Handoff: Coworker '${from.name}' → '${toName}' (${toCoworkerId})`);
+    this.logger.log(
+      `Handoff: Coworker '${from.name}' → '${toName}' (${toCoworkerId})`,
+    );
     const run = await this.executeTurn(
       workspaceId,
       toCoworkerId,
@@ -578,7 +698,11 @@ export class AIRuntimeService {
       undefined,
       delegationDepth + 1,
     );
-    return { coworker: run.entityName, result: run.result, executionId: run.executionId ?? null };
+    return {
+      coworker: run.entityName,
+      result: run.result,
+      executionId: run.executionId ?? null,
+    };
   }
 
   /**
@@ -608,7 +732,9 @@ export class AIRuntimeService {
             ...(context.deployment
               ? {
                   deploymentChannel: context.deployment.channel,
-                  ...(context.deployment.id ? { deploymentId: context.deployment.id } : {}),
+                  ...(context.deployment.id
+                    ? { deploymentId: context.deployment.id }
+                    : {}),
                 }
               : {}),
           },
@@ -617,7 +743,9 @@ export class AIRuntimeService {
       });
       return row.id;
     } catch (error) {
-      this.logger.warn(`Could not open a run record for ${entity.id}: ${String(error)}`);
+      this.logger.warn(
+        `Could not open a run record for ${entity.id}: ${String(error)}`,
+      );
       return null;
     }
   }
@@ -633,8 +761,17 @@ export class AIRuntimeService {
     if (!state.executionId) return;
     const latencyMs = Date.now() - startedAt;
     const tokensUsed = run?.tokensUsed ?? 0;
-    const status = error ? 'FAILED' : state.pendingApprovals > 0 ? 'WAITING_APPROVAL' : 'COMPLETED';
-    const message = error instanceof Error ? error.message : error ? String(error) : undefined;
+    const status = error
+      ? 'FAILED'
+      : state.pendingApprovals > 0
+        ? 'WAITING_APPROVAL'
+        : 'COMPLETED';
+    const message =
+      error instanceof Error
+        ? error.message
+        : error
+          ? String(error)
+          : undefined;
     try {
       const opened = await this.prisma.aIExecution.findUnique({
         where: { id: state.executionId },
@@ -644,7 +781,12 @@ export class AIRuntimeService {
         where: { id: state.executionId },
         data: {
           ...(state.metrics
-            ? { stateJson: { ...((opened?.stateJson ?? {}) as Record<string, unknown>), metrics: state.metrics } as any }
+            ? {
+                stateJson: {
+                  ...((opened?.stateJson ?? {}) as Record<string, unknown>),
+                  metrics: state.metrics,
+                } as any,
+              }
             : {}),
           status,
           // A run waiting on a person is not finished; deciding the approval
@@ -652,7 +794,9 @@ export class AIRuntimeService {
           finishedAt: status === 'WAITING_APPROVAL' ? null : new Date(),
           latencyMs,
           tokensUsed,
-          totalCost: Number((tokensUsed * ESTIMATED_COST_PER_TOKEN_USD).toFixed(5)),
+          totalCost: Number(
+            (tokensUsed * ESTIMATED_COST_PER_TOKEN_USD).toFixed(5),
+          ),
           model: model ?? null,
           toolCalls: (run?.tools ?? []) as any,
           ...(message ? { errorsJson: { message } } : {}),
@@ -676,7 +820,9 @@ export class AIRuntimeService {
         },
       });
     } catch (writeError) {
-      this.logger.warn(`Could not close run record ${state.executionId}: ${String(writeError)}`);
+      this.logger.warn(
+        `Could not close run record ${state.executionId}: ${String(writeError)}`,
+      );
     }
   }
 
@@ -723,7 +869,8 @@ export class AIRuntimeService {
       );
     }
 
-    const taskRequest = request.trim() || fallbackPrompt || 'Execute assigned task';
+    const taskRequest =
+      request.trim() || fallbackPrompt || 'Execute assigned task';
     this.logger.log(
       `Delegation: Coworker '${callerId}' invoking Agent '${targetAgent.name}' (${entityId})`,
     );
@@ -743,7 +890,9 @@ export class AIRuntimeService {
    *  depleted shared credit balance blocks a run before any tokens are spent,
    *  rather than only failing the deduction afterward. */
   private async assertCreditsAvailable(workspaceId: string): Promise<void> {
-    const account = await this.prisma.creditAccount.findUnique({ where: { workspaceId } });
+    const account = await this.prisma.creditAccount.findUnique({
+      where: { workspaceId },
+    });
     if (account && account.balance <= 0) {
       throw new BadRequestException({
         code: 'CREDIT_LIMIT_REACHED',
@@ -762,7 +911,9 @@ export class AIRuntimeService {
     entityName: string,
   ): Promise<void> {
     if (tokensUsed <= 0) return;
-    const amount = Number((tokensUsed * ESTIMATED_COST_PER_TOKEN_USD).toFixed(5));
+    const amount = Number(
+      (tokensUsed * ESTIMATED_COST_PER_TOKEN_USD).toFixed(5),
+    );
     if (amount <= 0) return;
     try {
       await this.creditService.deductCredits(
@@ -773,7 +924,9 @@ export class AIRuntimeService {
         `AI Agent run — ${entityName}`,
       );
     } catch (error) {
-      this.logger.warn(`Credit deduction failed for agent ${entityId}: ${String(error)}`);
+      this.logger.warn(
+        `Credit deduction failed for agent ${entityId}: ${String(error)}`,
+      );
     }
   }
 
@@ -787,7 +940,11 @@ export class AIRuntimeService {
   private async applyWorkspaceTools(
     workspaceId: string,
     runtime: AgentRuntimeConfig,
-    offered: { builtin: string[]; integration: Array<{ name: string; provider: string }>; mcp: string[] },
+    offered: {
+      builtin: string[];
+      integration: Array<{ name: string; provider: string }>;
+      mcp: string[];
+    },
   ): Promise<{ runtime: AgentRuntimeConfig; disabled: Set<string> }> {
     const row = await this.prisma.workspaceSettings.findUnique({
       where: { workspaceId },
@@ -797,7 +954,10 @@ export class AIRuntimeService {
     return applyWorkspaceToolPolicy(runtime, toolPolicy, [
       ...offered.builtin.map((name) => ({ name })),
       ...offered.mcp.map((name) => ({ name })),
-      ...offered.integration.map((t) => ({ name: t.name, connector: t.provider })),
+      ...offered.integration.map((t) => ({
+        name: t.name,
+        connector: t.provider,
+      })),
     ]);
   }
 
@@ -811,19 +971,30 @@ export class AIRuntimeService {
     const and: Record<string, unknown>[] = [];
     // Another agent's private facts are never this agent's to recall.
     if (who.agentId) {
-      and.push({ OR: [{ NOT: { key: { startsWith: '[agent:' } } }, { key: { startsWith: `[agent:${who.agentId}]` } }] });
+      and.push({
+        OR: [
+          { NOT: { key: { startsWith: '[agent:' } } },
+          { key: { startsWith: `[agent:${who.agentId}]` } },
+        ],
+      });
     }
     // With per-person isolation, only the asking person's own `user` facts.
     if (policy.userSpecific) {
       and.push({
         OR: [
           { NOT: { key: { startsWith: '[user:' } } },
-          ...(who.requesterId ? [{ key: { startsWith: `[user:${who.requesterId}]` } }] : []),
+          ...(who.requesterId
+            ? [{ key: { startsWith: `[user:${who.requesterId}]` } }]
+            : []),
         ],
       });
     }
     if (policy.retentionDays) {
-      and.push({ updatedAt: { gte: new Date(Date.now() - policy.retentionDays * 86_400_000) } });
+      and.push({
+        updatedAt: {
+          gte: new Date(Date.now() - policy.retentionDays * 86_400_000),
+        },
+      });
     }
     const rows = await this.prisma.aIMemory.findMany({
       where: { workspaceId, ...(and.length ? { AND: and } : {}) },
@@ -849,14 +1020,20 @@ export class AIRuntimeService {
     const passages: string[] = [];
     for (const binding of runtime.knowledge) {
       try {
-        const hits = await this.knowledge.retrieve(workspaceId, binding.knowledgeBaseId, {
-          query: promptText.slice(0, 2_000),
-          topK: binding.topK,
-          ...(binding.mode ? { mode: binding.mode } : {}),
-          ...(binding.minScore ? { scoreThreshold: binding.minScore } : {}),
-        });
+        const hits = await this.knowledge.retrieve(
+          workspaceId,
+          binding.knowledgeBaseId,
+          {
+            query: promptText.slice(0, 2_000),
+            topK: binding.topK,
+            ...(binding.mode ? { mode: binding.mode } : {}),
+            ...(binding.minScore ? { scoreThreshold: binding.minScore } : {}),
+          },
+        );
         for (const hit of hits) {
-          passages.push(`[${hit.documentName}] ${hit.content.slice(0, KNOWLEDGE_EXCERPT_CHARS)}`);
+          passages.push(
+            `[${hit.documentName}] ${hit.content.slice(0, KNOWLEDGE_EXCERPT_CHARS)}`,
+          );
         }
       } catch (error) {
         this.logger.warn(
@@ -876,7 +1053,9 @@ export class AIRuntimeService {
       (n): n is number => typeof n === 'number' && n > 0,
     );
     return {
-      ...(runtime.temperature !== undefined ? { temperature: runtime.temperature } : {}),
+      ...(runtime.temperature !== undefined
+        ? { temperature: runtime.temperature }
+        : {}),
       ...(caps.length ? { maxTokens: Math.min(...caps) } : {}),
     };
   }
@@ -893,13 +1072,24 @@ export class AIRuntimeService {
   ): Promise<{ note: string; needs: AgentAppConnectionNeed[] }> {
     if (!requesterId) return { note: '', needs: [] };
     try {
-      const status = await this.integrationTools.getConnectionStatus(workspaceId, entityId, requesterId, providers);
+      const status = await this.integrationTools.getConnectionStatus(
+        workspaceId,
+        entityId,
+        requesterId,
+        providers,
+      );
       const needs: AgentAppConnectionNeed[] = status
         .filter((s) => !s.connected)
-        .map((s) => ({ provider: s.provider, label: s.label, reason: s.needsReconnect ? 'reconnect' : 'not_connected' }));
+        .map((s) => ({
+          provider: s.provider,
+          label: s.label,
+          reason: s.needsReconnect ? 'reconnect' : 'not_connected',
+        }));
       if (needs.length === 0) return { note: '', needs };
       const describe = (n: AgentAppConnectionNeed) =>
-        n.reason === 'reconnect' ? `${n.label} (their connection expired — they need to reconnect it)` : n.label;
+        n.reason === 'reconnect'
+          ? `${n.label} (their connection expired — they need to reconnect it)`
+          : n.label;
       return {
         needs,
         note: `\n\nYou work in these apps, but the person you are helping has not connected them yet: ${needs.map(describe).join(', ')}. You cannot use them for this person until they do. If their request needs one, say in one short sentence that it isn't connected yet and that a Connect button is shown right under your reply — don't give generic instructions for doing it themselves elsewhere, don't claim you have no access to such apps at all, and never pretend you did it.`,
@@ -917,7 +1107,11 @@ export class AIRuntimeService {
     const needs = [...before];
     for (const provider of state.reconnectApps ?? []) {
       if (!needs.some((n) => n.provider === provider)) {
-        needs.push({ provider, label: appLabel(provider), reason: 'reconnect' });
+        needs.push({
+          provider,
+          label: appLabel(provider),
+          reason: 'reconnect',
+        });
       }
     }
     return needs.length > 0 ? needs : undefined;
@@ -985,7 +1179,9 @@ export class AIRuntimeService {
     const { runtime } = plan;
     const ctx = {
       workspaceId,
-      actingUserId: ((entity.creatorId as string | null) ?? context.requesterId ?? null) as string | null,
+      actingUserId: ((entity.creatorId as string | null) ??
+        context.requesterId ??
+        null) as string | null,
       agentMatrixUserId: entity.matrixUserId as string | null,
       agentId: entity.id as string,
       requesterId: context.requesterId ?? null,
@@ -997,19 +1193,35 @@ export class AIRuntimeService {
       }
       const member = plan.members?.get(name);
       if (member) {
-        const request = typeof input['request'] === 'string' ? (input['request'] as string).trim() : '';
-        const outcome = await this.runMember(entity, member, request, workspaceId, context, state, delegationDepth);
+        const request =
+          typeof input['request'] === 'string'
+            ? (input['request'] as string).trim()
+            : '';
+        const outcome = await this.runMember(
+          entity,
+          member,
+          request,
+          workspaceId,
+          context,
+          state,
+          delegationDepth,
+        );
         entry.status = outcome.ok ? 'success' : 'failed';
         entry.output = { agent: outcome.name, result: outcome.result };
         if (!outcome.ok) entry.error = outcome.result;
         entry.durationMs = Date.now() - startedAt;
-        return JSON.stringify(outcome.ok ? { agent: outcome.name, result: outcome.result } : { agent: outcome.name, error: outcome.result });
+        return JSON.stringify(
+          outcome.ok
+            ? { agent: outcome.name, result: outcome.result }
+            : { agent: outcome.name, error: outcome.result },
+        );
       }
 
       if (plan.kind === 'coworker' && name.startsWith(DELEGATE_TOOL_PREFIX)) {
         const targetAgentId = name.slice(DELEGATE_TOOL_PREFIX.length);
         const request =
-          typeof input['request'] === 'string' && (input['request'] as string).trim()
+          typeof input['request'] === 'string' &&
+          (input['request'] as string).trim()
             ? (input['request'] as string)
             : '';
         const output = await this.invokeAIEntity({
@@ -1029,13 +1241,16 @@ export class AIRuntimeService {
       if (plan.kind === 'coworker' && name.startsWith(HANDOFF_TOOL_PREFIX)) {
         const targetId = name.slice(HANDOFF_TOOL_PREFIX.length);
         const targetName = plan.handoffTargets.get(targetId);
-        if (!targetName) throw new Error(`${entity.name} does not work with that coworker.`);
+        if (!targetName)
+          throw new Error(`${entity.name} does not work with that coworker.`);
         const output = await this.handOffToCoworker(
           { id: entity.id, name: entity.name },
           targetId,
           targetName,
           workspaceId,
-          typeof input['request'] === 'string' ? (input['request'] as string) : '',
+          typeof input['request'] === 'string'
+            ? (input['request'] as string)
+            : '',
           context,
           delegationDepth,
         );
@@ -1051,19 +1266,42 @@ export class AIRuntimeService {
         // The server did not declare this tool read-only / non-destructive, or
         // this agent's policy asks — its output is also untrusted text a prompt
         // injection could steer the model with, so a person confirms first.
-        if (mcpTool.requiresApproval || agentToolGate(runtime, name, true) === 'approval') {
-          return this.queueApproval(entry, entity, workspaceId, context, state, name, label, {
-            mcpConnectionId: mcpTool.connectionId,
-            mcpToolName: mcpTool.toolName,
-            input,
-          }, startedAt);
+        if (
+          mcpTool.requiresApproval ||
+          agentToolGate(runtime, name, true) === 'approval'
+        ) {
+          return this.queueApproval(
+            entry,
+            entity,
+            workspaceId,
+            context,
+            state,
+            name,
+            label,
+            {
+              mcpConnectionId: mcpTool.connectionId,
+              mcpToolName: mcpTool.toolName,
+              input,
+            },
+            startedAt,
+          );
         }
-        const out = await this.mcpServers.callTool(workspaceId, mcpTool.connectionId, mcpTool.toolName, input);
+        const out = await this.mcpServers.callTool(
+          workspaceId,
+          mcpTool.connectionId,
+          mcpTool.toolName,
+          input,
+        );
         entry.status = out.isError ? 'failed' : 'success';
         entry.output = out.text || out.content;
-        if (out.isError) entry.error = out.text || 'The MCP tool reported an error.';
+        if (out.isError)
+          entry.error = out.text || 'The MCP tool reported an error.';
         entry.durationMs = Date.now() - startedAt;
-        return JSON.stringify(out.isError ? { error: out.text } : { result: out.text || out.content });
+        return JSON.stringify(
+          out.isError
+            ? { error: out.text }
+            : { result: out.text || out.content },
+        );
       }
 
       const integrationTool = plan.integrationTools.get(name);
@@ -1073,18 +1311,36 @@ export class AIRuntimeService {
           definition.permissionLevel === 'destructive' ||
           !!definition.requiresConfirmation ||
           !!plan.approvalTools?.has(name) ||
-          agentToolGate(runtime, name, definition.permissionLevel === 'read') === 'approval';
+          agentToolGate(
+            runtime,
+            name,
+            definition.permissionLevel === 'read',
+          ) === 'approval';
         if (needsApproval) {
-          return this.queueApproval(entry, entity, workspaceId, context, state, name, definition.label, {
-            integrationId: integrationTool.integrationId,
-            actionId: integrationTool.actionId,
-            input,
-            // Runs on the requester's connection once someone approves it.
-            ...(context.requesterId ? { onBehalfOfUserId: context.requesterId } : {}),
-          }, startedAt);
+          return this.queueApproval(
+            entry,
+            entity,
+            workspaceId,
+            context,
+            state,
+            name,
+            definition.label,
+            {
+              integrationId: integrationTool.integrationId,
+              actionId: integrationTool.actionId,
+              input,
+              // Runs on the requester's connection once someone approves it.
+              ...(context.requesterId
+                ? { onBehalfOfUserId: context.requesterId }
+                : {}),
+            },
+            startedAt,
+          );
         }
         if (!ctx.actingUserId) {
-          throw new Error('This action needs an acting user, but the agent has no creator on record.');
+          throw new Error(
+            'This action needs an acting user, but the agent has no creator on record.',
+          );
         }
         // The person asking, so their own connection and permissions apply.
         const result = await this.integrationsService.executeAction(
@@ -1108,10 +1364,20 @@ export class AIRuntimeService {
       }
 
       if (agentToolNeedsApproval(runtime, name)) {
-        return this.queueApproval(entry, entity, workspaceId, context, state, name, name, {
-          builtinTool: name,
-          input,
-        }, startedAt);
+        return this.queueApproval(
+          entry,
+          entity,
+          workspaceId,
+          context,
+          state,
+          name,
+          name,
+          {
+            builtinTool: name,
+            input,
+          },
+          startedAt,
+        );
       }
 
       const output = await this.mcpRegistry.executeTool(name, input, ctx);
@@ -1120,7 +1386,8 @@ export class AIRuntimeService {
       entry.durationMs = Date.now() - startedAt;
       return JSON.stringify(output ?? null);
     } catch (toolError) {
-      const message = toolError instanceof Error ? toolError.message : String(toolError);
+      const message =
+        toolError instanceof Error ? toolError.message : String(toolError);
       entry.status = 'failed';
       entry.error = message;
       entry.durationMs = Date.now() - startedAt;
@@ -1152,18 +1419,34 @@ export class AIRuntimeService {
     delegationDepth: number,
   ): Promise<{ content: string; tokensUsed: number }> {
     const provider = (entity.provider || 'nvidia') as AIProvider;
-    const cred = await this.credentialService.resolveCredential(provider, { workspaceId });
-    const { recent, digest } = windowHistory(context.history ?? [], resolveAgentMemoryPolicy(plan.runtime));
+    const cred = await this.credentialService.resolveCredential(provider, {
+      workspaceId,
+    });
+    const { recent, digest } = windowHistory(
+      context.history ?? [],
+      resolveAgentMemoryPolicy(plan.runtime),
+    );
     const messages: AIChatMessage[] = [
-      { role: 'system', content: digest ? `${plan.systemPrompt}\n\n${digest}` : plan.systemPrompt },
-      ...recent.map((m): AIChatMessage => ({ role: m.role, content: m.content })),
+      {
+        role: 'system',
+        content: digest
+          ? `${plan.systemPrompt}\n\n${digest}`
+          : plan.systemPrompt,
+      },
+      ...recent.map((m): AIChatMessage => ({
+        role: m.role,
+        content: m.content,
+      })),
       { role: 'user', content: promptText },
     ];
     const tools = plan.toolSchemas.length > 0 ? plan.toolSchemas : undefined;
     let tokensUsed = 0;
+    // Once per run: tool rounds repeat the same prompt.
+    await this.moderation?.assertTextAllowed(promptText);
     const callModel = async (withTools = true) => {
       const calledAt = Date.now();
       const result = await this.aiService.chat({
+        moderate: 'output',
         provider,
         model: entity.model || cred.defaultModel,
         apiKey: cred.apiKey,
@@ -1173,7 +1456,13 @@ export class AIRuntimeService {
         ...plan.sampling,
       });
       tokensUsed += result.usage?.totalTokens ?? 0;
-      const metrics = (state.metrics ??= { inputTokens: 0, outputTokens: 0, modelCalls: 0, modelMs: 0, toolMs: 0 });
+      const metrics = (state.metrics ??= {
+        inputTokens: 0,
+        outputTokens: 0,
+        modelCalls: 0,
+        modelMs: 0,
+        toolMs: 0,
+      });
       metrics.inputTokens += result.usage?.promptTokens ?? 0;
       metrics.outputTokens += result.usage?.completionTokens ?? 0;
       metrics.modelCalls += 1;
@@ -1184,7 +1473,8 @@ export class AIRuntimeService {
     let chatResult = await callModel();
     for (
       let round = 0;
-      round < (plan.maxRounds ?? AIRuntimeService.MAX_TOOL_ROUNDS) && (chatResult.message.toolCalls?.length ?? 0) > 0;
+      round < (plan.maxRounds ?? AIRuntimeService.MAX_TOOL_ROUNDS) &&
+      (chatResult.message.toolCalls?.length ?? 0) > 0;
       round++
     ) {
       messages.push(chatResult.message);
@@ -1202,20 +1492,46 @@ export class AIRuntimeService {
         toolTrace.push(entry);
         await emitProgress('running');
         const toolStartedAt = Date.now();
-        contents[index] = await this.runToolCall(entry, call, input, entity, workspaceId, context, plan, state, delegationDepth);
+        contents[index] = await this.runToolCall(
+          entry,
+          call,
+          input,
+          entity,
+          workspaceId,
+          context,
+          plan,
+          state,
+          delegationDepth,
+        );
         // Parallel delegations overlap, so this is tool-seconds, not wall time.
-        const metrics = (state.metrics ??= { inputTokens: 0, outputTokens: 0, modelCalls: 0, modelMs: 0, toolMs: 0 });
+        const metrics = (state.metrics ??= {
+          inputTokens: 0,
+          outputTokens: 0,
+          modelCalls: 0,
+          modelMs: 0,
+          toolMs: 0,
+        });
         metrics.toolMs += Date.now() - toolStartedAt;
         await emitProgress('running');
       };
       // Delegations asked for in the same round are independent: the team
       // works on them at once. Other tools keep their order — a model may
       // create something and then use it.
-      const delegations = calls.map((c, i) => (plan.members?.has(c.function.name) ? i : -1)).filter((i) => i >= 0);
+      const delegations = calls
+        .map((c, i) => (plan.members?.has(c.function.name) ? i : -1))
+        .filter((i) => i >= 0);
       const team = Promise.all(delegations.map(run));
-      for (let i = 0; i < calls.length; i++) if (!delegations.includes(i)) await run(i);
+      for (let i = 0; i < calls.length; i++)
+        if (!delegations.includes(i)) await run(i);
       await team;
-      calls.forEach((call, i) => messages.push({ role: 'tool', toolCallId: call.id, name: call.function.name, content: contents[i]! }));
+      calls.forEach((call, i) =>
+        messages.push({
+          role: 'tool',
+          toolCallId: call.id,
+          name: call.function.name,
+          content: contents[i]!,
+        }),
+      );
       chatResult = await callModel();
     }
     // Out of tool rounds while the model still wants another tool: its text is
@@ -1271,9 +1587,16 @@ export class AIRuntimeService {
     const inline = entity.__inline as InlineAgentSpec | undefined;
     // A chat reply runs the agent alone, never the steps after it, so the apps
     // its canvas names — as a tool or as the next step — are its apps here.
-    const canvasApps = inline ? null : studioGraphApps(entity.graphJson as string | null);
+    const canvasApps = inline
+      ? null
+      : studioGraphApps(entity.graphJson as string | null);
     const appProviders = inline?.connectors ?? canvasApps?.providers ?? [];
-    const allowedToolNames = [...new Set([...parseToolNames(entity.tools), ...(canvasApps?.tools ?? [])])];
+    const allowedToolNames = [
+      ...new Set([
+        ...parseToolNames(entity.tools),
+        ...(canvasApps?.tools ?? []),
+      ]),
+    ];
     // Connector actions in the list narrow that app's tools; they never take
     // the agent's built-in tools away (see `selectAgentTools`).
     const toolSelection = selectAgentTools(
@@ -1301,14 +1624,18 @@ export class AIRuntimeService {
     const allIntegrationSchemas = toolSelection.integrationTools.filter(
       (t) => !readOnly || t.definition.permissionLevel === 'read',
     );
-    const allMcpTools = readOnly ? new Map<string, MCPToolBinding>() : await this.mcpToolsFor(workspaceId, allowedToolNames);
+    const allMcpTools = readOnly
+      ? new Map<string, MCPToolBinding>()
+      : await this.mcpToolsFor(workspaceId, allowedToolNames);
     const allBuiltinSchemas = (
       !toolSelection.useDefaultBuiltins
         ? this.mcpRegistry.getToolSchemasFor(toolSelection.builtinNames)
         : inline
           ? []
           : // With no explicit list, every tool — except the owner-private reads.
-            this.mcpRegistry.getToolSchemas().filter((s) => !OWNER_PRIVATE_AGENT_TOOLS.includes(schemaName(s)))
+            this.mcpRegistry
+              .getToolSchemas()
+              .filter((s) => !OWNER_PRIVATE_AGENT_TOOLS.includes(schemaName(s)))
     ).filter((s) => !readOnly || READ_ONLY_AGENT_TOOLS.includes(schemaName(s)));
 
     // The workspace admin's tool rules sit over the agent's own: a disabled tool is never offered.
@@ -1318,38 +1645,59 @@ export class AIRuntimeService {
       mcp: [...allMcpTools.keys()],
     });
     const runtime = governed.runtime;
-    const builtinSchemas = allBuiltinSchemas.filter((s) => !governed.disabled.has(schemaName(s)));
-    const integrationSchemas = allIntegrationSchemas.filter((t) => !governed.disabled.has(t.name));
-    const mcpTools = new Map([...allMcpTools].filter(([name]) => !governed.disabled.has(name)));
+    const builtinSchemas = allBuiltinSchemas.filter(
+      (s) => !governed.disabled.has(schemaName(s)),
+    );
+    const integrationSchemas = allIntegrationSchemas.filter(
+      (t) => !governed.disabled.has(t.name),
+    );
+    const mcpTools = new Map(
+      [...allMcpTools].filter(([name]) => !governed.disabled.has(name)),
+    );
 
     const memoryContext = await this.buildMemoryContext(workspaceId, runtime, {
       agentId: entity.id as string,
       requesterId: context.requesterId,
     });
-    const knowledgeContext = await this.buildKnowledgeContext(workspaceId, runtime, promptText);
-    const format = runtime.responseFormat ? `\n\n${RESPONSE_FORMAT_INSTRUCTION[runtime.responseFormat] ?? ''}` : '';
+    const knowledgeContext = await this.buildKnowledgeContext(
+      workspaceId,
+      runtime,
+      promptText,
+    );
+    const format = runtime.responseFormat
+      ? `\n\n${RESPONSE_FORMAT_INSTRUCTION[runtime.responseFormat] ?? ''}`
+      : '';
 
     // A supervisor's team: delegation tools the model chooses from (router),
     // or members that all work before the supervisor writes (sequential / parallel).
     const members = inline?.members ?? [];
     const routed = members.length > 0 && inline?.delegation === 'router';
-    const memberTools = new Map(routed ? members.map((m, i) => [memberToolName(m, i), m] as const) : []);
-    const memberSchemas = [...memberTools.entries()].map(([toolName, member]) => ({
-      type: 'function',
-      function: {
-        name: toolName,
-        description: `Delegate a task to ${member.name}${member.role ? ` (${member.role})` : ''}, a member of your team, and get their result back.${
-          member.instructions ? ` They: ${member.instructions.slice(0, 200)}` : ''
-        }`,
-        parameters: {
-          type: 'object',
-          properties: {
-            request: { type: 'string', description: `What ${member.name} should do, with every detail they need.` },
+    const memberTools = new Map(
+      routed ? members.map((m, i) => [memberToolName(m, i), m] as const) : [],
+    );
+    const memberSchemas = [...memberTools.entries()].map(
+      ([toolName, member]) => ({
+        type: 'function',
+        function: {
+          name: toolName,
+          description: `Delegate a task to ${member.name}${member.role ? ` (${member.role})` : ''}, a member of your team, and get their result back.${
+            member.instructions
+              ? ` They: ${member.instructions.slice(0, 200)}`
+              : ''
+          }`,
+          parameters: {
+            type: 'object',
+            properties: {
+              request: {
+                type: 'string',
+                description: `What ${member.name} should do, with every detail they need.`,
+              },
+            },
+            required: ['request'],
           },
-          required: ['request'],
         },
-      },
-    }));
+      }),
+    );
     const teamGuidance = routed
       ? `\n\nYou lead a team: ${members.map((m) => m.name).join(', ')}. Delegate the parts that are their speciality with the delegate_to_* tools (independent parts in the same round, so they run together), then combine their results into your answer.`
       : '';
@@ -1371,8 +1719,12 @@ export class AIRuntimeService {
       runtime,
       sampling: this.samplingFor(runtime),
       ...(memberTools.size ? { members: memberTools } : {}),
-      ...(inline?.maxSteps ? { maxRounds: Math.min(inline.maxSteps, MAX_AGENT_TOOL_ROUNDS) } : {}),
-      ...(canvasApps?.approvalTools.length ? { approvalTools: new Set(canvasApps.approvalTools) } : {}),
+      ...(inline?.maxSteps
+        ? { maxRounds: Math.min(inline.maxSteps, MAX_AGENT_TOOL_ROUNDS) }
+        : {}),
+      ...(canvasApps?.approvalTools.length
+        ? { approvalTools: new Set(canvasApps.approvalTools) }
+        : {}),
     };
 
     const toolTrace: AgentToolExecution[] = [];
@@ -1390,7 +1742,16 @@ export class AIRuntimeService {
     try {
       let turnPrompt = promptText;
       if (members.length > 0 && !routed && inline) {
-        const outcomes = await this.runTeam(entity, members, inline.delegation, promptText, workspaceId, context, state, delegationDepth);
+        const outcomes = await this.runTeam(
+          entity,
+          members,
+          inline.delegation,
+          promptText,
+          workspaceId,
+          context,
+          state,
+          delegationDepth,
+        );
         turnPrompt = composeTeamPrompt(promptText, outcomes);
       }
       const { content, tokensUsed } = await this.runModelLoop(
@@ -1406,13 +1767,31 @@ export class AIRuntimeService {
       );
       if (inline && context.team) context.team.tokens += tokensUsed;
       const guarded = applyPiiGuardrail(content, runtime.guardrails.pii);
-      const log = await this.writeLog(entity.id, 'SUCCESS', promptText, guarded.text, toolTrace, tokensUsed);
+      const log = await this.writeLog(
+        entity.id,
+        'SUCCESS',
+        promptText,
+        guarded.text,
+        toolTrace,
+        tokensUsed,
+      );
       // Members were billed for their own turns; this bills the agent's.
-      await this.deductRunCredits(workspaceId, entity.id, tokensUsed, entity.name);
+      await this.deductRunCredits(
+        workspaceId,
+        entity.id,
+        tokensUsed,
+        entity.name,
+      );
       await emitProgress('completed');
 
-      const notices = [...((entity.__notices as string[] | undefined) ?? []), ...(guarded.notice ? [guarded.notice] : [])];
-      const connectionsNeeded = this.connectionsNeededAfterRun(connections.needs, state);
+      const notices = [
+        ...((entity.__notices as string[] | undefined) ?? []),
+        ...(guarded.notice ? [guarded.notice] : []),
+      ];
+      const connectionsNeeded = this.connectionsNeededAfterRun(
+        connections.needs,
+        state,
+      );
       return {
         entityId: entity.id,
         entityName: entity.name,
@@ -1426,8 +1805,17 @@ export class AIRuntimeService {
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      this.logger.error(`Agent '${entity.name}' (${entity.id}) turn failed: ${message}`);
-      await this.writeLog(entity.id, 'FAILED', promptText, message, toolTrace, 0);
+      this.logger.error(
+        `Agent '${entity.name}' (${entity.id}) turn failed: ${message}`,
+      );
+      await this.writeLog(
+        entity.id,
+        'FAILED',
+        promptText,
+        message,
+        toolTrace,
+        0,
+      );
       await emitProgress('failed');
       throw err;
     }
@@ -1463,7 +1851,9 @@ export class AIRuntimeService {
     const baseTools = READ_ONLY_TOOL_NAMES.filter(
       (name) => permissions.knowledgeAccess !== false || name !== 'search_docs',
     );
-    const allowedToolNames = [...new Set([...baseTools, ...(permissions.allowActions ?? [])])];
+    const allowedToolNames = [
+      ...new Set([...baseTools, ...(permissions.allowActions ?? [])]),
+    ];
 
     const readOnly = context.readOnly === true;
     // A read-only turn does not delegate: the specialist could write.
@@ -1504,42 +1894,60 @@ export class AIRuntimeService {
         if (colleague) handoffTargets.set(colleague.id, colleague.name);
       }
     }
-    const handoffSchemas = [...handoffTargets.entries()].map(([id, colleagueName]) => ({
-      type: 'function',
-      function: {
-        name: `${HANDOFF_TOOL_PREFIX}${id}`,
-        description: `Hand this work to your fellow coworker '${colleagueName}', who does it with their own tools and reports back. Use it when the request is ${colleagueName}'s speciality rather than yours.`,
-        parameters: {
-          type: 'object',
-          properties: {
-            request: {
-              type: 'string',
-              description: `What '${colleagueName}' should do, with every detail they need.`,
+    const handoffSchemas = [...handoffTargets.entries()].map(
+      ([id, colleagueName]) => ({
+        type: 'function',
+        function: {
+          name: `${HANDOFF_TOOL_PREFIX}${id}`,
+          description: `Hand this work to your fellow coworker '${colleagueName}', who does it with their own tools and reports back. Use it when the request is ${colleagueName}'s speciality rather than yours.`,
+          parameters: {
+            type: 'object',
+            properties: {
+              request: {
+                type: 'string',
+                description: `What '${colleagueName}' should do, with every detail they need.`,
+              },
             },
+            required: ['request'],
           },
-          required: ['request'],
         },
-      },
-    }));
+      }),
+    );
 
     const allIntegrationSchemas = selectAgentTools(
       allowedToolNames,
-      await this.integrationTools.getToolsForEntity(workspaceId, entity.id, entity.creatorId),
+      await this.integrationTools.getToolsForEntity(
+        workspaceId,
+        entity.id,
+        entity.creatorId,
+      ),
       (name) => this.mcpRegistry.hasTool(name),
-    ).integrationTools.filter((t) => !readOnly || t.definition.permissionLevel === 'read');
-    const allMcpTools = readOnly ? new Map<string, MCPToolBinding>() : await this.mcpToolsFor(workspaceId, allowedToolNames);
+    ).integrationTools.filter(
+      (t) => !readOnly || t.definition.permissionLevel === 'read',
+    );
+    const allMcpTools = readOnly
+      ? new Map<string, MCPToolBinding>()
+      : await this.mcpToolsFor(workspaceId, allowedToolNames);
     const allBuiltinSchemas = this.mcpRegistry
       .getToolSchemasFor(allowedToolNames)
-      .filter((s) => !readOnly || READ_ONLY_AGENT_TOOLS.includes(schemaName(s)));
+      .filter(
+        (s) => !readOnly || READ_ONLY_AGENT_TOOLS.includes(schemaName(s)),
+      );
     const governed = await this.applyWorkspaceTools(workspaceId, baseRuntime, {
       builtin: allBuiltinSchemas.map(schemaName),
       integration: allIntegrationSchemas,
       mcp: [...allMcpTools.keys()],
     });
     const runtime = governed.runtime;
-    const builtinSchemas = allBuiltinSchemas.filter((s) => !governed.disabled.has(schemaName(s)));
-    const integrationSchemas = allIntegrationSchemas.filter((t) => !governed.disabled.has(t.name));
-    const mcpTools = new Map([...allMcpTools].filter(([name]) => !governed.disabled.has(name)));
+    const builtinSchemas = allBuiltinSchemas.filter(
+      (s) => !governed.disabled.has(schemaName(s)),
+    );
+    const integrationSchemas = allIntegrationSchemas.filter(
+      (t) => !governed.disabled.has(t.name),
+    );
+    const mcpTools = new Map(
+      [...allMcpTools].filter(([name]) => !governed.disabled.has(name)),
+    );
     const memoryContext = await this.buildMemoryContext(workspaceId, runtime, {
       agentId: entity.id as string,
       requesterId: context.requesterId,
@@ -1589,8 +1997,20 @@ export class AIRuntimeService {
         delegationDepth,
       );
       const guarded = applyPiiGuardrail(content, runtime.guardrails.pii);
-      const log = await this.writeLog(entity.id, 'SUCCESS', promptText, guarded.text, toolTrace, tokensUsed);
-      await this.deductRunCredits(workspaceId, entity.id, tokensUsed, entity.name);
+      const log = await this.writeLog(
+        entity.id,
+        'SUCCESS',
+        promptText,
+        guarded.text,
+        toolTrace,
+        tokensUsed,
+      );
+      await this.deductRunCredits(
+        workspaceId,
+        entity.id,
+        tokensUsed,
+        entity.name,
+      );
 
       await this.setCoworkerStatus(entity.id, 'AVAILABLE');
       await this.broadcast(workspaceId, 'coworker.status_changed', {
@@ -1617,8 +2037,17 @@ export class AIRuntimeService {
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      this.logger.error(`Coworker '${entity.name}' (${entity.id}) turn failed: ${message}`);
-      await this.writeLog(entity.id, 'FAILED', promptText, message, toolTrace, 0);
+      this.logger.error(
+        `Coworker '${entity.name}' (${entity.id}) turn failed: ${message}`,
+      );
+      await this.writeLog(
+        entity.id,
+        'FAILED',
+        promptText,
+        message,
+        toolTrace,
+        0,
+      );
       await this.setCoworkerStatus(entity.id, 'ERROR');
       await this.broadcast(workspaceId, 'coworker.status_changed', {
         coworkerId: entity.id,
@@ -1649,7 +2078,8 @@ export class AIRuntimeService {
     context: AIEntityTurnContext,
     state: TurnState,
     startedAt: number,
-    onToolUpdate: ((tools: AgentToolExecution[]) => void | Promise<void>) | undefined,
+    onToolUpdate:
+      ((tools: AgentToolExecution[]) => void | Promise<void>) | undefined,
     delegationDepth: number,
   ): Promise<AIEntityRunResult> {
     const spec = context.inlineAgent as InlineAgentSpec;
@@ -1673,17 +2103,33 @@ export class AIRuntimeService {
       );
       await this.closeTask(workspaceId, team, taskId, {
         status: state.pendingApprovals > 0 ? 'APPROVAL_REQUIRED' : 'COMPLETED',
-        output: { result: run.result.slice(0, 20_000), tools: run.tools.map((t) => t.name) },
+        output: {
+          result: run.result.slice(0, 20_000),
+          tools: run.tools.map((t) => t.name),
+        },
         tokensUsed: run.tokensUsed,
       });
-      await this.finishExecution(state, startedAt, promptText, agent.model, run);
+      await this.finishExecution(
+        state,
+        startedAt,
+        promptText,
+        agent.model,
+        run,
+      );
       return { ...run, entityName: spec.name, executionId: state.executionId };
     } catch (err) {
       await this.closeTask(workspaceId, team, taskId, {
         status: 'FAILED',
         error: err instanceof Error ? err.message : String(err),
       });
-      await this.finishExecution(state, startedAt, promptText, agent.model, undefined, err);
+      await this.finishExecution(
+        state,
+        startedAt,
+        promptText,
+        agent.model,
+        undefined,
+        err,
+      );
       throw err;
     }
   }
@@ -1698,12 +2144,24 @@ export class AIRuntimeService {
     host: { provider?: string | null; model?: string | null },
     requested?: string,
   ): Promise<{ ok: boolean; provider: string; model: string }> {
-    const resolved = requested && this.modelResolver ? this.modelResolver.resolve({ requestedModel: requested }) : null;
-    const provider = (resolved?.provider ?? host.provider ?? 'nvidia') as string;
+    const resolved =
+      requested && this.modelResolver
+        ? this.modelResolver.resolve({ requestedModel: requested })
+        : null;
+    const provider = (resolved?.provider ??
+      host.provider ??
+      'nvidia') as string;
     const model = resolved?.model ?? host.model ?? '';
     try {
-      const cred = await this.credentialService.resolveCredential(provider as AIProvider, { workspaceId });
-      return { ok: !!cred.apiKey || (provider === 'ollama' && !!cred.baseUrl), provider, model };
+      const cred = await this.credentialService.resolveCredential(
+        provider as AIProvider,
+        { workspaceId },
+      );
+      return {
+        ok: !!cred.apiKey || (provider === 'ollama' && !!cred.baseUrl),
+        provider,
+        model,
+      };
     } catch {
       return { ok: false, provider, model };
     }
@@ -1715,7 +2173,11 @@ export class AIRuntimeService {
    * Tool policies and guardrails stay the host's. A model the workspace has no key for falls back to the
    * host's, and the run says so.
    */
-  private async withInlineAgent(host: any, spec: InlineAgentSpec, workspaceId: string): Promise<any> {
+  private async withInlineAgent(
+    host: any,
+    spec: InlineAgentSpec,
+    workspaceId: string,
+  ): Promise<any> {
     const base = host.__host ?? host;
     const notices: string[] = [];
     let provider = base.provider;
@@ -1724,7 +2186,15 @@ export class AIRuntimeService {
       const wanted = this.modelResolver!.resolve({ requestedModel: requested });
       if (wanted.provider === base.provider) return { wanted, usable: true };
       try {
-        return { wanted, usable: !!(await this.credentialService.resolveCredential(wanted.provider as AIProvider, { workspaceId })).apiKey };
+        return {
+          wanted,
+          usable: !!(
+            await this.credentialService.resolveCredential(
+              wanted.provider as AIProvider,
+              { workspaceId },
+            )
+          ).apiKey,
+        };
       } catch {
         return { wanted, usable: false };
       }
@@ -1732,8 +2202,15 @@ export class AIRuntimeService {
     if (spec.model && this.modelResolver) {
       // The canvas model, then its fallback model, then the host agent's own.
       const primary = await usableModel(spec.model);
-      const fallback = !primary.usable && spec.fallbackModel ? await usableModel(spec.fallbackModel) : null;
-      const chosen = primary.usable ? primary.wanted : fallback?.usable ? fallback.wanted : null;
+      const fallback =
+        !primary.usable && spec.fallbackModel
+          ? await usableModel(spec.fallbackModel)
+          : null;
+      const chosen = primary.usable
+        ? primary.wanted
+        : fallback?.usable
+          ? fallback.wanted
+          : null;
       if (chosen) {
         provider = chosen.provider;
         model = chosen.model;
@@ -1765,22 +2242,48 @@ export class AIRuntimeService {
           // A canvas agent may set its own autonomy; rules only ever add to
           // the host's (a canvas can't drop a rule its owner set on the agent).
           ...(spec.autonomy ? { autonomy: spec.autonomy } : {}),
-          ...(spec.autonomyLevel !== undefined ? { autonomyLevel: spec.autonomyLevel } : {}),
+          ...(spec.autonomyLevel !== undefined
+            ? { autonomyLevel: spec.autonomyLevel }
+            : {}),
           ...(spec.rules
             ? {
                 rules: {
                   ...runtime.rules,
-                  always: [...new Set([...(runtime.rules?.always ?? []), ...(spec.rules.always ?? [])])],
-                  askBefore: [...new Set([...(runtime.rules?.askBefore ?? []), ...(spec.rules.askBefore ?? [])])],
-                  never: [...new Set([...(runtime.rules?.never ?? []), ...(spec.rules.never ?? [])])],
-                  policies: mergeStricterPolicies(runtime.rules?.policies, spec.rules.policies),
+                  always: [
+                    ...new Set([
+                      ...(runtime.rules?.always ?? []),
+                      ...(spec.rules.always ?? []),
+                    ]),
+                  ],
+                  askBefore: [
+                    ...new Set([
+                      ...(runtime.rules?.askBefore ?? []),
+                      ...(spec.rules.askBefore ?? []),
+                    ]),
+                  ],
+                  never: [
+                    ...new Set([
+                      ...(runtime.rules?.never ?? []),
+                      ...(spec.rules.never ?? []),
+                    ]),
+                  ],
+                  policies: mergeStricterPolicies(
+                    runtime.rules?.policies,
+                    spec.rules.policies,
+                  ),
                 },
               }
             : {}),
           knowledge: spec.knowledge,
-          ...(spec.responseFormat ? { responseFormat: spec.responseFormat } : {}),
-          ...(spec.temperature !== undefined ? { temperature: spec.temperature } : {}),
-          ...(spec.maxTokens !== undefined ? { maxTokens: spec.maxTokens } : {}),
+          ...(spec.responseFormat
+            ? { responseFormat: spec.responseFormat }
+            : {}),
+          ...(spec.temperature !== undefined
+            ? { temperature: spec.temperature }
+            : {}),
+          ...(spec.maxTokens !== undefined
+            ? { maxTokens: spec.maxTokens }
+            : {}),
         },
       },
       __inline: spec,
@@ -1790,14 +2293,18 @@ export class AIRuntimeService {
   }
 
   /** Why a team may not delegate any more, or null when it may. */
-  private teamRefusal(team: AgentTeamRun, delegationDepth: number): string | null {
+  private teamRefusal(
+    team: AgentTeamRun,
+    delegationDepth: number,
+  ): string | null {
     if (delegationDepth + 1 > MAX_DELEGATION_DEPTH) {
       return `A team can delegate at most ${MAX_DELEGATION_DEPTH} levels down, so this agent can’t delegate further. Do the work yourself.`;
     }
     if (team.delegations >= team.maxDelegations) {
       return `The team has used all ${team.maxDelegations} delegations allowed in one run. Finish with what you have.`;
     }
-    if (Date.now() > team.deadline) return 'The run is out of time, so no more work can be delegated. Finish with what you have.';
+    if (Date.now() > team.deadline)
+      return 'The run is out of time, so no more work can be delegated. Finish with what you have.';
     if (team.maxTokens && team.tokens >= team.maxTokens) {
       return `The team has used its ${team.maxTokens.toLocaleString('en-US')}-token budget. Finish with what you have.`;
     }
@@ -1820,12 +2327,31 @@ export class AIRuntimeService {
     dependencies: string[] = [],
   ): Promise<MemberOutcome> {
     const team = context.team ?? newAgentTeamRun(state.executionId);
-    const from = { key: (supervisor.__inline as InlineAgentSpec | undefined)?.key ?? supervisor.id, name: supervisor.name as string };
+    const from = {
+      key:
+        (supervisor.__inline as InlineAgentSpec | undefined)?.key ??
+        supervisor.id,
+      name: supervisor.name as string,
+    };
     const task = request.trim();
-    if (!task) return { key: member.key, name: member.name, ok: false, result: `Say what ${member.name} should do.`, taskId: null };
+    if (!task)
+      return {
+        key: member.key,
+        name: member.name,
+        ok: false,
+        result: `Say what ${member.name} should do.`,
+        taskId: null,
+      };
 
     const refusal = this.teamRefusal(team, delegationDepth);
-    if (refusal) return { key: member.key, name: member.name, ok: false, result: refusal, taskId: null };
+    if (refusal)
+      return {
+        key: member.key,
+        name: member.name,
+        ok: false,
+        result: refusal,
+        taskId: null,
+      };
     team.delegations++;
 
     const taskId = await this.openTask(workspaceId, team, {
@@ -1835,17 +2361,34 @@ export class AIRuntimeService {
       delegatedBy: from.key,
       dependencies,
     });
-    await this.recordMessage(workspaceId, team, { taskId, from, to: { key: member.key, name: member.name }, kind: 'task', content: task });
-    this.logger.log(`Team: '${from.name}' delegated to '${member.name}' (depth ${delegationDepth + 1})`);
+    await this.recordMessage(workspaceId, team, {
+      taskId,
+      from,
+      to: { key: member.key, name: member.name },
+      kind: 'task',
+      content: task,
+    });
+    this.logger.log(
+      `Team: '${from.name}' delegated to '${member.name}' (depth ${delegationDepth + 1})`,
+    );
 
-    const memberState: TurnState = { executionId: state.executionId, pendingApprovals: 0, memberTokens: 0 };
+    const memberState: TurnState = {
+      executionId: state.executionId,
+      pendingApprovals: 0,
+      memberTokens: 0,
+    };
     try {
       const agent = await this.withInlineAgent(supervisor, member, workspaceId);
       const run = await this.executeAgentTurn(
         agent,
         workspaceId,
         `${from.name} (who leads your team) asks you: ${task}`,
-        { ...context, inlineAgent: member, team, ...(taskId ? { teamTaskId: taskId } : {}) },
+        {
+          ...context,
+          inlineAgent: member,
+          team,
+          ...(taskId ? { teamTaskId: taskId } : {}),
+        },
         memberState,
         undefined,
         delegationDepth + 1,
@@ -1869,12 +2412,24 @@ export class AIRuntimeService {
         to: from,
         kind: 'result',
         content: run.result.slice(0, 20_000),
-        data: { tools: run.tools.map((t) => ({ name: t.name, status: t.status })), tokensUsed: run.tokensUsed },
+        data: {
+          tools: run.tools.map((t) => ({ name: t.name, status: t.status })),
+          tokensUsed: run.tokensUsed,
+        },
       });
-      return { key: member.key, name: member.name, ok: true, result: run.result, taskId };
+      return {
+        key: member.key,
+        name: member.name,
+        ok: true,
+        result: run.result,
+        taskId,
+      };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      await this.closeTask(workspaceId, team, taskId, { status: 'FAILED', error: message });
+      await this.closeTask(workspaceId, team, taskId, {
+        status: 'FAILED',
+        error: message,
+      });
       await this.recordMessage(workspaceId, team, {
         taskId,
         from: { key: member.key, name: member.name },
@@ -1882,7 +2437,13 @@ export class AIRuntimeService {
         kind: 'error',
         content: message.slice(0, 4_000),
       });
-      return { key: member.key, name: member.name, ok: false, result: message, taskId };
+      return {
+        key: member.key,
+        name: member.name,
+        ok: false,
+        result: message,
+        taskId,
+      };
     }
   }
 
@@ -1901,24 +2462,56 @@ export class AIRuntimeService {
     delegationDepth: number,
   ): Promise<MemberOutcome[]> {
     if (mode === 'parallel') {
-      return Promise.all(members.map((m) => this.runMember(supervisor, m, request, workspaceId, context, state, delegationDepth)));
+      return Promise.all(
+        members.map((m) =>
+          this.runMember(
+            supervisor,
+            m,
+            request,
+            workspaceId,
+            context,
+            state,
+            delegationDepth,
+          ),
+        ),
+      );
     }
     if (mode === 'review_loop' && members.length > 1) {
-      const reviewerIndex = members.findIndex((m) => /\b(review\w*|critic|audit\w*|qa|validat\w*)\b/i.test(`${m.role ?? ''} ${m.name}`));
-      const reviewer = reviewerIndex >= 0 ? members[reviewerIndex]! : members[members.length - 1]!;
+      const reviewerIndex = members.findIndex((m) =>
+        /\b(review\w*|critic|audit\w*|qa|validat\w*)\b/i.test(
+          `${m.role ?? ''} ${m.name}`,
+        ),
+      );
+      const reviewer =
+        reviewerIndex >= 0
+          ? members[reviewerIndex]!
+          : members[members.length - 1]!;
       const workers = members.filter((m) => m !== reviewer);
 
       const workerOutcomes: MemberOutcome[] = [];
       for (const worker of workers) {
         const prev = workerOutcomes[workerOutcomes.length - 1];
-        const ask = prev?.ok ? `${request}\n\nWhat ${prev.name} produced:\n${prev.result}` : request;
+        const ask = prev?.ok
+          ? `${request}\n\nWhat ${prev.name} produced:\n${prev.result}`
+          : request;
         workerOutcomes.push(
-          await this.runMember(supervisor, worker, ask, workspaceId, context, state, delegationDepth, prev?.taskId ? [prev.taskId] : []),
+          await this.runMember(
+            supervisor,
+            worker,
+            ask,
+            workspaceId,
+            context,
+            state,
+            delegationDepth,
+            prev?.taskId ? [prev.taskId] : [],
+          ),
         );
       }
 
       if (reviewer) {
-        const aggregatedWork = workerOutcomes.map((o) => `### ${o.name}\n${o.result}`).join('\n\n---\n\n');
+        const aggregatedWork = workerOutcomes
+          .map((o) => `### ${o.name}\n${o.result}`)
+          .join('\n\n---\n\n');
         const reviewAsk = `Review and verify the work produced by your team for the request: "${request}".\n\n${aggregatedWork}\n\nEvaluate correctness, quality, and adherence to rules. Provide feedback, improvements, or approval.`;
         const reviewOutcome = await this.runMember(
           supervisor,
@@ -1928,7 +2521,9 @@ export class AIRuntimeService {
           context,
           state,
           delegationDepth,
-          workerOutcomes.map((o) => o.taskId).filter((id): id is string => !!id),
+          workerOutcomes
+            .map((o) => o.taskId)
+            .filter((id): id is string => !!id),
         );
         workerOutcomes.push(reviewOutcome);
       }
@@ -1937,9 +2532,20 @@ export class AIRuntimeService {
     const outcomes: MemberOutcome[] = [];
     for (const member of members) {
       const previous = outcomes[outcomes.length - 1];
-      const ask = previous?.ok ? `${request}\n\nWhat ${previous.name} produced before you:\n${previous.result}` : request;
+      const ask = previous?.ok
+        ? `${request}\n\nWhat ${previous.name} produced before you:\n${previous.result}`
+        : request;
       outcomes.push(
-        await this.runMember(supervisor, member, ask, workspaceId, context, state, delegationDepth, previous?.taskId ? [previous.taskId] : []),
+        await this.runMember(
+          supervisor,
+          member,
+          ask,
+          workspaceId,
+          context,
+          state,
+          delegationDepth,
+          previous?.taskId ? [previous.taskId] : [],
+        ),
       );
     }
     return outcomes;
@@ -1949,7 +2555,13 @@ export class AIRuntimeService {
   private async openTask(
     workspaceId: string,
     team: AgentTeamRun,
-    task: { agent: InlineAgentSpec; request: string; parentTaskId: string | null; delegatedBy: string | null; dependencies?: string[] },
+    task: {
+      agent: InlineAgentSpec;
+      request: string;
+      parentTaskId: string | null;
+      delegatedBy: string | null;
+      dependencies?: string[];
+    },
   ): Promise<string | null> {
     if (!team.executionId) return null;
     try {
@@ -1969,10 +2581,15 @@ export class AIRuntimeService {
           startedAt: new Date(),
         },
       });
-      await this.broadcast(workspaceId, 'agent.task.updated', { executionId: team.executionId, task: row });
+      await this.broadcast(workspaceId, 'agent.task.updated', {
+        executionId: team.executionId,
+        task: row,
+      });
       return row.id;
     } catch (error) {
-      this.logger.warn(`Could not record a task for ${task.agent.name}: ${String(error)}`);
+      this.logger.warn(
+        `Could not record a task for ${task.agent.name}: ${String(error)}`,
+      );
       return null;
     }
   }
@@ -1981,7 +2598,13 @@ export class AIRuntimeService {
     workspaceId: string,
     team: AgentTeamRun,
     taskId: string | null,
-    outcome: { status: string; output?: Record<string, unknown>; error?: string; tokensUsed?: number; approvalRequired?: boolean },
+    outcome: {
+      status: string;
+      output?: Record<string, unknown>;
+      error?: string;
+      tokensUsed?: number;
+      approvalRequired?: boolean;
+    },
   ): Promise<void> {
     if (!taskId) return;
     try {
@@ -1991,12 +2614,18 @@ export class AIRuntimeService {
           status: outcome.status,
           ...(outcome.output ? { output: outcome.output as any } : {}),
           ...(outcome.error ? { error: outcome.error.slice(0, 4_000) } : {}),
-          ...(outcome.tokensUsed !== undefined ? { tokensUsed: outcome.tokensUsed } : {}),
+          ...(outcome.tokensUsed !== undefined
+            ? { tokensUsed: outcome.tokensUsed }
+            : {}),
           ...(outcome.approvalRequired ? { approvalRequired: true } : {}),
-          completedAt: outcome.status === 'APPROVAL_REQUIRED' ? null : new Date(),
+          completedAt:
+            outcome.status === 'APPROVAL_REQUIRED' ? null : new Date(),
         },
       });
-      await this.broadcast(workspaceId, 'agent.task.updated', { executionId: team.executionId, task: row });
+      await this.broadcast(workspaceId, 'agent.task.updated', {
+        executionId: team.executionId,
+        task: row,
+      });
     } catch (error) {
       this.logger.warn(`Could not close task ${taskId}: ${String(error)}`);
     }
@@ -2030,13 +2659,19 @@ export class AIRuntimeService {
           ...(message.data ? { data: message.data as any } : {}),
         },
       });
-      await this.broadcast(workspaceId, 'agent.message.created', { executionId: team.executionId, message: row });
+      await this.broadcast(workspaceId, 'agent.message.created', {
+        executionId: team.executionId,
+        message: row,
+      });
     } catch (error) {
       this.logger.warn(`Could not record an agent message: ${String(error)}`);
     }
   }
 
-  private async setCoworkerStatus(id: string, status: CoworkerStatus): Promise<void> {
+  private async setCoworkerStatus(
+    id: string,
+    status: CoworkerStatus,
+  ): Promise<void> {
     await this.prisma.aIAgent.update({
       where: { id },
       data: { status, lastActiveAt: new Date() },
@@ -2083,15 +2718,22 @@ export class AIRuntimeService {
       `Role: ${coworker.role}.`,
     ];
     if (coworker.description) lines.push(`About you: ${coworker.description}`);
-    if (coworker.personality) lines.push(`Working style & personality: ${coworker.personality}`);
+    if (coworker.personality)
+      lines.push(`Working style & personality: ${coworker.personality}`);
     if (coworker.systemInstructions?.trim()) {
-      lines.push(`Instructions from your team:\n${coworker.systemInstructions}`);
+      lines.push(
+        `Instructions from your team:\n${coworker.systemInstructions}`,
+      );
     }
     if (context.channelName) {
-      lines.push(`You are responding inside the #${context.channelName} channel.`);
+      lines.push(
+        `You are responding inside the #${context.channelName} channel.`,
+      );
     }
     if (context.projectName) {
-      lines.push(`This conversation concerns the "${context.projectName}" project.`);
+      lines.push(
+        `This conversation concerns the "${context.projectName}" project.`,
+      );
     }
     lines.push(
       'When appropriate, delegate specialized tasks to your specialist agents (using `consult_agent_*` tools) rather than guessing answers yourself.',

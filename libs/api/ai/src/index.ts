@@ -24,7 +24,10 @@ export { PromptTemplateService } from './lib/prompt-template.service.js';
 export { AICredentialService } from './lib/ai-credential.service.js';
 export { AIEncryptionService } from './lib/ai-encryption.service.js';
 export { KnowledgeService } from './lib/knowledge.service.js';
-export { UnsupportedDocumentError, extractTextFromFile } from './lib/knowledge-extract.js';
+export {
+  UnsupportedDocumentError,
+  extractTextFromFile,
+} from './lib/knowledge-extract.js';
 export { AIStudioService } from './lib/ai-studio.service.js';
 export { AIAppsService } from './lib/ai-apps.service.js';
 export { ApprovalsService } from './lib/approvals.service.js';
@@ -43,3 +46,8 @@ export {
 export { AIFeedbackService } from './lib/ai-feedback.service.js';
 export { AIExecutionsService } from './lib/ai-executions.service.js';
 export * from './lib/adapters/index.js';
+export { ContentModerationModule } from './lib/content-moderation.module.js';
+export {
+  ContentModerationService,
+  type ModerationVerdict,
+} from './lib/content-moderation.service.js';

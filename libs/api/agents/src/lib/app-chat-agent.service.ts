@@ -61,12 +61,15 @@ export class AppChatAgentService implements OnModuleInit {
   }
 
   private async run(request: AppChatRequest): Promise<void> {
-    const { integration, roomId, userId, text, threadRootId, channel } = request;
+    const { integration, roomId, userId, text, threadRootId, channel } =
+      request;
     const botId = integration.matrixUserId;
     const workspaceId = integration.workspaceId ?? undefined;
     if (!botId) return;
     // The connection name is "Asana · balram"; the reply is from "Asana".
-    const { accountLabel } = splitAppConnectionName(integration.displayName ?? '');
+    const { accountLabel } = splitAppConnectionName(
+      integration.displayName ?? '',
+    );
     const appName = getAppDisplayName(integration);
 
     try {
@@ -84,15 +87,19 @@ export class AppChatAgentService implements OnModuleInit {
       throw new Error(`${appName} has no actions to run from chat yet.`);
     }
 
-    const provider = (process.env['APP_CHAT_PROVIDER'] || 'nvidia') as AIProvider;
-    const credential = await this.credentials.resolveCredential(provider, { workspaceId });
+    const provider = (process.env['APP_CHAT_PROVIDER'] ||
+      'nvidia') as AIProvider;
+    const credential = await this.credentials.resolveCredential(provider, {
+      workspaceId,
+    });
     if (!credential.apiKey) {
       throw new Error(
         'No AI model is configured for this workspace, so plain-language requests are unavailable. You can still run an action directly, e.g. /' +
           `${integration.provider.toLowerCase()} ${actions[0]!.id} {…}.`,
       );
     }
-    const model = process.env['APP_CHAT_MODEL'] || credential.defaultModel || undefined;
+    const model =
+      process.env['APP_CHAT_MODEL'] || credential.defaultModel || undefined;
 
     const byTool = new Map<string, AppActionDefinition>();
     const tools = actions.map((definition) => {
@@ -102,8 +109,13 @@ export class AppChatAgentService implements OnModuleInit {
         type: 'function',
         function: {
           name,
-          description: definition.description ? `${definition.label} — ${definition.description}` : definition.label,
-          parameters: definition.inputSchema ?? { type: 'object', properties: {} },
+          description: definition.description
+            ? `${definition.label} — ${definition.description}`
+            : definition.label,
+          parameters: definition.inputSchema ?? {
+            type: 'object',
+            properties: {},
+          },
         },
       };
     });
@@ -127,10 +139,21 @@ export class AppChatAgentService implements OnModuleInit {
       title: `${appName} · App`,
     };
     const opts = { threadRootId };
-    const eventId = await this.messaging.sendStructured(roomId, botId, { ...base, status: 'running' }, opts);
+    const eventId = await this.messaging.sendStructured(
+      roomId,
+      botId,
+      { ...base, status: 'running' },
+      opts,
+    );
     const trace: AgentToolExecution[] = [];
     const publish = (patch: Record<string, unknown>) =>
-      this.messaging.updateStructured(roomId, botId, eventId, { ...base, tools: trace, ...patch } as never, opts);
+      this.messaging.updateStructured(
+        roomId,
+        botId,
+        eventId,
+        { ...base, tools: trace, ...patch } as never,
+        opts,
+      );
 
     const messages: AIChatMessage[] = [
       {
@@ -149,6 +172,7 @@ export class AppChatAgentService implements OnModuleInit {
       let reply = '';
       for (let round = 0; round <= MAX_ROUNDS; round++) {
         const response = await this.ai.chat({
+          moderate: round === 0 ? 'all' : 'output',
           provider,
           model,
           apiKey: credential.apiKey,
@@ -177,7 +201,10 @@ export class AppChatAgentService implements OnModuleInit {
           const toolStart = Date.now();
           let content: string;
           try {
-            if (!definition) throw new Error(`${appName} has no action '${call.function.name}'.`);
+            if (!definition)
+              throw new Error(
+                `${appName} has no action '${call.function.name}'.`,
+              );
             const result = await this.integrations.executeAction(
               integration.id,
               definition.id,
@@ -189,9 +216,14 @@ export class AppChatAgentService implements OnModuleInit {
             entry.status = result.success ? 'success' : 'failed';
             entry.output = result.data ?? result.message;
             if (!result.success) entry.error = result.message;
-            content = JSON.stringify({ success: result.success, message: result.message, data: result.data });
+            content = JSON.stringify({
+              success: result.success,
+              message: result.message,
+              data: result.data,
+            });
           } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
+            const message =
+              error instanceof Error ? error.message : String(error);
             entry.status = 'failed';
             entry.error = message;
             content = JSON.stringify({ error: message });
@@ -201,7 +233,10 @@ export class AppChatAgentService implements OnModuleInit {
             role: 'tool',
             toolCallId: call.id,
             name: call.function.name,
-            content: content.length > MAX_RESULT_CHARS ? `${content.slice(0, MAX_RESULT_CHARS)}…[truncated]` : content,
+            content:
+              content.length > MAX_RESULT_CHARS
+                ? `${content.slice(0, MAX_RESULT_CHARS)}…[truncated]`
+                : content,
           });
         }
         await publish({ status: 'running' });
@@ -215,7 +250,9 @@ export class AppChatAgentService implements OnModuleInit {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.warn(`App chat turn failed for ${integration.id}: ${message}`);
+      this.logger.warn(
+        `App chat turn failed for ${integration.id}: ${message}`,
+      );
       await publish({
         status: 'failed',
         errorMessage: message,

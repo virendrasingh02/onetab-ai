@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
+  assertContentAllowed,
   AppEvent,
   PUBLIC_USER_SELECT,
   resolveTextMentions,
@@ -27,6 +28,7 @@ import {
 } from '@org/database';
 import { TASK_STATUS_ORDER } from '@org/types';
 import {
+  docContentToText,
   formatTicketIdentifier,
   generateProjectIdentifier,
   isValidIdentifierPrefix,
@@ -155,6 +157,7 @@ export class WorkToolsService {
 
   /** Idempotent by name: tagging a card with a new label creates it once. */
   async createTaskLabel(workspaceId: string, input: CreateTaskLabelInput) {
+    assertContentAllowed(input.name);
     return this.prisma.taskLabel.upsert({
       where: { workspaceId_name: { workspaceId, name: input.name } },
       create: {
@@ -375,6 +378,7 @@ export class WorkToolsService {
     input: CreateProjectInput,
     actorId?: string,
   ) {
+    assertContentAllowed(input.name, input.description);
     if (input.teamId) await this.assertTeam(workspaceId, input.teamId);
     if (input.leadId) await this.assertWorkspaceUser(workspaceId, input.leadId);
     if (input.initiativeId)
@@ -444,6 +448,7 @@ export class WorkToolsService {
     projectId: string,
     input: UpdateProjectInput,
   ) {
+    assertContentAllowed(input.name, input.description);
     const existing = await this.assertProject(workspaceId, projectId);
     if (input.teamId) await this.assertTeam(workspaceId, input.teamId);
     if (input.leadId) await this.assertWorkspaceUser(workspaceId, input.leadId);
@@ -1029,6 +1034,7 @@ export class WorkToolsService {
     input: CreateTaskInput,
     actorId?: string,
   ) {
+    assertContentAllowed(input.title, input.description);
     await this.assertTaskLinks(workspaceId, input);
 
     const status = (input.status as TaskStatus) ?? TaskStatus.TODO;
@@ -1133,6 +1139,7 @@ export class WorkToolsService {
     input: UpdateTaskInput,
     actorId?: string,
   ) {
+    assertContentAllowed(input.title, input.description);
     const existing = await this.assertTask(workspaceId, taskId);
     await this.assertTaskLinks(workspaceId, input);
 
@@ -1624,6 +1631,7 @@ export class WorkToolsService {
     authorId: string,
     input: CreateProjectUpdateInput,
   ) {
+    assertContentAllowed(JSON.stringify(input));
     await this.assertProject(workspaceId, input.projectId);
 
     const update = await this.prisma.projectUpdate.create({
@@ -1669,6 +1677,7 @@ export class WorkToolsService {
     authorId: string,
     input: CreateTaskCommentInput,
   ) {
+    assertContentAllowed(input.content);
     const task = await this.assertTask(workspaceId, taskId);
     const comment = await this.prisma.taskComment.create({
       data: {
@@ -1859,6 +1868,7 @@ export class WorkToolsService {
     authorId: string,
     input: CreateDocumentInput,
   ) {
+    assertContentAllowed(input.title, docContentToText(input.content ?? ''));
     if (input.parentId) await this.assertDocument(workspaceId, input.parentId);
     const doc = await this.prisma.workDocument.create({
       data: {
@@ -1890,6 +1900,7 @@ export class WorkToolsService {
     docId: string,
     input: UpdateDocumentInput,
   ) {
+    assertContentAllowed(input.title, docContentToText(input.content ?? ''));
     await this.assertDocument(workspaceId, docId);
     if (input.parentId) await this.assertDocument(workspaceId, input.parentId);
 

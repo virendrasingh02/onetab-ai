@@ -523,10 +523,18 @@ export class MatrixAdminService {
    * coworker) so it leaves its rooms and can no longer post. Admin mode only —
    * the shared-secret fallback has no deactivate endpoint, so there it is a
    * no-op. Idempotent: deactivating an already-deactivated account succeeds.
+   *
+   * `erase` is for a person deleting their account: Synapse also removes their
+   * profile and hides their messages from anyone who joins a room later. People
+   * already in the room keep the copies they received. Resolves to whether the
+   * homeserver actually did it.
    */
-  async deactivateUser(matrixUserId: string): Promise<void> {
+  async deactivateUser(
+    matrixUserId: string,
+    options: { erase?: boolean } = {},
+  ): Promise<boolean> {
     this.assertEnabled();
-    if (!this.isAdminMode) return;
+    if (!this.isAdminMode) return false;
 
     await this.withPrivileged((accessToken) =>
       this.request(
@@ -534,11 +542,42 @@ export class MatrixAdminService {
         {
           method: 'POST',
           accessToken,
-          body: JSON.stringify({ erase: false }),
+          body: JSON.stringify({ erase: options.erase === true }),
         },
       ),
     );
     this.logger.log(`Deactivated Matrix identity ${matrixUserId}`);
+    return true;
+  }
+
+  /**
+   * Replaces a person's `m.ignored_user_list`. The homeserver then withholds
+   * those senders' events and pushes on every device. Admin mode only: it has
+   * to act as the person. Resolves to whether the list was written.
+   */
+  async setIgnoredUsers(
+    matrixUserId: string,
+    ignoredUserIds: readonly string[],
+  ): Promise<boolean> {
+    this.assertEnabled();
+    if (!this.isAdminMode) return false;
+
+    const accessToken = await this.actAs(matrixUserId, {
+      expiresInMs: 60_000,
+    });
+    await this.request(
+      `/_matrix/client/v3/user/${encodeURIComponent(matrixUserId)}/account_data/m.ignored_user_list`,
+      {
+        method: 'PUT',
+        accessToken,
+        body: JSON.stringify({
+          ignored_users: Object.fromEntries(
+            ignoredUserIds.map((id) => [id, {}]),
+          ),
+        }),
+      },
+    );
+    return true;
   }
 
   /**
@@ -815,26 +854,25 @@ export class MatrixAdminService {
       ? '/_matrix/client/v3/createRoom'
       : `/_matrix/client/v3/createRoom?user_id=${encodeURIComponent(input.creatorMatrixId)}`;
 
-    const response = await this.request<{ room_id: string }>(
-      path,
-      {
-        method: 'POST',
-        accessToken,
-        body: JSON.stringify({
-          name: input.name,
-          topic: input.topic,
-          preset: input.isPrivate ? 'private_chat' : 'public_chat',
-          // Room-wide pings (`@everyone` / `@channel` / `@here`) need PL1.
-          // Everyone defaults to PL1; workspace guests are pinned to PL0 by
-          // `applyAnnouncementPolicy`, which is what makes the guest
-          // restriction a homeserver rule rather than a composer courtesy.
-          power_level_content_override: {
-            users_default: ROOM_PING_LEVEL,
-            notifications: { room: ROOM_PING_LEVEL },
-          },
-          // Encrypting a room the browsers cannot decrypt would make it
-          // unreadable, so the deployment switch has the final say.
-          initial_state: input.encrypted && config.encryption
+    const response = await this.request<{ room_id: string }>(path, {
+      method: 'POST',
+      accessToken,
+      body: JSON.stringify({
+        name: input.name,
+        topic: input.topic,
+        preset: input.isPrivate ? 'private_chat' : 'public_chat',
+        // Room-wide pings (`@everyone` / `@channel` / `@here`) need PL1.
+        // Everyone defaults to PL1; workspace guests are pinned to PL0 by
+        // `applyAnnouncementPolicy`, which is what makes the guest
+        // restriction a homeserver rule rather than a composer courtesy.
+        power_level_content_override: {
+          users_default: ROOM_PING_LEVEL,
+          notifications: { room: ROOM_PING_LEVEL },
+        },
+        // Encrypting a room the browsers cannot decrypt would make it
+        // unreadable, so the deployment switch has the final say.
+        initial_state:
+          input.encrypted && config.encryption
             ? [
                 {
                   type: 'm.room.encryption',
@@ -843,9 +881,8 @@ export class MatrixAdminService {
                 },
               ]
             : [],
-        }),
-      },
-    );
+      }),
+    });
 
     return response.room_id;
   }
@@ -1110,22 +1147,15 @@ export class MatrixAdminService {
   ): Promise<void> {
     this.assertEnabled();
 
-    await this.putRoomState(
-      spaceId,
-      'm.space.child',
-      childRoomId,
-      {
-        via: [this.config.serverName],
-        suggested: options.suggested ?? false,
-      },
-    );
+    await this.putRoomState(spaceId, 'm.space.child', childRoomId, {
+      via: [this.config.serverName],
+      suggested: options.suggested ?? false,
+    });
 
-    await this.putRoomState(
-      childRoomId,
-      'm.space.parent',
-      spaceId,
-      { via: [this.config.serverName], canonical: true },
-    );
+    await this.putRoomState(childRoomId, 'm.space.parent', spaceId, {
+      via: [this.config.serverName],
+      canonical: true,
+    });
   }
 
   /** Removes a child room from a space by clearing both link state events. */
@@ -1147,7 +1177,11 @@ export class MatrixAdminService {
     const accessToken = await this.roomActorToken(spaceId);
 
     const state = await this.request<
-      Array<{ type: string; state_key: string; content: Record<string, unknown> }>
+      Array<{
+        type: string;
+        state_key: string;
+        content: Record<string, unknown>;
+      }>
     >(`/_matrix/client/v3/rooms/${encodeURIComponent(spaceId)}/state`, {
       method: 'GET',
       accessToken,

@@ -4,7 +4,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { AppEvent, PUBLIC_USER_SELECT } from '@org/api-common';
+import {
+  assertContentAllowed,
+  AppEvent,
+  PUBLIC_USER_SELECT,
+} from '@org/api-common';
 import {
   MeetingParticipantRole,
   MeetingRsvp,
@@ -161,6 +165,7 @@ export class MeetingsService {
     organizerId: string,
     input: CreateMeetingInput,
   ) {
+    assertContentAllowed(JSON.stringify(input));
     if (input.projectId) {
       await this.assertProject(workspaceId, input.projectId);
     }
@@ -239,6 +244,7 @@ export class MeetingsService {
     actorId: string,
     input: UpdateMeetingInput,
   ) {
+    assertContentAllowed(JSON.stringify(input));
     const current = await this.assertMeeting(workspaceId, meetingId);
     if (input.projectId) {
       await this.assertProject(workspaceId, input.projectId);
@@ -466,6 +472,7 @@ export class MeetingsService {
     authorId: string,
     input: CreateMeetingNoteInput,
   ) {
+    assertContentAllowed(JSON.stringify(input));
     await this.assertMeeting(workspaceId, meetingId);
     return this.prisma.meetingNote.create({
       data: { meetingId, authorId, body: input.body },
@@ -491,6 +498,7 @@ export class MeetingsService {
     authorId: string,
     input: CreateMeetingDecisionInput,
   ) {
+    assertContentAllowed(JSON.stringify(input));
     await this.assertMeeting(workspaceId, meetingId);
     return this.prisma.meetingDecision.create({
       data: { meetingId, authorId, text: input.text },
