@@ -30,9 +30,8 @@ export {
  */
 export const STUDIO_ROOT = '/w/:workspaceSlug/ai';
 
-/** First path segment → canonical segment (the plan-first `agents` library owns that name). */
+/** First path segment → canonical segment. */
 const SEGMENT_ALIASES: Record<string, string> = {
-  agents: 'my-agents',
   overview: '',
 };
 
@@ -41,13 +40,16 @@ export function scopeStudioPath(slug: string, path: string): string {
   const match = /^\/([^/?#]*)(.*)$/s.exec(path);
   const segment = match?.[1] ?? '';
   const rest = match?.[2] ?? '';
-  const mapped = segment in SEGMENT_ALIASES ? SEGMENT_ALIASES[segment] : segment;
+  const mapped =
+    segment in SEGMENT_ALIASES ? SEGMENT_ALIASES[segment] : segment;
   return `/w/${slug}/ai${mapped ? `/${mapped}` : ''}${rest}`;
 }
 
 function scopeTo(slug: string, to: To): To {
   if (typeof to === 'string') return scopeStudioPath(slug, to);
-  return to.pathname ? { ...to, pathname: scopeStudioPath(slug, to.pathname) } : to;
+  return to.pathname
+    ? { ...to, pathname: scopeStudioPath(slug, to.pathname) }
+    : to;
 }
 
 /** Studio pages that have no workspace-scoped spelling yet (legacy, un-prefixed URLs). */
@@ -70,18 +72,27 @@ export const LEGACY_SEGMENTS = new Set([
   'overview',
 ]);
 
-export const Link = forwardRef<HTMLAnchorElement, LinkProps>(function StudioLink({ to, ...props }, ref) {
-  const { activeWorkspace } = useStudioSession();
-  return <RouterLink ref={ref} to={scopeTo(activeWorkspace.slug, to)} {...props} />;
-});
+export const Link = forwardRef<HTMLAnchorElement, LinkProps>(
+  function StudioLink({ to, ...props }, ref) {
+    const { activeWorkspace } = useStudioSession();
+    return (
+      <RouterLink ref={ref} to={scopeTo(activeWorkspace.slug, to)} {...props} />
+    );
+  },
+);
 
-export const NavLink = forwardRef<HTMLAnchorElement, NavLinkProps>(function StudioNavLink(
-  { to, ...props },
-  ref,
-) {
-  const { activeWorkspace } = useStudioSession();
-  return <RouterNavLink ref={ref} to={scopeTo(activeWorkspace.slug, to)} {...props} />;
-});
+export const NavLink = forwardRef<HTMLAnchorElement, NavLinkProps>(
+  function StudioNavLink({ to, ...props }, ref) {
+    const { activeWorkspace } = useStudioSession();
+    return (
+      <RouterNavLink
+        ref={ref}
+        to={scopeTo(activeWorkspace.slug, to)}
+        {...props}
+      />
+    );
+  },
+);
 
 export function Navigate({ to, ...props }: NavigateProps) {
   const { activeWorkspace } = useStudioSession();

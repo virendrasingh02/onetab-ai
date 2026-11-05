@@ -25,7 +25,10 @@ function setup(monitorInput: Parameters<typeof buildTrackerMonitor>[0]) {
     { workspaceId: 'ws-1', coworkerId: 'tracker-1', createdBy: 'owner-1' },
     new Date(NOW.getTime() - 3_600_000),
   );
-  let configuration: Record<string, unknown> = { coworkerType: 'tracker', monitors: [monitor] };
+  let configuration: Record<string, unknown> = {
+    coworkerType: 'tracker',
+    monitors: [monitor],
+  };
   const coworker = {
     id: 'tracker-1',
     workspaceId: 'ws-1',
@@ -41,7 +44,9 @@ function setup(monitorInput: Parameters<typeof buildTrackerMonitor>[0]) {
     aIAgent: {
       findMany: vi.fn().mockImplementation(() => Promise.resolve([coworker])),
       findFirst: vi.fn().mockImplementation(() => Promise.resolve(coworker)),
-      findUnique: vi.fn().mockImplementation(() => Promise.resolve({ configuration })),
+      findUnique: vi
+        .fn()
+        .mockImplementation(() => Promise.resolve({ configuration })),
       update: vi.fn().mockImplementation((args: any) => {
         if (args.data?.configuration) configuration = args.data.configuration;
         return Promise.resolve({});
@@ -49,33 +54,63 @@ function setup(monitorInput: Parameters<typeof buildTrackerMonitor>[0]) {
     },
     workspaceMember: {
       count: vi.fn().mockResolvedValue(1),
-      findMany: vi.fn().mockImplementation((args: any) =>
-        Promise.resolve((args.where.userId.in as string[]).map((userId) => ({ userId }))),
-      ),
+      findMany: vi
+        .fn()
+        .mockImplementation((args: any) =>
+          Promise.resolve(
+            (args.where.userId.in as string[]).map((userId) => ({ userId })),
+          ),
+        ),
     },
     user: { findUnique: vi.fn().mockResolvedValue({ timezone: 'UTC' }) },
     project: {
-      findFirst: vi.fn().mockResolvedValue({ id: 'proj-1', name: 'Product Launch' }),
+      findFirst: vi
+        .fn()
+        .mockResolvedValue({ id: 'proj-1', name: 'Product Launch' }),
       findMany: vi.fn().mockResolvedValue([]),
     },
     task: {
-      findMany: vi.fn().mockResolvedValue([overdueTask('1', 'alice', 2), overdueTask('2', 'bob', 1)]),
+      findMany: vi
+        .fn()
+        .mockResolvedValue([
+          overdueTask('1', 'alice', 2),
+          overdueTask('2', 'bob', 1),
+        ]),
       count: vi.fn().mockResolvedValue(0),
     },
-    channel: { findFirst: vi.fn().mockResolvedValue({ id: 'chan-1', name: 'launch' }) },
+    channel: {
+      findFirst: vi.fn().mockResolvedValue({ id: 'chan-1', name: 'launch' }),
+    },
     agentExecutionLog: { create: vi.fn().mockResolvedValue({ id: 'log-1' }) },
   };
-  const delivery = { postText: vi.fn().mockResolvedValue('channel: posted to #launch') };
+  const delivery = {
+    postText: vi.fn().mockResolvedValue('channel: posted to #launch'),
+  };
   const events = { emit: vi.fn(), emitAsync: vi.fn().mockResolvedValue([]) };
-  const service = new TrackerMonitorSweepService(prisma, delivery as any, events as any);
-  return { service, prisma, delivery, events, monitor, config: () => configuration };
+  const service = new TrackerMonitorSweepService(
+    prisma,
+    delivery as any,
+    events as any,
+  );
+  return {
+    service,
+    prisma,
+    delivery,
+    events,
+    monitor,
+    config: () => configuration,
+  };
 }
 
 describe('TrackerMonitorSweepService', () => {
   let ctx: ReturnType<typeof setup>;
 
   beforeEach(() => {
-    ctx = setup({ target: 'Product Launch', condition: 'becomes overdue', destinations: ['me', 'assignees', '#launch'] });
+    ctx = setup({
+      target: 'Product Launch',
+      condition: 'becomes overdue',
+      destinations: ['me', 'assignees', '#launch'],
+    });
   });
 
   it('reports every overdue task on the first check — to the owner, each assignee and the channel', async () => {
@@ -89,11 +124,15 @@ describe('TrackerMonitorSweepService', () => {
     const messages = ctx.events.emitAsync.mock.calls
       .filter(([name]: [string]) => name === AppEvent.AiAgentMessage)
       .map(([, e]: [string, any]) => e);
-    expect(messages.map((m: any) => m.recipientId).sort()).toEqual(['alice', 'bob', 'owner-1']);
+    expect(messages.map((m: any) => m.recipientId).sort()).toEqual([
+      'alice',
+      'bob',
+      'owner-1',
+    ]);
     const owner = messages.find((m: any) => m.recipientId === 'owner-1');
     expect(owner.title).toBe('Tracker: 2 overdue tasks in Product Launch');
     expect(owner.body).toContain('LAU-1 Task 1 — due Sep 29, 2 days overdue');
-    expect(owner.deepLink).toBe('tasks/proj-1');
+    expect(owner.deepLink).toBe('projects/proj-1');
     const alice = messages.find((m: any) => m.recipientId === 'alice');
     expect(alice.body).toContain('LAU-1');
     expect(alice.body).not.toContain('LAU-2');
@@ -107,12 +146,20 @@ describe('TrackerMonitorSweepService', () => {
     expect(ctx.prisma.agentExecutionLog.create).toHaveBeenCalled();
     expect(ctx.events.emit).toHaveBeenCalledWith(
       AppEvent.CoworkerMonitorTriggered,
-      expect.objectContaining({ count: 2, check: 'overdue', projectId: 'proj-1', taskIds: ['1', '2'] }),
+      expect.objectContaining({
+        count: 2,
+        check: 'overdue',
+        projectId: 'proj-1',
+        taskIds: ['1', '2'],
+      }),
     );
 
     const saved = (ctx.config()['monitors'] as any[])[0];
     expect(saved.lastCheckedAt).toBe(NOW.toISOString());
-    expect(saved.lastResult).toEqual({ count: 2, summary: '2 overdue tasks in Product Launch' });
+    expect(saved.lastResult).toEqual({
+      count: 2,
+      summary: '2 overdue tasks in Product Launch',
+    });
   });
 
   it('only looks at what became overdue since the last check afterwards', async () => {
@@ -136,18 +183,26 @@ describe('TrackerMonitorSweepService', () => {
     ctx.prisma.workspaceMember.count.mockResolvedValue(0);
     await ctx.service.sweep(NOW);
     expect(ctx.prisma.task.findMany).not.toHaveBeenCalled();
-    expect((ctx.config()['monitors'] as any[])[0].lastError).toMatch(/no longer in the workspace/);
+    expect((ctx.config()['monitors'] as any[])[0].lastError).toMatch(
+      /no longer in the workspace/,
+    );
   });
 
   it('explains an unknown project instead of watching the whole workspace', async () => {
     ctx.prisma.project.findFirst.mockResolvedValue(null);
     await ctx.service.sweep(NOW);
     expect(ctx.prisma.task.findMany).not.toHaveBeenCalled();
-    expect((ctx.config()['monitors'] as any[])[0].lastError).toMatch(/No project matches/);
+    expect((ctx.config()['monitors'] as any[])[0].lastError).toMatch(
+      /No project matches/,
+    );
   });
 
   it('checks a monitor on demand', async () => {
-    const result = await ctx.service.checkNow('ws-1', 'tracker-1', ctx.monitor.id);
+    const result = await ctx.service.checkNow(
+      'ws-1',
+      'tracker-1',
+      ctx.monitor.id,
+    );
     expect(result?.lastResult?.count).toBe(2);
     expect(await ctx.service.checkNow('ws-1', 'tracker-1', 'nope')).toBeNull();
   });

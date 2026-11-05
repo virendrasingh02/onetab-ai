@@ -26,7 +26,7 @@ const ForwardMessageDialog = lazy(() =>
 
 const NO_IDS: readonly string[] = [];
 
-/** `/w/acme/c/general?thread=…` + `msg` → the message itself, highlighted. */
+/** `/w/acme/channels/general?thread=…` + `msg` → the message itself, highlighted. */
 function messageHref(conversationLink: string, messageId: string): string {
   const url = new URL(conversationLink, window.location.origin);
   url.searchParams.set('msg', messageId);

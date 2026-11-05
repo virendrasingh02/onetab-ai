@@ -29,10 +29,11 @@ import {
   useProjectMutations,
   useProjects,
 } from '@org/web-work-tools';
-import { useCurrentWorkspace, useWorkspacePermission } from '@org/web-workspace';
 import {
-  Plus,
-} from 'lucide-react';
+  useCurrentWorkspace,
+  useWorkspacePermission,
+} from '@org/web-workspace';
+import { Plus } from 'lucide-react';
 import { useCallback, useId, useMemo } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useSplitViewAction } from './split-view/use-split-view-action.js';
@@ -46,6 +47,7 @@ import {
   NavRowMenuButton,
   Section,
   type NavDepth,
+  isOnPath,
 } from './nav-primitives.js';
 import { useSidebarStore } from './navigation/sidebar-store.js';
 import { useSidebarFavorites } from './use-sidebar-favorites.js';
@@ -71,7 +73,7 @@ export function ProjectNavRow({
 }) {
   const navigate = useNavigate();
   const { can } = useWorkspacePermission();
-  const projectPath = `/w/${workspaceSlug}/tasks/${project.id}`;
+  const projectPath = `/w/${workspaceSlug}/projects/${project.slug}`;
   const splitAction = useSplitViewAction();
   const isArchived = project.status === ProjectStatus.ARCHIVED;
 
@@ -83,7 +85,10 @@ export function ProjectNavRow({
       confirmLabel: 'Rename',
     });
     if (!name || name === project.name || !mutations) return;
-    await mutations.update.mutateAsync({ projectId: project.id, input: { name } });
+    await mutations.update.mutateAsync({
+      projectId: project.id,
+      input: { name },
+    });
   }, [project.id, project.name, prompts, mutations]);
 
   const projectActions = buildProjectActions({
@@ -95,9 +100,14 @@ export function ProjectNavRow({
     onRename: mutations ? handleRename : undefined,
     onSetStatus: mutations
       ? (status) =>
-          mutations.update.mutateAsync({ projectId: project.id, input: { status } })
+          mutations.update.mutateAsync({
+            projectId: project.id,
+            input: { status },
+          })
       : undefined,
-    onDelete: mutations ? () => mutations.remove.mutateAsync(project.id) : undefined,
+    onDelete: mutations
+      ? () => mutations.remove.mutateAsync(project.id)
+      : undefined,
     favorite: { isFavorite, onToggle: () => onToggleFavorite(project) },
   });
   const actions = [
@@ -275,7 +285,7 @@ export function ProjectsTreeSection({
             aria-label="New project"
             className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100"
           >
-            <NavLink to={`/w/${workspaceSlug}/tasks?newProject=true`}>
+            <NavLink to={`/w/${workspaceSlug}/projects?newProject=true`}>
               <Plus className="size-3.5" />
             </NavLink>
           </Button>
@@ -293,10 +303,10 @@ export function ProjectsTreeSection({
           strategy={verticalListSortingStrategy}
         >
           {projects.map((project, index) => {
+            const projectsRoot = `/w/${workspaceSlug}/projects`;
             const isSelected =
-              location.pathname.includes('/tasks') &&
-              (location.search.includes(`project=${project.id}`) ||
-                (!location.search.includes('project=') && index === 0));
+              isOnPath(location.pathname, `${projectsRoot}/${project.slug}`) ||
+              (location.pathname === projectsRoot && index === 0);
 
             return (
               <SortableProjectRow
@@ -317,7 +327,7 @@ export function ProjectsTreeSection({
 
       <li>
         <NavLink
-          to={`/w/${workspaceSlug}/tasks?newProject=true`}
+          to={`/w/${workspaceSlug}/projects?newProject=true`}
           className={navActionClass({ depth: 1 })}
         >
           <Plus className={navIconClass(1)} aria-hidden />

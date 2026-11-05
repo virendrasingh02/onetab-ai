@@ -206,7 +206,7 @@ export function ActivityConversationList({
     for (const channel of channels) {
       channelNames.add(channel.name.toLowerCase().trim());
       const entry = live ? liveRoomForChannel(live, channel) : undefined;
-      const to = `/w/${workspaceSlug}/c/${channel.slug}`;
+      const to = `/w/${workspaceSlug}/channels/${channel.slug}`;
       const Icon = channel.visibility === 'PRIVATE' ? Lock : Hash;
       result.push({
         key: `channel:${channel.id}`,
@@ -273,7 +273,9 @@ export function ActivityConversationList({
           preview: previewLine(entry, selfId, false),
           lastActivityAt: entry?.lastActivityAt,
         },
-        isOpen: pathname === `/w/${workspaceSlug}/dms/${peerId}`,
+        isOpen:
+          pathname ===
+          `/w/${workspaceSlug}/dms/${member.user.username ?? peerId}`,
         lastActivityAt: entry?.lastActivityAt,
         activity: toIndicator(feed, entry),
         isMuted: mutedIds.includes(peerId),

@@ -79,7 +79,12 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom';
 import { ChatPanel } from './chat-panel.js';
 import {
   ConversationPinsPanel,
@@ -154,14 +159,46 @@ export function DirectMessagesView({
   headerEnd,
 }: DirectMessagesViewProps = {}) {
   const [searchParams] = useSearchParams();
-  const { peerId: routePeerId } = useParams<{ peerId?: string }>();
-  // `/dms/:peerId` is the 1:1 deep link; `?user=` is the old query form,
-  // still honoured for links persisted server-side (search, notifications).
+  const { search, hash } = useLocation();
+  const navigate = useNavigate();
+  const { peerId: routePeer, workspaceSlug } = useParams<{
+    peerId?: string;
+    workspaceSlug: string;
+  }>();
+  const { workspaceId } = useCurrentWorkspace();
+  const members = useMembers(workspaceId);
   const embedded = !!(peerIdProp || roomIdProp);
+
+  // `/dms/:handle` is the 1:1 deep link. A user id still resolves (links
+  // persisted server-side, agents and apps have no handle), as does the old
+  // `?user=` query form.
+  const routeUser = routePeer
+    ? members.data?.find(
+        ({ user }) => user.id === routePeer || user.username === routePeer,
+      )?.user
+    : undefined;
+  const handle = embedded ? undefined : routeUser?.username;
+
+  // An id in the path settles on the readable handle.
+  useEffect(() => {
+    if (!handle || handle === routePeer) return;
+    navigate(
+      { pathname: `/w/${workspaceSlug}/dms/${handle}`, search, hash },
+      { replace: true },
+    );
+  }, [handle, routePeer, workspaceSlug, search, hash, navigate]);
+
   const peerId = embedded
     ? peerIdProp
-    : (routePeerId ?? searchParams.get('user'));
+    : (routeUser?.id ?? routePeer ?? searchParams.get('user'));
   const roomId = embedded ? roomIdProp : searchParams.get('room');
+
+  // A handle means nothing to the room lookup: wait for the roster to name it.
+  if (!embedded && routePeer && !routeUser && members.isLoading) {
+    return (
+      <ChatConversationSkeleton avatarShape="circle" avatarSize="sm" hasTabs />
+    );
+  }
 
   // `?room=` is a group DM — it has no single peer to key on, so it is
   // addressed by its Matrix room id.
@@ -1232,7 +1269,7 @@ function NewDirectMessage({
       }
       return {
         roomId: channelRoom.roomId,
-        href: `/w/${slug}/c/${selectedChannel.slug}`,
+        href: `/w/${slug}/channels/${selectedChannel.slug}`,
       };
     }
 
@@ -1296,7 +1333,7 @@ function NewDirectMessage({
         );
         return {
           roomId: result.roomId,
-          href: `/w/${slug}/c/${sharedChannel.slug}`,
+          href: `/w/${slug}/channels/${sharedChannel.slug}`,
         };
       }
     }

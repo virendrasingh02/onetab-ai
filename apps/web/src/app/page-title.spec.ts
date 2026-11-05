@@ -69,7 +69,7 @@ describe('resolvePageTitle — static routes', () => {
     ['/w/acme/integrations', 'Integration Hub'],
     ['/w/acme/apps', 'Apps'],
     ['/w/acme/ai', 'AI Agent Studio'],
-    ['/w/acme/ai/studio/new', 'New agent'],
+    ['/w/acme/ai/planned/new', 'New agent'],
     ['/w/acme/ai/runs', 'Runs'],
     ['/w/acme/ai/agents/new', 'New agent'],
     ['/w/acme/ai/workflows/new', 'New workflow'],
@@ -78,10 +78,14 @@ describe('resolvePageTitle — static routes', () => {
     expect(resolvePageTitle(path).title).toBe(title);
   });
 
-  it('shares one title across task/project alias routes', () => {
-    for (const path of ['/w/acme/tasks', '/w/acme/kanban', '/w/acme/projects']) {
-      expect(resolvePageTitle(path).title).toBe('Tasks & Projects');
-    }
+  it('titles the projects page', () => {
+    expect(resolvePageTitle('/w/acme/projects').title).toBe('Tasks & Projects');
+  });
+
+  it('keeps the create-channel page apart from channels', () => {
+    expect(resolvePageTitle('/w/acme/channels/new').title).toBe(
+      'Create a channel',
+    );
   });
 
   it('resolves Settings from its own nested surface', () => {
@@ -112,7 +116,7 @@ describe('resolvePageTitle — static routes', () => {
 
 describe('resolvePageTitle — dynamic routes', () => {
   it('uses the channel name with a # for public channels', () => {
-    const resolved = resolvePageTitle('/w/acme/c/engineering', {
+    const resolved = resolvePageTitle('/w/acme/channels/engineering', {
       channel: { name: 'engineering' },
     });
     expect(resolved).toEqual({ title: '#engineering', isPending: false });
@@ -120,14 +124,14 @@ describe('resolvePageTitle — dynamic routes', () => {
 
   it('drops the # for a private channel', () => {
     expect(
-      resolvePageTitle('/w/acme/c/leads', {
+      resolvePageTitle('/w/acme/channels/leads', {
         channel: { name: 'leads', isPrivate: true },
       }).title,
     ).toBe('leads');
   });
 
   it('falls back to a safe placeholder while the channel is unresolved', () => {
-    expect(resolvePageTitle('/w/acme/c/engineering')).toEqual({
+    expect(resolvePageTitle('/w/acme/channels/engineering')).toEqual({
       title: 'Channel',
       isPending: true,
     });
@@ -143,11 +147,8 @@ describe('resolvePageTitle — dynamic routes', () => {
     );
   });
 
-  it('resolves a project from either alias', () => {
-    for (const path of [
-      '/w/acme/projects/p_1',
-      '/w/acme/tasks/p_1',
-    ]) {
+  it('resolves a project by slug or id', () => {
+    for (const path of ['/w/acme/projects/p_1', '/w/acme/projects/website']) {
       expect(
         resolvePageTitle(path, { projectName: 'Project Alpha' }).title,
       ).toBe('Project Alpha');
@@ -181,11 +182,11 @@ describe('resolvePageTitle — dynamic routes', () => {
     expect(resolvePageTitle('/w/acme/apps/github/chat').title).toBe('App');
   });
 
-  it('resolves a document from either alias', () => {
-    for (const path of ['/w/acme/docs/d_1', '/w/acme/notes/d_1']) {
-      expect(
-        resolvePageTitle(path, { docTitle: 'Q3 Planning' }).title,
-      ).toBe('Q3 Planning');
+  it('resolves a document', () => {
+    for (const path of ['/w/acme/docs/d_1']) {
+      expect(resolvePageTitle(path, { docTitle: 'Q3 Planning' }).title).toBe(
+        'Q3 Planning',
+      );
     }
     expect(resolvePageTitle('/w/acme/docs/d_1').title).toBe('Document');
   });

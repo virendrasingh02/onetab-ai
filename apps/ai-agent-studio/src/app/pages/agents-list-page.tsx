@@ -525,7 +525,7 @@ export function AgentsListPage() {
     <div className="min-h-0 flex flex-1 flex-col">
       <SectionHeader
         section="agents"
-        counts={{ 'my-agents': liveAgents.length }}
+        counts={{ agents: liveAgents.length }}
         actions={
           <>
             <Button

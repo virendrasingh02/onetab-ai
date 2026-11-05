@@ -283,6 +283,15 @@ function slugify(text: string): string {
     .slice(0, 48);
 }
 
+/** Tabs a link can open with `?view=`. */
+const LINKABLE_VIEWS: readonly ProjectViewMode[] = [
+  'projects',
+  'settings',
+  'cycles',
+  'initiatives',
+  'intake',
+];
+
 export function AsanaProjectManager() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -320,13 +329,31 @@ export function AsanaProjectManager() {
   );
   const [viewMode, setViewMode] = useState<ProjectViewMode>('board');
 
-  // `/tasks/:projectId` is the deep link; `?project=` is the old query form,
-  // still honoured for links persisted server-side (search, notifications).
+  // `/projects/:slug` is the deep link. An id still resolves (links persisted
+  // server-side), as does the old `?project=` query form.
   const projectParam = routeProjectId ?? searchParams.get('project');
+  const wantedProject = projectParam ?? selectedProjectId;
   const activeProject: ProjectDetail | undefined =
     projects.find(
-      (project) => project.id === (projectParam ?? selectedProjectId),
+      (project) =>
+        project.id === wantedProject || project.slug === wantedProject,
     ) ?? projects[0];
+
+  // An id in the path settles on the readable slug.
+  const canonicalProjectSlug =
+    routeProjectId && routeProjectId === activeProject?.id
+      ? activeProject.slug
+      : undefined;
+  useEffect(() => {
+    if (!canonicalProjectSlug) return;
+    navigate(
+      {
+        pathname: `/w/${workspaceSlug}/projects/${canonicalProjectSlug}`,
+        search: searchParams.toString(),
+      },
+      { replace: true },
+    );
+  }, [canonicalProjectSlug, navigate, searchParams, workspaceSlug]);
 
   const epicsQuery = useEpics(workspaceId, activeProject?.id);
   const epicMutations = useEpicMutations(workspaceId);
@@ -348,22 +375,15 @@ export function AsanaProjectManager() {
 
     const openNewProject = searchParams.get('newProject') === 'true';
     const openImport = searchParams.get('import') === 'true';
-    const showProjects = searchParams.get('view') === 'projects';
     // `?view=settings` is the sidebar's "Project settings" deep link.
-    const showSettings = searchParams.get('view') === 'settings';
-    if (
-      !openNewProject &&
-      !openImport &&
-      !showProjects &&
-      !showSettings &&
-      !cardParam
-    )
-      return;
+    const viewParam = searchParams.get('view') as ProjectViewMode | null;
+    const linkedView =
+      viewParam && LINKABLE_VIEWS.includes(viewParam) ? viewParam : null;
+    if (!openNewProject && !openImport && !linkedView && !cardParam) return;
 
     if (openNewProject) setIsNewProjectOpen(true);
     if (openImport) setIsImportOpen(true);
-    if (showProjects) setViewMode('projects');
-    if (showSettings) setViewMode('settings');
+    if (linkedView) setViewMode(linkedView);
 
     const next = new URLSearchParams(searchParams);
     next.delete('newProject');
@@ -376,7 +396,8 @@ export function AsanaProjectManager() {
 
   const openProject = (projectId: string) => {
     setSelectedProjectId(projectId);
-    navigate(`/w/${workspaceSlug}/tasks/${projectId}`);
+    const slug = projects.find((project) => project.id === projectId)?.slug;
+    navigate(`/w/${workspaceSlug}/projects/${slug ?? projectId}`);
     setViewMode('board');
   };
 
@@ -590,7 +611,7 @@ export function AsanaProjectManager() {
           openProject(remaining[0].id);
         } else {
           setSelectedProjectId(null);
-          navigate(`/w/${workspaceSlug}/tasks`);
+          navigate(`/w/${workspaceSlug}/projects`);
         }
       }
       toast.success('Project deleted');
@@ -714,7 +735,7 @@ export function AsanaProjectManager() {
             buildProjectActions({
               project,
               can,
-              path: `/w/${workspaceSlug}/tasks/${project.id}`,
+              path: `/w/${workspaceSlug}/projects/${project.id}`,
               onOpen: () => openProject(project.id),
               onOpenSettings: () => {
                 openProject(project.id);

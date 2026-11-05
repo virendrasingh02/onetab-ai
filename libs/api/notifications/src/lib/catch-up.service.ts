@@ -6,7 +6,10 @@ import type { CatchUpSummary } from '@org/types';
 export class CatchUpService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getCatchUp(workspaceId: string, userId: string): Promise<CatchUpSummary> {
+  async getCatchUp(
+    workspaceId: string,
+    userId: string,
+  ): Promise<CatchUpSummary> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { name: true, displayName: true, lastSeenAt: true },
@@ -15,16 +18,22 @@ export class CatchUpService {
     const now = new Date();
     // Default to last 24 hours if user has never logged out or lastSeenAt is null
     const fallbackSince = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const since = user?.lastSeenAt && user.lastSeenAt < now ? user.lastSeenAt : fallbackSince;
-    const sinceHours = Math.max(1, Math.round((now.getTime() - since.getTime()) / (1000 * 60 * 60)));
+    const since =
+      user?.lastSeenAt && user.lastSeenAt < now
+        ? user.lastSeenAt
+        : fallbackSince;
+    const sinceHours = Math.max(
+      1,
+      Math.round((now.getTime() - since.getTime()) / (1000 * 60 * 60)),
+    );
 
     const userName = user?.displayName || user?.name || 'there';
     const greeting =
       sinceHours < 4
         ? `Welcome back, ${userName}! Here is what happened recently.`
         : sinceHours < 24
-        ? `Welcome back, ${userName}! Here is your catch-up for today.`
-        : `Welcome back, ${userName}! Here is what happened while you were away.`;
+          ? `Welcome back, ${userName}! Here is your catch-up for today.`
+          : `Welcome back, ${userName}! Here is what happened while you were away.`;
 
     // 1. Unread Mentions count
     const unreadMentionsCount = await this.prisma.recentActivity.count({
@@ -114,7 +123,9 @@ export class CatchUpService {
         title: true,
         identifier: true,
         completedAt: true,
-        assignee: { select: { name: true, displayName: true, avatarUrl: true } },
+        assignee: {
+          select: { name: true, displayName: true, avatarUrl: true },
+        },
       },
       take: 5,
       orderBy: { completedAt: 'desc' },
@@ -127,7 +138,7 @@ export class CatchUpService {
         title: t.identifier ? `${t.identifier} ${t.title}` : t.title,
         summary: 'Completed and verified',
         timestamp: (t.completedAt ?? now).toISOString(),
-        href: `tasks?taskId=${t.id}`,
+        href: `projects?taskId=${t.id}`,
         actor: t.assignee
           ? {
               name: t.assignee.displayName || t.assignee.name,
@@ -181,7 +192,8 @@ export class CatchUpService {
       activeHuddlesCount,
       decisionsMadeCount: decisions.length,
       keyUpdates: keyUpdates.sort(
-        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
       ),
     };
   }

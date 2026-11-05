@@ -304,6 +304,25 @@ const STUDIO_TAB_TO_SECTION: Record<string, string> = {
   analytics: '',
 };
 
+/**
+ * Keeps an old spelling of a workspace page working: swaps its leading segments
+ * for the canonical ones and carries the rest of the URL along, so links in
+ * emails, notifications and bookmarks (`/c/general?msg=…`) land on the same page.
+ */
+function RenamedRouteRedirect({ from, to }: { from: string; to: string }) {
+  const { pathname, search, hash } = useLocation();
+  const { workspaceSlug } = useParams<{ workspaceSlug: string }>();
+  const base = `/w/${workspaceSlug}`;
+  const rest = pathname.slice(`${base}/${from}`.length);
+  return <Navigate to={`${base}/${to}${rest}${search}${hash}`} replace />;
+}
+
+/** `/cycles` and friends: tabs of the projects page, not pages of their own. */
+function ProjectViewRedirect({ view }: { view: string }) {
+  const { workspaceSlug } = useParams<{ workspaceSlug: string }>();
+  return <Navigate to={`/w/${workspaceSlug}/projects?view=${view}`} replace />;
+}
+
 /** Hands `/w/:slug/ai/...` to the standalone AI Agent Studio, same path. */
 function StudioRedirect() {
   const location = useLocation();
@@ -431,27 +450,44 @@ const workspaceChildRoutes = (
     <Route path="home" element={<AIChatView />} />
     <Route path="overview" element={<Navigate to="dashboard" replace />} />
     <Route path="dashboard" element={<DashboardPage />} />
-    <Route path="c/:channelSlug" element={<ChannelPage />} />
     <Route path="channels" element={<BrowseChannelsPage />} />
     <Route path="channels/new" element={<CreateChannelPage />} />
+    <Route path="channels/:channelSlug" element={<ChannelPage />} />
+    <Route
+      path="c/*"
+      element={<RenamedRouteRedirect from="c" to="channels" />}
+    />
     <Route path="members" element={<MembersPage />} />
     {/* People: employee directory and celebrations; profiles open in the right rail. `members` stays the role / AI-coworker admin page. */}
     <Route path="directory" element={<PeoplePage />} />
     <Route path="inbox" element={<InboxView />} />
     <Route path="schedule" element={<ScheduleView />} />
-    <Route path="tasks" element={<AsanaProjectManager />} />
-    <Route path="tasks/:projectId" element={<AsanaProjectManager />} />
-    <Route path="kanban" element={<AsanaProjectManager />} />
-    <Route path="work" element={<AsanaProjectManager />} />
     <Route path="projects" element={<AsanaProjectManager />} />
     <Route path="projects/:projectId" element={<AsanaProjectManager />} />
-    <Route path="cycles" element={<AsanaProjectManager />} />
-    <Route path="intake" element={<AsanaProjectManager />} />
-    <Route path="initiatives" element={<AsanaProjectManager />} />
-    <Route path="notes" element={<DocumentEditor />} />
-    <Route path="notes/:docId" element={<DocumentEditor />} />
+    <Route
+      path="tasks/*"
+      element={<RenamedRouteRedirect from="tasks" to="projects" />}
+    />
+    <Route
+      path="kanban/*"
+      element={<RenamedRouteRedirect from="kanban" to="projects" />}
+    />
+    <Route
+      path="work/*"
+      element={<RenamedRouteRedirect from="work" to="projects" />}
+    />
+    <Route path="cycles" element={<ProjectViewRedirect view="cycles" />} />
+    <Route path="intake" element={<ProjectViewRedirect view="intake" />} />
+    <Route
+      path="initiatives"
+      element={<ProjectViewRedirect view="initiatives" />}
+    />
     <Route path="docs" element={<DocumentEditor />} />
     <Route path="docs/:docId" element={<DocumentEditor />} />
+    <Route
+      path="notes/*"
+      element={<RenamedRouteRedirect from="notes" to="docs" />}
+    />
     <Route path="files" element={<FileManagerView />} />
     {/* Pulse was removed; old links land on the dashboard. */}
     <Route path="pulse" element={<Navigate to="../dashboard" replace />} />
@@ -463,7 +499,10 @@ const workspaceChildRoutes = (
     <Route path="dms/:peerId" element={<DirectMessagesPage />} />
     <Route path="threads" element={<ThreadsView />} />
     <Route path="saved" element={<SavedView />} />
-    <Route path="ai-chat" element={<AIChatView />} />
+    <Route
+      path="ai-chat"
+      element={<RenamedRouteRedirect from="ai-chat" to="home" />}
+    />
 
     {/* --- AI Agent Studio: a separate app; published agents appear in the sidebar --- */}
     <Route
@@ -471,10 +510,7 @@ const workspaceChildRoutes = (
       element={<AIEntityEditorRoute agentFallback={<StudioRedirect />} />}
     />
     {/* The sidebar opens an automation here, read-only; editing is in the Studio. */}
-    <Route
-      path="ai/workflows/:workflowId"
-      element={<WorkflowStepsRoute />}
-    />
+    <Route path="ai/workflows/:workflowId" element={<WorkflowStepsRoute />} />
     <Route path="ai/*" element={<StudioRedirect />} />
 
     {/* Conversations with an agent or coworker stay where chat lives. */}
@@ -520,7 +556,10 @@ const workspaceChildRoutes = (
       element={<Navigate to="../marketplace?tab=apps" replace />}
     />
     <Route path="apps" element={<AppChatView />} />
-    <Route path="apps/chat" element={<AppChatView />} />
+    <Route
+      path="apps/chat"
+      element={<RenamedRouteRedirect from="apps/chat" to="apps" />}
+    />
     <Route path="apps/:appId/chat" element={<AppChatView />} />
     <Route path="*" element={<NotFoundPage />} />
   </>

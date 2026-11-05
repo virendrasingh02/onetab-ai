@@ -1,4 +1,9 @@
-import { agentsApi, invitationApi, memberApi, queryKeys } from '@org/api-client';
+import {
+  agentsApi,
+  invitationApi,
+  memberApi,
+  queryKeys,
+} from '@org/api-client';
 import type { ChannelSummary, PublicUser } from '@org/types';
 import {
   Badge,
@@ -109,7 +114,10 @@ export function AddPeopleDialog({
   const candidates = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return (membersQuery.data ?? []).filter((member) => {
-      if (alreadyIn.has(member.user.id) || selectedUserIds.has(member.user.id)) {
+      if (
+        alreadyIn.has(member.user.id) ||
+        selectedUserIds.has(member.user.id)
+      ) {
         return false;
       }
       if (!needle) return true;
@@ -199,14 +207,14 @@ export function AddPeopleDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg p-0 overflow-visible gap-0 border-border bg-surface shadow-2xl rounded-2xl">
+      <DialogContent className="sm:max-w-lg p-0 gap-0 shadow-2xl overflow-visible rounded-2xl border-border bg-surface">
         {/* Header */}
-        <div className="flex items-start justify-between p-5 pb-3">
+        <div className="p-5 pb-3 flex items-start justify-between">
           <div>
             <h2 className="text-base font-bold text-foreground">
               Add people or agents to #{channel.name}
             </h2>
-            <p className="text-xs text-muted-foreground mt-0.5 font-medium">
+            <p className="text-xs mt-0.5 font-medium text-muted-foreground">
               #{channel.name}
             </p>
           </div>
@@ -217,12 +225,12 @@ export function AddPeopleDialog({
           <div className="relative">
             <div
               onClick={() => inputRef.current?.focus()}
-              className="min-h-12 w-full p-2 gap-1.5 flex flex-wrap items-center rounded-xl border border-border bg-surface-inset/50 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all cursor-text"
+              className="min-h-12 p-2 gap-1.5 flex w-full cursor-text flex-wrap items-center rounded-xl border border-border bg-surface-inset/50 transition-all focus-within:border-primary focus-within:ring-1 focus-within:ring-primary"
             >
               {selectedUsers.map((user) => (
                 <span
                   key={user.id}
-                  className="h-7 pl-1.5 pr-2 gap-1.5 flex items-center rounded-lg bg-surface border border-border text-xs font-medium text-foreground shrink-0 select-none shadow-xs"
+                  className="h-7 pl-1.5 pr-2 gap-1.5 text-xs font-medium flex shrink-0 items-center rounded-lg border border-border bg-surface text-foreground shadow-xs select-none"
                 >
                   <UserAvatar
                     name={user.displayName ?? user.name}
@@ -230,7 +238,7 @@ export function AddPeopleDialog({
                     seed={user.id}
                     size="xs"
                   />
-                  <span className="truncate max-w-[120px]">
+                  <span className="max-w-[120px] truncate">
                     {user.displayName ?? user.name}
                   </span>
                   <button
@@ -241,7 +249,7 @@ export function AddPeopleDialog({
                         prev.filter((u) => u.id !== user.id),
                       );
                     }}
-                    className="p-0.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent/60"
+                    className="p-0.5 rounded-full text-muted-foreground hover:bg-accent/60 hover:text-foreground"
                   >
                     <X className="size-3" />
                   </button>
@@ -251,10 +259,10 @@ export function AddPeopleDialog({
               {selectedEmails.map((email) => (
                 <span
                   key={email}
-                  className="h-7 pl-2 pr-2 gap-1.5 flex items-center rounded-lg bg-primary/10 border border-primary/30 text-xs font-medium text-primary shrink-0 select-none shadow-xs"
+                  className="h-7 pl-2 pr-2 gap-1.5 text-xs font-medium flex shrink-0 items-center rounded-lg border border-primary/30 bg-primary/10 text-primary shadow-xs select-none"
                 >
                   <Send className="size-3" />
-                  <span className="truncate max-w-[150px]">{email}</span>
+                  <span className="max-w-[150px] truncate">{email}</span>
                   <button
                     type="button"
                     onClick={(e) => {
@@ -289,7 +297,10 @@ export function AddPeopleDialog({
                     e.preventDefault();
                     if (isEmailLike) {
                       selectEmail(search.trim());
-                    } else if (candidates.length > 0 && candidates[focusedIndex]) {
+                    } else if (
+                      candidates.length > 0 &&
+                      candidates[focusedIndex]
+                    ) {
                       selectUser(candidates[focusedIndex].user);
                     } else if (hasItems) {
                       void handleAdd();
@@ -309,22 +320,22 @@ export function AddPeopleDialog({
                     ? 'ex. Nathalie, or james@acme.com'
                     : 'Add more...'
                 }
-                className="flex-1 min-w-[160px] bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none border-none p-1"
+                className="text-xs p-1 min-w-[160px] flex-1 border-none bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
                 autoFocus
               />
             </div>
 
             {/* Dropdown suggestions popover when search query is active */}
             {search.trim() ? (
-              <div className="absolute z-50 left-0 right-0 top-full mt-1.5 max-h-56 overflow-y-auto rounded-xl border border-border bg-surface-raised shadow-2xl p-1.5 space-y-0.5">
+              <div className="left-0 right-0 mt-1.5 max-h-56 shadow-2xl p-1.5 space-y-0.5 absolute top-full z-50 overflow-y-auto rounded-xl border border-border bg-surface-raised">
                 {isEmailLike ? (
                   <button
                     type="button"
                     onClick={() => selectEmail(search.trim())}
-                    className="w-full px-3 py-2 flex items-center justify-between rounded-lg bg-surface hover:bg-primary/10 text-foreground transition-colors cursor-pointer"
+                    className="px-3 py-2 flex w-full cursor-pointer items-center justify-between rounded-lg bg-surface text-foreground transition-colors hover:bg-primary/10"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="size-6 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    <div className="gap-2.5 min-w-0 flex items-center">
+                      <div className="size-6 flex shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
                         <Send className="size-3.5" />
                       </div>
                       <span className="text-xs font-medium truncate">
@@ -336,7 +347,7 @@ export function AddPeopleDialog({
                     </div>
                     <Badge
                       variant="outline"
-                      className="text-[10px] font-mono py-0 h-4 px-1.5 bg-background shrink-0"
+                      className="py-0 h-4 px-1.5 shrink-0 bg-background font-mono text-[10px]"
                     >
                       Enter
                     </Badge>
@@ -345,8 +356,7 @@ export function AddPeopleDialog({
 
                 {candidates.map((member, index) => {
                   const isFocused = index === focusedIndex;
-                  const name =
-                    member.user.displayName ?? member.user.name;
+                  const name = member.user.displayName ?? member.user.name;
 
                   return (
                     <button
@@ -355,13 +365,13 @@ export function AddPeopleDialog({
                       onClick={() => selectUser(member.user)}
                       onMouseEnter={() => setFocusedIndex(index)}
                       className={cn(
-                        'w-full px-2.5 py-1.5 flex items-center justify-between gap-2.5 rounded-lg text-left transition-colors cursor-pointer',
+                        'px-2.5 py-1.5 gap-2.5 flex w-full cursor-pointer items-center justify-between rounded-lg text-left transition-colors',
                         isFocused
                           ? 'bg-accent text-foreground'
                           : 'hover:bg-accent/60',
                       )}
                     >
-                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <div className="gap-2.5 min-w-0 flex flex-1 items-center">
                         <UserAvatar
                           name={name}
                           src={member.user.avatarUrl}
@@ -372,11 +382,11 @@ export function AddPeopleDialog({
                           statusText={member.user.statusText}
                           className="shrink-0"
                         />
-                        <div className="flex items-center gap-1.5 min-w-0 flex-1 truncate">
-                          <span className="text-xs font-semibold text-foreground truncate">
+                        <div className="gap-1.5 min-w-0 flex flex-1 items-center truncate">
+                          <span className="text-xs font-semibold truncate text-foreground">
                             {name}
                           </span>
-                          <span className="text-xs text-muted-foreground truncate">
+                          <span className="text-xs truncate text-muted-foreground">
                             {member.user.name}
                           </span>
                         </div>
@@ -384,7 +394,7 @@ export function AddPeopleDialog({
                       {isFocused ? (
                         <Badge
                           variant="outline"
-                          className="text-[10px] font-mono py-0 h-4 px-1.5 bg-background shrink-0"
+                          className="py-0 h-4 px-1.5 shrink-0 bg-background font-mono text-[10px]"
                         >
                           Enter
                         </Badge>
@@ -395,14 +405,15 @@ export function AddPeopleDialog({
 
                 {!isEmailLike && candidates.length === 0 ? (
                   <p className="py-4 text-xs text-center text-muted-foreground">
-                    No matching workspace members. Type an email address to invite them.
+                    No matching workspace members. Type an email address to
+                    invite them.
                   </p>
                 ) : null}
               </div>
             ) : null}
           </div>
 
-          <div className="flex justify-end pt-1">
+          <div className="pt-1 flex justify-end">
             <Button
               type="submit"
               disabled={!hasItems || isSubmitting}
@@ -415,17 +426,18 @@ export function AddPeopleDialog({
         </form>
 
         {/* Footer / Connect Banner */}
-        <div className="px-5 py-3.5 border-t border-border/60 bg-surface-inset/20 space-y-1 rounded-b-2xl">
-          <div className="flex items-center gap-1.5">
+        <div className="px-5 py-3.5 space-y-1 rounded-b-2xl border-t border-border/60 bg-surface-inset/20">
+          <div className="gap-1.5 flex items-center">
             <span className="text-xs font-bold text-foreground">
               Try Onetab Connect
             </span>
-            <Badge className="bg-accent-pink-soft text-accent-pink border-accent-pink/30 text-[10px] font-bold py-0 h-4 px-1.5 uppercase tracking-wide">
+            <Badge className="font-bold py-0 h-4 px-1.5 tracking-wide border-accent-pink/30 bg-accent-pink-soft text-[10px] text-accent-pink uppercase">
               PRO
             </Badge>
           </div>
-          <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Working with external people? Simply type their email above to get started.{' '}
+          <p className="leading-relaxed text-[11px] text-muted-foreground">
+            Working with external people? Simply type their email above to get
+            started.{' '}
             <button
               type="button"
               onClick={() =>
@@ -433,7 +445,7 @@ export function AddPeopleDialog({
                   'Onetab Connect is available on Enterprise and Pro plans.',
                 )
               }
-              className="text-primary hover:underline font-medium cursor-pointer"
+              className="font-medium cursor-pointer text-primary hover:underline"
             >
               Learn more
             </button>
@@ -518,11 +530,13 @@ export function EditChannelDetailsDialog({
           onOpenChange(false);
           // The slug follows the name, so a page open on the old URL would
           // lose its channel — move it to the new one.
-          const oldSegment = `/c/${channel.slug}`;
+          const oldSegment = `/channels/${channel.slug}`;
           if (renamed && location.pathname.includes(oldSegment)) {
             navigate(
-              location.pathname.replace(oldSegment, `/c/${updated.slug}`) +
-                location.search,
+              location.pathname.replace(
+                oldSegment,
+                `/channels/${updated.slug}`,
+              ) + location.search,
               { replace: true },
             );
           }
@@ -748,7 +762,7 @@ function AnonymousPostingSection({
   };
 
   return (
-    <div className="space-y-2.5 rounded-xl border border-border p-3">
+    <div className="space-y-2.5 p-3 rounded-xl border border-border">
       <div className="flex items-center justify-between">
         <div className="gap-2 flex items-center">
           <VenetianMask className="size-4 text-muted-foreground" />
@@ -771,7 +785,7 @@ function AnonymousPostingSection({
 
       {data.isEnabled && (
         <>
-          <div className="flex items-center justify-between text-xs">
+          <div className="text-xs flex items-center justify-between">
             <span className="text-foreground">Allow anonymous replies</span>
             <Switch
               checked={data.allowReplies}
@@ -785,7 +799,7 @@ function AnonymousPostingSection({
             <p className="text-[11px] text-muted-foreground">
               Roles that may post anonymously
             </p>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="gap-1.5 flex flex-wrap">
               {ANON_ROLES.map((role) => {
                 const on = roleAllowed(role);
                 return (
@@ -794,7 +808,7 @@ function AnonymousPostingSection({
                     type="button"
                     onClick={() => toggleRole(role)}
                     className={cn(
-                      'rounded-full border px-2 py-0.5 text-[11px] capitalize transition-colors',
+                      'px-2 py-0.5 rounded-full border text-[11px] capitalize transition-colors',
                       on
                         ? 'border-primary bg-primary/10 text-primary'
                         : 'border-border text-muted-foreground hover:text-foreground',
@@ -834,7 +848,7 @@ function EmailIntegrationSection({
   };
 
   return (
-    <div className="space-y-2.5 rounded-xl border border-border p-3">
+    <div className="space-y-2.5 p-3 rounded-xl border border-border">
       <div className="flex items-center justify-between">
         <div className="gap-2 flex items-center">
           <Send className="size-4 text-muted-foreground" />
@@ -853,7 +867,7 @@ function EmailIntegrationSection({
       </div>
 
       {data.address ? (
-        <div className="gap-2 flex items-center rounded-lg border border-border bg-surface-muted px-2.5 py-1.5">
+        <div className="gap-2 px-2.5 py-1.5 flex items-center rounded-lg border border-border bg-surface-muted">
           <code className="min-w-0 flex-1 truncate text-[11px] text-foreground">
             {data.address}
           </code>
@@ -880,7 +894,7 @@ function EmailIntegrationSection({
 
       {data.isEnabled && (
         <>
-          <div className="flex items-center justify-between text-xs">
+          <div className="text-xs flex items-center justify-between">
             <span className="text-foreground">Thread by subject</span>
             <Switch
               checked={data.threadPerSubject}
@@ -965,7 +979,8 @@ export function ChannelPostingDialog({
   const candidates = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return (channelMembers.data ?? []).filter((m) => {
-      if (alwaysPostIds.has(m.user.id) || posterSet.has(m.user.id)) return false;
+      if (alwaysPostIds.has(m.user.id) || posterSet.has(m.user.id))
+        return false;
       if (!needle) return true;
       return (m.user.displayName ?? m.user.name).toLowerCase().includes(needle);
     });
@@ -1012,8 +1027,7 @@ export function ChannelPostingDialog({
           allowReplies: toggles.allowReplies,
           allowReactions: toggles.allowReactions,
           allowFileUploads: toggles.allowFileUploads,
-          announcementPosterIds:
-            mode === 'ANNOUNCEMENT' ? posterIds : [],
+          announcementPosterIds: mode === 'ANNOUNCEMENT' ? posterIds : [],
         },
       },
       {
@@ -1049,24 +1063,22 @@ export function ChannelPostingDialog({
             <div
               role="radiogroup"
               aria-label="Channel mode"
-              className="grid grid-cols-2 gap-2"
+              className="gap-2 grid grid-cols-2"
             >
-              {(
-                [
-                  {
-                    value: 'STANDARD' as const,
-                    icon: Hash,
-                    title: 'Standard',
-                    blurb: 'Every member can post.',
-                  },
-                  {
-                    value: 'ANNOUNCEMENT' as const,
-                    icon: Megaphone,
-                    title: 'Announcement',
-                    blurb: 'Only admins & named people post.',
-                  },
-                ]
-              ).map((option) => {
+              {[
+                {
+                  value: 'STANDARD' as const,
+                  icon: Hash,
+                  title: 'Standard',
+                  blurb: 'Every member can post.',
+                },
+                {
+                  value: 'ANNOUNCEMENT' as const,
+                  icon: Megaphone,
+                  title: 'Announcement',
+                  blurb: 'Only admins & named people post.',
+                },
+              ].map((option) => {
                 const OptionIcon = option.icon;
                 const active = mode === option.value;
                 return (
@@ -1077,7 +1089,7 @@ export function ChannelPostingDialog({
                     aria-checked={active}
                     onClick={() => setMode(option.value)}
                     className={cn(
-                      'flex flex-col gap-1 rounded-xl border p-3 text-left transition-colors',
+                      'gap-1 p-3 flex flex-col rounded-xl border text-left transition-colors',
                       active
                         ? 'border-primary bg-primary/5 ring-1 ring-primary/40'
                         : 'border-border hover:bg-accent/50',
@@ -1114,7 +1126,10 @@ export function ChannelPostingDialog({
                       <Switch
                         checked={toggles[row.key]}
                         onCheckedChange={(checked) =>
-                          setToggles((prev) => ({ ...prev, [row.key]: checked }))
+                          setToggles((prev) => ({
+                            ...prev,
+                            [row.key]: checked,
+                          }))
                         }
                         aria-label={row.label}
                       />
@@ -1129,20 +1144,22 @@ export function ChannelPostingDialog({
                     </p>
                     <p className="text-[11px] text-muted-foreground">
                       Channel admins, workspace admins and the creator
-                      {alwaysPostIds.size > 0 ? ` (${alwaysPostIds.size})` : ''}{' '}
+                      {alwaysPostIds.size > 0
+                        ? ` (${alwaysPostIds.size})`
+                        : ''}{' '}
                       can always post.
                     </p>
                   </div>
 
                   {selectedPosters.length > 0 && (
-                    <ul className="flex flex-wrap gap-1.5">
+                    <ul className="gap-1.5 flex flex-wrap">
                       {selectedPosters.map(({ id, user }) => (
                         <li key={id}>
                           <button
                             type="button"
                             onClick={() => togglePoster(id)}
                             aria-label={`Remove ${user?.displayName ?? user?.name ?? 'person'}`}
-                            className="gap-1.5 flex items-center rounded-full border border-border bg-surface-raised py-0.5 pl-0.5 pr-2 text-[11px] transition-colors hover:bg-accent"
+                            className="gap-1.5 py-0.5 pl-0.5 pr-2 flex items-center rounded-full border border-border bg-surface-raised text-[11px] transition-colors hover:bg-accent"
                           >
                             <UserAvatar
                               name={user?.displayName ?? user?.name ?? '?'}
@@ -1162,7 +1179,7 @@ export function ChannelPostingDialog({
                   )}
 
                   <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <Search className="left-2.5 size-3.5 absolute top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
@@ -1188,7 +1205,7 @@ export function ChannelPostingDialog({
                             <button
                               type="button"
                               onClick={() => togglePoster(m.user.id)}
-                              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent"
+                              className="gap-2 px-2 py-1.5 text-xs flex w-full items-center rounded-md text-left transition-colors hover:bg-accent"
                             >
                               <UserAvatar
                                 name={m.user.displayName ?? m.user.name}
@@ -1211,7 +1228,7 @@ export function ChannelPostingDialog({
               </>
             )}
 
-            <p className="pt-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            <p className="pt-1 font-medium tracking-wide text-[11px] text-muted-foreground uppercase">
               Applied instantly
             </p>
             <AnonymousPostingSection
@@ -1334,9 +1351,9 @@ export function AddAgentToChannelDialog({
               <Bot className="size-5" />
             </div>
             <div>
-              <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <DialogTitle className="text-base font-bold gap-2 flex items-center">
                 <span>Add AI Agent to #{channel.name}</span>
-                <Badge variant="primary" className="text-[10px] py-0 h-4">
+                <Badge variant="primary" className="py-0 h-4 text-[10px]">
                   AI Powered
                 </Badge>
               </DialogTitle>
@@ -1351,7 +1368,7 @@ export function AddAgentToChannelDialog({
 
         <DialogBody className="space-y-3">
           <div className="relative">
-            <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Search className="size-4 left-3 absolute top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -1360,14 +1377,14 @@ export function AddAgentToChannelDialog({
             />
           </div>
 
-          <ScrollArea className="h-64 rounded-xl border border-border bg-surface/50 p-2">
+          <ScrollArea className="h-64 p-2 rounded-xl border border-border bg-surface/50">
             <div className="space-y-2">
               {agentsQuery.isLoading ? (
-                <p className="text-xs text-muted-foreground p-3">
+                <p className="text-xs p-3 text-muted-foreground">
                   Loading agents…
                 </p>
               ) : filteredAgents.length === 0 ? (
-                <p className="text-xs text-muted-foreground p-3">
+                <p className="text-xs p-3 text-muted-foreground">
                   {options.length === 0
                     ? 'This workspace has no AI agents yet. Create one from the Agents section first.'
                     : 'No agents match your search.'}
@@ -1381,38 +1398,41 @@ export function AddAgentToChannelDialog({
                     type="button"
                     onClick={() => setSelectedAgentId(agent.id)}
                     className={cn(
-                      'w-full text-left p-3 rounded-xl border transition-all flex items-start justify-between gap-3 cursor-pointer',
+                      'p-3 gap-3 flex w-full cursor-pointer items-start justify-between rounded-xl border text-left transition-all',
                       isSelected
                         ? 'border-primary bg-primary/5 ring-1 ring-primary'
                         : 'border-border/70 bg-surface hover:border-border hover:bg-surface-raised',
                     )}
                   >
-                    <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                    <div className="gap-2.5 min-w-0 flex flex-1 items-start">
                       <UserAvatar
                         name={agent.name}
                         seed={agent.avatarSeed}
                         size="sm"
                       />
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="gap-2 flex flex-wrap items-center">
                           <span className="text-xs font-bold text-foreground">
                             {agent.name}
                           </span>
-                          <span className="text-[11px] font-mono text-primary">
+                          <span className="font-mono text-[11px] text-primary">
                             {agent.handle}
                           </span>
-                          <Badge variant="outline" className="text-[10px] py-0 h-4 font-mono">
+                          <Badge
+                            variant="outline"
+                            className="py-0 h-4 font-mono text-[10px]"
+                          >
                             {agent.model}
                           </Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
+                        <p className="text-xs mt-1 leading-relaxed line-clamp-2 text-muted-foreground">
                           {agent.description}
                         </p>
-                        <div className="flex items-center gap-1.5 mt-2">
+                        <div className="gap-1.5 mt-2 flex items-center">
                           {agent.tags.map((tag) => (
                             <span
                               key={tag}
-                              className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium"
+                              className="px-1.5 py-0.5 rounded font-medium bg-muted text-[10px] text-muted-foreground"
                             >
                               {tag}
                             </span>
@@ -1423,13 +1443,15 @@ export function AddAgentToChannelDialog({
 
                     <div
                       className={cn(
-                        'size-5 rounded-full border flex items-center justify-center shrink-0 mt-0.5 transition-colors',
+                        'size-5 mt-0.5 flex shrink-0 items-center justify-center rounded-full border transition-colors',
                         isSelected
                           ? 'border-primary bg-primary text-primary-foreground'
                           : 'border-border bg-surface',
                       )}
                     >
-                      {isSelected ? <Check className="size-3 stroke-[3]" /> : null}
+                      {isSelected ? (
+                        <Check className="size-3 stroke-[3]" />
+                      ) : null}
                     </div>
                   </button>
                 );
@@ -1483,7 +1505,8 @@ const CHANNEL_TEMPLATES: ChannelTemplateOption[] = [
     name: 'Sprint & Agile Engineering',
     icon: '⚡',
     category: 'Software',
-    description: 'Organized for sprint planning, daily standups, pull requests, and deployment updates.',
+    description:
+      'Organized for sprint planning, daily standups, pull requests, and deployment updates.',
     topic: 'Sprint active goals, PR reviews, and blocker discussions.',
     starterBookmarks: [
       { label: 'Sprint Board', href: 'https://linear.app', emoji: '📋' },
@@ -1496,8 +1519,10 @@ const CHANNEL_TEMPLATES: ChannelTemplateOption[] = [
     name: 'Incident War Room',
     icon: '🚨',
     category: 'Operations',
-    description: 'High-urgency coordination channel with incident post-mortems and alert paging.',
-    topic: 'Live incident triage, root cause analysis, and resolution timeline.',
+    description:
+      'High-urgency coordination channel with incident post-mortems and alert paging.',
+    topic:
+      'Live incident triage, root cause analysis, and resolution timeline.',
     starterBookmarks: [
       { label: 'Status Page', href: 'https://status.io', emoji: '🔴' },
       { label: 'Incident Doc', href: 'https://notion.so', emoji: '📝' },
@@ -1509,8 +1534,10 @@ const CHANNEL_TEMPLATES: ChannelTemplateOption[] = [
     name: 'Product & Feature Launch',
     icon: '🎯',
     category: 'Product',
-    description: 'Cross-functional channel aligning design, engineering, and marketing on milestone launches.',
-    topic: 'Feature requirements, design specs, user feedback, and release schedule.',
+    description:
+      'Cross-functional channel aligning design, engineering, and marketing on milestone launches.',
+    topic:
+      'Feature requirements, design specs, user feedback, and release schedule.',
     starterBookmarks: [
       { label: 'Figma Design', href: 'https://figma.com', emoji: '🎨' },
       { label: 'PRD Document', href: 'https://docs.google.com', emoji: '📄' },
@@ -1522,11 +1549,10 @@ const CHANNEL_TEMPLATES: ChannelTemplateOption[] = [
     name: 'Team Watercooler & General',
     icon: '☕',
     category: 'Culture',
-    description: 'Casual company-wide space for wins, greetings, random links, and celebrations.',
+    description:
+      'Casual company-wide space for wins, greetings, random links, and celebrations.',
     topic: 'Casual chatter, team celebrations, and interesting articles.',
-    starterBookmarks: [
-      { label: 'Team Directory', href: '#', emoji: '👥' },
-    ],
+    starterBookmarks: [{ label: 'Team Directory', href: '#', emoji: '👥' }],
     recommendedAgents: ['@standup'],
   },
 ];
@@ -1542,7 +1568,9 @@ export function ChannelTemplatesDialog({
   onOpenChange,
   channel,
 }: ChannelTemplatesDialogProps) {
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(
+    null,
+  );
   const [isApplying, setIsApplying] = useState(false);
 
   const handleApply = () => {
@@ -1570,13 +1598,14 @@ export function ChannelTemplatesDialog({
                 Channel Templates
               </DialogTitle>
               <DialogDescription className="text-xs">
-                Apply pre-configured structure, topic, bookmarks, and workflows to #{channel.name}.
+                Apply pre-configured structure, topic, bookmarks, and workflows
+                to #{channel.name}.
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
-        <DialogBody className="grid sm:grid-cols-2 gap-3">
+        <DialogBody className="sm:grid-cols-2 gap-3 grid">
           {CHANNEL_TEMPLATES.map((tpl) => {
             const isSelected = selectedTemplateId === tpl.id;
             return (
@@ -1585,28 +1614,28 @@ export function ChannelTemplatesDialog({
                 type="button"
                 onClick={() => setSelectedTemplateId(tpl.id)}
                 className={cn(
-                  'text-left p-3.5 rounded-xl border transition-all flex flex-col justify-between cursor-pointer',
+                  'p-3.5 flex cursor-pointer flex-col justify-between rounded-xl border text-left transition-all',
                   isSelected
-                    ? 'border-primary bg-primary/5 ring-1 ring-primary shadow-xs'
+                    ? 'border-primary bg-primary/5 shadow-xs ring-1 ring-primary'
                     : 'border-border bg-surface hover:border-border-strong hover:bg-surface-raised',
                 )}
               >
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="text-xl">{tpl.icon}</span>
-                    <Badge variant="outline" className="text-[10px] py-0 h-4">
+                    <Badge variant="outline" className="py-0 h-4 text-[10px]">
                       {tpl.category}
                     </Badge>
                   </div>
-                  <h4 className="font-bold text-xs text-foreground mt-2">
+                  <h4 className="font-bold text-xs mt-2 text-foreground">
                     {tpl.name}
                   </h4>
-                  <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
+                  <p className="mt-1 leading-relaxed line-clamp-2 text-[11px] text-muted-foreground">
                     {tpl.description}
                   </p>
                 </div>
 
-                <div className="mt-3 pt-2.5 border-t border-border/60 flex items-center justify-between text-[10px] text-muted-foreground font-mono">
+                <div className="mt-3 pt-2.5 flex items-center justify-between border-t border-border/60 font-mono text-[10px] text-muted-foreground">
                   <span>{tpl.starterBookmarks.length} bookmarks</span>
                   <span>{tpl.recommendedAgents.join(' ')}</span>
                 </div>
@@ -1664,28 +1693,32 @@ export function ChannelWorkflowsDialog({
     {
       id: 'wf-1',
       title: 'Welcome New Member Message',
-      description: 'Automatically sends an introductory onboarding message when someone joins this channel.',
+      description:
+        'Automatically sends an introductory onboarding message when someone joins this channel.',
       trigger: 'On Member Join',
       active: true,
     },
     {
       id: 'wf-2',
       title: 'Daily Async Standup Recap',
-      description: 'Prompts channel members for daily updates at 9:30 AM and publishes a consolidated digest.',
+      description:
+        'Prompts channel members for daily updates at 9:30 AM and publishes a consolidated digest.',
       trigger: 'Every Weekday at 9:30 AM',
       active: true,
     },
     {
       id: 'wf-3',
       title: 'AI Thread Auto-Summarizer',
-      description: 'Generates a 3-bullet executive summary when any thread exceeds 10 replies.',
+      description:
+        'Generates a 3-bullet executive summary when any thread exceeds 10 replies.',
       trigger: 'Thread > 10 replies',
       active: false,
     },
     {
       id: 'wf-4',
       title: 'Keyword Incident Escalation',
-      description: 'Alerts workspace on-call engineers when "URGENT" or "INCIDENT" is posted.',
+      description:
+        'Alerts workspace on-call engineers when "URGENT" or "INCIDENT" is posted.',
       trigger: 'On Keyword Match',
       active: false,
     },
@@ -1729,25 +1762,30 @@ export function ChannelWorkflowsDialog({
           {workflows.map((wf) => (
             <div
               key={wf.id}
-              className="p-3 rounded-xl border border-border bg-surface flex items-start justify-between gap-3"
+              className="p-3 gap-3 flex items-start justify-between rounded-xl border border-border bg-surface"
             >
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h4 className="text-xs font-bold text-foreground">{wf.title}</h4>
-                  <Badge variant={wf.active ? 'primary' : 'neutral'} className="text-[10px] py-0 h-4">
+                <div className="gap-2 flex flex-wrap items-center">
+                  <h4 className="text-xs font-bold text-foreground">
+                    {wf.title}
+                  </h4>
+                  <Badge
+                    variant={wf.active ? 'primary' : 'neutral'}
+                    className="py-0 h-4 text-[10px]"
+                  >
                     {wf.active ? 'Active' : 'Paused'}
                   </Badge>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                <p className="text-xs mt-1 leading-relaxed text-muted-foreground">
                   {wf.description}
                 </p>
-                <span className="text-[10px] font-mono text-primary flex items-center gap-1 mt-1.5">
+                <span className="gap-1 mt-1.5 flex items-center font-mono text-[10px] text-primary">
                   <Zap className="size-3" />
                   <span>Trigger: {wf.trigger}</span>
                 </span>
               </div>
 
-              <div className="flex items-center gap-1.5 shrink-0">
+              <div className="gap-1.5 flex shrink-0 items-center">
                 <Button
                   size="icon-sm"
                   variant="ghost"

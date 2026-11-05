@@ -90,30 +90,30 @@ export function StudioHomePage() {
   const navigate = useNavigate();
   return (
     <StudioPage
-        icon={<Home />}
-        title="Studio Home"
-        description={`What your agents are doing in ${activeWorkspace.name} — and what to build next.`}
-        className="space-y-8"
-        actions={
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/templates')}
-              className="gap-1.5"
-            >
-              <Layers className="size-3.5" /> Templates
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => navigate('/create')}
-              className="gap-1.5"
-            >
-              <Wand2 className="size-3.5" /> Create with AI
-            </Button>
-          </>
-        }
-      >
+      icon={<Home />}
+      title="Studio Home"
+      description={`What your agents are doing in ${activeWorkspace.name} — and what to build next.`}
+      className="space-y-8"
+      actions={
+        <>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/templates')}
+            className="gap-1.5"
+          >
+            <Layers className="size-3.5" /> Templates
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => navigate('/create')}
+            className="gap-1.5"
+          >
+            <Wand2 className="size-3.5" /> Create with AI
+          </Button>
+        </>
+      }
+    >
       <StudioInsights home={<StudioHome showComposer={false} />} />
     </StudioPage>
   );
@@ -272,7 +272,7 @@ function StudioInsights({ home }: { home: React.ReactNode }) {
   const draftHref = firstDraft
     ? `/agents/${firstDraft.id}`
     : plannedFirst
-      ? `/studio/${plannedFirst.id}`
+      ? `/planned/${plannedFirst.id}`
       : null;
   const journey: JourneyStep[] = [
     {
@@ -293,7 +293,7 @@ function StudioInsights({ home }: { home: React.ReactNode }) {
       to: firstDraft
         ? `/agents/${firstDraft.id}?copilot=1&test=1`
         : plannedFirst
-          ? `/studio/${plannedFirst.id}?tab=runs`
+          ? `/planned/${plannedFirst.id}?tab=runs`
           : '/create',
       cta: 'Run a test',
     },
@@ -542,7 +542,7 @@ function StudioInsights({ home }: { home: React.ReactNode }) {
                       </p>
                       <div className="mt-4 gap-2 flex flex-wrap justify-center">
                         <Button size="sm" asChild className="gap-1.5">
-                          <Link to={`/w/${activeWorkspace.slug}/ai/agents`}>
+                          <Link to="/planned">
                             <Sparkles className="size-3.5" /> Open planned
                             agents
                           </Link>

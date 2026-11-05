@@ -91,7 +91,7 @@ function useChannelLink(
         channelSlugByName?.get(thread.roomName?.toLowerCase() ?? '') ||
         thread.roomName?.toLowerCase().replace(/[^a-z0-9-_]/g, '-') ||
         'general';
-      return `/w/${workspaceSlug}/c/${slug}?thread=${thread.id}`;
+      return `/w/${workspaceSlug}/channels/${slug}?thread=${thread.id}`;
     }
     if (thread.roomKind === 'group') {
       return `/w/${workspaceSlug}/dms?room=${thread.roomId}&thread=${thread.id}`;
@@ -871,7 +871,7 @@ function RoomThreadSection({
         channelSlugByName?.get(group.roomName.toLowerCase()) ||
         group.roomName.toLowerCase().replace(/[^a-z0-9-_]/g, '-') ||
         'general';
-      return `/w/${workspaceSlug}/c/${slug}`;
+      return `/w/${workspaceSlug}/channels/${slug}`;
     }
     if (group.roomKind === 'group' || group.roomKind === 'direct') {
       return `/w/${workspaceSlug}/dms?room=${group.roomId}`;
@@ -994,7 +994,7 @@ function ThreadList({
         action={
           firstChannelSlug ? (
             <Button asChild size="sm" variant="outline">
-              <Link to={`/w/${workspaceSlug}/c/${firstChannelSlug}`}>
+              <Link to={`/w/${workspaceSlug}/channels/${firstChannelSlug}`}>
                 Open #{firstChannelSlug}
               </Link>
             </Button>

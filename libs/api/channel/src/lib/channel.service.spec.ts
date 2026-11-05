@@ -1,3 +1,4 @@
+import { ConflictException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppEvent } from '@org/api-common';
 import { ChannelService } from './channel.service.js';
@@ -53,8 +54,14 @@ describe('ChannelService — system/activity event emission (brief §2, §22)', 
 
   describe('setArchived', () => {
     it('emits ChannelArchiveChanged(archived: true) after archiving succeeds', async () => {
-      ctx.prisma.channel.findUniqueOrThrow.mockResolvedValue({ slug: 'engineering', name: 'engineering' });
-      ctx.prisma.channel.update.mockResolvedValue({ ...CHANNEL_ROW, isArchived: true });
+      ctx.prisma.channel.findUniqueOrThrow.mockResolvedValue({
+        slug: 'engineering',
+        name: 'engineering',
+      });
+      ctx.prisma.channel.update.mockResolvedValue({
+        ...CHANNEL_ROW,
+        isArchived: true,
+      });
 
       await ctx.service.setArchived('ws-1', 'chan-1', 'admin-1', true);
 
@@ -72,7 +79,10 @@ describe('ChannelService — system/activity event emission (brief §2, §22)', 
     });
 
     it('emits archived: false when restoring', async () => {
-      ctx.prisma.channel.findUniqueOrThrow.mockResolvedValue({ slug: 'engineering', name: 'engineering' });
+      ctx.prisma.channel.findUniqueOrThrow.mockResolvedValue({
+        slug: 'engineering',
+        name: 'engineering',
+      });
 
       await ctx.service.setArchived('ws-1', 'chan-1', 'admin-1', false);
 
@@ -83,18 +93,35 @@ describe('ChannelService — system/activity event emission (brief §2, §22)', 
     });
 
     it('never emits when the #general guard rejects the archive', async () => {
-      ctx.prisma.channel.findUniqueOrThrow.mockResolvedValue({ slug: 'general', name: 'general' });
+      ctx.prisma.channel.findUniqueOrThrow.mockResolvedValue({
+        slug: 'general',
+        name: 'general',
+      });
 
-      await expect(ctx.service.setArchived('ws-1', 'chan-1', 'admin-1', true)).rejects.toThrow();
+      await expect(
+        ctx.service.setArchived('ws-1', 'chan-1', 'admin-1', true),
+      ).rejects.toThrow();
       expect(ctx.events.emit).not.toHaveBeenCalled();
     });
   });
 
   describe('update — nameChanged flag', () => {
-    it('sets nameChanged: true only when the name actually changed', async () => {
-      ctx.prisma.channel.update.mockResolvedValue({ ...CHANNEL_ROW, name: 'new-name', slug: 'new-name' });
+    it('keeps #new free for the create-channel page', async () => {
+      await expect(
+        ctx.service.update('ws-1', 'chan-1', 'admin-1', { name: 'new' }),
+      ).rejects.toThrow(ConflictException);
+    });
 
-      await ctx.service.update('ws-1', 'chan-1', 'admin-1', { name: 'new-name' });
+    it('sets nameChanged: true only when the name actually changed', async () => {
+      ctx.prisma.channel.update.mockResolvedValue({
+        ...CHANNEL_ROW,
+        name: 'new-name',
+        slug: 'new-name',
+      });
+
+      await ctx.service.update('ws-1', 'chan-1', 'admin-1', {
+        name: 'new-name',
+      });
 
       const [, payload] = ctx.events.emit.mock.calls[0];
       expect(payload.nameChanged).toBe(true);
@@ -102,7 +129,9 @@ describe('ChannelService — system/activity event emission (brief §2, §22)', 
     });
 
     it('sets nameChanged: false for a topic-only update, even though `name` is still populated', async () => {
-      await ctx.service.update('ws-1', 'chan-1', 'admin-1', { topic: 'new topic' });
+      await ctx.service.update('ws-1', 'chan-1', 'admin-1', {
+        topic: 'new topic',
+      });
 
       const [, payload] = ctx.events.emit.mock.calls[0];
       expect(payload.nameChanged).toBe(false);
@@ -246,9 +275,9 @@ describe('ChannelService — channel settings', () => {
     it('refuses a channel admin who is not a workspace admin', async () => {
       asViewer('ADMIN', 'MEMBER');
 
-      await expect(ctx.service.remove('ws-1', 'chan-1', 'user-1')).rejects.toThrow(
-        /workspace admins and owners/,
-      );
+      await expect(
+        ctx.service.remove('ws-1', 'chan-1', 'user-1'),
+      ).rejects.toThrow(/workspace admins and owners/);
       expect(ctx.prisma.channel.delete).not.toHaveBeenCalled();
     });
 
@@ -285,9 +314,9 @@ describe('ChannelService — channel settings', () => {
         members: [],
       });
 
-      await expect(ctx.service.remove('ws-1', 'chan-1', 'owner-1')).rejects.toThrow(
-        /#general/,
-      );
+      await expect(
+        ctx.service.remove('ws-1', 'chan-1', 'owner-1'),
+      ).rejects.toThrow(/#general/);
       expect(ctx.prisma.channel.delete).not.toHaveBeenCalled();
     });
   });

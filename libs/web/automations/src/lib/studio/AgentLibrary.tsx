@@ -289,7 +289,7 @@ export function AgentLibrary({
             size="sm"
             variant="primary"
             leadingIcon={<Sparkles />}
-            onClick={() => navigate(aiWorkspacePath(slug, 'studio', 'new'))}
+            onClick={() => navigate(aiWorkspacePath(slug, 'planned', 'new'))}
           >
             Describe an agent
           </Button>
@@ -353,7 +353,7 @@ export function AgentLibrary({
                 <Button
                   leadingIcon={<Sparkles />}
                   onClick={() =>
-                    navigate(aiWorkspacePath(slug, 'studio', 'new'))
+                    navigate(aiWorkspacePath(slug, 'planned', 'new'))
                   }
                 >
                   Describe an agent
@@ -599,7 +599,7 @@ function TemplateCard({
         )}
         <Button asChild size="sm" variant="outline" leadingIcon={<Plus />}>
           <Link
-            to={`${aiWorkspacePath(slug, 'studio', 'new')}?template=${template.id}`}
+            to={`${aiWorkspacePath(slug, 'planned', 'new')}?template=${template.id}`}
           >
             Use template
           </Link>

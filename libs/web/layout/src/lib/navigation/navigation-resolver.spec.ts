@@ -11,7 +11,9 @@ describe('Navigation Resolver', () => {
     });
 
     expect(allItems.length).toBe(DEFAULT_NAV_ITEMS.length);
-    expect(visibleItems.length).toBe(DEFAULT_NAV_ITEMS.filter((i) => i.visible).length);
+    expect(visibleItems.length).toBe(
+      DEFAULT_NAV_ITEMS.filter((i) => i.visible).length,
+    );
     expect(groups.length).toBeGreaterThan(0);
 
     // Verify Home has full path
@@ -79,15 +81,15 @@ describe('Route Matcher', () => {
   });
 
   it('matches task and project route aliases and subroutes', () => {
-    expect(isRouteActive('tasks', '/w/acme/tasks', 'acme')).toBe(true);
-    expect(isRouteActive('tasks', '/w/acme/kanban', 'acme')).toBe(true);
     expect(isRouteActive('tasks', '/w/acme/projects', 'acme')).toBe(true);
-    expect(isRouteActive('tasks', '/w/acme/tasks/subtask-1', 'acme')).toBe(true);
+    expect(isRouteActive('tasks', '/w/acme/projects/website', 'acme')).toBe(
+      true,
+    );
   });
 
   it('matches docs and subroutes', () => {
     expect(isRouteActive('docs', '/w/acme/docs', 'acme')).toBe(true);
-    expect(isRouteActive('docs', '/w/acme/notes', 'acme')).toBe(true);
+    expect(isRouteActive('docs', '/w/acme/docs/d_1', 'acme')).toBe(true);
   });
 
   it('matches the AI Workspace, its editors and the entry points it replaced', () => {
@@ -95,10 +97,14 @@ describe('Route Matcher', () => {
     expect(isRouteActive('ai', '/w/acme/ai/runs', 'acme')).toBe(true);
     expect(isRouteActive('ai', '/w/acme/ai/agents/bot-1', 'acme')).toBe(true);
     expect(isRouteActive('ai', '/w/acme/ai/workflows/new', 'acme')).toBe(true);
-    expect(isRouteActive('ai', '/w/acme/automations/builder', 'acme')).toBe(true);
+    expect(isRouteActive('ai', '/w/acme/automations/builder', 'acme')).toBe(
+      true,
+    );
     expect(isRouteActive('ai', '/w/acme/agents/builder', 'acme')).toBe(true);
     // Talking to an agent is chat, not the builder.
-    expect(isRouteActive('ai', '/w/acme/agents/bot-1/chat', 'acme')).toBe(false);
+    expect(isRouteActive('ai', '/w/acme/agents/bot-1/chat', 'acme')).toBe(
+      false,
+    );
     expect(isRouteActive('ai', '/w/acme/ai-chat', 'acme')).toBe(false);
   });
 });

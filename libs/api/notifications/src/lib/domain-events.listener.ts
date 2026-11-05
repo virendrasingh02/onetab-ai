@@ -84,7 +84,7 @@ export class DomainEventsListener {
           title: title(label),
           // `tasks` route + a query param the board reads to open the card
           // dialog; there is no `tasks/:id` route.
-          deepLink: `tasks?taskId=${e.taskId}`,
+          deepLink: `projects?taskId=${e.taskId}`,
           resourceType: 'task',
           resourceId: e.taskId,
         }),
@@ -172,7 +172,7 @@ export class DomainEventsListener {
           actorId: e.actorId,
           kind: NotificationKind.PROJECT_CREATED,
           title: `You were made lead of ${e.name}`,
-          deepLink: `tasks/${e.projectId}`,
+          deepLink: `projects/${e.projectId}`,
           resourceType: 'project',
           resourceId: e.projectId,
         }),
@@ -411,7 +411,7 @@ export class DomainEventsListener {
         kind: NotificationKind.CHANNEL_ACCESS_EXPIRED,
         title: `Your temporary access to #${e.channelSlug} has ended`,
         body: `Rejoin #${e.channelSlug} if you still need it.`,
-        deepLink: `c/${e.channelSlug}`,
+        deepLink: `channels/${e.channelSlug}`,
         resourceType: 'channel',
         resourceId: e.channelId,
       }),
@@ -423,7 +423,11 @@ export class DomainEventsListener {
   async onBillingNotice(e: BillingNoticeEvent): Promise<void> {
     await this.safeNotify(async () => {
       const managers = await this.prisma.workspaceMember.findMany({
-        where: { workspaceId: e.workspaceId, status: 'ACTIVE', role: { in: ['OWNER', 'ADMIN'] } },
+        where: {
+          workspaceId: e.workspaceId,
+          status: 'ACTIVE',
+          role: { in: ['OWNER', 'ADMIN'] },
+        },
         select: { userId: true },
       });
       for (const m of managers) {
@@ -556,9 +560,18 @@ export class DomainEventsListener {
       this.notifications.create({
         workspaceId: e.workspaceId,
         recipientId: e.ownerId!,
-        kind: e.status === 'FAILED' ? NotificationKind.AI_RUN_FAILED : NotificationKind.AI_RUN_COMPLETED,
-        title: e.status === 'FAILED' ? `“${e.agentName}” couldn’t finish` : `“${e.agentName}” finished`,
-        body: e.status === 'FAILED' ? (e.error ?? 'A step failed.').slice(0, 500) : 'Open the run to see the result.',
+        kind:
+          e.status === 'FAILED'
+            ? NotificationKind.AI_RUN_FAILED
+            : NotificationKind.AI_RUN_COMPLETED,
+        title:
+          e.status === 'FAILED'
+            ? `“${e.agentName}” couldn’t finish`
+            : `“${e.agentName}” finished`,
+        body:
+          e.status === 'FAILED'
+            ? (e.error ?? 'A step failed.').slice(0, 500)
+            : 'Open the run to see the result.',
         deepLink: `ai/runs?run=${e.runId}`,
         resourceType: 'ai_run',
         resourceId: e.runId,
@@ -598,7 +611,10 @@ export class DomainEventsListener {
         recipientId: creatorId,
         kind: NotificationKind.AI_RUN_FAILED,
         title: `Coworker “${e.coworkerName}” couldn’t finish`,
-        body: (e.error ?? 'A step failed during coworker execution.').slice(0, 500),
+        body: (e.error ?? 'A step failed during coworker execution.').slice(
+          0,
+          500,
+        ),
         deepLink: `ai/coworkers/${e.coworkerId}`,
         resourceType: 'coworker',
         resourceId: e.coworkerId,

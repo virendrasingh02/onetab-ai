@@ -1615,7 +1615,7 @@ export function WorkspaceSettingsPage({
                   className="h-7 px-2.5 text-[11px]"
                   onClick={() =>
                     workspaceSlug &&
-                    navigate(`/w/${workspaceSlug}/ai/agents?type=coworker`)
+                    navigate(`/w/${workspaceSlug}/ai/coworkers`)
                   }
                 >
                   Open Coworkers
@@ -1698,7 +1698,7 @@ export function WorkspaceSettingsPage({
                   className="h-7 px-2.5 text-[11px]"
                   onClick={() =>
                     workspaceSlug &&
-                    navigate(`/w/${workspaceSlug}/ai/agents?type=coworker`)
+                    navigate(`/w/${workspaceSlug}/ai/coworkers`)
                   }
                 >
                   Coworkers

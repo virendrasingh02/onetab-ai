@@ -1,5 +1,19 @@
-import { PageBar, PageTabBar, ResponsiveTabs, Tabs, TabsTrigger } from '@org/ui';
-import { Bot, GitBranch, ListChecks, Server, ShieldCheck, Users, Wrench } from 'lucide-react';
+import {
+  PageBar,
+  PageTabBar,
+  ResponsiveTabs,
+  Tabs,
+  TabsTrigger,
+} from '@org/ui';
+import {
+  Bot,
+  GitBranch,
+  ListChecks,
+  Server,
+  ShieldCheck,
+  Users,
+  Wrench,
+} from 'lucide-react';
 import type { ComponentType, ReactNode } from 'react';
 import { useLocation, useNavigate } from '../router.js';
 import { useStudioSession } from '../session-guard.js';
@@ -17,10 +31,10 @@ interface SectionPage {
 export const STUDIO_SECTIONS = {
   // Agents, coworkers and workflows are all built on the same canvas.
   agents: [
-    { segment: 'my-agents', label: 'Agents', icon: Bot },
+    { segment: 'agents', label: 'Agents', icon: Bot },
     { segment: 'coworkers', label: 'AI Coworkers', icon: Users },
     { segment: 'workflows', label: 'Workflows', icon: GitBranch },
-    { segment: 'agents', label: 'Planned', icon: ListChecks },
+    { segment: 'planned', label: 'Planned', icon: ListChecks },
   ],
   tools: [
     { segment: 'tools', label: 'All tools', icon: Wrench },
@@ -32,13 +46,19 @@ export const STUDIO_SECTIONS = {
 export type StudioSection = keyof typeof STUDIO_SECTIONS;
 
 /** The title a section's pages share — the same name as its sidebar entry. */
-const SECTION_TITLES: Record<StudioSection, { title: string; icon: ComponentType<{ className?: string }> }> = {
+const SECTION_TITLES: Record<
+  StudioSection,
+  { title: string; icon: ComponentType<{ className?: string }> }
+> = {
   agents: { title: 'Agents & Workflows', icon: Bot },
   tools: { title: 'Tools', icon: Wrench },
 };
 
 /** Full `/w/:slug/ai/<segment>` paths of a section's pages. */
-export function studioSectionPaths(slug: string, section: StudioSection): string[] {
+export function studioSectionPaths(
+  slug: string,
+  section: StudioSection,
+): string[] {
   return STUDIO_SECTIONS[section].map((t) => `/w/${slug}/ai/${t.segment}`);
 }
 
@@ -51,7 +71,9 @@ function useSectionTabs(section: StudioSection) {
     ...t,
     value: `/w/${activeWorkspace.slug}/ai/${t.segment}`,
   }));
-  const active = items.find((i) => pathname === i.value || pathname.startsWith(i.value + '/'));
+  const active = items.find(
+    (i) => pathname === i.value || pathname.startsWith(i.value + '/'),
+  );
   return { items, value: active?.value ?? items[0].value, navigate };
 }
 

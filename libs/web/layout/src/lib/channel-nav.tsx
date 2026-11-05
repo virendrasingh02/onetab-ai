@@ -264,7 +264,7 @@ function ChannelRow({
     : (activity?.level ?? 'none');
   const hasUnread = level !== 'none';
 
-  const channelPath = `/w/${workspaceSlug}/c/${channel.slug}`;
+  const channelPath = `/w/${workspaceSlug}/channels/${channel.slug}`;
 
   const handleRename = useCallback(async () => {
     const name = await prompts.promptText({
@@ -890,7 +890,10 @@ export function ChannelNav({
           const channel = sidebarLayout.unsectioned.find((c) => c.id === id);
           return (
             !!channel &&
-            isOnPath(location.pathname, `/w/${workspaceSlug}/c/${channel.slug}`)
+            isOnPath(
+              location.pathname,
+              `/w/${workspaceSlug}/channels/${channel.slug}`,
+            )
           );
         },
       }),
@@ -918,7 +921,7 @@ export function ChannelNav({
       return {
         id: channel.id,
         name: channel.name,
-        to: `/w/${workspaceSlug}/c/${channel.slug}`,
+        to: `/w/${workspaceSlug}/channels/${channel.slug}`,
         lastActiveAt: inactiveChannelLastActive[channel.id],
         icon: (
           <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
@@ -1181,9 +1184,10 @@ export function ChannelNav({
     });
 
     starredProjects.forEach((project) => {
-      const isSelected =
-        location.pathname.includes('/tasks') &&
-        location.search.includes(`project=${project.id}`);
+      const isSelected = isOnPath(
+        location.pathname,
+        `/w/${workspaceSlug}/projects/${project.slug}`,
+      );
       list.push({
         id: `project-${project.id}`,
         render: () => (

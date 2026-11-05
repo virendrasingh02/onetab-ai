@@ -73,7 +73,7 @@ export function CommandPalette({
       shortcut: 'G T',
       action: () => {
         onOpenChange(false);
-        navigate('tasks');
+        navigate('projects');
       },
     },
     {
@@ -113,11 +113,17 @@ export function CommandPalette({
       id: 'ai-chat',
       category: 'AI Workflows',
       label: 'Open AI Assistant Copilot',
-      icon: <AIModelIcon modelId="gpt-4o" size={16} className="text-accent-violet" />,
+      icon: (
+        <AIModelIcon
+          modelId="gpt-4o"
+          size={16}
+          className="text-accent-violet"
+        />
+      ),
       shortcut: 'G A',
       action: () => {
         onOpenChange(false);
-        navigate('ai-chat');
+        navigate('home');
       },
     },
     {
@@ -273,7 +279,7 @@ export function CommandPalette({
                 return (
                   <div key={item.id}>
                     {showHeading ? (
-                      <p className="px-3 pt-2 pb-1 text-[10px] font-medium tracking-wide uppercase text-subtle">
+                      <p className="px-3 pt-2 pb-1 font-medium tracking-wide text-[10px] text-subtle uppercase">
                         {item.category}
                       </p>
                     ) : null}
@@ -290,11 +296,17 @@ export function CommandPalette({
                     >
                       <div className="gap-2.5 min-w-0 flex items-center">
                         {item.icon}
-                        <span className="truncate font-medium">{item.label}</span>
+                        <span className="font-medium truncate">
+                          {item.label}
+                        </span>
                       </div>
                       <div className="gap-2 flex items-center">
                         {item.shortcut ? (
-                          <KbdShortcut shortcut={item.shortcut} size="xs" variant="muted" />
+                          <KbdShortcut
+                            shortcut={item.shortcut}
+                            size="xs"
+                            variant="muted"
+                          />
                         ) : null}
                         {isSelected ? (
                           <ArrowRight className="size-3 text-primary" />

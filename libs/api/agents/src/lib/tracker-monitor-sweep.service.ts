@@ -61,12 +61,19 @@ interface Finding {
   deepLink: string;
 }
 
-type MonitorPatch = Partial<Pick<TrackerMonitor, 'lastCheckedAt' | 'lastTriggeredAt' | 'lastResult' | 'lastError'>>;
+type MonitorPatch = Partial<
+  Pick<
+    TrackerMonitor,
+    'lastCheckedAt' | 'lastTriggeredAt' | 'lastResult' | 'lastError'
+  >
+>;
 
 function readMonitors(configuration: unknown): TrackerMonitor[] {
   if (!configuration || typeof configuration !== 'object') return [];
   const list = (configuration as Record<string, unknown>)['monitors'];
-  return Array.isArray(list) ? (list as TrackerMonitor[]).filter((m) => m && typeof m.id === 'string') : [];
+  return Array.isArray(list)
+    ? (list as TrackerMonitor[]).filter((m) => m && typeof m.id === 'string')
+    : [];
 }
 
 function plural(n: number, word: string): string {
@@ -117,11 +124,16 @@ export class TrackerMonitorSweepService {
         },
       });
       for (const coworker of coworkers) {
-        const due = readMonitors(coworker.configuration).filter((m) => isMonitorDue(m, now));
+        const due = readMonitors(coworker.configuration).filter((m) =>
+          isMonitorDue(m, now),
+        );
         if (due.length === 0) continue;
         const patches = new Map<string, MonitorPatch>();
         for (const monitor of due) {
-          patches.set(monitor.id, await this.checkMonitor(coworker, monitor, now));
+          patches.set(
+            monitor.id,
+            await this.checkMonitor(coworker, monitor, now),
+          );
           checked++;
         }
         await this.saveState(coworker.id, patches);
@@ -135,12 +147,26 @@ export class TrackerMonitorSweepService {
   }
 
   /** "Check now" from the coworker's profile: one monitor, out of schedule. */
-  async checkNow(workspaceId: string, coworkerId: string, monitorId: string): Promise<TrackerMonitor | null> {
+  async checkNow(
+    workspaceId: string,
+    coworkerId: string,
+    monitorId: string,
+  ): Promise<TrackerMonitor | null> {
     const coworker = await this.prisma.aIAgent.findFirst({
       where: { id: coworkerId, workspaceId, type: 'coworker' },
-      select: { id: true, workspaceId: true, name: true, type: true, creatorId: true, matrixUserId: true, configuration: true },
+      select: {
+        id: true,
+        workspaceId: true,
+        name: true,
+        type: true,
+        creatorId: true,
+        matrixUserId: true,
+        configuration: true,
+      },
     });
-    const monitor = coworker ? readMonitors(coworker.configuration).find((m) => m.id === monitorId) : undefined;
+    const monitor = coworker
+      ? readMonitors(coworker.configuration).find((m) => m.id === monitorId)
+      : undefined;
     if (!coworker || !monitor) return null;
     const patch = await this.checkMonitor(coworker, monitor, new Date());
     await this.saveState(coworker.id, new Map([[monitor.id, patch]]));
@@ -148,12 +174,23 @@ export class TrackerMonitorSweepService {
   }
 
   /** Checks one monitor now and reports any finding. Never throws. */
-  async checkMonitor(coworker: MonitorCoworker, monitor: TrackerMonitor, now: Date): Promise<MonitorPatch> {
+  async checkMonitor(
+    coworker: MonitorCoworker,
+    monitor: TrackerMonitor,
+    now: Date,
+  ): Promise<MonitorPatch> {
     const checkedAt = now.toISOString();
     try {
       const ownerId = monitor.createdBy ?? coworker.creatorId;
-      if (!ownerId || !(await this.isActiveMember(coworker.workspaceId, ownerId))) {
-        return { lastCheckedAt: checkedAt, lastError: 'The person who set up this monitor is no longer in the workspace.' };
+      if (
+        !ownerId ||
+        !(await this.isActiveMember(coworker.workspaceId, ownerId))
+      ) {
+        return {
+          lastCheckedAt: checkedAt,
+          lastError:
+            'The person who set up this monitor is no longer in the workspace.',
+        };
       }
       const check = classifyMonitor(monitor);
       if (check === 'unsupported') {
@@ -163,16 +200,30 @@ export class TrackerMonitorSweepService {
         };
       }
       const scope = await this.resolveScope(coworker.workspaceId, monitor);
-      if ('error' in scope) return { lastCheckedAt: checkedAt, lastError: scope.error };
+      if ('error' in scope)
+        return { lastCheckedAt: checkedAt, lastError: scope.error };
 
-      const since = monitor.lastCheckedAt ? new Date(monitor.lastCheckedAt) : null;
+      const since = monitor.lastCheckedAt
+        ? new Date(monitor.lastCheckedAt)
+        : null;
       const timezone = await this.timezoneOf(ownerId);
-      const finding = await this.evaluate(check, coworker.workspaceId, scope, since, now, monitor, timezone);
+      const finding = await this.evaluate(
+        check,
+        coworker.workspaceId,
+        scope,
+        since,
+        now,
+        monitor,
+        timezone,
+      );
       if (finding.count === 0) {
         return {
           lastCheckedAt: checkedAt,
           lastError: null,
-          lastResult: { count: 0, summary: `Nothing to report in ${scope.label}.` },
+          lastResult: {
+            count: 0,
+            summary: `Nothing to report in ${scope.label}.`,
+          },
         };
       }
 
@@ -199,12 +250,20 @@ export class TrackerMonitorSweepService {
         lastResult: { count: finding.count, summary: finding.title },
       };
     } catch (error) {
-      this.logger.warn(`Monitor ${monitor.id} on ${coworker.name} failed: ${String(error)}`);
-      return { lastCheckedAt: checkedAt, lastError: 'The last check failed; Tracker will try again.' };
+      this.logger.warn(
+        `Monitor ${monitor.id} on ${coworker.name} failed: ${String(error)}`,
+      );
+      return {
+        lastCheckedAt: checkedAt,
+        lastError: 'The last check failed; Tracker will try again.',
+      };
     }
   }
 
-  private async isActiveMember(workspaceId: string, userId: string): Promise<boolean> {
+  private async isActiveMember(
+    workspaceId: string,
+    userId: string,
+  ): Promise<boolean> {
     const count = await this.prisma.workspaceMember.count({
       where: { workspaceId, userId, status: 'ACTIVE' },
     });
@@ -212,19 +271,33 @@ export class TrackerMonitorSweepService {
   }
 
   private async timezoneOf(userId: string): Promise<string> {
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { timezone: true } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { timezone: true },
+    });
     return user?.timezone || 'UTC';
   }
 
   /** The project a monitor names, or the whole workspace. */
-  private async resolveScope(workspaceId: string, monitor: TrackerMonitor): Promise<Scope | { error: string }> {
+  private async resolveScope(
+    workspaceId: string,
+    monitor: TrackerMonitor,
+  ): Promise<Scope | { error: string }> {
     const target = (monitor.target ?? '').trim();
-    if (isWholeWorkspaceTarget(target)) return { projectId: null, label: 'the workspace' };
+    if (isWholeWorkspaceTarget(target))
+      return { projectId: null, label: 'the workspace' };
     const select = { id: true, name: true } as const;
     const base = { workspaceId, deletedAt: null };
     const project =
       (await this.prisma.project.findFirst({
-        where: { ...base, OR: [{ id: target }, { slug: target }, { name: { equals: target, mode: 'insensitive' } }] },
+        where: {
+          ...base,
+          OR: [
+            { id: target },
+            { slug: target },
+            { name: { equals: target, mode: 'insensitive' } },
+          ],
+        },
         select,
       })) ??
       (await this.prisma.project.findFirst({
@@ -233,7 +306,9 @@ export class TrackerMonitorSweepService {
         orderBy: { updatedAt: 'desc' },
       }));
     if (!project) {
-      return { error: `No project matches “${target}”. Set the target to a project name or “All tasks”.` };
+      return {
+        error: `No project matches “${target}”. Set the target to a project name or “All tasks”.`,
+      };
     }
     return { projectId: project.id, label: project.name };
   }
@@ -257,12 +332,15 @@ export class TrackerMonitorSweepService {
     monitor: TrackerMonitor,
     timezone: string,
   ): Promise<Finding> {
-    if (check === 'project_progress') return this.projectProgress(workspaceId, scope, since, now);
+    if (check === 'project_progress')
+      return this.projectProgress(workspaceId, scope, since, now);
 
     const where = this.taskScope(workspaceId, scope);
     // First check: everything already matching (or, for "what happened",
     // the last interval). Later checks: only what is new since the last one.
-    const windowStart = since ?? new Date(now.getTime() - monitorIntervalMinutes(monitor) * 60_000);
+    const windowStart =
+      since ??
+      new Date(now.getTime() - monitorIntervalMinutes(monitor) * 60_000);
     const dayMs = 86_400_000;
     let filter: Prisma.TaskWhereInput;
     let orderBy: Prisma.TaskOrderByWithRelationInput;
@@ -278,7 +356,9 @@ export class TrackerMonitorSweepService {
         filter = {
           status: { in: [...OPEN_STATUSES] },
           dueDate: {
-            gt: since ? new Date(Math.max(now.getTime(), since.getTime() + dayMs)) : now,
+            gt: since
+              ? new Date(Math.max(now.getTime(), since.getTime() + dayMs))
+              : now,
             lte: new Date(now.getTime() + dayMs),
           },
         };
@@ -289,7 +369,10 @@ export class TrackerMonitorSweepService {
         orderBy = { completedAt: 'desc' };
         break;
       default:
-        filter = { updatedAt: { gt: windowStart, lte: now }, createdAt: { lte: windowStart } };
+        filter = {
+          updatedAt: { gt: windowStart, lte: now },
+          createdAt: { lte: windowStart },
+        };
         orderBy = { updatedAt: 'desc' };
     }
 
@@ -310,7 +393,11 @@ export class TrackerMonitorSweepService {
       take: READ_LIMIT,
     });
 
-    const fmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: timezone });
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      timeZone: timezone,
+    });
     const fmtTime = new Intl.DateTimeFormat('en-US', {
       weekday: 'short',
       hour: 'numeric',
@@ -322,7 +409,9 @@ export class TrackerMonitorSweepService {
     const detail = (t: FoundTask): string => {
       switch (check) {
         case 'overdue':
-          return t.dueDate ? `due ${fmt.format(t.dueDate)}, ${describeLateness(t.dueDate, now)} overdue` : 'overdue';
+          return t.dueDate
+            ? `due ${fmt.format(t.dueDate)}, ${describeLateness(t.dueDate, now)} overdue`
+            : 'overdue';
         case 'due_soon':
           return t.dueDate ? `due ${fmtTime.format(t.dueDate)}` : 'due soon';
         case 'completed':
@@ -351,18 +440,31 @@ export class TrackerMonitorSweepService {
       tasks,
       lines: tasks.map((t) => `${label(t)} — ${detail(t)}`),
       deepLink:
-        count === 1 ? `tasks?taskId=${tasks[0].id}` : scope.projectId ? `tasks/${scope.projectId}` : 'tasks',
+        count === 1
+          ? `projects?taskId=${tasks[0].id}`
+          : scope.projectId
+            ? `projects/${scope.projectId}`
+            : 'tasks',
     };
   }
 
   /** Progress per project; reported when something in it moved (or on the first check). */
-  private async projectProgress(workspaceId: string, scope: Scope, since: Date | null, now: Date): Promise<Finding> {
+  private async projectProgress(
+    workspaceId: string,
+    scope: Scope,
+    since: Date | null,
+    now: Date,
+  ): Promise<Finding> {
     const projects = await this.prisma.project.findMany({
       where: {
         workspaceId,
         deletedAt: null,
-        ...(scope.projectId ? { id: scope.projectId } : { status: { in: ['ACTIVE', 'PLANNING'] } }),
-        ...(since ? { tasks: { some: { deletedAt: null, updatedAt: { gt: since } } } } : {}),
+        ...(scope.projectId
+          ? { id: scope.projectId }
+          : { status: { in: ['ACTIVE', 'PLANNING'] } }),
+        ...(since
+          ? { tasks: { some: { deletedAt: null, updatedAt: { gt: since } } } }
+          : {}),
       },
       select: { id: true, name: true, health: true },
       orderBy: { updatedAt: 'desc' },
@@ -371,15 +473,33 @@ export class TrackerMonitorSweepService {
     const lines: string[] = [];
     for (const project of projects) {
       const [total, done, overdue] = await Promise.all([
-        this.prisma.task.count({ where: { projectId: project.id, deletedAt: null, status: { not: 'CANCELLED' } } }),
-        this.prisma.task.count({ where: { projectId: project.id, deletedAt: null, status: 'DONE' } }),
         this.prisma.task.count({
-          where: { projectId: project.id, deletedAt: null, status: { in: [...OPEN_STATUSES] }, dueDate: { lt: now } },
+          where: {
+            projectId: project.id,
+            deletedAt: null,
+            status: { not: 'CANCELLED' },
+          },
+        }),
+        this.prisma.task.count({
+          where: { projectId: project.id, deletedAt: null, status: 'DONE' },
+        }),
+        this.prisma.task.count({
+          where: {
+            projectId: project.id,
+            deletedAt: null,
+            status: { in: [...OPEN_STATUSES] },
+            dueDate: { lt: now },
+          },
         }),
       ]);
       const pct = total ? Math.round((done / total) * 100) : 0;
-      const health = project.health !== 'HEALTHY' ? `, ${project.health.replace(/_/g, ' ').toLowerCase()}` : '';
-      lines.push(`${project.name} — ${done}/${total} done (${pct}%)${overdue ? `, ${overdue} overdue` : ''}${health}`);
+      const health =
+        project.health !== 'HEALTHY'
+          ? `, ${project.health.replace(/_/g, ' ').toLowerCase()}`
+          : '';
+      lines.push(
+        `${project.name} — ${done}/${total} done (${pct}%)${overdue ? `, ${overdue} overdue` : ''}${health}`,
+      );
     }
     return {
       check: 'project_progress',
@@ -390,13 +510,15 @@ export class TrackerMonitorSweepService {
       count: projects.length,
       tasks: [],
       lines,
-      deepLink: projects.length === 1 ? `tasks/${projects[0].id}` : 'projects',
+      deepLink:
+        projects.length === 1 ? `projects/${projects[0].id}` : 'projects',
     };
   }
 
   private bodyOf(lines: string[]): string {
     const shown = lines.slice(0, LIST_LIMIT).map((l) => `• ${l}`);
-    if (lines.length > LIST_LIMIT) shown.push(`…and ${lines.length - LIST_LIMIT} more`);
+    if (lines.length > LIST_LIMIT)
+      shown.push(`…and ${lines.length - LIST_LIMIT} more`);
     return shown.join('\n');
   }
 
@@ -409,7 +531,12 @@ export class TrackerMonitorSweepService {
   ): Promise<string[]> {
     const where = parseMonitorDestinations(monitor.destinations);
     const notes: string[] = [];
-    const notify = async (recipientId: string, title: string, lines: string[], deepLink: string) => {
+    const notify = async (
+      recipientId: string,
+      title: string,
+      lines: string[],
+      deepLink: string,
+    ) => {
       const event: AiAgentMessageEvent = {
         workspaceId: coworker.workspaceId,
         recipientId,
@@ -424,14 +551,22 @@ export class TrackerMonitorSweepService {
     };
 
     if (where.owner) {
-      await notify(ownerId, `${coworker.name}: ${finding.title}`, finding.lines, finding.deepLink);
+      await notify(
+        ownerId,
+        `${coworker.name}: ${finding.title}`,
+        finding.lines,
+        finding.deepLink,
+      );
       notes.push('owner notified');
     }
 
     if (where.assignees && finding.tasks.length) {
       const byPerson = new Map<string, FoundTask[]>();
       for (const task of finding.tasks) {
-        for (const id of new Set([...task.assigneeIds, ...(task.assigneeId ? [task.assigneeId] : [])])) {
+        for (const id of new Set([
+          ...task.assigneeIds,
+          ...(task.assigneeId ? [task.assigneeId] : []),
+        ])) {
           if (where.owner && id === ownerId) continue;
           byPerson.set(id, [...(byPerson.get(id) ?? []), task]);
         }
@@ -439,7 +574,11 @@ export class TrackerMonitorSweepService {
       const active = new Set(
         (
           await this.prisma.workspaceMember.findMany({
-            where: { workspaceId: coworker.workspaceId, userId: { in: [...byPerson.keys()] }, status: 'ACTIVE' },
+            where: {
+              workspaceId: coworker.workspaceId,
+              userId: { in: [...byPerson.keys()] },
+              status: 'ACTIVE',
+            },
             select: { userId: true },
           })
         ).map((m) => m.userId),
@@ -447,12 +586,21 @@ export class TrackerMonitorSweepService {
       let told = 0;
       for (const [personId, tasks] of byPerson) {
         if (!active.has(personId)) continue;
-        const own = finding.lines.filter((_, i) => tasks.includes(finding.tasks[i]));
+        const own = finding.lines.filter((_, i) =>
+          tasks.includes(finding.tasks[i]),
+        );
         const title =
           finding.check === 'overdue'
             ? `${coworker.name}: you have ${plural(tasks.length, 'overdue task')}`
             : `${coworker.name}: ${plural(tasks.length, 'of your tasks')} — ${monitor.condition}`;
-        await notify(personId, title, own, tasks.length === 1 ? `tasks?taskId=${tasks[0].id}` : finding.deepLink);
+        await notify(
+          personId,
+          title,
+          own,
+          tasks.length === 1
+            ? `projects?taskId=${tasks[0].id}`
+            : finding.deepLink,
+        );
         told++;
       }
       notes.push(`${plural(told, 'assignee')} notified`);
@@ -463,7 +611,11 @@ export class TrackerMonitorSweepService {
         where: {
           workspaceId: coworker.workspaceId,
           isArchived: false,
-          OR: [{ id: ref }, { slug: ref.toLowerCase() }, { name: { equals: ref, mode: 'insensitive' } }],
+          OR: [
+            { id: ref },
+            { slug: ref.toLowerCase() },
+            { name: { equals: ref, mode: 'insensitive' } },
+          ],
         },
         select: { id: true, name: true },
       });
@@ -481,7 +633,9 @@ export class TrackerMonitorSweepService {
           ),
         );
       } catch (error) {
-        notes.push(`#${channel.name}: failed — ${error instanceof Error ? error.message : String(error)}`);
+        notes.push(
+          `#${channel.name}: failed — ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }
     return notes;
@@ -500,29 +654,55 @@ export class TrackerMonitorSweepService {
           agentId: coworker.id,
           status: 'SUCCESS',
           promptText: `Monitor “${monitor.name ?? monitor.target}” — checked ${monitor.condition}`,
-          outputResult: [finding.title, this.bodyOf(finding.lines), delivered.length ? `Sent: ${delivered.join('; ')}` : '']
+          outputResult: [
+            finding.title,
+            this.bodyOf(finding.lines),
+            delivered.length ? `Sent: ${delivered.join('; ')}` : '',
+          ]
             .filter(Boolean)
             .join('\n\n'),
           toolCalls: JSON.stringify([
-            { name: 'monitor_check', status: 'success', input: { monitorId: monitor.id, check: finding.check } },
+            {
+              name: 'monitor_check',
+              status: 'success',
+              input: { monitorId: monitor.id, check: finding.check },
+            },
           ]),
         },
       });
-      await this.prisma.aIAgent.update({ where: { id: coworker.id }, data: { lastActiveAt: new Date() } });
+      await this.prisma.aIAgent.update({
+        where: { id: coworker.id },
+        data: { lastActiveAt: new Date() },
+      });
     } catch (error) {
-      this.logger.warn(`Could not log monitor activity for ${coworker.id}: ${String(error)}`);
+      this.logger.warn(
+        `Could not log monitor activity for ${coworker.id}: ${String(error)}`,
+      );
     }
   }
 
   /** Merges check results into the latest stored monitors (they may have been edited meanwhile). */
-  private async saveState(coworkerId: string, patches: Map<string, MonitorPatch>): Promise<void> {
-    const fresh = await this.prisma.aIAgent.findUnique({ where: { id: coworkerId }, select: { configuration: true } });
+  private async saveState(
+    coworkerId: string,
+    patches: Map<string, MonitorPatch>,
+  ): Promise<void> {
+    const fresh = await this.prisma.aIAgent.findUnique({
+      where: { id: coworkerId },
+      select: { configuration: true },
+    });
     if (!fresh) return;
     const config = (fresh.configuration ?? {}) as Record<string, unknown>;
-    const monitors = readMonitors(config).map((m) => (patches.has(m.id) ? { ...m, ...patches.get(m.id) } : m));
+    const monitors = readMonitors(config).map((m) =>
+      patches.has(m.id) ? { ...m, ...patches.get(m.id) } : m,
+    );
     await this.prisma.aIAgent.update({
       where: { id: coworkerId },
-      data: { configuration: { ...config, monitors } as unknown as Prisma.InputJsonValue },
+      data: {
+        configuration: {
+          ...config,
+          monitors,
+        } as unknown as Prisma.InputJsonValue,
+      },
     });
   }
 }

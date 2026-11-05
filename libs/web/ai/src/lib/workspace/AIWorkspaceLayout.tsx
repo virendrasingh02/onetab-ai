@@ -138,7 +138,7 @@ export function NewAIResourceMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72">
         <DropdownMenuItem
-          onSelect={() => navigate(aiWorkspacePath(slug, 'studio', 'new'))}
+          onSelect={() => navigate(aiWorkspacePath(slug, 'planned', 'new'))}
         >
           <Sparkles className="size-4" aria-hidden />
           <div className="flex flex-col">
@@ -150,7 +150,7 @@ export function NewAIResourceMenu({
         </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={() =>
-            navigate(`${aiWorkspacePath(slug, 'agents')}?view=templates`)
+            navigate(`${aiWorkspacePath(slug, 'planned')}?view=templates`)
           }
         >
           <LayoutTemplate className="size-4" aria-hidden />
@@ -182,7 +182,7 @@ export function NewAIResourceMenu({
         <DropdownMenuItem
           disabled={!canCreateCoworkers}
           onSelect={() =>
-            navigate(`${aiWorkspacePath(slug, 'agents')}?create=coworker`)
+            navigate(`${aiWorkspacePath(slug, 'planned')}?create=coworker`)
           }
         >
           <UserCheck className="size-4" aria-hidden />

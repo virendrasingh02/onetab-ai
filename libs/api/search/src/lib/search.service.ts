@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, PrismaService } from '@org/database';
-import { CANVAS_AGENT_TRIGGER, type SearchCategory, type SearchResultItem } from '@org/types';
+import {
+  CANVAS_AGENT_TRIGGER,
+  type SearchCategory,
+  type SearchResultItem,
+} from '@org/types';
 import { docContentToText } from '@org/utils';
 
 // One definition, shared with the web client.
@@ -142,7 +146,7 @@ export class SearchService {
           category,
           title: `#${row.name}`,
           snippet: row.topic ?? row.description ?? undefined,
-          href: `c/${row.slug}`,
+          href: `channels/${row.slug}`,
           score: Number(row.score),
           timestamp: row.updatedAt.toISOString(),
         }));
@@ -244,7 +248,7 @@ export class SearchService {
           snippet: row.description
             ? snippet(row.description, query)
             : undefined,
-          href: row.projectId ? `tasks/${row.projectId}` : `tasks`,
+          href: row.projectId ? `projects/${row.projectId}` : `tasks`,
           score: Number(row.score),
           timestamp: row.updatedAt.toISOString(),
           metadata: {
@@ -282,7 +286,7 @@ export class SearchService {
           title: row.name,
           snippet: row.description ?? undefined,
           timestamp: row.updatedAt.toISOString(),
-          href: `tasks/${row.id}`,
+          href: `projects/${row.id}`,
           score: Number(row.score),
           metadata: { status: row.status },
         }));
@@ -398,9 +402,19 @@ export class SearchService {
           where: {
             workspaceId,
             deletedAt: null,
-            OR: [{ title: contains }, { description: contains }, { agenda: contains }],
+            OR: [
+              { title: contains },
+              { description: contains },
+              { agenda: contains },
+            ],
           },
-          select: { id: true, title: true, startAt: true, status: true, updatedAt: true },
+          select: {
+            id: true,
+            title: true,
+            startAt: true,
+            status: true,
+            updatedAt: true,
+          },
           orderBy: { startAt: 'desc' },
           take,
         });
@@ -426,7 +440,14 @@ export class SearchService {
             triggerType: { not: CANVAS_AGENT_TRIGGER },
             OR: [{ name: contains }, { description: contains }],
           },
-          select: { id: true, name: true, description: true, isActive: true, agentProfile: true, updatedAt: true },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            isActive: true,
+            agentProfile: true,
+            updatedAt: true,
+          },
           orderBy: { updatedAt: 'desc' },
           take,
         });
@@ -441,7 +462,10 @@ export class SearchService {
             }`,
             href: isAgent ? `ai/studio/${row.id}` : `ai/workflows/${row.id}`,
             timestamp: row.updatedAt.toISOString(),
-            metadata: { kind: isAgent ? 'agent' : 'workflow', isActive: row.isActive },
+            metadata: {
+              kind: isAgent ? 'agent' : 'workflow',
+              isActive: row.isActive,
+            },
           };
         });
       }

@@ -28,22 +28,11 @@ export function isRouteActive(
 
   // 3. Known aliases & hierarchical prefixes
   if (itemHref === 'tasks') {
-    return (
-      pathname.startsWith(`${basePath}/tasks`) ||
-      pathname.startsWith(`${basePath}/kanban`) ||
-      pathname.startsWith(`${basePath}/projects`) ||
-      pathname.startsWith(`${basePath}/work`) ||
-      pathname.startsWith(`${basePath}/cycles`) ||
-      pathname.startsWith(`${basePath}/intake`) ||
-      pathname.startsWith(`${basePath}/initiatives`)
-    );
+    return pathname.startsWith(`${basePath}/projects`);
   }
 
   if (itemHref === 'docs') {
-    return (
-      pathname.startsWith(`${basePath}/docs`) ||
-      pathname.startsWith(`${basePath}/notes`)
-    );
+    return pathname.startsWith(`${basePath}/docs`);
   }
 
   // The AI Workspace also owns the legacy entry points that redirect into it.

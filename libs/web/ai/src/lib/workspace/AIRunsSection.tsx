@@ -1,5 +1,9 @@
 import { aiFeedbackApi } from '@org/api-client';
-import type { AIExecution, AIExecutionFilter, AIExecutionStatus } from '@org/types';
+import type {
+  AIExecution,
+  AIExecutionFilter,
+  AIExecutionStatus,
+} from '@org/types';
 import {
   AIRunStatusBadge,
   Button,
@@ -66,7 +70,9 @@ export function AIRunsSection() {
   const filters: AIExecutionFilter = {
     ...(type !== 'ALL' ? { entityType: type } : {}),
     ...(status !== 'ALL' ? { status } : {}),
-    ...(params.get('entity') ? { entityId: params.get('entity') as string } : {}),
+    ...(params.get('entity')
+      ? { entityId: params.get('entity') as string }
+      : {}),
     limit: 100,
   };
   const runs = useAIRuns(workspaceId, filters);
@@ -85,7 +91,7 @@ export function AIRunsSection() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="gap-3 flex flex-wrap items-center">
         <SegmentedControl
           aria-label="Filter runs by type"
           size="sm"
@@ -101,8 +107,14 @@ export function AIRunsSection() {
           onChange={(v) => setParam('status', v)}
         />
         {params.get('entity') ? (
-          <Button variant="ghost" size="sm" onClick={() => setParam('entity', null)}>
-            Showing one {subjects.get(params.get('entity') as string)?.kind ?? 'item'} · Clear
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setParam('entity', null)}
+          >
+            Showing one{' '}
+            {subjects.get(params.get('entity') as string)?.kind ?? 'item'} ·
+            Clear
           </Button>
         ) : null}
       </div>
@@ -110,15 +122,22 @@ export function AIRunsSection() {
       {runs.isLoading ? (
         <LoadingState label="Loading runs…" />
       ) : runs.isError ? (
-        <ErrorState title="Couldn't load runs" onRetry={() => void runs.refetch()} />
+        <ErrorState
+          title="Couldn't load runs"
+          onRetry={() => void runs.refetch()}
+        />
       ) : (runs.data ?? []).length === 0 ? (
         <EmptyState
           icon={<Activity />}
-          title={type === 'ALL' && status === 'ALL' ? 'No runs yet' : 'No runs match these filters'}
+          title={
+            type === 'ALL' && status === 'ALL'
+              ? 'No runs yet'
+              : 'No runs match these filters'
+          }
           description="Runs appear here when an agent answers, is tested or runs on a schedule, and when a workflow is triggered."
         />
       ) : (
-        <Card className="divide-y divide-border overflow-hidden p-0">
+        <Card className="p-0 divide-y divide-border overflow-hidden">
           {(runs.data ?? []).map((run) => (
             <RunRow
               key={run.id}
@@ -134,36 +153,61 @@ export function AIRunsSection() {
         workspaceId={workspaceId}
         slug={slug}
         runId={openRunId}
-        subject={openRunId ? subjects.get(runs.data?.find((r) => r.id === openRunId)?.entityId ?? '') : undefined}
+        subject={
+          openRunId
+            ? subjects.get(
+                runs.data?.find((r) => r.id === openRunId)?.entityId ?? '',
+              )
+            : undefined
+        }
         onClose={() => setParam('run', null)}
       />
     </div>
   );
 }
 
-function RunRow({ run, subject, onOpen }: { run: AIExecution; subject?: RunSubject; onOpen: () => void }) {
-  const prompt = typeof run.stateJson?.['prompt'] === 'string' ? (run.stateJson['prompt'] as string) : null;
+function RunRow({
+  run,
+  subject,
+  onOpen,
+}: {
+  run: AIExecution;
+  subject?: RunSubject;
+  onOpen: () => void;
+}) {
+  const prompt =
+    typeof run.stateJson?.['prompt'] === 'string'
+      ? (run.stateJson['prompt'] as string)
+      : null;
   return (
     <button
       type="button"
       onClick={onOpen}
-      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm transition-colors hover:bg-accent/40 focus-visible:bg-accent/40 focus-visible:outline-none"
+      className="gap-3 px-4 py-3 text-sm flex w-full items-center justify-between text-left transition-colors hover:bg-accent/40 focus-visible:bg-accent/40 focus-visible:outline-none"
     >
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="min-w-0 gap-3 flex items-center">
         <AIRunStatusBadge status={run.status} />
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="truncate font-medium text-foreground">{subject?.name ?? 'Deleted item'}</span>
-            <span className="shrink-0 text-xs capitalize text-muted-foreground">
+          <div className="gap-2 flex items-center">
+            <span className="font-medium truncate text-foreground">
+              {subject?.name ?? 'Deleted item'}
+            </span>
+            <span className="text-xs shrink-0 text-muted-foreground capitalize">
               {subject?.kind ?? run.entityType.toLowerCase()}
             </span>
           </div>
-          {prompt ? <p className="truncate text-xs text-muted-foreground">{prompt}</p> : null}
+          {prompt ? (
+            <p className="text-xs truncate text-muted-foreground">{prompt}</p>
+          ) : null}
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-4 text-xs tabular-nums text-muted-foreground">
-        <span className="hidden sm:inline">{run.tokensUsed.toLocaleString()} tokens</span>
-        <span className="hidden md:inline">{(run.latencyMs / 1000).toFixed(1)}s</span>
+      <div className="gap-4 text-xs flex shrink-0 items-center text-muted-foreground tabular-nums">
+        <span className="sm:inline hidden">
+          {run.tokensUsed.toLocaleString()} tokens
+        </span>
+        <span className="md:inline hidden">
+          {(run.latencyMs / 1000).toFixed(1)}s
+        </span>
         <span>{formatRelative(run.startedAt)}</span>
       </div>
     </button>
@@ -186,9 +230,13 @@ function RunDetailSheet({
   const run = useAIRun(workspaceId, runId);
   const feedback = useMutation({
     mutationFn: (rating: 1 | -1) =>
-      aiFeedbackApi.submit(workspaceId as string, { executionId: runId as string, rating }),
+      aiFeedbackApi.submit(workspaceId as string, {
+        executionId: runId as string,
+        rating,
+      }),
     onSuccess: () => toast.success('Thanks — feedback recorded'),
-    onError: (err) => toast.error('Could not save feedback', { description: errorText(err) }),
+    onError: (err) =>
+      toast.error('Could not save feedback', { description: errorText(err) }),
   });
 
   const data = run.data;
@@ -196,33 +244,52 @@ function RunDetailSheet({
   const openLink =
     data && kind
       ? kind === 'workflow'
-        ? aiWorkspacePath(slug, 'studio', data.entityId)
+        ? aiWorkspacePath(slug, 'planned', data.entityId)
         : aiWorkspacePath(slug, 'agents', data.entityId)
       : null;
 
   return (
     <Sheet open={Boolean(runId)} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
+      <SheetContent className="sm:max-w-2xl w-full overflow-y-auto">
         <SheetHeader>
           <SheetTitle>{subject?.name ?? 'Run'}</SheetTitle>
-          <SheetDescription>{data ? `Run ${data.id.slice(0, 8)}` : 'Loading…'}</SheetDescription>
+          <SheetDescription>
+            {data ? `Run ${data.id.slice(0, 8)}` : 'Loading…'}
+          </SheetDescription>
         </SheetHeader>
         {runId ? (
           <div className="space-y-4 px-4 pb-6">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="gap-2 flex flex-wrap items-center">
               {openLink ? (
-                <Button variant="outline" size="sm" asChild leadingIcon={<ExternalLink />}>
-                  <Link to={openLink}>Open {kind === 'workflow' ? 'agent' : kind}</Link>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  asChild
+                  leadingIcon={<ExternalLink />}
+                >
+                  <Link to={openLink}>
+                    Open {kind === 'workflow' ? 'agent' : kind}
+                  </Link>
                 </Button>
               ) : null}
-              <div className="ml-auto flex items-center gap-1">
+              <div className="gap-1 ml-auto flex items-center">
                 <Hint label="Good result">
-                  <Button variant="ghost" size="icon-sm" aria-label="Good result" onClick={() => feedback.mutate(1)}>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Good result"
+                    onClick={() => feedback.mutate(1)}
+                  >
                     <ThumbsUp className="size-4" />
                   </Button>
                 </Hint>
                 <Hint label="Bad result">
-                  <Button variant="ghost" size="icon-sm" aria-label="Bad result" onClick={() => feedback.mutate(-1)}>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Bad result"
+                    onClick={() => feedback.mutate(-1)}
+                  >
                     <ThumbsDown className="size-4" />
                   </Button>
                 </Hint>
@@ -232,7 +299,11 @@ function RunDetailSheet({
               workspaceId={workspaceId}
               slug={slug}
               runId={runId}
-              permissionsHref={kind === 'workflow' && data ? `${aiWorkspacePath(slug, 'studio', data.entityId)}?tab=plan` : undefined}
+              permissionsHref={
+                kind === 'workflow' && data
+                  ? `${aiWorkspacePath(slug, 'planned', data.entityId)}?tab=plan`
+                  : undefined
+              }
             />
           </div>
         ) : null}

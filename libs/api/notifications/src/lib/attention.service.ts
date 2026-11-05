@@ -93,7 +93,7 @@ export class AttentionService {
             label: 'Open Task',
             kind: 'secondary',
             actionType: 'NAVIGATE',
-            href: `tasks?taskId=${task.id}`,
+            href: `projects?taskId=${task.id}`,
           },
           {
             id: 'snooze',
@@ -117,15 +117,15 @@ export class AttentionService {
           description: isOverdue
             ? `Was due on ${task.dueDate?.toLocaleDateString()}`
             : isDueSoon
-            ? `Due soon: ${task.dueDate?.toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}`
-            : `High priority task in progress`,
+              ? `Due soon: ${task.dueDate?.toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}`
+              : `High priority task in progress`,
           priorityScore,
           sourceType: 'task',
           sourceId: task.id,
-          deepLink: `tasks?taskId=${task.id}`,
+          deepLink: `projects?taskId=${task.id}`,
           timestamp: (task.dueDate ?? task.createdAt).toISOString(),
           dueDate: task.dueDate ? task.dueDate.toISOString() : null,
           actor: task.reporter
@@ -171,10 +171,10 @@ export class AttentionService {
           kind: 'primary',
           actionType: 'NAVIGATE',
           href: mention.channelId
-            ? `c/${mention.channelId}`
+            ? `channels/${mention.channelId}`
             : mention.resourceType
-            ? `${mention.resourceType}s`
-            : 'inbox',
+              ? `${mention.resourceType}s`
+              : 'inbox',
         },
         {
           id: 'dismiss',
@@ -194,10 +194,10 @@ export class AttentionService {
         sourceType: 'mention',
         sourceId: mention.id,
         deepLink: mention.channelId
-          ? `c/${mention.channelId}`
+          ? `channels/${mention.channelId}`
           : mention.resourceType
-          ? `${mention.resourceType}s`
-          : 'inbox',
+            ? `${mention.resourceType}s`
+            : 'inbox',
         timestamp: mention.occurredAt.toISOString(),
         actions,
       });

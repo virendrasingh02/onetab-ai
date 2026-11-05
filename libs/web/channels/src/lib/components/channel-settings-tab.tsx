@@ -109,17 +109,17 @@ export function ChannelSettingsTab({
           <button
             type="button"
             onClick={onOpenPosting}
-            className="gap-3 p-3 flex w-full items-center rounded-card text-left outline-none transition-colors hover:bg-accent/50 focus-visible:ring-1 focus-visible:ring-ring"
+            className="gap-3 p-3 flex w-full items-center rounded-card text-left transition-colors outline-none hover:bg-accent/50 focus-visible:ring-1 focus-visible:ring-ring"
           >
             <Megaphone
-              className="size-4 shrink-0 self-start mt-0.5 text-muted-foreground"
+              className="size-4 mt-0.5 shrink-0 self-start text-muted-foreground"
               aria-hidden
             />
             <span className="min-w-0 flex-1">
-              <span className="block text-sm font-semibold text-foreground">
+              <span className="text-sm font-semibold block text-foreground">
                 Posting permissions
               </span>
-              <span className="block text-xs text-muted-foreground">
+              <span className="text-xs block text-muted-foreground">
                 {channel.mode === 'ANNOUNCEMENT'
                   ? 'Announcement — only admins and named people can post.'
                   : 'Standard — every member can post.'}
@@ -175,9 +175,9 @@ function CardHeading({
 }) {
   return (
     <div className="space-y-1">
-      <div className="gap-2 flex min-h-5 items-center">
+      <div className="gap-2 min-h-5 flex items-center">
         <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-        <h3 className="min-w-0 flex-1 text-sm font-semibold text-foreground">
+        <h3 className="min-w-0 text-sm font-semibold flex-1 text-foreground">
           {title}
         </h3>
         {action ? <div className="shrink-0">{action}</div> : null}
@@ -224,7 +224,7 @@ function HuddlesCard({
     );
 
   const copyLink = () => {
-    const url = `${window.location.origin}/w/${workspaceSlug}/c/${channel.slug}?huddle=join`;
+    const url = `${window.location.origin}/w/${workspaceSlug}/channels/${channel.slug}?huddle=join`;
     void navigator.clipboard?.writeText(url);
     toast.success('Huddle link copied', {
       description: 'Anyone in the channel who opens it joins the huddle.',
@@ -333,7 +333,9 @@ function TabsCard({
                 channelId: channel.id,
                 input: { tabManagePolicy: value as ChannelTabPolicy },
               },
-              { onError: () => toast.error('Could not update tab permissions.') },
+              {
+                onError: () => toast.error('Could not update tab permissions.'),
+              },
             )
           }
           options={TAB_POLICY_OPTIONS}
@@ -343,7 +345,7 @@ function TabsCard({
 
         {/* The strip as members see it, in order. */}
         <div className="gap-1 flex flex-wrap items-center">
-          <Badge variant="outline" className="gap-1 text-[11px] font-medium">
+          <Badge variant="outline" className="gap-1 font-medium text-[11px]">
             <MessageSquare className="size-3" />
             Messages
           </Badge>
@@ -356,7 +358,7 @@ function TabsCard({
                 <Badge
                   key={tab.id}
                   variant="outline"
-                  className="gap-1 text-[11px] font-medium"
+                  className="gap-1 font-medium text-[11px]"
                 >
                   <Icon className="size-3" />
                   {meta.label}
@@ -451,7 +453,9 @@ function DangerZone({
 
   const isGeneral = channel.slug === 'general';
   const isPrivate = channel.visibility === ChannelVisibility.PRIVATE;
-  const target = isPrivate ? ChannelVisibility.PUBLIC : ChannelVisibility.PRIVATE;
+  const target = isPrivate
+    ? ChannelVisibility.PUBLIC
+    : ChannelVisibility.PRIVATE;
   const canSwitchVisibility =
     !isGeneral && canChangeChannelVisibility(target, viewer);
   const canArchive = canManage && !isGeneral;
@@ -523,7 +527,11 @@ function DangerZone({
       {canSwitchVisibility ? (
         <DangerRow
           icon={isPrivate ? Hash : Lock}
-          label={isPrivate ? 'Change to a public channel' : 'Change to a private channel'}
+          label={
+            isPrivate
+              ? 'Change to a public channel'
+              : 'Change to a private channel'
+          }
           onClick={() => void switchVisibility()}
           disabled={visibility.isPending}
         />
@@ -532,7 +540,9 @@ function DangerZone({
         <DangerRow
           icon={channel.isArchived ? ArchiveRestore : Archive}
           label={
-            channel.isArchived ? 'Unarchive channel' : 'Archive channel for everyone'
+            channel.isArchived
+              ? 'Unarchive channel'
+              : 'Archive channel for everyone'
           }
           tone={channel.isArchived ? 'default' : 'destructive'}
           onClick={() => void toggleArchive()}
@@ -571,7 +581,7 @@ function DangerRow({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        'gap-3 px-3 py-2.5 flex w-full items-center text-left text-sm font-medium outline-none transition-colors focus-visible:bg-accent/60 disabled:opacity-60',
+        'gap-3 px-3 py-2.5 text-sm font-medium flex w-full items-center text-left transition-colors outline-none focus-visible:bg-accent/60 disabled:opacity-60',
         tone === 'destructive'
           ? 'text-destructive hover:bg-destructive/10'
           : 'text-foreground hover:bg-accent/50',

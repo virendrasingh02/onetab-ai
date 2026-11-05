@@ -36,7 +36,7 @@ describe('useRememberWorkspacePath', () => {
 
   it('records a deep route verbatim', () => {
     renderHook(() => useRememberWorkspacePath('ws-alpha', 'alpha'), {
-      wrapper: atPath('/w/alpha/c/general'),
+      wrapper: atPath('/w/alpha/channels/general'),
     });
     expect(getPersistedLastWorkspacePath('ws-alpha')).toBe('c/general');
   });

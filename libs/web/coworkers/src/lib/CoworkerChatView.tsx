@@ -61,7 +61,8 @@ function CoworkerMessageHeader({
   onEdit: () => void;
 }) {
   const { workspaceId, slug: workspaceSlug } = useCurrentWorkspace();
-  const { isFavorite: checkFavorite, toggleFavorite } = useCoworkerFavorites(workspaceId);
+  const { isFavorite: checkFavorite, toggleFavorite } =
+    useCoworkerFavorites(workspaceId);
   const mutations = useCoworkerMutations(workspaceId);
   const openProfilePanel = useRightPanelStore((s) => s.openProfile);
   const navigate = useNavigate();
@@ -122,7 +123,7 @@ function CoworkerMessageHeader({
     try {
       await mutations.remove.mutateAsync(coworker.id);
       toast.success(`Deleted coworker ${coworker.name}`);
-      navigate(`/w/${slug}/ai/agents?type=coworker`);
+      navigate(`/w/${slug}/ai/coworkers`);
     } catch {
       toast.error('Failed to delete coworker');
     }
@@ -231,7 +232,7 @@ function CoworkerMessageHeader({
 
                 <DropdownMenuItem
                   onClick={handleDelete}
-                  className="gap-2.5 text-destructive focus:text-destructive cursor-pointer"
+                  className="gap-2.5 cursor-pointer text-destructive focus:text-destructive"
                 >
                   <Trash2 className="size-4" />
                   <span>Delete coworker</span>
@@ -335,12 +336,20 @@ export const CoworkerChatView: FC<CoworkerChatViewProps> = ({
   coworkerId: propCoworkerId,
 }) => {
   const navigate = useNavigate();
-  const params = useParams<{ slug: string; coworkerId?: string; id?: string }>();
+  const params = useParams<{
+    slug: string;
+    coworkerId?: string;
+    id?: string;
+  }>();
   const coworkerId = propCoworkerId || params.coworkerId || params.id || '';
 
   const { workspaceId = '', slug: workspaceSlug = '' } = useCurrentWorkspace();
 
-  const { data: coworker, isLoading, error } = useCoworker(workspaceId, coworkerId);
+  const {
+    data: coworker,
+    isLoading,
+    error,
+  } = useCoworker(workspaceId, coworkerId);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   /*
@@ -351,17 +360,21 @@ export const CoworkerChatView: FC<CoworkerChatViewProps> = ({
    */
   const lastCoworker = useRef<AICoworkerDetail | undefined>(undefined);
   if (coworker) lastCoworker.current = coworker;
-  const displayCoworker = error ? undefined : (coworker ?? lastCoworker.current);
+  const displayCoworker = error
+    ? undefined
+    : (coworker ?? lastCoworker.current);
 
   // Only the very first coworker opened this session — nothing to keep on
   // screen — gets the skeleton loader; every later switch renders in place.
   if (!displayCoworker && isLoading) {
-    return <ChatConversationSkeleton avatarShape="rounded" avatarSize="sm" hasTabs />;
+    return (
+      <ChatConversationSkeleton avatarShape="rounded" avatarSize="sm" hasTabs />
+    );
   }
 
   if (error || !displayCoworker) {
     return (
-      <div className="flex h-full w-full flex-col items-center justify-center p-6 bg-background">
+      <div className="p-6 flex h-full w-full flex-col items-center justify-center bg-background">
         <ErrorState
           title="Coworker Not Found"
           description="The AI Coworker you requested does not exist or has been removed from this workspace."
@@ -370,7 +383,7 @@ export const CoworkerChatView: FC<CoworkerChatViewProps> = ({
           variant="outline"
           size="sm"
           className="mt-4 gap-2"
-          onClick={() => navigate(`/w/${workspaceSlug}/ai/agents?type=coworker`)}
+          onClick={() => navigate(`/w/${workspaceSlug}/ai/coworkers`)}
         >
           <ArrowLeft className="h-4 w-4" />
           Back to AI Coworkers Directory

@@ -63,7 +63,7 @@ export interface BuildChannelActionsOptions {
 }
 
 export function channelPath(workspaceSlug: string, channel: { slug: string }) {
-  return `/w/${workspaceSlug}/c/${channel.slug}`;
+  return `/w/${workspaceSlug}/channels/${channel.slug}`;
 }
 
 /**
@@ -78,7 +78,9 @@ export interface ChannelConfirmCopy {
 }
 
 /** The leave prompt, shared by every surface that offers "Leave channel". */
-export function leaveChannelConfirm(channel: ChannelSummary): ChannelConfirmCopy {
+export function leaveChannelConfirm(
+  channel: ChannelSummary,
+): ChannelConfirmCopy {
   return {
     title: `Leave #${channel.name}?`,
     description:
@@ -286,9 +288,10 @@ export function buildChannelActions(
     (!!onOpenDetails || (canManage && (!!onEditDetails || !!onRename))) && {
       id: 'details',
       group: 'manage',
-      label: canManage && (onEditDetails || onRename)
-        ? 'Rename & edit details…'
-        : 'Channel details',
+      label:
+        canManage && (onEditDetails || onRename)
+          ? 'Rename & edit details…'
+          : 'Channel details',
       icon: Info,
       run:
         canManage && (onEditDetails || onRename)

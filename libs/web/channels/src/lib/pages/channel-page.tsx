@@ -1091,7 +1091,7 @@ export function ChannelPage({
             huddlesEnabled={channel.huddlesEnabled}
             huddleLink={
               channel.membership
-                ? `${window.location.origin}/w/${workspaceSlug}/c/${channel.slug}?huddle=join`
+                ? `${window.location.origin}/w/${workspaceSlug}/channels/${channel.slug}?huddle=join`
                 : undefined
             }
             memberSuggestions={channel.membership?.memberSuggestions}

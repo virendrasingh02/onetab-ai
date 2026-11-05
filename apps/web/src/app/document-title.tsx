@@ -53,22 +53,21 @@ export function DocumentTitle(): null {
     const grab = (pattern: string, key: string) =>
       matchPath({ path: pattern, end: false }, pathname)?.params[key];
     return {
-      channelSlug: grab('/w/:workspaceSlug/c/:channelSlug', 'channelSlug'),
+      channelSlug: grab(
+        '/w/:workspaceSlug/channels/:channelSlug',
+        'channelSlug',
+      ),
       peerId: grab('/w/:workspaceSlug/dms/:peerId', 'peerId'),
-      projectId:
-        grab('/w/:workspaceSlug/projects/:projectId', 'projectId') ??
-        grab('/w/:workspaceSlug/tasks/:projectId', 'projectId'),
+      projectId: grab('/w/:workspaceSlug/projects/:projectId', 'projectId'),
       agentId:
         grab('/w/:workspaceSlug/agents/:agentId/chat', 'agentId') ??
         grab('/w/:workspaceSlug/ai/agents/:agentId', 'agentId'),
       // A Studio agent's page names the workflow it is, like the canvas does.
       workflowId:
         grab('/w/:workspaceSlug/ai/workflows/:workflowId', 'workflowId') ??
-        grab('/w/:workspaceSlug/ai/studio/:workflowId', 'workflowId'),
+        grab('/w/:workspaceSlug/ai/planned/:workflowId', 'workflowId'),
       appId: grab('/w/:workspaceSlug/apps/:appId/chat', 'appId'),
-      docId:
-        grab('/w/:workspaceSlug/docs/:docId', 'docId') ??
-        grab('/w/:workspaceSlug/notes/:docId', 'docId'),
+      docId: grab('/w/:workspaceSlug/docs/:docId', 'docId'),
     };
   }, [pathname]);
 
@@ -91,27 +90,42 @@ export function DocumentTitle(): null {
     aiEntity,
     workflowDetail,
   ] = useQueries({
-      queries: [
-        { queryKey: queryKeys.channels.list(workspaceId, false), queryFn: skipToken },
-        { queryKey: queryKeys.members.list(workspaceId), queryFn: skipToken },
-        { queryKey: queryKeys.agents.list(workspaceId), queryFn: skipToken },
-        { queryKey: queryKeys.integrations.list(workspaceId), queryFn: skipToken },
-        { queryKey: queryKeys.workTools.projects(workspaceId), queryFn: skipToken },
-        { queryKey: queryKeys.workTools.documents(workspaceId), queryFn: skipToken },
-        { queryKey: queryKeys.coworkers.list(workspaceId), queryFn: skipToken },
-        { queryKey: queryKeys.automations.list(workspaceId), queryFn: skipToken },
-        // What the AI Workspace editors load, for a deep link that opens one
-        // before any list is in the cache.
-        {
-          queryKey: ['ai-entities', workspaceId, 'detail', params.agentId],
-          queryFn: skipToken,
-        },
-        {
-          queryKey: queryKeys.automations.detail(workspaceId, params.workflowId ?? ''),
-          queryFn: skipToken,
-        },
-      ],
-    });
+    queries: [
+      {
+        queryKey: queryKeys.channels.list(workspaceId, false),
+        queryFn: skipToken,
+      },
+      { queryKey: queryKeys.members.list(workspaceId), queryFn: skipToken },
+      { queryKey: queryKeys.agents.list(workspaceId), queryFn: skipToken },
+      {
+        queryKey: queryKeys.integrations.list(workspaceId),
+        queryFn: skipToken,
+      },
+      {
+        queryKey: queryKeys.workTools.projects(workspaceId),
+        queryFn: skipToken,
+      },
+      {
+        queryKey: queryKeys.workTools.documents(workspaceId),
+        queryFn: skipToken,
+      },
+      { queryKey: queryKeys.coworkers.list(workspaceId), queryFn: skipToken },
+      { queryKey: queryKeys.automations.list(workspaceId), queryFn: skipToken },
+      // What the AI Workspace editors load, for a deep link that opens one
+      // before any list is in the cache.
+      {
+        queryKey: ['ai-entities', workspaceId, 'detail', params.agentId],
+        queryFn: skipToken,
+      },
+      {
+        queryKey: queryKeys.automations.detail(
+          workspaceId,
+          params.workflowId ?? '',
+        ),
+        queryFn: skipToken,
+      },
+    ],
+  });
 
   const entities = useMemo<PageTitleEntities>(() => {
     const result: PageTitleEntities = { workspaceName: workspace?.name };
@@ -138,9 +152,10 @@ export function DocumentTitle(): null {
     }
 
     if (params.projectId) {
-      result.projectName = (
-        projectList.data as Project[] | undefined
-      )?.find((entry) => entry.id === params.projectId)?.name;
+      result.projectName = (projectList.data as Project[] | undefined)?.find(
+        (entry) =>
+          entry.id === params.projectId || entry.slug === params.projectId,
+      )?.name;
     }
 
     if (params.agentId) {
@@ -170,9 +185,9 @@ export function DocumentTitle(): null {
     }
 
     if (params.docId) {
-      result.docTitle = (
-        docList.data as WorkDocument[] | undefined
-      )?.find((entry) => entry.id === params.docId)?.title;
+      result.docTitle = (docList.data as WorkDocument[] | undefined)?.find(
+        (entry) => entry.id === params.docId,
+      )?.title;
     }
 
     return result;
@@ -234,7 +249,9 @@ function resolvePeerName(
       integrations?.find((entry) => entry.id === peerId.slice('app-'.length)),
     );
   }
-  const member = members?.find((entry) => entry.user.id === peerId);
+  const member = members?.find(
+    ({ user }) => user.id === peerId || user.username === peerId,
+  );
   return member ? personName(member.user) : undefined;
 }
 

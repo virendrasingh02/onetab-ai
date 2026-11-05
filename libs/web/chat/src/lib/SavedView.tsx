@@ -82,7 +82,10 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 /** Workspace-relative `href` from metadata, else the type's canonical link. */
-function itemHref(bookmark: BookmarkDto, slug: string | undefined): string | undefined {
+function itemHref(
+  bookmark: BookmarkDto,
+  slug: string | undefined,
+): string | undefined {
   if (!slug) return undefined;
   const stored = bookmark.metadata?.['href'];
   if (typeof stored === 'string' && stored) {
@@ -91,7 +94,7 @@ function itemHref(bookmark: BookmarkDto, slug: string | undefined): string | und
   const id = encodeURIComponent(bookmark.targetId);
   switch (bookmark.targetType) {
     case 'task':
-      return `/w/${slug}/tasks?taskId=${id}`;
+      return `/w/${slug}/projects?taskId=${id}`;
     case 'doc':
       return `/w/${slug}/docs/${id}`;
     case 'file':
@@ -99,7 +102,7 @@ function itemHref(bookmark: BookmarkDto, slug: string | undefined): string | und
     case MESSAGE_BOOKMARK_TYPE: {
       const channelSlug = bookmark.metadata?.['channelSlug'];
       return typeof channelSlug === 'string' && channelSlug
-        ? `/w/${slug}/c/${channelSlug}?msg=${id}`
+        ? `/w/${slug}/channels/${channelSlug}?msg=${id}`
         : undefined;
     }
     default:
@@ -107,7 +110,10 @@ function itemHref(bookmark: BookmarkDto, slug: string | undefined): string | und
   }
 }
 
-function toSavedItem(bookmark: BookmarkDto, slug: string | undefined): SavedItem {
+function toSavedItem(
+  bookmark: BookmarkDto,
+  slug: string | undefined,
+): SavedItem {
   const href = itemHref(bookmark, slug);
   if (bookmark.targetType === MESSAGE_BOOKMARK_TYPE) {
     const message = bookmarkToSavedMessage(bookmark);
@@ -189,7 +195,8 @@ export function SavedView() {
 
   const counts = useMemo(() => {
     const byType: Record<string, number> = { all: searchedItems.length };
-    for (const item of searchedItems) byType[item.type] = (byType[item.type] ?? 0) + 1;
+    for (const item of searchedItems)
+      byType[item.type] = (byType[item.type] ?? 0) + 1;
     return byType;
   }, [searchedItems]);
 
@@ -258,7 +265,7 @@ export function SavedView() {
           </div>
 
           {allItems.length > 0 && (
-            <div className="w-full sm:w-64">
+            <div className="sm:w-64 w-full">
               <Input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
@@ -303,7 +310,11 @@ export function SavedView() {
               title="Couldn't load saved items"
               description="Check your connection and try again."
               action={
-                <Button size="sm" variant="outline" onClick={() => void refetch()}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void refetch()}
+                >
                   Retry
                 </Button>
               }
@@ -362,12 +373,16 @@ export function SavedView() {
                         aria-label={open ? `Open ${item.title}` : undefined}
                         onClick={open}
                         onKeyDown={(event) => {
-                          if (open && event.key === 'Enter' && event.target === event.currentTarget) {
+                          if (
+                            open &&
+                            event.key === 'Enter' &&
+                            event.target === event.currentTarget
+                          ) {
                             open();
                           }
                         }}
                         className={cn(
-                          'group relative gap-3 px-3 sm:px-6 py-3 flex items-start transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none',
+                          'group gap-3 px-3 sm:px-6 py-3 relative flex items-start transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none',
                           open && 'cursor-pointer',
                           flashId === item.bookmark.targetId && 'message-flash',
                         )}
@@ -388,11 +403,11 @@ export function SavedView() {
 
                         <div className="min-w-0 flex-1">
                           {isMessage ? (
-                            <p className="text-sm leading-relaxed line-clamp-2 text-foreground break-words">
+                            <p className="text-sm leading-relaxed line-clamp-2 break-words text-foreground">
                               {item.snippet ? (
                                 <MessagePreview text={item.snippet} />
                               ) : (
-                                <span className="italic text-muted-foreground">
+                                <span className="text-muted-foreground italic">
                                   Attachment
                                 </span>
                               )}
@@ -410,7 +425,7 @@ export function SavedView() {
                             </>
                           )}
 
-                          <div className="mt-1 gap-x-2 gap-y-0.5 flex flex-wrap items-center text-xs text-muted-foreground">
+                          <div className="mt-1 gap-x-2 gap-y-0.5 text-xs flex flex-wrap items-center text-muted-foreground">
                             <span className="min-w-0 truncate">
                               {isMessage ? (
                                 <>
@@ -420,7 +435,7 @@ export function SavedView() {
                                   {item.context && <> in {item.context}</>}
                                 </>
                               ) : (
-                                TYPE_LABELS[item.type] ?? item.type
+                                (TYPE_LABELS[item.type] ?? item.type)
                               )}
                             </span>
                             <span aria-hidden className="h-3 w-px bg-border" />
@@ -444,7 +459,7 @@ export function SavedView() {
                         {/* Floating actions, Slack-style, on hover/focus. */}
                         <div
                           onClick={(event) => event.stopPropagation()}
-                          className="top-2 right-3 sm:right-6 gap-0.5 p-0.5 absolute flex items-center rounded-md border border-border bg-popover shadow-sm opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 has-[[data-state=open]]:opacity-100"
+                          className="top-2 right-3 sm:right-6 gap-0.5 p-0.5 absolute flex items-center rounded-md border border-border bg-popover opacity-0 shadow-sm transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 has-[[data-state=open]]:opacity-100"
                         >
                           <Hint label="Remove from saved">
                             <Button

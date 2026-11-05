@@ -23,11 +23,11 @@ export const APP_NAME = 'Onetab AI';
 export interface PageTitleEntities {
   /** Name of the workspace in the current `/w/:slug` path, if resolved. */
   workspaceName?: string;
-  /** The channel for `/c/:channelSlug`. */
+  /** The channel for `/channels/:channelSlug`. */
   channel?: { name: string; isPrivate?: boolean };
   /** Display name of the peer for `/dms/:peerId` (person, agent or app). */
   dmPeerName?: string;
-  /** Name of the project for `/projects/:projectId` or `/tasks/:projectId`. */
+  /** Name of the project for `/projects/:projectId`. */
   projectName?: string;
   /** Name of the agent or coworker for `/agents/:agentId/chat` or `/ai/agents/:agentId`. */
   agentName?: string;
@@ -35,7 +35,7 @@ export interface PageTitleEntities {
   workflowName?: string;
   /** Name of the connected app for `/apps/:appId/chat`. */
   appName?: string;
-  /** Title of the document for `/docs/:docId` or `/notes/:docId`. */
+  /** Title of the document for `/docs/:docId`. */
   docTitle?: string;
 }
 
@@ -124,8 +124,8 @@ const ROOT_STATIC_TITLES: Record<string, string> = {
  *
  * Labels track the sidebar (`DEFAULT_NAV_ITEMS` in
  * `libs/web/layout/src/lib/navigation/navigation.config.ts`); routes with no
- * sidebar entry get a concise equivalent. Alias routes that render the same
- * screen (`/tasks`, `/kanban`, `/work`, …) share one title.
+ * sidebar entry get a concise equivalent. Old spellings redirect, so only the
+ * canonical routes need a title.
  */
 const WORKSPACE_STATIC_TITLES: Record<string, string> = {
   '': 'Home',
@@ -140,14 +140,7 @@ const WORKSPACE_STATIC_TITLES: Record<string, string> = {
   '/invitations': 'Invitations',
   '/channels': 'Channels',
   '/channels/new': 'Create a channel',
-  '/tasks': 'Tasks & Projects',
-  '/kanban': 'Tasks & Projects',
-  '/work': 'Tasks & Projects',
   '/projects': 'Tasks & Projects',
-  '/cycles': 'Tasks & Projects',
-  '/intake': 'Tasks & Projects',
-  '/initiatives': 'Tasks & Projects',
-  '/notes': 'Docs & Notes',
   '/docs': 'Docs & Notes',
   '/files': 'Files',
   '/meetings': 'Meetings',
@@ -157,9 +150,9 @@ const WORKSPACE_STATIC_TITLES: Record<string, string> = {
   '/automations/logs': 'Automation runs',
   '/schedule': 'Schedule & Calendar',
   '/dms': 'Direct Messages',
-  '/ai-chat': 'AI Assistant',
   '/ai': 'AI Agent Studio',
   '/ai/agents': 'Agents',
+  '/ai/planned': 'Planned agents',
   '/ai/workflows': 'Workflows',
   '/ai/runs': 'Runs',
   '/ai/approvals': 'Approvals',
@@ -171,7 +164,6 @@ const WORKSPACE_STATIC_TITLES: Record<string, string> = {
   '/marketplace': 'Marketplace',
   '/marketplace/developer': 'Developer Portal',
   '/apps': 'Apps',
-  '/apps/chat': 'Apps',
 };
 
 const WS_PREFIX = { path: '/w/:workspaceSlug', end: false } as const;
@@ -211,14 +203,14 @@ export function resolvePageTitle(
   if (!wsMatch) return done('');
 
   const base = `/w/${wsMatch.params.workspaceSlug}`;
-  const sub = path.slice(base.length); // '', '/c/foo', '/settings/appearance', …
+  const sub = path.slice(base.length); // '', '/channels/foo', '/settings/appearance', …
 
   // Settings has its own layout, mounted outside the app shell.
   if (sub === '/settings' || sub.startsWith('/settings/'))
     return done('Settings');
 
   // --- dynamic, entity-backed routes ------------------------------------
-  if (match(`${base}/c/:channelSlug`, path)) {
+  if (sub !== '/channels/new' && match(`${base}/channels/:channelSlug`, path)) {
     return entities.channel
       ? done(
           formatChannelName(entities.channel.name, {
@@ -234,10 +226,7 @@ export function resolvePageTitle(
       : pending('Direct message');
   }
 
-  if (
-    match(`${base}/tasks/:projectId`, path) ||
-    match(`${base}/projects/:projectId`, path)
-  ) {
+  if (match(`${base}/projects/:projectId`, path)) {
     return entities.projectName
       ? done(entities.projectName)
       : pending('Project');
@@ -252,8 +241,8 @@ export function resolvePageTitle(
   if (match(`${base}/ai/agents/:agentId`, path)) {
     return entities.agentName ? done(entities.agentName) : pending('Agent');
   }
-  if (match(`${base}/ai/studio/new`, path)) return done('New agent');
-  if (match(`${base}/ai/studio/:workflowId`, path)) {
+  if (match(`${base}/ai/planned/new`, path)) return done('New agent');
+  if (match(`${base}/ai/planned/:workflowId`, path)) {
     return entities.workflowName
       ? done(entities.workflowName)
       : pending('Agent');
@@ -269,10 +258,7 @@ export function resolvePageTitle(
     return entities.appName ? done(entities.appName) : pending('App');
   }
 
-  if (
-    match(`${base}/docs/:docId`, path) ||
-    match(`${base}/notes/:docId`, path)
-  ) {
+  if (match(`${base}/docs/:docId`, path)) {
     return entities.docTitle ? done(entities.docTitle) : pending('Document');
   }
 

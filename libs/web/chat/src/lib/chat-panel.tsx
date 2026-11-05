@@ -44,11 +44,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import {
-  useLocation,
-  useNavigate,
-  useSearchParams,
-} from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ChatSurface,
   type ChatSurfaceTimelineRows,
@@ -97,11 +93,16 @@ async function runAppAction(
   action: StructuredMessageAction,
   context: ActionExecutionContext,
 ): Promise<ActionExecutionResult> {
-  return integrationsApi.executeAction(workspaceId, context.appId as string, action.id, {
-    input: (action.payload ?? {}) as Record<string, unknown>,
-    confirm: true,
-    roomId: context.roomId,
-  });
+  return integrationsApi.executeAction(
+    workspaceId,
+    context.appId as string,
+    action.id,
+    {
+      input: (action.payload ?? {}) as Record<string, unknown>,
+      confirm: true,
+      roomId: context.roomId,
+    },
+  );
 }
 
 export interface ChatPanelProps {
@@ -158,7 +159,6 @@ export interface ChatPanelProps {
   composerContext?: ComposerContext;
 }
 
-
 /**
  * The Matrix-backed conversation surface for a channel.
  *
@@ -192,7 +192,6 @@ export function ChatPanel({
   canManageConversation,
   composerContext,
 }: ChatPanelProps) {
-
   const { client, status, configStatus, error, retry } = useMatrix();
   const readReceiptsEnabled = useReadReceiptsEnabled();
 
@@ -345,7 +344,10 @@ export function ChatPanel({
     const startIndex = readUpTo
       ? room.messages.findIndex((message) => message.id === readUpTo)
       : -1;
-    if (markedFrom && room.messages.some((message) => message.id === markedFrom)) {
+    if (
+      markedFrom &&
+      room.messages.some((message) => message.id === markedFrom)
+    ) {
       // Marked unread from a message: the line goes exactly there.
       firstUnread.current.id = markedFrom;
     } else if (readUpTo && startIndex >= 0) {
@@ -389,7 +391,10 @@ export function ChatPanel({
   const unreadThreadRootIds = useMemo(
     () =>
       threads
-        .filter((thread) => thread.hasUnread && !mutedThreadRootIds.includes(thread.rootId))
+        .filter(
+          (thread) =>
+            thread.hasUnread && !mutedThreadRootIds.includes(thread.rootId),
+        )
         .map((thread) => thread.rootId),
     [threads, mutedThreadRootIds],
   );
@@ -420,7 +425,10 @@ export function ChatPanel({
           eventId: message.id,
           remindAt: remindAt.toISOString(),
           deepLink: messageDeepLink(location.pathname, message),
-          snippet: (message.body || message.attachment?.name || '').slice(0, 140),
+          snippet: (message.body || message.attachment?.name || '').slice(
+            0,
+            140,
+          ),
         });
         toast.success(`I'll remind you ${describeReminderTime(remindAt)}`, {
           action: {
@@ -517,7 +525,9 @@ export function ChatPanel({
    */
   const describeSource = useCallback(
     (message: Message) => {
-      const where = /^\/w\/[^/]+\/c\//.test(location.pathname) ? `#${title}` : title;
+      const where = /^\/w\/[^/]+\/c\//.test(location.pathname)
+        ? `#${title}`
+        : title;
       const href = `${window.location.origin}${location.pathname}?${new URLSearchParams(
         message.threadRootId
           ? { thread: message.threadRootId, msg: message.id }
@@ -542,7 +552,8 @@ export function ChatPanel({
         return;
       }
       const { where, href, text } = describeSource(message);
-      const taskTitle = text.slice(0, 80).replace(/\s+/g, ' ').trim() || 'Follow up on message';
+      const taskTitle =
+        text.slice(0, 80).replace(/\s+/g, ' ').trim() || 'Follow up on message';
       try {
         const task = await workToolsApi.createTask(workspaceId, {
           title: taskTitle,
@@ -566,11 +577,18 @@ export function ChatPanel({
         toast.success(assignToMe ? 'Task assigned to you' : 'Task created', {
           description: `"${taskTitle}"`,
           action: workspaceSlug
-            ? { label: 'Open tasks', onClick: () => navigate(`/w/${workspaceSlug}/tasks`) }
+            ? {
+                label: 'Open tasks',
+                onClick: () => navigate(`/w/${workspaceSlug}/projects`),
+              }
             : undefined,
         });
       } catch {
-        toast.error(assignToMe ? 'Could not assign the task.' : 'Could not create the task.');
+        toast.error(
+          assignToMe
+            ? 'Could not assign the task.'
+            : 'Could not create the task.',
+        );
       }
     },
     [workspaceId, workspaceSlug, currentUser?.id, describeSource, navigate],
@@ -629,7 +647,8 @@ export function ChatPanel({
             workspaceSlug && createdDoc?.id
               ? {
                   label: 'Open',
-                  onClick: () => navigate(`/w/${workspaceSlug}/docs/${createdDoc.id}`),
+                  onClick: () =>
+                    navigate(`/w/${workspaceSlug}/docs/${createdDoc.id}`),
                 }
               : undefined,
         });
@@ -697,7 +716,10 @@ export function ChatPanel({
       if (!client || !roomId) return;
 
       // Handle approval actions directly
-      if (action.actionType === 'approval.approved' || action.id === 'approve') {
+      if (
+        action.actionType === 'approval.approved' ||
+        action.id === 'approve'
+      ) {
         if (message.structuredEvent?.type === 'mie.approval') {
           const updatedApproval = {
             ...message.structuredEvent,
@@ -705,7 +727,11 @@ export function ChatPanel({
             approverId: client.getSession()?.userId,
             decidedAt: Date.now(),
           };
-          await client.updateStructuredMessage(roomId, message.id, updatedApproval);
+          await client.updateStructuredMessage(
+            roomId,
+            message.id,
+            updatedApproval,
+          );
           toast.success('Action approved and state updated.');
           return;
         }
@@ -719,7 +745,11 @@ export function ChatPanel({
             approverId: client.getSession()?.userId,
             decidedAt: Date.now(),
           };
-          await client.updateStructuredMessage(roomId, message.id, updatedApproval);
+          await client.updateStructuredMessage(
+            roomId,
+            message.id,
+            updatedApproval,
+          );
           toast.info('Action rejected.');
           return;
         }
@@ -743,7 +773,10 @@ export function ChatPanel({
 
       // Handle universal card in-place action updates
       if (message.structuredEvent?.type === 'mie.card') {
-        if (action.actionType === 'update_record' || action.id === 'toggle_done') {
+        if (
+          action.actionType === 'update_record' ||
+          action.id === 'toggle_done'
+        ) {
           const prevData = message.structuredEvent.data || {};
           const isCompleted = Boolean(prevData['completed']);
           const updatedCard = {
@@ -807,11 +840,16 @@ export function ChatPanel({
        * actually does: `AgentMatrixBridgeService` on the API picks it up
        * through the same inbound path a fresh prompt would take.
        */
-      const ownIndex = room.messages.findIndex((entry) => entry.id === message.id);
+      const ownIndex = room.messages.findIndex(
+        (entry) => entry.id === message.id,
+      );
       const trigger = room.messages
         .slice(0, ownIndex === -1 ? undefined : ownIndex)
         .reverse()
-        .find((entry) => entry.senderId !== message.senderId && !entry.structuredEvent);
+        .find(
+          (entry) =>
+            entry.senderId !== message.senderId && !entry.structuredEvent,
+        );
 
       if (!trigger) {
         toast.error('Could not find the original message to retry.');
@@ -983,5 +1021,4 @@ export function ChatPanel({
       composerContext={composerContext}
     />
   );
-
 }

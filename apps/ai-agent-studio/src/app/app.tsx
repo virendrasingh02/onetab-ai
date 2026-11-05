@@ -158,21 +158,19 @@ function getBreadcrumb(pathname: string): { section: string; page: string } {
     '': 'Studio Home',
     runs: 'Runs',
     approvals: 'Human Approvals',
-    studio: 'Planned Agent',
   };
-  if (first === 'agents')
+  if (rest === '/planned')
     return { section: 'Agents & Workflows', page: 'Planned' };
+  if (first === 'planned')
+    return { section: 'Plan, Run & Approve', page: 'Planned Agent' };
   if (first in core) {
     return { section: 'Plan, Run & Approve', page: core[first] };
   }
   if (/^\/workflows\/[^/]+/.test(rest))
     return { section: 'Plan, Run & Approve', page: 'Workflow Canvas' };
-  const key = rest.startsWith('/my-agents')
-    ? rest.replace('/my-agents', '/agents')
-    : rest;
-  if (BREADCRUMB_MAP[key]) return BREADCRUMB_MAP[key];
+  if (BREADCRUMB_MAP[rest]) return BREADCRUMB_MAP[rest];
   for (const [prefix, value] of Object.entries(BREADCRUMB_MAP)) {
-    if (key.startsWith(prefix)) return value;
+    if (rest.startsWith(prefix)) return value;
   }
   return { section: 'Plan, Run & Approve', page: 'Studio Home' };
 }
@@ -191,7 +189,7 @@ function StudioShell() {
   const { activeWorkspace } = useStudioSession();
   const location = useLocation();
   const navigate = useNavigate();
-  const isAgentCanvas = /^\/w\/[^/]+\/ai\/my-agents\/[^/]+/.test(
+  const isAgentCanvas = /^\/w\/[^/]+\/ai\/agents\/[^/]+/.test(
     location.pathname,
   );
   const isUserChat = /^\/w\/[^/]+\/ai\/chat\/[^/]+/.test(location.pathname);
@@ -301,7 +299,7 @@ function StudioShell() {
       <Suspense fallback={<LoadingState fullPage />}>
         <Routes>
           {studioCoreRoutes(
-            <Route path="my-agents/:agentId" element={<AgentDetailPage />} />,
+            <Route path="agents/:agentId" element={<AgentDetailPage />} />,
           )}
         </Routes>
       </Suspense>
@@ -341,7 +339,7 @@ function StudioShell() {
                   {studioCoreRoutes(
                     <>
                       <Route path="create" element={<CreateAgentPage />} />
-                      <Route path="my-agents" element={<AgentsListPage />} />
+                      <Route path="agents" element={<AgentsListPage />} />
                       <Route path="coworkers" element={<CoworkersPage />} />
                       <Route path="workflows" element={<WorkflowsPage />} />
                       <Route path="templates" element={<TemplatesPage />} />

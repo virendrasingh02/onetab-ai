@@ -1,9 +1,5 @@
 import { useCurrentUser } from '@org/auth';
-import {
-  channelApi,
-  matrixApi,
-  queryKeys,
-} from '@org/api-client';
+import { channelApi, matrixApi, queryKeys } from '@org/api-client';
 import {
   ForwardedMessageCard,
   LexicalComposerInput,
@@ -232,8 +228,7 @@ function ForwardMessageForm({
   const peerCount = peopleIds.filter((id) => id !== currentUser?.id).length;
   const canBundle = peerCount >= 2;
   const bundle = canBundle && delivery === 'group';
-  const destinationCount =
-    channelIds.length + (bundle ? 1 : peopleIds.length);
+  const destinationCount = channelIds.length + (bundle ? 1 : peopleIds.length);
   const canSend = destinationCount > 0 && !isSending && !!client;
 
   /** Turns the picked tokens into rooms, creating DMs where needed. */
@@ -259,7 +254,7 @@ function ForwardMessageForm({
       });
       destinations.push({
         roomId,
-        href: `/w/${slug}/c/${option.slug}`,
+        href: `/w/${slug}/channels/${option.slug}`,
         label: `#${option.name}`,
       });
     }
@@ -268,7 +263,9 @@ function ForwardMessageForm({
       peopleOptions.find((person) => person.id === id)?.name ?? 'someone';
 
     if (bundle) {
-      const created = await createConversation.mutateAsync({ peerIds: peopleIds });
+      const created = await createConversation.mutateAsync({
+        peerIds: peopleIds,
+      });
       destinations.push({
         roomId: created.roomId,
         href:
@@ -295,7 +292,9 @@ function ForwardMessageForm({
     // A person already reached through a picked group, say: send once.
     const seen = new Set<string>();
     return destinations.filter((destination) =>
-      seen.has(destination.roomId) ? false : (seen.add(destination.roomId), true),
+      seen.has(destination.roomId)
+        ? false
+        : (seen.add(destination.roomId), true),
     );
   }, [
     channelIds,
@@ -354,7 +353,9 @@ function ForwardMessageForm({
         if (options.openAfter && first) navigate(first.href);
       } catch (error) {
         toast.error(
-          error instanceof Error ? error.message : 'Could not forward the message.',
+          error instanceof Error
+            ? error.message
+            : 'Could not forward the message.',
         );
       } finally {
         setIsSending(false);
@@ -368,7 +369,7 @@ function ForwardMessageForm({
   return (
     <>
       <DialogHeader className="pr-12">
-        <DialogTitle className="gap-2 flex items-center text-base">
+        <DialogTitle className="gap-2 text-base flex items-center">
           <Forward className="size-4 text-muted-foreground" aria-hidden />
           {isPrivateSource ? 'Forward this private message' : 'Forward message'}
         </DialogTitle>
@@ -475,7 +476,9 @@ function ForwardMessageForm({
             loading={isSending}
             className="rounded-r-none"
           >
-            {destinationCount > 1 ? `Forward to ${destinationCount}` : 'Forward'}
+            {destinationCount > 1
+              ? `Forward to ${destinationCount}`
+              : 'Forward'}
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

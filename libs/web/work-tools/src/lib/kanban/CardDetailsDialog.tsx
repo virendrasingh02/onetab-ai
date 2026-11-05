@@ -98,7 +98,10 @@ import {
   KanbanPriorityPicker,
   type PriorityOption,
 } from './KanbanPriorityPicker.js';
-import { KanbanRefPicker, type KanbanRefPickerItem } from './KanbanRefPicker.js';
+import {
+  KanbanRefPicker,
+  type KanbanRefPickerItem,
+} from './KanbanRefPicker.js';
 import { KanbanStatusPicker } from './KanbanStatusPicker.js';
 import {
   KanbanTaskLinkPicker,
@@ -217,10 +220,10 @@ export function CardDetailsDialog({
     >
       <DialogContent
         className={cn(
-          'p-0 overflow-hidden flex flex-col bg-card text-card-foreground transition-all duration-200 border border-border shadow-2xl rounded-2xl',
+          'p-0 shadow-2xl flex flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground transition-all duration-200',
           mode === 'full'
-            ? 'w-[98vw] h-[96vh] max-w-none'
-            : 'w-[94vw] max-w-6xl h-[90vh]',
+            ? 'h-[96vh] w-[98vw] max-w-none'
+            : 'max-w-6xl h-[90vh] w-[94vw]',
         )}
         onOpenAutoFocus={(event) => {
           event.preventDefault();
@@ -270,7 +273,7 @@ function CardViewSwitcher() {
               'transition-colors duration-(--duration-fast) ease-standard',
               'outline-none focus-visible:ring-1 focus-visible:ring-ring',
               isActive
-                ? 'bg-card text-foreground shadow-2xs'
+                ? 'shadow-2xs bg-card text-foreground'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
@@ -300,7 +303,11 @@ interface CardDetailsBodyProps {
 function formatDateShort(dateStr?: string): string {
   if (!dateStr) return '';
   const d = parseDay(dateStr);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return d.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 function CardDetailsBody({
@@ -354,16 +361,20 @@ function CardDetailsBody({
   const [isLoggingTime, setIsLoggingTime] = useState(false);
   const [logHours, setLogHours] = useState('');
   const [logMinutes, setLogMinutes] = useState('');
-  const [addRelationType, setAddRelationType] = useState<RelationType>('BLOCKS');
+  const [addRelationType, setAddRelationType] =
+    useState<RelationType>('BLOCKS');
 
   const relations = relationsFor(relationsQuery.data, card.id);
   const blockingRelations = relations.filter(isBlockingView);
   const activeBlockingRelations = blockingRelations.filter(
-    (view) => view.otherTask.status !== 'DONE' && view.otherTask.status !== 'CANCELLED',
+    (view) =>
+      view.otherTask.status !== 'DONE' && view.otherTask.status !== 'CANCELLED',
   );
 
   const subIssues = detail?.subItems ?? [];
-  const linkableTasks: KanbanTaskLinkOption[] = (projectTasksQuery.data ?? []).map((t) => ({
+  const linkableTasks: KanbanTaskLinkOption[] = (
+    projectTasksQuery.data ?? []
+  ).map((t) => ({
     id: t.id,
     title: t.title,
     identifier: t.identifier,
@@ -382,16 +393,20 @@ function CardDetailsBody({
     label: e.name,
     color: e.color,
   }));
-  const moduleItems: KanbanRefPickerItem[] = (modulesQuery.data ?? []).map((m) => ({
-    id: m.id,
-    label: m.name,
-    color: m.color,
-  }));
-  const cycleItems: KanbanRefPickerItem[] = (cyclesQuery.data ?? []).map((c) => ({
-    id: c.id,
-    label: c.name,
-    sublabel: c.status,
-  }));
+  const moduleItems: KanbanRefPickerItem[] = (modulesQuery.data ?? []).map(
+    (m) => ({
+      id: m.id,
+      label: m.name,
+      color: m.color,
+    }),
+  );
+  const cycleItems: KanbanRefPickerItem[] = (cyclesQuery.data ?? []).map(
+    (c) => ({
+      id: c.id,
+      label: c.name,
+      sublabel: c.status,
+    }),
+  );
 
   const handleTeamChange = (teamId: string | null) =>
     taskMutations.update.mutate({ taskId: card.id, input: { teamId } });
@@ -408,7 +423,8 @@ function CardDetailsBody({
 
   const handleLogTime = (e: React.FormEvent) => {
     e.preventDefault();
-    const addedMinutes = (Number(logHours) || 0) * 60 + (Number(logMinutes) || 0);
+    const addedMinutes =
+      (Number(logHours) || 0) * 60 + (Number(logMinutes) || 0);
     if (addedMinutes <= 0) return;
     taskMutations.update.mutate({
       taskId: card.id,
@@ -423,7 +439,11 @@ function CardDetailsBody({
     e.preventDefault();
     const title = newSubIssueText.trim();
     if (!title) return;
-    taskMutations.create.mutate({ title, parentId: card.id, projectId: projectId ?? null });
+    taskMutations.create.mutate({
+      title,
+      parentId: card.id,
+      projectId: projectId ?? null,
+    });
     setNewSubIssueText('');
     setIsAddingSubIssue(false);
   };
@@ -454,7 +474,11 @@ function CardDetailsBody({
    */
   const checklists = card.checklist;
   const setChecklists = (next: ChecklistItem[]) =>
-    dispatch({ type: 'card/update', cardId: card.id, patch: { checklist: next } });
+    dispatch({
+      type: 'card/update',
+      cardId: card.id,
+      patch: { checklist: next },
+    });
   const { isSaved, toggleSaved } = useSaveForLater();
   const isStarred = isSaved('task', card.id);
   const toggleStarred = () =>
@@ -477,7 +501,11 @@ function CardDetailsBody({
     const nextLabels = currentLabels.includes(labelName)
       ? currentLabels.filter((l) => l !== labelName)
       : [...currentLabels, labelName];
-    dispatch({ type: 'card/update', cardId: card.id, patch: { labels: nextLabels } });
+    dispatch({
+      type: 'card/update',
+      cardId: card.id,
+      patch: { labels: nextLabels },
+    });
   };
 
   const handleStatusChange = (newStatus: TaskStatus) => {
@@ -550,7 +578,9 @@ function CardDetailsBody({
     if (generateDescription.isPending) return;
     generateDescription.mutate(undefined, {
       onSuccess: (content) => {
-        setDescriptionDraft((prev) => (prev ? `${prev}\n\n${content}` : content));
+        setDescriptionDraft((prev) =>
+          prev ? `${prev}\n\n${content}` : content,
+        );
         setEditingDescription(true);
       },
     });
@@ -565,18 +595,18 @@ function CardDetailsBody({
   const isPanel = mode === 'panel';
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-card text-card-foreground">
+    <div className="flex h-full flex-col overflow-hidden bg-card text-card-foreground">
       {/* ---------------- 1. TOP TOOLBAR / HEADER ---------------- */}
       <header
         className={cn(
-          'h-13 border-b border-border/70 bg-surface/50 backdrop-blur-sm flex items-center justify-between shrink-0',
+          'h-13 backdrop-blur-sm flex shrink-0 items-center justify-between border-b border-border/70 bg-surface/50',
           isPanel ? 'px-2 gap-1.5' : 'px-4 sm:px-6 gap-4',
         )}
       >
         {/* Left: Breadcrumbs & Meta Badges */}
-        <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-            <span className="flex items-center gap-1 font-bold text-foreground">
+        <div className="gap-2.5 min-w-0 flex flex-wrap items-center">
+          <div className="gap-1.5 text-xs font-medium flex items-center text-muted-foreground">
+            <span className="gap-1 font-bold flex items-center text-foreground">
               <CubeProjectIcon className="size-3.5 text-accent-amber" />
               <span>{board.title}</span>
             </span>
@@ -585,27 +615,34 @@ function CardDetailsBody({
             <button
               type="button"
               onClick={() => {
-                const idStr = card.identifier || `TASK-${card.ticketNumber || card.id.slice(0, 4)}`;
+                const idStr =
+                  card.identifier ||
+                  `TASK-${card.ticketNumber || card.id.slice(0, 4)}`;
                 navigator.clipboard.writeText(idStr);
                 toast.success(`Copied ${idStr}`);
               }}
-              className="inline-flex items-center gap-1 font-mono text-[11px] font-bold text-primary bg-primary/10 hover:bg-primary/20 border border-primary/30 px-2 py-0.5 rounded transition-colors cursor-pointer"
+              className="gap-1 font-bold px-2 py-0.5 rounded inline-flex cursor-pointer items-center border border-primary/30 bg-primary/10 font-mono text-[11px] text-primary transition-colors hover:bg-primary/20"
               title="Click to copy ticket identifier"
             >
-              <span>{card.identifier || `TASK-${card.ticketNumber || card.id.slice(0, 4)}`}</span>
+              <span>
+                {card.identifier ||
+                  `TASK-${card.ticketNumber || card.id.slice(0, 4)}`}
+              </span>
               <Copy className="size-2.5 opacity-60" />
             </button>
             <span>/</span>
             <span className="font-semibold text-primary">{listTitle}</span>
           </div>
 
-          <div className="h-4 w-px bg-border/80 mx-1 hidden sm:block" />
+          <div className="h-4 mx-1 sm:block hidden w-px bg-border/80" />
 
           {/* Type Badge & Counter Metrics */}
-          <div className="flex items-center gap-2 text-xs">
-            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted/80 border border-border/60 text-foreground text-[11px] font-medium">
+          <div className="gap-2 text-xs flex items-center">
+            <div className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-md border border-border/60 bg-muted/80 text-[11px] text-foreground">
               <CheckSquare className="size-3 text-primary" />
-              <span className="capitalize">{card.type ? card.type.toLowerCase() : 'Task'}</span>
+              <span className="capitalize">
+                {card.type ? card.type.toLowerCase() : 'Task'}
+              </span>
             </div>
 
             {card.createdByAgent ? (
@@ -613,37 +650,48 @@ function CardDetailsBody({
                 type="button"
                 disabled={!card.createdByAgent.workflowId}
                 onClick={() =>
-                  navigate(`/w/${workspaceSlug}/ai/studio/${card.createdByAgent?.workflowId}`)
+                  navigate(
+                    `/w/${workspaceSlug}/ai/planned/${card.createdByAgent?.workflowId}`,
+                  )
                 }
                 title={`Created by the agent ${card.createdByAgent.name}`}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-accent-violet-soft border border-border/60 text-accent-violet text-[11px] font-medium disabled:cursor-default enabled:hover:underline"
+                className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-md border border-border/60 bg-accent-violet-soft text-[11px] text-accent-violet enabled:hover:underline disabled:cursor-default"
               >
                 <Sparkles className="size-3" />
-                <span className="max-w-[140px] truncate">{card.createdByAgent.name}</span>
+                <span className="max-w-[140px] truncate">
+                  {card.createdByAgent.name}
+                </span>
               </button>
             ) : null}
 
             <div
               className={cn(
-                'items-center gap-2.5 text-muted-foreground text-[11px]',
-                isPanel ? 'hidden' : 'hidden lg:flex',
+                'gap-2.5 items-center text-[11px] text-muted-foreground',
+                isPanel ? 'hidden' : 'lg:flex hidden',
               )}
             >
               {checklists.length > 0 ? (
-                <span className="flex items-center gap-1 hover:text-foreground cursor-pointer" title="Completed checklist items">
+                <span
+                  className="gap-1 flex cursor-pointer items-center hover:text-foreground"
+                  title="Completed checklist items"
+                >
                   <Check className="size-3 text-accent-green" />
                   <span>
-                    {checklists.filter((c) => c.done).length}/{checklists.length}
+                    {checklists.filter((c) => c.done).length}/
+                    {checklists.length}
                   </span>
                 </span>
               ) : null}
-              <span className="flex items-center gap-1 hover:text-foreground cursor-pointer" title="Comments">
+              <span
+                className="gap-1 flex cursor-pointer items-center hover:text-foreground"
+                title="Comments"
+              >
                 <MessageSquare className="size-3" />
                 <span>{comments.data?.length ?? card.commentCount ?? 0}</span>
               </span>
               {currentLead && (
-                <span className="flex items-center gap-1 px-1.5 py-0.2 rounded bg-accent-amber-soft text-accent-amber font-semibold text-[10px]">
-                  <span className="size-3.5 rounded-full bg-warning text-warning-foreground flex items-center justify-center text-[8px] font-bold">
+                <span className="gap-1 px-1.5 py-0.2 rounded font-semibold flex items-center bg-accent-amber-soft text-[10px] text-accent-amber">
+                  <span className="size-3.5 font-bold flex items-center justify-center rounded-full bg-warning text-[8px] text-warning-foreground">
                     VI
                   </span>
                   <span>1 for me</span>
@@ -654,9 +702,9 @@ function CardDetailsBody({
         </div>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="gap-1.5 flex shrink-0 items-center">
           {formatDateShort(card.createdAt) ? (
-            <span className="text-[11px] text-muted-foreground hidden md:inline-block mr-2">
+            <span className="md:inline-block mr-2 hidden text-[11px] text-muted-foreground">
               Created {formatDateShort(card.createdAt)}
             </span>
           ) : null}
@@ -666,10 +714,10 @@ function CardDetailsBody({
             size="sm"
             onClick={handleGenerateWithAI}
             loading={generateDescription.isPending}
-            className="h-7 text-xs gap-1.5 text-accent-violet border-accent-violet/30 hover:bg-accent-violet-soft font-medium"
+            className="h-7 text-xs gap-1.5 font-medium border-accent-violet/30 text-accent-violet hover:bg-accent-violet-soft"
           >
             <Sparkles className="size-3.5" />
-            <span className="hidden sm:inline">Brain² AI</span>
+            <span className="sm:inline hidden">Brain² AI</span>
           </Button>
 
           <Button
@@ -678,7 +726,7 @@ function CardDetailsBody({
             className="h-7 text-xs gap-1 text-muted-foreground hover:text-foreground"
           >
             <Share2 className="size-3.5" />
-            <span className="hidden sm:inline">Share</span>
+            <span className="sm:inline hidden">Share</span>
           </Button>
 
           <DropdownMenu>
@@ -692,7 +740,9 @@ function CardDetailsBody({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={() => dispatch({ type: 'card/copy', cardId: card.id })}>
+              <DropdownMenuItem
+                onClick={() => dispatch({ type: 'card/copy', cardId: card.id })}
+              >
                 <Copy className="size-3.5 mr-2" />
                 Copy task
               </DropdownMenuItem>
@@ -723,7 +773,10 @@ function CardDetailsBody({
             variant="ghost"
             size="icon-sm"
             onClick={toggleStarred}
-            className={cn('size-7', isStarred ? 'text-accent-amber' : 'text-muted-foreground')}
+            className={cn(
+              'size-7',
+              isStarred ? 'text-accent-amber' : 'text-muted-foreground',
+            )}
             title={isStarred ? 'Remove from saved' : 'Save for later'}
             aria-pressed={isStarred}
           >
@@ -747,14 +800,14 @@ function CardDetailsBody({
       {/* ---------------- 2. MAIN 2-COLUMN LAYOUT ---------------- */}
       <div
         className={cn(
-          'flex min-h-0 flex-1 overflow-hidden divide-border/60',
+          'min-h-0 flex flex-1 divide-border/60 overflow-hidden',
           isPanel ? 'flex-col divide-y' : 'divide-x',
         )}
       >
         {/* LEFT COLUMN: Title, AI Banner, Properties, Description, Checklists */}
         <div
           className={cn(
-            'flex-1 min-w-0 overflow-y-auto space-y-6',
+            'min-w-0 space-y-6 flex-1 overflow-y-auto',
             isPanel ? 'p-4' : 'p-6 md:p-8',
           )}
         >
@@ -776,17 +829,21 @@ function CardDetailsBody({
               onBlur={(event) => {
                 const title = event.target.value.trim();
                 if (title && title !== card.title) {
-                  dispatch({ type: 'card/update', cardId: card.id, patch: { title } });
+                  dispatch({
+                    type: 'card/update',
+                    cardId: card.id,
+                    patch: { title },
+                  });
                 }
               }}
-              className="text-2xl font-bold tracking-tight text-foreground border-transparent bg-transparent shadow-none hover:border-input focus-visible:border-ring w-full resize-none p-1 -ml-1 rounded-lg"
+              className="text-2xl font-bold tracking-tight p-1 -ml-1 w-full resize-none rounded-lg border-transparent bg-transparent text-foreground shadow-none hover:border-input focus-visible:border-ring"
             />
           </div>
 
           {/* AI Banner */}
-          <div className="flex items-center justify-between p-2.5 px-3.5 rounded-xl border border-accent-violet/30 bg-accent-violet-soft text-xs text-foreground animate-in fade-in">
-            <div className="flex items-center gap-2 min-w-0">
-              <Sparkles className="size-4 text-accent-violet shrink-0" />
+          <div className="p-2.5 px-3.5 text-xs animate-in fade-in flex items-center justify-between rounded-xl border border-accent-violet/30 bg-accent-violet-soft text-foreground">
+            <div className="gap-2 min-w-0 flex items-center">
+              <Sparkles className="size-4 shrink-0 text-accent-violet" />
               <span className="font-medium text-foreground">
                 Ask Brain² for a presentation, document or prototype
               </span>
@@ -796,7 +853,7 @@ function CardDetailsBody({
               variant="outline"
               onClick={handleGenerateWithAI}
               loading={generateDescription.isPending}
-              className="h-6 text-[11px] bg-surface text-accent-violet border-accent-violet/40 hover:bg-accent-violet-soft font-semibold px-2.5 shrink-0"
+              className="h-6 font-semibold px-2.5 shrink-0 border-accent-violet/40 bg-surface text-[11px] text-accent-violet hover:bg-accent-violet-soft"
             >
               Generate
             </Button>
@@ -805,13 +862,13 @@ function CardDetailsBody({
           {/* Structured 2-Column Properties Grid */}
           <div
             className={cn(
-              'grid gap-x-8 gap-y-3.5 py-3 border-y border-border/50 text-xs',
-              isPanel ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2',
+              'gap-x-8 gap-y-3.5 py-3 text-xs grid border-y border-border/50',
+              isPanel ? 'grid-cols-1' : 'md:grid-cols-2 grid-cols-1',
             )}
           >
             {/* Row 1 Left: Status */}
-            <div className="flex items-center gap-3">
-              <span className="w-24 text-muted-foreground flex items-center gap-1.5 font-medium">
+            <div className="gap-3 flex items-center">
+              <span className="w-24 gap-1.5 font-medium flex items-center text-muted-foreground">
                 <StatusIcon status={currentStatus} />
                 <span>Status</span>
               </span>
@@ -821,7 +878,7 @@ function CardDetailsBody({
                 trigger={
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border/80 bg-surface text-foreground hover:bg-accent/60 transition-colors font-medium cursor-pointer"
+                    className="gap-1.5 px-2.5 py-1 font-medium inline-flex cursor-pointer items-center rounded-lg border border-border/80 bg-surface text-foreground transition-colors hover:bg-accent/60"
                   >
                     <Check className="size-3 text-accent-green" />
                     <span>{listTitle}</span>
@@ -831,8 +888,8 @@ function CardDetailsBody({
             </div>
 
             {/* Row 1 Right: Assignees */}
-            <div className="flex items-center gap-3">
-              <span className="w-24 text-muted-foreground flex items-center gap-1.5 font-medium">
+            <div className="gap-3 flex items-center">
+              <span className="w-24 gap-1.5 font-medium flex items-center text-muted-foreground">
                 <Users className="size-3.5" />
                 <span>Assignees</span>
               </span>
@@ -846,26 +903,30 @@ function CardDetailsBody({
                 trigger={
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border border-border/70 hover:bg-accent/50 transition-colors cursor-pointer"
+                    className="gap-1.5 px-2 py-0.5 inline-flex cursor-pointer items-center rounded-lg border border-border/70 transition-colors hover:bg-accent/50"
                   >
                     {card.memberIds.length > 0 ? (
-                      <div className="flex items-center gap-1.5">
+                      <div className="gap-1.5 flex items-center">
                         <UserAvatarGroup
                           users={card.memberIds
                             .map((id) => board.members.find((m) => m.id === id))
                             .filter((m): m is BoardMember => Boolean(m))}
                           size="xs"
                         />
-                        <span className="font-medium text-foreground text-xs">
+                        <span className="font-medium text-xs text-foreground">
                           {card.memberIds.length === 1
-                            ? board.members.find((m) => m.id === card.memberIds[0])?.name
+                            ? board.members.find(
+                                (m) => m.id === card.memberIds[0],
+                              )?.name
                             : `${card.memberIds.length} assigned`}
                         </span>
                       </div>
                     ) : (
                       <>
                         <UnassignedLeadIcon className="size-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">Add assignee</span>
+                        <span className="text-muted-foreground">
+                          Add assignee
+                        </span>
                       </>
                     )}
                   </button>
@@ -874,12 +935,12 @@ function CardDetailsBody({
             </div>
 
             {/* Row 2 Left: Dates */}
-            <div className="flex items-center gap-3">
-              <span className="w-24 text-muted-foreground flex items-center gap-1.5 font-medium">
+            <div className="gap-3 flex items-center">
+              <span className="w-24 gap-1.5 font-medium flex items-center text-muted-foreground">
                 <CalendarDays className="size-3.5" />
                 <span>Dates</span>
               </span>
-              <div className="flex items-center gap-1.5">
+              <div className="gap-1.5 flex items-center">
                 <DatePicker
                   value={currentStartDate}
                   onChange={(d) =>
@@ -892,26 +953,36 @@ function CardDetailsBody({
                   trigger={
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-border/70 text-foreground hover:bg-accent/50 font-medium"
+                      className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-md border border-border/70 text-foreground hover:bg-accent/50"
                     >
                       <CalendarPlus className="size-3 text-muted-foreground" />
-                      <span>{currentStartDate ? formatDateShort(currentStartDate) : 'Start'}</span>
+                      <span>
+                        {currentStartDate
+                          ? formatDateShort(currentStartDate)
+                          : 'Start'}
+                      </span>
                     </button>
                   }
                 />
-                <span className="text-muted-foreground text-[11px]">→</span>
+                <span className="text-[11px] text-muted-foreground">→</span>
                 <DatePicker
                   value={card.dueDate ?? ''}
                   onChange={(d) =>
-                    dispatch({ type: 'card/update', cardId: card.id, patch: { dueDate: d || null } })
+                    dispatch({
+                      type: 'card/update',
+                      cardId: card.id,
+                      patch: { dueDate: d || null },
+                    })
                   }
                   trigger={
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-accent-rose/30 bg-accent-rose-soft text-accent-rose hover:bg-accent-rose-soft font-medium"
+                      className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-md border border-accent-rose/30 bg-accent-rose-soft text-accent-rose hover:bg-accent-rose-soft"
                     >
                       <CalendarX2 className="size-3 text-accent-rose" />
-                      <span>{card.dueDate ? formatDateShort(card.dueDate) : 'Due'}</span>
+                      <span>
+                        {card.dueDate ? formatDateShort(card.dueDate) : 'Due'}
+                      </span>
                     </button>
                   }
                 />
@@ -919,8 +990,8 @@ function CardDetailsBody({
             </div>
 
             {/* Row 2 Right: Priority */}
-            <div className="flex items-center gap-3">
-              <span className="w-24 text-muted-foreground flex items-center gap-1.5 font-medium">
+            <div className="gap-3 flex items-center">
+              <span className="w-24 gap-1.5 font-medium flex items-center text-muted-foreground">
                 <PriorityIcon priority={currentPriority} />
                 <span>Priority</span>
               </span>
@@ -930,42 +1001,49 @@ function CardDetailsBody({
                 trigger={
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border border-border/70 text-foreground hover:bg-accent/50 font-medium cursor-pointer"
+                    className="gap-1.5 px-2 py-0.5 font-medium inline-flex cursor-pointer items-center rounded-lg border border-border/70 text-foreground hover:bg-accent/50"
                   >
                     <PriorityIcon priority={currentPriority} />
-                    <span className="capitalize">{currentPriority.toLowerCase().replace('_', ' ')}</span>
+                    <span className="capitalize">
+                      {currentPriority.toLowerCase().replace('_', ' ')}
+                    </span>
                   </button>
                 }
               />
             </div>
 
             {/* Row 3 Left: Track Time */}
-            <div className="flex items-center gap-3">
-              <span className="w-24 text-muted-foreground flex items-center gap-1.5 font-medium">
+            <div className="gap-3 flex items-center">
+              <span className="w-24 gap-1.5 font-medium flex items-center text-muted-foreground">
                 <Timer className="size-3.5" />
                 <span>Track time</span>
               </span>
-              <DropdownMenu open={isLoggingTime} onOpenChange={setIsLoggingTime}>
+              <DropdownMenu
+                open={isLoggingTime}
+                onOpenChange={setIsLoggingTime}
+              >
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-border/70 bg-surface font-mono font-medium text-foreground hover:bg-accent/50 transition-colors cursor-pointer"
+                    className="gap-1.5 px-2 py-0.5 font-medium inline-flex cursor-pointer items-center rounded-md border border-border/70 bg-surface font-mono text-foreground transition-colors hover:bg-accent/50"
                   >
                     <Clock className="size-3 text-primary" />
                     <span>
-                      {detail?.timeSpent ? formatMinutes(detail.timeSpent) : 'No time logged'}
+                      {detail?.timeSpent
+                        ? formatMinutes(detail.timeSpent)
+                        : 'No time logged'}
                     </span>
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="start"
-                  className="w-56 p-3 rounded-xl border border-border bg-popover text-popover-foreground shadow-xl"
+                  className="w-56 p-3 shadow-xl rounded-xl border border-border bg-popover text-popover-foreground"
                 >
                   <form onSubmit={handleLogTime} className="space-y-2">
-                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                    <p className="font-semibold tracking-wide text-[11px] text-muted-foreground uppercase">
                       Log time
                     </p>
-                    <div className="flex items-center gap-1.5">
+                    <div className="gap-1.5 flex items-center">
                       <input
                         type="number"
                         min={0}
@@ -973,7 +1051,7 @@ function CardDetailsBody({
                         onChange={(e) => setLogHours(e.target.value)}
                         placeholder="0"
                         aria-label="Hours"
-                        className="w-16 text-xs bg-surface border border-border rounded-md px-2 py-1 outline-none focus:border-primary"
+                        className="w-16 text-xs px-2 py-1 rounded-md border border-border bg-surface outline-none focus:border-primary"
                       />
                       <span className="text-xs text-muted-foreground">h</span>
                       <input
@@ -984,11 +1062,15 @@ function CardDetailsBody({
                         onChange={(e) => setLogMinutes(e.target.value)}
                         placeholder="0"
                         aria-label="Minutes"
-                        className="w-16 text-xs bg-surface border border-border rounded-md px-2 py-1 outline-none focus:border-primary"
+                        className="w-16 text-xs px-2 py-1 rounded-md border border-border bg-surface outline-none focus:border-primary"
                       />
                       <span className="text-xs text-muted-foreground">m</span>
                     </div>
-                    <Button type="submit" size="sm" className="w-full h-7 text-xs">
+                    <Button
+                      type="submit"
+                      size="sm"
+                      className="h-7 text-xs w-full"
+                    >
                       Add to logged time
                     </Button>
                   </form>
@@ -997,18 +1079,18 @@ function CardDetailsBody({
             </div>
 
             {/* Row 3 Right: Tags */}
-            <div className="flex items-center gap-3">
-              <span className="w-24 text-muted-foreground flex items-center gap-1.5 font-medium">
+            <div className="gap-3 flex items-center">
+              <span className="w-24 gap-1.5 font-medium flex items-center text-muted-foreground">
                 <Tag className="size-3.5" />
                 <span>Tags</span>
               </span>
-              <div className="flex items-center gap-1 flex-wrap">
+              <div className="gap-1 flex flex-wrap items-center">
                 {currentLabels.map((lbl) => {
                   const color = colorOf(lbl);
                   return (
                     <span
                       key={lbl}
-                      className="inline-flex items-center gap-1 px-2 py-0.2 rounded-full text-[11px] font-semibold border"
+                      className="gap-1 px-2 py-0.2 font-semibold inline-flex items-center rounded-full border text-[11px]"
                       style={{
                         backgroundColor: `${color}18`,
                         borderColor: `${color}40`,
@@ -1025,7 +1107,7 @@ function CardDetailsBody({
                   trigger={
                     <button
                       type="button"
-                      className="px-1.5 py-0.5 rounded border border-dashed border-border/80 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      className="px-1.5 py-0.5 rounded border border-dashed border-border/80 text-[11px] text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                     >
                       + Tag
                     </button>
@@ -1035,8 +1117,8 @@ function CardDetailsBody({
             </div>
 
             {/* Row 4 Left: Team */}
-            <div className="flex items-center gap-3">
-              <span className="w-24 text-muted-foreground flex items-center gap-1.5 font-medium">
+            <div className="gap-3 flex items-center">
+              <span className="w-24 gap-1.5 font-medium flex items-center text-muted-foreground">
                 <UsersRound className="size-3.5" />
                 <span>Team</span>
               </span>
@@ -1049,7 +1131,7 @@ function CardDetailsBody({
                 trigger={
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border border-border/70 text-foreground hover:bg-accent/50 font-medium cursor-pointer"
+                    className="gap-1.5 px-2 py-0.5 font-medium inline-flex cursor-pointer items-center rounded-lg border border-border/70 text-foreground hover:bg-accent/50"
                   >
                     <UsersRound className="size-3 text-muted-foreground" />
                     <span>{detail?.team?.name ?? 'No team'}</span>
@@ -1059,8 +1141,8 @@ function CardDetailsBody({
             </div>
 
             {/* Row 4 Right: Epic */}
-            <div className="flex items-center gap-3">
-              <span className="w-24 text-muted-foreground flex items-center gap-1.5 font-medium">
+            <div className="gap-3 flex items-center">
+              <span className="w-24 gap-1.5 font-medium flex items-center text-muted-foreground">
                 <Layers className="size-3.5" />
                 <span>Epic</span>
               </span>
@@ -1073,7 +1155,7 @@ function CardDetailsBody({
                 trigger={
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border border-border/70 text-foreground hover:bg-accent/50 font-medium cursor-pointer"
+                    className="gap-1.5 px-2 py-0.5 font-medium inline-flex cursor-pointer items-center rounded-lg border border-border/70 text-foreground hover:bg-accent/50"
                   >
                     <Layers className="size-3 text-muted-foreground" />
                     <span>{detail?.epic?.name ?? 'No epic'}</span>
@@ -1083,8 +1165,8 @@ function CardDetailsBody({
             </div>
 
             {/* Row 5 Left: Module */}
-            <div className="flex items-center gap-3">
-              <span className="w-24 text-muted-foreground flex items-center gap-1.5 font-medium">
+            <div className="gap-3 flex items-center">
+              <span className="w-24 gap-1.5 font-medium flex items-center text-muted-foreground">
                 <Boxes className="size-3.5" />
                 <span>Module</span>
               </span>
@@ -1097,7 +1179,7 @@ function CardDetailsBody({
                 trigger={
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border border-border/70 text-foreground hover:bg-accent/50 font-medium cursor-pointer"
+                    className="gap-1.5 px-2 py-0.5 font-medium inline-flex cursor-pointer items-center rounded-lg border border-border/70 text-foreground hover:bg-accent/50"
                   >
                     <Boxes className="size-3 text-muted-foreground" />
                     <span>{detail?.module?.name ?? 'No module'}</span>
@@ -1107,8 +1189,8 @@ function CardDetailsBody({
             </div>
 
             {/* Row 5 Right: Cycle */}
-            <div className="flex items-center gap-3">
-              <span className="w-24 text-muted-foreground flex items-center gap-1.5 font-medium">
+            <div className="gap-3 flex items-center">
+              <span className="w-24 gap-1.5 font-medium flex items-center text-muted-foreground">
                 <Repeat className="size-3.5" />
                 <span>Cycle</span>
               </span>
@@ -1121,7 +1203,7 @@ function CardDetailsBody({
                 trigger={
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border border-border/70 text-foreground hover:bg-accent/50 font-medium cursor-pointer"
+                    className="gap-1.5 px-2 py-0.5 font-medium inline-flex cursor-pointer items-center rounded-lg border border-border/70 text-foreground hover:bg-accent/50"
                   >
                     <Repeat className="size-3 text-muted-foreground" />
                     <span>{detail?.cycle?.name ?? 'No cycle'}</span>
@@ -1131,8 +1213,8 @@ function CardDetailsBody({
             </div>
 
             {/* Row 6 Left: Estimate */}
-            <div className="flex items-center gap-3">
-              <span className="w-24 text-muted-foreground flex items-center gap-1.5 font-medium">
+            <div className="gap-3 flex items-center">
+              <span className="w-24 gap-1.5 font-medium flex items-center text-muted-foreground">
                 <Gauge className="size-3.5" />
                 <span>Estimate</span>
               </span>
@@ -1142,21 +1224,25 @@ function CardDetailsBody({
                 trigger={
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border border-border/70 text-foreground hover:bg-accent/50 font-mono font-medium cursor-pointer"
+                    className="gap-1.5 px-2 py-0.5 font-medium inline-flex cursor-pointer items-center rounded-lg border border-border/70 font-mono text-foreground hover:bg-accent/50"
                   >
-                    <span>{detail?.estimate != null ? `${detail.estimate} pts` : 'No estimate'}</span>
+                    <span>
+                      {detail?.estimate != null
+                        ? `${detail.estimate} pts`
+                        : 'No estimate'}
+                    </span>
                   </button>
                 }
               />
             </div>
 
             {/* Row 6 Right: Parent */}
-            <div className="flex items-center gap-3">
-              <span className="w-24 text-muted-foreground flex items-center gap-1.5 font-medium">
+            <div className="gap-3 flex items-center">
+              <span className="w-24 gap-1.5 font-medium flex items-center text-muted-foreground">
                 <CornerUpLeft className="size-3.5" />
                 <span>Parent</span>
               </span>
-              <div className="flex items-center gap-1.5">
+              <div className="gap-1.5 flex items-center">
                 <KanbanTaskLinkPicker
                   options={linkableTasks}
                   excludeIds={parentExcludeIds}
@@ -1166,7 +1252,7 @@ function CardDetailsBody({
                   trigger={
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border border-border/70 text-foreground hover:bg-accent/50 font-medium cursor-pointer max-w-56"
+                      className="gap-1.5 px-2 py-0.5 font-medium max-w-56 inline-flex cursor-pointer items-center rounded-lg border border-border/70 text-foreground hover:bg-accent/50"
                     >
                       <span className="truncate">
                         {detail?.parent
@@ -1180,7 +1266,7 @@ function CardDetailsBody({
                   <button
                     type="button"
                     onClick={() => handleParentChange(null)}
-                    className="p-0.5 text-muted-foreground hover:text-foreground rounded hover:bg-muted"
+                    className="p-0.5 rounded text-muted-foreground hover:bg-muted hover:text-foreground"
                     aria-label="Clear parent"
                   >
                     <X className="size-3" />
@@ -1192,21 +1278,28 @@ function CardDetailsBody({
 
           {/* Blocked by Alert Badge — only while something un-done actually blocks this card */}
           {activeBlockingRelations.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-xl border border-accent-amber/25 bg-accent-amber-soft text-xs text-foreground">
-              <AlertTriangle className="size-3.5 text-accent-amber shrink-0" />
-              <span className="font-semibold text-accent-amber">Blocked by</span>
+            <div className="gap-2 p-2.5 text-xs flex flex-wrap items-center rounded-xl border border-accent-amber/25 bg-accent-amber-soft text-foreground">
+              <AlertTriangle className="size-3.5 shrink-0 text-accent-amber" />
+              <span className="font-semibold text-accent-amber">
+                Blocked by
+              </span>
               {activeBlockingRelations.map((view) => (
                 <span
                   key={view.id}
-                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-surface border border-border/80 text-[11px] font-medium"
+                  className="gap-1.5 px-2 py-0.5 font-medium inline-flex items-center rounded-md border border-border/80 bg-surface text-[11px]"
                 >
-                  <StatusIcon status={view.otherTask.status} className="size-3" />
+                  <StatusIcon
+                    status={view.otherTask.status}
+                    className="size-3"
+                  />
                   {view.otherTask.identifier && (
                     <span className="font-mono text-muted-foreground">
                       {view.otherTask.identifier}
                     </span>
                   )}
-                  <span className="truncate max-w-40">{view.otherTask.title}</span>
+                  <span className="max-w-40 truncate">
+                    {view.otherTask.title}
+                  </span>
                 </span>
               ))}
             </div>
@@ -1215,7 +1308,7 @@ function CardDetailsBody({
           {/* Relations */}
           <section className="space-y-2">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+              <h3 className="text-xs font-semibold tracking-wide gap-1.5 flex items-center text-muted-foreground uppercase">
                 <Link2 className="size-3.5" />
                 <span>Relations</span>
               </h3>
@@ -1230,7 +1323,9 @@ function CardDetailsBody({
                     <AppSelect
                       size="sm"
                       value={addRelationType}
-                      onValueChange={(v) => setAddRelationType(v as RelationType)}
+                      onValueChange={(v) =>
+                        setAddRelationType(v as RelationType)
+                      }
                       options={LINKABLE_RELATION_TYPES.map((option) => ({
                         value: option.type,
                         label: option.label,
@@ -1242,7 +1337,7 @@ function CardDetailsBody({
                 trigger={
                   <button
                     type="button"
-                    className="text-xs text-primary hover:underline flex items-center gap-1"
+                    className="text-xs gap-1 flex items-center text-primary hover:underline"
                   >
                     <Plus className="size-3" />
                     <span>Add relation</span>
@@ -1261,7 +1356,7 @@ function CardDetailsBody({
                   <div
                     key={view.id}
                     className={cn(
-                      'flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs group',
+                      'gap-2 px-2.5 py-1.5 text-xs group flex items-center rounded-lg',
                       isBlockingView(view)
                         ? 'bg-accent-amber-soft/60'
                         : 'bg-surface-muted',
@@ -1270,22 +1365,29 @@ function CardDetailsBody({
                     <span
                       className={cn(
                         'font-medium shrink-0',
-                        isBlockingView(view) ? 'text-accent-amber' : 'text-muted-foreground',
+                        isBlockingView(view)
+                          ? 'text-accent-amber'
+                          : 'text-muted-foreground',
                       )}
                     >
                       {relationVerb(view.type, view.direction)}
                     </span>
-                    <StatusIcon status={view.otherTask.status} className="size-3 shrink-0" />
+                    <StatusIcon
+                      status={view.otherTask.status}
+                      className="size-3 shrink-0"
+                    />
                     {view.otherTask.identifier && (
-                      <span className="font-mono text-[10px] text-muted-foreground shrink-0">
+                      <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
                         {view.otherTask.identifier}
                       </span>
                     )}
-                    <span className="truncate flex-1">{view.otherTask.title}</span>
+                    <span className="flex-1 truncate">
+                      {view.otherTask.title}
+                    </span>
                     <button
                       type="button"
                       onClick={() => handleRemoveRelation(view.id)}
-                      className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive p-0.5 shrink-0"
+                      className="p-0.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
                       aria-label="Remove relation"
                     >
                       <X className="size-3" />
@@ -1299,7 +1401,7 @@ function CardDetailsBody({
           {/* Description Section */}
           <section className="space-y-2">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+              <h3 className="text-xs font-semibold tracking-wide gap-1.5 flex items-center text-muted-foreground uppercase">
                 <AlignLeft className="size-3.5" />
                 <span>Description</span>
               </h3>
@@ -1307,7 +1409,7 @@ function CardDetailsBody({
                 <button
                   type="button"
                   onClick={() => setEditingDescription(true)}
-                  className="text-xs text-primary hover:underline flex items-center gap-1"
+                  className="text-xs gap-1 flex items-center text-primary hover:underline"
                 >
                   <Pencil className="size-3" />
                   <span>Edit</span>
@@ -1327,7 +1429,7 @@ function CardDetailsBody({
                   className="text-xs"
                 />
                 <div className="flex items-center justify-between">
-                  <div className="flex gap-2">
+                  <div className="gap-2 flex">
                     <Button
                       size="sm"
                       onClick={() => {
@@ -1357,7 +1459,7 @@ function CardDetailsBody({
                     variant="subtle"
                     onClick={handleGenerateWithAI}
                     loading={generateDescription.isPending}
-                    className="text-xs text-accent-violet gap-1"
+                    className="text-xs gap-1 text-accent-violet"
                   >
                     <Sparkles className="size-3" />
                     <span>Auto-write with AI</span>
@@ -1368,7 +1470,7 @@ function CardDetailsBody({
               <div
                 onClick={() => setEditingDescription(true)}
                 className={cn(
-                  'min-h-16 p-3 rounded-xl border border-transparent hover:border-input bg-surface-muted text-xs cursor-pointer whitespace-pre-wrap transition-colors',
+                  'min-h-16 p-3 text-xs cursor-pointer rounded-xl border border-transparent bg-surface-muted whitespace-pre-wrap transition-colors hover:border-input',
                   !card.description && 'text-muted-foreground italic',
                 )}
               >
@@ -1378,27 +1480,34 @@ function CardDetailsBody({
           </section>
 
           {/* Collapsible Fields & Action Items Section */}
-          <section className="border-t border-border/50 pt-4 space-y-3">
+          <section className="pt-4 space-y-3 border-t border-border/50">
             <button
               type="button"
               onClick={() => setIsFieldsOpen(!isFieldsOpen)}
-              className="flex items-center gap-1.5 text-xs font-semibold text-foreground hover:text-primary transition-colors cursor-pointer"
+              className="gap-1.5 text-xs font-semibold flex cursor-pointer items-center text-foreground transition-colors hover:text-primary"
             >
-              {isFieldsOpen ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+              {isFieldsOpen ? (
+                <ChevronDown className="size-3.5" />
+              ) : (
+                <ChevronRight className="size-3.5" />
+              )}
               <span>Fields & Action Items</span>
             </button>
 
             {isFieldsOpen && (
               <div className="pl-5 space-y-2 text-xs">
-                <div className="flex items-center justify-between text-muted-foreground font-medium pb-1">
-                  <span className="flex items-center gap-1.5">
+                <div className="font-medium pb-1 flex items-center justify-between text-muted-foreground">
+                  <span className="gap-1.5 flex items-center">
                     <ListCheck className="size-3.5 text-primary" />
-                    <span>Action Items ({checklists.filter((c) => c.done).length}/{checklists.length})</span>
+                    <span>
+                      Action Items ({checklists.filter((c) => c.done).length}/
+                      {checklists.length})
+                    </span>
                   </span>
                   <button
                     type="button"
                     onClick={() => setIsAddingChecklist(true)}
-                    className="text-xs text-primary hover:underline flex items-center gap-1"
+                    className="text-xs gap-1 flex items-center text-primary hover:underline"
                   >
                     <Plus className="size-3" />
                     <span>Add item</span>
@@ -1409,7 +1518,7 @@ function CardDetailsBody({
                   {checklists.map((item) => (
                     <div
                       key={item.id}
-                      className="flex items-center gap-2.5 group p-1 rounded-lg hover:bg-accent/40 transition-colors"
+                      className="gap-2.5 group p-1 flex items-center rounded-lg transition-colors hover:bg-accent/40"
                     >
                       <input
                         type="checkbox"
@@ -1417,24 +1526,30 @@ function CardDetailsBody({
                         onChange={(e) =>
                           setChecklists(
                             checklists.map((c) =>
-                              c.id === item.id ? { ...c, done: e.target.checked } : c,
+                              c.id === item.id
+                                ? { ...c, done: e.target.checked }
+                                : c,
                             ),
                           )
                         }
-                        className="rounded border-border size-3.5 text-primary focus:ring-0 cursor-pointer"
+                        className="rounded size-3.5 cursor-pointer border-border text-primary focus:ring-0"
                       />
                       <span
                         className={cn(
-                          'flex-1 text-xs transition-colors',
-                          item.done && 'line-through text-muted-foreground',
+                          'text-xs flex-1 transition-colors',
+                          item.done && 'text-muted-foreground line-through',
                         )}
                       >
                         {item.text}
                       </span>
                       <button
                         type="button"
-                        onClick={() => setChecklists(checklists.filter((c) => c.id !== item.id))}
-                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive p-0.5"
+                        onClick={() =>
+                          setChecklists(
+                            checklists.filter((c) => c.id !== item.id),
+                          )
+                        }
+                        className="p-0.5 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
                       >
                         <X className="size-3" />
                       </button>
@@ -1442,13 +1557,16 @@ function CardDetailsBody({
                   ))}
 
                   {isAddingChecklist && (
-                    <form onSubmit={handleAddChecklist} className="flex items-center gap-2 pt-1">
+                    <form
+                      onSubmit={handleAddChecklist}
+                      className="gap-2 pt-1 flex items-center"
+                    >
                       <input
                         autoFocus
                         value={newChecklistText}
                         onChange={(e) => setNewChecklistText(e.target.value)}
                         placeholder="Add new action item..."
-                        className="flex-1 text-xs bg-surface border border-border rounded-md px-2 py-1 outline-none focus:border-primary"
+                        className="text-xs px-2 py-1 flex-1 rounded-md border border-border bg-surface outline-none focus:border-primary"
                       />
                       <Button size="sm" type="submit" className="h-7 text-xs">
                         Add
@@ -1470,16 +1588,22 @@ function CardDetailsBody({
 
           {/* Sub-issues — real child tasks (`Task.parentId`), the same hierarchy
               the spreadsheet view's "X/Y" badge already summarises. */}
-          <section className="border-t border-border/50 pt-4 space-y-3">
+          <section className="pt-4 space-y-3 border-t border-border/50">
             <button
               type="button"
               onClick={() => setIsSubIssuesOpen(!isSubIssuesOpen)}
-              className="flex items-center gap-1.5 text-xs font-semibold text-foreground hover:text-primary transition-colors cursor-pointer"
+              className="gap-1.5 text-xs font-semibold flex cursor-pointer items-center text-foreground transition-colors hover:text-primary"
             >
-              {isSubIssuesOpen ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+              {isSubIssuesOpen ? (
+                <ChevronDown className="size-3.5" />
+              ) : (
+                <ChevronRight className="size-3.5" />
+              )}
               <ListTree className="size-3.5" />
               <span>
-                Sub-issues ({subIssues.filter((s) => s.status === 'DONE').length}/{subIssues.length})
+                Sub-issues (
+                {subIssues.filter((s) => s.status === 'DONE').length}/
+                {subIssues.length})
               </span>
             </button>
 
@@ -1488,25 +1612,32 @@ function CardDetailsBody({
                 {subIssues.map((sub) => (
                   <div
                     key={sub.id}
-                    className="flex items-center gap-2.5 group p-1 rounded-lg hover:bg-accent/40 transition-colors"
+                    className="gap-2.5 group p-1 flex items-center rounded-lg transition-colors hover:bg-accent/40"
                   >
                     <button
                       type="button"
-                      onClick={() => handleToggleSubIssue(sub.id, sub.status === 'DONE')}
-                      aria-label={sub.status === 'DONE' ? 'Mark as not done' : 'Mark as done'}
+                      onClick={() =>
+                        handleToggleSubIssue(sub.id, sub.status === 'DONE')
+                      }
+                      aria-label={
+                        sub.status === 'DONE'
+                          ? 'Mark as not done'
+                          : 'Mark as done'
+                      }
                       className="shrink-0"
                     >
                       <StatusIcon status={sub.status} className="size-3.5" />
                     </button>
                     {sub.identifier && (
-                      <span className="font-mono text-[10px] text-muted-foreground shrink-0">
+                      <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
                         {sub.identifier}
                       </span>
                     )}
                     <span
                       className={cn(
-                        'flex-1 truncate text-xs transition-colors',
-                        sub.status === 'DONE' && 'line-through text-muted-foreground',
+                        'text-xs flex-1 truncate transition-colors',
+                        sub.status === 'DONE' &&
+                          'text-muted-foreground line-through',
                       )}
                     >
                       {sub.title}
@@ -1515,13 +1646,16 @@ function CardDetailsBody({
                 ))}
 
                 {isAddingSubIssue ? (
-                  <form onSubmit={handleAddSubIssue} className="flex items-center gap-2 pt-1">
+                  <form
+                    onSubmit={handleAddSubIssue}
+                    className="gap-2 pt-1 flex items-center"
+                  >
                     <input
                       autoFocus
                       value={newSubIssueText}
                       onChange={(e) => setNewSubIssueText(e.target.value)}
                       placeholder="Add sub-issue title..."
-                      className="flex-1 text-xs bg-surface border border-border rounded-md px-2 py-1 outline-none focus:border-primary"
+                      className="text-xs px-2 py-1 flex-1 rounded-md border border-border bg-surface outline-none focus:border-primary"
                     />
                     <Button size="sm" type="submit" className="h-7 text-xs">
                       Add
@@ -1539,7 +1673,7 @@ function CardDetailsBody({
                   <button
                     type="button"
                     onClick={() => setIsAddingSubIssue(true)}
-                    className="text-xs text-primary hover:underline flex items-center gap-1 pt-1"
+                    className="text-xs gap-1 pt-1 flex items-center text-primary hover:underline"
                   >
                     <Plus className="size-3" />
                     <span>Add sub-issue</span>
@@ -1551,7 +1685,7 @@ function CardDetailsBody({
 
           {/* Attachments — real Upload rows filed against this issue; they also
               surface in the workspace Files hub. */}
-          <section className="border-t border-border/50 pt-4">
+          <section className="pt-4 border-t border-border/50">
             <FiledFilesSection
               workspaceId={workspaceId}
               workspaceSlug={workspaceSlug}
@@ -1567,55 +1701,71 @@ function CardDetailsBody({
         {/* RIGHT COLUMN: Activity & Comments Feed */}
         <div
           className={cn(
-            'w-full flex flex-col bg-surface-inset/30 overflow-hidden',
+            'flex w-full flex-col overflow-hidden bg-surface-inset/30',
             // Stacked under the card in the rail, capped so the card body it
             // belongs to never gets squeezed out of view above it.
             isPanel ? 'max-h-[45%] shrink-0' : 'md:w-96 h-full',
           )}
         >
           {/* Activity Header */}
-          <div className="p-3.5 px-5 border-b border-border/60 bg-surface/40 flex items-center justify-between shrink-0">
-            <h3 className="text-xs font-bold text-foreground flex items-center gap-2">
+          <div className="p-3.5 px-5 flex shrink-0 items-center justify-between border-b border-border/60 bg-surface/40">
+            <h3 className="text-xs font-bold gap-2 flex items-center text-foreground">
               <MessageSquare className="size-3.5 text-primary" />
               <span>Activity</span>
             </h3>
-            <div className="flex items-center gap-1 text-muted-foreground">
-              <button type="button" className="p-1 rounded hover:bg-muted" title="Search activity">
+            <div className="gap-1 flex items-center text-muted-foreground">
+              <button
+                type="button"
+                className="p-1 rounded hover:bg-muted"
+                title="Search activity"
+              >
                 <Search className="size-3.5" />
               </button>
-              <button type="button" className="p-1 rounded hover:bg-muted flex items-center gap-0.5 text-xs">
+              <button
+                type="button"
+                className="p-1 rounded gap-0.5 text-xs flex items-center hover:bg-muted"
+              >
                 <MessageSquare className="size-3.5" />
-                <span className="text-[10px] font-mono">{comments.data?.length ?? card.commentCount ?? 0}</span>
+                <span className="font-mono text-[10px]">
+                  {comments.data?.length ?? card.commentCount ?? 0}
+                </span>
               </button>
-              <button type="button" className="p-1 rounded hover:bg-muted" title="Filter activity">
+              <button
+                type="button"
+                className="p-1 rounded hover:bg-muted"
+                title="Filter activity"
+              >
                 <Filter className="size-3.5" />
               </button>
             </div>
           </div>
 
           {/* Activity Stream Scrollable Area */}
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 text-xs">
+          <div className="min-h-0 p-4 space-y-4 text-xs flex-1 overflow-y-auto">
             {comments.isLoading ? (
-              <p className="text-muted-foreground/70 text-center py-4">
+              <p className="py-4 text-center text-muted-foreground/70">
                 Loading comments…
               </p>
             ) : (comments.data ?? []).length === 0 ? (
-              <p className="text-muted-foreground/70 text-center py-4">
+              <p className="py-4 text-center text-muted-foreground/70">
                 No comments yet. Start the conversation below.
               </p>
             ) : null}
 
             {(comments.data ?? []).map((comment) => (
-              <div key={comment.id} className="space-y-1.5 p-3 rounded-xl bg-surface border border-border/60 shadow-2xs">
+              <div
+                key={comment.id}
+                className="space-y-1.5 p-3 shadow-2xs rounded-xl border border-border/60 bg-surface"
+              >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <div className="gap-2 flex items-center">
                     <UserAvatar
                       name={comment.author.displayName ?? comment.author.name}
                       seed={comment.author.id}
                       src={comment.author.avatarUrl ?? undefined}
                       size="xs"
                     />
-                    <span className="font-semibold text-foreground text-xs">
+                    <span className="font-semibold text-xs text-foreground">
                       {comment.author.displayName ?? comment.author.name}
                     </span>
                   </div>
@@ -1623,7 +1773,9 @@ function CardDetailsBody({
                     {formatRelative(comment.createdAt)}
                   </span>
                 </div>
-                <p className="text-xs text-foreground pl-6 whitespace-pre-wrap">{comment.content}</p>
+                <p className="text-xs pl-6 whitespace-pre-wrap text-foreground">
+                  {comment.content}
+                </p>
               </div>
             ))}
           </div>
@@ -1642,32 +1794,56 @@ function CardDetailsBody({
                 { onSuccess: () => setCommentDraft('') },
               );
             }}
-            className="p-3 border-t border-border/60 bg-surface/50 space-y-2 shrink-0"
+            className="p-3 space-y-2 shrink-0 border-t border-border/60 bg-surface/50"
           >
             <input
               value={commentDraft}
               onChange={(e) => setCommentDraft(e.target.value)}
               placeholder="Write a comment..."
-              className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground/70 outline-none px-1"
+              className="text-xs px-1 w-full bg-transparent text-foreground outline-none placeholder:text-muted-foreground/70"
             />
-            <div className="flex items-center justify-between pt-1">
-              <div className="flex items-center gap-1.5 text-muted-foreground">
-                <button type="button" className="p-1 hover:text-foreground rounded hover:bg-muted" title="Add item">
+            <div className="pt-1 flex items-center justify-between">
+              <div className="gap-1.5 flex items-center text-muted-foreground">
+                <button
+                  type="button"
+                  className="p-1 rounded hover:bg-muted hover:text-foreground"
+                  title="Add item"
+                >
                   <Plus className="size-3.5" />
                 </button>
-                <button type="button" className="p-1 hover:text-accent-violet rounded hover:bg-muted" title="Brain AI">
+                <button
+                  type="button"
+                  className="p-1 rounded hover:bg-muted hover:text-accent-violet"
+                  title="Brain AI"
+                >
                   <Sparkles className="size-3.5 text-accent-violet" />
                 </button>
-                <button type="button" className="p-1 hover:text-foreground rounded hover:bg-muted" title="Mention">
+                <button
+                  type="button"
+                  className="p-1 rounded hover:bg-muted hover:text-foreground"
+                  title="Mention"
+                >
                   <AtSign className="size-3.5" />
                 </button>
-                <button type="button" className="p-1 hover:text-foreground rounded hover:bg-muted" title="Attachment">
+                <button
+                  type="button"
+                  className="p-1 rounded hover:bg-muted hover:text-foreground"
+                  title="Attachment"
+                >
                   <Paperclip className="size-3.5" />
                 </button>
-                <button type="button" className="p-1 hover:text-foreground rounded hover:bg-muted" title="Emoji">
+                <button
+                  type="button"
+                  className="p-1 rounded hover:bg-muted hover:text-foreground"
+                  title="Emoji"
+                >
                   <Smile className="size-3.5" />
                 </button>
-                <button type="button" className="p-1 hover:text-foreground rounded hover:bg-muted" title="Video note">
+                <button
+                  type="button"
+                  className="p-1 rounded hover:bg-muted hover:text-foreground"
+                  title="Video note"
+                >
                   <Video className="size-3.5" />
                 </button>
               </div>

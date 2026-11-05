@@ -146,7 +146,11 @@ export class MatrixSyncService {
     // `invite` for a human is not yet membership, so it is ignored. Our own
     // outbound mirror also emits these events; the upserts / deletes below are
     // idempotent, so the echo is a harmless no-op and needs no dedupe.
-    if (membership !== 'join' && membership !== 'leave' && membership !== 'ban') {
+    if (
+      membership !== 'join' &&
+      membership !== 'leave' &&
+      membership !== 'ban'
+    ) {
       return;
     }
 
@@ -267,8 +271,13 @@ export class MatrixSyncService {
     // trigger) get the text in-process. Nothing stores it here; an edit or a
     // bot's own message is not a new message, and encrypted rooms have no
     // readable body to hand on.
-    const body = typeof event.content['body'] === 'string' ? (event.content['body'] as string) : '';
-    const isEdit = !!(event.content['m.relates_to'] as { rel_type?: string } | undefined)?.rel_type?.startsWith('m.replace');
+    const body =
+      typeof event.content['body'] === 'string'
+        ? (event.content['body'] as string)
+        : '';
+    const isEdit = !!(
+      event.content['m.relates_to'] as { rel_type?: string } | undefined
+    )?.rel_type?.startsWith('m.replace');
     if (user && body.trim() && !isEdit) {
       this.events.emit(AppEvent.ChannelMessagePosted, {
         workspaceId: channel.workspaceId,
@@ -295,7 +304,7 @@ export class MatrixSyncService {
         contextType: 'channel',
         contextId: channel.id,
         contextLabel: `#${channel.slug || channel.name}`,
-        deepLink: `c/${channel.slug}`,
+        deepLink: `channels/${channel.slug}`,
       });
     }
   }
@@ -316,13 +325,13 @@ export class MatrixSyncService {
     workspaceId: string,
   ): Promise<string[]> {
     const mentions = event.content['m.mentions'] as
-      | { user_ids?: unknown }
-      | undefined;
+      { user_ids?: unknown } | undefined;
     const matrixUserIds = Array.isArray(mentions?.user_ids)
       ? mentions.user_ids.filter((id): id is string => typeof id === 'string')
       : [];
 
-    const body = typeof event.content['body'] === 'string' ? event.content['body'] : '';
+    const body =
+      typeof event.content['body'] === 'string' ? event.content['body'] : '';
     // Cheap gate: no `@` and no explicit mention block means nothing to resolve,
     // which is the common case and must not cost a query.
     if (!matrixUserIds.length && !body.includes('@')) return [];

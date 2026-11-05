@@ -460,7 +460,7 @@ function Hero({
     navigate(
       planHref
         ? planHref(prompt)
-        : `${aiWorkspacePath(slug, 'studio', 'new')}?prompt=${encodeURIComponent(prompt)}`,
+        : `${aiWorkspacePath(slug, 'planned', 'new')}?prompt=${encodeURIComponent(prompt)}`,
     );
   };
   const active = data?.stats.activeAgents ?? 0;

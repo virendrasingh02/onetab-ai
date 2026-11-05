@@ -33,7 +33,11 @@ const TWENTY_DAYS_AGO = NOW - 20 * DAY;
 const THIRTY_ONE_DAYS_AGO = NOW - 31 * DAY;
 const SIXTY_DAYS_AGO = NOW - 60 * DAY;
 
-function channel(id: string, createdAt: number, extra: Partial<ChannelSummary> = {}): ChannelSummary {
+function channel(
+  id: string,
+  createdAt: number,
+  extra: Partial<ChannelSummary> = {},
+): ChannelSummary {
   return {
     id,
     workspaceId: 'w-1',
@@ -61,7 +65,11 @@ function channel(id: string, createdAt: number, extra: Partial<ChannelSummary> =
   };
 }
 
-function member(userId: string, joinedAt: number, extra: Partial<WorkspaceMember> = {}): WorkspaceMember {
+function member(
+  userId: string,
+  joinedAt: number,
+  extra: Partial<WorkspaceMember> = {},
+): WorkspaceMember {
   return {
     id: `m-${userId}`,
     workspaceId: 'w-1',
@@ -89,7 +97,9 @@ describe('30-day inactivity logic (inactivity-utils)', () => {
   });
 
   it('parses timestamps defensively', () => {
-    expect(toEpoch('2026-09-08T09:00:00.000Z')).toBe(Date.parse('2026-09-08T09:00:00.000Z'));
+    expect(toEpoch('2026-09-08T09:00:00.000Z')).toBe(
+      Date.parse('2026-09-08T09:00:00.000Z'),
+    );
     expect(toEpoch('not-a-date')).toBe(0);
     expect(toEpoch(null)).toBe(0);
     // matrix-js-sdk's "room has no events" sentinel
@@ -103,11 +113,16 @@ describe('30-day inactivity logic (inactivity-utils)', () => {
         channel('c-inactive', THIRTY_ONE_DAYS_AGO),
         channel('c-unread-old', THIRTY_ONE_DAYS_AGO),
       ],
-      activity: { 'c-unread-old': { level: 'activity', count: 3, mentionCount: 0 } },
+      activity: {
+        'c-unread-old': { level: 'activity', count: 3, mentionCount: 0 },
+      },
       now: NOW,
     });
 
-    expect(result.active.map((c) => c.id)).toEqual(['c-active', 'c-unread-old']);
+    expect(result.active.map((c) => c.id)).toEqual([
+      'c-active',
+      'c-unread-old',
+    ]);
     expect(result.inactive.map((c) => c.id)).toEqual(['c-inactive']);
     expect(result.lastActiveAt['c-inactive']).toBe(THIRTY_ONE_DAYS_AGO);
   });
@@ -115,7 +130,9 @@ describe('30-day inactivity logic (inactivity-utils)', () => {
   it('restores a channel to active as soon as a new message occurs', () => {
     const old = channel('c-test', THIRTY_ONE_DAYS_AGO);
 
-    expect(partitionChannelsByInactivity({ channels: [old], now: NOW }).inactive).toHaveLength(1);
+    expect(
+      partitionChannelsByInactivity({ channels: [old], now: NOW }).inactive,
+    ).toHaveLength(1);
     expect(
       partitionChannelsByInactivity({
         channels: [old],
@@ -167,13 +184,18 @@ describe('30-day inactivity logic (inactivity-utils)', () => {
         'c-hidden-fav': hidden,
         'c-hidden-open': hidden,
       },
-      activity: { 'c-hidden-busy': { level: 'activity', count: 2, mentionCount: 0 } },
+      activity: {
+        'c-hidden-busy': { level: 'activity', count: 2, mentionCount: 0 },
+      },
       keepActive: (id) => id === 'c-hidden-open',
       now: NOW,
     });
 
     // The open one stays put so hiding it doesn't lose the user's place.
-    expect(result.active.map((c) => c.id)).toEqual(['c-hidden-open', 'c-visible']);
+    expect(result.active.map((c) => c.id)).toEqual([
+      'c-hidden-open',
+      'c-visible',
+    ]);
     expect(result.inactive.map((c) => c.id).sort()).toEqual([
       'c-hidden-busy',
       'c-hidden-fav',
@@ -183,7 +205,10 @@ describe('30-day inactivity logic (inactivity-utils)', () => {
 
   it('hides hand-hidden channels even before activity data is ready', () => {
     const result = partitionChannelsByInactivity({
-      channels: [channel('c-hidden', TWENTY_DAYS_AGO), channel('c-other', TWENTY_DAYS_AGO)],
+      channels: [
+        channel('c-hidden', TWENTY_DAYS_AGO),
+        channel('c-other', TWENTY_DAYS_AGO),
+      ],
       signals: { 'c-hidden': { ...EMPTY_SIGNAL, hidden: true } },
       ready: false,
       now: NOW,
@@ -194,7 +219,10 @@ describe('30-day inactivity logic (inactivity-utils)', () => {
 
   it('orders inactive items most recently active first', () => {
     const result = partitionChannelsByInactivity({
-      channels: [channel('c-older', SIXTY_DAYS_AGO), channel('c-newer', THIRTY_ONE_DAYS_AGO)],
+      channels: [
+        channel('c-older', SIXTY_DAYS_AGO),
+        channel('c-newer', THIRTY_ONE_DAYS_AGO),
+      ],
       now: NOW,
     });
     expect(result.inactive.map((c) => c.id)).toEqual(['c-newer', 'c-older']);
@@ -218,7 +246,9 @@ describe('30-day inactivity logic (inactivity-utils)', () => {
 
   it('brings a DM back as soon as it has unread activity', () => {
     const old = member('u-2', THIRTY_ONE_DAYS_AGO);
-    expect(partitionMembersByInactivity({ members: [old], now: NOW }).inactive).toHaveLength(1);
+    expect(
+      partitionMembersByInactivity({ members: [old], now: NOW }).inactive,
+    ).toHaveLength(1);
     expect(
       partitionMembersByInactivity({
         members: [old],
@@ -241,7 +271,11 @@ describe('30-day inactivity logic (inactivity-utils)', () => {
       }) satisfies GroupDirectMessageSummary;
 
     const result = partitionGroupDMsByInactivity(
-      [group('g-old', SIXTY_DAYS_AGO), group('g-unread', SIXTY_DAYS_AGO, 2), group('g-new', NOW)],
+      [
+        group('g-old', SIXTY_DAYS_AGO),
+        group('g-unread', SIXTY_DAYS_AGO, 2),
+        group('g-new', NOW),
+      ],
       { now: NOW },
     );
     expect(result.active.map((g) => g.roomId)).toEqual(['g-unread', 'g-new']);
@@ -252,23 +286,51 @@ describe('30-day inactivity logic (inactivity-utils)', () => {
     const stamp = (at: number) => new Date(at).toISOString();
 
     const agents = [
-      { id: 'ag-old', lastActiveAt: stamp(THIRTY_ONE_DAYS_AGO), createdAt: stamp(THIRTY_ONE_DAYS_AGO), updatedAt: stamp(THIRTY_ONE_DAYS_AGO) },
-      { id: 'ag-recent', lastActiveAt: stamp(TWENTY_DAYS_AGO), createdAt: stamp(TWENTY_DAYS_AGO), updatedAt: stamp(TWENTY_DAYS_AGO) },
+      {
+        id: 'ag-old',
+        lastActiveAt: stamp(THIRTY_ONE_DAYS_AGO),
+        createdAt: stamp(THIRTY_ONE_DAYS_AGO),
+        updatedAt: stamp(THIRTY_ONE_DAYS_AGO),
+      },
+      {
+        id: 'ag-recent',
+        lastActiveAt: stamp(TWENTY_DAYS_AGO),
+        createdAt: stamp(TWENTY_DAYS_AGO),
+        updatedAt: stamp(TWENTY_DAYS_AGO),
+      },
     ] as unknown as AIAgent[];
     const agentResult = partitionAgentsByInactivity(agents, { now: NOW });
     expect(agentResult.active.map((a) => a.id)).toEqual(['ag-recent']);
     expect(agentResult.inactive.map((a) => a.id)).toEqual(['ag-old']);
     expect(
-      partitionAgentsByInactivity(agents, { now: NOW, keepActive: (id) => id === 'ag-old' }).inactive,
+      partitionAgentsByInactivity(agents, {
+        now: NOW,
+        keepActive: (id) => id === 'ag-old',
+      }).inactive,
     ).toEqual([]);
 
     const coworkers = [
-      { id: 'cw-old', lastActiveAt: stamp(THIRTY_ONE_DAYS_AGO), createdAt: stamp(THIRTY_ONE_DAYS_AGO), updatedAt: stamp(THIRTY_ONE_DAYS_AGO) },
+      {
+        id: 'cw-old',
+        lastActiveAt: stamp(THIRTY_ONE_DAYS_AGO),
+        createdAt: stamp(THIRTY_ONE_DAYS_AGO),
+        updatedAt: stamp(THIRTY_ONE_DAYS_AGO),
+      },
     ] as unknown as AICoworkerDetail[];
-    expect(partitionCoworkersByInactivity(coworkers, { now: NOW }).inactive.map((c) => c.id)).toEqual(['cw-old']);
+    expect(
+      partitionCoworkersByInactivity(coworkers, { now: NOW }).inactive.map(
+        (c) => c.id,
+      ),
+    ).toEqual(['cw-old']);
 
     const apps = [
-      { id: 'app-old', provider: 'github', lastSyncAt: stamp(THIRTY_ONE_DAYS_AGO), createdAt: stamp(THIRTY_ONE_DAYS_AGO), updatedAt: stamp(THIRTY_ONE_DAYS_AGO) },
+      {
+        id: 'app-old',
+        provider: 'github',
+        lastSyncAt: stamp(THIRTY_ONE_DAYS_AGO),
+        createdAt: stamp(THIRTY_ONE_DAYS_AGO),
+        updatedAt: stamp(THIRTY_ONE_DAYS_AGO),
+      },
     ] as unknown as ExternalIntegration[];
     const appResult = partitionAppsByInactivity(apps, { now: NOW });
     expect(appResult.inactive.map((a) => a.id)).toEqual(['app-old']);
@@ -282,13 +344,13 @@ describe('InactiveItemsDropdown', () => {
     {
       id: 'c-1',
       name: 'archived-chatter',
-      to: '/w/test/c/archived-chatter',
+      to: '/w/test/channels/archived-chatter',
       icon: <span data-testid="channel-icon">#</span>,
     },
     {
       id: 'c-2',
       name: 'project-planning-old',
-      to: '/w/test/c/project-planning-old',
+      to: '/w/test/channels/project-planning-old',
       icon: <span data-testid="channel-icon">#</span>,
     },
   ];
@@ -299,7 +361,11 @@ describe('InactiveItemsDropdown', () => {
   ) =>
     render(
       <MemoryRouter initialEntries={initialEntries}>
-        <InactiveItemsDropdown category="channels" items={sampleItems} {...props} />
+        <InactiveItemsDropdown
+          category="channels"
+          items={sampleItems}
+          {...props}
+        />
       </MemoryRouter>,
     );
 
@@ -322,7 +388,9 @@ describe('InactiveItemsDropdown', () => {
     expect(screen.queryByText('No messages in at least 30 days')).toBeNull();
     await user.click(screen.getByRole('button', { name: /inactive/i }));
 
-    expect(screen.getByText('No messages in at least 30 days')).toBeInTheDocument();
+    expect(
+      screen.getByText('No messages in at least 30 days'),
+    ).toBeInTheDocument();
     expect(screen.getByText('archived-chatter')).toBeInTheDocument();
     expect(screen.getByText('project-planning-old')).toBeInTheDocument();
   });
@@ -332,10 +400,9 @@ describe('InactiveItemsDropdown', () => {
     renderDropdown();
 
     await user.click(screen.getByRole('button', { name: /inactive/i }));
-    expect(screen.getByRole('link', { name: /archived-chatter/i })).toHaveAttribute(
-      'href',
-      '/w/test/c/archived-chatter',
-    );
+    expect(
+      screen.getByRole('link', { name: /archived-chatter/i }),
+    ).toHaveAttribute('href', '/w/test/channels/archived-chatter');
   });
 
   it('closes on Escape', async () => {
@@ -343,7 +410,9 @@ describe('InactiveItemsDropdown', () => {
     renderDropdown();
 
     await user.click(screen.getByRole('button', { name: /inactive/i }));
-    expect(screen.getByText('No messages in at least 30 days')).toBeInTheDocument();
+    expect(
+      screen.getByText('No messages in at least 30 days'),
+    ).toBeInTheDocument();
     await user.keyboard('{Escape}');
     expect(screen.queryByText('No messages in at least 30 days')).toBeNull();
   });
@@ -368,7 +437,7 @@ describe('InactiveItemsDropdown', () => {
     const many: InactiveDropdownItem[] = Array.from({ length: 12 }, (_, i) => ({
       id: `c-${i}`,
       name: i === 7 ? 'design-reviews' : `old-channel-${i}`,
-      to: `/w/test/c/${i}`,
+      to: `/w/test/channels/${i}`,
       icon: <span>#</span>,
     }));
     renderDropdown({ items: many });
@@ -377,7 +446,9 @@ describe('InactiveItemsDropdown', () => {
     await user.type(screen.getByRole('searchbox'), 'design');
 
     expect(screen.getAllByRole('link')).toHaveLength(1);
-    expect(screen.getByRole('link', { name: /design-reviews/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: /design-reviews/i }),
+    ).toBeInTheDocument();
 
     await user.clear(screen.getByRole('searchbox'));
     await user.type(screen.getByRole('searchbox'), 'zzz');
@@ -413,19 +484,33 @@ describe('InactiveItemsDropdown', () => {
     ['apps', undefined, 'GitHub'],
     ['agents', 'AI agents', 'Code Reviewer'],
     ['coworkers', 'AI coworkers', 'Alex Worker'],
-  ] as const)('works for the %s category', async (category, categoryLabel, name) => {
-    const user = userEvent.setup();
-    renderDropdown({
-      category,
-      categoryLabel,
-      items: [{ id: 'x', name, to: '/w/test/x', icon: <span data-testid="item-icon" /> }],
-    });
+  ] as const)(
+    'works for the %s category',
+    async (category, categoryLabel, name) => {
+      const user = userEvent.setup();
+      renderDropdown({
+        category,
+        categoryLabel,
+        items: [
+          {
+            id: 'x',
+            name,
+            to: '/w/test/x',
+            icon: <span data-testid="item-icon" />,
+          },
+        ],
+      });
 
-    await user.click(
-      screen.getByRole('button', { name: new RegExp(`inactive ${categoryLabel ?? category}`, 'i') }),
-    );
-    expect(screen.getByText('No messages in at least 30 days')).toBeInTheDocument();
-    expect(screen.getByText(name)).toBeInTheDocument();
-    expect(screen.getByTestId('item-icon')).toBeInTheDocument();
-  });
+      await user.click(
+        screen.getByRole('button', {
+          name: new RegExp(`inactive ${categoryLabel ?? category}`, 'i'),
+        }),
+      );
+      expect(
+        screen.getByText('No messages in at least 30 days'),
+      ).toBeInTheDocument();
+      expect(screen.getByText(name)).toBeInTheDocument();
+      expect(screen.getByTestId('item-icon')).toBeInTheDocument();
+    },
+  );
 });

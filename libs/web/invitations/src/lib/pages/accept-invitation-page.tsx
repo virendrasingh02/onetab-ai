@@ -271,7 +271,7 @@ export function AcceptInvitationPage() {
 
   const acceptDestination = acceptMutation.data
     ? acceptMutation.data.channelSlug
-      ? `/w/${acceptMutation.data.workspaceSlug}/c/${acceptMutation.data.channelSlug}`
+      ? `/w/${acceptMutation.data.workspaceSlug}/channels/${acceptMutation.data.channelSlug}`
       : `/w/${acceptMutation.data.workspaceSlug}`
     : null;
 

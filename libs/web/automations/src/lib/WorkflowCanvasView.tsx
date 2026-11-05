@@ -48,8 +48,15 @@ import {
   type EntityAction,
 } from '@org/ui';
 import { cn, formatRelative, generateId } from '@org/utils';
-import { AgentBuilderOptionsProvider, BuilderOptionSelect } from '@org/web-agents';
-import { useCanManageAIResource, useCurrentWorkspace, useWorkspacePermission } from '@org/web-workspace';
+import {
+  AgentBuilderOptionsProvider,
+  BuilderOptionSelect,
+} from '@org/web-agents';
+import {
+  useCanManageAIResource,
+  useCurrentWorkspace,
+  useWorkspacePermission,
+} from '@org/web-workspace';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Background,
@@ -94,8 +101,20 @@ import {
   Trash2,
   Workflow,
 } from 'lucide-react';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import {
+  Link,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom';
 import { useWorkflowMutations } from './use-automations.js';
 import {
   PALETTE,
@@ -109,14 +128,21 @@ import {
   type WorkflowField,
 } from './workflow-catalog.js';
 
-export { NODE_CATALOG, type NodeCatalogItem, type NodeCategory } from './workflow-catalog.js';
+export {
+  NODE_CATALOG,
+  type NodeCatalogItem,
+  type NodeCategory,
+} from './workflow-catalog.js';
 
 function aiPath(slug: string | undefined, ...rest: string[]) {
   return [`/w/${slug ?? ''}/ai`, ...rest].join('/');
 }
 
 /** Cards are neutral; a category only tints the step's glyph and its minimap dot. */
-export const CATEGORY_STYLE: Record<NodeCategory, { text: string; hex: string }> = {
+export const CATEGORY_STYLE: Record<
+  NodeCategory,
+  { text: string; hex: string }
+> = {
   triggers: { text: 'text-accent-amber', hex: '#f59e0b' },
   ai: { text: 'text-accent-violet', hex: '#8b5cf6' },
   knowledge: { text: 'text-accent-blue', hex: '#3b82f6' },
@@ -148,12 +174,12 @@ function WorkflowHandle({
   const positionOffsetStyle: React.CSSProperties = isTop
     ? { top: -11 }
     : isBottom
-    ? { bottom: -11 }
-    : isLeft
-    ? { left: -11 }
-    : isRight
-    ? { right: -11 }
-    : {};
+      ? { bottom: -11 }
+      : isLeft
+        ? { left: -11 }
+        : isRight
+          ? { right: -11 }
+          : {};
 
   return (
     <Handle
@@ -162,13 +188,13 @@ function WorkflowHandle({
       position={position}
       style={{ ...positionOffsetStyle, ...style }}
       className={cn(
-        'group/handle !size-8 !border-0 !bg-transparent !p-0 !m-0 !flex !items-center !justify-center !cursor-crosshair z-20',
+        'group/handle !size-8 !p-0 !m-0 z-20 !flex !cursor-crosshair !items-center !justify-center !border-0 !bg-transparent',
         className,
       )}
     >
       <span
         className={cn(
-          'relative size-3.5 rounded-full border-2 border-muted-foreground/70 bg-surface shadow-xs transition-all duration-150 pointer-events-none',
+          'size-3.5 pointer-events-none relative rounded-full border-2 border-muted-foreground/70 bg-surface shadow-xs transition-all duration-150',
           'group-hover/handle:scale-125 group-hover/handle:border-foreground group-hover/handle:ring-2 group-hover/handle:ring-primary/40',
         )}
       />
@@ -240,10 +266,12 @@ function WorkflowEdge(props: EdgeProps) {
     borderRadius: 14,
   });
 
-  const isFlowAnimated = animated || Boolean((data as Record<string, unknown>)?.['animated']);
-  const defaultStroke = selected || isHovered
-    ? 'var(--color-primary, #6366f1)'
-    : 'var(--color-border-strong, #cbd5e1)';
+  const isFlowAnimated =
+    animated || Boolean((data as Record<string, unknown>)?.['animated']);
+  const defaultStroke =
+    selected || isHovered
+      ? 'var(--color-primary, #6366f1)'
+      : 'var(--color-border-strong, #cbd5e1)';
 
   return (
     <>
@@ -260,7 +288,12 @@ function WorkflowEdge(props: EdgeProps) {
         }}
       />
       {markerEnd ? null : (
-        <EdgeArrowhead x={targetX} y={targetY} position={targetPosition} color={defaultStroke} />
+        <EdgeArrowhead
+          x={targetX}
+          y={targetY}
+          position={targetPosition}
+          color={defaultStroke}
+        />
       )}
       <path
         d={edgePath}
@@ -291,7 +324,7 @@ export function WorkflowCanvasControls() {
       <div
         role="group"
         aria-label="Canvas controls"
-        className="flex h-9 items-center gap-1 rounded-[14px] border border-border bg-surface p-1 shadow-sm select-none"
+        className="h-9 gap-1 p-1 flex items-center rounded-[14px] border border-border bg-surface shadow-sm select-none"
       >
         <div className="flex items-center">
           <Button
@@ -314,13 +347,22 @@ export function WorkflowCanvasControls() {
                 type="button"
                 aria-label={`Zoom level ${Math.round(zoom * 100)}%`}
                 title="Zoom options"
-                className="rounded-lg disabled:opacity-40 w-12 text-xs font-semibold tabular-nums text-foreground data-[state=open]:bg-surface-raised"
+                className="w-12 text-xs font-semibold rounded-lg text-foreground tabular-nums disabled:opacity-40 data-[state=open]:bg-surface-raised"
               >
                 {Math.round(zoom * 100)}%
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent side="top" align="start" sideOffset={8} className="min-w-44">
-              <DropdownMenuItem onSelect={() => reactFlow.fitView({ padding: 0.2, duration: 250 })}>
+            <DropdownMenuContent
+              side="top"
+              align="start"
+              sideOffset={8}
+              className="min-w-44"
+            >
+              <DropdownMenuItem
+                onSelect={() =>
+                  reactFlow.fitView({ padding: 0.2, duration: 250 })
+                }
+              >
                 Zoom to fit
                 <DropdownMenuShortcut keys={['Shift', '1']} />
               </DropdownMenuItem>
@@ -334,9 +376,16 @@ export function WorkflowCanvasControls() {
                     className={cn(isCurrent && 'font-semibold')}
                   >
                     Zoom to {preset * 100}%
-                    {preset === 1 && <DropdownMenuShortcut keys={['Shift', '0']} />}
+                    {preset === 1 && (
+                      <DropdownMenuShortcut keys={['Shift', '0']} />
+                    )}
                     {isCurrent && (
-                      <Check className={cn('size-3.5 text-primary', preset !== 1 && 'ml-auto')} />
+                      <Check
+                        className={cn(
+                          'size-3.5 text-primary',
+                          preset !== 1 && 'ml-auto',
+                        )}
+                      />
                     )}
                   </DropdownMenuItem>
                 );
@@ -378,27 +427,38 @@ export function WorkflowCanvasControls() {
 export function WorkflowMiniMap() {
   return (
     <MiniMap
-      nodeColor={(node) => CATEGORY_STYLE[catalogItem(String(node.type))?.category ?? 'tools'].hex}
+      nodeColor={(node) =>
+        CATEGORY_STYLE[catalogItem(String(node.type))?.category ?? 'tools'].hex
+      }
       nodeStrokeWidth={3}
-      className="!hidden !rounded-xl !border-border !bg-surface !shadow-sm sm:!block"
+      className="sm:!block !hidden !rounded-xl !border-border !bg-surface !shadow-sm"
       maskColor="color-mix(in oklab, var(--color-background) 65%, transparent)"
     />
   );
 }
 
-function nodeSummary(item: NodeCatalogItem | undefined, data: Record<string, unknown>): string {
+function nodeSummary(
+  item: NodeCatalogItem | undefined,
+  data: Record<string, unknown>,
+): string {
   if (!item) return String(data['subtitle'] ?? '');
   if (item.type === 'TRIGGER' || item.type === 'START') {
     const kind = String(data['triggerKind'] ?? 'MANUAL');
     if (kind === 'CRON') return `Schedule · ${String(data['cron'] ?? '')}`;
-    if (kind === 'EVENT') return WORKFLOW_EVENTS.find((e) => e.value === data['event'])?.label ?? 'On an event';
+    if (kind === 'EVENT')
+      return (
+        WORKFLOW_EVENTS.find((e) => e.value === data['event'])?.label ??
+        'On an event'
+      );
     return 'On request';
   }
   const first = item.fields.find((f) => f.required) ?? item.fields[0];
   if (!first) return item.description;
   const label = data[`${first.key}Label`];
   const value = label ?? data[first.key];
-  return value ? String(value).slice(0, 60) : `Set ${first.label.toLowerCase()}`;
+  return value
+    ? String(value).slice(0, 60)
+    : `Set ${first.label.toLowerCase()}`;
 }
 
 function StepNode({ data, selected, id }: NodeProps) {
@@ -407,7 +467,8 @@ function StepNode({ data, selected, id }: NodeProps) {
   const Icon = item?.icon ?? Cpu;
   const style = CATEGORY_STYLE[item?.category ?? 'tools'];
   const record = data as Record<string, unknown>;
-  const isTrigger = type === 'TRIGGER' || type === 'START' || type === 'USER_INPUT';
+  const isTrigger =
+    type === 'TRIGGER' || type === 'START' || type === 'USER_INPUT';
   const branches = item?.branches?.(record) ?? null;
   const isEnd = type === 'OUTPUT';
   const disabled = record['disabled'] === true;
@@ -422,33 +483,46 @@ function StepNode({ data, selected, id }: NodeProps) {
     <div
       aria-disabled={disabled || undefined}
       className={cn(
-        'group relative w-[260px] rounded-xl border border-border bg-surface p-3.5 shadow-sm transition-all select-none motion-reduce:transition-none',
-        selected ? 'border-foreground/60 ring-2 ring-foreground/60 shadow-md' : 'hover:border-border-strong',
+        'group p-3.5 relative w-[260px] rounded-xl border border-border bg-surface shadow-sm transition-all select-none motion-reduce:transition-none',
+        selected
+          ? 'border-foreground/60 shadow-md ring-2 ring-foreground/60'
+          : 'hover:border-border-strong',
         disabled && 'border-dashed opacity-50',
-        runStatus === 'SUCCESS' && 'ring-2 ring-success/60 border-success/60',
-        runStatus === 'FAILED' && 'ring-2 ring-destructive/70 border-destructive/70',
-        runStatus === 'WAITING' && 'ring-2 ring-warning/70 border-warning/70',
+        runStatus === 'SUCCESS' && 'border-success/60 ring-2 ring-success/60',
+        runStatus === 'FAILED' &&
+          'border-destructive/70 ring-2 ring-destructive/70',
+        runStatus === 'WAITING' && 'border-warning/70 ring-2 ring-warning/70',
       )}
     >
-      {!isTrigger ? <WorkflowHandle type="target" position={Position.Top} /> : null}
+      {!isTrigger ? (
+        <WorkflowHandle type="target" position={Position.Top} />
+      ) : null}
 
-      <div className="relative flex items-center gap-2.5">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface shadow-2xs">
+      <div className="gap-2.5 relative flex items-center">
+        <div className="size-9 shadow-2xs flex shrink-0 items-center justify-center rounded-lg border border-border bg-surface">
           <Icon className={cn('size-[18px]', style.text)} aria-hidden />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-foreground" title={title}>
+          <p
+            className="text-sm font-semibold truncate text-foreground"
+            title={title}
+          >
             {title}
           </p>
-          <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-muted-foreground" title={subtitle}>
+          <p
+            className="mt-0.5 text-xs leading-snug line-clamp-2 text-muted-foreground"
+            title={subtitle}
+          >
             {subtitle}
           </p>
         </div>
-        {runStatus ? <span className="sr-only">Last run: {runStatus.toLowerCase()}</span> : null}
+        {runStatus ? (
+          <span className="sr-only">Last run: {runStatus.toLowerCase()}</span>
+        ) : null}
       </div>
 
       {branches ? (
-        <div className="relative mt-3 flex justify-between gap-1 border-t border-border/60 pt-1.5 text-2xs font-medium text-muted-foreground">
+        <div className="mt-3 gap-1 pt-1.5 font-medium relative flex justify-between border-t border-border/60 text-2xs text-muted-foreground">
           {branches.map((branch, index) => (
             <span key={branch} className="relative flex-1 truncate text-center">
               {branch}
@@ -469,40 +543,87 @@ function StepNode({ data, selected, id }: NodeProps) {
 }
 
 const BASE_NODE_TYPES = Object.fromEntries(
-  [...new Set([...PALETTE.map((i) => i.type), ...['START', 'USER_INPUT', 'HUMAN_INPUT', 'PARALLEL', 'SWITCH', 'STRUCTURED_OUTPUT', 'CODE', 'triggerNode', 'conditionNode', 'aiActionNode', 'apiActionNode', 'ACTION']])].map((t) => [t, StepNode]),
+  [
+    ...new Set([
+      ...PALETTE.map((i) => i.type),
+      ...[
+        'START',
+        'USER_INPUT',
+        'HUMAN_INPUT',
+        'PARALLEL',
+        'SWITCH',
+        'STRUCTURED_OUTPUT',
+        'CODE',
+        'triggerNode',
+        'conditionNode',
+        'aiActionNode',
+        'apiActionNode',
+        'ACTION',
+      ],
+    ]),
+  ].map((t) => [t, StepNode]),
 );
 
-export const nodeTypes: Record<string, typeof StepNode> = new Proxy(BASE_NODE_TYPES, {
-  get(target, prop) {
-    if (typeof prop === 'string' && prop in target) {
-      return target[prop];
-    }
-    return StepNode;
+export const nodeTypes: Record<string, typeof StepNode> = new Proxy(
+  BASE_NODE_TYPES,
+  {
+    get(target, prop) {
+      if (typeof prop === 'string' && prop in target) {
+        return target[prop];
+      }
+      return StepNode;
+    },
   },
-});
+);
 
 function starterGraph(): { nodes: Node[]; edges: Edge[] } {
   return {
     nodes: [
-      { id: 'trigger', type: 'TRIGGER', position: { x: 240, y: 60 }, data: { type: 'TRIGGER', label: 'Start', triggerKind: 'MANUAL' } },
-      { id: 'result', type: 'OUTPUT', position: { x: 240, y: 260 }, data: { type: 'OUTPUT', label: 'Result', template: '' } },
+      {
+        id: 'trigger',
+        type: 'TRIGGER',
+        position: { x: 240, y: 60 },
+        data: { type: 'TRIGGER', label: 'Start', triggerKind: 'MANUAL' },
+      },
+      {
+        id: 'result',
+        type: 'OUTPUT',
+        position: { x: 240, y: 260 },
+        data: { type: 'OUTPUT', label: 'Result', template: '' },
+      },
     ],
-    edges: [{ id: 'trigger-result', source: 'trigger', target: 'result', animated: true }],
+    edges: [
+      {
+        id: 'trigger-result',
+        source: 'trigger',
+        target: 'result',
+        animated: true,
+      },
+    ],
   };
 }
 
 /** Reads a stored graph, bringing older node shapes up to the current catalog. */
-export function loadGraph(workflow: AutomationWorkflowDetail | null): { nodes: Node[]; edges: Edge[] } {
+export function loadGraph(workflow: AutomationWorkflowDetail | null): {
+  nodes: Node[];
+  edges: Edge[];
+} {
   if (!workflow) return starterGraph();
   try {
-    const nodes = (JSON.parse(workflow.nodesJson || '[]') as Node[]).map((n) => {
-      const data = { ...(n.data as Record<string, unknown>) };
-      const type = String(data['type'] ?? n.type);
-      data['type'] = type;
-      // Older workflows called "run on request" a webhook; it never had a public URL.
-      if (type === 'TRIGGER' && (data['triggerKind'] === 'WEBHOOK' || !data['triggerKind'])) data['triggerKind'] = 'MANUAL';
-      return { ...n, type, data };
-    });
+    const nodes = (JSON.parse(workflow.nodesJson || '[]') as Node[]).map(
+      (n) => {
+        const data = { ...(n.data as Record<string, unknown>) };
+        const type = String(data['type'] ?? n.type);
+        data['type'] = type;
+        // Older workflows called "run on request" a webhook; it never had a public URL.
+        if (
+          type === 'TRIGGER' &&
+          (data['triggerKind'] === 'WEBHOOK' || !data['triggerKind'])
+        )
+          data['triggerKind'] = 'MANUAL';
+        return { ...n, type, data };
+      },
+    );
     const edges = JSON.parse(workflow.edgesJson || '[]') as Edge[];
     return nodes.length ? { nodes, edges } : starterGraph();
   } catch {
@@ -513,8 +634,17 @@ export function loadGraph(workflow: AutomationWorkflowDetail | null): { nodes: N
 function graphSignature(name: string, nodes: Node[], edges: Edge[]): string {
   return JSON.stringify({
     name,
-    nodes: nodes.map((n) => ({ id: n.id, type: n.type, position: n.position, data: n.data })),
-    edges: edges.map((e) => ({ s: e.source, t: e.target, h: e.sourceHandle ?? null })),
+    nodes: nodes.map((n) => ({
+      id: n.id,
+      type: n.type,
+      position: n.position,
+      data: n.data,
+    })),
+    edges: edges.map((e) => ({
+      s: e.source,
+      t: e.target,
+      h: e.sourceHandle ?? null,
+    })),
   });
 }
 
@@ -527,14 +657,16 @@ export function WorkflowCanvasView() {
 
   const detail = useQuery({
     queryKey: queryKeys.automations.detail(workspaceId ?? '', workflowId ?? ''),
-    queryFn: () => automationsApi.get(workspaceId as string, workflowId as string),
+    queryFn: () =>
+      automationsApi.get(workspaceId as string, workflowId as string),
     enabled: Boolean(workspaceId && workflowId),
   });
 
-  if (workflowId && detail.isLoading) return <LoadingState fullPage label="Opening workflow…" />;
+  if (workflowId && detail.isLoading)
+    return <LoadingState fullPage label="Opening workflow…" />;
   if (workflowId && !detail.data) {
     return (
-      <div className="grid flex-1 place-items-center p-6">
+      <div className="p-6 grid flex-1 place-items-center">
         <EmptyState
           icon={<Workflow />}
           title="Workflow not found"
@@ -552,7 +684,10 @@ export function WorkflowCanvasView() {
   return (
     <AgentBuilderOptionsProvider workspaceId={workspaceId}>
       <ReactFlowProvider key={`${workflowId ?? 'new'}:${epoch}`}>
-        <WorkflowEditor workflow={detail.data ?? null} onReload={() => setEpoch((n) => n + 1)} />
+        <WorkflowEditor
+          workflow={detail.data ?? null}
+          onReload={() => setEpoch((n) => n + 1)}
+        />
       </ReactFlowProvider>
     </AgentBuilderOptionsProvider>
   );
@@ -570,7 +705,9 @@ function WorkflowEditor({
   const { workspaceId, slug } = useCurrentWorkspace();
   const { can } = useWorkspacePermission();
   const canManageResource = useCanManageAIResource();
-  const canEdit = workflow ? canManageResource(workflow.creatorId) : can('create');
+  const canEdit = workflow
+    ? canManageResource(workflow.creatorId)
+    : can('create');
   const { create, update, trigger } = useWorkflowMutations(workspaceId);
 
   const initial = useMemo(() => loadGraph(workflow), [workflow]);
@@ -582,24 +719,37 @@ function WorkflowEditor({
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [nodeMenu, setNodeMenu] = useState<{ node: Node; x: number; y: number } | null>(null);
+  const [nodeMenu, setNodeMenu] = useState<{
+    node: Node;
+    x: number;
+    y: number;
+  } | null>(null);
   const [runOpen, setRunOpen] = useState(false);
   const [versionsOpen, setVersionsOpen] = useState(false);
   const [runStatus, setRunStatus] = useState<Record<string, string>>({});
 
   const dirty = graphSignature(name, nodes, edges) !== savedSignature;
   const selected = nodes.find((n) => n.id === selectedId) ?? null;
-  const refresh = () => queryClient.invalidateQueries({ queryKey: queryKeys.automations.all(workspaceId ?? '') });
+  const refresh = () =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.automations.all(workspaceId ?? ''),
+    });
 
   const updateNodeData = useCallback(
     (nodeId: string, patch: Record<string, unknown>) =>
-      setNodes((nds) => nds.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, ...patch } } : n))),
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === nodeId ? { ...n, data: { ...n.data, ...patch } } : n,
+        ),
+      ),
     [setNodes],
   );
 
   /** Saves the canvas; resolves to the workflow id, or null if it failed. */
   const saveNow = useCallback(async (): Promise<string | null> => {
-    const triggers = nodes.filter((n) => ['TRIGGER', 'START'].includes(String(n.type)));
+    const triggers = nodes.filter((n) =>
+      ['TRIGGER', 'START'].includes(String(n.type)),
+    );
     if (triggers.length !== 1) {
       toast.error(triggers.length ? 'Keep one trigger' : 'Add a trigger', {
         description: 'A workflow starts from exactly one trigger step.',
@@ -607,16 +757,23 @@ function WorkflowEditor({
       return null;
     }
     for (const n of nodes) {
-      const missing = missingFields(String(n.type), n.data as Record<string, unknown>);
+      const missing = missingFields(
+        String(n.type),
+        n.data as Record<string, unknown>,
+      );
       if (missing.length) {
         setSelectedId(n.id);
-        toast.error(`“${String((n.data as Record<string, unknown>)['label'] ?? n.type)}” needs ${missing.join(', ')}`);
+        toast.error(
+          `“${String((n.data as Record<string, unknown>)['label'] ?? n.type)}” needs ${missing.join(', ')}`,
+        );
         return null;
       }
     }
     const input = {
       name: name.trim() || 'Untitled workflow',
-      nodesJson: JSON.stringify(nodes.map(({ selected: _s, dragging: _d, ...n }) => n)),
+      nodesJson: JSON.stringify(
+        nodes.map(({ selected: _s, dragging: _d, ...n }) => n),
+      ),
       edgesJson: JSON.stringify(edges),
       triggerType: triggerTypeFor(triggers[0]?.data as Record<string, unknown>),
     };
@@ -628,7 +785,9 @@ function WorkflowEditor({
         return workflow.id;
       }
       const created = await create.mutateAsync(input);
-      toast.success('Workflow created', { description: 'Test it, then publish to switch it on.' });
+      toast.success('Workflow created', {
+        description: 'Test it, then publish to switch it on.',
+      });
       navigate(aiPath(slug, 'workflows', created.id), { replace: true });
       return created.id;
     } catch (err) {
@@ -659,19 +818,28 @@ function WorkflowEditor({
   }, [dirty]);
 
   const publish = useMutation({
-    mutationFn: (id: string) => automationsApi.publish(workspaceId as string, id),
+    mutationFn: (id: string) =>
+      automationsApi.publish(workspaceId as string, id),
     onSuccess: (version) => {
-      toast.success(`Published v${version.versionNumber}`, { description: 'The workflow is on and will run on its trigger.' });
+      toast.success(`Published v${version.versionNumber}`, {
+        description: 'The workflow is on and will run on its trigger.',
+      });
       void refresh();
     },
-    onError: (err) => toast.error('Could not publish', { description: err instanceof Error ? err.message : undefined }),
+    onError: (err) =>
+      toast.error('Could not publish', {
+        description: err instanceof Error ? err.message : undefined,
+      }),
   });
 
   const setActive = useMutation({
-    mutationFn: (isActive: boolean) => automationsApi.update(workspaceId as string, workflow!.id, { isActive }),
+    mutationFn: (isActive: boolean) =>
+      automationsApi.update(workspaceId as string, workflow!.id, { isActive }),
     onSuccess: (_row, isActive) => {
       toast.success(isActive ? 'Workflow switched on' : 'Workflow paused', {
-        description: isActive ? undefined : 'Schedules and events won’t start it until you switch it back on.',
+        description: isActive
+          ? undefined
+          : 'Schedules and events won’t start it until you switch it back on.',
       });
       void refresh();
     },
@@ -679,7 +847,8 @@ function WorkflowEditor({
   });
 
   const connect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
+    (params: Connection) =>
+      setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
     [setEdges],
   );
 
@@ -689,18 +858,33 @@ function WorkflowEditor({
     const node: Node = {
       id,
       type: item.type,
-      position: base ? { x: base.position.x, y: base.position.y + 170 } : { x: 240, y: 120 },
+      position: base
+        ? { x: base.position.x, y: base.position.y + 170 }
+        : { x: 240, y: 120 },
       data: { type: item.type, ...item.defaultData },
     };
     setNodes((nds) => [...nds.map((n) => ({ ...n, selected: false })), node]);
-    if (from) setEdges((eds) => addEdge({ id: `${from.id}-${id}`, source: from.id, target: id, animated: true }, eds));
+    if (from)
+      setEdges((eds) =>
+        addEdge(
+          {
+            id: `${from.id}-${id}`,
+            source: from.id,
+            target: id,
+            animated: true,
+          },
+          eds,
+        ),
+      );
     setSelectedId(id);
     setPaletteOpen(false);
   };
 
   const removeNode = (node: Node) => {
     setNodes((nds) => nds.filter((n) => n.id !== node.id));
-    setEdges((eds) => eds.filter((e) => e.source !== node.id && e.target !== node.id));
+    setEdges((eds) =>
+      eds.filter((e) => e.source !== node.id && e.target !== node.id),
+    );
     if (selectedId === node.id) setSelectedId(null);
   };
 
@@ -708,16 +892,29 @@ function WorkflowEditor({
     const disabled = (node.data as { disabled?: boolean }).disabled === true;
     if (!canEdit) return [];
     return [
-      { id: 'configure', group: 'edit', label: 'Configure', icon: Settings2, run: () => setSelectedId(node.id) },
+      {
+        id: 'configure',
+        group: 'edit',
+        label: 'Configure',
+        icon: Settings2,
+        run: () => setSelectedId(node.id),
+      },
       {
         id: 'add-next',
         group: 'edit',
         label: 'Add next step',
         icon: Plus,
-        children: (['ai', 'knowledge', 'logic', 'tools', 'triggers'] as const).map((category) => ({
+        children: (
+          ['ai', 'knowledge', 'logic', 'tools', 'triggers'] as const
+        ).map((category) => ({
           id: `add-${category}`,
-          label: category === 'ai' ? 'AI' : category.charAt(0).toUpperCase() + category.slice(1),
-          children: PALETTE.filter((i) => i.category === category && i.type !== 'TRIGGER').map((item) => ({
+          label:
+            category === 'ai'
+              ? 'AI'
+              : category.charAt(0).toUpperCase() + category.slice(1),
+          children: PALETTE.filter(
+            (i) => i.category === category && i.type !== 'TRIGGER',
+          ).map((item) => ({
             id: `add-${item.type}`,
             label: item.label,
             icon: item.icon,
@@ -731,7 +928,13 @@ function WorkflowEditor({
         label: 'Duplicate',
         icon: CopyPlus,
         run: () => {
-          const copy = { ...node, id: generateId(String(node.type).toLowerCase()), selected: false, position: { x: node.position.x + 40, y: node.position.y + 60 }, data: { ...node.data } };
+          const copy = {
+            ...node,
+            id: generateId(String(node.type).toLowerCase()),
+            selected: false,
+            position: { x: node.position.x + 40, y: node.position.y + 60 },
+            data: { ...node.data },
+          };
           setNodes((nds) => [...nds, copy]);
         },
       },
@@ -747,9 +950,20 @@ function WorkflowEditor({
         group: 'state',
         label: 'Copy settings',
         icon: ClipboardCopy,
-        run: () => copyToClipboard(JSON.stringify({ type: node.type, data: node.data }, null, 2), 'Settings'),
+        run: () =>
+          copyToClipboard(
+            JSON.stringify({ type: node.type, data: node.data }, null, 2),
+            'Settings',
+          ),
       },
-      { id: 'delete', group: 'danger', label: 'Delete step', icon: Trash2, destructive: true, run: () => removeNode(node) },
+      {
+        id: 'delete',
+        group: 'danger',
+        label: 'Delete step',
+        icon: Trash2,
+        destructive: true,
+        run: () => removeNode(node),
+      },
     ];
   };
 
@@ -758,30 +972,50 @@ function WorkflowEditor({
     if (!id) return null;
     try {
       const result = await trigger.mutateAsync({ workflowId: id, payload });
-      setRunStatus(Object.fromEntries(result.results.map((r) => [r.stepId, r.status])));
+      setRunStatus(
+        Object.fromEntries(result.results.map((r) => [r.stepId, r.status])),
+      );
       return result;
     } catch (err) {
-      toast.error('The run could not start', { description: err instanceof Error ? err.message : undefined });
+      toast.error('The run could not start', {
+        description: err instanceof Error ? err.message : undefined,
+      });
       return null;
     }
   };
 
   const isActive = workflow?.isActive ?? false;
-  const triggerNode = nodes.find((n) => n.type === 'TRIGGER' || n.type === 'START');
+  const triggerNode = nodes.find(
+    (n) => n.type === 'TRIGGER' || n.type === 'START',
+  );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2 sm:px-4">
-        <div className="flex min-w-0 items-center gap-2">
+    <div className="min-h-0 flex flex-1 flex-col overflow-hidden bg-background">
+      <header className="gap-2 px-3 py-2 sm:px-4 flex shrink-0 flex-wrap items-center justify-between border-b border-border">
+        <div className="min-w-0 gap-2 flex items-center">
           <Hint label={workflow ? 'Back to the agent' : 'Back to workflows'}>
-            <Button variant="ghost" size="icon-sm" asChild aria-label={workflow ? 'Back to the agent' : 'Back to workflows'}>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              asChild
+              aria-label={workflow ? 'Back to the agent' : 'Back to workflows'}
+            >
               {/* A saved workflow is an agent in the Studio — its page has its runs, versions and plan. */}
-              <Link to={workflow ? aiPath(slug, 'studio', workflow.id) : aiPath(slug, 'workflows')}>
+              <Link
+                to={
+                  workflow
+                    ? aiPath(slug, 'planned', workflow.id)
+                    : aiPath(slug, 'workflows')
+                }
+              >
                 <ArrowLeft className="size-4" />
               </Link>
             </Button>
           </Hint>
-          <span aria-hidden className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+          <span
+            aria-hidden
+            className="size-7 flex shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary"
+          >
             <Workflow className="size-4" />
           </span>
           <Input
@@ -789,10 +1023,13 @@ function WorkflowEditor({
             onChange={(e) => setName(e.target.value)}
             readOnly={!canEdit}
             aria-label="Workflow name"
-            className="h-8 w-44 border-transparent bg-transparent px-1.5 text-sm font-semibold shadow-none hover:border-border focus-visible:border-primary sm:w-64"
+            className="h-8 w-44 px-1.5 text-sm font-semibold sm:w-64 border-transparent bg-transparent shadow-none hover:border-border focus-visible:border-primary"
           />
           {workflow ? (
-            <Badge variant={isActive ? 'success' : 'neutral'} className="shrink-0 text-[10px]">
+            <Badge
+              variant={isActive ? 'success' : 'neutral'}
+              className="shrink-0 text-[10px]"
+            >
               {isActive ? 'On' : 'Paused'}
             </Badge>
           ) : (
@@ -801,9 +1038,9 @@ function WorkflowEditor({
             </Badge>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="gap-1.5 flex flex-wrap items-center">
           {workflow && canEdit ? (
-            <label className="mr-1 flex items-center gap-2 text-xs text-muted-foreground">
+            <label className="mr-1 gap-2 text-xs flex items-center text-muted-foreground">
               <Switch
                 checked={isActive}
                 disabled={setActive.isPending}
@@ -814,11 +1051,22 @@ function WorkflowEditor({
             </label>
           ) : null}
           {workflow ? (
-            <Button variant="ghost" size="sm" leadingIcon={<Clock />} onClick={() => setVersionsOpen(true)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              leadingIcon={<Clock />}
+              onClick={() => setVersionsOpen(true)}
+            >
               Versions
             </Button>
           ) : null}
-          <Button variant="outline" size="sm" leadingIcon={<Play />} onClick={() => setRunOpen(true)} disabled={!can('create')}>
+          <Button
+            variant="outline"
+            size="sm"
+            leadingIcon={<Play />}
+            onClick={() => setRunOpen(true)}
+            disabled={!can('create')}
+          >
             Test run
           </Button>
           {workflow && canEdit ? (
@@ -849,8 +1097,12 @@ function WorkflowEditor({
         </div>
       </header>
 
-      <div className="relative flex min-h-0 flex-1 overflow-hidden">
-        <div role="region" aria-label="Workflow canvas" className="relative h-full min-w-0 flex-1">
+      <div className="min-h-0 relative flex flex-1 overflow-hidden">
+        <div
+          role="region"
+          aria-label="Workflow canvas"
+          className="min-w-0 relative h-full flex-1"
+        >
           <RunStatusContext.Provider value={runStatus}>
             <ReactFlow
               nodes={nodes}
@@ -876,7 +1128,11 @@ function WorkflowEditor({
             >
               <WorkflowCanvasControls />
               <WorkflowMiniMap />
-              <Background gap={18} size={1} color="color-mix(in oklab, var(--color-muted-foreground) 30%, transparent)" />
+              <Background
+                gap={18}
+                size={1}
+                color="color-mix(in oklab, var(--color-muted-foreground) 30%, transparent)"
+              />
             </ReactFlow>
           </RunStatusContext.Provider>
           <ActionContextMenu
@@ -890,8 +1146,19 @@ function WorkflowEditor({
 
           {canEdit ? (
             // On a phone the step settings cover the canvas; don't float over them.
-            <div className={cn('absolute left-3 top-3 z-30', selected && 'max-md:hidden')}>
-              <Button size="sm" leadingIcon={<Plus />} onClick={() => setPaletteOpen(!paletteOpen)} aria-expanded={paletteOpen} className="shadow-lg">
+            <div
+              className={cn(
+                'left-3 top-3 absolute z-30',
+                selected && 'max-md:hidden',
+              )}
+            >
+              <Button
+                size="sm"
+                leadingIcon={<Plus />}
+                onClick={() => setPaletteOpen(!paletteOpen)}
+                aria-expanded={paletteOpen}
+                className="shadow-lg"
+              >
                 Add step
               </Button>
               {paletteOpen ? (
@@ -908,9 +1175,9 @@ function WorkflowEditor({
         <aside
           aria-label="Step settings"
           className={cn(
-            'z-20 flex h-full w-full max-w-sm shrink-0 flex-col border-l border-border bg-surface',
-            'absolute inset-y-0 right-0 md:static md:w-80',
-            !selected && 'hidden md:flex',
+            'max-w-sm z-20 flex h-full w-full shrink-0 flex-col border-l border-border bg-surface',
+            'inset-y-0 right-0 md:static md:w-80 absolute',
+            !selected && 'md:flex hidden',
           )}
         >
           {selected ? (
@@ -924,12 +1191,18 @@ function WorkflowEditor({
               onClose={() => setSelectedId(null)}
             />
           ) : (
-            <div className="m-auto max-w-xs space-y-2 p-6 text-center">
-              <Workflow className="mx-auto size-6 text-muted-foreground" aria-hidden />
-              <p className="text-sm font-semibold text-foreground">Select a step to set it up</p>
+            <div className="max-w-xs space-y-2 p-6 m-auto text-center">
+              <Workflow
+                className="size-6 mx-auto text-muted-foreground"
+                aria-hidden
+              />
+              <p className="text-sm font-semibold text-foreground">
+                Select a step to set it up
+              </p>
               <p className="text-xs text-muted-foreground">
-                Steps run top to bottom from the trigger. Drag from a step’s bottom dot to connect the next one; a
-                condition or classifier sends the run down only the branch it picks.
+                Steps run top to bottom from the trigger. Drag from a step’s
+                bottom dot to connect the next one; a condition or classifier
+                sends the run down only the branch it picks.
               </p>
             </div>
           )}
@@ -974,8 +1247,13 @@ function StepPalette({
 }) {
   const [query, setQuery] = useState('');
   const needle = query.trim().toLowerCase();
-  const items = PALETTE.filter((item) => !(hasTrigger && item.type === 'TRIGGER')).filter(
-    (item) => !needle || item.label.toLowerCase().includes(needle) || item.description.toLowerCase().includes(needle),
+  const items = PALETTE.filter(
+    (item) => !(hasTrigger && item.type === 'TRIGGER'),
+  ).filter(
+    (item) =>
+      !needle ||
+      item.label.toLowerCase().includes(needle) ||
+      item.description.toLowerCase().includes(needle),
   );
   const groups: Array<[NodeCategory, string]> = [
     ['triggers', 'Start, finish and approvals'],
@@ -986,7 +1264,7 @@ function StepPalette({
   ];
   return (
     <Card
-      className="mt-2 flex max-h-[70vh] w-[320px] flex-col rounded-xl border-2 border-border bg-surface p-2 shadow-2xl"
+      className="mt-2 p-2 shadow-2xl flex max-h-[70vh] w-[320px] flex-col rounded-xl border-2 border-border bg-surface"
       onKeyDown={(e) => e.key === 'Escape' && onClose()}
     >
       <Input
@@ -1003,7 +1281,9 @@ function StepPalette({
           if (!inGroup.length) return null;
           return (
             <div key={category} className="mb-2">
-              <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
+              <p className="px-2 py-1 font-semibold tracking-wider text-[10px] text-muted-foreground uppercase">
+                {title}
+              </p>
               {inGroup.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -1011,14 +1291,18 @@ function StepPalette({
                     key={item.type}
                     type="button"
                     onClick={() => onPick(item)}
-                    className="flex w-full items-start gap-2.5 rounded-lg p-2 text-left transition-colors hover:bg-muted/70 focus-visible:bg-muted/70 focus-visible:outline-none"
+                    className="gap-2.5 p-2 flex w-full items-start rounded-lg text-left transition-colors hover:bg-muted/70 focus-visible:bg-muted/70 focus-visible:outline-none"
                   >
-                    <span className="shrink-0 rounded-md bg-muted p-1.5">
+                    <span className="p-1.5 shrink-0 rounded-md bg-muted">
                       <Icon className="size-4" aria-hidden />
                     </span>
                     <span className="min-w-0">
-                      <span className="block text-xs font-semibold text-foreground">{item.label}</span>
-                      <span className="block text-[11px] text-muted-foreground">{item.description}</span>
+                      <span className="text-xs font-semibold block text-foreground">
+                        {item.label}
+                      </span>
+                      <span className="block text-[11px] text-muted-foreground">
+                        {item.description}
+                      </span>
                     </span>
                   </button>
                 );
@@ -1053,14 +1337,19 @@ function upstreamVariables(nodeId: string, nodes: Node[], edges: Edge[]) {
     if (n.type === 'TRIGGER' || n.type === 'START') {
       const kind = String(data['triggerKind'] ?? 'MANUAL');
       if (kind === 'EVENT' && String(data['event']).startsWith('task.')) {
-        vars.push({ ref: '{{title}}', from: 'the task' }, { ref: '{{taskId}}', from: 'the task' });
+        vars.push(
+          { ref: '{{title}}', from: 'the task' },
+          { ref: '{{taskId}}', from: 'the task' },
+        );
       } else {
         vars.push({ ref: '{{input.text}}', from: 'the run’s input' });
       }
       continue;
     }
-    if (n.type === 'VARIABLE' && data['name']) vars.push({ ref: `{{${String(data['name'])}}}`, from: label });
-    for (const key of item?.outputs ?? []) vars.push({ ref: `{{${n.id}.${key}}}`, from: label });
+    if (n.type === 'VARIABLE' && data['name'])
+      vars.push({ ref: `{{${String(data['name'])}}}`, from: label });
+    for (const key of item?.outputs ?? [])
+      vars.push({ ref: `{{${n.id}.${key}}}`, from: label });
   }
   return vars;
 }
@@ -1084,59 +1373,101 @@ function StepInspector({
 }) {
   const data = node.data as Record<string, unknown>;
   const item = catalogItem(String(node.type));
-  const vars = useMemo(() => upstreamVariables(node.id, nodes, edges), [node.id, nodes, edges]);
+  const vars = useMemo(
+    () => upstreamVariables(node.id, nodes, edges),
+    [node.id, nodes, edges],
+  );
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border p-3">
+    <div className="min-h-0 flex h-full flex-col">
+      <div className="gap-2 p-3 flex shrink-0 items-center justify-between border-b border-border">
         <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{item?.label ?? node.type}</p>
-          <p className="truncate font-mono text-[10px] text-muted-foreground">id: {node.id}</p>
+          <p className="font-semibold tracking-wider text-[10px] text-muted-foreground uppercase">
+            {item?.label ?? node.type}
+          </p>
+          <p className="truncate font-mono text-[10px] text-muted-foreground">
+            id: {node.id}
+          </p>
         </div>
-        <div className="flex gap-1">
+        <div className="gap-1 flex">
           {!readOnly ? (
             <Hint label="Delete step">
-              <Button variant="ghost" size="icon-sm" aria-label="Delete step" onClick={onDelete}>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Delete step"
+                onClick={onDelete}
+              >
                 <Trash2 className="size-3.5" />
               </Button>
             </Hint>
           ) : null}
-          <Button variant="ghost" size="sm" className="md:hidden" onClick={onClose}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="md:hidden"
+            onClick={onClose}
+          >
             Done
           </Button>
         </div>
       </div>
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
+      <div className="min-h-0 space-y-4 p-3 flex-1 overflow-y-auto">
         {item?.legacy ? (
-          <p className="rounded-md bg-warning/10 p-2 text-xs text-warning-text">{item.description}</p>
+          <p className="p-2 text-xs rounded-md bg-warning/10 text-warning-text">
+            {item.description}
+          </p>
         ) : null}
-        <fieldset disabled={readOnly} className="m-0 min-w-0 space-y-3 border-0 p-0">
+        <fieldset
+          disabled={readOnly}
+          className="m-0 min-w-0 space-y-3 p-0 border-0"
+        >
           <Field label="Name">
-            <Input value={String(data['label'] ?? '')} onChange={(e) => onChange({ label: e.target.value })} />
+            <Input
+              value={String(data['label'] ?? '')}
+              onChange={(e) => onChange({ label: e.target.value })}
+            />
           </Field>
           {(item?.fields ?? [])
             .filter((field) => isFieldShown(field, data))
             .map((field) => (
-              <StepField key={`${node.id}-${field.key}`} field={field} data={data} onChange={onChange} />
+              <StepField
+                key={`${node.id}-${field.key}`}
+                field={field}
+                data={data}
+                onChange={onChange}
+              />
             ))}
         </fieldset>
 
         {vars.length > 0 ? (
-          <section aria-labelledby="step-vars" className="border-t border-border pt-3">
-            <h3 id="step-vars" className="mb-1 text-xs font-semibold text-foreground">
+          <section
+            aria-labelledby="step-vars"
+            className="pt-3 border-t border-border"
+          >
+            <h3
+              id="step-vars"
+              className="mb-1 text-xs font-semibold text-foreground"
+            >
               Values you can use here
             </h3>
-            <p className="mb-2 text-[11px] text-muted-foreground">Click to copy, then paste into a field.</p>
+            <p className="mb-2 text-[11px] text-muted-foreground">
+              Click to copy, then paste into a field.
+            </p>
             <ul className="space-y-1">
               {vars.map((v) => (
                 <li key={v.ref}>
                   <button
                     type="button"
                     onClick={() => copyToClipboard(v.ref, 'Reference')}
-                    className="flex w-full items-center justify-between gap-2 rounded-md border border-border bg-background px-2 py-1 text-left hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="gap-2 px-2 py-1 flex w-full items-center justify-between rounded-md border border-border bg-background text-left hover:border-primary/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                   >
-                    <code className="truncate font-mono text-[11px] text-foreground">{v.ref}</code>
-                    <span className="shrink-0 text-[10px] text-muted-foreground">{v.from}</span>
+                    <code className="truncate font-mono text-[11px] text-foreground">
+                      {v.ref}
+                    </code>
+                    <span className="shrink-0 text-[10px] text-muted-foreground">
+                      {v.from}
+                    </span>
                   </button>
                 </li>
               ))}
@@ -1158,7 +1489,11 @@ function StepField({
   onChange: (patch: Record<string, unknown>) => void;
 }) {
   const raw = data[field.key];
-  const value = Array.isArray(raw) ? raw.join(', ') : raw === undefined || raw === null ? '' : String(raw);
+  const value = Array.isArray(raw)
+    ? raw.join(', ')
+    : raw === undefined || raw === null
+      ? ''
+      : String(raw);
   const invalidJson = useMemo(() => {
     if (field.kind !== 'json' || !value.trim()) return false;
     try {
@@ -1193,7 +1528,7 @@ function StepField({
           value={value}
           placeholder={field.placeholder}
           onChange={(e) => onChange({ [field.key]: e.target.value })}
-          className="font-mono text-xs"
+          className="text-xs font-mono"
         />
       ) : field.kind === 'number' ? (
         <Input
@@ -1203,10 +1538,17 @@ function StepField({
           max={field.max}
           step={field.step}
           value={value}
-          onChange={(e) => onChange({ [field.key]: e.target.value === '' ? '' : Number(e.target.value) })}
+          onChange={(e) =>
+            onChange({
+              [field.key]: e.target.value === '' ? '' : Number(e.target.value),
+            })
+          }
         />
       ) : field.kind === 'select' ? (
-        <Select value={value} onValueChange={(v) => onChange({ [field.key]: v })}>
+        <Select
+          value={value}
+          onValueChange={(v) => onChange({ [field.key]: v })}
+        >
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
@@ -1223,7 +1565,9 @@ function StepField({
           source={field.source}
           value={value}
           savedLabel={String(data[`${field.key}Label`] ?? '')}
-          filterValue={field.filterBy ? String(data[field.filterBy] ?? '') : undefined}
+          filterValue={
+            field.filterBy ? String(data[field.filterBy] ?? '') : undefined
+          }
           onChange={(next, label) =>
             onChange({
               [field.key]: next,
@@ -1238,7 +1582,7 @@ function StepField({
           value={value}
           placeholder={field.placeholder}
           onChange={(e) => onChange({ [field.key]: e.target.value })}
-          className={field.mono ? 'font-mono text-xs' : undefined}
+          className={field.mono ? 'text-xs font-mono' : undefined}
         />
       )}
     </Field>
@@ -1248,7 +1592,12 @@ function StepField({
 function samplePayload(trigger: Record<string, unknown>): string {
   if (trigger['triggerKind'] === 'EVENT') {
     const event = String(trigger['event'] ?? 'task.created');
-    if (event.startsWith('task.')) return JSON.stringify({ title: 'Example task', taskId: 'task_123', projectId: null }, null, 2);
+    if (event.startsWith('task.'))
+      return JSON.stringify(
+        { title: 'Example task', taskId: 'task_123', projectId: null },
+        null,
+        2,
+      );
     return JSON.stringify({ trigger: event }, null, 2);
   }
   return JSON.stringify({ input: { text: '' } }, null, 2);
@@ -1269,14 +1618,23 @@ function RunDialog({
   running: boolean;
   dirty: boolean;
   runsPath: string;
-  onRun: (payload: Record<string, unknown>) => Promise<{ runId: string; status: string; results: Array<{ stepId: string; status: string; output: unknown }> } | null>;
+  onRun: (
+    payload: Record<string, unknown>,
+  ) => Promise<{
+    runId: string;
+    status: string;
+    results: Array<{ stepId: string; status: string; output: unknown }>;
+  } | null>;
 }) {
   const [text, setText] = useState(() => samplePayload(triggerData));
   const [result, setResult] = useState<Awaited<ReturnType<typeof onRun>>>(null);
   let parsed: Record<string, unknown> | null = null;
   try {
     const value = JSON.parse(text) as unknown;
-    parsed = value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+    parsed =
+      value && typeof value === 'object' && !Array.isArray(value)
+        ? (value as Record<string, unknown>)
+        : null;
   } catch {
     parsed = null;
   }
@@ -1293,16 +1651,39 @@ function RunDialog({
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-3">
-          <Field label="Input (JSON)" error={parsed ? undefined : 'Enter a JSON object.'}>
-            <CodeInput language="json" minRows={7} maxRows={16} invalid={!parsed} value={text} onChange={setText} />
+          <Field
+            label="Input (JSON)"
+            error={parsed ? undefined : 'Enter a JSON object.'}
+          >
+            <CodeInput
+              language="json"
+              minRows={7}
+              maxRows={16}
+              invalid={!parsed}
+              value={text}
+              onChange={setText}
+            />
           </Field>
           {result ? (
-            <div role="status" className="space-y-2 rounded-lg border border-border p-3 text-sm">
-              <div className="flex items-center justify-between gap-2">
+            <div
+              role="status"
+              className="space-y-2 p-3 text-sm rounded-lg border border-border"
+            >
+              <div className="gap-2 flex items-center justify-between">
                 <Badge
-                  variant={result.status === 'SUCCESS' ? 'success' : result.status === 'FAILED' ? 'destructive' : 'warning'}
+                  variant={
+                    result.status === 'SUCCESS'
+                      ? 'success'
+                      : result.status === 'FAILED'
+                        ? 'destructive'
+                        : 'warning'
+                  }
                 >
-                  {result.status === 'SUCCESS' ? 'Completed' : result.status === 'FAILED' ? 'Failed' : 'Waiting for approval'}
+                  {result.status === 'SUCCESS'
+                    ? 'Completed'
+                    : result.status === 'FAILED'
+                      ? 'Failed'
+                      : 'Waiting for approval'}
                 </Badge>
                 <Button variant="ghost" size="sm" asChild>
                   <Link to={`${runsPath}?run=${result.runId}`}>
@@ -1311,12 +1692,17 @@ function RunDialog({
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                {result.results.length} step{result.results.length === 1 ? '' : 's'} ran. Steps on the canvas are outlined green,
-                red or amber by how they went.
+                {result.results.length} step
+                {result.results.length === 1 ? '' : 's'} ran. Steps on the
+                canvas are outlined green, red or amber by how they went.
               </p>
               {failed ? (
-                <p className="rounded-md bg-destructive/5 p-2 font-mono text-xs text-destructive">
-                  {failed.stepId}: {String((failed.output as { error?: string } | null)?.error ?? 'failed')}
+                <p className="p-2 text-xs rounded-md bg-destructive/5 font-mono text-destructive">
+                  {failed.stepId}:{' '}
+                  {String(
+                    (failed.output as { error?: string } | null)?.error ??
+                      'failed',
+                  )}
                 </p>
               ) : null}
             </div>
@@ -1330,7 +1716,9 @@ function RunDialog({
             leadingIcon={<Play />}
             loading={running}
             disabled={!parsed}
-            onClick={async () => setResult(await onRun(parsed as Record<string, unknown>))}
+            onClick={async () =>
+              setResult(await onRun(parsed as Record<string, unknown>))
+            }
           >
             Run
           </Button>
@@ -1364,9 +1752,17 @@ function VersionsDialog({
     queryFn: () => automationsApi.versions(workspaceId, workflowId),
     enabled: open,
   });
-  const refresh = () => queryClient.invalidateQueries({ queryKey: queryKeys.automations.versions(workspaceId, workflowId) });
+  const refresh = () =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.automations.versions(workspaceId, workflowId),
+    });
   const snapshot = useMutation({
-    mutationFn: () => automationsApi.createVersion(workspaceId, workflowId, summary.trim() || undefined),
+    mutationFn: () =>
+      automationsApi.createVersion(
+        workspaceId,
+        workflowId,
+        summary.trim() || undefined,
+      ),
     onSuccess: () => {
       toast.success('Version saved');
       setSummary('');
@@ -1375,7 +1771,8 @@ function VersionsDialog({
     onError: () => toast.error('Could not save a version'),
   });
   const restore = useMutation({
-    mutationFn: (version: number) => automationsApi.restoreVersion(workspaceId, workflowId, version),
+    mutationFn: (version: number) =>
+      automationsApi.restoreVersion(workspaceId, workflowId, version),
     onSuccess: (_row, version) => {
       toast.success(`Restored v${version}`);
       onOpenChange(false);
@@ -1389,24 +1786,40 @@ function VersionsDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Versions</DialogTitle>
-          <DialogDescription>Publishing saves a version too. Restoring replaces the canvas with that version.</DialogDescription>
+          <DialogDescription>
+            Publishing saves a version too. Restoring replaces the canvas with
+            that version.
+          </DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-3">
           {canEdit ? (
             <form
-              className="flex gap-2"
+              className="gap-2 flex"
               onSubmit={(e) => {
                 e.preventDefault();
                 snapshot.mutate();
               }}
             >
-              <Input value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="What changed?" aria-label="Version note" />
-              <Button type="submit" variant="outline" loading={snapshot.isPending}>
+              <Input
+                value={summary}
+                onChange={(e) => setSummary(e.target.value)}
+                placeholder="What changed?"
+                aria-label="Version note"
+              />
+              <Button
+                type="submit"
+                variant="outline"
+                loading={snapshot.isPending}
+              >
                 Save version
               </Button>
             </form>
           ) : null}
-          {dirty ? <p className="text-xs text-warning-text">Unsaved canvas changes aren’t part of a version — save first.</p> : null}
+          {dirty ? (
+            <p className="text-xs text-warning-text">
+              Unsaved canvas changes aren’t part of a version — save first.
+            </p>
+          ) : null}
           {versions.isLoading ? (
             <LoadingState label="Loading versions…" />
           ) : (versions.data ?? []).length === 0 ? (
@@ -1414,18 +1827,29 @@ function VersionsDialog({
           ) : (
             <ul className="max-h-72 divide-y divide-border overflow-y-auto rounded-lg border border-border">
               {(versions.data ?? []).map((v) => (
-                <li key={v.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                <li
+                  key={v.id}
+                  className="gap-3 px-3 py-2 flex items-center justify-between"
+                >
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-semibold text-foreground">v{v.versionNumber}</span>
+                    <div className="gap-2 flex items-center">
+                      <span className="text-xs font-semibold font-mono text-foreground">
+                        v{v.versionNumber}
+                      </span>
                       {v.isPublished ? (
                         <Badge variant="success" className="text-[10px]">
                           Published
                         </Badge>
                       ) : null}
-                      <span className="text-xs text-muted-foreground">{formatRelative(v.createdAt)}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatRelative(v.createdAt)}
+                      </span>
                     </div>
-                    {v.changeSummary ? <p className="truncate text-xs text-muted-foreground">{v.changeSummary}</p> : null}
+                    {v.changeSummary ? (
+                      <p className="text-xs truncate text-muted-foreground">
+                        {v.changeSummary}
+                      </p>
+                    ) : null}
                   </div>
                   {canEdit ? (
                     <Button
@@ -1435,7 +1859,8 @@ function VersionsDialog({
                       onClick={async () => {
                         const ok = await confirm({
                           title: `Restore v${v.versionNumber}?`,
-                          description: 'The current canvas is replaced. Save a version first if you may want it back.',
+                          description:
+                            'The current canvas is replaced. Save a version first if you may want it back.',
                           confirmLabel: 'Restore',
                         });
                         if (ok) restore.mutate(v.versionNumber);

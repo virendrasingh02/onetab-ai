@@ -110,9 +110,20 @@ function LegacyRedirect() {
   return <Navigate to={target} replace />;
 }
 
-function AgentRedirect() {
-  const { agentId } = useParams<{ agentId: string }>();
-  return <Navigate to={`/agents/${agentId}`} replace />;
+/**
+ * Keeps a renamed Studio page working: swaps the segment after `/ai` and carries
+ * the rest of the URL along, so old bookmarks and saved routes land on the same page.
+ */
+function RenamedSegmentRedirect({ from, to }: { from: string; to: string }) {
+  const { pathname, search, hash } = useLocation();
+  const { workspaceSlug = '' } = useParams<{ workspaceSlug: string }>();
+  const rest = pathname.slice(studioCorePath(workspaceSlug, from).length);
+  return (
+    <Navigate
+      to={`${studioCorePath(workspaceSlug, to)}${rest}${search}${hash}`}
+      replace
+    />
+  );
 }
 
 /**
@@ -145,9 +156,9 @@ export function studioCoreRoutes(children?: ReactNode) {
       <Route path={STUDIO_CORE_PATH} element={<StudioCoreRoute />}>
         <Route index element={<StudioHomePage />} />
         <Route
-          path="agents"
+          path="planned"
           element={
-            // Same bar + tab row as its section siblings (my-agents, coworkers, workflows).
+            // Same bar + tab row as its section siblings (agents, coworkers, workflows).
             <div className="min-h-0 flex flex-1 flex-col">
               <AgentLibrary
                 plannedOnly
@@ -182,13 +193,21 @@ export function studioCoreRoutes(children?: ReactNode) {
             </SectionFrame>
           }
         />
-        <Route path="studio/new" element={<AgentCreatePage />} />
-        <Route path="studio/:workflowId" element={<AgentDetailPage />} />
+        <Route path="planned/new" element={<AgentCreatePage />} />
+        <Route path="planned/:workflowId" element={<AgentDetailPage />} />
         <Route path="workflows/:workflowId" element={<CanvasRoute />} />
         {/* Links from the main app (`/w/:slug/ai/...`) that land on a Studio page of its own. */}
         <Route path="prompts" element={<Navigate to="/templates" replace />} />
         <Route path="agents/new" element={<Navigate to="/create" replace />} />
-        <Route path="agents/:agentId" element={<AgentRedirect />} />
+        {/* Old spellings of the Agents and Planned pages. */}
+        <Route
+          path="my-agents/*"
+          element={<RenamedSegmentRedirect from="my-agents" to="agents" />}
+        />
+        <Route
+          path="studio/*"
+          element={<RenamedSegmentRedirect from="studio" to="planned" />}
+        />
         {children}
         <Route path="*" element={<Navigate to=".." replace />} />
       </Route>

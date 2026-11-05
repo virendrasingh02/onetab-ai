@@ -130,7 +130,7 @@ export function DirectMessageRow({
   const presence =
     livePresence?.status ?? toPresenceStatus(member.user.presence);
   const hasUnread = !isMuted && !!activity && activity.level !== 'none';
-  const to = `/w/${workspaceSlug}/dms/${member.user.id}`;
+  const to = `/w/${workspaceSlug}/dms/${member.user.username ?? member.user.id}`;
   const markUnread = useMarkDirectMessageUnread(workspaceId);
   const markSeen = useMarkDirectMessageSeen(workspaceId);
   const flagged = useIsFlaggedUnread(workspaceId, `dm:${member.user.id}`);
@@ -389,7 +389,7 @@ function SelfDmRow({
 }) {
   const presenceMap = useUserPresenceMap();
   const name = member.user.displayName ?? member.user.name;
-  const to = `/w/${workspaceSlug}/dms/${member.user.id}`;
+  const to = `/w/${workspaceSlug}/dms/${member.user.username ?? member.user.id}`;
   // Your own row: you are looking at the screen, so default to online unless
   // realtime presence says otherwise. The members-list snapshot is `OFFLINE`
   // by default and would be wrong for the one person we know is here.
@@ -730,7 +730,10 @@ export function DirectMessagesSection({
         activity: dmActivity,
         lastMessageAt,
         ready: activityReady,
-        keepActive: (id) => keepDmActive(id, `/w/${workspaceSlug}/dms/${id}`),
+        keepActive: (id) => {
+          const handle = people.find((m) => m.user.id === id)?.user.username;
+          return keepDmActive(id, `/w/${workspaceSlug}/dms/${handle ?? id}`);
+        },
       }),
     [
       people,
@@ -761,7 +764,7 @@ export function DirectMessagesSection({
       const livePresence = presenceMap[member.user.id];
       const presence =
         livePresence?.status ?? toPresenceStatus(member.user.presence);
-      const to = `/w/${workspaceSlug}/dms/${member.user.id}`;
+      const to = `/w/${workspaceSlug}/dms/${member.user.username ?? member.user.id}`;
       const isFavorite = favoriteIds.includes(member.user.id);
       const isMuted = mutedIds.includes(member.user.id);
 

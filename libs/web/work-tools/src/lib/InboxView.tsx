@@ -267,7 +267,7 @@ function feedItemHref(
   workspaceSlug: string,
 ): string | null {
   if (item.channel) {
-    const base = `/w/${workspaceSlug}/c/${item.channel.slug}`;
+    const base = `/w/${workspaceSlug}/channels/${item.channel.slug}`;
     return item.messageEventId ? `${base}?msg=${item.messageEventId}` : base;
   }
   if (
@@ -290,7 +290,7 @@ function feedItemHref(
       item.resourceId ? `/${item.resourceId}` : ''
     }`;
   }
-  return `/w/${workspaceSlug}/tasks`;
+  return `/w/${workspaceSlug}/projects`;
 }
 
 function PriorityBadge({ priority }: { priority: TaskPriority }) {
@@ -929,7 +929,7 @@ export function InboxView() {
                             size="sm"
                             className="h-8 px-3 text-xs gap-1.5 font-medium shrink-0 cursor-pointer rounded-lg border-border/80 transition-all group-hover:border-primary/40 group-hover:bg-primary/10 group-hover:text-primary"
                           >
-                            <Link to={`/w/${slug}/c/${channel.slug}`}>
+                            <Link to={`/w/${slug}/channels/${channel.slug}`}>
                               <span>Open channel</span>
                               <ArrowRight className="size-3 group-hover:translate-x-0.5 transition-transform" />
                             </Link>
@@ -1011,7 +1011,7 @@ export function InboxView() {
                       variant="outline"
                       className="rounded-lg"
                     >
-                      <Link to={`/w/${slug}/tasks`}>Open the board</Link>
+                      <Link to={`/w/${slug}/projects`}>Open the board</Link>
                     </Button>
                   }
                 />
@@ -1020,7 +1020,7 @@ export function InboxView() {
                   {myTasks.map((task) => {
                     const isOverdue =
                       !!task.dueDate && Date.parse(task.dueDate) < Date.now();
-                    const taskHref = `/w/${slug}/tasks?card=${task.id}`;
+                    const taskHref = `/w/${slug}/projects?card=${task.id}`;
 
                     return (
                       <li key={task.id}>

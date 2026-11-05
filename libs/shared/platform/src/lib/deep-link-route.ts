@@ -1,7 +1,7 @@
 /**
  * One place that turns any "go here" string the platform produces — a custom
  * protocol deep link (`onetab://…` / `mie://…`), a workspace-relative target
- * from a notification's `deepLink` field (`c/general`, `tasks?taskId=1`), or an
+ * from a notification's `deepLink` field (`c/general`, `projects?taskId=1`), or an
  * already-absolute SPA path (`/w/acme/inbox`) — into the single in-app route the
  * router should navigate to.
  *
@@ -68,7 +68,9 @@ function splitQueryHash(target: string): {
 }
 
 function mergeQuery(base: string, extra: string): string {
-  const params = new URLSearchParams(base.startsWith('?') ? base.slice(1) : base);
+  const params = new URLSearchParams(
+    base.startsWith('?') ? base.slice(1) : base,
+  );
   const more = new URLSearchParams(
     extra.startsWith('?') ? extra.slice(1) : extra,
   );
@@ -80,8 +82,9 @@ function mergeQuery(base: string, extra: string): string {
 /**
  * Maps the id-style segments the brief and the marketing links use
  * (`channel/456`, `project/1/issue/9`) onto the segments the router actually
- * defines (`c/456`, `tasks/1?taskId=9`). Anything already in router shape —
- * `inbox`, `c/general`, `tasks?taskId=1` — passes through untouched.
+ * defines (`channels/456`, `projects/1?taskId=9`). Anything already in router shape —
+ * `inbox`, `channels/general`, `projects?taskId=1` — passes through untouched,
+ * and the old `c/…` and `tasks…` spellings stored in existing rows are renamed.
  */
 function mapScopedTarget(rawTarget: string): string {
   const { path, query, hash } = splitQueryHash(rawTarget.replace(/^\/+/, ''));
@@ -93,23 +96,28 @@ function mapScopedTarget(rawTarget: string): string {
   if (segments.length === 0) return build([]);
 
   switch (segments[0]) {
+    case 'c':
     case 'channel':
-      return segments[1] ? build(['c', segments[1]]) : build(['channels']);
+      return segments[1]
+        ? build(['channels', ...segments.slice(1)])
+        : build(['channels']);
     case 'dm':
       return segments[1] ? build(['dms', segments[1]]) : build(['dms']);
     case 'project':
     case 'projects':
       if (segments[2] === 'issue' && segments[3]) {
-        return build(['tasks', segments[1]], `taskId=${segments[3]}`);
+        return build(['projects', segments[1]], `taskId=${segments[3]}`);
       }
       return segments[1]
         ? build(['projects', segments[1]])
         : build(['projects']);
+    case 'tasks':
+      return build(['projects', ...segments.slice(1)]);
     case 'issue':
     case 'task':
       return segments[1]
-        ? build(['tasks'], `taskId=${segments[1]}`)
-        : build(['tasks']);
+        ? build(['projects'], `taskId=${segments[1]}`)
+        : build(['projects']);
     case 'doc':
     case 'document':
       return segments[1] ? build(['docs', segments[1]]) : build(['docs']);
@@ -126,10 +134,7 @@ function mapScopedTarget(rawTarget: string): string {
   }
 }
 
-function stripScheme(
-  input: string,
-  schemes: readonly string[],
-): string | null {
+function stripScheme(input: string, schemes: readonly string[]): string | null {
   for (const scheme of schemes) {
     const prefix = `${scheme}://`;
     if (input.toLowerCase().startsWith(prefix)) {
@@ -197,7 +202,7 @@ export function resolveDeepLinkRoute(
     };
   }
 
-  // Bare workspace-relative target (`c/general`, `tasks?taskId=1`, `inbox`).
+  // Bare workspace-relative target (`c/general`, `projects?taskId=1`, `inbox`).
   if (!slug) return miss;
   const mapped = mapScopedTarget(bare);
   return {

@@ -22,8 +22,14 @@ describe('isPublicAuthPath', () => {
 describe('redirectPathFromAuthState', () => {
   it('returns to the stashed location after sign-in', () => {
     expect(
-      redirectPathFromAuthState({ from: { pathname: '/w/acme/c/general', search: '?msg=1', hash: '' } }),
-    ).toBe('/w/acme/c/general?msg=1');
+      redirectPathFromAuthState({
+        from: {
+          pathname: '/w/acme/channels/general',
+          search: '?msg=1',
+          hash: '',
+        },
+      }),
+    ).toBe('/w/acme/channels/general?msg=1');
     expect(redirectPathFromAuthState(null, '/x')).toBe('/x');
   });
 });

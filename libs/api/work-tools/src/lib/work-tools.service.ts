@@ -122,10 +122,14 @@ export class WorkToolsService {
       data: {
         ...(input.name !== undefined ? { name: input.name } : {}),
         ...(input.key !== undefined ? { key: input.key } : {}),
-        ...(input.description !== undefined ? { description: input.description } : {}),
+        ...(input.description !== undefined
+          ? { description: input.description }
+          : {}),
         ...(input.color !== undefined ? { color: input.color } : {}),
         ...(input.icon !== undefined ? { icon: input.icon } : {}),
-        ...(input.iconColor !== undefined ? { iconColor: input.iconColor } : {}),
+        ...(input.iconColor !== undefined
+          ? { iconColor: input.iconColor }
+          : {}),
       },
     });
   }
@@ -171,10 +175,14 @@ export class WorkToolsService {
     const renamed = input.name !== undefined && input.name !== label.name;
     if (renamed) {
       const clash = await this.prisma.taskLabel.findUnique({
-        where: { workspaceId_name: { workspaceId, name: input.name as string } },
+        where: {
+          workspaceId_name: { workspaceId, name: input.name as string },
+        },
       });
       if (clash) {
-        throw new ConflictException(`A label named "${input.name}" already exists`);
+        throw new ConflictException(
+          `A label named "${input.name}" already exists`,
+        );
       }
     }
 
@@ -264,16 +272,30 @@ export class WorkToolsService {
       where: { id: initiativeId },
       data: {
         ...(input.name !== undefined ? { name: input.name } : {}),
-        ...(input.objective !== undefined ? { objective: input.objective } : {}),
-        ...(input.description !== undefined ? { description: input.description } : {}),
+        ...(input.objective !== undefined
+          ? { objective: input.objective }
+          : {}),
+        ...(input.description !== undefined
+          ? { description: input.description }
+          : {}),
         ...(input.ownerId !== undefined ? { ownerId: input.ownerId } : {}),
-        ...(input.status !== undefined ? { status: input.status as ProjectStatus } : {}),
-        ...(input.health !== undefined ? { health: input.health as ProjectHealth } : {}),
-        ...(input.priority !== undefined ? { priority: input.priority as TaskPriority } : {}),
-        ...(input.targetDate !== undefined ? { targetDate: at(input.targetDate) } : {}),
+        ...(input.status !== undefined
+          ? { status: input.status as ProjectStatus }
+          : {}),
+        ...(input.health !== undefined
+          ? { health: input.health as ProjectHealth }
+          : {}),
+        ...(input.priority !== undefined
+          ? { priority: input.priority as TaskPriority }
+          : {}),
+        ...(input.targetDate !== undefined
+          ? { targetDate: at(input.targetDate) }
+          : {}),
         ...(input.color !== undefined ? { color: input.color } : {}),
         ...(input.icon !== undefined ? { icon: input.icon } : {}),
-        ...(input.iconColor !== undefined ? { iconColor: input.iconColor } : {}),
+        ...(input.iconColor !== undefined
+          ? { iconColor: input.iconColor }
+          : {}),
         ...(input.projectIds
           ? {
               projects: {
@@ -289,7 +311,10 @@ export class WorkToolsService {
     });
   }
 
-  async deleteInitiative(workspaceId: string, initiativeId: string): Promise<void> {
+  async deleteInitiative(
+    workspaceId: string,
+    initiativeId: string,
+  ): Promise<void> {
     await this.assertInitiative(workspaceId, initiativeId);
     await this.prisma.initiative.delete({ where: { id: initiativeId } });
   }
@@ -352,7 +377,8 @@ export class WorkToolsService {
   ) {
     if (input.teamId) await this.assertTeam(workspaceId, input.teamId);
     if (input.leadId) await this.assertWorkspaceUser(workspaceId, input.leadId);
-    if (input.initiativeId) await this.assertInitiative(workspaceId, input.initiativeId);
+    if (input.initiativeId)
+      await this.assertInitiative(workspaceId, input.initiativeId);
 
     // Existing prefixes in workspace for collision avoidance
     const existingPrefixes = (
@@ -421,9 +447,13 @@ export class WorkToolsService {
     const existing = await this.assertProject(workspaceId, projectId);
     if (input.teamId) await this.assertTeam(workspaceId, input.teamId);
     if (input.leadId) await this.assertWorkspaceUser(workspaceId, input.leadId);
-    if (input.initiativeId) await this.assertInitiative(workspaceId, input.initiativeId);
+    if (input.initiativeId)
+      await this.assertInitiative(workspaceId, input.initiativeId);
 
-    if (input.ticketPrefix !== undefined && input.ticketPrefix !== existing.ticketPrefix) {
+    if (
+      input.ticketPrefix !== undefined &&
+      input.ticketPrefix !== existing.ticketPrefix
+    ) {
       const clash = await this.prisma.project.findFirst({
         where: {
           workspaceId,
@@ -441,23 +471,44 @@ export class WorkToolsService {
 
     const data: Prisma.ProjectUncheckedUpdateInput = {
       ...(input.name !== undefined ? { name: input.name } : {}),
-      ...(input.columnOrder !== undefined ? { columnOrder: input.columnOrder } : {}),
-      ...(input.ticketPrefix !== undefined ? { ticketPrefix: input.ticketPrefix } : {}),
-      ...(input.identifierPrefixMode !== undefined
-        ? { identifierPrefixMode: input.identifierPrefixMode as IdentifierPrefixMode }
+      ...(input.columnOrder !== undefined
+        ? { columnOrder: input.columnOrder }
         : {}),
-      ...(input.description !== undefined ? { description: input.description } : {}),
+      ...(input.ticketPrefix !== undefined
+        ? { ticketPrefix: input.ticketPrefix }
+        : {}),
+      ...(input.identifierPrefixMode !== undefined
+        ? {
+            identifierPrefixMode:
+              input.identifierPrefixMode as IdentifierPrefixMode,
+          }
+        : {}),
+      ...(input.description !== undefined
+        ? { description: input.description }
+        : {}),
       ...(input.color !== undefined ? { color: input.color } : {}),
       ...(input.icon !== undefined ? { icon: input.icon } : {}),
       ...(input.iconColor !== undefined ? { iconColor: input.iconColor } : {}),
-      ...(input.status !== undefined ? { status: input.status as ProjectStatus } : {}),
-      ...(input.health !== undefined ? { health: input.health as ProjectHealth } : {}),
-      ...(input.healthScore !== undefined ? { healthScore: input.healthScore } : {}),
+      ...(input.status !== undefined
+        ? { status: input.status as ProjectStatus }
+        : {}),
+      ...(input.health !== undefined
+        ? { health: input.health as ProjectHealth }
+        : {}),
+      ...(input.healthScore !== undefined
+        ? { healthScore: input.healthScore }
+        : {}),
       ...(input.teamId !== undefined ? { teamId: input.teamId } : {}),
       ...(input.leadId !== undefined ? { leadId: input.leadId } : {}),
-      ...(input.initiativeId !== undefined ? { initiativeId: input.initiativeId } : {}),
-      ...(input.startDate !== undefined ? { startDate: at(input.startDate) } : {}),
-      ...(input.targetDate !== undefined ? { targetDate: at(input.targetDate) } : {}),
+      ...(input.initiativeId !== undefined
+        ? { initiativeId: input.initiativeId }
+        : {}),
+      ...(input.startDate !== undefined
+        ? { startDate: at(input.startDate) }
+        : {}),
+      ...(input.targetDate !== undefined
+        ? { targetDate: at(input.targetDate) }
+        : {}),
     };
 
     const updated = await this.prisma.project.update({
@@ -481,7 +532,9 @@ export class WorkToolsService {
       previousStatus: existing.status,
       health: updated.health,
       previousHealth: existing.health,
-      statusChanged: updated.status !== existing.status || updated.health !== existing.health,
+      statusChanged:
+        updated.status !== existing.status ||
+        updated.health !== existing.health,
       changes: input,
     });
 
@@ -517,7 +570,9 @@ export class WorkToolsService {
         where: { workspaceId, ticketPrefix: upper, id: { not: projectId } },
       });
       if (clash) {
-        throw new ConflictException(`Prefix "${upper}" is already used by "${clash.name}"`);
+        throw new ConflictException(
+          `Prefix "${upper}" is already used by "${clash.name}"`,
+        );
       }
       prefix = upper;
     }
@@ -527,16 +582,25 @@ export class WorkToolsService {
       data: {
         ticketPrefix: prefix,
         ...(input.identifierPrefixMode
-          ? { identifierPrefixMode: input.identifierPrefixMode as IdentifierPrefixMode }
+          ? {
+              identifierPrefixMode:
+                input.identifierPrefixMode as IdentifierPrefixMode,
+            }
           : {}),
       },
     });
 
     if (actorId && prefix !== project.ticketPrefix) {
-      await this.logActivity(workspaceId, projectId, actorId, 'PREFIX_CHANGED', {
-        oldPrefix: project.ticketPrefix,
-        newPrefix: prefix,
-      });
+      await this.logActivity(
+        workspaceId,
+        projectId,
+        actorId,
+        'PREFIX_CHANGED',
+        {
+          oldPrefix: project.ticketPrefix,
+          newPrefix: prefix,
+        },
+      );
     }
 
     return {
@@ -605,7 +669,11 @@ export class WorkToolsService {
     });
   }
 
-  async updateEpic(workspaceId: string, epicId: string, input: UpdateEpicInput) {
+  async updateEpic(
+    workspaceId: string,
+    epicId: string,
+    input: UpdateEpicInput,
+  ) {
     const epic = await this.prisma.epic.findFirst({
       where: { id: epicId, workspaceId },
     });
@@ -615,11 +683,19 @@ export class WorkToolsService {
       where: { id: epicId },
       data: {
         ...(input.name !== undefined ? { name: input.name } : {}),
-        ...(input.description !== undefined ? { description: input.description } : {}),
+        ...(input.description !== undefined
+          ? { description: input.description }
+          : {}),
         ...(input.ownerId !== undefined ? { ownerId: input.ownerId } : {}),
-        ...(input.status !== undefined ? { status: input.status as ProjectStatus } : {}),
-        ...(input.priority !== undefined ? { priority: input.priority as TaskPriority } : {}),
-        ...(input.targetDate !== undefined ? { targetDate: at(input.targetDate) } : {}),
+        ...(input.status !== undefined
+          ? { status: input.status as ProjectStatus }
+          : {}),
+        ...(input.priority !== undefined
+          ? { priority: input.priority as TaskPriority }
+          : {}),
+        ...(input.targetDate !== undefined
+          ? { targetDate: at(input.targetDate) }
+          : {}),
         ...(input.color !== undefined ? { color: input.color } : {}),
       },
     });
@@ -665,7 +741,11 @@ export class WorkToolsService {
     });
   }
 
-  async updateModule(workspaceId: string, moduleId: string, input: UpdateModuleInput) {
+  async updateModule(
+    workspaceId: string,
+    moduleId: string,
+    input: UpdateModuleInput,
+  ) {
     const mod = await this.prisma.module.findFirst({
       where: { id: moduleId, workspaceId },
     });
@@ -675,11 +755,19 @@ export class WorkToolsService {
       where: { id: moduleId },
       data: {
         ...(input.name !== undefined ? { name: input.name } : {}),
-        ...(input.description !== undefined ? { description: input.description } : {}),
+        ...(input.description !== undefined
+          ? { description: input.description }
+          : {}),
         ...(input.leadId !== undefined ? { leadId: input.leadId } : {}),
-        ...(input.startDate !== undefined ? { startDate: at(input.startDate) } : {}),
-        ...(input.targetDate !== undefined ? { targetDate: at(input.targetDate) } : {}),
-        ...(input.status !== undefined ? { status: input.status as ProjectStatus } : {}),
+        ...(input.startDate !== undefined
+          ? { startDate: at(input.startDate) }
+          : {}),
+        ...(input.targetDate !== undefined
+          ? { targetDate: at(input.targetDate) }
+          : {}),
+        ...(input.status !== undefined
+          ? { status: input.status as ProjectStatus }
+          : {}),
         ...(input.color !== undefined ? { color: input.color } : {}),
       },
       include: {
@@ -705,7 +793,13 @@ export class WorkToolsService {
       },
       include: {
         tasks: {
-          select: { id: true, status: true, priority: true, title: true, estimate: true },
+          select: {
+            id: true,
+            status: true,
+            priority: true,
+            title: true,
+            estimate: true,
+          },
         },
       },
       orderBy: { startDate: 'asc' },
@@ -731,7 +825,11 @@ export class WorkToolsService {
     });
   }
 
-  async updateCycle(workspaceId: string, cycleId: string, input: UpdateCycleInput) {
+  async updateCycle(
+    workspaceId: string,
+    cycleId: string,
+    input: UpdateCycleInput,
+  ) {
     const cycle = await this.prisma.cycle.findFirst({
       where: { id: cycleId, workspaceId },
     });
@@ -741,11 +839,19 @@ export class WorkToolsService {
       where: { id: cycleId },
       data: {
         ...(input.name !== undefined ? { name: input.name } : {}),
-        ...(input.description !== undefined ? { description: input.description } : {}),
+        ...(input.description !== undefined
+          ? { description: input.description }
+          : {}),
         ...(input.goal !== undefined ? { goal: input.goal } : {}),
-        ...(input.startDate !== undefined ? { startDate: new Date(input.startDate) } : {}),
-        ...(input.endDate !== undefined ? { endDate: new Date(input.endDate) } : {}),
-        ...(input.status !== undefined ? { status: input.status as CycleStatus } : {}),
+        ...(input.startDate !== undefined
+          ? { startDate: new Date(input.startDate) }
+          : {}),
+        ...(input.endDate !== undefined
+          ? { endDate: new Date(input.endDate) }
+          : {}),
+        ...(input.status !== undefined
+          ? { status: input.status as CycleStatus }
+          : {}),
       },
     });
   }
@@ -791,8 +897,15 @@ export class WorkToolsService {
           ? {
               OR: [
                 { title: { contains: options.search, mode: 'insensitive' } },
-                { identifier: { contains: options.search, mode: 'insensitive' } },
-                { description: { contains: options.search, mode: 'insensitive' } },
+                {
+                  identifier: { contains: options.search, mode: 'insensitive' },
+                },
+                {
+                  description: {
+                    contains: options.search,
+                    mode: 'insensitive',
+                  },
+                },
               ],
             }
           : {}),
@@ -878,7 +991,9 @@ export class WorkToolsService {
           include: { actor: { select: PUBLIC_USER_SELECT } },
           orderBy: { createdAt: 'desc' },
         },
-        meeting: { select: { id: true, title: true, startAt: true, status: true } },
+        meeting: {
+          select: { id: true, title: true, startAt: true, status: true },
+        },
         _count: { select: { comments: true } },
       },
     });
@@ -909,7 +1024,11 @@ export class WorkToolsService {
     return b.every((v) => set.has(v));
   }
 
-  async createTask(workspaceId: string, input: CreateTaskInput, actorId?: string) {
+  async createTask(
+    workspaceId: string,
+    input: CreateTaskInput,
+    actorId?: string,
+  ) {
     await this.assertTaskLinks(workspaceId, input);
 
     const status = (input.status as TaskStatus) ?? TaskStatus.TODO;
@@ -921,8 +1040,7 @@ export class WorkToolsService {
     );
     const primaryAssigneeId = assigneeIds[0] ?? null;
     // `assigneeIds` is its own column now — no longer stashed in customFields.
-    const customFields =
-      (input.customFields as Record<string, unknown>) ?? {};
+    const customFields = (input.customFields as Record<string, unknown>) ?? {};
 
     const task = await this.prisma.$transaction(async (tx) => {
       let ticketNumber: number | null = null;
@@ -1022,13 +1140,13 @@ export class WorkToolsService {
       input.assigneeIds !== undefined
         ? this.orderAssignees(input.assigneeIds, input.assigneeId)
         : input.assigneeId !== undefined
-        ? this.orderAssignees(
-            input.assigneeId ? [input.assigneeId] : [],
-            input.assigneeId,
-          )
-        : undefined;
+          ? this.orderAssignees(
+              input.assigneeId ? [input.assigneeId] : [],
+              input.assigneeId,
+            )
+          : undefined;
     const primaryAssigneeId =
-      nextAssigneeIds !== undefined ? nextAssigneeIds[0] ?? null : undefined;
+      nextAssigneeIds !== undefined ? (nextAssigneeIds[0] ?? null) : undefined;
 
     const existingCustom =
       (existing.customFields as Record<string, unknown>) ?? {};
@@ -1042,14 +1160,22 @@ export class WorkToolsService {
 
     const data: Prisma.TaskUncheckedUpdateInput = {
       ...(input.title !== undefined ? { title: input.title } : {}),
-      ...(input.description !== undefined ? { description: input.description } : {}),
+      ...(input.description !== undefined
+        ? { description: input.description }
+        : {}),
       ...(input.type !== undefined ? { type: input.type as WorkItemType } : {}),
-      ...(input.status !== undefined ? { status: input.status as TaskStatus } : {}),
-      ...(input.priority !== undefined ? { priority: input.priority as TaskPriority } : {}),
+      ...(input.status !== undefined
+        ? { status: input.status as TaskStatus }
+        : {}),
+      ...(input.priority !== undefined
+        ? { priority: input.priority as TaskPriority }
+        : {}),
       ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
       ...(input.teamId !== undefined ? { teamId: input.teamId } : {}),
       ...(input.sprintId !== undefined ? { sprintId: input.sprintId } : {}),
-      ...(input.milestoneId !== undefined ? { milestoneId: input.milestoneId } : {}),
+      ...(input.milestoneId !== undefined
+        ? { milestoneId: input.milestoneId }
+        : {}),
       ...(input.epicId !== undefined ? { epicId: input.epicId } : {}),
       ...(input.cycleId !== undefined ? { cycleId: input.cycleId } : {}),
       ...(input.moduleId !== undefined ? { moduleId: input.moduleId } : {}),
@@ -1060,8 +1186,12 @@ export class WorkToolsService {
       ...(nextAssigneeIds !== undefined
         ? { assigneeIds: nextAssigneeIds }
         : {}),
-      ...(input.reporterId !== undefined ? { reporterId: input.reporterId } : {}),
-      ...(input.startDate !== undefined ? { startDate: at(input.startDate) } : {}),
+      ...(input.reporterId !== undefined
+        ? { reporterId: input.reporterId }
+        : {}),
+      ...(input.startDate !== undefined
+        ? { startDate: at(input.startDate) }
+        : {}),
       ...(input.dueDate !== undefined ? { dueDate: at(input.dueDate) } : {}),
       ...(input.completedAt !== undefined
         ? { completedAt: at(input.completedAt) }
@@ -1074,7 +1204,9 @@ export class WorkToolsService {
       ...(updatedCustomFields !== undefined
         ? { customFields: updatedCustomFields as Prisma.InputJsonValue }
         : {}),
-      ...(input.orderIndex !== undefined ? { orderIndex: input.orderIndex } : {}),
+      ...(input.orderIndex !== undefined
+        ? { orderIndex: input.orderIndex }
+        : {}),
     };
 
     const updated = await this.prisma.task.update({
@@ -1099,10 +1231,16 @@ export class WorkToolsService {
         });
       }
       if (input.priority && input.priority !== existing.priority) {
-        await this.logActivity(workspaceId, taskId, actorId, 'PRIORITY_CHANGED', {
-          oldValue: existing.priority,
-          newValue: input.priority,
-        });
+        await this.logActivity(
+          workspaceId,
+          taskId,
+          actorId,
+          'PRIORITY_CHANGED',
+          {
+            oldValue: existing.priority,
+            newValue: input.priority,
+          },
+        );
       }
       if (assigneesChanged) {
         await this.logActivity(workspaceId, taskId, actorId, 'ASSIGNED', {
@@ -1157,7 +1295,10 @@ export class WorkToolsService {
    * when it is reopened. Only callers that sent it explicitly used to set it,
    * so the board's "Done" column and every "completed today" query read null.
    */
-  private completionStamp(from: string, to: string | undefined): { completedAt?: Date | null } {
+  private completionStamp(
+    from: string,
+    to: string | undefined,
+  ): { completedAt?: Date | null } {
     if (!to || to === from) return {};
     if (to === TaskStatus.DONE) return { completedAt: new Date() };
     if (from === TaskStatus.DONE) return { completedAt: null };
@@ -1214,7 +1355,11 @@ export class WorkToolsService {
     return updated;
   }
 
-  async deleteTask(workspaceId: string, taskId: string, actorId?: string): Promise<void> {
+  async deleteTask(
+    workspaceId: string,
+    taskId: string,
+    actorId?: string,
+  ): Promise<void> {
     await this.assertTask(workspaceId, taskId);
     if (actorId) {
       await this.logActivity(workspaceId, taskId, actorId, 'DELETED');
@@ -1241,8 +1386,12 @@ export class WorkToolsService {
         OR: [{ sourceId: taskId }, { targetId: taskId }],
       },
       include: {
-        source: { select: { id: true, title: true, status: true, identifier: true } },
-        target: { select: { id: true, title: true, status: true, identifier: true } },
+        source: {
+          select: { id: true, title: true, status: true, identifier: true },
+        },
+        target: {
+          select: { id: true, title: true, status: true, identifier: true },
+        },
       },
     });
   }
@@ -1269,10 +1418,16 @@ export class WorkToolsService {
     });
 
     if (actorId) {
-      await this.logActivity(workspaceId, input.sourceId, actorId, 'RELATIONS_CHANGED', {
-        relationType: input.type,
-        targetId: input.targetId,
-      });
+      await this.logActivity(
+        workspaceId,
+        input.sourceId,
+        actorId,
+        'RELATIONS_CHANGED',
+        {
+          relationType: input.type,
+          targetId: input.targetId,
+        },
+      );
     }
 
     return relation;
@@ -1288,7 +1443,11 @@ export class WorkToolsService {
 
   // --- saved views ----------------------------------------------------------
 
-  async getSavedViews(workspaceId: string, projectId?: string, teamId?: string) {
+  async getSavedViews(
+    workspaceId: string,
+    projectId?: string,
+    teamId?: string,
+  ) {
     return this.prisma.savedView.findMany({
       where: {
         workspaceId,
@@ -1322,7 +1481,11 @@ export class WorkToolsService {
     });
   }
 
-  async updateSavedView(workspaceId: string, viewId: string, input: UpdateSavedViewInput) {
+  async updateSavedView(
+    workspaceId: string,
+    viewId: string,
+    input: UpdateSavedViewInput,
+  ) {
     const view = await this.prisma.savedView.findFirst({
       where: { id: viewId, workspaceId },
     });
@@ -1333,11 +1496,21 @@ export class WorkToolsService {
       data: {
         ...(input.name !== undefined ? { name: input.name } : {}),
         ...(input.type !== undefined ? { type: input.type as ViewType } : {}),
-        ...(input.filters !== undefined ? { filters: JSON.stringify(input.filters) } : {}),
-        ...(input.sorting !== undefined ? { sorting: JSON.stringify(input.sorting) } : {}),
-        ...(input.grouping !== undefined ? { grouping: JSON.stringify(input.grouping) } : {}),
-        ...(input.visibleColumns !== undefined ? { visibleColumns: input.visibleColumns } : {}),
-        ...(input.isDefault !== undefined ? { isDefault: input.isDefault } : {}),
+        ...(input.filters !== undefined
+          ? { filters: JSON.stringify(input.filters) }
+          : {}),
+        ...(input.sorting !== undefined
+          ? { sorting: JSON.stringify(input.sorting) }
+          : {}),
+        ...(input.grouping !== undefined
+          ? { grouping: JSON.stringify(input.grouping) }
+          : {}),
+        ...(input.visibleColumns !== undefined
+          ? { visibleColumns: input.visibleColumns }
+          : {}),
+        ...(input.isDefault !== undefined
+          ? { isDefault: input.isDefault }
+          : {}),
         ...(input.isShared !== undefined ? { isShared: input.isShared } : {}),
       },
     });
@@ -1367,7 +1540,10 @@ export class WorkToolsService {
     });
   }
 
-  async createIntakeRequest(workspaceId: string, input: CreateIntakeRequestInput) {
+  async createIntakeRequest(
+    workspaceId: string,
+    input: CreateIntakeRequestInput,
+  ) {
     return this.prisma.intakeRequest.create({
       data: {
         workspaceId,
@@ -1468,7 +1644,9 @@ export class WorkToolsService {
     // Update project health
     await this.prisma.project.update({
       where: { id: input.projectId },
-      data: { health: (input.status as ProjectHealth) ?? ProjectHealth.HEALTHY },
+      data: {
+        health: (input.status as ProjectHealth) ?? ProjectHealth.HEALTHY,
+      },
     });
 
     return update;
@@ -1513,7 +1691,12 @@ export class WorkToolsService {
       body: input.content,
     });
 
-    await this.notifyCommentMentions(workspaceId, task, authorId, input.content);
+    await this.notifyCommentMentions(
+      workspaceId,
+      task,
+      authorId,
+      input.content,
+    );
 
     return comment;
   }
@@ -1554,7 +1737,7 @@ export class WorkToolsService {
         contextLabel: task.identifier
           ? `${task.identifier} ${task.title}`
           : task.title,
-        deepLink: `tasks?taskId=${task.id}`,
+        deepLink: `projects?taskId=${task.id}`,
       });
     } catch {
       // Notification fan-out is never a correctness dependency of the comment.
@@ -1613,9 +1796,13 @@ export class WorkToolsService {
       where: { id: eventId },
       data: {
         ...(input.title !== undefined ? { title: input.title } : {}),
-        ...(input.description !== undefined ? { description: input.description } : {}),
+        ...(input.description !== undefined
+          ? { description: input.description }
+          : {}),
         ...(input.location !== undefined ? { location: input.location } : {}),
-        ...(input.startAt !== undefined ? { startAt: new Date(input.startAt) } : {}),
+        ...(input.startAt !== undefined
+          ? { startAt: new Date(input.startAt) }
+          : {}),
         ...(input.endAt !== undefined ? { endAt: new Date(input.endAt) } : {}),
         ...(input.isAllDay !== undefined ? { isAllDay: input.isAllDay } : {}),
       },
@@ -1623,7 +1810,10 @@ export class WorkToolsService {
     });
   }
 
-  async deleteCalendarEvent(workspaceId: string, eventId: string): Promise<void> {
+  async deleteCalendarEvent(
+    workspaceId: string,
+    eventId: string,
+  ): Promise<void> {
     await this.assertEvent(workspaceId, eventId);
     await this.prisma.calendarEvent.update({
       where: { id: eventId },
@@ -1631,7 +1821,10 @@ export class WorkToolsService {
     });
   }
 
-  async getDocuments(workspaceId: string, options?: { limit?: number; offset?: number }) {
+  async getDocuments(
+    workspaceId: string,
+    options?: { limit?: number; offset?: number },
+  ) {
     return this.prisma.workDocument.findMany({
       where: { workspaceId, deletedAt: null },
       include: {
@@ -1880,7 +2073,8 @@ export class WorkToolsService {
       where: { workspaceId, userId },
       select: { id: true },
     });
-    if (!member) throw new NotFoundException('User is not a member of this workspace');
+    if (!member)
+      throw new NotFoundException('User is not a member of this workspace');
   }
 
   /** Validates every foreign key a task create/update can carry. */
@@ -1904,17 +2098,22 @@ export class WorkToolsService {
     if (input.projectId) await this.assertProject(workspaceId, input.projectId);
     if (input.teamId) await this.assertTeam(workspaceId, input.teamId);
     if (input.sprintId) await this.assertSprint(workspaceId, input.sprintId);
-    if (input.milestoneId) await this.assertMilestone(workspaceId, input.milestoneId);
+    if (input.milestoneId)
+      await this.assertMilestone(workspaceId, input.milestoneId);
     if (input.epicId) await this.assertEpicOwned(workspaceId, input.epicId);
     if (input.cycleId) await this.assertCycleOwned(workspaceId, input.cycleId);
-    if (input.moduleId) await this.assertModuleOwned(workspaceId, input.moduleId);
+    if (input.moduleId)
+      await this.assertModuleOwned(workspaceId, input.moduleId);
     if (input.parentId) await this.assertTask(workspaceId, input.parentId);
-    if (input.meetingId) await this.assertMeetingOwned(workspaceId, input.meetingId);
-    if (input.assigneeId) await this.assertWorkspaceUser(workspaceId, input.assigneeId);
+    if (input.meetingId)
+      await this.assertMeetingOwned(workspaceId, input.meetingId);
+    if (input.assigneeId)
+      await this.assertWorkspaceUser(workspaceId, input.assigneeId);
     for (const id of new Set(input.assigneeIds ?? [])) {
       if (id) await this.assertWorkspaceUser(workspaceId, id);
     }
-    if (input.reporterId) await this.assertWorkspaceUser(workspaceId, input.reporterId);
+    if (input.reporterId)
+      await this.assertWorkspaceUser(workspaceId, input.reporterId);
   }
 
   private async assertEvent(workspaceId: string, eventId: string) {
@@ -1966,7 +2165,8 @@ export class WorkToolsService {
       where: { id: taskId, workspaceId, deletedAt: { not: null } },
       data: { deletedAt: null },
     });
-    if (count === 0) throw new NotFoundException('No deleted task with that id.');
+    if (count === 0)
+      throw new NotFoundException('No deleted task with that id.');
     return this.getTask(workspaceId, taskId);
   }
 
@@ -1986,7 +2186,8 @@ export class WorkToolsService {
       where: { id: eventId, workspaceId, deletedAt: { not: null } },
       data: { deletedAt: null },
     });
-    if (count === 0) throw new NotFoundException('No deleted event with that id.');
+    if (count === 0)
+      throw new NotFoundException('No deleted event with that id.');
     return this.prisma.calendarEvent.findUniqueOrThrow({
       where: { id: eventId },
       include: { organizer: { select: PUBLIC_USER_SELECT } },

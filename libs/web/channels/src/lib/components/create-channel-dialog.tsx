@@ -94,7 +94,7 @@ export function CreateChannelDialog({
       if (onCreated) {
         onCreated(channel);
       } else {
-        navigate(`/w/${slug}/c/${channel.slug}`);
+        navigate(`/w/${slug}/channels/${channel.slug}`);
       }
     } catch {
       // Rendered by <FormError> / field errors.

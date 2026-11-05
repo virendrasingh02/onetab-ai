@@ -564,7 +564,7 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
         category: 'Channels',
         label: channel.name,
         icon: <Hash className={icon} />,
-        action: go(`c/${channel.slug}`),
+        action: go(`channels/${channel.slug}`),
       }),
     );
     const people: CommandItem[] = (membersQuery.data ?? [])

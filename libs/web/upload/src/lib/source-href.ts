@@ -17,9 +17,9 @@ export function uploadSourceHref(
 
   switch (type as UploadContextType) {
     case 'CHANNEL':
-      return slug ? `${w}/c/${slug}` : null;
+      return slug ? `${w}/channels/${slug}` : null;
     case 'PROJECT':
-      return id ? `${w}/tasks/${id}` : null;
+      return id ? `${w}/projects/${id}` : null;
     case 'DIRECT':
       if (!id) return null;
       return id.startsWith('!') || id.startsWith('#')
@@ -33,9 +33,9 @@ export function uploadSourceHref(
       return id ? `${w}/docs/${id}` : null;
     case 'ISSUE':
       return parentId && id
-        ? `${w}/tasks/${parentId}?card=${id}`
+        ? `${w}/projects/${parentId}?card=${id}`
         : parentId
-          ? `${w}/tasks/${parentId}`
+          ? `${w}/projects/${parentId}`
           : null;
     default:
       return null;

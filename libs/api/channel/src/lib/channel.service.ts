@@ -51,6 +51,16 @@ import type {
   UpdateChannelInput,
 } from '@org/validation';
 
+/** `/channels/new` is the create-channel page, so no channel can take that slug. */
+function assertChannelNameAvailable(name: string): void {
+  if (name !== 'new') return;
+  throw new ConflictException({
+    code: ApiErrorCode.CONFLICT,
+    message: 'The channel name #new is reserved.',
+    errors: { name: ['The channel name #new is reserved.'] },
+  });
+}
+
 @Injectable()
 export class ChannelService {
   constructor(
@@ -176,7 +186,8 @@ export class ChannelService {
   ): ChannelSummary {
     const base = toChannel(channel);
     const membershipRow = channel.members[0];
-    const channelRole = (membershipRow?.role as ChannelRole | undefined) ?? null;
+    const channelRole =
+      (membershipRow?.role as ChannelRole | undefined) ?? null;
 
     return {
       ...base,
@@ -259,6 +270,8 @@ export class ChannelService {
       );
     }
 
+    assertChannelNameAvailable(input.name);
+
     const existing = await this.prisma.channel.findUnique({
       where: { workspaceId_slug: { workspaceId, slug: input.name } },
       select: { id: true },
@@ -333,6 +346,7 @@ export class ChannelService {
       if (current.slug === 'general' && input.name !== 'general') {
         throw new ConflictException('The #general channel cannot be renamed.');
       }
+      assertChannelNameAvailable(input.name);
       const clash = await this.prisma.channel.findUnique({
         where: { workspaceId_slug: { workspaceId, slug: input.name } },
         select: { id: true },
@@ -367,7 +381,9 @@ export class ChannelService {
     const channel = await this.prisma.channel.update({
       where: { id: channelId },
       data: {
-        ...(input.name !== undefined ? { name: input.name, slug: input.name } : {}),
+        ...(input.name !== undefined
+          ? { name: input.name, slug: input.name }
+          : {}),
         ...(input.topic !== undefined ? { topic: input.topic } : {}),
         ...(input.description !== undefined
           ? { description: input.description }
@@ -493,7 +509,10 @@ export class ChannelService {
           : 'This channel is already private.',
       );
     }
-    if (channel.slug === 'general' && visibility === ChannelVisibility.PRIVATE) {
+    if (
+      channel.slug === 'general' &&
+      visibility === ChannelVisibility.PRIVATE
+    ) {
       throw new ConflictException('The #general channel must stay public.');
     }
 
@@ -965,7 +984,9 @@ export class ChannelService {
     pinId: string,
   ): Promise<void> {
     await this.assertChannel(workspaceId, channelId);
-    await this.prisma.channelPin.deleteMany({ where: { id: pinId, channelId } });
+    await this.prisma.channelPin.deleteMany({
+      where: { id: pinId, channelId },
+    });
   }
 
   /** Files shared in a channel — the channel "Files"/"Media" tabs. */

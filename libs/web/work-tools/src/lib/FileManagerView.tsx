@@ -67,10 +67,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import {
-  useCurrentWorkspace,
-  useWorkspaceChannels,
-} from './use-work-tools.js';
+import { useCurrentWorkspace, useWorkspaceChannels } from './use-work-tools.js';
 
 type OwnerTab = 'all' | 'created' | 'shared';
 
@@ -121,7 +118,7 @@ function roomFileConversationHref(
   if (!slug) return null;
   if (file.roomKind === 'channel') {
     const channelSlug = channelSlugByRoomId.get(file.roomId);
-    return channelSlug ? `/w/${slug}/c/${channelSlug}` : null;
+    return channelSlug ? `/w/${slug}/channels/${channelSlug}` : null;
   }
   if (file.roomKind === 'direct' && file.directUserId) {
     return `/w/${slug}/dms/${toPlatformUserId(file.directUserId)}`;

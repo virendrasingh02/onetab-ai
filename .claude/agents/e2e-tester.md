@@ -86,7 +86,7 @@ persisted (reload the page, or read it back from the API).
    Each must render a real page (not the error boundary / 404 / blank), with no
    4xx/5xx except expected 403s for non-admins (note which).
 4. Studio: open :4202 → signed in via shared session (or sign-in screen works) →
-   route sweep: agents, my-agents, create, templates, workflows, studio/new,
+   route sweep: agents, planned, create, templates, workflows, planned/new,
    runs, executions, approvals, connectors, connectors/groups, tools, tool-access,
    mcp, knowledge, prompts, widgets, coworkers, analytics, developer, settings.
 

@@ -1,9 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@org/database';
-import type {
-  ContextOverviewDto,
-  CrossObjectLinkDto,
-} from '@org/types';
+import type { ContextOverviewDto, CrossObjectLinkDto } from '@org/types';
 import type { CreateCrossObjectLinkInput } from '@org/validation';
 
 @Injectable()
@@ -86,20 +83,47 @@ export class ContextLinksService {
       const task = await this.prisma.task.findFirst({
         where: { id: targetId, workspaceId, deletedAt: null },
         include: {
-          assignee: { select: { id: true, name: true, displayName: true, avatarUrl: true, presence: true } },
-          reporter: { select: { id: true, name: true, displayName: true, avatarUrl: true, presence: true } },
+          assignee: {
+            select: {
+              id: true,
+              name: true,
+              displayName: true,
+              avatarUrl: true,
+              presence: true,
+            },
+          },
+          reporter: {
+            select: {
+              id: true,
+              name: true,
+              displayName: true,
+              avatarUrl: true,
+              presence: true,
+            },
+          },
           project: { select: { id: true, name: true } },
           comments: {
             take: 5,
             orderBy: { createdAt: 'desc' },
-            include: { author: { select: { id: true, name: true, displayName: true, avatarUrl: true } } },
+            include: {
+              author: {
+                select: {
+                  id: true,
+                  name: true,
+                  displayName: true,
+                  avatarUrl: true,
+                },
+              },
+            },
           },
         },
       });
 
       if (!task) throw new NotFoundException(`Task ${targetId} not found`);
 
-      overview.title = task.identifier ? `${task.identifier} ${task.title}` : task.title;
+      overview.title = task.identifier
+        ? `${task.identifier} ${task.title}`
+        : task.title;
 
       if (task.assignee) {
         overview.relatedPeople.push({
@@ -126,7 +150,9 @@ export class ContextLinksService {
           workspaceId,
           OR: [
             { contextType: 'ISSUE', contextId: targetId },
-            ...(task.projectId ? [{ projectId: task.projectId, contextType: 'PROJECT' as const }] : []),
+            ...(task.projectId
+              ? [{ projectId: task.projectId, contextType: 'PROJECT' as const }]
+              : []),
           ],
         },
         take: 10,
@@ -152,17 +178,28 @@ export class ContextLinksService {
           members: {
             take: 10,
             include: {
-              user: { select: { id: true, name: true, displayName: true, avatarUrl: true, presence: true } },
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  displayName: true,
+                  avatarUrl: true,
+                  presence: true,
+                },
+              },
             },
           },
           channelAgents: {
             where: { isEnabled: true },
-            include: { agent: { select: { id: true, name: true, model: true } } },
+            include: {
+              agent: { select: { id: true, name: true, model: true } },
+            },
           },
         },
       });
 
-      if (!channel) throw new NotFoundException(`Channel ${targetId} not found`);
+      if (!channel)
+        throw new NotFoundException(`Channel ${targetId} not found`);
 
       overview.title = `#${channel.name}`;
       overview.relatedPeople = channel.members.map((m) => ({
@@ -196,7 +233,15 @@ export class ContextLinksService {
       const file = await this.prisma.upload.findFirst({
         where: { id: targetId, workspaceId },
         include: {
-          uploader: { select: { id: true, name: true, displayName: true, avatarUrl: true, presence: true } },
+          uploader: {
+            select: {
+              id: true,
+              name: true,
+              displayName: true,
+              avatarUrl: true,
+              presence: true,
+            },
+          },
           channel: { select: { id: true, name: true } },
           project: { select: { id: true, name: true } },
         },
@@ -224,14 +269,22 @@ export class ContextLinksService {
           status: t.status,
           priority: t.priority,
           identifier: t.identifier ?? undefined,
-          href: `tasks?taskId=${t.id}`,
+          href: `projects?taskId=${t.id}`,
         }));
       }
     } else if (targetType === 'doc' || targetType === 'document') {
       const doc = await this.prisma.workDocument.findFirst({
         where: { id: targetId, workspaceId, deletedAt: null },
         include: {
-          author: { select: { id: true, name: true, displayName: true, avatarUrl: true, presence: true } },
+          author: {
+            select: {
+              id: true,
+              name: true,
+              displayName: true,
+              avatarUrl: true,
+              presence: true,
+            },
+          },
         },
       });
 
@@ -249,7 +302,8 @@ export class ContextLinksService {
 
     // 3. Process explicit links
     for (const link of explicitLinks) {
-      const isSource = link.sourceType === targetType && link.sourceId === targetId;
+      const isSource =
+        link.sourceType === targetType && link.sourceId === targetId;
       const otherType = isSource ? link.targetType : link.sourceType;
       const otherId = isSource ? link.targetId : link.sourceId;
       const meta = (link.metadata as Record<string, unknown>) ?? {};
@@ -260,23 +314,34 @@ export class ContextLinksService {
           roomId: (meta['roomId'] as string) || '',
           channelName: (meta['channelName'] as string) || undefined,
           senderName: (meta['senderName'] as string) || 'Team Member',
-          body: (meta['preview'] as string) || (meta['body'] as string) || 'Linked conversation message',
+          body:
+            (meta['preview'] as string) ||
+            (meta['body'] as string) ||
+            'Linked conversation message',
           timestamp: link.createdAt.toISOString(),
           href: (meta['href'] as string) || 'inbox',
         });
       } else if (otherType === 'task' && targetType !== 'task') {
         const linkedTask = await this.prisma.task.findUnique({
           where: { id: otherId },
-          select: { id: true, title: true, status: true, priority: true, identifier: true },
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            priority: true,
+            identifier: true,
+          },
         });
         if (linkedTask) {
           overview.relatedTasks.push({
             id: linkedTask.id,
-            title: linkedTask.identifier ? `${linkedTask.identifier} ${linkedTask.title}` : linkedTask.title,
+            title: linkedTask.identifier
+              ? `${linkedTask.identifier} ${linkedTask.title}`
+              : linkedTask.title,
             status: linkedTask.status,
             priority: linkedTask.priority,
             identifier: linkedTask.identifier ?? undefined,
-            href: `tasks?taskId=${linkedTask.id}`,
+            href: `projects?taskId=${linkedTask.id}`,
           });
         }
       }
