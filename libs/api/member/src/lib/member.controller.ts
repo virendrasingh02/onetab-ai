@@ -129,8 +129,14 @@ export class InvitationController {
     return this.members.listInvitations(workspaceId, { status, search, scope });
   }
 
+  /*
+   * Not MANAGE_MEMBERS: who may invite is the workspace's `whoCanInvite` policy,
+   * which `MemberService.invite` enforces along with what non-admins may scope
+   * an invitation to. CREATE only keeps guests out before that lookup.
+   */
   @Post()
-  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_MEMBERS)
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   invite(
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,

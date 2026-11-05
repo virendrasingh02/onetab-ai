@@ -145,6 +145,78 @@ describe('MemberService - Complete Invitation System', () => {
         ),
       ).rejects.toThrow(NotFoundException);
     });
+
+    describe('invited by a member', () => {
+      const member = (input: Record<string, unknown> = {}) =>
+        service.invite(
+          workspaceId,
+          actorId,
+          WorkspaceRole.MEMBER,
+          {
+            emails: ['new@example.com'],
+            role: WorkspaceRole.MEMBER,
+            ...input,
+          } as never,
+          false,
+        );
+
+      beforeEach(() => {
+        mockPrisma.workspaceMember.findMany.mockResolvedValue([]);
+        mockPrisma.invitation.findFirst.mockResolvedValue(null);
+        mockPrisma.invitation.create.mockImplementation(({ data }: any) => ({
+          id: 'inv_1',
+          ...data,
+          invitedBy: { id: actorId, name: 'Ada', displayName: null, avatarUrl: null },
+        }));
+      });
+
+      it('can invite under the default policy', async () => {
+        const result = await member();
+
+        expect(result.invited).toHaveLength(1);
+      });
+
+      it('only finds channels the member can reach', async () => {
+        mockPrisma.channel.findFirst.mockResolvedValue(null);
+
+        await expect(member({ channelId: 'private_channel' })).rejects.toThrow(
+          NotFoundException,
+        );
+        expect(mockPrisma.channel.findFirst).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              OR: [
+                { visibility: 'PUBLIC' },
+                { members: { some: { userId: actorId } } },
+              ],
+            }),
+          }),
+        );
+        expect(mockPrisma.invitation.create).not.toHaveBeenCalled();
+      });
+
+      it.each(['teamId', 'projectId'])('cannot scope to a %s', async (scope) => {
+        await expect(member({ [scope]: 'scope_1' })).rejects.toThrow(
+          ForbiddenException,
+        );
+        expect(mockPrisma.invitation.create).not.toHaveBeenCalled();
+      });
+
+      it('leaves a pending invitation that outranks them untouched', async () => {
+        mockPrisma.invitation.findFirst.mockResolvedValue({
+          id: 'inv_admin',
+          role: WorkspaceRole.ADMIN,
+          status: InvitationStatus.PENDING,
+        });
+
+        const result = await member();
+
+        expect(result.invited).toEqual([]);
+        expect(result.alreadyInvited).toEqual(['new@example.com']);
+        expect(mockPrisma.invitation.update).not.toHaveBeenCalled();
+        expect(mockEvents.emit).not.toHaveBeenCalled();
+      });
+    });
   });
 
   describe('Public Preview', () => {

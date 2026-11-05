@@ -1,23 +1,27 @@
-import { channelApi } from '@org/api-client';
-import { WorkspaceRole, type ChannelSummary } from '@org/types';
+import { channelApi, queryKeys, workspaceApi } from '@org/api-client';
+import {
+  hasWorkspaceRole,
+  roleHasPermission,
+  WorkspacePermission,
+  WorkspaceRole,
+  type ChannelSummary,
+} from '@org/types';
 import {
   Button,
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogTitle,
   Popover,
   PopoverAnchor,
   PopoverContent,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  SegmentedControl,
   toast,
 } from '@org/ui';
-import { parseEmails } from '@org/utils';
+import { cn, parseEmails } from '@org/utils';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, Check, Hash, Link2, Lock, Plus, X } from 'lucide-react';
+import { AlertCircle, Check, Hash, Link2, Lock, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useInvitationMutations } from '../use-invitations.js';
 
@@ -38,11 +42,31 @@ export interface InviteMembersDialogProps {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const MAX_INVITES = 50;
 
+const INVITABLE_ROLES = [
+  WorkspaceRole.MEMBER,
+  WorkspaceRole.ADMIN,
+  WorkspaceRole.GUEST,
+];
+
 const ROLE_HINTS: Record<string, string> = {
   [WorkspaceRole.MEMBER]: 'Can chat, collaborate and create content',
   [WorkspaceRole.ADMIN]: 'Can also manage members and settings',
   [WorkspaceRole.GUEST]: 'Limited to the channels they are added to',
 };
+
+const roleLabel = (role: WorkspaceRole) =>
+  role.charAt(0) + role.slice(1).toLowerCase();
+
+function ChannelGlyph({
+  channel,
+  className,
+}: {
+  channel: ChannelSummary;
+  className?: string;
+}) {
+  const Icon = channel.visibility === 'PRIVATE' ? Lock : Hash;
+  return <Icon aria-hidden className={className} />;
+}
 
 export function InviteMembersDialog({
   open,
@@ -67,6 +91,8 @@ export function InviteMembersDialog({
   const [showChannelDropdown, setShowChannelDropdown] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [role, setRole] = useState<WorkspaceRole>(defaultRole);
+  /* Addresses the API reported as already in the workspace on the last send. */
+  const [existingMembers, setExistingMembers] = useState<string[]>([]);
   /*
    * The shareable link is minted lazily on first copy (a real `isLink`
    * invitation row) and reused for the life of the dialog, so repeated clicks
@@ -82,6 +108,15 @@ export function InviteMembersDialog({
     queryKey: ['channels', workspaceId, 'list'],
     queryFn: () => channelApi.list(workspaceId as string),
     enabled: !!workspaceId && open,
+  });
+
+  // The dialog can target a workspace other than the current one, so the
+  // inviter's role comes from their workspace list, not the current context.
+  const workspacesQuery = useQuery({
+    queryKey: queryKeys.workspaces.list(),
+    queryFn: () => workspaceApi.list(),
+    enabled: open,
+    staleTime: 30_000,
   });
 
   const { invite, createLink } = useInvitationMutations(workspaceId);
@@ -108,6 +143,7 @@ export function InviteMembersDialog({
       setChannelSearch((prev) => (prev ? '' : prev));
       setShowChannelDropdown((prev) => (prev ? false : prev));
       setShareableUrl((prev) => (prev ? null : prev));
+      setExistingMembers((prev) => (prev.length ? [] : prev));
       setRole(defaultRole);
     } else if (defaultScope?.type === 'CHANNEL' && defaultScope.id) {
       const matched = allChannels.find((c) => c.id === defaultScope.id);
@@ -125,13 +161,30 @@ export function InviteMembersDialog({
     }
   };
 
+  const removeEmail = (email: string) => {
+    setEmails((prev) => prev.filter((item) => item !== email));
+    setExistingMembers((prev) => prev.filter((item) => item !== email));
+  };
+
+  const editEmail = (email: string) => {
+    removeEmail(email);
+    setEmailInput(email);
+    emailInputRef.current?.focus();
+  };
+
   const invalidEmails = emails.filter((e) => !EMAIL_RE.test(e));
   const pendingInvalid =
-    !!emailInput.trim() && !parseEmails(emailInput).every((e) => EMAIL_RE.test(e));
-  const totalCount = emails.length + (emailInput.trim() ? parseEmails(emailInput).length : 0);
+    !!emailInput.trim() &&
+    !parseEmails(emailInput).every((e) => EMAIL_RE.test(e));
+  const totalCount =
+    emails.length + (emailInput.trim() ? parseEmails(emailInput).length : 0);
   const tooMany = totalCount > MAX_INVITES;
+  const existingCount = emails.filter((e) =>
+    existingMembers.includes(e),
+  ).length;
+  const sendCount = totalCount - existingCount;
   const canSend =
-    totalCount > 0 &&
+    sendCount > 0 &&
     invalidEmails.length === 0 &&
     !pendingInvalid &&
     !tooMany &&
@@ -145,14 +198,12 @@ export function InviteMembersDialog({
         addEmailsFromText(emailInput);
       }
     } else if (e.key === 'Backspace' && !emailInput && emails.length > 0) {
-      setEmails((prev) => prev.slice(0, -1));
+      removeEmail(emails[emails.length - 1] as string);
     }
   };
 
   const suggestedChannels = useMemo(() => {
-    return allChannels
-      .filter((c) => !c.isArchived)
-      .slice(0, 3);
+    return allChannels.filter((c) => !c.isArchived).slice(0, 3);
   }, [allChannels, selectedChannels]);
 
   const filteredChannels = useMemo(() => {
@@ -164,11 +215,24 @@ export function InviteMembersDialog({
     });
   }, [allChannels, selectedChannels, channelSearch]);
 
-  const handleRoleChange = (r: WorkspaceRole) => {
-    setRole(r);
-    // a minted link carries the role it was created with
+  const selected = selectedChannels[0];
+
+  // The API refuses a role above the inviter's own, so don't offer one.
+  const actorRole = workspacesQuery.data?.find(
+    (w) => w.id === workspaceId,
+  )?.role;
+  // Links are open-ended and only admins can revoke them, so they stay admin-only.
+  const canShareLink =
+    !!actorRole &&
+    roleHasPermission(actorRole, WorkspacePermission.MANAGE_MEMBERS);
+  const roleOptions = INVITABLE_ROLES.filter(
+    (r) => !actorRole || hasWorkspaceRole(actorRole, r),
+  ).map((r) => ({ value: r, label: roleLabel(r), hint: ROLE_HINTS[r] }));
+
+  // A minted link carries the role and channel it was created with.
+  useEffect(() => {
     setShareableUrl(null);
-  };
+  }, [role, selected?.id]);
 
   const handleCopyLink = async () => {
     try {
@@ -177,14 +241,16 @@ export function InviteMembersDialog({
         // Mint a real shareable invitation link; the backend returns the
         // one-time token as `/invite/<token>`, the route AcceptInvitationPage
         // serves.
-        const res = await createLink.mutateAsync({ role });
-        // link is role-bound; reset below when role changes
+        const res = await createLink.mutateAsync({
+          role,
+          channelId: selected?.id,
+        });
         url = `${window.location.origin}${res.url}`;
         setShareableUrl(url);
       }
       await navigator.clipboard.writeText(url);
       setCopiedLink(true);
-      toast.success('Invite link copied to clipboard!');
+      toast.success('Invite link copied');
       setTimeout(() => setCopiedLink(false), 2000);
     } catch (err: unknown) {
       toast.error(
@@ -194,7 +260,7 @@ export function InviteMembersDialog({
   };
 
   const handleSend = async () => {
-    let finalEmails = [...emails];
+    let finalEmails = emails.filter((e) => !existingMembers.includes(e));
     if (emailInput.trim()) {
       const parsed = parseEmails(emailInput);
       finalEmails = [
@@ -208,23 +274,51 @@ export function InviteMembersDialog({
     if (finalEmails.length === 0 || !canSend) return;
 
     try {
-      await invite.mutateAsync({
+      const {
+        invited,
+        alreadyMembers,
+        alreadyInvited = [],
+      } = await invite.mutateAsync({
         emails: finalEmails,
         role,
-        channelId: selectedChannels[0]?.id || undefined,
+        channelId: selected?.id || undefined,
       });
 
-      toast.success(
-        finalEmails.length === 1
-          ? 'Invitation sent successfully!'
-          : `${finalEmails.length} invitations sent successfully!`,
-      );
-      setEmails([]);
-      setEmailInput('');
-      setSelectedChannels([]);
+      if (alreadyInvited.length > 0) {
+        toast.info(
+          alreadyInvited.length === 1
+            ? `${alreadyInvited[0]} already has a pending invite`
+            : `${alreadyInvited.length} people already have a pending invite`,
+        );
+      }
+
+      // Nobody new: keep the list open and mark who is already in, rather than
+      // reporting invitations that were never sent.
+      if (invited.length === 0 && alreadyMembers.length > 0) {
+        addEmailsFromText(finalEmails.join(' '));
+        setExistingMembers((prev) => [...prev, ...alreadyMembers]);
+        return;
+      }
+
+      if (invited.length > 0) {
+        toast.success(
+          invited.length === 1
+            ? `Invitation sent to ${invited[0]?.email}`
+            : `${invited.length} invitations sent`,
+        );
+      }
+      if (alreadyMembers.length > 0) {
+        toast.info(
+          alreadyMembers.length === 1
+            ? `${alreadyMembers[0]} is already in ${workspaceName}`
+            : `${alreadyMembers.length} people are already in ${workspaceName}`,
+        );
+      }
       onOpenChange(false);
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to send invitations");
+      toast.error(
+        err instanceof Error ? err.message : 'Failed to send invitations',
+      );
     }
   };
 
@@ -256,12 +350,11 @@ export function InviteMembersDialog({
     }
   };
 
-  const selected = selectedChannels[0];
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="sm:max-w-xl p-0 gap-0 shadow-2xl overflow-visible rounded-2xl border-border bg-surface"
+        mobile="sheet"
+        className="sm:max-w-xl"
         onKeyDown={(e) => {
           if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && canSend) {
             e.preventDefault();
@@ -269,63 +362,92 @@ export function InviteMembersDialog({
           }
         }}
       >
-        <div className="p-5 pb-3 pr-12">
-          <h2 className="text-base font-bold text-foreground">
+        <div className="px-6 pt-6 pb-4 pr-12">
+          <DialogTitle className="text-lg leading-snug">
             Invite people to {workspaceName}
-          </h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            They will get an email with a link to join.
-          </p>
+          </DialogTitle>
+          <DialogDescription className="mt-1 text-sm">
+            They&apos;ll get an email with a link to join, valid for 14 days.
+          </DialogDescription>
         </div>
 
-        <div className="pb-4 space-y-4">
-          <div className="px-5 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label
-                htmlFor="invite-emails"
-                className="text-xs font-bold text-foreground"
-              >
-                Email addresses
-              </label>
-              {totalCount > 0 && (
-                <span
-                  className={`text-[11px] ${tooMany ? 'text-destructive' : 'text-muted-foreground'}`}
-                >
-                  {totalCount} / {MAX_INVITES}
-                </span>
-              )}
-            </div>
+        <div className="px-6 space-y-5">
+          <div className="space-y-1.5">
+            <label
+              htmlFor="invite-emails"
+              className="text-sm font-medium text-foreground"
+            >
+              Email addresses
+            </label>
 
             <div
               onClick={() => emailInputRef.current?.focus()}
-              className="p-2.5 gap-1.5 flex min-h-[86px] w-full cursor-text flex-wrap content-start items-start rounded-xl border border-border bg-surface-inset/40 transition-all focus-within:border-primary focus-within:ring-1 focus-within:ring-primary"
+              className={cn(
+                'p-2 gap-1.5 min-h-24 max-h-44 flex w-full cursor-text flex-wrap content-start items-start overflow-y-auto',
+                'rounded-input border border-input bg-surface transition-[border-color,box-shadow] duration-(--duration-fast)',
+                'focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/25',
+                (invalidEmails.length > 0 || tooMany) &&
+                  'border-destructive focus-within:border-destructive focus-within:ring-destructive/20',
+              )}
             >
               {emails.map((email) => {
                 const bad = !EMAIL_RE.test(email);
+                const existing = existingMembers.includes(email);
                 return (
                   <span
                     key={email}
-                    title={bad ? 'Not a valid email address' : undefined}
-                    className={`h-6 pl-2 pr-1.5 gap-1 text-xs font-medium flex items-center rounded-md border select-none ${
+                    className={cn(
+                      'h-7 px-1 gap-1 text-xs font-medium flex max-w-full items-center rounded-md border select-none',
                       bad
                         ? 'border-destructive/50 bg-destructive/10 text-destructive'
-                        : 'border-border bg-surface text-foreground'
-                    }`}
+                        : existing
+                          ? 'border-dashed border-border bg-transparent text-muted-foreground'
+                          : 'border-border bg-surface-inset text-foreground',
+                    )}
                   >
-                    {bad && <AlertCircle className="size-3" />}
-                    <span className="max-w-[220px] truncate">{email}</span>
+                    <button
+                      type="button"
+                      title={
+                        bad
+                          ? 'Not a valid email address. Click to fix it.'
+                          : 'Click to edit'
+                      }
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        editEmail(email);
+                      }}
+                      className="gap-1.5 min-w-0 flex cursor-text items-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/55"
+                    >
+                      {bad ? (
+                        <AlertCircle
+                          aria-hidden
+                          className="ml-0.5 size-3.5 shrink-0"
+                        />
+                      ) : (
+                        <span
+                          aria-hidden
+                          className="size-5 font-semibold grid shrink-0 place-items-center rounded-full bg-accent text-[10px] text-muted-foreground uppercase"
+                        >
+                          {email.charAt(0)}
+                        </span>
+                      )}
+                      <span className="max-w-55 truncate">{email}</span>
+                      {existing && (
+                        <span className="font-normal shrink-0">
+                          · Already in
+                        </span>
+                      )}
+                    </button>
                     <button
                       type="button"
                       aria-label={`Remove ${email}`}
                       onClick={(e) => {
                         e.stopPropagation();
-                        setEmails((prev) =>
-                          prev.filter((item) => item !== email),
-                        );
+                        removeEmail(email);
                       }}
-                      className="p-0.5 rounded hover:bg-accent hover:text-foreground"
+                      className="p-0.5 rounded-sm opacity-70 outline-none hover:bg-accent hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring/55"
                     >
-                      <X className="size-3" />
+                      <X aria-hidden className="size-3" />
                     </button>
                   </span>
                 );
@@ -337,6 +459,8 @@ export function InviteMembersDialog({
                 type="text"
                 inputMode="email"
                 autoComplete="off"
+                aria-invalid={invalidEmails.length > 0 || tooMany}
+                aria-describedby="invite-emails-help"
                 value={emailInput}
                 onChange={(e) => setEmailInput(e.target.value)}
                 onPaste={(e) => {
@@ -351,58 +475,93 @@ export function InviteMembersDialog({
                   if (emailInput.trim()) addEmailsFromText(emailInput);
                 }}
                 placeholder={
-                  emails.length === 0
-                    ? 'Ex. ellis@onetab.ai, maria@onetab.ai'
-                    : 'Add more...'
+                  emails.length === 0 ? 'name@company.com' : 'Add more...'
                 }
-                className="text-xs p-1 min-w-[180px] flex-1 border-none bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
+                className="h-7 px-1 text-sm min-w-45 flex-1 border-none bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
                 autoFocus
               />
             </div>
-            {invalidEmails.length > 0 ? (
-              <p className="text-[11px] text-destructive">
-                {invalidEmails.length === 1
-                  ? '1 address looks invalid. Remove or fix it to continue.'
-                  : `${invalidEmails.length} addresses look invalid. Remove or fix them to continue.`}
-              </p>
-            ) : (
-              <p className="text-[11px] text-muted-foreground">
-                Separate with commas, spaces or new lines. You can paste a list.
-              </p>
-            )}
+
+            <div
+              id="invite-emails-help"
+              aria-live="polite"
+              className="gap-3 text-xs flex items-start justify-between"
+            >
+              {tooMany ? (
+                <p className="text-destructive">
+                  You can invite up to {MAX_INVITES} people at a time.
+                </p>
+              ) : invalidEmails.length > 0 ? (
+                <p className="text-destructive">
+                  {invalidEmails.length === 1
+                    ? '1 address looks invalid. '
+                    : `${invalidEmails.length} addresses look invalid. `}
+                  Click to fix, or{' '}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setEmails((prev) => prev.filter((e) => EMAIL_RE.test(e)))
+                    }
+                    className="font-medium cursor-pointer underline underline-offset-2"
+                  >
+                    remove {invalidEmails.length === 1 ? 'it' : 'them'}
+                  </button>
+                  .
+                </p>
+              ) : existingCount > 0 ? (
+                <p className="text-muted-foreground">
+                  {existingCount === 1
+                    ? `This person is already in ${workspaceName}, so no invite was sent.`
+                    : `These people are already in ${workspaceName}, so no invites were sent.`}
+                </p>
+              ) : (
+                <p className="text-muted-foreground">
+                  Separate with commas or spaces, or paste a list.
+                </p>
+              )}
+              {totalCount > 0 && (
+                <span
+                  className={cn(
+                    'shrink-0 tabular-nums',
+                    tooMany ? 'text-destructive' : 'text-muted-foreground',
+                  )}
+                >
+                  {totalCount} / {MAX_INVITES}
+                </span>
+              )}
+            </div>
           </div>
 
-          <div className="px-5 space-y-2">
-            <label className="text-xs font-bold text-foreground">
+          <div className="gap-4 flex items-center justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">Invite as</p>
+              <p className="text-xs text-muted-foreground">
+                {ROLE_HINTS[role]}
+              </p>
+            </div>
+            <SegmentedControl
+              aria-label="Role for invited people"
+              options={roleOptions}
+              value={role}
+              onChange={setRole}
+              className="shrink-0"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label
+              htmlFor="invite-channel"
+              className="text-sm font-medium text-foreground"
+            >
               Add to a channel{' '}
               <span className="font-normal text-muted-foreground">
-                (optional)
+                (
+                {role === WorkspaceRole.GUEST
+                  ? 'recommended for guests'
+                  : 'optional'}
+                )
               </span>
             </label>
-
-            {!selected && suggestedChannels.length > 0 && (
-              <div className="gap-1.5 text-xs flex flex-wrap items-center">
-                <span className="font-medium mr-0.5 text-[11px] text-muted-foreground">
-                  Suggested:
-                </span>
-                {suggestedChannels.map((ch) => (
-                  <button
-                    key={ch.id}
-                    type="button"
-                    onClick={() => setSelectedChannels([ch])}
-                    className="h-6 px-2 gap-1 font-medium flex cursor-pointer items-center rounded-md border border-accent-cyan/30 bg-accent-cyan-soft text-[11px] text-accent-cyan transition-colors hover:bg-accent-cyan-soft"
-                  >
-                    <Plus className="size-3" />
-                    {ch.visibility === 'PRIVATE' ? (
-                      <Lock className="size-2.5" />
-                    ) : (
-                      <Hash className="size-2.5" />
-                    )}
-                    <span>{ch.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
 
             {/* Portaled via <Popover> so the list is never clipped by the dialog. */}
             <Popover
@@ -413,18 +572,15 @@ export function InviteMembersDialog({
               <PopoverAnchor asChild>
                 <div
                   onClick={() => channelSearchRef.current?.focus()}
-                  className="min-h-9 px-2.5 py-1.5 gap-1.5 flex w-full cursor-text flex-wrap items-center rounded-xl border border-border bg-surface-inset/40 transition-all focus-within:border-primary focus-within:ring-1 focus-within:ring-primary"
+                  className="min-h-9 px-2 py-1 gap-1.5 flex w-full cursor-text flex-wrap items-center rounded-input border border-input bg-surface transition-[border-color,box-shadow] duration-(--duration-fast) focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/25"
                 >
-                  {selected && (
-                    <span className="h-6 pl-2 pr-1.5 gap-1 text-xs font-medium flex items-center rounded-md border border-border bg-surface text-foreground select-none">
-                      {selected.visibility === 'PRIVATE' ? (
-                        <Lock className="size-3 text-muted-foreground" />
-                      ) : (
-                        <Hash className="size-3 text-muted-foreground" />
-                      )}
-                      <span className="max-w-[200px] truncate">
-                        {selected.name}
-                      </span>
+                  {selected ? (
+                    <span className="h-7 pl-2 pr-1 gap-1 text-xs font-medium flex items-center rounded-md border border-border bg-surface-inset text-foreground select-none">
+                      <ChannelGlyph
+                        channel={selected}
+                        className="size-3 text-muted-foreground"
+                      />
+                      <span className="max-w-50 truncate">{selected.name}</span>
                       <button
                         type="button"
                         aria-label={`Remove ${selected.name}`}
@@ -432,16 +588,23 @@ export function InviteMembersDialog({
                           e.stopPropagation();
                           setSelectedChannels([]);
                         }}
-                        className="p-0.5 rounded text-muted-foreground hover:bg-accent hover:text-foreground"
+                        className="p-0.5 rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground"
                       >
-                        <X className="size-3" />
+                        <X aria-hidden className="size-3" />
                       </button>
                     </span>
+                  ) : (
+                    <Search
+                      aria-hidden
+                      className="ml-0.5 size-3.5 shrink-0 text-muted-foreground"
+                    />
                   )}
 
                   <input
+                    id="invite-channel"
                     ref={channelSearchRef}
                     type="text"
+                    autoComplete="off"
                     value={channelSearch}
                     onChange={(e) => {
                       setChannelSearch(e.target.value);
@@ -453,7 +616,7 @@ export function InviteMembersDialog({
                     placeholder={
                       selected ? 'Change channel...' : 'Search channels'
                     }
-                    className="text-xs p-0.5 min-w-[140px] flex-1 border-none bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
+                    className="h-7 text-sm min-w-35 flex-1 border-none bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
                   />
                 </div>
               </PopoverAnchor>
@@ -463,7 +626,7 @@ export function InviteMembersDialog({
                 sideOffset={6}
                 onOpenAutoFocus={(e) => e.preventDefault()}
                 onCloseAutoFocus={(e) => e.preventDefault()}
-                className="w-(--radix-popover-trigger-width) max-h-56 overflow-y-auto p-1 space-y-0.5"
+                className="max-h-56 p-1 space-y-0.5 w-(--radix-popover-trigger-width) overflow-y-auto"
               >
                 {channelsQuery.isLoading ? (
                   <p className="py-3 text-xs text-center text-muted-foreground">
@@ -481,75 +644,101 @@ export function InviteMembersDialog({
                       onMouseDown={(e) => e.preventDefault()}
                       onMouseEnter={() => setHighlight(i)}
                       onClick={() => pickChannel(ch)}
-                      className={`px-2.5 py-1.5 gap-2 text-xs flex w-full cursor-pointer items-center rounded-lg text-left text-foreground transition-colors ${
-                        i === highlight ? 'bg-accent' : 'hover:bg-accent'
-                      }`}
-                    >
-                      {ch.visibility === 'PRIVATE' ? (
-                        <Lock className="size-3.5 shrink-0 text-muted-foreground" />
-                      ) : (
-                        <Hash className="size-3.5 shrink-0 text-muted-foreground" />
+                      className={cn(
+                        'px-2.5 py-1.5 gap-2 text-xs flex w-full cursor-pointer items-center rounded-lg text-left text-foreground transition-colors',
+                        i === highlight ? 'bg-accent' : 'hover:bg-accent',
                       )}
+                    >
+                      <ChannelGlyph
+                        channel={ch}
+                        className="size-3.5 shrink-0 text-muted-foreground"
+                      />
                       <span className="font-medium truncate">{ch.name}</span>
+                      {ch.id === selected?.id && (
+                        <Check
+                          aria-hidden
+                          className="size-3.5 ml-auto shrink-0"
+                        />
+                      )}
                     </button>
                   ))
                 )}
               </PopoverContent>
             </Popover>
+
+            {!selected && suggestedChannels.length > 0 && (
+              <div className="gap-1.5 flex flex-wrap items-center">
+                <span className="mr-0.5 text-xs text-muted-foreground">
+                  Suggested
+                </span>
+                {suggestedChannels.map((ch) => (
+                  <button
+                    key={ch.id}
+                    type="button"
+                    onClick={() => setSelectedChannels([ch])}
+                    className="h-6 px-2 gap-1 text-xs font-medium max-w-40 flex cursor-pointer items-center rounded-md border border-border bg-surface text-foreground transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/55 focus-visible:outline-none"
+                  >
+                    <ChannelGlyph
+                      channel={ch}
+                      className="size-3 shrink-0 text-muted-foreground"
+                    />
+                    <span className="truncate">{ch.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="p-5 pt-3 gap-3 flex flex-wrap items-center justify-between border-t border-border/60">
-          <button
+        <div className="px-6 pt-5 pb-5 gap-2 flex items-center justify-end">
+          <Button
             type="button"
-            onClick={handleCopyLink}
-            disabled={createLink.isPending}
-            title={`Anyone with the link joins as ${role.toLowerCase()}`}
-            className="px-3 py-1.5 gap-1.5 text-xs font-medium flex cursor-pointer items-center rounded-lg border border-border bg-surface text-foreground transition-colors hover:bg-accent/60 disabled:opacity-60"
+            variant="ghost"
+            size="lg"
+            onClick={() => onOpenChange(false)}
           >
-            {copiedLink ? (
-              <Check className="size-3.5 text-success" />
-            ) : (
-              <Link2 className="size-3.5" />
-            )}
-            <span>{copiedLink ? 'Link copied' : 'Copy invite link'}</span>
-          </button>
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            size="lg"
+            onClick={handleSend}
+            disabled={!canSend}
+            loading={invite.isPending}
+          >
+            {sendCount > 1 ? `Send ${sendCount} invites` : 'Send invite'}
+          </Button>
+        </div>
 
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] text-muted-foreground">Role:</span>
-              <Select
-                value={role}
-                onValueChange={(r) => handleRoleChange(r as WorkspaceRole)}
-              >
-                <SelectTrigger title={ROLE_HINTS[role]} className="h-8 text-xs w-[100px] bg-surface">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[
-                    WorkspaceRole.MEMBER,
-                    WorkspaceRole.ADMIN,
-                    WorkspaceRole.GUEST,
-                  ].map((r) => (
-                    <SelectItem key={r} value={r}>
-                      {r.charAt(0) + r.slice(1).toLowerCase()}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        {canShareLink && (
+          <div className="px-6 py-3.5 gap-3 flex items-center border-t border-border bg-surface-inset/50">
+            <span className="size-8 grid shrink-0 place-items-center rounded-lg border border-border bg-surface text-muted-foreground">
+              <Link2 aria-hidden className="size-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-foreground">
+                Or share an invite link
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Anyone with it joins as {roleLabel(role).toLowerCase()}
+                {selected ? ` in ${selected.name}` : ''}. Expires in 30 days.
+              </p>
             </div>
-
             <Button
               type="button"
-              onClick={handleSend}
-              disabled={!canSend}
-              loading={invite.isPending}
-              className="h-8.5 px-5 text-xs font-semibold rounded-lg"
+              variant="outline"
+              size="md"
+              onClick={handleCopyLink}
+              loading={createLink.isPending}
+              className="shrink-0"
             >
-              {totalCount > 1 ? `Send ${totalCount} invites` : 'Send'}
+              {copiedLink && (
+                <Check aria-hidden className="size-3.5 text-success" />
+              )}
+              {copiedLink ? 'Copied' : 'Copy link'}
             </Button>
           </div>
-        </div>
+        )}
       </DialogContent>
     </Dialog>
   );

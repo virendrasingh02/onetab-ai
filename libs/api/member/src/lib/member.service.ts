@@ -21,7 +21,9 @@ import { MailService, workspaceInviteEmail } from '@org/api-mail';
 import { PrismaService } from '@org/database';
 import { WorkspaceAuditService } from '@org/api-workspace';
 import {
+  ChannelVisibility,
   InvitationStatus,
+  WorkspacePermission,
   WorkspaceRole,
   can,
   getPlanLimit,
@@ -30,6 +32,7 @@ import {
   normalizePlanTier,
   pickAvatarColor,
   resolveWorkspacePolicy,
+  roleHasPermission,
   type Invitation,
   type InvitationPublicPreview,
   type InviteBatchResult,
@@ -505,10 +508,35 @@ export class MemberService {
       );
     }
 
+    // Accepting an invitation joins its scope, so a non-admin may only offer
+    // access they could reach themselves: never a private channel they are not
+    // in (reported as missing, like any channel they cannot see), and never a
+    // team or project.
+    const canManageMembers = roleHasPermission(
+      actorRole,
+      WorkspacePermission.MANAGE_MEMBERS,
+    );
+    if (!canManageMembers && (input.teamId || input.projectId)) {
+      throw new ForbiddenException(
+        'Only admins can invite people to a team or project.',
+      );
+    }
+
     // Validate scopes if provided
     if (input.channelId) {
       const channel = await this.prisma.channel.findFirst({
-        where: { id: input.channelId, workspaceId },
+        where: {
+          id: input.channelId,
+          workspaceId,
+          ...(canManageMembers
+            ? {}
+            : {
+                OR: [
+                  { visibility: ChannelVisibility.PUBLIC },
+                  { members: { some: { userId: invitedById } } },
+                ],
+              }),
+        },
         select: { id: true },
       });
       if (!channel) throw new NotFoundException('Channel not found.');
@@ -542,7 +570,7 @@ export class MemberService {
     );
 
     if (pendingEmails.length === 0) {
-      return { invited: [], alreadyMembers };
+      return { invited: [], alreadyMembers, alreadyInvited: [] };
     }
 
     // Map existing user accounts for targeted invitations
@@ -575,16 +603,27 @@ export class MemberService {
 
     const tokens: Record<string, string> = {};
     const invited: Invitation[] = [];
+    const alreadyInvited: string[] = [];
 
     for (const email of pendingEmails) {
-      const token = generateToken(32);
-      tokens[email] = token;
-
       // Find any existing pending invitation for this email in this workspace
       const existingInvitation = await this.prisma.invitation.findFirst({
         where: { workspaceId, email, isLink: false },
-        select: { id: true },
+        select: { id: true, role: true, status: true },
       });
+
+      // Re-inviting rewrites the row, so nobody may replace a live invitation
+      // that outranks them, such as an admin's pending invite for a new admin.
+      if (
+        existingInvitation?.status === InvitationStatus.PENDING &&
+        !hasWorkspaceRole(actorRole, existingInvitation.role as WorkspaceRole)
+      ) {
+        alreadyInvited.push(email);
+        continue;
+      }
+
+      const token = generateToken(32);
+      tokens[email] = token;
 
       const targetUserId = userIdByEmail.get(email.toLowerCase()) ?? null;
 
@@ -633,13 +672,17 @@ export class MemberService {
       invited.push(toInvitation(invitation));
     }
 
+    if (invited.length === 0) {
+      return { invited, alreadyMembers, alreadyInvited };
+    }
+
     await this.audit?.log({
       workspaceId,
       actorId: invitedById,
       action: 'member.invited',
       targetType: 'INVITATION',
       metadata: {
-        emails: pendingEmails,
+        emails: invited.map((i) => i.email),
         role: input.role,
         channelId: input.channelId ?? null,
       },
@@ -667,6 +710,7 @@ export class MemberService {
     return {
       invited,
       alreadyMembers,
+      alreadyInvited,
       ...(includeTokens ? { tokens } : {}),
     };
   }
