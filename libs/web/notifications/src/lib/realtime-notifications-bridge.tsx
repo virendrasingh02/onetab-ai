@@ -6,7 +6,7 @@ import {
   type NotificationCreatedPayload,
   type RealtimeEvent,
 } from '@org/realtime';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { notificationService } from './notification-service.js';
 
 export interface RealtimeNotificationsBridgeProps {
@@ -14,6 +14,14 @@ export interface RealtimeNotificationsBridgeProps {
   currentUserId: string | undefined;
   /** Active workspace slug, for turning a relative `deepLink` into a route. */
   workspaceSlug: string | undefined;
+  /** Opens a notification's target when the user clicks it. */
+  onNavigate?: (route: string) => void;
+  /**
+   * A Matrix client is running, so `ChatNotificationBridge` shows channel
+   * mentions itself, with the sender and text this server event never carries.
+   * The event still updates the bell; it just must not raise a second banner.
+   */
+  chatOwnsChannelMentions?: boolean;
 }
 
 /**
@@ -34,8 +42,13 @@ export interface RealtimeNotificationsBridgeProps {
 export function RealtimeNotificationsBridge({
   currentUserId,
   workspaceSlug,
+  onNavigate,
+  chatOwnsChannelMentions = false,
 }: RealtimeNotificationsBridgeProps) {
   const { bus } = useRealtime();
+  // A ref so a new callback identity does not rebuild the bus subscription.
+  const navigate = useRef(onNavigate);
+  navigate.current = onNavigate;
 
   useEffect(() => {
     return bus.on<NotificationCreatedPayload>(
@@ -50,6 +63,14 @@ export function RealtimeNotificationsBridge({
           currentUserId &&
           notification.actorId &&
           notification.actorId === currentUserId
+        ) {
+          return;
+        }
+
+        if (
+          chatOwnsChannelMentions &&
+          notification.resourceType === 'channel' &&
+          /MENTION/i.test(notification.kind ?? '')
         ) {
           return;
         }
@@ -99,6 +120,8 @@ export function RealtimeNotificationsBridge({
               ? 'mention'
               : 'message';
 
+        const route = resolved.route ?? undefined;
+
         void notificationService.notify({
           id: notification.id,
           title: notification.title,
@@ -111,7 +134,8 @@ export function RealtimeNotificationsBridge({
                 ? 'high'
                 : 'normal',
           soundEvent,
-          route: resolved.route ?? undefined,
+          route,
+          onActivate: route ? () => navigate.current?.(route) : undefined,
           workspaceId: notification.workspaceId,
           // Focused-but-elsewhere: a toast is enough, skip the OS-level
           // notification (and its sound). Backgrounded: the OS notification is
@@ -120,7 +144,7 @@ export function RealtimeNotificationsBridge({
         });
       },
     );
-  }, [bus, currentUserId, workspaceSlug]);
+  }, [bus, currentUserId, workspaceSlug, chatOwnsChannelMentions]);
 
   return null;
 }
@@ -134,7 +158,7 @@ const CLAIM_TTL_MS = 90_000;
  * rest. Best-effort — if storage is unavailable, every tab acts (the old
  * behaviour), which is safe, just noisier.
  */
-function claimNotification(id: string): boolean {
+export function claimNotification(id: string): boolean {
   if (typeof window === 'undefined') return true;
   try {
     const now = Date.now();

@@ -215,7 +215,8 @@ export type DesktopPlatform = 'win32' | 'darwin' | 'linux';
  * `DesktopPlatform` to tell those apart, the same way `@org/platform`'s
  * `resolvePolicy(platform, distribution)` does on the renderer side.
  */
-export type DesktopDistribution = 'direct' | 'microsoft-store' | 'mac-app-store';
+export type DesktopDistribution =
+  'direct' | 'microsoft-store' | 'mac-app-store';
 
 export interface DesktopAppInfo {
   version: string;
@@ -283,6 +284,8 @@ export interface DesktopNotificationRequest {
   /** In-app route to open when the notification is clicked. */
   route?: string;
   icon?: string;
+  /** A newer notification with the same tag replaces this one. */
+  tag?: string;
 }
 
 export interface DesktopOpenFilesRequest {

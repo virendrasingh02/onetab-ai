@@ -5,9 +5,9 @@ export { CallOverlayBridge } from './lib/call-overlay-bridge.js';
 export { LinkPreviewBridge } from './lib/link-preview-bridge.js';
 export { useCall, type UseCallResult } from './lib/use-call.js';
 export {
-  NotificationSoundBridge,
-  type NotificationSoundBridgeProps,
-} from './lib/notification-sound-bridge.js';
+  ChatNotificationBridge,
+  type ChatNotificationBridgeProps,
+} from './lib/chat-notification-bridge.js';
 export {
   setActiveConversation,
   getActiveConversation,
@@ -105,9 +105,7 @@ export {
   groupReplies,
   type ChannelMention,
 } from './lib/derive-threads.js';
-export {
-  DirectMessagesView,
-} from './lib/DirectMessagesView.js';
+export { DirectMessagesView } from './lib/DirectMessagesView.js';
 export {
   useDirectMessagePreferences,
   type DirectMessagePreferences,
@@ -163,7 +161,6 @@ export {
   type CallSummaryMessageCardProps,
 } from './lib/call-summary-message-card.js';
 export * from './lib/use-calls.js';
-
 
 export {
   useMatrixPresenceResolver,

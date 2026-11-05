@@ -58,6 +58,9 @@ with status + body excerpt, or the DB/API value you checked).
   a message "missing" after a reload.
 - Text-search flags like "404" match numbers on the page (e.g. "40452ms"); read the
   surrounding text before reporting.
+- Chat notifications need a second real sender: API login → `POST /api/v1/matrix/session` → Matrix CS API `PUT .../send/m.room.message/<txn>`. Add `m.mentions.user_ids` for a mention. The pane has browser notifications denied, so stub `window.Notification` to capture OS calls, and read banners from `[data-sonner-toast]`.
+- Local `.env` has no `MATRIX_HS_TOKEN` and the LAN Synapse pushes to its own `host.docker.internal`, so the API never sees chat events here: no `recent_activity` rows, no server MENTION notifications. That is setup, not a regression.
+- `nx test` fails specs that touch `localStorage` on Node 26 (`Cannot read properties of undefined`), even with no related change. Compare against that before calling a failure new.
 - Doc editor blocks are inputs/textareas, so `innerText` misses their text: read
   `element.value` before calling a doc body "missing".
 - Studio `/chat/:agentId` errors at the 15s client timeout while the server finishes:

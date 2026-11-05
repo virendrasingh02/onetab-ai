@@ -4,9 +4,9 @@ import { useEffect } from 'react';
  * Which conversation the user is currently looking at.
  *
  * A tiny module-level signal rather than a store: only the chat surface writes
- * it (on mount, cleared on unmount), and only the notification-sound bridge
+ * it (on mount, cleared on unmount), and only the chat notification bridge
  * reads it — to decide whether an incoming message is one the user can already
- * see, and therefore does not need a sound for. Route params cannot answer this
+ * see, and therefore does not need a notification for. Route params cannot answer this
  * on their own because a Matrix room id is resolved asynchronously from a
  * channel slug / peer id.
  */
@@ -33,7 +33,9 @@ export function subscribeActiveConversation(listener: () => void): () => void {
  * Registers `roomId` as the on-screen conversation while the calling component
  * is mounted. Safe to call with `undefined` (registers nothing).
  */
-export function useRegisterActiveConversation(roomId: string | undefined): void {
+export function useRegisterActiveConversation(
+  roomId: string | undefined,
+): void {
   useEffect(() => {
     if (!roomId) return;
     setActiveConversation(roomId);

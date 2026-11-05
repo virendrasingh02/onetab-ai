@@ -40,9 +40,10 @@ import {
   type ActivityIndicator,
 } from '@org/notifications';
 import {
-  NotificationSoundBridge,
+  ChatNotificationBridge,
   useDirectMessageMuteSync,
   useLiveRoomActivity,
+  useMatrix,
 } from '@org/web-chat';
 import { useChatNotificationSoundGate } from './notifications/chat-sound-gate.js';
 import {
@@ -202,12 +203,14 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
   const splitPaneRef = useRef<HTMLDivElement>(null);
   const channelsQuery = useChannels(workspaceId);
   const membersQuery = useMembers(workspaceId);
+  const { client: matrixClient } = useMatrix();
 
   // Per-workspace gate for the calm chat notification sounds — muted channels,
   // muted DMs, "mentions only", quiet hours and the per-workspace
   // sound mute, all read for the active workspace.
   const chatSoundGate = useChatNotificationSoundGate({
     workspaceId,
+    workspaceSlug: slug,
     channels: channelsQuery.data,
     members: membersQuery.data,
   });
@@ -670,18 +673,25 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
           <RealtimeNotificationsBridge
             currentUserId={user?.id}
             workspaceSlug={slug}
+            onNavigate={navigate}
+            chatOwnsChannelMentions={!!matrixClient}
           />
           {/*
-        Calm audio cues for Matrix chat traffic (new messages, DMs) — the
-        counterpart to RealtimeNotificationsBridge, which covers mentions,
-        tasks, invites and calls from the server notification stream.
+        Banners, OS notifications and sounds for Matrix chat traffic (new
+        messages, DMs, mentions) — the counterpart to
+        RealtimeNotificationsBridge, which covers tasks, invites and calls from
+        the server stream.
       */}
-          <NotificationSoundBridge
+          <ChatNotificationBridge
             suppressed={chatSoundGate.suppressed}
+            soundMuted={chatSoundGate.soundMuted}
             mentionsOnly={chatSoundGate.mentionsOnly}
             mutedChannelNames={chatSoundGate.mutedChannelNames}
             mutedPeerNames={chatSoundGate.mutedPeerNames}
             mentionsOnlyChannelNames={chatSoundGate.mentionsOnlyChannelNames}
+            workspaceSlug={slug}
+            channelRoutes={chatSoundGate.channelRoutes}
+            onNavigate={navigate}
           />
           <div className="flex h-full flex-col overflow-hidden bg-background bg-app-gradient font-sans text-foreground">
             {/* Top Header Bar spanning full width */}

@@ -11,7 +11,7 @@ import { useDirectMessagePreferences } from '@org/web-chat';
 import { useMemo } from 'react';
 
 /**
- * Resolves the per-workspace gate values the {@link NotificationSoundBridge}
+ * Resolves the per-workspace gate values the {@link ChatNotificationBridge}
  * needs, from data the app shell already has loaded. Kept out of `app-shell.tsx`
  * only to stop that file growing further.
  *
@@ -23,12 +23,17 @@ import { useMemo } from 'react';
  * workspace switches the behaviour without touching another workspace's state.
  */
 export interface ChatSoundGate {
+  /** Quiet hours: chat traffic neither shows nor sounds. */
   suppressed: boolean;
+  /** Sounds muted for this workspace; banners still show. */
+  soundMuted: boolean;
   mentionsOnly: boolean;
   mutedChannelNames: ReadonlySet<string>;
   mutedPeerNames: ReadonlySet<string>;
   /** Channels whose own notification level is "Just mentions". */
   mentionsOnlyChannelNames: ReadonlySet<string>;
+  /** Matrix room id → route, so a notification can open its channel. */
+  channelRoutes: ReadonlyMap<string, string>;
 }
 
 /** `"HH:MM"` (local) → minutes since midnight, or null if unparseable. */
@@ -59,10 +64,11 @@ function withinQuietHours(
 
 export function useChatNotificationSoundGate(params: {
   workspaceId: string | undefined;
+  workspaceSlug: string | undefined;
   channels: ChannelSummary[] | undefined;
   members: WorkspaceMember[] | undefined;
 }): ChatSoundGate {
-  const { workspaceId, channels, members } = params;
+  const { workspaceId, workspaceSlug, channels, members } = params;
   const { data: prefs } = useNotificationPreferences(workspaceId);
   const workspaceSoundMuted = useWorkspaceSoundMuted(workspaceId);
   const dmPrefs = useDirectMessagePreferences(workspaceId);
@@ -75,7 +81,7 @@ export function useChatNotificationSoundGate(params: {
   /*
    * A channel is silent when it's muted in the notification settings *or* its
    * own level (the channel's bell menu) is "Nothing"; "Just mentions" lets only
-   * mentions through, and those already ring via the server mention path.
+   * mentions through.
    */
   const { mutedChannelNames, mentionsOnlyChannelNames } = useMemo(() => {
     const ids = new Set(mutedChannelIds ?? []);
@@ -104,15 +110,27 @@ export function useChatNotificationSoundGate(params: {
     return names;
   }, [mutedPeerIds, members]);
 
-  const suppressed =
-    workspaceSoundMuted ||
-    withinQuietHours(quietStart, quietEnd);
+  const channelRoutes = useMemo(() => {
+    const routes = new Map<string, string>();
+    if (!workspaceSlug) return routes;
+    for (const channel of channels ?? []) {
+      if (channel.matrixRoomId) {
+        routes.set(
+          channel.matrixRoomId,
+          `/w/${workspaceSlug}/channels/${channel.slug}`,
+        );
+      }
+    }
+    return routes;
+  }, [channels, workspaceSlug]);
 
   return {
-    suppressed,
+    suppressed: withinQuietHours(quietStart, quietEnd),
+    soundMuted: workspaceSoundMuted,
     mentionsOnly: prefs?.mentionsOnly ?? false,
     mutedChannelNames,
     mutedPeerNames,
     mentionsOnlyChannelNames,
+    channelRoutes,
   };
 }

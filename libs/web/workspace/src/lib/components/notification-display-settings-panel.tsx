@@ -66,10 +66,7 @@ const SOUND_EVENT_ORDER: NotificationSoundEvent[] = [
   'success',
 ];
 
-const SOUND_EVENT_ICON: Record<
-  NotificationSoundEvent,
-  typeof MessageSquare
-> = {
+const SOUND_EVENT_ICON: Record<NotificationSoundEvent, typeof MessageSquare> = {
   message: MessageSquare,
   dm: Bell,
   mention: AtSign,
@@ -112,6 +109,7 @@ export function NotificationDisplaySettingsPanel({
       title: 'Onetab AI Notification',
       body: 'Real-time alert preferences are working smoothly!',
       type: 'success',
+      promptForPermission: true,
     });
     setTestSending(false);
     setTestSuccess(true);
@@ -328,8 +326,8 @@ export function NotificationDisplaySettingsPanel({
                   Play notification sounds
                 </h4>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Turn off to silence every notification sound everywhere. Visual
-                  notifications keep working.
+                  Turn off to silence every notification sound everywhere.
+                  Visual notifications keep working.
                 </p>
               </div>
             </div>
@@ -376,7 +374,7 @@ export function NotificationDisplaySettingsPanel({
                 onValueChange={([value]) => setSoundVolume((value ?? 0) / 100)}
                 aria-label="Master notification volume"
               />
-              <span className="text-[11px] tabular-nums w-8 text-right text-muted-foreground">
+              <span className="w-8 text-right text-[11px] text-muted-foreground tabular-nums">
                 {Math.round(sound.volume * 100)}%
               </span>
             </div>
@@ -458,8 +456,8 @@ export function NotificationDisplaySettingsPanel({
                 </h4>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
                   Skip the sound when the relevant channel or DM is already open
-                  in front of you. New-message and DM cues are always skipped for
-                  the conversation on screen.
+                  in front of you. New-message and DM cues are always skipped
+                  for the conversation on screen.
                 </p>
               </div>
             </div>
@@ -509,7 +507,7 @@ export function NotificationDisplaySettingsPanel({
           )}
         >
           <div className="p-3 px-4">
-            <h4 className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+            <h4 className="font-semibold tracking-wide text-[11px] text-muted-foreground uppercase">
               Sounds by type
             </h4>
           </div>
@@ -554,11 +552,11 @@ export function NotificationDisplaySettingsPanel({
           })}
         </div>
 
-        <p className="px-1 text-[11px] leading-relaxed text-muted-foreground">
+        <p className="px-1 leading-relaxed text-[11px] text-muted-foreground">
           The master switch, volume, profile and per-type choices apply to every
           workspace you&rsquo;re in. Muted channels, muted DMs, &ldquo;mentions
-          only&rdquo; and quiet hours are per workspace and already control which
-          notifications make a sound here.
+          only&rdquo; and quiet hours are per workspace and already control
+          which notifications make a sound here.
           {reduceDistractionActive && (
             <>
               {' '}

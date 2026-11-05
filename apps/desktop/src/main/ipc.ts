@@ -120,6 +120,9 @@ function guessMimeType(path: string): string {
  */
 const userChosenPaths = new Set<string>();
 
+/** The live notification per tag, so a newer one can replace it. */
+const taggedNotifications = new Map<string, Notification>();
+
 function fromMainWindow(event: IpcMainInvokeEvent): boolean {
   const window = getMainWindow();
   return !!window && event.sender.id === window.webContents.id;
@@ -292,6 +295,18 @@ export function registerIpcHandlers(
         body: request.body,
         silent: request.silent ?? false,
       });
+
+      // Electron has no native tag, so replace the previous one ourselves.
+      if (request.tag) {
+        const tag = request.tag;
+        taggedNotifications.get(tag)?.close();
+        taggedNotifications.set(tag, notification);
+        notification.on('close', () => {
+          if (taggedNotifications.get(tag) === notification) {
+            taggedNotifications.delete(tag);
+          }
+        });
+      }
 
       notification.on('click', () => {
         showMainWindow();

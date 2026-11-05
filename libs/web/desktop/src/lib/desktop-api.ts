@@ -17,7 +17,8 @@ export type DesktopPlatform = 'win32' | 'darwin' | 'linux';
  * deliberately imports nothing outside `electron`/Node built-ins (see
  * docs/desktop-app.md, "Packaging notes").
  */
-export type DesktopDistribution = 'direct' | 'microsoft-store' | 'mac-app-store';
+export type DesktopDistribution =
+  'direct' | 'microsoft-store' | 'mac-app-store';
 
 export interface DesktopAppInfo {
   version: string;
@@ -82,6 +83,8 @@ export interface DesktopNotificationRequest {
   /** In-app route opened when the OS notification is clicked. */
   route?: string;
   icon?: string;
+  /** A newer notification with the same tag replaces this one. */
+  tag?: string;
 }
 
 export interface DesktopOpenFilesRequest {
@@ -353,8 +356,12 @@ export interface OneTabDesktopApi {
      * rejects the promise instead, which is the signal to sign out.
      */
     refreshSession: () => Promise<DesktopAuthSession | null>;
-    onSessionChange: (handler: (session: DesktopAuthSession) => void) => Unsubscribe;
-    onFlowStatus: (handler: (status: DesktopAuthFlowStatus) => void) => Unsubscribe;
+    onSessionChange: (
+      handler: (session: DesktopAuthSession) => void,
+    ) => Unsubscribe;
+    onFlowStatus: (
+      handler: (status: DesktopAuthFlowStatus) => void,
+    ) => Unsubscribe;
   };
   window: {
     getState: () => Promise<DesktopWindowState>;
@@ -362,7 +369,9 @@ export interface OneTabDesktopApi {
     toggleMaximize: () => Promise<void>;
     close: () => Promise<void>;
     setFullScreen: (value: boolean) => Promise<void>;
-    onStateChange: (handler: (state: DesktopWindowState) => void) => Unsubscribe;
+    onStateChange: (
+      handler: (state: DesktopWindowState) => void,
+    ) => Unsubscribe;
   };
   notifications: {
     show: (request: DesktopNotificationRequest) => Promise<boolean>;
@@ -382,14 +391,18 @@ export interface OneTabDesktopApi {
     openAppOrWeb: (request: DesktopHandoffRequest) => Promise<boolean>;
     setUserActivity: (activity: DesktopUserActivityPayload) => Promise<boolean>;
     invalidateUserActivity: () => Promise<void>;
-    onActivity: (handler: (payload: DesktopUserActivityPayload) => void) => Unsubscribe;
+    onActivity: (
+      handler: (payload: DesktopUserActivityPayload) => void,
+    ) => Unsubscribe;
   };
   dock?: {
     bounce: (type?: 'critical' | 'informational') => Promise<number>;
   };
   windows?: {
     setUserTasks: (tasks?: DesktopUserTask[]) => Promise<boolean>;
-    setJumpListWorkspaces?: (workspaces: DesktopJumpListWorkspace[]) => Promise<boolean>;
+    setJumpListWorkspaces?: (
+      workspaces: DesktopJumpListWorkspace[],
+    ) => Promise<boolean>;
   };
   protocols?: {
     remove: (scheme: string) => Promise<boolean>;
@@ -397,7 +410,10 @@ export interface OneTabDesktopApi {
   files: {
     open: (request?: DesktopOpenFilesRequest) => Promise<DesktopPickedFile[]>;
     save: (request: DesktopSaveFileRequest) => Promise<DesktopSaveResult>;
-    download: (request: { url: string; suggestedName?: string }) => Promise<boolean>;
+    download: (request: {
+      url: string;
+      suggestedName?: string;
+    }) => Promise<boolean>;
   };
   clipboard: {
     writeText: (text: string) => Promise<void>;
@@ -426,23 +442,31 @@ export interface OneTabDesktopApi {
     showAbout?: () => Promise<void>;
     getDiagnostics: () => Promise<DesktopDiagnostics>;
     getStartup: () => Promise<DesktopStartupState>;
-    setStartup: (request: DesktopStartupRequest) => Promise<DesktopStartupState>;
+    setStartup: (
+      request: DesktopStartupRequest,
+    ) => Promise<DesktopStartupState>;
     openPath: (key: DesktopPathKey) => Promise<boolean>;
     getPath?: (key: DesktopPathKey) => Promise<string>;
     setAccessibility?: (enabled: boolean) => Promise<void>;
     clearRecentDocuments?: () => Promise<void>;
     addRecentDocument?: (path: string) => Promise<void>;
-    onAccessibilityChange?: (handler: (enabled: boolean) => void) => Unsubscribe;
+    onAccessibilityChange?: (
+      handler: (enabled: boolean) => void,
+    ) => Unsubscribe;
   };
   /** Screen sharing: the shell has no picker of its own, so the renderer shows one. */
   displayMedia?: {
-    onRequest: (handler: (request: DesktopDisplayMediaRequest) => void) => Unsubscribe;
+    onRequest: (
+      handler: (request: DesktopDisplayMediaRequest) => void,
+    ) => Unsubscribe;
     /** `null` cancels. */
     respond: (requestId: string, sourceId: string | null) => Promise<boolean>;
   };
   /** Runs an agent through the shell, which signs the call with the stored session. */
   agent?: {
-    execute: (request: DesktopAgentExecuteRequest) => Promise<DesktopAgentExecuteResponse>;
+    execute: (
+      request: DesktopAgentExecuteRequest,
+    ) => Promise<DesktopAgentExecuteResponse>;
   };
   onDeepLink: (handler: (link: DesktopDeepLink) => void) => Unsubscribe;
   onFileOpened?: (handler: (file: DesktopFileOpened) => void) => Unsubscribe;
@@ -498,7 +522,15 @@ export async function copyText(text: string): Promise<boolean> {
 /**
  * Shows a notification through whichever channel is available.
  */
-export async function notify(request: DesktopNotificationRequest): Promise<boolean> {
+export async function notify(
+  request: DesktopNotificationRequest,
+  options: {
+    /** Browser only; the desktop app routes clicks through `request.route`. */
+    onClick?: () => void;
+    /** Ask for permission if undecided. Pass `false` unless the user just acted. */
+    prompt?: boolean;
+  } = {},
+): Promise<boolean> {
   const api = getDesktopApi();
   if (api) return api.notifications.show(request);
 
@@ -506,16 +538,22 @@ export async function notify(request: DesktopNotificationRequest): Promise<boole
 
   try {
     const permission =
-      Notification.permission === 'default'
+      Notification.permission === 'default' && options.prompt !== false
         ? await Notification.requestPermission()
         : Notification.permission;
 
     if (permission !== 'granted') return false;
-    new Notification(request.title, {
+    const notification = new Notification(request.title, {
       body: request.body,
       silent: request.silent,
       icon: request.icon,
+      tag: request.tag,
     });
+    notification.onclick = () => {
+      window.focus();
+      notification.close();
+      options.onClick?.();
+    };
     return true;
   } catch {
     return false;
@@ -628,11 +666,13 @@ function toBase64(buffer: ArrayBuffer): string {
 /**
  * Picks files with the native dialog when available, falling back to a hidden `<input type="file">`.
  */
-export async function pickFiles(options: {
-  accept?: string;
-  multiple?: boolean;
-  filters?: Array<{ name: string; extensions: string[] }>;
-} = {}): Promise<File[]> {
+export async function pickFiles(
+  options: {
+    accept?: string;
+    multiple?: boolean;
+    filters?: Array<{ name: string; extensions: string[] }>;
+  } = {},
+): Promise<File[]> {
   const api = getDesktopApi();
 
   if (api) {
@@ -645,7 +685,8 @@ export async function pickFiles(options: {
       if (entry.data === undefined) return [];
       const binary = atob(entry.data);
       const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      for (let i = 0; i < binary.length; i += 1)
+        bytes[i] = binary.charCodeAt(i);
       return [new File([bytes], entry.name, { type: entry.mimeType })];
     });
   }
@@ -655,9 +696,13 @@ export async function pickFiles(options: {
     input.type = 'file';
     if (options.accept) input.accept = options.accept;
     input.multiple = options.multiple ?? false;
-    input.addEventListener('change', () => resolve(Array.from(input.files ?? [])), {
-      once: true,
-    });
+    input.addEventListener(
+      'change',
+      () => resolve(Array.from(input.files ?? [])),
+      {
+        once: true,
+      },
+    );
     input.addEventListener('cancel', () => resolve([]), { once: true });
     input.click();
   });

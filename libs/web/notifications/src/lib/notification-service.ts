@@ -4,7 +4,11 @@ import type {
   NotificationSoundEvent,
 } from '@org/types';
 import { toast } from '@org/ui';
-import { flashFrame, notify as sendOsNotification, supportsTaskbarFlash } from '@org/web-desktop';
+import {
+  flashFrame,
+  notify as sendOsNotification,
+  supportsTaskbarFlash,
+} from '@org/web-desktop';
 import { isCallOrMeetingActive } from './active-call-detector.js';
 import { notificationSound } from './notification-sound.js';
 
@@ -16,7 +20,23 @@ export interface NotificationPayload {
   type?: 'info' | 'success' | 'warning' | 'error' | 'message';
   priority?: 'low' | 'normal' | 'high' | 'critical';
   route?: string;
+  /**
+   * Opens `route` from a banner or browser notification. Without it the banner
+   * has no Open button. The desktop app routes through `route` itself.
+   */
+  onActivate?: () => void;
+  /**
+   * Notifications sharing a tag replace each other instead of stacking, so a
+   * burst in one conversation stays one banner.
+   */
+  tag?: string;
+  /** Skip the OS notification and taskbar flash: the user is in the app. */
   silent?: boolean;
+  /**
+   * Ask for browser notification permission if it was never decided. Only for
+   * a direct user action: browsers penalise prompts nobody clicked for.
+   */
+  promptForPermission?: boolean;
   workspaceId?: string;
   workspaceName?: string;
   workspaceIcon?: string;
@@ -109,7 +129,7 @@ class NotificationService {
 
     // 3. Taskbar Flashing (Windows desktop aware with rate limiting)
     let taskbarFlashed = false;
-    if (prefs.flashTaskbar && supportsTaskbarFlash()) {
+    if (prefs.flashTaskbar && !payload.silent && supportsTaskbarFlash()) {
       const now = Date.now();
       // Rate-limit taskbar flashing to at most once every 3 seconds
       if (now - this.lastFlashTime > 3000) {
@@ -122,56 +142,59 @@ class NotificationService {
     // 4. In-App Toast
     const duration =
       prefs.dismissDuration === null ? Infinity : prefs.dismissDuration;
+    const toastOptions = {
+      description: effectiveBody,
+      duration,
+      ...(payload.tag ? { id: payload.tag } : {}),
+      ...(payload.onActivate
+        ? { action: { label: 'Open', onClick: payload.onActivate } }
+        : {}),
+    };
 
     if (payload.type === 'success') {
-      toast.success(effectiveTitle, {
-        description: effectiveBody,
-        duration,
-      });
+      toast.success(effectiveTitle, toastOptions);
     } else if (payload.type === 'error') {
-      toast.error(effectiveTitle, {
-        description: effectiveBody,
-        duration,
-      });
+      toast.error(effectiveTitle, toastOptions);
     } else if (payload.type === 'warning') {
-      toast.warning(effectiveTitle, {
-        description: effectiveBody,
-        duration,
-      });
+      toast.warning(effectiveTitle, toastOptions);
     } else {
-      toast(effectiveTitle, {
-        description: effectiveBody,
-        duration,
-      });
+      toast(effectiveTitle, toastOptions);
     }
+
+    // Only in the foreground: a hidden tab's `AudioContext` is suspended, so
+    // there the OS notification carries the sound instead.
+    const inForeground =
+      typeof document === 'undefined' || document.visibilityState === 'visible';
+    const soundEvent = inForeground ? resolveSoundEvent(payload) : null;
 
     // 5. Native OS / Desktop Notification
     if (!payload.silent) {
-      void sendOsNotification({
-        title: effectiveTitle,
-        body: effectiveBody,
-        id: payload.id,
-        icon: payload.icon ?? payload.workspaceAvatarUrl ?? payload.workspaceIcon,
-        route: payload.route,
-      });
+      void sendOsNotification(
+        {
+          title: effectiveTitle,
+          body: effectiveBody,
+          id: payload.id,
+          tag: payload.tag,
+          icon:
+            payload.icon ?? payload.workspaceAvatarUrl ?? payload.workspaceIcon,
+          route: payload.route,
+          // The in-app cue below plays, so the system sound would double it.
+          silent: soundEvent !== null,
+        },
+        {
+          onClick: payload.onActivate,
+          prompt: payload.promptForPermission ?? false,
+        },
+      );
     }
 
-    // 6. Calm in-app audio cue.
-    //
-    // Only in the foreground: a hidden tab's `AudioContext` is suspended and the
-    // OS notification above already carries the system sound. Audio never blocks
-    // or breaks the notification — the service swallows its own failures.
-    if (
-      typeof document === 'undefined' ||
-      document.visibilityState === 'visible'
-    ) {
-      const soundEvent = resolveSoundEvent(payload);
-      if (soundEvent) {
-        notificationSound.play(soundEvent, {
-          dedupeKey: payload.id,
-          immediate: soundEvent === 'success',
-        });
-      }
+    // 6. Calm in-app audio cue. Audio never blocks or breaks the notification —
+    // the service swallows its own failures.
+    if (soundEvent) {
+      notificationSound.play(soundEvent, {
+        dedupeKey: payload.id,
+        immediate: soundEvent === 'success',
+      });
     }
 
     return {

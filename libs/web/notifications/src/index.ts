@@ -78,6 +78,7 @@ export {
 export {
   RealtimeNotificationsBridge,
   type RealtimeNotificationsBridgeProps,
+  claimNotification,
 } from './lib/realtime-notifications-bridge.js';
 
 export {
@@ -85,4 +86,3 @@ export {
   isCallOrMeetingActive,
   subscribeActiveCallState,
 } from './lib/active-call-detector.js';
-
