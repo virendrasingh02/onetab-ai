@@ -8,7 +8,7 @@ import { useSavedItemsOpener } from './saved-items-link-context.js';
  * kind shows it the same way. The host row must be `flex flex-wrap` (the label
  * takes `basis-full`); an empty spacer matches the avatar gutter so the text
  * lines up with the sender name and nothing sits on top of the avatar.
- * "View Saved" opens Saved Items on this message when the host provides
+ * "View Saved" opens Saved on this message when the host provides
  * `SavedItemsLinkProvider`.
  */
 export function SavedForLaterLabel({

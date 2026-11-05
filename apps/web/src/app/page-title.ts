@@ -134,7 +134,7 @@ const WORKSPACE_STATIC_TITLES: Record<string, string> = {
   '/overview': 'Dashboard',
   '/inbox': 'Inbox',
   '/threads': 'Threads',
-  '/saved': 'Saved Items',
+  '/saved': 'Saved',
   '/members': 'Team Directory',
   '/directory': 'People',
   '/invitations': 'Invitations',

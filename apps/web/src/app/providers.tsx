@@ -474,7 +474,7 @@ function AppConnectBridge({
 
   return (
     <AppConnectProvider value={value}>
-      {/* "Saved for later · View Saved" on a message opens Saved Items on it. */}
+      {/* "Saved for later · View Saved" on a message opens Saved on it. */}
       <SavedItemsLinkProvider value={slug ? openSaved : null}>
         {children}
       </SavedItemsLinkProvider>

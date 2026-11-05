@@ -117,7 +117,7 @@ export const DEFAULT_NAV_ITEMS: readonly NavItemConfig[] = [
   },
   {
     id: 'saved',
-    label: 'Saved Items',
+    label: 'Saved',
     icon: Bookmark,
     href: 'saved',
     visible: true,

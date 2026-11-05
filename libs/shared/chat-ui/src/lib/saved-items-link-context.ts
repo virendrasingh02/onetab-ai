@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react';
 
 /**
- * Opens the viewer's Saved Items page focused on one saved message — the host
+ * Opens the viewer's Saved page focused on one saved message — the host
  * owns routing, so the "Saved for later · View Saved" marker only calls this.
  * Absent (no provider) the marker renders without the link.
  */
