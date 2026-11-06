@@ -58,6 +58,7 @@ export class RealtimeClient {
   private ackFailures = 0;
   private broadcastChannel: BroadcastChannel | null = null;
 
+  private readonly ownsBus: boolean;
   private readonly maxReconnectDelay = 30_000;
   private readonly baseReconnectDelay = 1_000;
   private readonly heartbeatTimeoutMs = 45_000;
@@ -67,6 +68,7 @@ export class RealtimeClient {
 
   constructor(options: RealtimeClientOptions = {}) {
     this.bus = options.bus ?? new RealtimeEventBus();
+    this.ownsBus = !options.bus;
     this.getToken = options.getToken ?? getAccessToken;
     this.currentWorkspaceId = options.workspaceId ?? null;
 
@@ -458,7 +460,9 @@ export class RealtimeClient {
     }
     this.pendingAcks.clear();
     this.disconnect();
-    this.bus.clear();
+    // A bus handed in outlives this client: the provider keeps it across
+    // sign-outs, and clearing it would silently unsubscribe everyone on it.
+    if (this.ownsBus) this.bus.clear();
     this.stateListeners.clear();
     if (this.broadcastChannel) {
       this.broadcastChannel.close();

@@ -32,20 +32,35 @@ export interface SyncProviderProps {
  * connection state) and inside a `<QueryClientProvider>`. Mount it once, high in
  * the tree — `providers.tsx` does, just inside `RealtimeAppBridge`.
  */
-export function SyncProvider({ children, workspaceId, userId }: SyncProviderProps) {
+export function SyncProvider({
+  children,
+  workspaceId,
+  userId,
+}: SyncProviderProps) {
   const queryClient = useQueryClient();
   const { bus, client, connectionState } = useRealtime();
   const [manager] = useState(() => new BackgroundSyncManager());
   const attachedRef = useRef(false);
+  const disposeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Attach once — the manager is stable for the provider's lifetime.
+  /*
+   * Attach once — the manager is stable for the provider's lifetime, and a
+   * disposed one can't be restarted. StrictMode runs this effect, its cleanup
+   * and the effect again in one go, so disposal waits a tick: a re-run cancels
+   * it, and a real unmount lets it through.
+   */
   useEffect(() => {
-    if (attachedRef.current) return;
-    attachedRef.current = true;
-    manager.attach({ queryClient, bus });
-    registerDefaultOfflineExecutors(manager);
+    if (disposeTimerRef.current) {
+      clearTimeout(disposeTimerRef.current);
+      disposeTimerRef.current = null;
+    }
+    if (!attachedRef.current) {
+      attachedRef.current = true;
+      manager.attach({ queryClient, bus });
+      registerDefaultOfflineExecutors(manager);
+    }
     return () => {
-      manager.dispose();
+      disposeTimerRef.current = setTimeout(() => manager.dispose(), 0);
     };
   }, [manager, queryClient, bus]);
 

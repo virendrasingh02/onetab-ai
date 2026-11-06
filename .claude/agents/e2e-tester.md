@@ -58,6 +58,7 @@ with status + body excerpt, or the DB/API value you checked).
   a message "missing" after a reload.
 - The API client is axios: force a failure by stubbing `XMLHttpRequest.prototype.open`, not `fetch`. With the pane hidden, closed Radix dialogs stay mounted, so select `[data-state=open]`.
 - A synthetic `KeyboardEvent` needs `cancelable: true`, or `preventDefault` does nothing and Escape closes a Radix dialog that a real keypress would keep open. Typing into a dropdown's search box needs real keys: scripted `value` setting hides focus bugs.
+- Realtime needs an allowed origin: the SSE stream goes straight to `localhost:3000`, so a second user on `[::1]:4200` gets no live events (CORS). For a two-user live check, keep the browser on `localhost:4200` as the viewer and act as the other user from a Node script. `window.__oneTabSync()` shows `realtimeApplied` and `isLeader`.
 - Text-search flags like "404" match numbers on the page (e.g. "40452ms"); read the
   surrounding text before reporting.
 - Chat notifications need a second real sender: API login → `POST /api/v1/matrix/session` → Matrix CS API `PUT .../send/m.room.message/<txn>`. Add `m.mentions.user_ids` for a mention. The pane has browser notifications denied, so stub `window.Notification` to capture OS calls. With the stub granted, assert `[data-sonner-toast]` stays empty.

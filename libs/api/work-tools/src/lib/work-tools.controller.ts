@@ -528,8 +528,9 @@ export class WorkToolsController {
     return this.workTools.addRelation(workspaceId, body, user.id);
   }
 
+  /* A link is undone by whoever could make it; no task is lost either way. */
   @Delete('relations/:relationId')
-  @RequireWorkspacePermissions(WorkspacePermission.DELETE)
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteRelation(
     @WorkspaceId() workspaceId: string,

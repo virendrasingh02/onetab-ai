@@ -18,7 +18,9 @@ describe('RealtimeClient', () => {
 
   beforeEach(() => {
     mockEventSourceInstances = [];
-    vi.mocked(http.post).mockResolvedValue({ data: { ticket: 'tkt-1' } } as any);
+    vi.mocked(http.post).mockResolvedValue({
+      data: { ticket: 'tkt-1' },
+    } as any);
 
     // Mock EventSource
     (globalThis as any).EventSource = class MockEventSource {
@@ -65,7 +67,9 @@ describe('RealtimeClient', () => {
 
     expect(mockEventSourceInstances.length).toBe(1);
     const es = mockEventSourceInstances[0];
-    expect(es.url).toContain('/realtime/stream?ticket=tkt-1&workspaceId=ws-123');
+    expect(es.url).toContain(
+      '/realtime/stream?ticket=tkt-1&workspaceId=ws-123',
+    );
     // The raw access token must never appear in the stream URL.
     expect(es.url).not.toContain('valid-jwt-token');
 
@@ -165,12 +169,18 @@ describe('RealtimeClient', () => {
       es.onmessage(frame('dlv_1')); // redelivered duplicate: not re-handled
       es.onmessage(frame('evt_plain', false)); // best-effort: never acked
 
-      expect(received.map((e) => e.id)).toEqual(['dlv_1', 'dlv_2', 'evt_plain']);
+      expect(received.map((e) => e.id)).toEqual([
+        'dlv_1',
+        'dlv_2',
+        'evt_plain',
+      ]);
       expect(http.post).not.toHaveBeenCalled(); // debounced
 
       await vi.advanceTimersByTimeAsync(200);
       expect(http.post).toHaveBeenCalledTimes(1);
-      expect(http.post).toHaveBeenCalledWith('/realtime/ack', { ids: ['dlv_1', 'dlv_2'] });
+      expect(http.post).toHaveBeenCalledWith('/realtime/ack', {
+        ids: ['dlv_1', 'dlv_2'],
+      });
 
       client.dispose();
     } finally {
@@ -196,16 +206,40 @@ describe('RealtimeClient', () => {
         .mockResolvedValue({ data: { acked: ['dlv_9'] } } as any);
 
       es.onmessage({
-        data: JSON.stringify({ id: 'dlv_9', type: 'x', timestamp: '', payload: {}, requiresAck: true }),
+        data: JSON.stringify({
+          id: 'dlv_9',
+          type: 'x',
+          timestamp: '',
+          payload: {},
+          requiresAck: true,
+        }),
       });
       await vi.advanceTimersByTimeAsync(200);
       expect(http.post).toHaveBeenCalledTimes(1);
       await vi.advanceTimersByTimeAsync(1_100);
       expect(http.post).toHaveBeenCalledTimes(2);
-      expect(http.post).toHaveBeenLastCalledWith('/realtime/ack', { ids: ['dlv_9'] });
+      expect(http.post).toHaveBeenLastCalledWith('/realtime/ack', {
+        ids: ['dlv_9'],
+      });
       client.dispose();
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('leaves subscribers on a bus it was given when disposed', () => {
+    const bus = new RealtimeEventBus();
+    const handler = vi.fn();
+    bus.onAny(handler);
+
+    const client = new RealtimeClient({ bus, autoConnect: false });
+    client.dispose();
+    bus.emit({
+      id: 'evt-after-dispose',
+      type: RealtimeEventType.KanbanUpdated,
+      payload: {},
+    } as never);
+
+    expect(handler).toHaveBeenCalledTimes(1);
   });
 });

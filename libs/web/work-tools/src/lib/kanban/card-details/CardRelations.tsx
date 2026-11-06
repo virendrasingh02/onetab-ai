@@ -21,8 +21,6 @@ export interface CardRelationsProps {
   relations: RelationView[];
   linkableTasks: KanbanTaskLinkOption[];
   canLink: boolean;
-  /** Removing a link takes the workspace's delete permission. */
-  canUnlink: boolean;
   canOpen: (taskId: string) => boolean;
   onOpen: (taskId: string) => void;
   onAdd: (target: KanbanTaskLinkOption, type: RelationType) => void;
@@ -34,7 +32,6 @@ export function CardRelations({
   relations,
   linkableTasks,
   canLink,
-  canUnlink,
   canOpen,
   onOpen,
   onAdd,
@@ -121,7 +118,7 @@ export function CardRelations({
                     {view.otherTask.title}
                   </span>
                 </button>
-                {canUnlink ? (
+                {canLink ? (
                   <button
                     type="button"
                     onClick={() => onRemove(view.id)}

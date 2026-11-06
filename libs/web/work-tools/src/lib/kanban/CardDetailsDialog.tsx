@@ -753,8 +753,7 @@ function CardDetailsBody({
               cardId={card.id}
               relations={relations}
               linkableTasks={linkableTasks}
-              canLink={canEdit}
-              canUnlink={canDelete}
+              canLink={canCreate}
               canOpen={canOpen}
               onOpen={onOpenCard}
               onAdd={handleAddRelation}
