@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -63,6 +64,7 @@ import type {
   UpdateModuleInput,
   UpdateProjectInput,
   UpdateSavedViewInput,
+  UpdateTaskCommentInput,
   UpdateTaskInput,
   UpdateTaskLabelInput,
   UpdateTeamInput,
@@ -76,6 +78,59 @@ function at(value: string | null | undefined): Date | null | undefined {
 
 /** Gap left between neighbouring cards in a column. */
 const ORDER_STRIDE = 1024;
+
+/** What a history row records; anything beyond the three columns is metadata. */
+type ActivityDetails = {
+  fieldChanged?: string;
+  oldValue?: string | null;
+  newValue?: string | null;
+} & Record<string, unknown>;
+
+/** Task fields whose edits reach the history feed. */
+const TRACKED_TASK_FIELDS = [
+  'title',
+  'description',
+  'type',
+  'startDate',
+  'dueDate',
+  'estimate',
+  'timeSpent',
+  'labels',
+  'teamId',
+  'epicId',
+  'cycleId',
+  'moduleId',
+  'parentId',
+] as const;
+
+type TrackedTaskFields = Record<(typeof TRACKED_TASK_FIELDS)[number], unknown>;
+
+function activityValue(value: unknown): string | null {
+  if (value === null || value === undefined || value === '') return null;
+  if (value instanceof Date) return value.toISOString();
+  if (Array.isArray(value)) return JSON.stringify([...value].sort());
+  return String(value);
+}
+
+/**
+ * One history entry per field `input` actually changed. A description can run
+ * to 10,000 characters, so its entry records that it changed, not the text.
+ */
+function taskFieldChanges(
+  before: TrackedTaskFields,
+  after: TrackedTaskFields,
+  input: UpdateTaskInput,
+): ActivityDetails[] {
+  return TRACKED_TASK_FIELDS.flatMap((field): ActivityDetails[] => {
+    if (input[field] === undefined) return [];
+    const oldValue = activityValue(before[field]);
+    const newValue = activityValue(after[field]);
+    if (oldValue === newValue) return [];
+    return field === 'description'
+      ? [{ fieldChanged: field }]
+      : [{ fieldChanged: field, oldValue, newValue }];
+  });
+}
 
 @Injectable()
 export class WorkToolsService {
@@ -1005,7 +1060,8 @@ export class WorkToolsService {
         subItems: {
           where: { deletedAt: null },
           include: { assignee: { select: PUBLIC_USER_SELECT } },
-          orderBy: { orderIndex: 'asc' },
+          // `orderIndex` is the board column's order, where new tasks go on top.
+          orderBy: { createdAt: 'asc' },
         },
         sourceRelations: {
           include: { target: true },
@@ -1280,6 +1336,15 @@ export class WorkToolsService {
           newValue: (nextAssigneeIds as string[]).join(',') || null,
         });
       }
+      for (const change of taskFieldChanges(existing, updated, input)) {
+        await this.logActivity(
+          workspaceId,
+          taskId,
+          actorId,
+          'FIELD_CHANGED',
+          change,
+        );
+      }
     }
 
     if (assigneesChanged) {
@@ -1458,6 +1523,7 @@ export class WorkToolsService {
         {
           relationType: input.type,
           targetId: input.targetId,
+          newValue: relation.target.identifier ?? relation.target.title,
         },
       );
     }
@@ -1465,12 +1531,31 @@ export class WorkToolsService {
     return relation;
   }
 
-  async deleteRelation(workspaceId: string, relationId: string): Promise<void> {
+  async deleteRelation(
+    workspaceId: string,
+    relationId: string,
+    actorId?: string,
+  ): Promise<void> {
     const relation = await this.prisma.workItemRelation.findFirst({
       where: { id: relationId, workspaceId },
+      include: { target: { select: { identifier: true, title: true } } },
     });
     if (!relation) throw new NotFoundException('Relation not found');
     await this.prisma.workItemRelation.delete({ where: { id: relationId } });
+
+    if (actorId) {
+      await this.logActivity(
+        workspaceId,
+        relation.sourceId,
+        actorId,
+        'RELATIONS_CHANGED',
+        {
+          relationType: relation.type,
+          targetId: relation.targetId,
+          oldValue: relation.target.identifier ?? relation.target.title,
+        },
+      );
+    }
   }
 
   // --- saved views ----------------------------------------------------------
@@ -1745,6 +1830,7 @@ export class WorkToolsService {
     task: { id: string; title: string; identifier: string | null },
     authorId: string,
     content: string,
+    previousContent = '',
   ): Promise<void> {
     try {
       if (!content.includes('@')) return;
@@ -1756,10 +1842,11 @@ export class WorkToolsService {
         },
       });
 
-      const mentionedUserIds = resolveTextMentions(
-        content,
-        members.map((m) => m.user),
-      ).filter((id) => id !== authorId);
+      const users = members.map((m) => m.user);
+      const alreadyMentioned = resolveTextMentions(previousContent, users);
+      const mentionedUserIds = resolveTextMentions(content, users).filter(
+        (id) => id !== authorId && !alreadyMentioned.includes(id),
+      );
       if (mentionedUserIds.length === 0) return;
 
       this.events.emit(AppEvent.MentionCreated, {
@@ -1778,18 +1865,77 @@ export class WorkToolsService {
     }
   }
 
+  /** Only the author can reword a comment: it speaks in their name. */
+  async updateTaskComment(
+    workspaceId: string,
+    taskId: string,
+    commentId: string,
+    userId: string,
+    input: UpdateTaskCommentInput,
+  ) {
+    assertContentAllowed(input.content);
+    const task = await this.assertTask(workspaceId, taskId);
+    const existing = await this.prisma.taskComment.findFirst({
+      where: { id: commentId, taskId },
+    });
+    if (!existing) throw new NotFoundException('Comment not found');
+    if (existing.authorId !== userId) {
+      throw new ForbiddenException('Only the author can edit this comment');
+    }
+
+    const comment = await this.prisma.taskComment.update({
+      where: { id: commentId },
+      data: { content: input.content },
+      include: { author: { select: PUBLIC_USER_SELECT } },
+    });
+
+    this.events.emit(AppEvent.TaskCommentChanged, {
+      workspaceId,
+      actorId: userId,
+      taskId,
+      commentId,
+    });
+
+    await this.notifyCommentMentions(
+      workspaceId,
+      task,
+      userId,
+      input.content,
+      existing.content,
+    );
+
+    return comment;
+  }
+
+  /** The author can always remove their own comment; others need `canModerate`. */
   async deleteTaskComment(
     workspaceId: string,
     commentId: string,
+    userId: string,
+    canModerate: boolean,
   ): Promise<void> {
     const comment = await this.prisma.taskComment.findUnique({
       where: { id: commentId },
-      select: { task: { select: { workspaceId: true } } },
+      select: {
+        authorId: true,
+        taskId: true,
+        task: { select: { workspaceId: true } },
+      },
     });
     if (!comment || comment.task.workspaceId !== workspaceId) {
       throw new NotFoundException('Comment not found');
     }
+    if (comment.authorId !== userId && !canModerate) {
+      throw new ForbiddenException('You can only delete your own comments');
+    }
     await this.prisma.taskComment.delete({ where: { id: commentId } });
+
+    this.events.emit(AppEvent.TaskCommentChanged, {
+      workspaceId,
+      actorId: userId,
+      taskId: comment.taskId,
+      commentId,
+    });
   }
 
   async getCalendarEvents(workspaceId: string) {
@@ -1976,8 +2122,9 @@ export class WorkToolsService {
     workItemId: string,
     actorId: string,
     action: string,
-    metadata: Record<string, unknown> = {},
+    details: ActivityDetails = {},
   ) {
+    const { fieldChanged, oldValue, newValue, ...metadata } = details;
     try {
       await this.prisma.workItemActivity.create({
         data: {
@@ -1985,7 +2132,10 @@ export class WorkToolsService {
           workItemId,
           actorId,
           action,
-          metadata: JSON.stringify(metadata),
+          fieldChanged: fieldChanged ?? null,
+          oldValue: oldValue ?? null,
+          newValue: newValue ?? null,
+          metadata: metadata as Prisma.InputJsonValue,
         },
       });
     } catch {

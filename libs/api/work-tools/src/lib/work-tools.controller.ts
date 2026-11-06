@@ -16,6 +16,7 @@ import {
   CurrentUser,
   RequireWorkspacePermissions,
   WorkspaceId,
+  WorkspacePermissions,
   zodBody,
 } from '@org/api-common';
 import { WorkspacePermission } from '@org/types';
@@ -37,6 +38,7 @@ import {
   createProjectUpdateSchema,
   createSavedViewSchema,
   createTaskCommentSchema,
+  updateTaskCommentSchema,
   createTaskSchema,
   createTaskLabelSchema,
   createTeamSchema,
@@ -66,6 +68,7 @@ import {
   type CreateProjectUpdateInput,
   type CreateSavedViewInput,
   type CreateTaskCommentInput,
+  type UpdateTaskCommentInput,
   type CreateTaskInput,
   type CreateTaskLabelInput,
   type CreateTeamInput,
@@ -457,10 +460,7 @@ export class WorkToolsController {
   }
 
   @Get('tasks/:taskId')
-  getTask(
-    @WorkspaceId() workspaceId: string,
-    @Param('taskId') taskId: string,
-  ) {
+  getTask(@WorkspaceId() workspaceId: string, @Param('taskId') taskId: string) {
     return this.workTools.getTask(workspaceId, taskId);
   }
 
@@ -534,8 +534,9 @@ export class WorkToolsController {
   deleteRelation(
     @WorkspaceId() workspaceId: string,
     @Param('relationId') relationId: string,
+    @CurrentUser() user: CurrentUserType,
   ) {
-    return this.workTools.deleteRelation(workspaceId, relationId);
+    return this.workTools.deleteRelation(workspaceId, relationId, user.id);
   }
 
   // --- saved views ----------------------------------------------------------
@@ -664,14 +665,41 @@ export class WorkToolsController {
     return this.workTools.addTaskComment(workspaceId, taskId, user.id, body);
   }
 
+  @Patch('tasks/:taskId/comments/:commentId')
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
+  updateTaskComment(
+    @WorkspaceId() workspaceId: string,
+    @Param('taskId') taskId: string,
+    @Param('commentId') commentId: string,
+    @CurrentUser() user: CurrentUserType,
+    @Body(zodBody(updateTaskCommentSchema)) body: UpdateTaskCommentInput,
+  ) {
+    return this.workTools.updateTaskComment(
+      workspaceId,
+      taskId,
+      commentId,
+      user.id,
+      body,
+    );
+  }
+
+  /* Whoever can comment can remove their own; other people's need DELETE. */
   @Delete('tasks/:taskId/comments/:commentId')
-  @RequireWorkspacePermissions(WorkspacePermission.DELETE)
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteTaskComment(
     @WorkspaceId() workspaceId: string,
     @Param('commentId') commentId: string,
+    @CurrentUser() user: CurrentUserType,
+    @WorkspacePermissions()
+    permissions: readonly WorkspacePermission[] | undefined,
   ): Promise<void> {
-    return this.workTools.deleteTaskComment(workspaceId, commentId);
+    return this.workTools.deleteTaskComment(
+      workspaceId,
+      commentId,
+      user.id,
+      permissions?.includes(WorkspacePermission.DELETE) ?? false,
+    );
   }
 
   // --- calendar -------------------------------------------------------------
@@ -772,7 +800,8 @@ export class WorkToolsController {
   @RequireWorkspacePermissions(WorkspacePermission.CREATE)
   createCrossObjectLink(
     @WorkspaceId() workspaceId: string,
-    @Body(zodBody(createCrossObjectLinkSchema)) body: CreateCrossObjectLinkInput,
+    @Body(zodBody(createCrossObjectLinkSchema))
+    body: CreateCrossObjectLinkInput,
   ) {
     return this.contextLinks.createLink(workspaceId, body);
   }

@@ -1463,6 +1463,7 @@ export function AsanaProjectManager() {
           board={board.board}
           cardId={selectedCardId}
           dispatch={board.dispatch}
+          onOpenCard={setSelectedCardId}
           onClose={() => setSelectedCardId(null)}
         />
       )}

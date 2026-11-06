@@ -436,6 +436,7 @@ import type {
   CreateSavedViewInput,
   CreateScheduledStatusInput,
   CreateTaskCommentInput,
+  UpdateTaskCommentInput,
   CreateTaskInput,
   CreateTeamInput,
   CreateTaskLabelInput,
@@ -2636,6 +2637,26 @@ export const workToolsApi = {
     request<TaskComment[]>(
       http.get(
         `/workspaces/${workspaceId}/work-tools/tasks/${taskId}/comments`,
+      ),
+    ),
+
+  updateTaskComment: (
+    workspaceId: string,
+    taskId: string,
+    commentId: string,
+    input: UpdateTaskCommentInput,
+  ) =>
+    request<TaskComment>(
+      http.patch(
+        `/workspaces/${workspaceId}/work-tools/tasks/${taskId}/comments/${commentId}`,
+        input,
+      ),
+    ),
+
+  deleteTaskComment: (workspaceId: string, taskId: string, commentId: string) =>
+    request<void>(
+      http.delete(
+        `/workspaces/${workspaceId}/work-tools/tasks/${taskId}/comments/${commentId}`,
       ),
     ),
 

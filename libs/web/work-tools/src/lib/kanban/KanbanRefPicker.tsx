@@ -6,6 +6,7 @@ import {
 import { cn } from '@org/utils';
 import { Check, Search, X } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
+import { useMenuSearchField } from './menu-search-field.js';
 
 export interface KanbanRefPickerItem {
   id: string;
@@ -45,6 +46,7 @@ export function KanbanRefPicker({
   emptyMessage = 'Nothing to pick from yet',
   searchThreshold = 8,
 }: KanbanRefPickerProps) {
+  const searchField = useMenuSearchField();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
 
@@ -67,19 +69,20 @@ export function KanbanRefPicker({
       <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
 
       <DropdownMenuContent
+        {...searchField.contentProps}
         align={align}
-        className="w-56 p-1.5 rounded-xl border border-border bg-popover text-popover-foreground shadow-xl"
+        className="w-56 p-1.5 shadow-xl rounded-xl border border-border bg-popover text-popover-foreground"
       >
         {showSearch && (
-          <div className="relative flex items-center px-2 py-1 border-b border-border/60 mb-1">
-            <Search className="size-3.5 text-muted-foreground shrink-0 mr-2" />
+          <div className="px-2 py-1 mb-1 relative flex items-center border-b border-border/60">
+            <Search className="size-3.5 mr-2 shrink-0 text-muted-foreground" />
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search..."
-              className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none border-none p-0 focus:ring-0"
-              autoFocus
+              className="text-xs p-0 w-full border-none bg-transparent text-foreground outline-none placeholder:text-muted-foreground focus:ring-0"
+              {...searchField.inputProps}
             />
             {query && (
               <button
@@ -101,21 +104,23 @@ export function KanbanRefPicker({
               setOpen(false);
             }}
             className={cn(
-              'w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer font-medium transition-colors',
+              'px-2.5 py-1.5 text-xs font-medium flex w-full cursor-pointer items-center justify-between rounded-lg transition-colors',
               !selectedId
                 ? 'bg-accent text-foreground'
                 : 'text-foreground/85 hover:bg-accent/60',
             )}
           >
-            <span className="flex items-center gap-2.5 min-w-0 text-muted-foreground">
-              <span className="size-4 rounded-full border border-dashed border-muted-foreground/50 shrink-0" />
+            <span className="gap-2.5 min-w-0 flex items-center text-muted-foreground">
+              <span className="size-4 shrink-0 rounded-full border border-dashed border-muted-foreground/50" />
               <span className="truncate">{noneLabel}</span>
             </span>
-            {!selectedId && <Check className="size-3.5 text-foreground shrink-0 stroke-[2.5]" />}
+            {!selectedId && (
+              <Check className="size-3.5 shrink-0 stroke-[2.5] text-foreground" />
+            )}
           </button>
 
           {filtered.length === 0 ? (
-            <div className="px-3 py-3 text-center text-xs text-muted-foreground">
+            <div className="px-3 py-3 text-xs text-center text-muted-foreground">
               {items.length === 0 ? emptyMessage : 'No matches'}
             </div>
           ) : (
@@ -130,25 +135,27 @@ export function KanbanRefPicker({
                     setOpen(false);
                   }}
                   className={cn(
-                    'w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors',
+                    'px-2.5 py-1.5 text-xs flex w-full cursor-pointer items-center justify-between rounded-lg transition-colors',
                     isSelected
                       ? 'bg-accent/40 text-foreground hover:bg-accent/70'
                       : 'text-foreground/90 hover:bg-accent/60',
                   )}
                 >
-                  <span className="flex items-center gap-2.5 min-w-0">
+                  <span className="gap-2.5 min-w-0 flex items-center">
                     <span
-                      className="size-2.5 rounded-full shrink-0"
+                      className="size-2.5 shrink-0 rounded-full"
                       style={{ backgroundColor: item.color || '#64748b' }}
                     />
-                    <span className="truncate font-medium">{item.label}</span>
+                    <span className="font-medium truncate">{item.label}</span>
                   </span>
-                  <span className="flex items-center gap-2 text-muted-foreground/80 shrink-0">
+                  <span className="gap-2 flex shrink-0 items-center text-muted-foreground/80">
                     {item.sublabel && (
-                      <span className="text-[10px] uppercase tracking-wide">{item.sublabel}</span>
+                      <span className="tracking-wide text-[10px] uppercase">
+                        {item.sublabel}
+                      </span>
                     )}
                     {isSelected && (
-                      <Check className="size-3.5 text-foreground shrink-0 stroke-[2.5]" />
+                      <Check className="size-3.5 shrink-0 stroke-[2.5] text-foreground" />
                     )}
                   </span>
                 </button>

@@ -19,6 +19,8 @@ export const AppEvent = {
   TaskAssigned: 'task.assigned',
   TaskCompleted: 'task.completed',
   TaskCommentCreated: 'task.comment.created',
+  /** A comment was edited or deleted. Carries no body: it only means refetch. */
+  TaskCommentChanged: 'task.comment.changed',
   ProjectCreated: 'project.created',
   ProjectUpdated: 'project.updated',
   DocumentCreated: 'document.created',

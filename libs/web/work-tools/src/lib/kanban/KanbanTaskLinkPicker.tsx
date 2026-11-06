@@ -8,6 +8,7 @@ import { cn } from '@org/utils';
 import { Search, X } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { StatusIcon } from './kanban-icons.js';
+import { useMenuSearchField } from './menu-search-field.js';
 
 export interface KanbanTaskLinkOption {
   id: string;
@@ -45,6 +46,7 @@ export function KanbanTaskLinkPicker({
   emptyMessage = 'No tasks found',
   header,
 }: KanbanTaskLinkPickerProps) {
+  const searchField = useMenuSearchField();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
 
@@ -75,19 +77,20 @@ export function KanbanTaskLinkPicker({
       <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
 
       <DropdownMenuContent
+        {...searchField.contentProps}
         align={align}
-        className="w-72 p-1.5 rounded-xl border border-border bg-popover text-popover-foreground shadow-xl"
+        className="w-72 p-1.5 shadow-xl rounded-xl border border-border bg-popover text-popover-foreground"
       >
         {header}
-        <div className="relative flex items-center px-2 py-1 border-b border-border/60 mb-1">
-          <Search className="size-3.5 text-muted-foreground shrink-0 mr-2" />
+        <div className="px-2 py-1 mb-1 relative flex items-center border-b border-border/60">
+          <Search className="size-3.5 mr-2 shrink-0 text-muted-foreground" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={placeholder}
-            className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none border-none p-0 focus:ring-0"
-            autoFocus
+            className="text-xs p-0 w-full border-none bg-transparent text-foreground outline-none placeholder:text-muted-foreground focus:ring-0"
+            {...searchField.inputProps}
           />
           {query && (
             <button
@@ -100,9 +103,9 @@ export function KanbanTaskLinkPicker({
           )}
         </div>
 
-        <div className="max-h-56 overflow-y-auto space-y-0.5">
+        <div className="max-h-56 space-y-0.5 overflow-y-auto">
           {filtered.length === 0 ? (
-            <div className="px-3 py-3 text-center text-xs text-muted-foreground">
+            <div className="px-3 py-3 text-xs text-center text-muted-foreground">
               {emptyMessage}
             </div>
           ) : (
@@ -116,17 +119,20 @@ export function KanbanTaskLinkPicker({
                   setQuery('');
                 }}
                 className={cn(
-                  'w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors text-left',
+                  'gap-2.5 px-2.5 py-1.5 text-xs flex w-full cursor-pointer items-center rounded-lg text-left transition-colors',
                   'text-foreground/90 hover:bg-accent/60',
                 )}
               >
-                <StatusIcon status={task.status} className="size-3.5 shrink-0" />
+                <StatusIcon
+                  status={task.status}
+                  className="size-3.5 shrink-0"
+                />
                 {task.identifier && (
-                  <span className="font-mono text-[10px] text-muted-foreground shrink-0">
+                  <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
                     {task.identifier}
                   </span>
                 )}
-                <span className="truncate font-medium">{task.title}</span>
+                <span className="font-medium truncate">{task.title}</span>
               </button>
             ))
           )}

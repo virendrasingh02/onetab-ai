@@ -625,12 +625,29 @@ export function useTaskMutations(workspaceId: string | undefined) {
       taskId: string;
       input: UpdateTaskInput;
     }) => workToolsApi.updateTask(workspaceId as string, taskId, input),
-    onMutate: ({ taskId, input }) =>
-      patchCachedTasks((tasks) =>
+    onMutate: async ({ taskId, input }) => {
+      const snapshot = await patchCachedTasks((tasks) =>
         tasks.map((task) =>
           task.id === taskId ? applyTaskPatch(task, input) : task,
         ),
-      ),
+      );
+      // An open card reads the detail query, and its sub-issues live inside it.
+      for (const [key, data] of snapshot) {
+        if (key[3] !== 'detail' || !data) continue;
+        const detail = data as Task;
+        if (detail.id === taskId) {
+          queryClient.setQueryData(key, applyTaskPatch(detail, input));
+        } else if (detail.subItems?.some((sub) => sub.id === taskId)) {
+          queryClient.setQueryData(key, {
+            ...detail,
+            subItems: detail.subItems.map((sub) =>
+              sub.id === taskId ? applyTaskPatch(sub, input) : sub,
+            ),
+          });
+        }
+      }
+      return snapshot;
+    },
     onError: (_error, _input, snapshot) => restoreCachedTasks(snapshot),
     onSettled: settle,
   });
@@ -889,6 +906,50 @@ export function useAddTaskComment(
       }
     },
   });
+}
+
+/** Editing and deleting a comment; posting one stays in `useAddTaskComment`. */
+export function useTaskCommentMutations(
+  workspaceId: string | undefined,
+  taskId: string | null | undefined,
+) {
+  const queryClient = useQueryClient();
+  const invalidate = () =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.workTools.taskComments(
+        workspaceId ?? '',
+        taskId ?? '',
+      ),
+    });
+
+  const update = useMutation({
+    mutationFn: ({
+      commentId,
+      content,
+    }: {
+      commentId: string;
+      content: string;
+    }) =>
+      workToolsApi.updateTaskComment(
+        workspaceId as string,
+        taskId as string,
+        commentId,
+        { content },
+      ),
+    onSuccess: invalidate,
+  });
+
+  const remove = useMutation({
+    mutationFn: (commentId: string) =>
+      workToolsApi.deleteTaskComment(
+        workspaceId as string,
+        taskId as string,
+        commentId,
+      ),
+    onSuccess: invalidate,
+  });
+
+  return { update, remove };
 }
 
 export function useCalendarEvents(

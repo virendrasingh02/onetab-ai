@@ -383,6 +383,7 @@ export function KanbanBoard({
           cardId={openCardId}
           board={board}
           dispatch={dispatch}
+          onOpenCard={setOpenCardId}
           onClose={() => setOpenCardId(null)}
         />
       ) : null}

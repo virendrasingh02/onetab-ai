@@ -257,6 +257,8 @@ export interface Task {
   parent?: Task | null;
   subItems?: Task[];
   relations?: WorkItemRelation[];
+  /** Change history, newest first. Only the single-task read includes it. */
+  activities?: WorkItemActivity[];
   /** Set when this task was captured as an action item from a meeting. */
   meetingId?: string | null;
   meeting?: {
@@ -365,11 +367,7 @@ export interface MeetingDetail extends Meeting {
 export type CallSessionKind = 'AUDIO' | 'VIDEO';
 export type CallSessionStatus = 'ACTIVE' | 'ENDED';
 export type CallSummaryStatus =
-  | 'PROCESSING'
-  | 'READY'
-  | 'FAILED'
-  | 'EDITED'
-  | 'APPROVED';
+  'PROCESSING' | 'READY' | 'FAILED' | 'EDITED' | 'APPROVED';
 
 export interface CallParticipantView {
   id: string;
@@ -507,7 +505,8 @@ export interface EndCallResponse extends CallView {
  */
 export interface CallUpdatedRealtimePayload {
   callId: string;
-  entity: 'call' | 'note' | 'summary' | 'action_item' | 'decision' | 'transcript';
+  entity:
+    'call' | 'note' | 'summary' | 'action_item' | 'decision' | 'transcript';
   action: string;
   /** Summary status when `entity === 'summary'`. */
   status?: CallSummaryStatus;
@@ -648,7 +647,8 @@ export interface WorkItemActivity {
   fieldChanged?: string | null;
   oldValue?: string | null;
   newValue?: string | null;
-  metadata?: Record<string, unknown>;
+  /** Rows written before 2026-11-06 hold this as a JSON string. */
+  metadata?: Record<string, unknown> | string | null;
   createdAt: IsoDateString;
   actor?: PublicUser | null;
 }

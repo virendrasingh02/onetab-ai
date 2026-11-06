@@ -19,6 +19,8 @@ export interface KanbanPriorityPickerProps {
   onPriorityChange: (priority: PriorityOption) => void;
   trigger?: React.ReactNode;
   align?: 'start' | 'center' | 'end';
+  /** Drops "No priority": a saved task always has one, so it can't be stored. */
+  required?: boolean;
 }
 
 export function KanbanPriorityPicker({
@@ -26,9 +28,16 @@ export function KanbanPriorityPicker({
   onPriorityChange,
   trigger,
   align = 'start',
+  required = false,
 }: KanbanPriorityPickerProps) {
   const [open, setOpen] = React.useState(false);
-  const customPriorities = KANBAN_PRIORITIES;
+  const customPriorities = React.useMemo(
+    () =>
+      required
+        ? KANBAN_PRIORITIES.filter((item) => item.id !== 'NO_PRIORITY')
+        : KANBAN_PRIORITIES,
+    [required],
+  );
 
   // Keyboard shortcut listener when open
   useEffect(() => {
@@ -51,7 +60,7 @@ export function KanbanPriorityPicker({
         {trigger ?? (
           <button
             type="button"
-            className="flex items-center justify-center size-6 rounded-md hover:bg-muted/80 text-muted-foreground transition-colors cursor-pointer"
+            className="size-6 flex cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/80"
             aria-label="Change priority"
           >
             <PriorityIcon priority={priority as Priority} />
@@ -61,10 +70,10 @@ export function KanbanPriorityPicker({
 
       <DropdownMenuContent
         align={align}
-        className="w-56 p-1.5 rounded-xl border border-border bg-popover text-popover-foreground shadow-xl"
+        className="w-56 p-1.5 shadow-xl rounded-xl border border-border bg-popover text-popover-foreground"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-2.5 py-1.5 mb-1 text-xs text-muted-foreground">
+        <div className="px-2.5 py-1.5 mb-1 text-xs flex items-center justify-between text-muted-foreground">
           <span className="font-medium text-[12px]">Change priority...</span>
           <KbdShortcut shortcut="P then P" size="xs" variant="muted" />
         </div>
@@ -78,22 +87,25 @@ export function KanbanPriorityPicker({
                 key={item.id}
                 onSelect={() => onPriorityChange(item.id as PriorityOption)}
                 className={cn(
-                  'flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer font-medium transition-colors',
+                  'px-2.5 py-1.5 text-xs font-medium flex cursor-pointer items-center justify-between rounded-lg transition-colors',
                   isSelected
                     ? 'bg-accent text-foreground'
                     : 'text-foreground/85 hover:bg-accent/60',
                 )}
               >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <PriorityIcon priority={item.id as Priority} className="size-4" />
+                <div className="gap-2.5 min-w-0 flex items-center">
+                  <PriorityIcon
+                    priority={item.id as Priority}
+                    className="size-4"
+                  />
                   <span className="truncate">{item.label}</span>
                 </div>
 
-                <div className="flex items-center gap-2 text-muted-foreground/80">
+                <div className="gap-2 flex items-center text-muted-foreground/80">
                   {isSelected && (
-                    <Check className="size-3.5 text-foreground shrink-0 stroke-[2.5]" />
+                    <Check className="size-3.5 shrink-0 stroke-[2.5] text-foreground" />
                   )}
-                  <span className="font-mono text-[11px] tabular-nums text-muted-foreground/70">
+                  <span className="font-mono text-[11px] text-muted-foreground/70 tabular-nums">
                     {item.key}
                   </span>
                 </div>

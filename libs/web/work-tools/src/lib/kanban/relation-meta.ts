@@ -1,4 +1,8 @@
-import type { RelationTaskRef, RelationType, WorkItemRelation } from '@org/types';
+import type {
+  RelationTaskRef,
+  RelationType,
+  WorkItemRelation,
+} from '@org/types';
 
 /**
  * A relation row, resolved from this card's point of view — which end it is,
@@ -37,7 +41,10 @@ export function relationsFor(
  * the card is the source reads "Blocked by"; the same row from the other
  * task's side would read "Blocks".
  */
-export function relationVerb(type: RelationType, direction: RelationView['direction']): string {
+export function relationVerb(
+  type: RelationType,
+  direction: RelationView['direction'],
+): string {
   const outgoing = direction === 'outgoing';
   switch (type) {
     case 'BLOCKS':
@@ -65,7 +72,10 @@ export function isBlockingView(view: RelationView): boolean {
 }
 
 /** Relation types offered when linking two tasks — parent/sub-item go through `parentId` instead. */
-export const LINKABLE_RELATION_TYPES: Array<{ type: RelationType; label: string }> = [
+export const LINKABLE_RELATION_TYPES: Array<{
+  type: RelationType;
+  label: string;
+}> = [
   { type: 'BLOCKS', label: 'Blocks' },
   { type: 'BLOCKED_BY', label: 'Blocked by' },
   { type: 'RELATED_TO', label: 'Related to' },
@@ -80,4 +90,18 @@ export function formatMinutes(totalMinutes: number): string {
   if (hours <= 0) return `${minutes}m`;
   if (minutes === 0) return `${hours}h`;
   return `${hours}h ${minutes}m`;
+}
+
+/**
+ * Reads what people type for a duration: `45`, `45m`, `1.5h`, `1h 30m`. A bare
+ * number is minutes. Null when the text isn't a positive duration.
+ */
+export function parseDuration(text: string): number | null {
+  const match = /^\s*(?:(\d+(?:\.\d+)?)\s*h)?\s*(?:(\d+)\s*m?)?\s*$/i.exec(
+    text,
+  );
+  if (!match || (match[1] === undefined && match[2] === undefined)) return null;
+  const minutes =
+    Math.round(Number(match[1] ?? 0) * 60) + Number(match[2] ?? 0);
+  return minutes > 0 ? minutes : null;
 }

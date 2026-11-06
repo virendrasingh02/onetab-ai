@@ -12,6 +12,7 @@ import { Check, Search, Send, X } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { UnassignedLeadIcon } from './kanban-icons.js';
 import type { BoardMember } from './types.js';
+import { useMenuSearchField } from './menu-search-field.js';
 
 export interface KanbanLeadPickerProps {
   currentMemberId?: string | null;
@@ -36,6 +37,7 @@ export function KanbanLeadPicker({
   align = 'end',
   multiple = false,
 }: KanbanLeadPickerProps) {
+  const searchField = useMenuSearchField();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
 
@@ -104,7 +106,7 @@ export function KanbanLeadPicker({
   const defaultTrigger = (
     <button
       type="button"
-      className="flex items-center justify-center rounded-full hover:ring-2 hover:ring-primary/40 transition-all cursor-pointer p-0.5"
+      className="p-0.5 flex cursor-pointer items-center justify-center rounded-full transition-all hover:ring-2 hover:ring-primary/40"
       aria-label="Change assignee"
     >
       {assignedMembers.length > 1 ? (
@@ -118,10 +120,10 @@ export function KanbanLeadPicker({
           statusEmoji={assignedMembers[0].statusEmoji}
           statusText={assignedMembers[0].statusText}
           size="xs"
-          className="size-5 text-[9px] font-bold ring-1 ring-surface"
+          className="size-5 font-bold text-[9px] ring-1 ring-surface"
         />
       ) : (
-        <div className="size-5 rounded-full border border-dashed border-muted-foreground/50 flex items-center justify-center bg-muted/20">
+        <div className="size-5 flex items-center justify-center rounded-full border border-dashed border-muted-foreground/50 bg-muted/20">
           <UnassignedLeadIcon className="size-3 text-muted-foreground" />
         </div>
       )}
@@ -130,22 +132,25 @@ export function KanbanLeadPicker({
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild>{trigger ?? defaultTrigger}</DropdownMenuTrigger>
+      <DropdownMenuTrigger asChild>
+        {trigger ?? defaultTrigger}
+      </DropdownMenuTrigger>
 
       <DropdownMenuContent
+        {...searchField.contentProps}
         align={align}
-        className="w-56 p-1.5 rounded-xl border border-border bg-popover text-popover-foreground shadow-xl"
+        className="w-56 p-1.5 shadow-xl rounded-xl border border-border bg-popover text-popover-foreground"
       >
         {/* Search Input Box */}
-        <div className="relative flex items-center px-2 py-1 border-b border-border/60 mb-1">
-          <Search className="size-3.5 text-muted-foreground shrink-0 mr-2" />
+        <div className="px-2 py-1 mb-1 relative flex items-center border-b border-border/60">
+          <Search className="size-3.5 mr-2 shrink-0 text-muted-foreground" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search users..."
-            className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none border-none p-0 focus:ring-0"
-            autoFocus
+            className="text-xs p-0 w-full border-none bg-transparent text-foreground outline-none placeholder:text-muted-foreground focus:ring-0"
+            {...searchField.inputProps}
           />
           {query && (
             <button
@@ -163,31 +168,31 @@ export function KanbanLeadPicker({
           <DropdownMenuItem
             onSelect={handleClear}
             className={cn(
-              'flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer font-medium transition-colors',
+              'px-2.5 py-1.5 text-xs font-medium flex cursor-pointer items-center justify-between rounded-lg transition-colors',
               activeIds.length === 0
                 ? 'bg-accent text-foreground'
                 : 'text-foreground/85 hover:bg-accent/60',
             )}
           >
-            <div className="flex items-center gap-2.5 min-w-0">
+            <div className="gap-2.5 min-w-0 flex items-center">
               <UnassignedLeadIcon className="size-4" />
               <span className="truncate">No lead</span>
             </div>
 
-            <div className="flex items-center gap-2 text-muted-foreground/80">
+            <div className="gap-2 flex items-center text-muted-foreground/80">
               {activeIds.length === 0 && (
-                <Check className="size-3.5 text-foreground shrink-0 stroke-[2.5]" />
+                <Check className="size-3.5 shrink-0 stroke-[2.5] text-foreground" />
               )}
-              <span className="font-mono text-[11px] tabular-nums text-muted-foreground/70">
+              <span className="font-mono text-[11px] text-muted-foreground/70 tabular-nums">
                 0
               </span>
             </div>
           </DropdownMenuItem>
 
           {/* Members list */}
-          <div className="max-h-48 overflow-y-auto space-y-0.5">
+          <div className="max-h-48 space-y-0.5 overflow-y-auto">
             {filteredMembers.length === 0 ? (
-              <div className="px-3 py-3 text-center text-xs text-muted-foreground">
+              <div className="px-3 py-3 text-xs text-center text-muted-foreground">
                 No users found
               </div>
             ) : (
@@ -203,13 +208,13 @@ export function KanbanLeadPicker({
                       toggleMember(member.id);
                     }}
                     className={cn(
-                      'flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer transition-colors duration-150',
+                      'px-3 py-2 text-xs flex cursor-pointer items-center justify-between rounded-xl transition-colors duration-150',
                       isSelected
                         ? 'bg-accent/40 text-foreground hover:bg-accent/70'
                         : 'text-foreground/90 hover:bg-accent/60',
                     )}
                   >
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="gap-3 min-w-0 flex flex-1 items-center">
                       <UserAvatar
                         name={member.displayName ?? member.name}
                         seed={member.id}
@@ -218,17 +223,17 @@ export function KanbanLeadPicker({
                         statusEmoji={member.statusEmoji}
                         statusText={member.statusText}
                         size="sm"
-                        className="size-7 text-[10px] font-bold shrink-0 rounded-full"
+                        className="size-7 font-bold shrink-0 rounded-full text-[10px]"
                       />
                       <div className="min-w-0 flex-1">
-                        <span className="block truncate text-xs font-semibold text-foreground leading-tight">
+                        <span className="text-xs font-semibold leading-tight block truncate text-foreground">
                           {member.displayName ?? member.name}
                         </span>
                       </div>
                     </div>
 
                     {isSelected && (
-                      <Check className="size-4 text-foreground shrink-0 stroke-[2.5] ml-2" />
+                      <Check className="size-4 ml-2 shrink-0 stroke-[2.5] text-foreground" />
                     )}
                   </DropdownMenuItem>
                 );
@@ -241,15 +246,15 @@ export function KanbanLeadPicker({
         {onInvite && (
           <>
             <DropdownMenuSeparator className="my-1.5" />
-            <div className="px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+            <div className="px-2.5 py-1 font-medium text-[11px] text-muted-foreground">
               New user
             </div>
 
             <DropdownMenuItem
               onSelect={() => onInvite?.()}
-              className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-foreground/85 hover:bg-accent/60 font-medium"
+              className="gap-2.5 px-2.5 py-1.5 text-xs font-medium flex cursor-pointer items-center rounded-lg text-foreground/85 hover:bg-accent/60"
             >
-              <Send className="size-3.5 text-muted-foreground shrink-0" />
+              <Send className="size-3.5 shrink-0 text-muted-foreground" />
               <span>Invite and add...</span>
             </DropdownMenuItem>
           </>

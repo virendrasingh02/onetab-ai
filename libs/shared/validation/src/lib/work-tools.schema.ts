@@ -359,6 +359,8 @@ export const createTaskCommentSchema = z.object({
     .max(5000, 'Comment must be at most 5000 characters'),
 });
 
+export const updateTaskCommentSchema = createTaskCommentSchema;
+
 // --- custom fields ----------------------------------------------------------
 
 export const createCustomFieldSchema = z.object({
@@ -567,6 +569,7 @@ export type CreateWorkItemRelationInput = z.infer<
   typeof createWorkItemRelationSchema
 >;
 export type CreateTaskCommentInput = z.infer<typeof createTaskCommentSchema>;
+export type UpdateTaskCommentInput = z.infer<typeof updateTaskCommentSchema>;
 export type CreateCustomFieldInput = z.infer<typeof createCustomFieldSchema>;
 export type CreateSavedViewInput = z.infer<typeof createSavedViewSchema>;
 export type UpdateSavedViewInput = z.infer<typeof updateSavedViewSchema>;

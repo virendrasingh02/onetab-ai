@@ -274,6 +274,21 @@ export class RealtimeDomainBridgeListener {
     });
   }
 
+  /* Rides `kanban.updated`, which already refetches everything under a task. */
+  @OnEvent(AppEvent.TaskCommentChanged)
+  async onTaskCommentChanged(e: {
+    workspaceId: string;
+    actorId: string | null;
+    taskId: string;
+    commentId: string;
+  }): Promise<void> {
+    await this.gateway.broadcastToWorkspace(e.workspaceId, {
+      type: 'kanban.updated',
+      actorId: e.actorId,
+      payload: e,
+    });
+  }
+
   @OnEvent(AppEvent.ProjectCreated)
   async onProjectCreated(e: {
     workspaceId: string;
@@ -477,7 +492,10 @@ export class RealtimeDomainBridgeListener {
     // one pending delivery instead of notifying twice.
     const notificationId = (e.notification as { id?: unknown } | null)?.id;
     await this.gateway.deliverToUser(e.recipientId, {
-      id: typeof notificationId === 'string' ? `ntf_${notificationId}` : undefined,
+      id:
+        typeof notificationId === 'string'
+          ? `ntf_${notificationId}`
+          : undefined,
       type: 'notification.created',
       workspaceId: e.workspaceId,
       payload: e,
