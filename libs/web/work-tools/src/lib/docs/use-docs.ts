@@ -76,6 +76,10 @@ function toDocItem(
       doc.parentId && doc.parentId !== companyId ? doc.parentId : undefined,
     blocks,
     comments,
+    authorId: doc.author?.id,
+    authorName: doc.author?.displayName || doc.author?.name,
+    projectId: meta.projectId,
+    projectName: meta.projectName,
   };
 }
 
@@ -130,6 +134,46 @@ function starterBlocks(title: string, template?: string): NotionBlock[] {
     ];
   }
 
+  if (template === 'spec') {
+    return [
+      { id: blockId(), type: 'h1', content: 'Technical Architecture Specification' },
+      {
+        id: blockId(),
+        type: 'callout',
+        variant: 'tip',
+        icon: '⚙️',
+        content: 'System architecture, API contracts, schema models, and security requirements.',
+      },
+      { id: blockId(), type: 'h2', content: 'Architecture Overview & Data Flow' },
+      { id: blockId(), type: 'paragraph', content: 'Describe component interactions and sequence diagrams.' },
+      { id: blockId(), type: 'h2', content: 'API Endpoint Specifications' },
+      {
+        id: blockId(),
+        type: 'table',
+        content: 'API Endpoints',
+        headers: ['Method', 'Endpoint', 'Auth', 'Description'],
+        rows: [['POST', '/v1/resource', 'Bearer', 'Creates a new entity']],
+      },
+      { id: blockId(), type: 'h2', content: 'Database Migrations & Data Model' },
+      { id: blockId(), type: 'code', language: 'typescript', content: '// Schema models & interface definitions' },
+    ];
+  }
+
+  if (template === 'checklist') {
+    return [
+      { id: blockId(), type: 'h1', content: 'Launch Readiness & Release Checklist' },
+      { id: blockId(), type: 'h2', content: 'Pre-Deployment Verification' },
+      { id: blockId(), type: 'checklist', checked: false, content: 'Run complete test suite and E2E verification' },
+      { id: blockId(), type: 'checklist', checked: false, content: 'Verify database migration dry-run and indexes' },
+      { id: blockId(), type: 'checklist', checked: false, content: 'Update environment variables in production vault' },
+      { id: blockId(), type: 'h2', content: 'Deployment Execution' },
+      { id: blockId(), type: 'checklist', checked: false, content: 'Deploy API service and verify health endpoints' },
+      { id: blockId(), type: 'checklist', checked: false, content: 'Deploy web client and smoke test auth flows' },
+      { id: blockId(), type: 'h2', content: 'Post-Launch Monitoring' },
+      { id: blockId(), type: 'checklist', checked: false, content: 'Monitor error telemetry and latency graphs' },
+    ];
+  }
+
   return [
     { id: blockId(), type: 'h1', content: title },
     {
@@ -150,11 +194,21 @@ const TEMPLATE_META: Record<string, Pick<DocMeta, 'icon' | 'cover'>> = {
     icon: '📊',
     cover: 'linear-gradient(135deg, #10b981 0%, #06b6d4 100%)',
   },
+  spec: {
+    icon: '⚙️',
+    cover: 'linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)',
+  },
+  checklist: {
+    icon: '✅',
+    cover: 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)',
+  },
 };
 
 const TEMPLATE_TITLES: Record<string, string> = {
   prd: 'Product Requirements Document',
   meeting: 'Sprint Sync Notes',
+  spec: 'Technical Architecture Spec',
+  checklist: 'Launch Readiness Checklist',
 };
 
 /* ------------------------------------------------------------------ hook --- */
@@ -175,9 +229,12 @@ export interface DocsWorkspace {
     category?: DocCategory,
     template?: string,
     parentId?: string,
+    projectId?: string,
+    projectName?: string,
   ) => Promise<string | undefined>;
   duplicateDoc: (docId: string) => Promise<string | undefined>;
-  deleteDoc: (docId: string) => void;
+  /** Resolves to whether the server deleted it; Members may not. */
+  deleteDoc: (docId: string) => Promise<boolean>;
   moveDocToCompany: (docId: string, targetCompanyId: string) => void;
 
   updateDocTitle: (docId: string, title: string) => void;
@@ -185,6 +242,12 @@ export interface DocsWorkspace {
   updateDocStatus: (docId: string, status: DocStatus) => void;
   updateDocCover: (docId: string, cover: string) => void;
   updateDocIcon: (docId: string, icon: string, iconColor?: string) => void;
+  /** Resolves to whether the server accepted the change. */
+  updateDocProject: (
+    docId: string,
+    projectId?: string,
+    projectName?: string,
+  ) => Promise<boolean>;
   toggleFavorite: (docId: string) => void;
   /** Resolves to whether the server accepted the blocks. */
   updateDocBlocks: (docId: string, blocks: NotionBlock[]) => Promise<boolean>;
@@ -289,11 +352,10 @@ export function useDocsWorkspace(
   );
 
   const patchMeta = useCallback(
-    (docId: string, meta: Partial<DocMeta>) => {
+    (docId: string, meta: Partial<DocMeta>) =>
       patchContent(docId, (current) => ({
         meta: { ...current.meta, ...meta },
-      }));
-    },
+      })),
     [patchContent],
   );
 
@@ -304,6 +366,8 @@ export function useDocsWorkspace(
       category?: DocCategory,
       template?: string,
       parentId?: string,
+      projectId?: string,
+      projectName?: string,
     ) => {
       if (!workspaceId) return undefined;
 
@@ -339,6 +403,7 @@ export function useDocsWorkspace(
             status: 'Draft',
             icon: TEMPLATE_META[template ?? '']?.icon ?? '📝',
             cover: TEMPLATE_META[template ?? '']?.cover ?? DEFAULT_COVER,
+            ...(projectId ? { projectId, projectName } : {}),
           },
           blocks: starterBlocks(name, template),
           comments: [],
@@ -467,7 +532,11 @@ export function useDocsWorkspace(
 
     createDoc,
     duplicateDoc,
-    deleteDoc: (docId) => mutations.remove.mutate(docId),
+    deleteDoc: (docId) =>
+      mutations.remove.mutateAsync(docId).then(
+        () => true,
+        () => false,
+      ),
     moveDocToCompany: (docId, targetCompanyId) =>
       mutations.update.mutate({
         docId,
@@ -479,14 +548,23 @@ export function useDocsWorkspace(
         mutations.update.mutate({ docId, input: { title: title.trim() } });
       }
     },
-    updateDocCategory: (docId, category) => patchMeta(docId, { category }),
-    updateDocStatus: (docId, status) => patchMeta(docId, { status }),
-    updateDocCover: (docId, cover) => patchMeta(docId, { cover }),
-    updateDocIcon: (docId, icon, iconColor) =>
-      patchMeta(docId, { icon, iconColor }),
+    updateDocCategory: (docId, category) => {
+      void patchMeta(docId, { category });
+    },
+    updateDocStatus: (docId, status) => {
+      void patchMeta(docId, { status });
+    },
+    updateDocCover: (docId, cover) => {
+      void patchMeta(docId, { cover });
+    },
+    updateDocIcon: (docId, icon, iconColor) => {
+      void patchMeta(docId, { icon, iconColor });
+    },
+    updateDocProject: (docId, projectId, projectName) =>
+      patchMeta(docId, { projectId, projectName }),
     toggleFavorite: (docId) => {
       const entry = decoded.find((candidate) => candidate.doc.id === docId);
-      patchMeta(docId, { favorite: !entry?.meta.favorite });
+      void patchMeta(docId, { favorite: !entry?.meta.favorite });
     },
     updateDocBlocks: (docId, blocks) => patchContent(docId, () => ({ blocks })),
     addComment: (docId, author, text) =>

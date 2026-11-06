@@ -1456,11 +1456,15 @@ model Notification {
   /// The subject, for dedup / bulk mark-as-read by resource.
   resourceType String?
   resourceId   String?
+  /// The Matrix event a chat row last announced. Unique per recipient, so the
+  /// server and every open client can report one message and only one wins.
+  sourceEventId String?
   readAt       DateTime?
   createdAt    DateTime         @default(now())
   recipient    User             @relation(fields: [recipientId], references: [id], onDelete: Cascade)
   workspace    Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
+  @@unique([recipientId, sourceEventId])
   @@index([recipientId, readAt])
   @@index([recipientId, createdAt])
   @@index([workspaceId, recipientId])
@@ -3516,6 +3520,7 @@ enum NotificationKind {
   CALL_SUMMARY_READY
   CALL_ACTION_ITEM_ASSIGNED
   MESSAGE_REMINDER
+  CHAT_MESSAGE
   SYSTEM
   /// An AI agent paused for someone to approve an action.
   AI_APPROVAL_REQUIRED

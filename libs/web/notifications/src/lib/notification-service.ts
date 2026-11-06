@@ -21,17 +21,19 @@ export interface NotificationPayload {
   priority?: 'low' | 'normal' | 'high' | 'critical';
   route?: string;
   /**
-   * Opens `route` from a banner or browser notification. Without it the banner
-   * has no Open button. The desktop app routes through `route` itself.
+   * Opens `route` when a browser notification is clicked, and from the in-app
+   * fallback. The desktop app routes through `route` itself.
    */
   onActivate?: () => void;
   /**
    * Notifications sharing a tag replace each other instead of stacking, so a
-   * burst in one conversation stays one banner.
+   * burst in one conversation stays one notification.
    */
   tag?: string;
-  /** Skip the OS notification and taskbar flash: the user is in the app. */
-  silent?: boolean;
+  /** Skip the taskbar flash: the user is already in the app. */
+  skipTaskbarFlash?: boolean;
+  /** No toast if native is refused: the caller reports that its own way. */
+  skipInAppFallback?: boolean;
   /**
    * Ask for browser notification permission if it was never decided. Only for
    * a direct user action: browsers penalise prompts nobody clicked for.
@@ -60,7 +62,7 @@ function resolveSoundEvent(
   // the one class of message that must cut through.
   if (payload.priority === 'critical') return 'priority';
   if (payload.type === 'success') return 'success';
-  // Other errors and warnings lean on the toast, not a chime.
+  // Other errors and warnings get no chime.
   if (payload.type === 'error' || payload.type === 'warning') return null;
   if (payload.priority === 'high') return 'priority';
   return 'message';
@@ -99,7 +101,10 @@ class NotificationService {
   }
 
   /**
-   * Dispatches a notification respecting all central display preferences.
+   * Raises a native OS notification, respecting all central display
+   * preferences. An in-app toast appears only if the browser or OS refuses it,
+   * so a blocked user still sees the alert; `displayed` is false then, because
+   * the native one did not show.
    */
   async notify(payload: NotificationPayload): Promise<NotificationResult> {
     const prefs = this.getPreferences();
@@ -129,7 +134,11 @@ class NotificationService {
 
     // 3. Taskbar Flashing (Windows desktop aware with rate limiting)
     let taskbarFlashed = false;
-    if (prefs.flashTaskbar && !payload.silent && supportsTaskbarFlash()) {
+    if (
+      prefs.flashTaskbar &&
+      !payload.skipTaskbarFlash &&
+      supportsTaskbarFlash()
+    ) {
       const now = Date.now();
       // Rate-limit taskbar flashing to at most once every 3 seconds
       if (now - this.lastFlashTime > 3000) {
@@ -139,56 +148,32 @@ class NotificationService {
       }
     }
 
-    // 4. In-App Toast
-    const duration =
-      prefs.dismissDuration === null ? Infinity : prefs.dismissDuration;
-    const toastOptions = {
-      description: effectiveBody,
-      duration,
-      ...(payload.tag ? { id: payload.tag } : {}),
-      ...(payload.onActivate
-        ? { action: { label: 'Open', onClick: payload.onActivate } }
-        : {}),
-    };
-
-    if (payload.type === 'success') {
-      toast.success(effectiveTitle, toastOptions);
-    } else if (payload.type === 'error') {
-      toast.error(effectiveTitle, toastOptions);
-    } else if (payload.type === 'warning') {
-      toast.warning(effectiveTitle, toastOptions);
-    } else {
-      toast(effectiveTitle, toastOptions);
-    }
-
     // Only in the foreground: a hidden tab's `AudioContext` is suspended, so
     // there the OS notification carries the sound instead.
     const inForeground =
       typeof document === 'undefined' || document.visibilityState === 'visible';
     const soundEvent = inForeground ? resolveSoundEvent(payload) : null;
 
-    // 5. Native OS / Desktop Notification
-    if (!payload.silent) {
-      void sendOsNotification(
-        {
-          title: effectiveTitle,
-          body: effectiveBody,
-          id: payload.id,
-          tag: payload.tag,
-          icon:
-            payload.icon ?? payload.workspaceAvatarUrl ?? payload.workspaceIcon,
-          route: payload.route,
-          // The in-app cue below plays, so the system sound would double it.
-          silent: soundEvent !== null,
-        },
-        {
-          onClick: payload.onActivate,
-          prompt: payload.promptForPermission ?? false,
-        },
-      );
-    }
+    // 4. Native OS / Desktop Notification
+    const delivery = sendOsNotification(
+      {
+        title: effectiveTitle,
+        body: effectiveBody,
+        id: payload.id,
+        tag: payload.tag,
+        icon:
+          payload.icon ?? payload.workspaceAvatarUrl ?? payload.workspaceIcon,
+        route: payload.route,
+        // The in-app cue below plays, so the system sound would double it.
+        silent: soundEvent !== null,
+      },
+      {
+        onClick: payload.onActivate,
+        prompt: payload.promptForPermission ?? false,
+      },
+    ).catch(() => false);
 
-    // 6. Calm in-app audio cue. Audio never blocks or breaks the notification —
+    // 5. Calm in-app audio cue. Audio never blocks or breaks the notification —
     // the service swallows its own failures.
     if (soundEvent) {
       notificationSound.play(soundEvent, {
@@ -197,12 +182,39 @@ class NotificationService {
       });
     }
 
+    const displayed = await delivery;
+    if (!displayed && !payload.skipInAppFallback) {
+      this.showInAppFallback(payload, effectiveTitle, effectiveBody, prefs);
+    }
+
     return {
-      displayed: true,
-      suppressed: false,
+      displayed,
+      suppressed: !displayed,
+      ...(displayed ? {} : { suppressionReason: 'permissions_denied' as const }),
       previewHidden,
       taskbarFlashed,
     };
+  }
+
+  private showInAppFallback(
+    payload: NotificationPayload,
+    title: string,
+    body: string,
+    prefs: NotificationDisplayPreferences,
+  ): void {
+    const options = {
+      description: body,
+      duration: prefs.dismissDuration ?? Infinity,
+      ...(payload.tag ? { id: payload.tag } : {}),
+      ...(payload.onActivate
+        ? { action: { label: 'Open', onClick: payload.onActivate } }
+        : {}),
+    };
+
+    if (payload.type === 'success') toast.success(title, options);
+    else if (payload.type === 'error') toast.error(title, options);
+    else if (payload.type === 'warning') toast.warning(title, options);
+    else toast(title, options);
   }
 }
 

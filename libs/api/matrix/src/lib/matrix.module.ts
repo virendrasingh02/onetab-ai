@@ -15,6 +15,7 @@ import { MatrixAuthService } from './matrix-auth.service.js';
 import { MatrixBotMessagingService } from './matrix-bot-messaging.service.js';
 import { MatrixInboundRouterService } from './matrix-inbound-router.service.js';
 import { MatrixMembershipListener } from './matrix-membership.listener.js';
+import { MatrixOfflineChatIntakeService } from './matrix-offline-chat-intake.service.js';
 import { MatrixPolledIntakeService } from './matrix-polled-intake.service.js';
 import { AiEntityMatrixListener } from './ai-entity-matrix.listener.js';
 import { MatrixReconcilerService } from './matrix-reconciler.service.js';
@@ -59,6 +60,7 @@ import { SystemEventsListener } from './system-events.listener.js';
     MatrixInboundRouterService,
     MatrixMembershipListener,
     MatrixPolledIntakeService,
+    MatrixOfflineChatIntakeService,
     MatrixReconcilerService,
     MatrixSpaceService,
     MatrixSyncService,

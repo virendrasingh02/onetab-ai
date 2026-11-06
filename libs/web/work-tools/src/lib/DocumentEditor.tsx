@@ -5,6 +5,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
   EmptyState,
   Page,
@@ -12,6 +14,7 @@ import {
   SkeletonList,
   Tabs,
   TabsTrigger,
+  toast,
   usePromptDialog,
   PageBar,
   PageTabBar,
@@ -20,21 +23,27 @@ import { useCurrentUser } from '@org/auth';
 import { FiledFilesSection } from '@org/web-upload';
 import {
   CheckCircle,
+  ChevronDown,
+  Download,
   FileText,
   FolderPlus,
+  LayoutGrid,
   Loader2,
   MoreHorizontal,
   Plus,
   TriangleAlert,
+  User,
   Zap,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { useCurrentWorkspace } from './use-work-tools.js';
+import { useCurrentWorkspace, useProjects } from './use-work-tools.js';
+import { DocGallery } from './docs/DocGallery.js';
 import { DocHeader } from './docs/DocHeader.js';
 import { DocSidebar } from './docs/DocSidebar.js';
 import { DocToolsDrawer } from './docs/DocToolsDrawer.js';
-import type { NotionBlock } from './docs/doc-types.js';
+import { downloadDocAsMarkdown } from './docs/doc-export.js';
+import type { DocItem, NotionBlock } from './docs/doc-types.js';
 import { NotionBlockEditor } from './docs/NotionBlockEditor.js';
 import { useDocsWorkspace } from './docs/use-docs.js';
 
@@ -49,7 +58,7 @@ import { useDocsWorkspace } from './docs/use-docs.js';
 const SAVE_DEBOUNCE_MS = 800;
 
 interface DocTemplateItem {
-  id: 'prd' | 'meeting';
+  id: 'prd' | 'meeting' | 'spec' | 'checklist';
   title: string;
   category: string;
   description: string;
@@ -73,12 +82,34 @@ const DOC_TEMPLATES: DocTemplateItem[] = [
       'Meeting recap template with agenda, discussion points, decisions & action items.',
     icon: '📝',
   },
+  {
+    id: 'spec',
+    title: 'Technical Architecture Spec',
+    category: 'Engineering & Architecture',
+    description:
+      'Technical design specification with component overview, endpoints, and schema models.',
+    icon: '⚙️',
+  },
+  {
+    id: 'checklist',
+    title: 'Launch Readiness Checklist',
+    category: 'Release & Operations',
+    description:
+      'Production deployment verification, smoke tests, and post-launch monitoring checklist.',
+    icon: '✅',
+  },
 ];
 
-type DocTab = 'all' | 'templates' | 'mine';
+const DOC_TABS = ['editor', 'gallery', 'templates', 'mine'] as const;
+type DocTab = (typeof DOC_TABS)[number];
+
+/** Anything else — including the retired `?tab=all` — opens the editor. */
+function parseDocTab(value: string | null): DocTab {
+  return DOC_TABS.find((candidate) => candidate === value) ?? 'editor';
+}
 
 export function DocumentEditor() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { workspaceSlug, docId: routeDocId } = useParams<{
     workspaceSlug: string;
@@ -86,20 +117,25 @@ export function DocumentEditor() {
   }>();
   const { workspaceId } = useCurrentWorkspace();
   const currentUser = useCurrentUser();
+  const projectsQuery = useProjects(workspaceId);
+  const projects = projectsQuery.data ?? [];
   const docsWorkspace = useDocsWorkspace(workspaceId);
   /* Teamspace create/rename/delete used `prompt()` and `confirm()`. Those are
      unthemed, block the main thread, and Electron dropped `prompt()` entirely —
      in the desktop build the rename simply did nothing. */
   const prompts = usePromptDialog();
 
-  const urlTab = searchParams.get('tab') as DocTab | null;
-  const [tab, setTab] = useState<DocTab>(urlTab ?? 'all');
-
-  useEffect(() => {
-    if (urlTab) {
-      setTab(urlTab);
-    }
-  }, [urlTab]);
+  // The URL owns the tab, so reload, Back and shared links all land on it.
+  const tab = parseDocTab(searchParams.get('tab'));
+  const setTab = useCallback(
+    (next: DocTab) =>
+      setSearchParams((current) => {
+        const params = new URLSearchParams(current);
+        params.set('tab', next);
+        return params;
+      }),
+    [setSearchParams],
+  );
 
   const {
     companies,
@@ -115,6 +151,7 @@ export function DocumentEditor() {
     updateDocStatus,
     updateDocCover,
     updateDocIcon,
+    updateDocProject,
     toggleFavorite,
     updateDocBlocks,
     addComment,
@@ -133,14 +170,13 @@ export function DocumentEditor() {
   );
 
   const openDoc = useCallback(
-    (docId: string) => navigate(`/w/${workspaceSlug}/docs/${docId}?tab=all`),
+    (docId: string) => navigate(`/w/${workspaceSlug}/docs/${docId}?tab=editor`),
     [navigate, workspaceSlug],
   );
 
   const handleNewDoc = useCallback(() => {
     void createDoc().then((id) => {
       if (id) openDoc(id);
-      setTab('all');
     });
   }, [createDoc, openDoc]);
 
@@ -156,17 +192,16 @@ export function DocumentEditor() {
       .then((name) => {
         if (name) {
           void addCompany(name);
-          setTab('all');
+          setTab('editor');
         }
       });
-  }, [addCompany, prompts]);
+  }, [addCompany, prompts, setTab]);
 
   const handleUseTemplate = useCallback(
-    (templateKey: 'prd' | 'meeting') => {
+    (templateKey: DocTemplateItem['id']) => {
       void createDoc(undefined, undefined, undefined, templateKey).then(
         (id) => {
           if (id) openDoc(id);
-          setTab('all');
         },
       );
     },
@@ -186,7 +221,6 @@ export function DocumentEditor() {
     handledNewDoc.current = true;
     void createDoc().then((id) => {
       if (id) openDoc(id);
-      setTab('all');
     });
   }, [isLoading, createDoc, openDoc, searchParams, workspaceId]);
 
@@ -270,6 +304,91 @@ export function DocumentEditor() {
 
   const blocks = pendingBlocks ?? currentDoc?.blocks ?? [];
 
+  /* ------------------------------------------------------------ deleting --- */
+
+  /**
+   * Moves off a document that is being deleted. Its unsaved edit goes with it:
+   * flushing would PATCH a deleted document and flag the next one "Not saved".
+   */
+  const leaveDeletedDoc = useCallback(
+    (remaining: DocItem[]) => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+      pending.current = null;
+
+      if (tab === 'editor' && remaining[0]) {
+        openDoc(remaining[0].id);
+      } else {
+        // Deleting from a gallery stays on that gallery.
+        const nextTab = tab === 'editor' ? 'gallery' : tab;
+        navigate(`/w/${workspaceSlug}/docs?tab=${nextTab}`);
+      }
+    },
+    [navigate, openDoc, tab, workspaceSlug],
+  );
+
+  /** For callers that have already confirmed, as the sidebar's menus do. */
+  const removeDoc = useCallback(
+    (docId: string) => {
+      // A refusal is already toasted by the mutation cache; just stay put.
+      void deleteDoc(docId).then((deleted) => {
+        if (deleted && currentDoc?.id === docId) {
+          leaveDeletedDoc(docs.filter((doc) => doc.id !== docId));
+        }
+      });
+    },
+    [currentDoc?.id, deleteDoc, docs, leaveDeletedDoc],
+  );
+
+  const confirmRemoveDoc = useCallback(
+    (docId: string) => {
+      void prompts
+        .confirmAction({
+          title: 'Delete this document?',
+          description:
+            'This document will be deleted from the workspace. This cannot be undone.',
+          confirmLabel: 'Delete document',
+          destructive: true,
+        })
+        .then((confirmed) => {
+          if (confirmed) removeDoc(docId);
+        });
+    },
+    [prompts, removeDoc],
+  );
+
+  const removeCompany = useCallback(
+    (companyId: string) => {
+      if (companies.length <= 1) return;
+      const wasOpen = currentDoc?.companyId === companyId;
+
+      deleteCompany(companyId).then(
+        () => {
+          if (wasOpen) {
+            leaveDeletedDoc(docs.filter((doc) => doc.companyId !== companyId));
+          }
+        },
+        () => toast.error('Could not delete the folder'),
+      );
+    },
+    [
+      companies.length,
+      currentDoc?.companyId,
+      deleteCompany,
+      docs,
+      leaveDeletedDoc,
+    ],
+  );
+
+  const duplicateAndOpen = useCallback(
+    (docId: string) => {
+      void duplicateDoc(docId).then((newId) => {
+        if (newId) openDoc(newId);
+      });
+    },
+    [duplicateDoc, openDoc],
+  );
+
   /* --------------------------------------------------------------- views --- */
 
   if (!workspaceId) {
@@ -285,13 +404,62 @@ export function DocumentEditor() {
   }
 
   return (
-    <div className="min-h-0 flex flex-1 flex-col">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-background text-foreground">
       <PageBar
         icon={<FileText />}
         title="Docs"
         hasTabs
         meta={
-          saveFailed ? (
+          <>
+            {docs.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer px-2 py-0.5 rounded-md hover:bg-muted border border-border/50 transition-colors"
+                    title="Jump to document"
+                    aria-label="Jump to document"
+                  >
+                    <span className="truncate max-w-[150px] font-medium">
+                      {currentDoc?.title || 'Untitled Document'}
+                    </span>
+                    <ChevronDown className="size-3 text-muted-foreground" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="w-64 max-h-80 overflow-y-auto"
+                >
+                  <DropdownMenuLabel className="text-[11px]">
+                    Jump to document
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {docs.map((d) => (
+                    <DropdownMenuItem
+                      key={d.id}
+                      onClick={() => openDoc(d.id)}
+                      className="text-xs flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="shrink-0">{d.icon || '📝'}</span>
+                        <span className="truncate">
+                          {d.title || 'Untitled Document'}
+                        </span>
+                      </div>
+                      {d.id === currentDoc?.id && (
+                        <Badge
+                          variant="primary"
+                          className="text-[9px] px-1 py-0 h-4"
+                        >
+                          active
+                        </Badge>
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            {saveFailed ? (
             <Badge
               variant="destructive"
               className="gap-1 px-1.5 py-0 h-4.5 text-[11px]"
@@ -314,7 +482,8 @@ export function DocumentEditor() {
               <CheckCircle className="size-3" />
               Saved
             </Badge>
-          ) : null
+          ) : null}
+          </>
         }
         actions={
           <>
@@ -334,7 +503,7 @@ export function DocumentEditor() {
             <Button
               onClick={handleNewDoc}
               size="sm"
-              className="h-7 text-xs gap-1"
+              className="h-7 text-xs gap-1 font-semibold"
               leadingIcon={<Plus className="size-3.5" />}
             >
               New
@@ -351,7 +520,7 @@ export function DocumentEditor() {
                   <MoreHorizontal className="size-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuContent align="end" className="w-52">
                 <DropdownMenuItem
                   onClick={handleNewDoc}
                   className="gap-2 text-xs"
@@ -374,11 +543,28 @@ export function DocumentEditor() {
                   <FileText className="size-3.5 text-muted-foreground" />
                   <span>Save changes</span>
                 </DropdownMenuItem>
+                {currentDoc && (
+                  <DropdownMenuItem
+                    onClick={() => downloadDocAsMarkdown(currentDoc)}
+                    className="gap-2 text-xs"
+                  >
+                    <Download className="size-3.5 text-muted-foreground" />
+                    <span>Export markdown</span>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setTab('gallery')}
+                  className="gap-2 text-xs"
+                >
+                  <LayoutGrid className="size-3.5 text-muted-foreground" />
+                  <span>View in gallery</span>
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => setTab('templates')}
                   className="gap-2 text-xs"
                 >
-                  <Zap className="size-3.5 text-muted-foreground" />
+                  <Zap className="size-3.5 text-accent-amber" />
                   <span>Browse templates</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -389,23 +575,38 @@ export function DocumentEditor() {
 
       <Tabs value={tab} onValueChange={(next) => setTab(next as DocTab)}>
         <PageTabBar>
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="templates">Templates</TabsTrigger>
-          <TabsTrigger value="mine">Managed by you</TabsTrigger>
+          <TabsTrigger value="editor" icon={<FileText className="size-4" />}>
+            Editor
+          </TabsTrigger>
+          <TabsTrigger value="gallery" icon={<LayoutGrid className="size-4" />}>
+            Gallery
+          </TabsTrigger>
+          <TabsTrigger value="templates" icon={<Zap className="size-4" />}>
+            Templates
+          </TabsTrigger>
+          <TabsTrigger value="mine" icon={<User className="size-4" />}>
+            Managed by you
+          </TabsTrigger>
         </PageTabBar>
       </Tabs>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <Page width="full">
-          {tab === 'templates' ? (
-            <div className="space-y-4">
-              <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                Document Templates ({DOC_TEMPLATES.length})
-              </h2>
+        {tab === 'templates' ? (
+          <Page width="full">
+            <div className="space-y-4 py-2">
+              <div>
+                <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                  Document Templates ({DOC_TEMPLATES.length})
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Start with structured templates designed for product, architecture, and engineering workflows.
+                </p>
+              </div>
+
               <ul className="gap-4 md:grid-cols-2 grid grid-cols-1">
                 {DOC_TEMPLATES.map((tmpl) => (
                   <li key={tmpl.id}>
-                    <Card className="p-5 h-full justify-between transition-colors duration-(--duration-fast) hover:border-border-strong">
+                    <Card className="p-5 h-full justify-between transition-colors duration-(--duration-fast) hover:border-border-strong bg-surface">
                       <div>
                         <div className="mb-3 gap-2 flex items-center justify-between">
                           <Badge variant="neutral">{tmpl.category}</Badge>
@@ -424,7 +625,7 @@ export function DocumentEditor() {
                       <Button
                         variant="primary"
                         size="sm"
-                        className="w-full"
+                        className="w-full font-semibold"
                         onClick={() => handleUseTemplate(tmpl.id)}
                         leadingIcon={
                           <Zap className="size-3.5 text-accent-amber" />
@@ -437,17 +638,40 @@ export function DocumentEditor() {
                 ))}
               </ul>
             </div>
-          ) : isError ? (
+          </Page>
+        ) : isError ? (
+          <div className="p-8">
             <EmptyState
               icon={<TriangleAlert />}
               title="Could not load documents"
               description="The document tree could not be read from the server. Check your connection and try again."
             />
-          ) : isLoading ? (
+          </div>
+        ) : tab === 'gallery' || tab === 'mine' ? (
+          <DocGallery
+            key={tab}
+            docs={docs}
+            companies={companies}
+            projects={projects}
+            activeDocId={currentDoc?.id}
+            isLoading={isLoading}
+            // '' matches nobody, so a missing user shows none rather than all.
+            filterAuthorId={tab === 'mine' ? currentUser?.id ?? '' : undefined}
+            onSelectDoc={openDoc}
+            onNewDoc={handleNewDoc}
+            onBrowseTemplates={() => setTab('templates')}
+            onDuplicateDoc={duplicateAndOpen}
+            onDeleteDoc={confirmRemoveDoc}
+            onToggleFavorite={toggleFavorite}
+          />
+        ) : isLoading ? (
+          <div className="p-6">
             <Panel className="flex-1">
               <SkeletonList rows={8} />
             </Panel>
-          ) : companies.length === 0 ? (
+          </div>
+        ) : companies.length === 0 ? (
+          <div className="p-8">
             <EmptyState
               icon={<FileText />}
               title="No documents yet"
@@ -463,7 +687,9 @@ export function DocumentEditor() {
                 </div>
               }
             />
-          ) : (
+          </div>
+        ) : (
+          <div className="p-4 sm:p-6">
             <div className="gap-6 md:flex-row flex w-full flex-1 flex-col items-start">
               {/* Left Notion Docs Tree Sidebar */}
               <DocSidebar
@@ -497,20 +723,7 @@ export function DocumentEditor() {
                       if (name) renameCompany(companyId, name);
                     });
                 }}
-                onDeleteCompany={(companyId) => {
-                  if (companies.length <= 1) return;
-                  void prompts
-                    .confirmAction({
-                      title: 'Delete this folder?',
-                      description:
-                        'Every document inside it is deleted too. This cannot be undone.',
-                      confirmLabel: 'Delete folder',
-                      destructive: true,
-                    })
-                    .then((confirmed) => {
-                      if (confirmed) void deleteCompany(companyId);
-                    });
-                }}
+                onDeleteCompany={removeCompany}
                 onCreateDoc={(
                   companyId,
                   title,
@@ -535,7 +748,7 @@ export function DocumentEditor() {
                   });
                 }}
                 onToggleFavorite={toggleFavorite}
-                onDeleteDoc={deleteDoc}
+                onDeleteDoc={removeDoc}
                 onUpdateTitle={updateDocTitle}
               />
 
@@ -561,6 +774,11 @@ export function DocumentEditor() {
                         updateDocCategory(currentDoc.id, category)
                       }
                       onToggleFavorite={() => toggleFavorite(currentDoc.id)}
+                      onUpdateProject={(pId, pName) =>
+                        updateDocProject(currentDoc.id, pId, pName)
+                      }
+                      projects={projects}
+                      workspaceSlug={workspaceSlug}
                     />
 
                     <div className="p-4 md:p-6 flex-1 rounded-xl border border-border bg-surface shadow-xs">
@@ -605,10 +823,10 @@ export function DocumentEditor() {
                 )}
               </Panel>
             </div>
-          )}
+          </div>
+        )}
 
-          {prompts.dialog}
-        </Page>
+        {prompts.dialog}
       </div>
     </div>
   );

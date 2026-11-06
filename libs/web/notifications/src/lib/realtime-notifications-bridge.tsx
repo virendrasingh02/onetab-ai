@@ -17,20 +17,21 @@ export interface RealtimeNotificationsBridgeProps {
   /** Opens a notification's target when the user clicks it. */
   onNavigate?: (route: string) => void;
   /**
-   * A Matrix client is running, so `ChatNotificationBridge` shows channel
-   * mentions itself, with the sender and text this server event never carries.
-   * The event still updates the bell; it just must not raise a second banner.
+   * A Matrix client is running, so `ChatNotificationBridge` shows chat itself:
+   * channel mentions, with the sender and text this server event never carries,
+   * and the rows it reports to the API. The event still updates the bell; it
+   * just must not raise a second alert.
    */
   chatOwnsChannelMentions?: boolean;
 }
 
 /**
  * Turns the server's `notification.created` real-time events into an actual
- * toast + native desktop notification.
+ * native desktop notification.
  *
  * Until this existed, `notification.created` only invalidated the bell's unread
  * query (in `RealtimeProvider`) — an @mention or a task assignment from a
- * teammate produced no toast and no OS notification while you were working; the
+ * teammate produced no OS notification while you were working; the
  * badge just caught up on its next poll. This closes that gap using the
  * notification service that was already built for it (call-suppression, content
  * -preview privacy, taskbar flash, preference handling) — it was only ever
@@ -69,15 +70,16 @@ export function RealtimeNotificationsBridge({
 
         if (
           chatOwnsChannelMentions &&
-          notification.resourceType === 'channel' &&
-          /MENTION/i.test(notification.kind ?? '')
+          (notification.resourceType === 'chat-room' ||
+            (notification.resourceType === 'channel' &&
+              /MENTION/i.test(notification.kind ?? '')))
         ) {
           return;
         }
 
         // One browser, many tabs: every tab receives this over its own stream
         // (and again via the cross-tab broadcast). Let the first tab to see this
-        // id own the toast so the user does not get one per open tab.
+        // id own the notification so the user does not get one per open tab.
         if (event.id && !claimNotification(event.id)) return;
 
         const resolved = resolveDeepLinkRoute(notification.deepLink, {
@@ -137,10 +139,9 @@ export function RealtimeNotificationsBridge({
           route,
           onActivate: route ? () => navigate.current?.(route) : undefined,
           workspaceId: notification.workspaceId,
-          // Focused-but-elsewhere: a toast is enough, skip the OS-level
-          // notification (and its sound). Backgrounded: the OS notification is
-          // the whole point — it survives a hidden window.
-          silent: focused,
+          // The OS notification always shows; flashing a taskbar button for
+          // the window the user is already in would only be noise.
+          skipTaskbarFlash: focused,
         });
       },
     );

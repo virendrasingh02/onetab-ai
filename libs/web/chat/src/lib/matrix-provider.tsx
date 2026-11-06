@@ -1,4 +1,5 @@
 import { getAccessToken, matrixApi, safetyApi } from '@org/api-client';
+import { toPlatformUserId } from '@org/types';
 import { toast } from '@org/ui';
 import {
   createMatrixClient,
@@ -202,6 +203,11 @@ export function MatrixProvider({ children }: { children: ReactNode }) {
           // device-bound sessions cannot do end-to-end encryption either.
           enableEncryption: config.encryption,
           now: serverNow,
+          // The rule for opening a DM applies to receiving one too: the API
+          // refuses anyone you share no active workspace with.
+          directInviteGuard: async (inviter) => {
+            await matrixApi.peerIdentity(toPlatformUserId(inviter));
+          },
           mediaGuard: async (file) => {
             try {
               await safetyApi.checkMedia(file, file.name);

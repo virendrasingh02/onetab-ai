@@ -17,6 +17,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
   EmptyState,
   Input,
@@ -38,7 +40,10 @@ import { cn } from '@org/utils';
 import { useCurrentUser } from '@org/auth';
 import { workToolsApi } from '@org/api-client';
 import {
+  Check,
+  ChevronDown,
   Command,
+  FileText,
   Filter,
   FolderGit2,
   FolderKanban,
@@ -128,6 +133,7 @@ import { IntakeTriageView } from './views/IntakeTriageView.js';
 import { ProjectUpdatesView } from './views/ProjectUpdatesView.js';
 import { ProjectSettingsView } from './views/ProjectSettingsView.js';
 import { ProjectFilesView } from './asana/ProjectFilesView.js';
+import { ProjectDocsTab } from './views/ProjectDocsView.js';
 
 export type AsanaViewMode = ProjectViewMode;
 
@@ -290,6 +296,7 @@ const LINKABLE_VIEWS: readonly ProjectViewMode[] = [
   'cycles',
   'initiatives',
   'intake',
+  'docs',
 ];
 
 export function AsanaProjectManager() {
@@ -828,9 +835,65 @@ export function AsanaProjectManager() {
             <ProjectGlyph size="md" />
           )}
 
-          <h1 className="text-base font-semibold tracking-tight text-foreground">
-            {activeProject?.name ?? 'Projects'}
-          </h1>
+          {/* Project Title with Quick Project Switcher Dropdown */}
+          <div className="flex items-center gap-1.5">
+            <h1 className="text-base font-semibold tracking-tight text-foreground">
+              {activeProject?.name ?? 'Projects'}
+            </h1>
+            {projects.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="p-1 rounded text-muted-foreground hover:text-foreground cursor-pointer hover:bg-muted/70 transition-colors"
+                    title="Switch project"
+                    aria-label="Switch project"
+                  >
+                    <ChevronDown className="size-3.5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56 max-h-72 overflow-y-auto">
+                  <DropdownMenuLabel className="text-[11px]">Switch Project</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {projects.map((p) => (
+                    <DropdownMenuItem
+                      key={p.id}
+                      onClick={() => openProject(p.id)}
+                      className="text-xs flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <ProjectGlyph
+                          icon={p.icon}
+                          iconColor={p.iconColor}
+                          color={p.color}
+                          size="xs"
+                        />
+                        <span className="truncate">{p.name}</span>
+                      </div>
+                      {p.id === activeProject?.id && (
+                        <Check className="size-3.5 shrink-0 text-primary" />
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => setViewMode('projects')}
+                    className="text-xs gap-2"
+                  >
+                    <FolderKanban className="size-3.5 text-muted-foreground" />
+                    <span>View all projects</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={openNewProject}
+                    className="text-xs gap-2"
+                  >
+                    <Plus className="size-3.5 text-muted-foreground" />
+                    <span>New project</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
 
           {/* Dynamic Ticket Prefix Badge with Click-to-Copy */}
           {activeProject?.ticketPrefix && (
@@ -850,11 +913,44 @@ export function AsanaProjectManager() {
             </button>
           )}
 
-          {activeProject ? (
-            <Badge variant="neutral" className="text-[10px]">
-              {STATUS_LABELS[activeProject.status]}
-            </Badge>
-          ) : null}
+          {/* Status Badge with Dropdown to Change Status */}
+          {activeProject && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="cursor-pointer"
+                  aria-label={`Project status: ${STATUS_LABELS[activeProject.status]}. Change status`}
+                >
+                  <Badge variant="neutral" className="text-[10px] cursor-pointer hover:bg-muted gap-1">
+                    <span>{STATUS_LABELS[activeProject.status]}</span>
+                    <ChevronDown className="size-2.5 opacity-60" />
+                  </Badge>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-36">
+                <DropdownMenuLabel className="text-[11px]">Set Status</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {PROJECT_STATUSES.map((st) => (
+                  <DropdownMenuItem
+                    key={st}
+                    onClick={() =>
+                      projectMutations.update.mutate({
+                        projectId: activeProject.id,
+                        input: { status: st },
+                      })
+                    }
+                    className="text-xs justify-between"
+                  >
+                    {STATUS_LABELS[st]}
+                    {activeProject.status === st && (
+                      <Check className="size-3.5 shrink-0 text-primary" />
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
           {activeProject ? (
             <DropdownMenu>
@@ -1017,6 +1113,7 @@ export function AsanaProjectManager() {
             { id: 'spreadsheet', label: 'Table', icon: Table },
             { id: 'timeline', label: 'Timeline', icon: Timeline },
             { id: 'gantt', label: 'Gantt', icon: GanttChartSquare },
+            { id: 'docs', label: 'Docs', icon: FileText },
             { id: 'cycles', label: 'Cycles', icon: RotateCw },
             { id: 'modules', label: 'Modules & Epics', icon: FolderGit2 },
             { id: 'initiatives', label: 'Initiatives', icon: Target },
@@ -1104,6 +1201,14 @@ export function AsanaProjectManager() {
                 members={publicMembers}
                 onSelectTask={(task) => setSelectedCardId(task.id)}
                 searchQuery={filter.query}
+              />
+            )}
+
+            {viewMode === 'docs' && activeProject && (
+              <ProjectDocsTab
+                project={activeProject}
+                workspaceId={workspaceId}
+                workspaceSlug={workspaceSlug}
               />
             )}
 

@@ -70,14 +70,15 @@ export function useDirectRoomIndex(): DirectRoomIndex {
       roomToPeers.set(roomId, [...(roomToPeers.get(roomId) ?? []), peerId]);
     };
 
-    // A joined peer first (rooms come newest first, so a duplicate DM keeps the
-    // live one), then `m.direct`, which also knows a DM the peer was only
-    // invited to. `m.direct` lists group DMs under every member, so only 1:1
-    // rooms count here.
+    // A joined peer first, through the same lookup the open conversation uses
+    // so a duplicate DM cannot show one room here and another there. Then
+    // `m.direct`, which also knows a DM the peer was only invited to. It lists
+    // group DMs under every member, so only 1:1 rooms count here.
     for (const room of rooms) {
-      if (room.kind === 'direct' && room.directUserId) {
-        link(normalizeAvatarSeed(room.directUserId), room.id);
-      }
+      if (room.kind !== 'direct' || !room.directUserId) continue;
+      const peerId = normalizeAvatarSeed(room.directUserId);
+      if (peerToRoom.has(peerId)) continue;
+      link(peerId, client.findDirectMessage(room.directUserId) ?? room.id);
     }
     for (const [matrixUserId, ids] of Object.entries(directMap)) {
       const roomId = ids.find((id) => directRoomIds.has(id));

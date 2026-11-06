@@ -43,6 +43,7 @@ import {
   readSavedMessages,
   SAVED_MESSAGES_EVENT,
   threadMuteRuleId,
+  directInviter,
   resolveDirectMessageRoom,
   resolveGroupDirectMessageRoom,
   resolveMediaUrl,
@@ -123,6 +124,11 @@ function assertSendable(body: string): void {
 
 /** Upper bound on saved messages kept in account data. */
 const MAX_SAVED_MESSAGES = 500;
+
+/** How long a DM lookup waits on the first sync before giving up. */
+const FIRST_SYNC_TIMEOUT_MS = 30_000;
+/** The pause after a rate-limited join when the homeserver does not name one. */
+const JOIN_BACKOFF_MS = 10_000;
 
 /** Cap on 50-reply pages fetched when a thread is opened (2,500 replies). */
 const MAX_THREAD_PAGES = 50;
@@ -223,6 +229,13 @@ export interface MatrixClientOptions {
    * Encrypted rooms skip it: their content must not reach a server in the clear.
    */
   mediaGuard?: (file: File) => Promise<void>;
+  /**
+   * Decides whether a direct-message invite from this Matrix user is accepted
+   * automatically; rejecting leaves the invite pending. The homeserver lets any
+   * account invite any other, so this is where the app applies its own rule for
+   * who may reach whom. Without one, every DM invite is accepted.
+   */
+  directInviteGuard?: (inviterUserId: string) => Promise<void>;
 }
 
 export interface LoginCredentials {
@@ -249,9 +262,23 @@ export class OneTabMatrixClient {
   private session: MatrixSession | null = null;
   private readonly listeners = new Set<MatrixEventListener>();
   private status: ConnectionStatus = { state: 'disconnected' };
+  /** Tail of the `m.direct` writes in flight; each waits for the one before. */
+  private directWrites: Promise<void> = Promise.resolve();
+  /** The last `m.direct` written, which the SDK may not have synced back yet. */
+  private writtenDirectMap: Record<string, string[]> = {};
+  private readonly seenDirectInvites = new Set<RoomId>();
+  /**
+   * Rooms, not ids: the SDK announces a brand-new invite before it stores the
+   * room, so a lookup by id at this point finds nothing.
+   */
+  private readonly directInviteQueue: SdkRoom[] = [];
+  private acceptingDirectInvites = false;
   private readonly sessionStore: SessionStore;
   private readonly options: Required<
-    Omit<MatrixClientOptions, 'sessionStore' | 'mediaGuard'>
+    Omit<
+      MatrixClientOptions,
+      'sessionStore' | 'mediaGuard' | 'directInviteGuard'
+    >
   >;
   /** Local echoes awaiting acknowledgement, keyed by transaction id. */
   private readonly pendingEchoes = new Map<string, Message>();
@@ -273,9 +300,11 @@ export class OneTabMatrixClient {
   private readonly searchService = new MatrixSearchService(() => this.sdk);
 
   private readonly mediaGuard?: (file: File) => Promise<void>;
+  private readonly directInviteGuard?: MatrixClientOptions['directInviteGuard'];
 
   constructor(options: MatrixClientOptions) {
     this.mediaGuard = options.mediaGuard;
+    this.directInviteGuard = options.directInviteGuard;
     this.sessionStore = options.sessionStore ?? new LocalStorageSessionStore();
     this.options = {
       homeserverUrl: options.homeserverUrl,
@@ -510,6 +539,40 @@ export class OneTabMatrixClient {
     }
   }
 
+  /**
+   * Resolves once the first sync has landed.
+   *
+   * `startClient` returns before that, and until then the store holds no rooms
+   * and no account data. Reading it any earlier makes every DM look like it
+   * does not exist yet, and writing `m.direct` back from that empty read wipes
+   * the user's whole map.
+   */
+  private whenSynced(sdk: SdkClient): Promise<void> {
+    if (sdk.isInitialSyncComplete()) return Promise.resolve();
+
+    return new Promise((resolve, reject) => {
+      const finish = () => {
+        clearTimeout(timer);
+        sdk.off(ClientEvent.Sync, onSync);
+      };
+      const onSync = (state: SyncState) => {
+        if (state !== SyncState.Prepared && state !== SyncState.Syncing) return;
+        finish();
+        resolve();
+      };
+      const timer = setTimeout(() => {
+        finish();
+        reject(
+          new MatrixError(
+            'NETWORK',
+            'Chat is still connecting. Try again in a moment.',
+          ),
+        );
+      }, FIRST_SYNC_TIMEOUT_MS);
+      sdk.on(ClientEvent.Sync, onSync);
+    });
+  }
+
   private async start(session: MatrixSession): Promise<void> {
     this.session = session;
 
@@ -617,6 +680,7 @@ export class OneTabMatrixClient {
       switch (state) {
         case SyncState.Prepared:
           this.setStatus('connected');
+          this.queueDirectInvites(sdk, sdk.getRooms());
           void this.ensurePollPushRule(sdk);
           break;
         case SyncState.Syncing:
@@ -912,6 +976,13 @@ export class OneTabMatrixClient {
       this.emit({ type: 'room.removed', roomId });
     });
 
+    // Invites already waiting are picked up when the first sync lands.
+    sdk.on(RoomEvent.MyMembership, (room, membership) => {
+      if (membership === 'invite' && sdk.isInitialSyncComplete()) {
+        this.queueDirectInvites(sdk, [room]);
+      }
+    });
+
     // Another of our devices — or another user — wants to verify. Handing the
     // request to the manager is what makes it visible to the UI.
     sdk.on(CryptoEvent.VerificationRequestReceived, (request) => {
@@ -972,6 +1043,8 @@ export class OneTabMatrixClient {
     isPrivate: boolean;
     encrypted?: boolean;
     inviteUserIds?: string[];
+    /** Marks the invites as direct-message invites (`is_direct`). */
+    isDirect?: boolean;
   }): Promise<RoomId> {
     const sdk = this.require();
 
@@ -979,6 +1052,7 @@ export class OneTabMatrixClient {
       const response = await sdk.createRoom({
         name: input.name,
         topic: input.topic,
+        is_direct: input.isDirect,
         preset: input.isPrivate
           ? ('private_chat' as never)
           : ('public_chat' as never),
@@ -1014,13 +1088,16 @@ export class OneTabMatrixClient {
    */
   async getOrCreateDirectMessage(userId: string): Promise<RoomId> {
     const sdk = this.require();
+    await this.whenSynced(sdk);
     const isSelf = userId === sdk.getUserId();
     const canEncrypt = Boolean(sdk.getCrypto());
 
-    const existing = resolveDirectMessageRoom(sdk, userId, {
-      skipEncrypted: isSelf && !canEncrypt,
-    });
+    const existing = this.findDirectMessage(userId);
     if (existing) {
+      // Opening the conversation accepts it: an invited member cannot post.
+      if (sdk.getRoom(existing)?.getMyMembership() === 'invite') {
+        await withRetry(() => sdk.joinRoom(existing));
+      }
       // A room found by the fallback scan is not in `m.direct` yet; recording
       // it now means the next lookup — and `toRoomKind` — trust the map.
       await this.recordDirectMessage(sdk, userId, existing);
@@ -1032,11 +1109,26 @@ export class OneTabMatrixClient {
       isPrivate: true,
       encrypted: canEncrypt,
       inviteUserIds: isSelf ? [] : [userId],
+      isDirect: !isSelf,
     });
 
     // First in the list, so a replaced notes room never wins a later lookup.
     await this.recordDirectMessage(sdk, userId, roomId, { preferred: true });
     return roomId;
+  }
+
+  /**
+   * The room this conversation lives in right now, without creating one. Two
+   * people can briefly hold different answers while an invite is being
+   * accepted, so a view that stays open re-reads this as rooms change.
+   */
+  findDirectMessage(userId: string): RoomId | null {
+    const sdk = this.require();
+    const canEncrypt = Boolean(sdk.getCrypto());
+    return resolveDirectMessageRoom(sdk, userId, {
+      skipEncrypted: userId === sdk.getUserId() && !canEncrypt,
+      preferPlaintext: !canEncrypt,
+    });
   }
 
   /**
@@ -1053,6 +1145,7 @@ export class OneTabMatrixClient {
     name?: string,
   ): Promise<RoomId> {
     const sdk = this.require();
+    await this.whenSynced(sdk);
     const peers = [...new Set(userIds)];
     if (peers.length < 2) {
       throw new MatrixError(
@@ -1082,6 +1175,7 @@ export class OneTabMatrixClient {
       // Same rule as a 1:1: only encrypt what this session can send into.
       encrypted: Boolean(sdk.getCrypto()),
       inviteUserIds: peers,
+      isDirect: true,
     });
 
     await this.recordDirectMessage(sdk, peers, roomId);
@@ -1146,16 +1240,38 @@ export class OneTabMatrixClient {
   /**
    * Adds `roomId` to the `m.direct` map for one user or several, in a single
    * account-data write, so every client groups it as a DM.
+   *
+   * The map is one document rewritten whole, so writes take turns; see
+   * {@link writeDirectMessage}.
    */
-  private async recordDirectMessage(
+  private recordDirectMessage(
     sdk: SdkClient,
     userIds: string | string[],
     roomId: RoomId,
     options: { preferred?: boolean } = {},
   ): Promise<void> {
+    const write = this.directWrites.then(() =>
+      this.writeDirectMessage(sdk, userIds, roomId, options),
+    );
+    this.directWrites = write.catch(() => undefined);
+    return write;
+  }
+
+  private async writeDirectMessage(
+    sdk: SdkClient,
+    userIds: string | string[],
+    roomId: RoomId,
+    options: { preferred?: boolean },
+  ): Promise<void> {
+    await this.whenSynced(sdk);
+
     const ids = Array.isArray(userIds) ? userIds : [userIds];
-    const direct = readDirectMap(sdk);
-    const next: Record<string, string[]> = { ...direct };
+    // The SDK only sees our own write once it syncs back, so a second write
+    // starting from its copy alone would silently drop the first.
+    const next: Record<string, string[]> = { ...readDirectMap(sdk) };
+    for (const [id, written] of Object.entries(this.writtenDirectMap)) {
+      next[id] = [...new Set([...written, ...(next[id] ?? [])])];
+    }
     let changed = false;
 
     for (const id of ids) {
@@ -1177,6 +1293,93 @@ export class OneTabMatrixClient {
 
     if (!changed) return;
     await sdk.setAccountData('m.direct' as never, next as never);
+    this.writtenDirectMap = next;
+  }
+
+  /**
+   * Queues the direct-message invites among `rooms`, newest first: if the
+   * homeserver rate-limits a backlog, the conversation someone just started
+   * should not wait behind stale ones.
+   *
+   * Accepting has to happen here. A person's only Matrix session is this
+   * browser, and until they join they receive nothing: the sender's message
+   * goes through normally and simply never arrives.
+   */
+  private queueDirectInvites(sdk: SdkClient, rooms: SdkRoom[]): void {
+    const myUserId = sdk.getUserId() ?? '';
+    const invitedAt = (room: SdkRoom) =>
+      room.currentState.getStateEvents('m.room.member', myUserId)?.getTs() ?? 0;
+
+    const fresh = rooms
+      .filter(
+        (room) =>
+          !this.seenDirectInvites.has(room.roomId) &&
+          directInviter(sdk, room) !== null,
+      )
+      .sort((a, b) => invitedAt(b) - invitedAt(a));
+    if (fresh.length === 0) return;
+
+    for (const room of fresh) {
+      this.seenDirectInvites.add(room.roomId);
+      this.directInviteQueue.push(room);
+    }
+    void this.acceptDirectInvites(sdk);
+  }
+
+  /** Works through the queue one room at a time, to stay under join limits. */
+  private async acceptDirectInvites(sdk: SdkClient): Promise<void> {
+    if (this.acceptingDirectInvites) return;
+    this.acceptingDirectInvites = true;
+
+    // One answer per person, however many stale invites they left.
+    const verdicts = new Map<string, Promise<boolean>>();
+    const isAllowed = (inviter: string) => {
+      const known = verdicts.get(inviter);
+      if (known) return known;
+      const guard = this.directInviteGuard;
+      const verdict = guard
+        ? guard(inviter).then(
+            () => true,
+            () => false,
+          )
+        : Promise.resolve(true);
+      verdicts.set(inviter, verdict);
+      return verdict;
+    };
+
+    try {
+      while (this.sdk === sdk && this.directInviteQueue.length > 0) {
+        const room = this.directInviteQueue[0];
+        const { roomId } = room;
+        const inviter = directInviter(sdk, room);
+
+        try {
+          // Blocking someone writes `m.ignored_user_list`.
+          if (
+            inviter &&
+            !sdk.isUserIgnored(inviter) &&
+            (await isAllowed(inviter))
+          ) {
+            await withRetry(() => sdk.joinRoom(roomId));
+            await this.recordDirectMessage(sdk, inviter, roomId);
+          }
+        } catch (raw) {
+          const error = toMatrixError(raw);
+          if (error.code === 'RATE_LIMITED') {
+            await new Promise((resolve) =>
+              setTimeout(resolve, error.retryAfterMs ?? JOIN_BACKOFF_MS),
+            );
+            continue;
+          }
+          // Usually a room its creator has since left. Nothing to deliver, and
+          // one bad invite must not hold up the ones behind it.
+          console.warn('[matrix] could not accept a DM invite', roomId, error);
+        }
+        this.directInviteQueue.shift();
+      }
+    } finally {
+      this.acceptingDirectInvites = false;
+    }
   }
 
   async joinRoom(roomIdOrAlias: string): Promise<RoomId> {

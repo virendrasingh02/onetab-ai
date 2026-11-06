@@ -793,13 +793,107 @@ export function toRoomKind(room: SdkRoom, client: SdkClient): RoomKind {
 /** Memberships that mean the room is the caller's to open: joined, or invited and not yet accepted. */
 const OPEN_MEMBERSHIPS = new Set(['join', 'invite']);
 
+/** Rooms holding more messages than this count as equally established. */
+const DM_HISTORY_CAP = 30;
+
 /**
- * An existing direct-message room shared with `peerUserId`, or `null`.
+ * A room's own name, ignoring the empty `m.room.name` a DM is created with: the
+ * state event existing says nothing, only a non-blank name marks a channel.
+ */
+function hasRoomName(room: SdkRoom): boolean {
+  const name = room.currentState
+    .getStateEvents('m.room.name', '')
+    ?.getContent()?.name;
+  return typeof name === 'string' && name.trim().length > 0;
+}
+
+function openParties(room: SdkRoom): string[] {
+  return room
+    .getMembers()
+    .filter((member) => OPEN_MEMBERSHIPS.has(member.membership ?? ''))
+    .map((member) => member.userId);
+}
+
+/**
+ * Orders the rooms a pair of people share, best first.
  *
- * `m.direct` is consulted first, and is the only thing consulted for a room the
- * caller has merely been invited to — its member list has not synced yet, so
- * the scan below cannot see it, and skipping the map here is what produced a
- * duplicate room for every pending DM invite.
+ * Both sides have to land on the same room or each writes into one the other
+ * is not reading, so everything here must read the same from either end: no
+ * `m.direct` order, and no "newest activity", which a join would disturb. The
+ * established conversation wins, so a stray empty duplicate can never take over
+ * from real history, and the room id settles a tie.
+ */
+function compareDirectRooms(
+  a: SdkRoom,
+  b: SdkRoom,
+  peerUserId: string,
+  preferPlaintext: boolean,
+): number {
+  const rank = (room: SdkRoom) => {
+    let messages = 0;
+    let lastMessageAt = 0;
+    for (const event of room.getLiveTimeline?.().getEvents() ?? []) {
+      const type = event.getType();
+      if (type !== 'm.room.message' && type !== 'm.room.encrypted') continue;
+      messages += 1;
+      lastMessageAt = Math.max(lastMessageAt, event.getTs());
+    }
+    return [
+      // A room this session can post to, and one the peer can still read.
+      room.getMyMembership() === 'join' ? 1 : 0,
+      preferPlaintext &&
+      room.currentState.getStateEvents('m.room.encryption', '')
+        ? 0
+        : 1,
+      openParties(room).includes(peerUserId) ? 1 : 0,
+      Math.min(messages, DM_HISTORY_CAP),
+      lastMessageAt,
+    ];
+  };
+
+  const rankA = rank(a);
+  const rankB = rank(b);
+  for (let index = 0; index < rankA.length; index += 1) {
+    if (rankA[index] !== rankB[index]) return rankB[index] - rankA[index];
+  }
+  return a.roomId < b.roomId ? -1 : a.roomId > b.roomId ? 1 : 0;
+}
+
+/**
+ * Who invited the caller to this direct message, or `null` when the room is not
+ * a pending DM invite.
+ *
+ * `is_direct` on the invite is the real signal. Rooms created before this
+ * client set it are recognised by having no name: channels and spaces always
+ * carry one.
+ */
+export function directInviter(client: SdkClient, room: SdkRoom): string | null {
+  const myUserId = client.getUserId();
+  if (!myUserId || room.getMyMembership() !== 'invite') return null;
+  if (room.isSpaceRoom?.()) return null;
+
+  const invite = room.currentState.getStateEvents('m.room.member', myUserId);
+  const inviter = invite?.getSender();
+  if (!invite || !inviter || inviter === myUserId) return null;
+
+  return invite.getContent()['is_direct'] === true || !hasRoomName(room)
+    ? inviter
+    : null;
+}
+
+/**
+ * The direct-message room shared with `peerUserId`, or `null`.
+ *
+ * Candidates are every room `m.direct` records for the peer plus a fallback
+ * scan, and {@link compareDirectRooms} picks between them. The two sides cannot
+ * each trust their own map: until invites were accepted automatically, both
+ * people could hold a room the other had never joined, and each map names a
+ * different one.
+ *
+ * `m.direct` is the only thing that knows a room the caller has merely been
+ * invited to — its member list has not synced yet, so the scan cannot see it,
+ * and skipping the map is what produced a duplicate room for every pending DM
+ * invite.
  *
  * The fallback scan — for a DM created before this client maintained the map —
  * is deliberately narrow so a two-person *channel* is never taken for a DM
@@ -816,6 +910,11 @@ export function resolveDirectMessageRoom(
      * encrypt, looking for a room it can actually send into.
      */
     skipEncrypted?: boolean;
+    /**
+     * Rank encrypted rooms last rather than ruling them out: a 1:1 is never
+     * forked, so an encrypted room is still better than none.
+     */
+    preferPlaintext?: boolean;
   } = {},
 ): string | null {
   const directMap = readDirectMap(client);
@@ -824,14 +923,20 @@ export function resolveDirectMessageRoom(
     !options.skipEncrypted ||
     !room.currentState.getStateEvents('m.room.encryption', '');
 
+  const candidates = new Map<string, SdkRoom>();
   for (const roomId of directMap[peerUserId] ?? []) {
     const room = client.getRoom(roomId);
     if (
       room &&
       OPEN_MEMBERSHIPS.has(room.getMyMembership() ?? '') &&
-      usable(room)
+      usable(room) &&
+      // `m.direct` lists a group DM under every member.
+      openParties(room).length <= 2
     ) {
-      return roomId;
+      // Your notes have one possible room, and the map's first entry is it: a
+      // replacement is written there on purpose.
+      if (peerUserId === myUserId) return roomId;
+      candidates.set(roomId, room);
     }
   }
 
@@ -846,19 +951,17 @@ export function resolveDirectMessageRoom(
     if (!OPEN_MEMBERSHIPS.has(room.getMyMembership() ?? '')) continue;
     if (!usable(room)) continue;
     // A DM is created without a name; a named room is a channel or a group.
-    if (room.currentState.getStateEvents('m.room.name', '')) continue;
+    if (hasRoomName(room)) continue;
 
-    const parties = room
-      .getMembers()
-      .filter((member) => OPEN_MEMBERSHIPS.has(member.membership ?? ''))
-      .map((member) => member.userId);
+    const parties = openParties(room);
 
     if (
       parties.length === 2 &&
       parties.includes(peerUserId) &&
       (!myUserId || parties.includes(myUserId))
     ) {
-      return room.roomId;
+      candidates.set(room.roomId, room);
+      continue;
     }
 
     // A note-to-self DM: the caller is the peer, and nobody else has *ever*
@@ -874,7 +977,10 @@ export function resolveDirectMessageRoom(
     }
   }
 
-  return null;
+  const [best] = [...candidates.values()].sort((a, b) =>
+    compareDirectRooms(a, b, peerUserId, options.preferPlaintext ?? false),
+  );
+  return best?.roomId ?? null;
 }
 
 /**

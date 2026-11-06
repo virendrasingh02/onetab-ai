@@ -32,6 +32,8 @@ export interface DocMeta {
   cover?: string;
   favorite?: boolean;
   pinned?: boolean;
+  projectId?: string;
+  projectName?: string;
 }
 
 export interface DocEnvelope {
@@ -88,6 +90,19 @@ export function encodeDocContent(envelope: DocEnvelope): string {
     ...envelope,
   };
   return JSON.stringify(stored);
+}
+
+/** Words across a document's blocks, table cells included. */
+export function wordCount(blocks: NotionBlock[]): number {
+  return blocks.reduce((total, block) => {
+    const text = [block.content, ...(block.rows?.flat() ?? [])].join(' ');
+    return total + text.split(/\s+/).filter(Boolean).length;
+  }, 0);
+}
+
+/** Estimated minutes to read a document, at 200 words a minute. */
+export function readingMinutes(blocks: NotionBlock[]): number {
+  return Math.max(1, Math.ceil(wordCount(blocks) / 200));
 }
 
 /** First words of a document's text, for the sidebar row. */

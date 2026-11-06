@@ -16,6 +16,54 @@ export interface CreateNotificationInput {
   resourceId?: string | null;
 }
 
+/**
+ * Marks a row as a client-reported chat message. Clients with a Matrix session
+ * have already shown it natively, so realtime and desktop polling skip these.
+ */
+export const CHAT_ROOM_RESOURCE = 'chat-room';
+
+export interface ChatMessageReport {
+  roomId: string;
+  /** The Matrix event: what stops two reporters announcing it twice. */
+  eventId: string;
+  title: string;
+  body?: string | null;
+  /** Omit to have it built from the room, as for another workspace's channel. */
+  deepLink?: string | null;
+  threadRootId?: string | null;
+  senderId?: string | null;
+  isMention?: boolean;
+  isGroup?: boolean;
+  /** For a DM, which has no workspace of its own. Channels ignore it. */
+  workspaceId?: string | null;
+}
+
+const NOTIFICATION_ROW_SELECT = {
+  id: true,
+  workspaceId: true,
+  recipientId: true,
+  actorId: true,
+  kind: true,
+  title: true,
+  body: true,
+  deepLink: true,
+  resourceType: true,
+  resourceId: true,
+  readAt: true,
+  createdAt: true,
+} as const;
+
+interface NotificationRow {
+  id: string;
+  workspaceId: string;
+  recipientId: string;
+  createdAt: Date;
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return (error as { code?: unknown } | null)?.code === 'P2002';
+}
+
 export interface NotificationView {
   id: string;
   workspaceId: string;
@@ -99,36 +147,223 @@ export class NotificationCenterService {
         resourceType: input.resourceType ?? null,
         resourceId: input.resourceId ?? null,
       },
-      select: {
-        id: true,
-        workspaceId: true,
-        recipientId: true,
-        actorId: true,
-        kind: true,
-        title: true,
-        body: true,
-        deepLink: true,
-        resourceType: true,
-        resourceId: true,
-        readAt: true,
-        createdAt: true,
-      },
+      select: NOTIFICATION_ROW_SELECT,
     });
 
-    const unreadCount = await this.unreadCount(input.workspaceId, input.recipientId);
+    await this.announce(created);
+    return { id: created.id };
+  }
+
+  /** Hands a row to realtime and push delivery. */
+  private async announce(row: NotificationRow): Promise<void> {
+    const unreadCount = await this.unreadCount(row.workspaceId, row.recipientId);
 
     this.events.emit(AppEvent.NotificationCreated, {
-      recipientId: input.recipientId,
-      workspaceId: input.workspaceId,
+      recipientId: row.recipientId,
+      workspaceId: row.workspaceId,
       notification: {
-        ...created,
+        ...row,
         read: false,
-        createdAt: created.createdAt.toISOString(),
+        createdAt: row.createdAt.toISOString(),
       },
       unreadCount,
     });
+  }
 
-    return { id: created.id };
+  /**
+   * Records a chat message for its recipient and announces it, which is what
+   * reaches their bell and phones. Called by the recipient's own clients, and by
+   * the server when they have none open, so the recipient is never taken from
+   * the report's content.
+   *
+   * A conversation keeps one unread row. Each new message updates that row and
+   * announces it again, so phones get every message while the bell does not
+   * stack. `sourceEventId` is what makes a second report of the same message a
+   * no-op, including one that loses a race.
+   */
+  async reportChatMessage(
+    recipientId: string,
+    report: ChatMessageReport,
+  ): Promise<{ id: string } | null> {
+    if (report.senderId === recipientId) return null;
+
+    const channel = await this.prisma.channel.findFirst({
+      where: { matrixRoomId: report.roomId },
+      select: { id: true, slug: true, workspaceId: true },
+    });
+    const workspaceId =
+      channel?.workspaceId ??
+      report.workspaceId ??
+      (await this.sharedWorkspaceId(recipientId, report.senderId));
+    if (!workspaceId) return null;
+
+    const member = await this.prisma.workspaceMember.findFirst({
+      where: { workspaceId, userId: recipientId, status: 'ACTIVE' },
+      select: { id: true },
+    });
+    if (!member) return null;
+
+    if (channel && (await this.isQuiet(recipientId, channel, report))) {
+      return null;
+    }
+
+    // The sender comes from the client: only trust it for someone in this
+    // workspace, or a caller could attach a stranger's identity to a row.
+    const actor = report.senderId
+      ? await this.prisma.workspaceMember.findFirst({
+          where: { workspaceId, userId: report.senderId },
+          select: { userId: true },
+        })
+      : null;
+
+    const data = {
+      title: report.title,
+      body: report.body ?? null,
+      deepLink: report.deepLink ?? this.chatDeepLink(report, channel?.slug),
+      actorId: actor?.userId ?? null,
+      sourceEventId: report.eventId,
+    };
+    const kind = report.isMention
+      ? NotificationKind.MENTION
+      : NotificationKind.CHAT_MESSAGE;
+
+    try {
+      const unread = await this.prisma.notification.findFirst({
+        where: {
+          recipientId,
+          kind,
+          resourceType: CHAT_ROOM_RESOURCE,
+          resourceId: report.roomId,
+          readAt: null,
+        },
+        select: { id: true },
+      });
+
+      if (!unread) {
+        const created = await this.prisma.notification.create({
+          data: {
+            ...data,
+            workspaceId,
+            recipientId,
+            kind,
+            resourceType: CHAT_ROOM_RESOURCE,
+            resourceId: report.roomId,
+          },
+          select: NOTIFICATION_ROW_SELECT,
+        });
+        await this.announce(created);
+        return { id: created.id };
+      }
+
+      const moved = await this.prisma.notification.updateMany({
+        where: { id: unread.id, sourceEventId: { not: report.eventId } },
+        data: { ...data, createdAt: new Date() },
+      });
+      if (moved.count === 0) return unread;
+
+      const updated = await this.prisma.notification.findUniqueOrThrow({
+        where: { id: unread.id },
+        select: NOTIFICATION_ROW_SELECT,
+      });
+      await this.announce(updated);
+      return unread;
+    } catch (error) {
+      if (isUniqueViolation(error)) return null;
+      throw error;
+    }
+  }
+
+  /** Mutes and "Just mentions", for channels the reporting client cannot see. */
+  private async isQuiet(
+    userId: string,
+    channel: { id: string; workspaceId: string },
+    report: ChatMessageReport,
+  ): Promise<boolean> {
+    const [preference, membership] = await Promise.all([
+      this.prisma.notificationPreference.findUnique({
+        where: {
+          userId_workspaceId: { userId, workspaceId: channel.workspaceId },
+        },
+        select: { mutedChannelIds: true, mentionsOnly: true },
+      }),
+      this.prisma.channelMember.findFirst({
+        where: { channelId: channel.id, userId },
+        select: { isMuted: true, mentionsOnly: true },
+      }),
+    ]);
+
+    if (membership?.isMuted || preference?.mutedChannelIds.includes(channel.id)) {
+      return true;
+    }
+    return (
+      !report.isMention &&
+      !!(preference?.mentionsOnly || membership?.mentionsOnly)
+    );
+  }
+
+  private chatDeepLink(report: ChatMessageReport, channelSlug?: string): string {
+    const base = channelSlug
+      ? `channels/${channelSlug}`
+      : report.senderId && !report.isGroup
+        ? `dms/${report.senderId}`
+        : `dms?room=${encodeURIComponent(report.roomId)}`;
+    if (!report.threadRootId) return base;
+    const separator = base.includes('?') ? '&' : '?';
+    return `${base}${separator}thread=${encodeURIComponent(report.threadRootId)}`;
+  }
+
+  /** A DM belongs to no workspace, so it files under one both people share. */
+  private async sharedWorkspaceId(
+    recipientId: string,
+    senderId?: string | null,
+  ): Promise<string | null> {
+    const row = await this.prisma.workspaceMember.findFirst({
+      where: {
+        userId: recipientId,
+        status: 'ACTIVE',
+        ...(senderId
+          ? { workspace: { members: { some: { userId: senderId } } } }
+          : {}),
+      },
+      orderBy: { joinedAt: 'asc' },
+      select: { workspaceId: true },
+    });
+    return row?.workspaceId ?? null;
+  }
+
+  /** Opening a conversation clears its rows, or the bell would never empty. */
+  async markChatRoomRead(
+    userId: string,
+    roomId: string,
+  ): Promise<{ count: number }> {
+    const where = {
+      recipientId: userId,
+      resourceType: CHAT_ROOM_RESOURCE,
+      resourceId: roomId,
+      readAt: null,
+    };
+    const rows = await this.prisma.notification.findMany({
+      where,
+      select: { workspaceId: true },
+      distinct: ['workspaceId'],
+    });
+    if (rows.length === 0) return { count: 0 };
+
+    const result = await this.prisma.notification.updateMany({
+      where,
+      data: { readAt: new Date() },
+    });
+
+    for (const { workspaceId } of rows) {
+      const unreadCount = await this.unreadCount(workspaceId, userId);
+      this.events.emit('notification.read', {
+        recipientId: userId,
+        workspaceId,
+        unreadCount,
+      });
+    }
+
+    return { count: result.count };
   }
 
   async list(

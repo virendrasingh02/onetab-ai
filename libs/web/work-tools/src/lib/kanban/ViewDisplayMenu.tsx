@@ -1,6 +1,7 @@
 import { AppSelect } from '@org/ui';
 import { cn } from '@org/utils';
 import {
+  FileText,
   FolderGit2,
   FolderKanban,
   FolderOpen,
@@ -25,6 +26,7 @@ export type ProjectViewMode =
   | 'timeline'
   | 'gantt'
   | 'dashboard'
+  | 'docs'
   | 'cycles'
   | 'modules'
   | 'initiatives'
@@ -45,6 +47,7 @@ export const VIEW_MODES: Array<{
   { id: 'spreadsheet', label: 'Table', icon: Table },
   { id: 'timeline', label: 'Timeline', icon: Timeline },
   { id: 'gantt', label: 'Gantt', icon: GanttChartSquare },
+  { id: 'docs', label: 'Docs', icon: FileText },
   { id: 'cycles', label: 'Cycles', icon: RotateCw },
   { id: 'modules', label: 'Modules', icon: FolderGit2 },
   { id: 'initiatives', label: 'Initiatives', icon: Target },

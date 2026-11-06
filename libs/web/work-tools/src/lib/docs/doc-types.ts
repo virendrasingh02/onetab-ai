@@ -84,6 +84,10 @@ export interface DocItem {
   parentId?: string;
   blocks: NotionBlock[];
   comments: DocComment[];
+  authorId?: string;
+  authorName?: string;
+  projectId?: string;
+  projectName?: string;
 }
 
 export const DOC_CATEGORIES: readonly DocCategory[] = [

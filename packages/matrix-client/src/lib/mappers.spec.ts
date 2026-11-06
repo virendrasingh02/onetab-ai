@@ -7,6 +7,7 @@ import {
   pickForwardableContent,
   readForwardedContent,
   eventHighlightsUser,
+  directInviter,
   resolveDirectMessageRoom,
   resolveGroupDirectMessageRoom,
   resolveMediaUrl,
@@ -619,6 +620,11 @@ interface FakeDmRoomInput {
   joinedCount?: number;
   /** Adds an `m.room.encryption` state event. */
   encrypted?: boolean;
+  /** Timestamps of the messages in the live timeline. */
+  messageTimes?: number[];
+  /** The caller's own pending invite. */
+  invite?: { sender: string; isDirect?: boolean };
+  isSpace?: boolean;
 }
 
 function fakeDmRoom(input: FakeDmRoomInput): SdkRoom {
@@ -629,9 +635,25 @@ function fakeDmRoom(input: FakeDmRoomInput): SdkRoom {
     roomId: input.roomId,
     getMyMembership: () => input.myMembership ?? 'join',
     getJoinedMemberCount: () => input.joinedCount ?? joined.length ?? 2,
+    isSpaceRoom: () => input.isSpace ?? false,
+    getLiveTimeline: () => ({
+      getEvents: () =>
+        (input.messageTimes ?? []).map((ts) => ({
+          getType: () => 'm.room.message',
+          getTs: () => ts,
+        })),
+    }),
     currentState: {
       getStateEvents: (type: string) =>
-        type === 'm.room.name' && input.name
+        type === 'm.room.member' && input.invite
+          ? ({
+              getSender: () => input.invite?.sender,
+              getContent: () => ({
+                membership: 'invite',
+                is_direct: input.invite?.isDirect,
+              }),
+            } as unknown)
+          : type === 'm.room.name' && input.name !== undefined
           ? ({ getContent: () => ({ name: input.name }) } as unknown)
           : type === 'm.room.encryption' && input.encrypted
             ? ({
@@ -674,6 +696,126 @@ function fakeDmClient(input: {
 describe('resolveDirectMessageRoom', () => {
   const peer = '@alice:example.org';
   const me = '@me:example.org';
+
+  describe('when two people hold more than one room', () => {
+    const pair = [{ userId: me }, { userId: peer }];
+
+    it('picks the same room from both ends, whatever each m.direct says', () => {
+      const rooms = [
+        fakeDmRoom({ roomId: '!a:example.org', members: pair }),
+        fakeDmRoom({
+          roomId: '!b:example.org',
+          members: pair,
+          messageTimes: [10],
+        }),
+      ];
+      const fromMine = fakeDmClient({
+        direct: { [peer]: ['!a:example.org'] },
+        rooms,
+      });
+      const fromTheirs = fakeDmClient({
+        direct: { [me]: ['!b:example.org'] },
+        myUserId: peer,
+        rooms,
+      });
+      expect(resolveDirectMessageRoom(fromMine, peer)).toBe('!b:example.org');
+      expect(resolveDirectMessageRoom(fromTheirs, me)).toBe('!b:example.org');
+    });
+
+    it('keeps the established conversation over a newer stray message', () => {
+      const client = fakeDmClient({
+        rooms: [
+          fakeDmRoom({
+            roomId: '!history:example.org',
+            members: pair,
+            messageTimes: [1, 2, 3],
+          }),
+          fakeDmRoom({
+            roomId: '!stray:example.org',
+            members: pair,
+            messageTimes: [99],
+          }),
+        ],
+      });
+      expect(resolveDirectMessageRoom(client, peer)).toBe(
+        '!history:example.org',
+      );
+    });
+
+    it('settles a tie on the room id, which reads the same from both ends', () => {
+      const client = fakeDmClient({
+        rooms: [
+          fakeDmRoom({ roomId: '!z:example.org', members: pair }),
+          fakeDmRoom({ roomId: '!a:example.org', members: pair }),
+        ],
+      });
+      expect(resolveDirectMessageRoom(client, peer)).toBe('!a:example.org');
+    });
+
+    it('prefers a room the caller has joined over a pending invite', () => {
+      const client = fakeDmClient({
+        direct: { [peer]: ['!invited:example.org', '!joined:example.org'] },
+        rooms: [
+          fakeDmRoom({
+            roomId: '!invited:example.org',
+            myMembership: 'invite',
+            messageTimes: [1, 2],
+          }),
+          fakeDmRoom({ roomId: '!joined:example.org', members: pair }),
+        ],
+      });
+      expect(resolveDirectMessageRoom(client, peer)).toBe(
+        '!joined:example.org',
+      );
+    });
+
+    it('ranks an encrypted room last for a session that cannot encrypt', () => {
+      const client = fakeDmClient({
+        rooms: [
+          fakeDmRoom({
+            roomId: '!sealed:example.org',
+            members: pair,
+            encrypted: true,
+            messageTimes: [1, 2],
+          }),
+          fakeDmRoom({ roomId: '!open:example.org', members: pair }),
+        ],
+      });
+      expect(
+        resolveDirectMessageRoom(client, peer, { preferPlaintext: true }),
+      ).toBe('!open:example.org');
+    });
+  });
+
+  it('never answers a 1:1 with a group DM tagged under the same person', () => {
+    const client = fakeDmClient({
+      direct: { [peer]: ['!group:example.org'] },
+      rooms: [
+        fakeDmRoom({
+          roomId: '!group:example.org',
+          members: [
+            { userId: me },
+            { userId: peer },
+            { userId: '@bob:example.org' },
+          ],
+        }),
+      ],
+    });
+    expect(resolveDirectMessageRoom(client, peer)).toBeNull();
+  });
+
+  it('finds a DM created with an empty m.room.name', () => {
+    const client = fakeDmClient({
+      rooms: [
+        fakeDmRoom({
+          roomId: '!legacy:example.org',
+          name: '',
+          members: [{ userId: me }, { userId: peer }],
+        }),
+      ],
+    });
+    expect(resolveDirectMessageRoom(client, peer)).toBe('!legacy:example.org');
+  });
 
   it('returns the room recorded in m.direct for the peer', () => {
     const client = fakeDmClient({
@@ -1323,5 +1465,39 @@ describe('room mentions', () => {
     expect(buildMentionsContent('hi', ['@a:x'])).toEqual({
       user_ids: ['@a:x'],
     });
+  });
+});
+
+describe('directInviter', () => {
+  const inviter = '@alice:example.org';
+  const client = fakeDmClient({});
+  const invited = (input: Partial<FakeDmRoomInput>) =>
+    fakeDmRoom({
+      roomId: '!r:example.org',
+      myMembership: 'invite',
+      invite: { sender: inviter },
+      ...input,
+    });
+
+  it('recognises an invite flagged is_direct, even in a named group', () => {
+    const room = invited({
+      name: 'Launch crew',
+      invite: { sender: inviter, isDirect: true },
+    });
+    expect(directInviter(client, room)).toBe(inviter);
+  });
+
+  it('recognises an older unflagged DM by its missing name', () => {
+    expect(directInviter(client, invited({}))).toBe(inviter);
+    expect(directInviter(client, invited({ name: '' }))).toBe(inviter);
+  });
+
+  it('leaves channel and space invites alone', () => {
+    expect(directInviter(client, invited({ name: 'general' }))).toBeNull();
+    expect(directInviter(client, invited({ isSpace: true }))).toBeNull();
+  });
+
+  it('ignores a room the caller has already joined', () => {
+    expect(directInviter(client, invited({ myMembership: 'join' }))).toBeNull();
   });
 });

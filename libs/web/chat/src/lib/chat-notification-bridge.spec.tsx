@@ -5,7 +5,13 @@ import type { MatrixClientEvent } from '@org/matrix-client';
 const listeners: Array<(event: MatrixClientEvent) => void> = [];
 const rooms = new Map<
   string,
-  { id?: string; kind: string; name: string; directUserId?: string }
+  {
+    id?: string;
+    kind: string;
+    name: string;
+    directUserId?: string;
+    isEncrypted?: boolean;
+  }
 >();
 
 const client = {
@@ -32,11 +38,21 @@ vi.mock('./matrix-provider.js', () => ({
 
 const play = vi.fn();
 const notify = vi.fn();
+const reportChatMessage = vi.fn();
+const markChatRoomRead = vi.fn();
 let claimed = true;
+let showContentPreview = true;
+vi.mock('@org/api-client', () => ({
+  notificationApi: {
+    reportChatMessage: (...args: unknown[]) => reportChatMessage(...args),
+    markChatRoomRead: (...args: unknown[]) => markChatRoomRead(...args),
+  },
+}));
 vi.mock('@org/notifications', () => ({
   claimNotification: () => claimed,
   notificationService: {
     notify: (...args: unknown[]) => notify(...args),
+    getPreferences: () => ({ showContentPreview }),
   },
   notificationSound: {
     play: (...args: unknown[]) => play(...args),
@@ -44,8 +60,13 @@ vi.mock('@org/notifications', () => ({
 }));
 
 let activeRoomId: string | null = null;
+const activeListeners = new Set<() => void>();
 vi.mock('./active-conversation.js', () => ({
   getActiveConversation: () => activeRoomId,
+  subscribeActiveConversation: (listener: () => void) => {
+    activeListeners.add(listener);
+    return () => activeListeners.delete(listener);
+  },
 }));
 
 import { ChatNotificationBridge } from './chat-notification-bridge.js';
@@ -104,9 +125,13 @@ beforeEach(() => {
   });
   activeRoomId = null;
   claimed = true;
+  showContentPreview = true;
+  activeListeners.clear();
   setWindow({ visible: true, focused: true });
   play.mockReset();
   notify.mockReset();
+  reportChatMessage.mockReset().mockResolvedValue({ id: 'n1' });
+  markChatRoomRead.mockReset().mockResolvedValue({ count: 0 });
   client.getSession.mockReturnValue({ userId: '@me:hs' });
 });
 
@@ -116,8 +141,81 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+describe('ChatNotificationBridge API reporting', () => {
+  const props = {
+    workspaceId: 'ws1',
+    workspaceSlug: 'acme',
+    channelRoutes: new Map([['!chan:hs', '/w/acme/channels/general']]),
+  };
+
+  it('files a notified message with a workspace-relative link', () => {
+    render(<ChatNotificationBridge {...props} />);
+    emitMessage(baseMessage({ id: '$evt', isMention: true }));
+    expect(reportChatMessage).toHaveBeenCalledTimes(1);
+    expect(reportChatMessage.mock.calls[0][0]).toMatchObject({
+      roomId: '!chan:hs',
+      eventId: '$evt',
+      title: 'Alice Smith mentioned you in #general',
+      body: 'hello',
+      deepLink: 'channels/general',
+      isMention: true,
+      workspaceId: 'ws1',
+    });
+  });
+
+  it('keeps message text off the server for an encrypted room', () => {
+    rooms.set('!chan:hs', {
+      kind: 'channel',
+      name: 'general',
+      isEncrypted: true,
+    });
+    render(<ChatNotificationBridge {...props} />);
+    emitMessage(baseMessage());
+    expect(reportChatMessage.mock.calls[0][0]).toMatchObject({ body: null });
+  });
+
+  it('sends nothing identifying when previews are off', () => {
+    showContentPreview = false;
+    render(<ChatNotificationBridge {...props} />);
+    emitMessage(baseMessage());
+    expect(reportChatMessage.mock.calls[0][0]).toMatchObject({
+      title: 'New message',
+      body: null,
+    });
+  });
+
+  it('leaves the link to the server for a channel in another workspace', () => {
+    render(<ChatNotificationBridge {...props} channelRoutes={new Map()} />);
+    emitMessage(baseMessage());
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(reportChatMessage.mock.calls[0][0]).toMatchObject({
+      roomId: '!chan:hs',
+      deepLink: null,
+    });
+  });
+
+  it('does not report a message already on screen', () => {
+    activeRoomId = '!chan:hs';
+    render(<ChatNotificationBridge {...props} />);
+    emitMessage(baseMessage());
+    expect(reportChatMessage).not.toHaveBeenCalled();
+  });
+
+  it('clears the row when a conversation opens or regains focus', () => {
+    render(<ChatNotificationBridge {...props} />);
+    expect(markChatRoomRead).not.toHaveBeenCalled();
+
+    activeRoomId = '!dm:hs';
+    for (const listener of activeListeners) listener();
+    expect(markChatRoomRead).toHaveBeenLastCalledWith('!dm:hs');
+
+    window.dispatchEvent(new Event('focus'));
+    expect(markChatRoomRead).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('ChatNotificationBridge', () => {
-  it('shows a banner with sound for a channel message from someone else', () => {
+  it('raises a notification with sound for a channel message from someone else', () => {
     render(<ChatNotificationBridge />);
     emitMessage(baseMessage());
     expect(notify).toHaveBeenCalledTimes(1);
@@ -127,7 +225,7 @@ describe('ChatNotificationBridge', () => {
       type: 'message',
       soundEvent: 'message',
       tag: 'chat:!chan:hs',
-      silent: true,
+      skipTaskbarFlash: true,
     });
   });
 
@@ -140,11 +238,13 @@ describe('ChatNotificationBridge', () => {
     });
   });
 
-  it('raises the OS notification when the window is not focused', () => {
+  it('flashes the taskbar when the window is not focused', () => {
     setWindow({ visible: true, focused: false });
     render(<ChatNotificationBridge />);
     emitMessage(baseMessage());
-    expect(notify.mock.calls[0][0]).toMatchObject({ silent: false });
+    expect(notify.mock.calls[0][0]).toMatchObject({
+      skipTaskbarFlash: false,
+    });
   });
 
   it('lets a visible tab win: a hidden tab waits before claiming', () => {
@@ -154,7 +254,9 @@ describe('ChatNotificationBridge', () => {
     emitMessage(baseMessage());
     expect(notify).not.toHaveBeenCalled();
     vi.advanceTimersByTime(300);
-    expect(notify.mock.calls[0][0]).toMatchObject({ silent: false });
+    expect(notify.mock.calls[0][0]).toMatchObject({
+      skipTaskbarFlash: false,
+    });
   });
 
   it('does nothing in a tab that lost the claim', () => {

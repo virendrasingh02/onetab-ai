@@ -5429,6 +5429,28 @@ export const notificationApi = {
       http.get(`/workspaces/${workspaceId}/notifications/unread-count`),
     ),
 
+  /** Files a chat message in the caller's own bell and on their phones. */
+  reportChatMessage: (input: {
+    roomId: string;
+    eventId: string;
+    title: string;
+    body?: string | null;
+    deepLink?: string | null;
+    threadRootId?: string | null;
+    senderId?: string | null;
+    isMention?: boolean;
+    isGroup?: boolean;
+    workspaceId?: string | null;
+  }) =>
+    request<{ id: string | null }>(
+      http.post('/notifications/chat-messages', input),
+    ),
+
+  markChatRoomRead: (roomId: string) =>
+    request<{ count: number }>(
+      http.post('/notifications/chat-read', { roomId }),
+    ),
+
   markRead: (workspaceId: string, notificationId: string) =>
     request<void>(
       http.post(

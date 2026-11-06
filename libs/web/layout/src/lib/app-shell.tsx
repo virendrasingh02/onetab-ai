@@ -677,7 +677,7 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
             chatOwnsChannelMentions={!!matrixClient}
           />
           {/*
-        Banners, OS notifications and sounds for Matrix chat traffic (new
+        OS notifications and sounds for Matrix chat traffic (new
         messages, DMs, mentions) — the counterpart to
         RealtimeNotificationsBridge, which covers tasks, invites and calls from
         the server stream.
@@ -689,6 +689,7 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
             mutedChannelNames={chatSoundGate.mutedChannelNames}
             mutedPeerNames={chatSoundGate.mutedPeerNames}
             mentionsOnlyChannelNames={chatSoundGate.mentionsOnlyChannelNames}
+            workspaceId={workspaceId}
             workspaceSlug={slug}
             channelRoutes={chatSoundGate.channelRoutes}
             onNavigate={navigate}

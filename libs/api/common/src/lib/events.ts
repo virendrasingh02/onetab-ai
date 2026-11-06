@@ -63,6 +63,8 @@ export const AppEvent = {
   /** Workspace identity/branding changed (name, logo, icon, avatar colour…). */
   WorkspaceUpdated: 'workspace.updated',
   NotificationCreated: 'notification.created',
+  /** A chat message reached someone with no client open to notify them. */
+  ChatMessageMissed: 'chat.message.missed',
   PresenceUpdated: 'presence.updated',
   /**
    * A user's status text / emoji / presence was changed by the server — the
@@ -346,6 +348,18 @@ export interface ChannelAccessExpiredEvent extends BaseEvent {
   channelSlug: string;
   /** The user whose temporary access ended. */
   userId: string;
+}
+
+export interface ChatMessageMissedEvent {
+  recipientId: string;
+  roomId: string;
+  eventId: string;
+  senderMatrixId: string;
+  content: Record<string, unknown>;
+  isEncrypted: boolean;
+  isMention: boolean;
+  /** More than two people in a room that is not a channel. */
+  isGroup: boolean;
 }
 
 export interface UserStatusChangedEvent extends BaseEvent {
@@ -753,6 +767,7 @@ export interface AppEventPayloads {
   [AppEvent.ChannelMembershipChanged]: ChannelMembershipChangedEvent;
   [AppEvent.ChannelAccessExpired]: ChannelAccessExpiredEvent;
   [AppEvent.UserStatusChanged]: UserStatusChangedEvent;
+  [AppEvent.ChatMessageMissed]: ChatMessageMissedEvent;
   [AppEvent.HuddleUpdated]: HuddleUpdatedEvent;
   [AppEvent.WorkspaceMembershipChanged]: WorkspaceMembershipChangedEvent;
   [AppEvent.FileShared]: FileSharedEvent;

@@ -10,6 +10,8 @@ let directMap: Record<string, string[]> = {};
 
 const client = {
   getRooms: vi.fn(() => rooms),
+  findDirectMessage: (id: string) =>
+    rooms.find((room) => room.directUserId === id)?.id ?? null,
   getDirectRoomIds: vi.fn(() => directMap),
   isRoomMuted: vi.fn((roomId: string) => muted.has(roomId)),
   setRoomMuted: vi.fn(async (roomId: string, value: boolean) => {

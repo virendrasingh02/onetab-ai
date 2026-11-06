@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { notificationService } from './notification-service.js';
 import { setActiveCallState } from './active-call-detector.js';
 import { store, updateNotificationPreferences } from '@org/common';
+import { toast } from '@org/ui';
+import { flashFrame, notify as sendOsNotification } from '@org/web-desktop';
 
 vi.mock('@org/ui', () => ({
   toast: Object.assign(vi.fn(), {
@@ -26,6 +28,7 @@ vi.mock('@org/web-desktop', () => ({
 
 describe('notificationService', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     setActiveCallState(false);
     store.dispatch(
       updateNotificationPreferences({
@@ -49,6 +52,57 @@ describe('notificationService', () => {
     expect(result.displayed).toBe(true);
     expect(result.suppressed).toBe(false);
     expect(result.previewHidden).toBe(false);
+  });
+
+  it('raises the native notification without an in-app toast', async () => {
+    await notificationService.notify({
+      title: 'Virendra Singh',
+      body: 'hello',
+      type: 'message',
+      tag: 'chat:!room',
+      route: '/w/acme/dms/virendra',
+      skipTaskbarFlash: true,
+    });
+
+    expect(sendOsNotification).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(sendOsNotification).mock.calls[0][0]).toMatchObject({
+      title: 'Virendra Singh',
+      body: 'hello',
+      tag: 'chat:!room',
+      route: '/w/acme/dms/virendra',
+    });
+    expect(toast).not.toHaveBeenCalled();
+    expect(flashFrame).not.toHaveBeenCalled();
+  });
+
+  it('falls back to a toast only when the browser or OS refuses', async () => {
+    vi.mocked(sendOsNotification).mockResolvedValueOnce(false);
+
+    const result = await notificationService.notify({
+      title: 'Alice',
+      body: 'hello',
+      type: 'message',
+    });
+
+    expect(result).toMatchObject({
+      displayed: false,
+      suppressed: true,
+      suppressionReason: 'permissions_denied',
+    });
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(toast).mock.calls[0][0]).toBe('Alice');
+  });
+
+  it('leaves a refusal to a caller that reports it itself', async () => {
+    vi.mocked(sendOsNotification).mockResolvedValueOnce(false);
+
+    await notificationService.notify({
+      title: 'Alice',
+      body: 'hello',
+      skipInAppFallback: true,
+    });
+
+    expect(toast).not.toHaveBeenCalled();
   });
 
   it('redacts content preview when showContentPreview is false', async () => {

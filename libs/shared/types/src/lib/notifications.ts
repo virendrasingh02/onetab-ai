@@ -186,6 +186,7 @@ export type NotificationKind =
   | 'CALL_SUMMARY_READY'
   | 'CALL_ACTION_ITEM_ASSIGNED'
   | 'MESSAGE_REMINDER'
+  | 'CHAT_MESSAGE'
   | 'SYSTEM'
   /** An AI agent paused for the owner's approval. */
   | 'AI_APPROVAL_REQUIRED'

@@ -1,3 +1,4 @@
+import { notificationApi } from '@org/api-client';
 import {
   claimNotification,
   notificationService,
@@ -6,15 +7,18 @@ import {
 import { toPlatformUserId, type Message, type Room } from '@org/types';
 import { toPlainMessageText } from '@org/utils';
 import { useEffect, useRef } from 'react';
-import { getActiveConversation } from './active-conversation.js';
+import {
+  getActiveConversation,
+  subscribeActiveConversation,
+} from './active-conversation.js';
 import { useMatrix } from './matrix-provider.js';
 
 export interface ChatNotificationBridgeProps {
-  /** Quiet hours: nothing from chat — no banner, no sound. */
+  /** Quiet hours: nothing from chat — no notification, no sound. */
   suppressed?: boolean;
   /**
-   * The per-workspace "mute sounds" switch. Only the sound goes; the banner
-   * still shows.
+   * The per-workspace "mute sounds" switch. Only the sound goes; the
+   * notification still shows.
    */
   soundMuted?: boolean;
   /**
@@ -32,6 +36,8 @@ export interface ChatNotificationBridgeProps {
    * channel-level counterpart of `mentionsOnly`.
    */
   mentionsOnlyChannelNames?: ReadonlySet<string>;
+  /** Active workspace id: where chat rows are filed for the bell and phones. */
+  workspaceId?: string;
   /** Active workspace slug, for building a conversation's route. */
   workspaceSlug?: string;
   /** Matrix room id → route, for this workspace's channels. */
@@ -47,7 +53,7 @@ export interface ChatNotificationBridgeProps {
  */
 const HIDDEN_TAB_CLAIM_DELAY_MS = 250;
 
-/** What the banner says, without leaking a raw filename or a blank line. */
+/** What the notification says, without leaking a raw filename or a blank line. */
 function previewOf(message: Message): string {
   if (message.decryptionError) return 'Sent an encrypted message';
   switch (message.kind) {
@@ -83,7 +89,7 @@ function titleOf(message: Message, room: Room | null | undefined): string {
 
 /**
  * Where a click lands. A channel from another workspace has no entry in
- * `channelRoutes`; its banner still shows, it just cannot open the channel.
+ * `channelRoutes`; its notification still shows, it just cannot open the channel.
  */
 function routeOf(
   message: Message,
@@ -105,16 +111,50 @@ function routeOf(
 }
 
 /**
+ * Files the message in the user's bell and on their phones. The server works
+ * out a room's workspace, so a channel elsewhere is filed there; without a route
+ * here it builds the link itself. Message text stays on this device for an
+ * encrypted room, and when previews are off: push passes through a third party.
+ */
+function reportToApi(
+  message: Message,
+  room: Room | null | undefined,
+  route: string | undefined,
+  workspaceId: string | undefined,
+  workspaceSlug: string | undefined,
+): void {
+  const prefix = `/w/${workspaceSlug}/`;
+  const { showContentPreview } = notificationService.getPreferences();
+  void notificationApi
+    .reportChatMessage({
+      roomId: message.roomId,
+      eventId: message.id,
+      title: showContentPreview ? titleOf(message, room) : 'New message',
+      body:
+        showContentPreview && !room?.isEncrypted ? previewOf(message) : null,
+      deepLink: route?.startsWith(prefix) ? route.slice(prefix.length) : null,
+      threadRootId: message.alsoSentToChannel ? null : message.threadRootId,
+      senderId: toPlatformUserId(message.senderId),
+      isMention: message.isMention,
+      isGroup: room?.kind === 'group',
+      workspaceId,
+    })
+    .catch(() => {
+      // The native notification already showed; the bell can miss this one.
+    });
+}
+
+/**
  * Turns incoming Matrix chat traffic into notifications.
  *
  * Chat is Matrix-native: plain messages and DMs never reach the server's
  * `notification.created` stream, and a channel mention only does when the
  * homeserver's appservice push reaches the API. So this bridge owns every chat
- * banner, mentions included — it has the sender and the text, which the server
+ * notification, mentions included — it has the sender and the text, which the server
  * deliberately never sees. `RealtimeNotificationsBridge` keeps tasks, invites,
  * calls and the like, and stands in for mentions only when no Matrix client is
  * running. Each message goes through {@link notificationService}, so it gets the
- * same banner, OS notification, preview privacy, call suppression and sound as
+ * same OS notification, preview privacy, call suppression and sound as
  * everything else.
  *
  *  - never for the user's own messages, local echoes, edits/redactions
@@ -122,9 +162,12 @@ function routeOf(
  *  - never for system rows ("X joined the channel")
  *  - never for a muted channel / muted DM / quiet hours
  *  - only the existing sound rule when the user is looking at that conversation
- *  - an OS notification only when the app is not the focused window
- *  - one banner per conversation: a burst updates it instead of stacking
+ *  - a native OS notification otherwise, even with the app focused on another
+ *    conversation: there is no in-app toast to fall back on
+ *  - one notification per conversation: a burst updates it instead of stacking
  *  - one tab per browser acts on a given message
+ *  - each notified message is reported to the API for the bell and phones, and
+ *    opening the conversation clears that row
  *
  * Renders nothing.
  */
@@ -135,6 +178,7 @@ export function ChatNotificationBridge({
   mutedChannelNames,
   mutedPeerNames,
   mentionsOnlyChannelNames,
+  workspaceId,
   workspaceSlug,
   channelRoutes,
   onNavigate,
@@ -150,6 +194,7 @@ export function ChatNotificationBridge({
     mutedChannelNames,
     mutedPeerNames,
     mentionsOnlyChannelNames,
+    workspaceId,
     workspaceSlug,
     channelRoutes,
     onNavigate,
@@ -198,6 +243,7 @@ export function ChatNotificationBridge({
           mutedChannelNames: mutedChannels,
           mutedPeerNames: mutedPeers,
           mentionsOnlyChannelNames: mentionsOnlyChannels,
+          workspaceId: activeWorkspaceId,
           workspaceSlug: slug,
           channelRoutes: routes,
           onNavigate: navigate,
@@ -249,7 +295,7 @@ export function ChatNotificationBridge({
         const cue = isDirect ? 'dm' : message.isMention ? 'mention' : 'message';
         const claimKey = `chat:${message.id}`;
 
-        // On screen already: no banner. Claiming still matters — it stops a
+        // On screen already: no notification. Claiming still matters — it stops a
         // hidden tab raising an OS notification for what the user is reading.
         if (isViewingConversation) {
           if (claimNotification(claimKey) && !isSoundMuted) {
@@ -274,10 +320,9 @@ export function ChatNotificationBridge({
             soundEvent: isSoundMuted ? 'none' : cue,
             route,
             onActivate: route && navigate ? () => navigate(route) : undefined,
-            // In the focused window a banner is enough; the OS notification is
-            // for when the user is somewhere else.
-            silent: focused,
+            skipTaskbarFlash: focused,
           });
+          reportToApi(message, room, route, activeWorkspaceId, slug);
         };
 
         if (visible) deliver();
@@ -289,6 +334,23 @@ export function ChatNotificationBridge({
 
     return unsubscribe;
   }, [client]);
+
+  // Reading a conversation clears its row. Focus counts too: a message that
+  // landed while the user was away from an open conversation was reported.
+  useEffect(() => {
+    const markRead = () => {
+      const roomId = getActiveConversation();
+      if (!roomId) return;
+      void notificationApi.markChatRoomRead(roomId).catch(() => undefined);
+    };
+    markRead();
+    const unsubscribe = subscribeActiveConversation(markRead);
+    window.addEventListener('focus', markRead);
+    return () => {
+      unsubscribe();
+      window.removeEventListener('focus', markRead);
+    };
+  }, []);
 
   return null;
 }

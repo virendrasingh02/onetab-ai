@@ -1,5 +1,7 @@
 import { matrixApi, queryKeys } from '@org/api-client';
+import type { RoomId } from '@org/types';
 import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import { useMatrix } from './matrix-provider.js';
 
 /**
@@ -20,6 +22,10 @@ import { useMatrix } from './matrix-provider.js';
  * the list should be a cache hit, not another round of room creation. This is
  * agnostic to what kind of peer it is — `getOrCreateDirectMessage` only ever
  * needs a Matrix user id, human or bot.
+ *
+ * The cached answer can go stale in one way: two people who each started the
+ * conversation hold two rooms until both have accepted the other's invite. The
+ * open view follows `findDirectMessage` so both end up writing to the same one.
  */
 export function useDirectRoom(peerUserId: string | undefined) {
   const { client, enabled } = useMatrix();
@@ -30,9 +36,10 @@ export function useDirectRoom(peerUserId: string | undefined) {
       const { matrixUserId } = await matrixApi.peerIdentity(
         peerUserId as string,
       );
-      return (client as NonNullable<typeof client>).getOrCreateDirectMessage(
-        matrixUserId,
-      );
+      const roomId = await (
+        client as NonNullable<typeof client>
+      ).getOrCreateDirectMessage(matrixUserId);
+      return { matrixUserId, roomId };
     },
     enabled: !!peerUserId && enabled && !!client,
     // Neither the mapping nor the room changes for the life of the session.
@@ -40,8 +47,35 @@ export function useDirectRoom(peerUserId: string | undefined) {
     retry: 1,
   });
 
+  const peerMatrixId = query.data?.matrixUserId;
+  const [liveRoomId, setLiveRoomId] = useState<RoomId | null>(null);
+
+  useEffect(() => {
+    setLiveRoomId(null);
+    if (!client || !peerMatrixId) return;
+    const refresh = () => {
+      try {
+        setLiveRoomId(client.findDirectMessage(peerMatrixId));
+      } catch {
+        // Client stopped; the resolved room stands until it reconnects.
+      }
+    };
+    refresh();
+    return client.on((event) => {
+      if (
+        event.type === 'room.upserted' ||
+        event.type === 'room.removed' ||
+        event.type === 'direct.updated' ||
+        event.type === 'message.received'
+      ) {
+        refresh();
+      }
+    });
+  }, [client, peerMatrixId]);
+
   return {
-    roomId: query.data ?? null,
+    // A room just created has not synced yet, so the lookup comes back empty.
+    roomId: liveRoomId ?? query.data?.roomId ?? null,
     isLoading: query.isLoading,
     error: query.isError
       ? query.error instanceof Error && query.error.message

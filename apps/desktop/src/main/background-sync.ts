@@ -33,6 +33,7 @@ interface NotificationLite {
   title: string;
   body: string | null;
   deepLink: string | null;
+  resourceType?: string | null;
 }
 
 let apiBaseUrl = 'http://localhost:3000/api/v1';
@@ -120,6 +121,8 @@ export async function pollOnce(): Promise<void> {
         `/workspaces/${workspace.id}/notifications?unreadOnly=true&limit=${MAX_NOTIFICATIONS_PER_WORKSPACE}`,
       );
       for (const item of recent?.items ?? []) {
+        // The renderer already showed this one natively when it reported it.
+        if (item.resourceType === 'chat-room') continue;
         if (notifiedIds.has(item.id)) continue;
         notifiedIds.add(item.id);
         fireNativeNotification(item, workspace.slug);

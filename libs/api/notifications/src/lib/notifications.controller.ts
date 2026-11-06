@@ -14,7 +14,10 @@ import {
 import { WorkspaceRoleGuard } from '@org/api-auth';
 import { CurrentUser, WorkspaceId, zodBody } from '@org/api-common';
 import { z } from 'zod';
-import { NotificationCenterService } from './notification-center.service.js';
+import {
+  NotificationCenterService,
+  type ChatMessageReport,
+} from './notification-center.service.js';
 import {
   NotificationsService,
   type NotificationPreferenceInput,
@@ -36,6 +39,30 @@ const notificationPreferenceSchema = z.object({
   quietHoursStart: quietHourSchema,
   quietHoursEnd: quietHourSchema,
 });
+
+const chatRoomIdSchema = z.string().trim().min(1).max(255);
+
+const chatMessageReportSchema = z.object({
+  roomId: chatRoomIdSchema,
+  eventId: z.string().min(1).max(255),
+  title: z.string().trim().min(1).max(300),
+  body: z.string().max(1000).nullable().optional(),
+  // Workspace-relative only: this row's link must stay inside the app.
+  deepLink: z
+    .string()
+    .min(1)
+    .max(1000)
+    .regex(/^(?!\/|[a-z][a-z0-9+.-]*:)/i, 'Use a workspace-relative link')
+    .nullable()
+    .optional(),
+  threadRootId: z.string().min(1).max(255).nullable().optional(),
+  senderId: z.string().min(1).max(255).nullable().optional(),
+  isMention: z.boolean().optional(),
+  isGroup: z.boolean().optional(),
+  workspaceId: z.string().min(1).max(64).nullable().optional(),
+});
+
+const chatRoomReadSchema = z.object({ roomId: chatRoomIdSchema });
 
 /**
  * Notification settings and the activity feed for one workspace.
@@ -134,6 +161,35 @@ export class NotificationsController {
       userId,
       limit ? Math.min(Number(limit) || 50, 200) : undefined,
     );
+  }
+}
+
+/**
+ * Chat notifications belong to the person too: a room's workspace is worked out
+ * on the server, which is how another workspace's channel still reaches its bell.
+ * The recipient is always the token's user, so a client can only notify itself.
+ */
+@Controller({ path: 'notifications', version: '1' })
+export class ChatNotificationsController {
+  constructor(private readonly center: NotificationCenterService) {}
+
+  @Post('chat-messages')
+  @HttpCode(HttpStatus.OK)
+  async report(
+    @CurrentUser('id') userId: string,
+    @Body(zodBody(chatMessageReportSchema)) body: ChatMessageReport,
+  ) {
+    const row = await this.center.reportChatMessage(userId, body);
+    return { id: row?.id ?? null };
+  }
+
+  @Post('chat-read')
+  @HttpCode(HttpStatus.OK)
+  markRead(
+    @CurrentUser('id') userId: string,
+    @Body(zodBody(chatRoomReadSchema)) body: { roomId: string },
+  ) {
+    return this.center.markChatRoomRead(userId, body.roomId);
   }
 }
 

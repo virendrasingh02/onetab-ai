@@ -298,6 +298,81 @@ export class ContextLinksService {
         avatarUrl: doc.author.avatarUrl,
         presence: doc.author.presence,
       });
+    } else if (targetType === 'project') {
+      const project = await this.prisma.project.findFirst({
+        where: { id: targetId, workspaceId, deletedAt: null },
+        include: {
+          lead: {
+            select: {
+              id: true,
+              name: true,
+              displayName: true,
+              avatarUrl: true,
+              presence: true,
+            },
+          },
+        },
+      });
+
+      if (!project) throw new NotFoundException(`Project ${targetId} not found`);
+
+      overview.title = project.name;
+      if (project.lead) {
+        overview.relatedPeople.push({
+          id: project.lead.id,
+          name: project.lead.displayName || project.lead.name,
+          role: 'Lead',
+          avatarUrl: project.lead.avatarUrl,
+          presence: project.lead.presence,
+        });
+      }
+
+      const tasks = await this.prisma.task.findMany({
+        where: { workspaceId, projectId: targetId, deletedAt: null },
+        take: 10,
+        orderBy: { updatedAt: 'desc' },
+      });
+      overview.relatedTasks = tasks.map((t) => ({
+        id: t.id,
+        title: t.identifier ? `${t.identifier} ${t.title}` : t.title,
+        status: t.status,
+        priority: t.priority,
+        identifier: t.identifier ?? undefined,
+        href: `projects?taskId=${t.id}`,
+      }));
+
+      const files = await this.prisma.upload.findMany({
+        where: { workspaceId, projectId: targetId },
+        take: 10,
+        orderBy: { createdAt: 'desc' },
+      });
+      overview.relatedFiles = files.map((f) => ({
+        id: f.id,
+        filename: f.filename,
+        size: f.size,
+        mimeType: f.mimeType,
+        href: `files?fileId=${f.id}`,
+      }));
+
+      const docs = await this.prisma.workDocument.findMany({
+        where: {
+          workspaceId,
+          deletedAt: null,
+          // The link lives in the content envelope's meta. Matching the whole
+          // key keeps out docs that merely mention the id in their text.
+          content: { contains: `"projectId":"${targetId}"` },
+        },
+        take: 10,
+        orderBy: { updatedAt: 'desc' },
+        select: { id: true, title: true },
+      });
+      for (const d of docs) {
+        overview.relatedDocs.push({
+          id: d.id,
+          title: d.title || 'Untitled Document',
+          href: `docs/${d.id}`,
+        });
+      }
     }
 
     // 3. Process explicit links
@@ -332,7 +407,10 @@ export class ContextLinksService {
             identifier: true,
           },
         });
-        if (linkedTask) {
+        if (
+          linkedTask &&
+          !overview.relatedTasks.some((task) => task.id === linkedTask.id)
+        ) {
           overview.relatedTasks.push({
             id: linkedTask.id,
             title: linkedTask.identifier
@@ -342,6 +420,25 @@ export class ContextLinksService {
             priority: linkedTask.priority,
             identifier: linkedTask.identifier ?? undefined,
             href: `projects?taskId=${linkedTask.id}`,
+          });
+        }
+      } else if (
+        (otherType === 'doc' || otherType === 'document') &&
+        targetType !== 'doc' &&
+        targetType !== 'document'
+      ) {
+        const linkedDoc = await this.prisma.workDocument.findFirst({
+          where: { id: otherId, workspaceId, deletedAt: null },
+          select: { id: true, title: true },
+        });
+        if (
+          linkedDoc &&
+          !overview.relatedDocs.some((doc) => doc.id === linkedDoc.id)
+        ) {
+          overview.relatedDocs.push({
+            id: linkedDoc.id,
+            title: linkedDoc.title || 'Untitled Document',
+            href: `docs/${linkedDoc.id}`,
           });
         }
       }

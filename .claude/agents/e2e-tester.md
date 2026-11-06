@@ -58,7 +58,8 @@ with status + body excerpt, or the DB/API value you checked).
   a message "missing" after a reload.
 - Text-search flags like "404" match numbers on the page (e.g. "40452ms"); read the
   surrounding text before reporting.
-- Chat notifications need a second real sender: API login → `POST /api/v1/matrix/session` → Matrix CS API `PUT .../send/m.room.message/<txn>`. Add `m.mentions.user_ids` for a mention. The pane has browser notifications denied, so stub `window.Notification` to capture OS calls, and read banners from `[data-sonner-toast]`.
+- Chat notifications need a second real sender: API login → `POST /api/v1/matrix/session` → Matrix CS API `PUT .../send/m.room.message/<txn>`. Add `m.mentions.user_ids` for a mention. The pane has browser notifications denied, so stub `window.Notification` to capture OS calls. With the stub granted, assert `[data-sonner-toast]` stays empty.
+- Chat notifications also POST `/notifications/chat-messages` (one unread `chat-room` row per conversation, updated per message, so a burst returns the same id) and opening the conversation POSTs `/notifications/chat-read`. Realtime and desktop polling skip these rows, so one message must equal one native call. Native blocked: the toast fallback appears, which is why a stub is needed to assert none. For offline users `MatrixOfflineChatIntakeService` files the row itself, only for users with an Expo token and `presence = OFFLINE`.
 - Local `.env` has no `MATRIX_HS_TOKEN` and the LAN Synapse pushes to its own `host.docker.internal`, so the API never sees chat events here: no `recent_activity` rows, no server MENTION notifications. That is setup, not a regression.
 - `nx test` fails specs that touch `localStorage` on Node 26 (`Cannot read properties of undefined`), even with no related change. Compare against that before calling a failure new.
 - Doc editor blocks are inputs/textareas, so `innerText` misses their text: read

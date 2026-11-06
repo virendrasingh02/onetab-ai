@@ -22,15 +22,19 @@ import { IconPicker, useIconEditor, type IconSource } from '@org/icons';
 import { cn } from '@org/utils';
 import {
   ChevronDown,
+  Check,
   Clock,
   FileText,
   Folder,
+  FolderKanban,
   Image as ImageIcon,
   Sparkles,
   Star,
   Tag,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { readingMinutes, wordCount } from './doc-content.js';
 import {
   COVER_PRESETS,
   type DocCategory,
@@ -46,6 +50,9 @@ interface DocHeaderProps {
   onUpdateStatus: (status: DocStatus) => void;
   onUpdateCategory: (category: DocCategory) => void;
   onToggleFavorite: () => void;
+  onUpdateProject?: (projectId?: string, projectName?: string) => void;
+  projects?: Array<{ id: string; name: string; slug: string }>;
+  workspaceSlug?: string;
 }
 
 export function DocHeader({
@@ -56,7 +63,11 @@ export function DocHeader({
   onUpdateStatus,
   onUpdateCategory,
   onToggleFavorite,
+  onUpdateProject,
+  projects,
+  workspaceSlug,
 }: DocHeaderProps) {
+  const navigate = useNavigate();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
 
   /*
@@ -80,15 +91,12 @@ export function DocHeader({
   );
   const [titleInput, setTitleInput] = useState(doc.title);
 
-  // Compute metrics
-  const totalWords = doc.blocks
-    ? doc.blocks.reduce((acc, b) => {
-        const text = b.content + (b.rows ? b.rows.flat().join(' ') : '');
-        return acc + text.trim().split(/\s+/).filter(Boolean).length;
-      }, 0)
-    : 0;
+  const readingTimeMinutes = readingMinutes(doc.blocks);
 
-  const readingTimeMinutes = Math.max(1, Math.ceil(totalWords / 200));
+  // The name stored on the doc goes stale when a project is renamed, so the
+  // live project wins; the stored name covers the moment before it loads.
+  const linkedProject = projects?.find((p) => p.id === doc.projectId);
+  const projectLabel = linkedProject?.name ?? doc.projectName;
 
   const handleTitleSubmit = () => {
     setIsEditingTitle(false);
@@ -239,6 +247,65 @@ export function DocHeader({
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {/* Associated Project Dropdown */}
+            {onUpdateProject && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      'h-7 text-xs gap-1.5',
+                      doc.projectId
+                        ? 'border-brand/40 bg-brand/5 text-foreground font-medium'
+                        : 'text-muted-foreground',
+                    )}
+                  >
+                    <FolderKanban className="size-3.5 text-primary" />
+                    <span className="max-w-[120px] truncate">
+                      {projectLabel || (doc.projectId ? 'Project' : 'Link Project')}
+                    </span>
+                    <ChevronDown className="size-3 text-subtle" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="text-[11px]">
+                    Associated Project
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {projects && projects.length > 0 ? (
+                    projects.map((p) => (
+                      <DropdownMenuItem
+                        key={p.id}
+                        onClick={() => onUpdateProject(p.id, p.name)}
+                        className="text-xs justify-between"
+                      >
+                        <span className="truncate">{p.name}</span>
+                        {doc.projectId === p.id && (
+                          <Check className="size-3.5 shrink-0 text-primary" />
+                        )}
+                      </DropdownMenuItem>
+                    ))
+                  ) : (
+                    <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+                      No projects available
+                    </DropdownMenuItem>
+                  )}
+                  {doc.projectId && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => onUpdateProject(undefined, undefined)}
+                        className="text-xs text-destructive focus:text-destructive"
+                      >
+                        Unlink project
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
 
@@ -247,18 +314,53 @@ export function DocHeader({
           <Breadcrumb>
             <BreadcrumbList className="text-[11px]">
               <BreadcrumbItem>
-                <BreadcrumbLink className="flex items-center gap-1">
-                  <Folder className="size-3 text-accent-blue" />
-                  Workspace Docs
+                <BreadcrumbLink asChild>
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 cursor-pointer"
+                    onClick={() => {
+                      if (workspaceSlug) {
+                        navigate(`/w/${workspaceSlug}/docs?tab=gallery`);
+                      }
+                    }}
+                  >
+                    <Folder className="size-3 text-accent-blue" />
+                    Workspace Docs
+                  </button>
                 </BreadcrumbLink>
               </BreadcrumbItem>
+              {doc.projectId && projectLabel && (
+                <>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbLink asChild>
+                      <button
+                        type="button"
+                        className="flex items-center gap-1 text-primary cursor-pointer hover:underline"
+                        onClick={() => {
+                          if (workspaceSlug) {
+                            navigate(
+                              `/w/${workspaceSlug}/projects/${
+                                linkedProject?.slug ?? doc.projectId
+                              }`,
+                            );
+                          }
+                        }}
+                      >
+                        <FolderKanban className="size-3" />
+                        {projectLabel}
+                      </button>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                </>
+              )}
               <BreadcrumbSeparator />
               <BreadcrumbItem>
                 <BreadcrumbLink>{doc.category}</BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbPage className="font-semibold text-foreground">
+                <BreadcrumbPage className="font-semibold text-foreground truncate max-w-[200px]">
                   {doc.title}
                 </BreadcrumbPage>
               </BreadcrumbItem>
@@ -301,7 +403,7 @@ export function DocHeader({
           </div>
           <div className="flex items-center gap-1.5">
             <FileText className="size-3.5 text-subtle" />
-            <span>{totalWords} words</span>
+            <span>{wordCount(doc.blocks)} words</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Sparkles className="size-3.5 text-accent-blue" />

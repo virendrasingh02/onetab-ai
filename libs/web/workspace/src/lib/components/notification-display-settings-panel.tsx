@@ -25,6 +25,7 @@ import {
   SelectValue,
   Slider,
   Switch,
+  toast,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -105,13 +106,23 @@ export function NotificationDisplaySettingsPanel({
 
   const handleTestNotification = async () => {
     setTestSending(true);
-    await notificationService.notify({
+    const result = await notificationService.notify({
       title: 'Onetab AI Notification',
       body: 'Real-time alert preferences are working smoothly!',
       type: 'success',
       promptForPermission: true,
+      skipInAppFallback: true,
     });
     setTestSending(false);
+    if (!result.displayed) {
+      toast.error('Notification not shown', {
+        description:
+          result.suppressionReason === 'call_active'
+            ? 'Notifications are hidden during calls and meetings.'
+            : 'Allow notifications in your browser or system settings, then try again.',
+      });
+      return;
+    }
     setTestSuccess(true);
     setTimeout(() => setTestSuccess(false), 3000);
   };
@@ -146,8 +157,8 @@ export function NotificationDisplaySettingsPanel({
             <span>Notification Display</span>
           </h2>
           <p className="text-xs mt-0.5 text-muted-foreground">
-            Control toast appearance, on-screen positioning, privacy previews,
-            and Windows taskbar flashing.
+            Control native notifications, in-app toast appearance, privacy
+            previews, and Windows taskbar flashing.
           </p>
         </div>
 

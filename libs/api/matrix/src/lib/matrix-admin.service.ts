@@ -1233,13 +1233,19 @@ export class MatrixAdminService {
    * One non-blocking `/sync` as `matrixUserId`: new `m.room.message` events and
    * the rooms it is invited to. Without `since` it only establishes a cursor
    * (timeline limit 0), so history is never replayed.
+   *
+   * `person` is for watching a human's account: it also returns encrypted
+   * events and their push rules, and never marks them online.
    */
   async syncAs(
     matrixUserId: string,
     since?: string,
+    options: { person?: boolean } = {},
   ): Promise<{
     nextBatch: string;
     invitedRoomIds: string[];
+    /** The synced `m.push_rules` content, when this sync carried it. */
+    pushRules?: Record<string, unknown>;
     events: Array<{
       type: string;
       room_id: string;
@@ -1264,22 +1270,31 @@ export class MatrixAdminService {
 
     const filter = {
       presence: { types: [] },
-      account_data: { types: [] },
+      account_data: { types: options.person ? ['m.push_rules'] : [] },
       room: {
         ephemeral: { types: [] },
         account_data: { types: [] },
         state: { types: [] },
-        timeline: { types: ['m.room.message'], limit: since ? 50 : 0 },
+        timeline: {
+          types: options.person
+            ? ['m.room.message', 'm.room.encrypted']
+            : ['m.room.message'],
+          limit: since ? 50 : 0,
+        },
       },
     };
     const query = new URLSearchParams({
       timeout: '0',
       filter: JSON.stringify(filter),
       ...(since ? { since } : {}),
+      ...(options.person ? { set_presence: 'offline' } : {}),
     });
 
     const response = await this.request<{
       next_batch: string;
+      account_data?: {
+        events?: Array<{ type: string; content: Record<string, unknown> }>;
+      };
       rooms?: {
         invite?: Record<string, unknown>;
         join?: Record<
@@ -1306,6 +1321,9 @@ export class MatrixAdminService {
     return {
       nextBatch: response.next_batch,
       invitedRoomIds: Object.keys(response.rooms?.invite ?? {}),
+      pushRules: response.account_data?.events?.find(
+        (event) => event.type === 'm.push_rules',
+      )?.content,
       events,
     };
   }

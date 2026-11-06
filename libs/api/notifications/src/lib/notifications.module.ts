@@ -5,10 +5,12 @@ import { PrismaModule } from '@org/database';
 import { ActivityWriterService } from './activity-writer.service.js';
 import { AttentionService } from './attention.service.js';
 import { CatchUpService } from './catch-up.service.js';
+import { ChatMissedListener } from './chat-missed.listener.js';
 import { DomainEventsListener } from './domain-events.listener.js';
 import { IntelligenceController } from './intelligence.controller.js';
 import { NotificationCenterService } from './notification-center.service.js';
 import {
+  ChatNotificationsController,
   NotificationsController,
   PushDeviceController,
 } from './notifications.controller.js';
@@ -21,6 +23,7 @@ import { RemindersService } from './reminders.service.js';
   imports: [ConfigModule, PrismaModule, AuthModule],
   controllers: [
     NotificationsController,
+    ChatNotificationsController,
     PushDeviceController,
     IntelligenceController,
     RemindersController,
@@ -35,6 +38,8 @@ import { RemindersService } from './reminders.service.js';
     // Bridges the app event bus onto notification + activity rows. Registered
     // as a provider so NestJS instantiates it and its @OnEvent handlers bind.
     DomainEventsListener,
+    // Files chat for people with no client open.
+    ChatMissedListener,
     // Sends notification-centre rows to registered mobile devices.
     PushDeliveryService,
   ],

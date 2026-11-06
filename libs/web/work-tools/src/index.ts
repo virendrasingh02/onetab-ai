@@ -123,10 +123,16 @@ export { InitiativesView } from './lib/views/InitiativesView.js';
 export { IntakeTriageView } from './lib/views/IntakeTriageView.js';
 export { ProjectUpdatesView } from './lib/views/ProjectUpdatesView.js';
 export { ProjectSettingsView } from './lib/views/ProjectSettingsView.js';
+export {
+  ProjectDocsTab,
+  ProjectDocsView,
+  type ProjectDocsViewProps,
+} from './lib/views/ProjectDocsView.js';
 export { ProjectListView } from './lib/asana/ProjectListView.js';
 export { ProjectTimelineView } from './lib/asana/ProjectTimelineView.js';
 export { ProjectDashboardView } from './lib/asana/ProjectDashboardView.js';
 export { DocumentEditor } from './lib/DocumentEditor.js';
+export { DocGallery, type DocGalleryProps } from './lib/docs/DocGallery.js';
 export { useDocsWorkspace, type DocsWorkspace } from './lib/docs/use-docs.js';
 export {
   decodeDocContent,

@@ -543,12 +543,16 @@ export async function notify(
         : Notification.permission;
 
     if (permission !== 'granted') return false;
-    const notification = new Notification(request.title, {
+    // Without `renotify` a replacement under the same tag updates silently, so
+    // the second message of a burst would never pop up. Not in TS's DOM types.
+    const notificationOptions: NotificationOptions & { renotify?: boolean } = {
       body: request.body,
       silent: request.silent,
       icon: request.icon,
       tag: request.tag,
-    });
+      renotify: Boolean(request.tag),
+    };
+    const notification = new Notification(request.title, notificationOptions);
     notification.onclick = () => {
       window.focus();
       notification.close();

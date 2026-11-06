@@ -22,6 +22,7 @@ export {
   type ChannelDeletedEvent,
   type ChannelMembershipChangedEvent,
   type ChannelAccessExpiredEvent,
+  type ChatMessageMissedEvent,
   type UserStatusChangedEvent,
   type HuddleUpdatedEvent,
   type WorkspaceMembershipChangedEvent,

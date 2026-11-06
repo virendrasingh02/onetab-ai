@@ -3,6 +3,7 @@ import { Button, EmptyState, Hint, Skeleton } from '@org/ui';
 import { cn, formatRelative, toPlainMessageText } from '@org/utils';
 import {
   AtSign,
+  MessageSquare,
   Bell,
   Bot,
   Calendar,
@@ -42,6 +43,7 @@ function getCategoryIcon(kind?: string) {
   if (!kind) return null;
   if (/^AI_/i.test(kind)) return <Bot className="size-3 text-primary" />;
   if (/MENTION/i.test(kind)) return <AtSign className="size-3 text-sky-500" />;
+  if (kind === 'CHAT_MESSAGE') return <MessageSquare className="size-3 text-sky-500" />;
   if (/^TASK_/i.test(kind)) return <CheckSquare className="size-3 text-emerald-500" />;
   if (/^CALL_/i.test(kind)) return <Phone className="size-3 text-violet-500" />;
   if (/^MEETING_/i.test(kind)) return <Calendar className="size-3 text-amber-500" />;
@@ -56,6 +58,7 @@ function getCategoryLabel(kind?: string) {
   if (kind === 'AI_RUN_FAILED') return 'Agent Failed';
   if (kind === 'AI_AGENT_MESSAGE') return 'Agent Message';
   if (kind === 'MENTION') return 'Mention';
+  if (kind === 'CHAT_MESSAGE') return 'Message';
   if (kind === 'TASK_ASSIGNED') return 'Task Assigned';
   if (kind === 'TASK_COMPLETED') return 'Task Done';
   if (/CALL/i.test(kind)) return 'Call';
