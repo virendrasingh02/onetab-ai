@@ -7,6 +7,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   assertContentAllowed,
   AppEvent,
+  createWithUniqueSlug,
   PUBLIC_USER_SELECT,
   resolveTextMentions,
 } from '@org/api-common';
@@ -32,7 +33,9 @@ import {
   formatTicketIdentifier,
   generateProjectIdentifier,
   isValidIdentifierPrefix,
+  slugify,
 } from '@org/utils';
+import { PROJECT_SLUG_MAX_LENGTH } from '@org/validation';
 import type {
   ConvertIntakeRequestInput,
   CreateCalendarEventInput,
@@ -384,51 +387,69 @@ export class WorkToolsService {
     if (input.initiativeId)
       await this.assertInitiative(workspaceId, input.initiativeId);
 
-    // Existing prefixes in workspace for collision avoidance
-    const existingPrefixes = (
-      await this.prisma.project.findMany({
-        where: { workspaceId },
-        select: { ticketPrefix: true },
-      })
-    ).flatMap((p) => (p.ticketPrefix ? [p.ticketPrefix] : []));
-
-    const finalPrefix = input.ticketPrefix
-      ? input.ticketPrefix.toUpperCase()
-      : generateProjectIdentifier(input.name, existingPrefixes);
-
-    // Check clash
-    const clash = await this.prisma.project.findFirst({
-      where: { workspaceId, ticketPrefix: finalPrefix },
-    });
-    if (clash) {
-      throw new ConflictException(
-        `Ticket prefix "${finalPrefix}" is already in use by project "${clash.name}"`,
-      );
+    // A prefix the user chose is theirs to fix; a generated one just retries.
+    const chosenPrefix = input.ticketPrefix?.toUpperCase();
+    if (chosenPrefix) {
+      const clash = await this.prisma.project.findFirst({
+        where: { workspaceId, ticketPrefix: chosenPrefix },
+      });
+      if (clash) {
+        throw new ConflictException(
+          `Ticket prefix "${chosenPrefix}" is already in use by project "${clash.name}"`,
+        );
+      }
     }
 
-    const project = await this.prisma.project.create({
-      data: {
-        workspaceId,
-        name: input.name,
-        slug: input.slug,
-        description: input.description ?? null,
-        color: input.color ?? '#3b82f6',
-        icon: input.icon ?? null,
-        iconColor: input.iconColor ?? null,
-        teamId: input.teamId ?? null,
-        leadId: input.leadId ?? null,
-        initiativeId: input.initiativeId ?? null,
-        startDate: at(input.startDate) ?? null,
-        targetDate: at(input.targetDate) ?? null,
-        columnOrder: [...TASK_STATUS_ORDER],
-        ticketPrefix: finalPrefix,
-        identifierPrefixMode:
-          (input.identifierPrefixMode as IdentifierPrefixMode) ??
-          IdentifierPrefixMode.AUTO,
-      },
-      include: {
-        lead: { select: PUBLIC_USER_SELECT },
-        team: true,
+    const derivedSlug = slugify(input.name);
+    const project = await createWithUniqueSlug({
+      base: input.slug ?? (derivedSlug.length >= 2 ? derivedSlug : 'project'),
+      maxLength: PROJECT_SLUG_MAX_LENGTH,
+      retryOnFields: chosenPrefix ? [] : ['ticketPrefix'],
+      // Soft-deleted projects count: they keep their slug and prefix to restore.
+      findTaken: async (prefix) =>
+        (
+          await this.prisma.project.findMany({
+            where: { workspaceId, slug: { startsWith: prefix } },
+            select: { slug: true },
+          })
+        ).map((p) => p.slug),
+      create: async (slug) => {
+        const ticketPrefix =
+          chosenPrefix ??
+          generateProjectIdentifier(
+            input.name,
+            (
+              await this.prisma.project.findMany({
+                where: { workspaceId },
+                select: { ticketPrefix: true },
+              })
+            ).flatMap((p) => (p.ticketPrefix ? [p.ticketPrefix] : [])),
+          );
+        return this.prisma.project.create({
+          data: {
+            workspaceId,
+            name: input.name,
+            slug,
+            description: input.description ?? null,
+            color: input.color ?? '#3b82f6',
+            icon: input.icon ?? null,
+            iconColor: input.iconColor ?? null,
+            teamId: input.teamId ?? null,
+            leadId: input.leadId ?? null,
+            initiativeId: input.initiativeId ?? null,
+            startDate: at(input.startDate) ?? null,
+            targetDate: at(input.targetDate) ?? null,
+            columnOrder: [...TASK_STATUS_ORDER],
+            ticketPrefix,
+            identifierPrefixMode:
+              (input.identifierPrefixMode as IdentifierPrefixMode) ??
+              IdentifierPrefixMode.AUTO,
+          },
+          include: {
+            lead: { select: PUBLIC_USER_SELECT },
+            team: true,
+          },
+        });
       },
     });
 

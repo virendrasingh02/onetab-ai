@@ -1,5 +1,12 @@
 export { ZodValidationPipe, zodBody } from './lib/zod-validation.pipe.js';
 export { HttpExceptionFilter } from './lib/http-exception.filter.js';
+export {
+  describePrismaError,
+  isPrismaError,
+  isUniqueViolation,
+  uniqueViolationFields,
+} from './lib/prisma-errors.js';
+export { createWithUniqueSlug, nextFreeSlug } from './lib/unique-slug.js';
 export { assertContentAllowed } from './lib/content-filter.js';
 export { buildHelmetOptions, httpsRedirect } from './lib/http-security.js';
 export { CAPTCHA_HEADER, CaptchaGuard } from './lib/captcha.guard.js';

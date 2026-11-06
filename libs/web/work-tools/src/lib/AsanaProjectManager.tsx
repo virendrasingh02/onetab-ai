@@ -38,7 +38,7 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useCurrentUser } from '@org/auth';
-import { workToolsApi } from '@org/api-client';
+import { ApiError, workToolsApi } from '@org/api-client';
 import {
   Check,
   ChevronDown,
@@ -285,8 +285,9 @@ function slugify(text: string): string {
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48);
+    .replace(/^-+/, '')
+    .slice(0, 48)
+    .replace(/-+$/, '');
 }
 
 /** Tabs a link can open with `?view=`. */
@@ -537,10 +538,14 @@ export function AsanaProjectManager() {
     const name = draft.name.trim();
     if (!name) return;
 
+    // Names with nothing URL-safe in them leave this too short; the API then
+    // derives the slug, and it adds a number if the slug is already taken.
+    const slug = draft.slug.trim() || slugify(name);
+
     try {
       const created = await projectMutations.create.mutateAsync({
         name,
-        slug: draft.slug.trim() || slugify(name),
+        slug: slug.length >= 2 ? slug : undefined,
         description: draft.description.trim() || null,
         color: draft.color,
         icon: draft.icon,
@@ -565,8 +570,10 @@ export function AsanaProjectManager() {
       setIsNewProjectOpen(false);
       openProject(created.id);
       toast.success(`Created project “${created.name}”`);
-    } catch {
-      toast.error('Failed to create project');
+    } catch (error) {
+      toast.error(
+        error instanceof ApiError ? error.message : 'Failed to create project',
+      );
     }
   };
 
@@ -647,7 +654,6 @@ export function AsanaProjectManager() {
       if (result.mode === 'new' || !targetProjectId) {
         const created = await projectMutations.create.mutateAsync({
           name: result.name,
-          slug: result.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
           color: result.color,
         });
         targetProjectId = created.id;
@@ -836,7 +842,7 @@ export function AsanaProjectManager() {
           )}
 
           {/* Project Title with Quick Project Switcher Dropdown */}
-          <div className="flex items-center gap-1.5">
+          <div className="gap-1.5 flex items-center">
             <h1 className="text-base font-semibold tracking-tight text-foreground">
               {activeProject?.name ?? 'Projects'}
             </h1>
@@ -845,15 +851,20 @@ export function AsanaProjectManager() {
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className="p-1 rounded text-muted-foreground hover:text-foreground cursor-pointer hover:bg-muted/70 transition-colors"
+                    className="p-1 rounded cursor-pointer text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
                     title="Switch project"
                     aria-label="Switch project"
                   >
                     <ChevronDown className="size-3.5" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-56 max-h-72 overflow-y-auto">
-                  <DropdownMenuLabel className="text-[11px]">Switch Project</DropdownMenuLabel>
+                <DropdownMenuContent
+                  align="start"
+                  className="w-56 max-h-72 overflow-y-auto"
+                >
+                  <DropdownMenuLabel className="text-[11px]">
+                    Switch Project
+                  </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {projects.map((p) => (
                     <DropdownMenuItem
@@ -861,7 +872,7 @@ export function AsanaProjectManager() {
                       onClick={() => openProject(p.id)}
                       className="text-xs flex items-center justify-between"
                     >
-                      <div className="flex items-center gap-2 min-w-0">
+                      <div className="gap-2 min-w-0 flex items-center">
                         <ProjectGlyph
                           icon={p.icon}
                           iconColor={p.iconColor}
@@ -922,14 +933,19 @@ export function AsanaProjectManager() {
                   className="cursor-pointer"
                   aria-label={`Project status: ${STATUS_LABELS[activeProject.status]}. Change status`}
                 >
-                  <Badge variant="neutral" className="text-[10px] cursor-pointer hover:bg-muted gap-1">
+                  <Badge
+                    variant="neutral"
+                    className="gap-1 cursor-pointer text-[10px] hover:bg-muted"
+                  >
                     <span>{STATUS_LABELS[activeProject.status]}</span>
                     <ChevronDown className="size-2.5 opacity-60" />
                   </Badge>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-36">
-                <DropdownMenuLabel className="text-[11px]">Set Status</DropdownMenuLabel>
+                <DropdownMenuLabel className="text-[11px]">
+                  Set Status
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {PROJECT_STATUSES.map((st) => (
                   <DropdownMenuItem

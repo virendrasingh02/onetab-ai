@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@org/database';
-import { safeFetch } from '@org/api-common';
+import { createWithUniqueSlug, safeFetch } from '@org/api-common';
 import { MCPToolRegistryService } from '@org/api-agents';
 import {
   createWidgetDefinitionSchema,
@@ -32,7 +32,8 @@ const DEFAULT_TEMPLATES: WidgetTemplateItem[] = [
     name: 'Executive KPI Summary Card',
     category: 'data_viz',
     componentType: 'metric_card',
-    description: 'Displays key performance metrics with percentage delta, status badge, and secondary indicators.',
+    description:
+      'Displays key performance metrics with percentage delta, status badge, and secondary indicators.',
     icon: 'TrendingUp',
     tags: ['kpi', 'metrics', 'analytics', 'executive'],
     sampleData: {
@@ -60,13 +61,25 @@ const DEFAULT_TEMPLATES: WidgetTemplateItem[] = [
       schemaConfig: {
         inputFields: [],
         outputFields: [
-          { id: 'primaryValue', label: 'Primary Value', type: 'string', required: true },
+          {
+            id: 'primaryValue',
+            label: 'Primary Value',
+            type: 'string',
+            required: true,
+          },
           { id: 'secondaryValue', label: 'Delta', type: 'string' },
         ],
         allowCustomOutputs: true,
       },
       eventConfig: {
-        actions: [{ id: 'act_click', triggerEvent: 'on_click', targetType: 'navigation', targetId: '/analytics' }],
+        actions: [
+          {
+            id: 'act_click',
+            triggerEvent: 'on_click',
+            targetType: 'navigation',
+            targetId: '/analytics',
+          },
+        ],
         debounceMs: 300,
         preventDuplicateSubmissions: true,
       },
@@ -77,7 +90,8 @@ const DEFAULT_TEMPLATES: WidgetTemplateItem[] = [
     name: 'Workflow Runs & Throughput Bar Chart',
     category: 'data_viz',
     componentType: 'bar_chart',
-    description: 'Aggregates daily or hourly workflow executions with success vs failure breakdown.',
+    description:
+      'Aggregates daily or hourly workflow executions with success vs failure breakdown.',
     icon: 'BarChart3',
     tags: ['charts', 'executions', 'workflows', 'bar'],
     sampleData: {
@@ -114,10 +128,16 @@ const DEFAULT_TEMPLATES: WidgetTemplateItem[] = [
       },
       schemaConfig: {
         inputFields: [],
-        outputFields: [{ id: 'data', label: 'Chart Series', type: 'array', required: true }],
+        outputFields: [
+          { id: 'data', label: 'Chart Series', type: 'array', required: true },
+        ],
         allowCustomOutputs: true,
       },
-      eventConfig: { actions: [], debounceMs: 300, preventDuplicateSubmissions: true },
+      eventConfig: {
+        actions: [],
+        debounceMs: 300,
+        preventDuplicateSubmissions: true,
+      },
     },
   },
   {
@@ -125,7 +145,8 @@ const DEFAULT_TEMPLATES: WidgetTemplateItem[] = [
     name: 'Live Tasks & Issues Data Grid',
     category: 'data_viz',
     componentType: 'table_view',
-    description: 'Sortable and filterable data table displaying platform tasks, assignees, and statuses.',
+    description:
+      'Sortable and filterable data table displaying platform tasks, assignees, and statuses.',
     icon: 'Table',
     tags: ['table', 'tasks', 'data-grid', 'productivity'],
     sampleData: {
@@ -137,10 +158,34 @@ const DEFAULT_TEMPLATES: WidgetTemplateItem[] = [
         { id: 'priority', label: 'Priority', sortable: true },
       ],
       rows: [
-        { id: '1', identifier: 'TASK-101', title: 'Implement AI Agent Widget Center', status: 'IN_PROGRESS', priority: 'HIGH' },
-        { id: '2', identifier: 'TASK-102', title: 'Connect Slack OAuth connector', status: 'DONE', priority: 'MEDIUM' },
-        { id: '3', identifier: 'TASK-103', title: 'Prisma database indexing pass', status: 'DONE', priority: 'URGENT' },
-        { id: '4', identifier: 'TASK-104', title: 'Add Recharts data visualizers', status: 'IN_PROGRESS', priority: 'HIGH' },
+        {
+          id: '1',
+          identifier: 'TASK-101',
+          title: 'Implement AI Agent Widget Center',
+          status: 'IN_PROGRESS',
+          priority: 'HIGH',
+        },
+        {
+          id: '2',
+          identifier: 'TASK-102',
+          title: 'Connect Slack OAuth connector',
+          status: 'DONE',
+          priority: 'MEDIUM',
+        },
+        {
+          id: '3',
+          identifier: 'TASK-103',
+          title: 'Prisma database indexing pass',
+          status: 'DONE',
+          priority: 'URGENT',
+        },
+        {
+          id: '4',
+          identifier: 'TASK-104',
+          title: 'Add Recharts data visualizers',
+          status: 'IN_PROGRESS',
+          priority: 'HIGH',
+        },
       ],
     },
     defaultConfig: {
@@ -160,10 +205,16 @@ const DEFAULT_TEMPLATES: WidgetTemplateItem[] = [
       },
       schemaConfig: {
         inputFields: [],
-        outputFields: [{ id: 'rows', label: 'Table Records', type: 'array', required: true }],
+        outputFields: [
+          { id: 'rows', label: 'Table Records', type: 'array', required: true },
+        ],
         allowCustomOutputs: true,
       },
-      eventConfig: { actions: [], debounceMs: 300, preventDuplicateSubmissions: true },
+      eventConfig: {
+        actions: [],
+        debounceMs: 300,
+        preventDuplicateSubmissions: true,
+      },
     },
   },
 
@@ -173,12 +224,14 @@ const DEFAULT_TEMPLATES: WidgetTemplateItem[] = [
     name: 'Prompt & Parameters Input Form',
     category: 'interactive_input',
     componentType: 'dynamic_form',
-    description: 'Collects structured text, model temperature, and target options to dispatch to an AI agent.',
+    description:
+      'Collects structured text, model temperature, and target options to dispatch to an AI agent.',
     icon: 'SlidersHorizontal',
     tags: ['form', 'input', 'prompt', 'parameters'],
     sampleData: {
       title: 'Generate Content Dispatch',
-      prompt: 'Draft an executive briefing on Q3 cloud architecture improvements.',
+      prompt:
+        'Draft an executive briefing on Q3 cloud architecture improvements.',
       domain: 'Engineering',
       creativity: 0.7,
       includeMetrics: true,
@@ -195,7 +248,13 @@ const DEFAULT_TEMPLATES: WidgetTemplateItem[] = [
       dataSource: { type: 'static_sample', autoRefresh: false },
       schemaConfig: {
         inputFields: [
-          { id: 'prompt', label: 'User Instruction', type: 'string', required: true, placeholder: 'Enter prompt...' },
+          {
+            id: 'prompt',
+            label: 'User Instruction',
+            type: 'string',
+            required: true,
+            placeholder: 'Enter prompt...',
+          },
           {
             id: 'domain',
             label: 'Domain Category',
@@ -207,13 +266,26 @@ const DEFAULT_TEMPLATES: WidgetTemplateItem[] = [
               { label: 'Sales', value: 'Sales' },
             ],
           },
-          { id: 'includeMetrics', label: 'Include Metric Citations', type: 'boolean', defaultValue: true },
+          {
+            id: 'includeMetrics',
+            label: 'Include Metric Citations',
+            type: 'boolean',
+            defaultValue: true,
+          },
         ],
-        outputFields: [{ id: 'formPayload', label: 'Submission Payload', type: 'object' }],
+        outputFields: [
+          { id: 'formPayload', label: 'Submission Payload', type: 'object' },
+        ],
         allowCustomOutputs: true,
       },
       eventConfig: {
-        actions: [{ id: 'act_submit', triggerEvent: 'on_submit', targetType: 'workflow_trigger' }],
+        actions: [
+          {
+            id: 'act_submit',
+            triggerEvent: 'on_submit',
+            targetType: 'workflow_trigger',
+          },
+        ],
         debounceMs: 300,
         preventDuplicateSubmissions: true,
       },
@@ -224,14 +296,16 @@ const DEFAULT_TEMPLATES: WidgetTemplateItem[] = [
     name: 'Human Review & Approval Widget',
     category: 'interactive_input',
     componentType: 'approval_form',
-    description: 'Pauses workflow execution until an authorized reviewer approves, edits, or rejects the draft payload.',
+    description:
+      'Pauses workflow execution until an authorized reviewer approves, edits, or rejects the draft payload.',
     icon: 'ShieldCheck',
     tags: ['approval', 'governance', 'human-in-the-loop', 'review'],
     sampleData: {
       title: 'Action Requires Human Authorization',
       actionName: 'Post Announcement to Slack #general',
       requestedBy: 'Copilot Agent (Autonomous)',
-      payloadSummary: 'Target: #general | Message: "Q3 system maintenance completed ahead of schedule."',
+      payloadSummary:
+        'Target: #general | Message: "Q3 system maintenance completed ahead of schedule."',
       decisionComment: '',
       status: 'PENDING',
     },
@@ -244,18 +318,37 @@ const DEFAULT_TEMPLATES: WidgetTemplateItem[] = [
         showBorder: true,
         roundedRadius: 'md',
       },
-      dataSource: { type: 'workflow_output', variablePath: 'approval_step.payload' },
+      dataSource: {
+        type: 'workflow_output',
+        variablePath: 'approval_step.payload',
+      },
       schemaConfig: {
         inputFields: [
-          { id: 'decisionComment', label: 'Reviewer Notes', type: 'string', placeholder: 'Optional notes...' },
+          {
+            id: 'decisionComment',
+            label: 'Reviewer Notes',
+            type: 'string',
+            placeholder: 'Optional notes...',
+          },
         ],
         outputFields: [
-          { id: 'approved', label: 'Approval Status', type: 'boolean', required: true },
+          {
+            id: 'approved',
+            label: 'Approval Status',
+            type: 'boolean',
+            required: true,
+          },
           { id: 'modifiedPayload', label: 'Approved Payload', type: 'object' },
         ],
       },
       eventConfig: {
-        actions: [{ id: 'act_approval', triggerEvent: 'on_approval', targetType: 'workflow_trigger' }],
+        actions: [
+          {
+            id: 'act_approval',
+            triggerEvent: 'on_approval',
+            targetType: 'workflow_trigger',
+          },
+        ],
         debounceMs: 300,
         preventDuplicateSubmissions: true,
       },
@@ -268,7 +361,8 @@ const DEFAULT_TEMPLATES: WidgetTemplateItem[] = [
     name: 'Executive AI Briefing & Insight Summary',
     category: 'ai_powered',
     componentType: 'ai_summary',
-    description: 'Generates structured AI summaries with provenance citations, latency tracking, and copy actions.',
+    description:
+      'Generates structured AI summaries with provenance citations, latency tracking, and copy actions.',
     icon: 'Sparkles',
     tags: ['ai', 'summary', 'llm', 'insights'],
     sampleData: {
@@ -297,11 +391,20 @@ const DEFAULT_TEMPLATES: WidgetTemplateItem[] = [
       schemaConfig: {
         inputFields: [],
         outputFields: [
-          { id: 'summary', label: 'Generated Text', type: 'string', required: true },
+          {
+            id: 'summary',
+            label: 'Generated Text',
+            type: 'string',
+            required: true,
+          },
           { id: 'keyPoints', label: 'Key Takeaways', type: 'array' },
         ],
       },
-      eventConfig: { actions: [], debounceMs: 300, preventDuplicateSubmissions: true },
+      eventConfig: {
+        actions: [],
+        debounceMs: 300,
+        preventDuplicateSubmissions: true,
+      },
     },
   },
   {
@@ -309,7 +412,8 @@ const DEFAULT_TEMPLATES: WidgetTemplateItem[] = [
     name: 'Structured Entity & Data Extractor',
     category: 'ai_powered',
     componentType: 'ai_extraction',
-    description: 'Extracts validated JSON entities from unstructured text, documents, or connector feeds.',
+    description:
+      'Extracts validated JSON entities from unstructured text, documents, or connector feeds.',
     icon: 'FileJson',
     tags: ['ai', 'extraction', 'structured-data', 'schema'],
     sampleData: {
@@ -331,12 +435,26 @@ const DEFAULT_TEMPLATES: WidgetTemplateItem[] = [
         showBorder: true,
         roundedRadius: 'md',
       },
-      dataSource: { type: 'workflow_output', variablePath: 'extractor_step.output' },
+      dataSource: {
+        type: 'workflow_output',
+        variablePath: 'extractor_step.output',
+      },
       schemaConfig: {
         inputFields: [],
-        outputFields: [{ id: 'entities', label: 'Extracted Schema', type: 'object', required: true }],
+        outputFields: [
+          {
+            id: 'entities',
+            label: 'Extracted Schema',
+            type: 'object',
+            required: true,
+          },
+        ],
       },
-      eventConfig: { actions: [], debounceMs: 300, preventDuplicateSubmissions: true },
+      eventConfig: {
+        actions: [],
+        debounceMs: 300,
+        preventDuplicateSubmissions: true,
+      },
     },
   },
 
@@ -346,7 +464,8 @@ const DEFAULT_TEMPLATES: WidgetTemplateItem[] = [
     name: 'App Connector Action Trigger (Slack/Teams/Gmail)',
     category: 'app_connector',
     componentType: 'connector_action',
-    description: 'Executes an authorized integration action with credentials managed securely server-side.',
+    description:
+      'Executes an authorized integration action with credentials managed securely server-side.',
     icon: 'Boxes',
     tags: ['connector', 'slack', 'integration', 'action'],
     sampleData: {
@@ -373,13 +492,31 @@ const DEFAULT_TEMPLATES: WidgetTemplateItem[] = [
       },
       schemaConfig: {
         inputFields: [
-          { id: 'channel', label: 'Channel ID', type: 'string', required: true },
-          { id: 'message', label: 'Message Text', type: 'string', required: true },
+          {
+            id: 'channel',
+            label: 'Channel ID',
+            type: 'string',
+            required: true,
+          },
+          {
+            id: 'message',
+            label: 'Message Text',
+            type: 'string',
+            required: true,
+          },
         ],
-        outputFields: [{ id: 'result', label: 'Action Result', type: 'object' }],
+        outputFields: [
+          { id: 'result', label: 'Action Result', type: 'object' },
+        ],
       },
       eventConfig: {
-        actions: [{ id: 'act_post', triggerEvent: 'on_click', targetType: 'connector_action' }],
+        actions: [
+          {
+            id: 'act_post',
+            triggerEvent: 'on_click',
+            targetType: 'connector_action',
+          },
+        ],
         debounceMs: 300,
         preventDuplicateSubmissions: true,
       },
@@ -392,7 +529,8 @@ const DEFAULT_TEMPLATES: WidgetTemplateItem[] = [
     name: 'Meeting Summary & Decisions Widget',
     category: 'productivity',
     componentType: 'meeting_summary',
-    description: 'Surfaces recent meeting decisions, action items, and attendees directly from the platform.',
+    description:
+      'Surfaces recent meeting decisions, action items, and attendees directly from the platform.',
     icon: 'CalendarCheck2',
     tags: ['meetings', 'notes', 'action-items', 'collaboration'],
     sampleData: {
@@ -404,8 +542,16 @@ const DEFAULT_TEMPLATES: WidgetTemplateItem[] = [
         'Standardized all widget events on widget.* domain format.',
       ],
       actionItems: [
-        { assignee: 'Alex M.', task: 'Complete Prisma database schemas & unit tests', status: 'DONE' },
-        { assignee: 'David L.', task: 'Review SSRF protection on HTTP widget data source', status: 'DONE' },
+        {
+          assignee: 'Alex M.',
+          task: 'Complete Prisma database schemas & unit tests',
+          status: 'DONE',
+        },
+        {
+          assignee: 'David L.',
+          task: 'Review SSRF protection on HTTP widget data source',
+          status: 'DONE',
+        },
       ],
     },
     defaultConfig: {
@@ -425,9 +571,15 @@ const DEFAULT_TEMPLATES: WidgetTemplateItem[] = [
       },
       schemaConfig: {
         inputFields: [],
-        outputFields: [{ id: 'actionItems', label: 'Action Items', type: 'array' }],
+        outputFields: [
+          { id: 'actionItems', label: 'Action Items', type: 'array' },
+        ],
       },
-      eventConfig: { actions: [], debounceMs: 300, preventDuplicateSubmissions: true },
+      eventConfig: {
+        actions: [],
+        debounceMs: 300,
+        preventDuplicateSubmissions: true,
+      },
     },
   },
 ];
@@ -445,7 +597,11 @@ export class WidgetStudioService {
   /**
    * List and search widgets with comprehensive filters.
    */
-  async list(workspaceId: string, userId: string, query: WidgetQueryInput): Promise<{ items: WidgetDefinition[]; total: number }> {
+  async list(
+    workspaceId: string,
+    userId: string,
+    query: WidgetQueryInput,
+  ): Promise<{ items: WidgetDefinition[]; total: number }> {
     const where: Record<string, unknown> = {
       workspaceId,
     };
@@ -507,44 +663,55 @@ export class WidgetStudioService {
   /**
    * Create a widget definition from visual builder or template.
    */
-  async create(workspaceId: string, userId: string, input: CreateWidgetDefinitionInput): Promise<WidgetDefinition> {
-    const slugBase = input.slug?.trim() || input.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    let slug = slugBase || `widget-${Date.now().toString(36)}`;
+  async create(
+    workspaceId: string,
+    userId: string,
+    input: CreateWidgetDefinitionInput,
+  ): Promise<WidgetDefinition> {
+    const slugBase =
+      input.slug?.trim() ||
+      input.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
 
-    // Ensure slug uniqueness within workspace
-    const existing = await this.prisma.widgetDefinition.findFirst({
-      where: { workspaceId, slug },
-    });
-    if (existing) {
-      slug = `${slug}-${Math.floor(Math.random() * 1000)}`;
-    }
-
-    const created = await this.prisma.widgetDefinition.create({
-      data: {
-        workspaceId,
-        creatorId: userId,
-        name: input.name,
-        slug,
-        description: input.description,
-        category: input.category,
-        componentType: input.componentType,
-        icon: input.icon || 'LayoutDashboard',
-        tags: input.tags || [],
-        status: 'DRAFT',
-        visibility: input.visibility || 'WORKSPACE',
-        version: 1,
-        appearance: (input.appearance || {}) as any,
-        dataSource: (input.dataSource || {}) as any,
-        schemaConfig: (input.schemaConfig || {}) as any,
-        eventConfig: (input.eventConfig || {}) as any,
-        permissions: (input.permissions || {}) as any,
-        sampleData: (input.sampleData || {}) as any,
-        isTemplate: input.isTemplate || false,
-        templateCategory: input.templateCategory,
-      },
-      include: {
-        creator: { select: { id: true, name: true, email: true } },
-      },
+    const created = await createWithUniqueSlug({
+      base: slugBase || 'widget',
+      findTaken: async (prefix) =>
+        (
+          await this.prisma.widgetDefinition.findMany({
+            where: { workspaceId, slug: { startsWith: prefix } },
+            select: { slug: true },
+          })
+        ).map((widget) => widget.slug),
+      create: (slug) =>
+        this.prisma.widgetDefinition.create({
+          data: {
+            workspaceId,
+            creatorId: userId,
+            name: input.name,
+            slug,
+            description: input.description,
+            category: input.category,
+            componentType: input.componentType,
+            icon: input.icon || 'LayoutDashboard',
+            tags: input.tags || [],
+            status: 'DRAFT',
+            visibility: input.visibility || 'WORKSPACE',
+            version: 1,
+            appearance: (input.appearance || {}) as any,
+            dataSource: (input.dataSource || {}) as any,
+            schemaConfig: (input.schemaConfig || {}) as any,
+            eventConfig: (input.eventConfig || {}) as any,
+            permissions: (input.permissions || {}) as any,
+            sampleData: (input.sampleData || {}) as any,
+            isTemplate: input.isTemplate || false,
+            templateCategory: input.templateCategory,
+          },
+          include: {
+            creator: { select: { id: true, name: true, email: true } },
+          },
+        }),
     });
 
     // Record initial version 1
@@ -572,7 +739,11 @@ export class WidgetStudioService {
   /**
    * Get single widget definition with permission check.
    */
-  async get(workspaceId: string, widgetId: string, userId: string): Promise<WidgetDefinition> {
+  async get(
+    workspaceId: string,
+    widgetId: string,
+    userId: string,
+  ): Promise<WidgetDefinition> {
     const row = await this.prisma.widgetDefinition.findFirst({
       where: { id: widgetId, workspaceId },
       include: { creator: { select: { id: true, name: true, email: true } } },
@@ -582,8 +753,13 @@ export class WidgetStudioService {
     }
 
     const def = this.mapDefinition(row);
-    if (def.permissions.canView === 'creator_only' && row.creatorId !== userId) {
-      throw new ForbiddenException('You do not have permission to view this private widget.');
+    if (
+      def.permissions.canView === 'creator_only' &&
+      row.creatorId !== userId
+    ) {
+      throw new ForbiddenException(
+        'You do not have permission to view this private widget.',
+      );
     }
 
     return def;
@@ -600,15 +776,22 @@ export class WidgetStudioService {
   ): Promise<WidgetDefinition> {
     const current = await this.get(workspaceId, widgetId, userId);
 
-    if (current.permissions.canEdit === 'creator_only' && current.creatorId !== userId) {
-      throw new ForbiddenException('Only the widget creator can modify this widget.');
+    if (
+      current.permissions.canEdit === 'creator_only' &&
+      current.creatorId !== userId
+    ) {
+      throw new ForbiddenException(
+        'Only the widget creator can modify this widget.',
+      );
     }
 
     const updated = await this.prisma.widgetDefinition.update({
       where: { id: widgetId },
       data: {
         ...(input.name ? { name: input.name } : {}),
-        ...(input.description !== undefined ? { description: input.description } : {}),
+        ...(input.description !== undefined
+          ? { description: input.description }
+          : {}),
         ...(input.category ? { category: input.category } : {}),
         ...(input.componentType ? { componentType: input.componentType } : {}),
         ...(input.icon ? { icon: input.icon } : {}),
@@ -616,7 +799,9 @@ export class WidgetStudioService {
         ...(input.visibility ? { visibility: input.visibility } : {}),
         ...(input.appearance ? { appearance: input.appearance as any } : {}),
         ...(input.dataSource ? { dataSource: input.dataSource as any } : {}),
-        ...(input.schemaConfig ? { schemaConfig: input.schemaConfig as any } : {}),
+        ...(input.schemaConfig
+          ? { schemaConfig: input.schemaConfig as any }
+          : {}),
         ...(input.eventConfig ? { eventConfig: input.eventConfig as any } : {}),
         ...(input.permissions ? { permissions: input.permissions as any } : {}),
         ...(input.sampleData ? { sampleData: input.sampleData as any } : {}),
@@ -637,25 +822,33 @@ export class WidgetStudioService {
   /**
    * Duplicate an existing widget.
    */
-  async duplicate(workspaceId: string, widgetId: string, userId: string): Promise<WidgetDefinition> {
+  async duplicate(
+    workspaceId: string,
+    widgetId: string,
+    userId: string,
+  ): Promise<WidgetDefinition> {
     const original = await this.get(workspaceId, widgetId, userId);
 
     // Re-parse so optional nested config fields pick up their schema defaults.
-    return this.create(workspaceId, userId, createWidgetDefinitionSchema.parse({
-      name: `Copy of ${original.name}`,
-      description: original.description,
-      category: original.category,
-      componentType: original.componentType,
-      icon: original.icon,
-      tags: [...original.tags],
-      visibility: original.visibility,
-      appearance: original.appearance,
-      dataSource: original.dataSource,
-      schemaConfig: original.schemaConfig,
-      eventConfig: original.eventConfig,
-      permissions: original.permissions,
-      sampleData: original.sampleData,
-    }));
+    return this.create(
+      workspaceId,
+      userId,
+      createWidgetDefinitionSchema.parse({
+        name: `Copy of ${original.name}`,
+        description: original.description,
+        category: original.category,
+        componentType: original.componentType,
+        icon: original.icon,
+        tags: [...original.tags],
+        visibility: original.visibility,
+        appearance: original.appearance,
+        dataSource: original.dataSource,
+        schemaConfig: original.schemaConfig,
+        eventConfig: original.eventConfig,
+        permissions: original.permissions,
+        sampleData: original.sampleData,
+      }),
+    );
   }
 
   /**
@@ -681,7 +874,12 @@ export class WidgetStudioService {
   /**
    * Publish a widget version.
    */
-  async publish(workspaceId: string, widgetId: string, userId: string, changeSummary?: string): Promise<WidgetDefinition> {
+  async publish(
+    workspaceId: string,
+    widgetId: string,
+    userId: string,
+    changeSummary?: string,
+  ): Promise<WidgetDefinition> {
     const current = await this.get(workspaceId, widgetId, userId);
 
     // Validate completeness before publishing
@@ -730,7 +928,12 @@ export class WidgetStudioService {
   /**
    * Rollback to a previous published version.
    */
-  async rollback(workspaceId: string, widgetId: string, userId: string, versionNumber: number): Promise<WidgetDefinition> {
+  async rollback(
+    workspaceId: string,
+    widgetId: string,
+    userId: string,
+    versionNumber: number,
+  ): Promise<WidgetDefinition> {
     await this.get(workspaceId, widgetId, userId);
 
     const versionRow = await this.prisma.widgetVersion.findUnique({
@@ -778,24 +981,36 @@ export class WidgetStudioService {
   /**
    * Validate widget configuration.
    */
-  validateConfig(def: Partial<WidgetDefinition>): { valid: boolean; errors: string[]; warnings: string[] } {
+  validateConfig(def: Partial<WidgetDefinition>): {
+    valid: boolean;
+    errors: string[];
+    warnings: string[];
+  } {
     const errors: string[] = [];
     const warnings: string[] = [];
 
     if (!def.name?.trim()) errors.push('Widget name is required.');
     if (!def.category) errors.push('Widget category must be specified.');
-    if (!def.componentType) errors.push('Widget component type must be specified.');
+    if (!def.componentType)
+      errors.push('Widget component type must be specified.');
 
     const ds = def.dataSource;
     if (ds) {
       if (ds.type === 'api_rest' && !ds.apiUrl?.trim()) {
         errors.push('REST API data source requires a valid URL.');
       }
-      if (ds.type === 'connector_query' && (!ds.connectorProvider || !ds.connectorActionId)) {
-        errors.push('App Connector data source requires provider and action ID.');
+      if (
+        ds.type === 'connector_query' &&
+        (!ds.connectorProvider || !ds.connectorActionId)
+      ) {
+        errors.push(
+          'App Connector data source requires provider and action ID.',
+        );
       }
       if (ds.type === 'workflow_output' && !ds.variablePath?.trim()) {
-        warnings.push('Workflow output path is unset; widget will default to last step output.');
+        warnings.push(
+          'Workflow output path is unset; widget will default to last step output.',
+        );
       }
     }
 
@@ -814,7 +1029,10 @@ export class WidgetStudioService {
     widgetId: string,
     userId: string,
     dataOverride?: Record<string, unknown>,
-  ): Promise<{ definition: WidgetDefinition; previewData: Record<string, unknown> }> {
+  ): Promise<{
+    definition: WidgetDefinition;
+    previewData: Record<string, unknown>;
+  }> {
     const def = await this.get(workspaceId, widgetId, userId);
 
     if (dataOverride && Object.keys(dataOverride).length > 0) {
@@ -827,7 +1045,9 @@ export class WidgetStudioService {
     }
 
     // Otherwise find matching template default sample data
-    const tpl = DEFAULT_TEMPLATES.find((t) => t.componentType === def.componentType);
+    const tpl = DEFAULT_TEMPLATES.find(
+      (t) => t.componentType === def.componentType,
+    );
     return {
       definition: def,
       previewData: tpl?.sampleData || { title: def.name, status: 'Ready' },
@@ -843,7 +1063,11 @@ export class WidgetStudioService {
     widgetId: string,
     userId: string,
     input: ExecuteWidgetInput,
-  ): Promise<{ status: 'SUCCESS' | 'FAILED'; output: unknown; latencyMs: number }> {
+  ): Promise<{
+    status: 'SUCCESS' | 'FAILED';
+    output: unknown;
+    latencyMs: number;
+  }> {
     const startTime = Date.now();
     const def = await this.get(workspaceId, widgetId, userId);
 
@@ -852,7 +1076,9 @@ export class WidgetStudioService {
         where: { workspaceId, userId },
       });
       if (!member || (member.role !== 'ADMIN' && member.role !== 'OWNER')) {
-        throw new ForbiddenException('Only workspace administrators may execute this widget.');
+        throw new ForbiddenException(
+          'Only workspace administrators may execute this widget.',
+        );
       }
     }
 
@@ -860,10 +1086,21 @@ export class WidgetStudioService {
     let errorMessage: string | undefined;
 
     try {
-      if (input.executionType === 'DATA_FETCH' || input.executionType === 'RENDER') {
+      if (
+        input.executionType === 'DATA_FETCH' ||
+        input.executionType === 'RENDER'
+      ) {
         output = await this.fetchWidgetData(workspaceId, userId, def, input);
-      } else if (input.executionType === 'ACTION' || input.executionType === 'TOOL_CALL') {
-        output = await this.executeWidgetAction(workspaceId, userId, def, input);
+      } else if (
+        input.executionType === 'ACTION' ||
+        input.executionType === 'TOOL_CALL'
+      ) {
+        output = await this.executeWidgetAction(
+          workspaceId,
+          userId,
+          def,
+          input,
+        );
       } else {
         output = def.sampleData || {};
       }
@@ -885,7 +1122,9 @@ export class WidgetStudioService {
           executionType: input.executionType,
           status: 'SUCCESS',
           inputPayload: input.inputPayload as any,
-          outputPayload: (typeof output === 'object' && output !== null ? output : { result: output }) as any,
+          outputPayload: (typeof output === 'object' && output !== null
+            ? output
+            : { result: output }) as any,
           latencyMs,
           initiatedBy: userId,
         },
@@ -964,7 +1203,13 @@ export class WidgetStudioService {
             where: { workspaceId },
             take: 20,
             orderBy: { updatedAt: 'desc' },
-            select: { id: true, identifier: true, title: true, status: true, priority: true },
+            select: {
+              id: true,
+              identifier: true,
+              title: true,
+              status: true,
+              priority: true,
+            },
           });
           return { rows: tasks };
         }
@@ -991,7 +1236,11 @@ export class WidgetStudioService {
       }
     }
 
-    if (ds.type === 'connector_query' && ds.connectorProvider && ds.connectorActionId) {
+    if (
+      ds.type === 'connector_query' &&
+      ds.connectorProvider &&
+      ds.connectorActionId
+    ) {
       const toolName = `${ds.connectorProvider.toLowerCase()}_${ds.connectorActionId}`;
       return this.mcpRegistry.executeTool(
         toolName,
@@ -1012,10 +1261,15 @@ export class WidgetStudioService {
     def: WidgetDefinition,
     input: ExecuteWidgetInput,
   ): Promise<unknown> {
-    const action = def.eventConfig?.actions?.find((a) => a.id === input.actionId) || def.eventConfig?.actions?.[0];
+    const action =
+      def.eventConfig?.actions?.find((a) => a.id === input.actionId) ||
+      def.eventConfig?.actions?.[0];
     if (!action) {
       // Default fallback: return payload received
-      return { received: input.inputPayload, message: 'Action executed successfully.' };
+      return {
+        received: input.inputPayload,
+        message: 'Action executed successfully.',
+      };
     }
 
     if (action.targetType === 'connector_action') {
@@ -1040,7 +1294,11 @@ export class WidgetStudioService {
   /**
    * List versions of a widget.
    */
-  async getVersions(workspaceId: string, widgetId: string, userId: string): Promise<WidgetVersion[]> {
+  async getVersions(
+    workspaceId: string,
+    widgetId: string,
+    userId: string,
+  ): Promise<WidgetVersion[]> {
     await this.get(workspaceId, widgetId, userId);
 
     const rows = await this.prisma.widgetVersion.findMany({
@@ -1063,7 +1321,11 @@ export class WidgetStudioService {
   /**
    * List execution history for a widget.
    */
-  async getExecutions(workspaceId: string, widgetId: string, userId: string): Promise<WidgetExecutionRecord[]> {
+  async getExecutions(
+    workspaceId: string,
+    widgetId: string,
+    userId: string,
+  ): Promise<WidgetExecutionRecord[]> {
     await this.get(workspaceId, widgetId, userId);
 
     const rows = await this.prisma.widgetExecution.findMany({
@@ -1088,13 +1350,20 @@ export class WidgetStudioService {
       where: { workspaceId },
       orderBy: { createdAt: 'desc' },
       take: Math.min(Math.max(limit, 1), 100),
-      include: { widgetDefinition: { select: { creatorId: true, permissions: true } } },
+      include: {
+        widgetDefinition: { select: { creatorId: true, permissions: true } },
+      },
     });
 
     return rows
       .filter((r) => {
-        const perms = (r.widgetDefinition.permissions || {}) as { canView?: string };
-        return perms.canView !== 'creator_only' || r.widgetDefinition.creatorId === userId;
+        const perms = (r.widgetDefinition.permissions || {}) as {
+          canView?: string;
+        };
+        return (
+          perms.canView !== 'creator_only' ||
+          r.widgetDefinition.creatorId === userId
+        );
       })
       .map((r) => this.mapExecution(r));
   }

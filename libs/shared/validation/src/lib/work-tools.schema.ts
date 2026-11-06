@@ -28,12 +28,17 @@ const optionalText = (max: number) =>
 
 // --- projects ---------------------------------------------------------------
 
+export const PROJECT_SLUG_MAX_LENGTH = 48;
+
 export const projectSlugSchema = z
   .string()
   .trim()
   .toLowerCase()
   .min(2, 'Project URL must be at least 2 characters')
-  .max(48, 'Project URL must be at most 48 characters')
+  .max(
+    PROJECT_SLUG_MAX_LENGTH,
+    `Project URL must be at most ${PROJECT_SLUG_MAX_LENGTH} characters`,
+  )
   .regex(
     /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
     'Use lowercase letters, numbers and single hyphens',
@@ -45,7 +50,8 @@ export const createProjectSchema = z.object({
     .trim()
     .min(2, 'Project name must be at least 2 characters')
     .max(80, 'Project name must be at most 80 characters'),
-  slug: projectSlugSchema,
+  /** A preference, not a promise: the API derives it and keeps it unique. */
+  slug: projectSlugSchema.optional(),
   description: optionalText(500),
   color: z
     .string()
@@ -126,7 +132,10 @@ export const createTeamSchema = z.object({
     .max(10)
     .regex(/^[A-Z0-9]+$/, 'Key must be uppercase alphanumeric'),
   description: optionalText(500),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .optional(),
   ...iconPatchShape,
 });
 
@@ -134,13 +143,18 @@ export const updateTeamSchema = z.object({
   name: z.string().trim().min(2).max(80).optional(),
   key: z.string().trim().toUpperCase().min(2).max(10).optional(),
   description: optionalText(500),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .optional(),
   ...iconPatchShape,
 });
 
 // --- task labels ------------------------------------------------------------
 
-const labelColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Colour must be a #rrggbb hex');
+const labelColor = z
+  .string()
+  .regex(/^#[0-9a-fA-F]{6}$/, 'Colour must be a #rrggbb hex');
 
 export const createTaskLabelSchema = z.object({
   name: z.string().trim().min(1).max(50),
@@ -163,7 +177,10 @@ export const createInitiativeSchema = z.object({
   health: z.enum(ProjectHealth).optional(),
   priority: z.enum(TaskPriority).optional(),
   targetDate: isoDate.nullable().optional(),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .optional(),
   projectIds: z.array(z.string()).optional(),
   ...iconPatchShape,
 });
@@ -177,7 +194,10 @@ export const updateInitiativeSchema = z.object({
   health: z.enum(ProjectHealth).optional(),
   priority: z.enum(TaskPriority).optional(),
   targetDate: isoDate.nullable().optional(),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .optional(),
   projectIds: z.array(z.string()).optional(),
   ...iconPatchShape,
 });
@@ -192,7 +212,10 @@ export const createEpicSchema = z.object({
   status: z.enum(ProjectStatus).optional(),
   priority: z.enum(TaskPriority).optional(),
   targetDate: isoDate.nullable().optional(),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .optional(),
 });
 
 export const updateEpicSchema = z.object({
@@ -202,7 +225,10 @@ export const updateEpicSchema = z.object({
   status: z.enum(ProjectStatus).optional(),
   priority: z.enum(TaskPriority).optional(),
   targetDate: isoDate.nullable().optional(),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .optional(),
 });
 
 // --- modules ----------------------------------------------------------------
@@ -215,7 +241,10 @@ export const createModuleSchema = z.object({
   startDate: isoDate.nullable().optional(),
   targetDate: isoDate.nullable().optional(),
   status: z.enum(ProjectStatus).optional(),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .optional(),
 });
 
 export const updateModuleSchema = z.object({
@@ -225,7 +254,10 @@ export const updateModuleSchema = z.object({
   startDate: isoDate.nullable().optional(),
   targetDate: isoDate.nullable().optional(),
   status: z.enum(ProjectStatus).optional(),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .optional(),
 });
 
 // --- cycles / sprints -------------------------------------------------------
@@ -538,11 +570,15 @@ export type CreateTaskCommentInput = z.infer<typeof createTaskCommentSchema>;
 export type CreateCustomFieldInput = z.infer<typeof createCustomFieldSchema>;
 export type CreateSavedViewInput = z.infer<typeof createSavedViewSchema>;
 export type UpdateSavedViewInput = z.infer<typeof updateSavedViewSchema>;
-export type CreateIntakeRequestInput = z.infer<typeof createIntakeRequestSchema>;
+export type CreateIntakeRequestInput = z.infer<
+  typeof createIntakeRequestSchema
+>;
 export type ConvertIntakeRequestInput = z.infer<
   typeof convertIntakeRequestSchema
 >;
-export type CreateProjectUpdateInput = z.infer<typeof createProjectUpdateSchema>;
+export type CreateProjectUpdateInput = z.infer<
+  typeof createProjectUpdateSchema
+>;
 export type CreateCalendarEventInput = z.infer<
   typeof createCalendarEventSchema
 >;
@@ -551,7 +587,9 @@ export type UpdateCalendarEventInput = z.infer<
 >;
 export type CreateMeetingInput = z.infer<typeof createMeetingSchema>;
 export type UpdateMeetingInput = z.infer<typeof updateMeetingSchema>;
-export type MeetingParticipantsInput = z.infer<typeof meetingParticipantsSchema>;
+export type MeetingParticipantsInput = z.infer<
+  typeof meetingParticipantsSchema
+>;
 export type MeetingRsvpInput = z.infer<typeof meetingRsvpSchema>;
 export type CreateMeetingNoteInput = z.infer<typeof createMeetingNoteSchema>;
 export type CreateMeetingDecisionInput = z.infer<

@@ -3,12 +3,13 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
+import { createWithUniqueSlug } from '@org/api-common';
 import { PrismaService } from '@org/database';
 import type { CreateAIAppInput } from '@org/types';
+import { slugify } from '@org/utils';
 
 @Injectable()
 export class AIAppsService {
-
   constructor(private readonly prisma: PrismaService) {}
 
   async listApps(workspaceId: string) {
@@ -41,26 +42,32 @@ export class AIAppsService {
     creatorId: string | undefined,
     data: CreateAIAppInput,
   ) {
-    const slug = (
-      data.slug ||
-      data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-    ) + `-${Date.now().toString().slice(-4)}`;
-
-    return this.prisma.aIApp.create({
-      data: {
-        workspaceId,
-        creatorId,
-        name: data.name,
-        slug,
-        description: data.description,
-        icon: data.icon ?? 'Sparkles',
-        appType: data.appType ?? 'CHAT_APP',
-        visibility: data.visibility ?? 'WORKSPACE',
-        agentId: data.agentId,
-        workflowId: data.workflowId,
-        promptTemplateId: data.promptTemplateId,
-        config: (data.config as any) ?? {},
-      },
+    return createWithUniqueSlug({
+      base: slugify(data.slug || data.name) || 'app',
+      findTaken: async (prefix) =>
+        (
+          await this.prisma.aIApp.findMany({
+            where: { workspaceId, slug: { startsWith: prefix } },
+            select: { slug: true },
+          })
+        ).map((app) => app.slug),
+      create: (slug) =>
+        this.prisma.aIApp.create({
+          data: {
+            workspaceId,
+            creatorId,
+            name: data.name,
+            slug,
+            description: data.description,
+            icon: data.icon ?? 'Sparkles',
+            appType: data.appType ?? 'CHAT_APP',
+            visibility: data.visibility ?? 'WORKSPACE',
+            agentId: data.agentId,
+            workflowId: data.workflowId,
+            promptTemplateId: data.promptTemplateId,
+            config: (data.config as any) ?? {},
+          },
+        }),
     });
   }
 
@@ -107,7 +114,9 @@ export class AIAppsService {
   ) {
     const app = await this.getApp(workspaceId, id);
     if (!app.agentId && !app.workflowId) {
-      throw new BadRequestException('This app does not have an associated agent or workflow.');
+      throw new BadRequestException(
+        'This app does not have an associated agent or workflow.',
+      );
     }
     return {
       success: true,

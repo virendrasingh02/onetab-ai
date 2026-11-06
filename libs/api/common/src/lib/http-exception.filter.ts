@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { ApiErrorCode, type ApiErrorBody } from '@org/types';
 import type { Request, Response } from 'express';
+import { describePrismaError, isPrismaError } from './prisma-errors.js';
 
 /** Maps HTTP status to the stable error code the client switches on. */
 const STATUS_TO_CODE: Record<number, ApiErrorCode> = {
@@ -31,6 +32,8 @@ interface StructuredErrorPayload {
  * Without this, Nest emits three different body shapes (string, object,
  * validation array) and the client ends up guessing. Unexpected errors are
  * logged with their stack but reported to the caller without internals.
+ * Prisma constraint failures a service did not handle are the caller's 4xx,
+ * not a server fault, so a duplicate or stale id can never surface as a 500.
  */
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -42,9 +45,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
 
     const isHttp = exception instanceof HttpException;
+    const prismaError = isHttp ? null : describePrismaError(exception);
     const status = isHttp
       ? exception.getStatus()
-      : HttpStatus.INTERNAL_SERVER_ERROR;
+      : (prismaError?.status ?? HttpStatus.INTERNAL_SERVER_ERROR);
 
     let code = STATUS_TO_CODE[status] ?? ApiErrorCode.INTERNAL;
     let message = 'An unexpected error occurred.';
@@ -61,6 +65,15 @@ export class HttpExceptionFilter implements ExceptionFilter {
         message = Array.isArray(structured.message)
           ? structured.message.join(', ')
           : (structured.message ?? exception.message);
+      }
+    } else if (prismaError) {
+      message = prismaError.message;
+      errors = prismaError.errors;
+      // Still logged: an unhandled one usually marks a missing check to add.
+      if (isPrismaError(exception)) {
+        this.logger.warn(
+          `${request.method} ${request.url} -> ${status} (${exception.code}: ${message})`,
+        );
       }
     }
 
