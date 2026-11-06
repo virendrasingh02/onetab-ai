@@ -37,7 +37,6 @@ import {
   toPresenceStatus,
   UserAvatar,
   useRightPanelStore,
-  LocalTime,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useMembers } from '@org/web-members';
@@ -1066,32 +1065,16 @@ function DirectMessageHeader({
             </DropdownMenu>
           </div>
 
-          {/* Who you are talking to, at a glance: their status and the time
-              where they are — the DM counterpart of a channel's topic. */}
-          {!isSelf && (member.user.statusText || member.user.timezone) ? (
+          {/* Who you are talking to, at a glance: their status — the DM
+              counterpart of a channel's topic. */}
+          {!isSelf && member.user.statusText ? (
             <div className="md:flex min-w-0 gap-2 pl-2.5 text-xs hidden items-center border-l border-border text-muted-foreground">
-              {member.user.statusText ? (
-                <span
-                  className="max-w-56 truncate"
-                  title={member.user.statusText}
-                >
-                  {member.user.statusText}
-                </span>
-              ) : null}
-              {member.user.statusText && member.user.timezone ? (
-                <span aria-hidden className="text-subtle">
-                  ·
-                </span>
-              ) : null}
-              {member.user.timezone ? (
-                <LocalTime
-                  timezone={member.user.timezone}
-                  icon
-                  withHint
-                  hintName={name}
-                  className="shrink-0"
-                />
-              ) : null}
+              <span
+                className="max-w-56 truncate"
+                title={member.user.statusText}
+              >
+                {member.user.statusText}
+              </span>
             </div>
           ) : null}
         </div>
