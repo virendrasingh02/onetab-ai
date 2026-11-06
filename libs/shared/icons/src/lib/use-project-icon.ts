@@ -26,6 +26,7 @@ export function useProjectIcon(
 ): IconEditor {
   const queryClient = useQueryClient();
   const projectId = project?.id;
+  const listKey = queryKeys.workTools.projects(workspaceId ?? '');
 
   const save = useMutation({
     mutationFn: (selection: IconSelection) =>
@@ -35,23 +36,29 @@ export function useProjectIcon(
         selection,
       ),
 
-    onSuccess: (updated) => {
-      /*
-       * Written into the list cache rather than invalidated: the sidebar, the
-       * gallery and the board header all read the same list, and a refetch
-       * would leave every one of them on the old icon for a round trip. The
-       * invalidation that follows reconciles anything else keyed on the
-       * project — task badges carry the icon too.
-       */
-      queryClient.setQueryData(
-        queryKeys.workTools.projects(workspaceId ?? ''),
-        (old: ProjectDetail[] | undefined) =>
-          old?.map((entry) =>
-            entry.id === projectId
-              ? { ...entry, icon: updated.icon, iconColor: updated.iconColor }
-              : entry,
-          ),
+    /*
+     * Written into the list cache before the request rather than invalidated
+     * after it: the sidebar, the gallery and the board header all read the same
+     * list, so every one of them changes on the click, not a round trip later.
+     */
+    onMutate: async (selection) => {
+      await queryClient.cancelQueries({ queryKey: listKey });
+      const previous = queryClient.getQueryData<ProjectDetail[]>(listKey);
+      queryClient.setQueryData(listKey, (old: ProjectDetail[] | undefined) =>
+        old?.map((entry) =>
+          entry.id === projectId ? { ...entry, ...selection } : entry,
+        ),
       );
+      return { previous };
+    },
+
+    onError: (_cause, _selection, context) => {
+      queryClient.setQueryData(listKey, context?.previous);
+    },
+
+    // Reconciles anything else keyed on the project — task badges carry the
+    // icon too.
+    onSettled: () => {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.workTools.all(workspaceId ?? ''),
       });
@@ -79,8 +86,8 @@ export function useProjectIcon(
          * and without one the picker inlines the file as a `data:` URI — a
          * multi-megabyte string in a column read on every list request, which
          * `iconSchema` refuses outright. `ProjectIconPicker` hides the upload
-         * tab to match, leaving icons and emoji, which is what a project row
-         * has room to draw anyway.
+         * button to match, leaving icons, which is what a project row has
+         * room to draw anyway.
          */
       }),
       [canEdit, project?.icon, project?.iconColor, saveIcon],

@@ -62,6 +62,8 @@ export interface KanbanCard {
   milestone?: string;
   /** From `Task._count.comments`; the thread itself is fetched per card. */
   commentCount: number;
+  /** Sub-items of this task; absent when it has none. */
+  subtasks?: { done: number; total: number };
   /** Local calendar day as `yyyy-mm-dd`; absent when the task has no deadline. */
   dueDate?: string;
   /** True once the task reaches a terminal column — nothing is due any more. */

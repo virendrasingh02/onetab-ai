@@ -88,7 +88,7 @@ export function useWorkspaceIcon(
          * API-relative while the client reads it resolved, so echoing it back
          * on the next save would bake a dev-only host into the row.
          *
-         * `WorkspaceIconPicker` hides the upload tab to match; images go
+         * `WorkspaceIconPicker` hides the upload button to match; images go
          * through the logo control in settings and in the create wizard.
          */
       }),

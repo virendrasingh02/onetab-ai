@@ -8,13 +8,11 @@ import type { BoardState, KanbanCard } from '../kanban/types.js';
 interface ProjectTimelineViewProps {
   board: BoardState;
   onSelectCard: (card: KanbanCard, listId: string) => void;
-  searchQuery?: string;
 }
 
 export function ProjectTimelineView({
   board,
   onSelectCard,
-  searchQuery = '',
 }: ProjectTimelineViewProps) {
   const [baseDate, setBaseDate] = useState<Date>(() => new Date());
 
@@ -36,19 +34,18 @@ export function ProjectTimelineView({
 
   // All cards flattened across lists with list info
   const allCardsWithList = useMemo(() => {
-    const items: Array<{ card: KanbanCard; listId: string; listTitle: string }> = [];
+    const items: Array<{
+      card: KanbanCard;
+      listId: string;
+      listTitle: string;
+    }> = [];
     board.lists.forEach((list) => {
       list.cards.forEach((card) => {
-        if (
-          !searchQuery ||
-          card.title.toLowerCase().includes(searchQuery.toLowerCase())
-        ) {
-          items.push({ card, listId: list.id, listTitle: list.title });
-        }
+        items.push({ card, listId: list.id, listTitle: list.title });
       });
     });
     return items;
-  }, [board.lists, searchQuery]);
+  }, [board.lists]);
 
   const handlePrevRange = () => {
     const newDate = new Date(baseDate);
@@ -67,10 +64,10 @@ export function ProjectTimelineView({
   };
 
   return (
-    <div className="flex flex-col gap-4 p-4 w-full text-foreground">
+    <div className="gap-4 p-4 flex w-full flex-col text-foreground">
       {/* Timeline Nav Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-border/40">
-        <div className="flex items-center gap-2">
+      <div className="pb-3 flex items-center justify-between border-b border-border/40">
+        <div className="gap-2 flex items-center">
           <Button variant="outline" size="sm" onClick={handleToday}>
             Today
           </Button>
@@ -83,21 +80,29 @@ export function ProjectTimelineView({
             </Button>
           </div>
           <span className="text-xs font-semibold ml-2">
-            {days[0].toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} –{' '}
-            {days[days.length - 1].toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+            {days[0].toLocaleDateString(undefined, {
+              month: 'short',
+              day: 'numeric',
+            })}{' '}
+            –{' '}
+            {days[days.length - 1].toLocaleDateString(undefined, {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })}
           </span>
         </div>
 
-        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1.5">
+        <div className="gap-4 text-xs flex items-center text-muted-foreground">
+          <div className="gap-1.5 flex items-center">
             <span className="w-2.5 h-2.5 rounded-full bg-accent-green" />
             <span>Complete</span>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="gap-1.5 flex items-center">
             <span className="w-2.5 h-2.5 rounded-full bg-accent-blue" />
             <span>In Progress</span>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="gap-1.5 flex items-center">
             <span className="w-2.5 h-2.5 rounded-full bg-accent-amber" />
             <span>Upcoming</span>
           </div>
@@ -108,8 +113,10 @@ export function ProjectTimelineView({
       <ScrollArea className="w-full rounded-xl border border-border/60 bg-card/40 shadow-xs">
         <div className="min-w-[900px]">
           {/* Calendar Header Row */}
-          <div className="grid grid-cols-15 border-b border-border/50 bg-muted/30 text-xs font-medium py-2">
-            <div className="col-span-3 px-4 py-1 text-muted-foreground font-semibold">Tasks</div>
+          <div className="text-xs font-medium py-2 grid grid-cols-15 border-b border-border/50 bg-muted/30">
+            <div className="px-4 py-1 font-semibold col-span-3 text-muted-foreground">
+              Tasks
+            </div>
             {days.map((day) => {
               const dayIso = `${day.getFullYear()}-${`${day.getMonth() + 1}`.padStart(2, '0')}-${`${day.getDate()}`.padStart(2, '0')}`;
               const isToday = dayIso === todayStr;
@@ -118,8 +125,9 @@ export function ProjectTimelineView({
                 <div
                   key={dayIso}
                   className={cn(
-                    'col-span-1 text-center py-1 flex flex-col items-center justify-center border-l border-border/30',
-                    isToday && 'bg-primary/10 font-bold text-primary rounded-t-md'
+                    'py-1 col-span-1 flex flex-col items-center justify-center border-l border-border/30 text-center',
+                    isToday &&
+                      'font-bold rounded-t-md bg-primary/10 text-primary',
                   )}
                 >
                   <span className="text-[10px] text-muted-foreground uppercase">
@@ -132,31 +140,34 @@ export function ProjectTimelineView({
           </div>
 
           {/* Task Rows */}
-          <div className="divide-y divide-border/30 text-xs">
+          <div className="text-xs divide-y divide-border/30">
             {allCardsWithList.map(({ card, listId, listTitle }) => {
-              const assignedMember = board.members.find((m) => card.memberIds.includes(m.id));
+              const assignedMember = board.members.find((m) =>
+                card.memberIds.includes(m.id),
+              );
               const cardDueIso = card.dueDate;
 
               return (
                 <div
                   key={card.id}
-                  className="grid grid-cols-15 items-center hover:bg-muted/30 transition-colors py-2 group"
+                  className="py-2 group grid grid-cols-15 items-center transition-colors hover:bg-muted/30"
                 >
                   {/* Task Info Column */}
-                  <div className="col-span-3 px-4 flex items-center justify-between gap-2 overflow-hidden">
+                  <div className="px-4 gap-2 col-span-3 flex items-center justify-between overflow-hidden">
                     <button
                       type="button"
                       onClick={() => onSelectCard(card, listId)}
                       className={cn(
-                        'truncate text-left font-medium text-foreground hover:text-primary transition-colors',
-                        card.dueComplete && 'line-through text-muted-foreground'
+                        'font-medium truncate text-left text-foreground transition-colors hover:text-primary',
+                        card.dueComplete &&
+                          'text-muted-foreground line-through',
                       )}
                     >
                       {card.title}
                     </button>
 
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border/40">
+                    <div className="gap-1.5 flex flex-shrink-0 items-center">
+                      <span className="px-1.5 py-0.5 rounded border border-border/40 bg-muted text-[10px] text-muted-foreground">
                         {listTitle}
                       </span>
                       {assignedMember && (
@@ -183,8 +194,8 @@ export function ProjectTimelineView({
                       <div
                         key={dayIso}
                         className={cn(
-                          'col-span-1 h-9 border-l border-border/30 flex items-center justify-center relative px-1',
-                          isToday && 'bg-primary/5'
+                          'h-9 px-1 relative col-span-1 flex items-center justify-center border-l border-border/30',
+                          isToday && 'bg-primary/5',
                         )}
                       >
                         {isDueDay && (
@@ -192,17 +203,23 @@ export function ProjectTimelineView({
                             type="button"
                             onClick={() => onSelectCard(card, listId)}
                             className={cn(
-                              'w-full py-1.5 px-2 rounded-md shadow-xs text-[11px] font-medium truncate text-left transition-transform hover:scale-105 flex items-center justify-between gap-1',
+                              'py-1.5 px-2 font-medium gap-1 flex w-full items-center justify-between truncate rounded-md text-left text-[11px] shadow-xs transition-transform hover:scale-105',
                               card.dueComplete
-                                ? 'bg-accent-green-soft text-accent-green border border-accent-green/30'
-                                : listTitle.toLowerCase().includes('doing') || listTitle.toLowerCase().includes('progress')
-                                ? 'bg-accent-blue-soft text-accent-blue border border-accent-blue/30'
-                                : 'bg-accent-amber-soft text-accent-amber border border-accent-amber/30'
+                                ? 'border border-accent-green/30 bg-accent-green-soft text-accent-green'
+                                : listTitle.toLowerCase().includes('doing') ||
+                                    listTitle.toLowerCase().includes('progress')
+                                  ? 'border border-accent-blue/30 bg-accent-blue-soft text-accent-blue'
+                                  : 'border border-accent-amber/30 bg-accent-amber-soft text-accent-amber',
                             )}
                             title={`${card.title} - Due ${dayIso}`}
                           >
                             <span className="truncate">{card.title}</span>
-                            <span className={cn('w-2 h-2 rounded-full flex-shrink-0', PRIORITY_META[card.priority]?.dot)} />
+                            <span
+                              className={cn(
+                                'w-2 h-2 flex-shrink-0 rounded-full',
+                                PRIORITY_META[card.priority]?.dot,
+                              )}
+                            />
                           </button>
                         )}
                       </div>
@@ -213,7 +230,7 @@ export function ProjectTimelineView({
             })}
 
             {allCardsWithList.length === 0 && (
-              <div className="py-12 text-center text-muted-foreground text-xs">
+              <div className="py-12 text-xs text-center text-muted-foreground">
                 No scheduled tasks found for this period.
               </div>
             )}

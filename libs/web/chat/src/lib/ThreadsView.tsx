@@ -1142,7 +1142,7 @@ function ThreadsViewContent() {
               className="size-4 shrink-0 text-muted-foreground"
               aria-hidden
             />
-            <h2 className="text-base font-semibold tracking-tight truncate text-foreground">
+            <h2 className="text-base font-medium truncate tracking-[-0.01em] text-foreground">
               Threads
             </h2>
             <Badge variant="outline" className="h-5 px-1.5 py-0 text-[11px]">

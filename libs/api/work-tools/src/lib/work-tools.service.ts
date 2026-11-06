@@ -967,7 +967,11 @@ export class WorkToolsService {
         _count: { select: { comments: true } },
       },
       orderBy: [{ status: 'asc' }, { orderIndex: 'asc' }],
-      take: Math.min(options?.limit ? Number(options.limit) : 100, 250),
+      // A project board draws every task it has. With a flat cap of 100, and
+      // rows ordered by status, the later columns silently came up short.
+      take: projectId
+        ? Math.min(options?.limit ? Number(options.limit) : 2000, 2000)
+        : Math.min(options?.limit ? Number(options.limit) : 100, 250),
       ...(options?.offset ? { skip: Number(options.offset) } : {}),
       ...(options?.cursor ? { cursor: { id: options.cursor }, skip: 1 } : {}),
     });

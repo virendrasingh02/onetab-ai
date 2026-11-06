@@ -18,6 +18,7 @@ import {
   usePromptDialog,
   PageBar,
   PageTabBar,
+  IconRenderer,
 } from '@org/ui';
 import { useCurrentUser } from '@org/auth';
 import { FiledFilesSection } from '@org/web-upload';
@@ -416,11 +417,11 @@ export function DocumentEditor() {
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer px-2 py-0.5 rounded-md hover:bg-muted border border-border/50 transition-colors"
+                    className="gap-1.5 text-xs px-2 py-0.5 flex cursor-pointer items-center rounded-md border border-border/50 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     title="Jump to document"
                     aria-label="Jump to document"
                   >
-                    <span className="truncate max-w-[150px] font-medium">
+                    <span className="font-medium max-w-[150px] truncate">
                       {currentDoc?.title || 'Untitled Document'}
                     </span>
                     <ChevronDown className="size-3 text-muted-foreground" />
@@ -440,8 +441,14 @@ export function DocumentEditor() {
                       onClick={() => openDoc(d.id)}
                       className="text-xs flex items-center justify-between"
                     >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="shrink-0">{d.icon || '📝'}</span>
+                      <div className="gap-2 min-w-0 flex items-center">
+                        <span className="shrink-0">
+                          <IconRenderer
+                            icon={d.icon}
+                            iconColor={d.iconColor}
+                            sizeClassName="size-3.5"
+                          />
+                        </span>
                         <span className="truncate">
                           {d.title || 'Untitled Document'}
                         </span>
@@ -449,7 +456,7 @@ export function DocumentEditor() {
                       {d.id === currentDoc?.id && (
                         <Badge
                           variant="primary"
-                          className="text-[9px] px-1 py-0 h-4"
+                          className="px-1 py-0 h-4 text-[9px]"
                         >
                           active
                         </Badge>
@@ -460,29 +467,29 @@ export function DocumentEditor() {
               </DropdownMenu>
             )}
             {saveFailed ? (
-            <Badge
-              variant="destructive"
-              className="gap-1 px-1.5 py-0 h-4.5 text-[11px]"
-            >
-              Not saved
-            </Badge>
-          ) : isSaving ? (
-            <Badge
-              variant="neutral"
-              className="gap-1 px-1.5 py-0 h-4.5 text-[11px]"
-            >
-              <Loader2 className="size-3 animate-spin" />
-              Saving…
-            </Badge>
-          ) : savedAt !== null ? (
-            <Badge
-              variant="primary"
-              className="gap-1 px-1.5 py-0 h-4.5 text-[11px]"
-            >
-              <CheckCircle className="size-3" />
-              Saved
-            </Badge>
-          ) : null}
+              <Badge
+                variant="destructive"
+                className="gap-1 px-1.5 py-0 h-4.5 text-[11px]"
+              >
+                Not saved
+              </Badge>
+            ) : isSaving ? (
+              <Badge
+                variant="neutral"
+                className="gap-1 px-1.5 py-0 h-4.5 text-[11px]"
+              >
+                <Loader2 className="size-3 animate-spin" />
+                Saving…
+              </Badge>
+            ) : savedAt !== null ? (
+              <Badge
+                variant="primary"
+                className="gap-1 px-1.5 py-0 h-4.5 text-[11px]"
+              >
+                <CheckCircle className="size-3" />
+                Saved
+              </Badge>
+            ) : null}
           </>
         }
         actions={
@@ -598,15 +605,16 @@ export function DocumentEditor() {
                 <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                   Document Templates ({DOC_TEMPLATES.length})
                 </h2>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Start with structured templates designed for product, architecture, and engineering workflows.
+                <p className="text-xs mt-1 text-muted-foreground">
+                  Start with structured templates designed for product,
+                  architecture, and engineering workflows.
                 </p>
               </div>
 
               <ul className="gap-4 md:grid-cols-2 grid grid-cols-1">
                 {DOC_TEMPLATES.map((tmpl) => (
                   <li key={tmpl.id}>
-                    <Card className="p-5 h-full justify-between transition-colors duration-(--duration-fast) hover:border-border-strong bg-surface">
+                    <Card className="p-5 h-full justify-between bg-surface transition-colors duration-(--duration-fast) hover:border-border-strong">
                       <div>
                         <div className="mb-3 gap-2 flex items-center justify-between">
                           <Badge variant="neutral">{tmpl.category}</Badge>
@@ -625,7 +633,7 @@ export function DocumentEditor() {
                       <Button
                         variant="primary"
                         size="sm"
-                        className="w-full font-semibold"
+                        className="font-semibold w-full"
                         onClick={() => handleUseTemplate(tmpl.id)}
                         leadingIcon={
                           <Zap className="size-3.5 text-accent-amber" />
@@ -656,7 +664,9 @@ export function DocumentEditor() {
             activeDocId={currentDoc?.id}
             isLoading={isLoading}
             // '' matches nobody, so a missing user shows none rather than all.
-            filterAuthorId={tab === 'mine' ? currentUser?.id ?? '' : undefined}
+            filterAuthorId={
+              tab === 'mine' ? (currentUser?.id ?? '') : undefined
+            }
             onSelectDoc={openDoc}
             onNewDoc={handleNewDoc}
             onBrowseTemplates={() => setTab('templates')}

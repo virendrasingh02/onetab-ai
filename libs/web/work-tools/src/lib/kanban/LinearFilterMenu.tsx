@@ -155,22 +155,27 @@ export function LinearFilterMenu({
     <div
       ref={menuRef}
       className={cn(
-        'absolute right-4 top-14 z-50 w-72 rounded-xl border border-border bg-popover/95 backdrop-blur-md shadow-2xl p-1.5 text-xs font-sans text-popover-foreground transition-all duration-200',
+        'right-4 top-14 w-72 backdrop-blur-md shadow-2xl p-1.5 text-xs absolute z-50 rounded-xl border border-border bg-popover/95 font-sans text-popover-foreground transition-all duration-200',
       )}
     >
       {/* Search Header */}
-      <div className="relative mb-1 px-1.5 py-1">
-        <div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/40 px-2 py-1.5 focus-within:border-ring focus-within:ring-1 focus-within:ring-ring/20">
-          <Search className="size-3.5 text-muted-foreground shrink-0" />
+      <div className="mb-1 px-1.5 py-1 relative">
+        <div className="gap-2 px-2 py-1.5 flex items-center rounded-md border border-border/60 bg-muted/40 focus-within:border-ring focus-within:ring-1 focus-within:ring-ring/20">
+          <Search className="size-3.5 shrink-0 text-muted-foreground" />
           <input
             type="text"
             value={menuSearch}
             onChange={(e) => setMenuSearch(e.target.value)}
             placeholder="Add Filter..."
-            className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
+            className="text-xs w-full bg-transparent text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
             autoFocus
           />
-          <KbdShortcut keys={['F']} size="xs" variant="muted" className="shrink-0 pointer-events-none" />
+          <KbdShortcut
+            keys={['F']}
+            size="xs"
+            variant="muted"
+            className="pointer-events-none shrink-0"
+          />
         </div>
       </div>
 
@@ -180,11 +185,11 @@ export function LinearFilterMenu({
             onActivateAIFilter();
             onClose();
           }}
-          className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+          className="px-2.5 py-1.5 text-xs font-medium flex w-full items-center justify-between rounded-lg text-left text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
-          <div className="flex items-center gap-2.5">
+          <div className="gap-2.5 flex items-center">
             <Sparkles className="size-3.5 shrink-0 text-accent-violet" />
-            <span>Ask AI to filter</span>
+            <span>Smart filter</span>
           </div>
           <ChevronRight className="size-3 text-muted-foreground/60" />
         </button>
@@ -193,29 +198,29 @@ export function LinearFilterMenu({
       <div className="my-1.5 border-t border-border/50" />
 
       {/* Filter Categories List */}
-      <div className="max-h-64 overflow-y-auto no-scrollbar space-y-0.5 px-1">
+      <div className="max-h-64 space-y-0.5 px-1 no-scrollbar overflow-y-auto">
         {filteredCategories.map((cat) => {
           const IconComponent = cat.icon;
           const isSubOpen = activeSubMenu === cat.id;
 
           return (
-            <div key={cat.id} className="relative group">
+            <div key={cat.id} className="group relative">
               <button
                 onClick={() => setActiveSubMenu(isSubOpen ? null : cat.id)}
                 className={cn(
-                  'flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors',
+                  'px-2.5 py-1.5 text-xs flex w-full items-center justify-between rounded-lg text-left text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
                   (isSubOpen || cat.activeCount > 0) &&
-                    'bg-accent/60 font-medium text-foreground',
+                    'font-medium bg-accent/60 text-foreground',
                 )}
               >
-                <div className="flex items-center gap-2.5">
-                  <IconComponent className="size-3.5 text-muted-foreground/80 shrink-0" />
+                <div className="gap-2.5 flex items-center">
+                  <IconComponent className="size-3.5 shrink-0 text-muted-foreground/80" />
                   <span>{cat.label}</span>
                 </div>
 
-                <div className="flex items-center gap-1">
+                <div className="gap-1 flex items-center">
                   {cat.activeCount > 0 && (
-                    <span className="rounded-full bg-brand/20 text-brand-text px-1.5 py-0.2 text-[10px] font-semibold">
+                    <span className="px-1.5 py-0.2 font-semibold rounded-full bg-brand/20 text-[10px] text-brand-text">
                       {cat.activeCount}
                     </span>
                   )}
@@ -225,13 +230,13 @@ export function LinearFilterMenu({
 
               {/* Submenu Dropdown Popover */}
               {isSubOpen && (
-                <div className="mt-1 ml-4 rounded-lg border border-border/80 bg-surface/95 p-1.5 shadow-lg space-y-0.5 text-xs">
+                <div className="mt-1 ml-4 p-1.5 space-y-0.5 text-xs rounded-lg border border-border/80 bg-surface/95 shadow-lg">
                   {cat.id === 'status' &&
                     TASK_STATUS_ORDER.map((status) => (
                       <button
                         key={status}
                         onClick={() => toggleStatus(status)}
-                        className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs hover:bg-accent hover:text-foreground"
+                        className="px-2 py-1 text-xs flex w-full items-center justify-between rounded-md text-left hover:bg-accent hover:text-foreground"
                       >
                         <span>{STATUS_TITLES[status]}</span>
                         {filter.status.includes(status) && (
@@ -241,18 +246,20 @@ export function LinearFilterMenu({
                     ))}
 
                   {cat.id === 'priority' &&
-                    (['URGENT', 'HIGH', 'MEDIUM', 'LOW'] as Priority[]).map((p) => (
-                      <button
-                        key={p}
-                        onClick={() => togglePriority(p)}
-                        className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs hover:bg-accent hover:text-foreground"
-                      >
-                        <span className="capitalize">{p.toLowerCase()}</span>
-                        {filter.priorities.includes(p) && (
-                          <Check className="size-3 text-primary" />
-                        )}
-                      </button>
-                    ))}
+                    (['URGENT', 'HIGH', 'MEDIUM', 'LOW'] as Priority[]).map(
+                      (p) => (
+                        <button
+                          key={p}
+                          onClick={() => togglePriority(p)}
+                          className="px-2 py-1 text-xs flex w-full items-center justify-between rounded-md text-left hover:bg-accent hover:text-foreground"
+                        >
+                          <span className="capitalize">{p.toLowerCase()}</span>
+                          {filter.priorities.includes(p) && (
+                            <Check className="size-3 text-primary" />
+                          )}
+                        </button>
+                      ),
+                    )}
 
                   {cat.id === 'assignee' &&
                     (members.length === 0 ? (
@@ -264,7 +271,7 @@ export function LinearFilterMenu({
                         <button
                           key={m.id}
                           onClick={() => toggleMember(m.id)}
-                          className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs hover:bg-accent hover:text-foreground"
+                          className="px-2 py-1 text-xs flex w-full items-center justify-between rounded-md text-left hover:bg-accent hover:text-foreground"
                         >
                           <span>{m.name}</span>
                           {filter.memberIds.includes(m.id) && (
@@ -276,22 +283,22 @@ export function LinearFilterMenu({
 
                   {cat.id === 'dates' && (
                     <React.Fragment>
-                      {(['today', 'overdue', 'week', 'none'] as DueFilter[]).map(
-                        (d) => (
-                          <button
-                            key={d}
-                            onClick={() => setDue(d)}
-                            className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs hover:bg-accent hover:text-foreground"
-                          >
-                            <span className="capitalize">
-                              {d === 'none' ? 'No due date' : d}
-                            </span>
-                            {filter.due === d && (
-                              <Check className="size-3 text-primary" />
-                            )}
-                          </button>
-                        ),
-                      )}
+                      {(
+                        ['today', 'overdue', 'week', 'none'] as DueFilter[]
+                      ).map((d) => (
+                        <button
+                          key={d}
+                          onClick={() => setDue(d)}
+                          className="px-2 py-1 text-xs flex w-full items-center justify-between rounded-md text-left hover:bg-accent hover:text-foreground"
+                        >
+                          <span className="capitalize">
+                            {d === 'none' ? 'No due date' : d}
+                          </span>
+                          {filter.due === d && (
+                            <Check className="size-3 text-primary" />
+                          )}
+                        </button>
+                      ))}
                     </React.Fragment>
                   )}
 
@@ -305,7 +312,7 @@ export function LinearFilterMenu({
                         <button
                           key={ms}
                           onClick={() => toggleMilestone(ms)}
-                          className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs hover:bg-accent hover:text-foreground"
+                          className="px-2 py-1 text-xs flex w-full items-center justify-between rounded-md text-left hover:bg-accent hover:text-foreground"
                         >
                           <span>{ms}</span>
                           {filter.milestones.includes(ms) && (

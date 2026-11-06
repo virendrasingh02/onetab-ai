@@ -1,3 +1,4 @@
+import type { Project } from '@org/types';
 import {
   Badge,
   Button,
@@ -17,6 +18,8 @@ import {
   SearchInput,
   SkeletonList,
   Toolbar,
+  IconRenderer,
+  ProjectGlyph,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -28,7 +31,6 @@ import {
   FileText,
   Filter,
   Folder,
-  FolderKanban,
   LayoutGrid,
   List,
   MoreVertical,
@@ -52,11 +54,13 @@ import {
   type DocStatus,
 } from './doc-types.js';
 
+type ProjectMark = Pick<Project, 'icon' | 'iconColor' | 'color'>;
+
 export interface DocGalleryProps {
   docs: DocItem[];
   companies: CompanyItem[];
   /** Live project names; a name stored on a doc goes stale on rename. */
-  projects?: Array<{ id: string; name: string }>;
+  projects?: Array<{ id: string; name: string } & Partial<ProjectMark>>;
   activeDocId?: string;
   isLoading?: boolean;
   onSelectDoc: (id: string) => void;
@@ -69,11 +73,10 @@ export interface DocGalleryProps {
   filterAuthorId?: string;
 }
 
-interface DocCardActionsProps
-  extends Pick<
-    DocGalleryProps,
-    'onSelectDoc' | 'onDuplicateDoc' | 'onDeleteDoc' | 'onToggleFavorite'
-  > {
+interface DocCardActionsProps extends Pick<
+  DocGalleryProps,
+  'onSelectDoc' | 'onDuplicateDoc' | 'onDeleteDoc' | 'onToggleFavorite'
+> {
   doc: DocItem;
   /** Light icons for the coloured cover; theme icons on the card body. */
   onCover: boolean;
@@ -97,7 +100,7 @@ function DocCardActions({
   return (
     <div
       className={cn(
-        'flex items-center gap-1 rounded-md',
+        'gap-1 flex items-center rounded-md',
         onCover && 'bg-black/40 backdrop-blur-md p-1',
         CARD_ACTIONS_REVEAL,
       )}
@@ -198,7 +201,9 @@ export function DocGallery({
 }: DocGalleryProps) {
   const [search, setSearch] = useState('');
   const [layout, setLayout] = useState<'grid' | 'compact'>('grid');
-  const [categoryFilter, setCategoryFilter] = useState<DocCategory | 'all'>('all');
+  const [categoryFilter, setCategoryFilter] = useState<DocCategory | 'all'>(
+    'all',
+  );
   const [statusFilter, setStatusFilter] = useState<DocStatus | 'all'>('all');
   const [favoritesOnly, setFavoritesOnly] = useState(false);
 
@@ -210,14 +215,15 @@ export function DocGallery({
     return map;
   }, [companies]);
 
-  const projectNames = useMemo(
-    () => new Map(projects?.map((p) => [p.id, p.name])),
+  const projectsById = useMemo(
+    () => new Map(projects?.map((p) => [p.id, p])),
     [projects],
   );
   const projectNameOf = useCallback(
     (doc: DocItem) =>
-      (doc.projectId && projectNames.get(doc.projectId)) || doc.projectName,
-    [projectNames],
+      (doc.projectId && projectsById.get(doc.projectId)?.name) ||
+      doc.projectName,
+    [projectsById],
   );
 
   const scopedDocs = useMemo(
@@ -259,7 +265,7 @@ export function DocGallery({
 
   return (
     <div className="px-4 sm:px-6 py-4 sm:py-6 flex h-full flex-col overflow-hidden">
-      <Toolbar className="mb-4 shrink-0 justify-between gap-2 flex-wrap">
+      <Toolbar className="mb-4 gap-2 shrink-0 flex-wrap justify-between">
         <SearchInput
           value={search}
           onValueChange={setSearch}
@@ -268,7 +274,7 @@ export function DocGallery({
           wrapperClassName="w-48 sm:w-72"
         />
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="gap-2 flex flex-wrap items-center">
           {/* Favorite filter toggle */}
           <Button
             variant={favoritesOnly ? 'secondary' : 'outline'}
@@ -280,10 +286,12 @@ export function DocGallery({
             <Star
               className={cn(
                 'size-3.5',
-                favoritesOnly ? 'fill-accent-amber text-accent-amber' : 'text-muted-foreground',
+                favoritesOnly
+                  ? 'fill-accent-amber text-accent-amber'
+                  : 'text-muted-foreground',
               )}
             />
-            <span className="hidden sm:inline">Favorites</span>
+            <span className="sm:inline hidden">Favorites</span>
           </Button>
 
           {/* Category Filter */}
@@ -295,12 +303,16 @@ export function DocGallery({
                 className="h-8 gap-1.5 text-xs"
               >
                 <Tag className="size-3.5 text-muted-foreground" />
-                <span>{categoryFilter === 'all' ? 'All categories' : categoryFilter}</span>
+                <span>
+                  {categoryFilter === 'all' ? 'All categories' : categoryFilter}
+                </span>
                 <ChevronDown className="size-3 text-muted-foreground" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuLabel className="text-[11px]">Filter by category</DropdownMenuLabel>
+              <DropdownMenuLabel className="text-[11px]">
+                Filter by category
+              </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => setCategoryFilter('all')}
@@ -341,12 +353,16 @@ export function DocGallery({
                 className="h-8 gap-1.5 text-xs"
               >
                 <Filter className="size-3.5 text-muted-foreground" />
-                <span>{statusFilter === 'all' ? 'All statuses' : statusFilter}</span>
+                <span>
+                  {statusFilter === 'all' ? 'All statuses' : statusFilter}
+                </span>
                 <ChevronDown className="size-3 text-muted-foreground" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuLabel className="text-[11px]">Filter by status</DropdownMenuLabel>
+              <DropdownMenuLabel className="text-[11px]">
+                Filter by status
+              </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => setStatusFilter('all')}
@@ -379,7 +395,7 @@ export function DocGallery({
           </DropdownMenu>
 
           {/* Layout Toggle */}
-          <div className="flex items-center rounded-md border border-border p-0.5">
+          <div className="p-0.5 flex items-center rounded-md border border-border">
             <button
               type="button"
               onClick={() => setLayout('grid')}
@@ -387,7 +403,7 @@ export function DocGallery({
               title="Grid layout"
               aria-label="Grid layout"
               className={cn(
-                'rounded p-1.5 transition-colors cursor-pointer',
+                'rounded p-1.5 cursor-pointer transition-colors',
                 layout === 'grid'
                   ? 'bg-accent text-foreground'
                   : 'text-muted-foreground hover:text-foreground',
@@ -402,7 +418,7 @@ export function DocGallery({
               title="Compact layout"
               aria-label="Compact layout"
               className={cn(
-                'rounded p-1.5 transition-colors cursor-pointer',
+                'rounded p-1.5 cursor-pointer transition-colors',
                 layout === 'compact'
                   ? 'bg-accent text-foreground'
                   : 'text-muted-foreground hover:text-foreground',
@@ -443,8 +459,8 @@ export function DocGallery({
               scopedDocs.length > 0
                 ? 'No documents match your filter'
                 : filterAuthorId !== undefined
-                ? 'No documents managed by you'
-                : 'No documents yet'
+                  ? 'No documents managed by you'
+                  : 'No documents yet'
             }
             description={
               scopedDocs.length > 0
@@ -453,11 +469,16 @@ export function DocGallery({
             }
             action={
               scopedDocs.length === 0 ? (
-                <div className="flex gap-2">
+                <div className="gap-2 flex">
                   <Button size="sm" onClick={onNewDoc} leadingIcon={<Plus />}>
                     New Document
                   </Button>
-                  <Button size="sm" variant="outline" onClick={onBrowseTemplates} leadingIcon={<Zap />}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={onBrowseTemplates}
+                    leadingIcon={<Zap />}
+                  >
                     Use Template
                   </Button>
                 </div>
@@ -467,14 +488,19 @@ export function DocGallery({
         ) : (
           <div
             className={cn(
-              'grid gap-3.5',
-              layout === 'grid' ? 'sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1',
+              'gap-3.5 grid',
+              layout === 'grid'
+                ? 'sm:grid-cols-2 lg:grid-cols-3'
+                : 'grid-cols-1',
             )}
           >
             {visibleDocs.map((doc) => {
               const isActive = doc.id === activeDocId;
               const folderName = companyMap.get(doc.companyId) || 'General';
               const projectName = projectNameOf(doc);
+              const linkedProject = doc.projectId
+                ? projectsById.get(doc.projectId)
+                : undefined;
               const actions = (
                 <DocCardActions
                   doc={doc}
@@ -491,45 +517,55 @@ export function DocGallery({
                   key={doc.id}
                   onClick={() => onSelectDoc(doc.id)}
                   className={cn(
-                    'group cursor-pointer bg-surface text-foreground border-border overflow-hidden transition-all duration-200',
+                    'group cursor-pointer overflow-hidden border-border bg-surface text-foreground transition-all duration-200',
                     'hover:border-border-strong hover:bg-surface-raised hover:shadow-xs',
-                    isActive && 'ring-1 ring-primary border-primary',
+                    isActive && 'border-primary ring-1 ring-primary',
                   )}
                 >
                   {/* Card Cover Banner Header (in grid mode) */}
                   {layout === 'grid' && (
                     <div
-                      className="h-16 w-full relative transition-opacity"
+                      className="h-16 relative w-full transition-opacity"
                       style={{ background: doc.cover || DEFAULT_COVER }}
                     >
-                      <div className="absolute top-2 right-2">{actions}</div>
+                      <div className="top-2 right-2 absolute">{actions}</div>
                     </div>
                   )}
 
-                  <CardHeader className={cn(layout === 'grid' ? 'pt-3 pb-2' : 'py-3')}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2.5 min-w-0">
+                  <CardHeader
+                    className={cn(layout === 'grid' ? 'pt-3 pb-2' : 'py-3')}
+                  >
+                    <div className="gap-2 flex items-start justify-between">
+                      <div className="gap-2.5 min-w-0 flex items-center">
                         <span className="text-xl shrink-0 select-none">
-                          {doc.icon || '📝'}
+                          <IconRenderer
+                            icon={doc.icon}
+                            iconColor={doc.iconColor}
+                          />
                         </span>
                         <div className="min-w-0">
-                          <CardTitle className="text-sm font-semibold truncate group-hover:text-primary transition-colors">
+                          <CardTitle className="text-sm font-semibold truncate transition-colors group-hover:text-primary">
                             {/* The focusable control: its click bubbles to the card. */}
                             <button
                               type="button"
-                              className="max-w-full truncate cursor-pointer text-left"
+                              className="max-w-full cursor-pointer truncate text-left"
                             >
                               {doc.title || 'Untitled Document'}
                             </button>
                           </CardTitle>
-                          <CardDescription className="flex items-center gap-1.5 text-[11px] text-muted-foreground truncate mt-0.5">
+                          <CardDescription className="gap-1.5 mt-0.5 flex items-center truncate text-[11px] text-muted-foreground">
                             <Folder className="size-3 text-muted-foreground" />
                             <span>{folderName}</span>
                             {projectName && (
                               <>
                                 <span>•</span>
-                                <span className="flex items-center gap-1 text-primary">
-                                  <FolderKanban className="size-3" />
+                                <span className="gap-1 flex items-center text-primary">
+                                  <ProjectGlyph
+                                    icon={linkedProject?.icon}
+                                    iconColor={linkedProject?.iconColor}
+                                    color={linkedProject?.color}
+                                    size="xs"
+                                  />
                                   {projectName}
                                 </span>
                               </>
@@ -538,11 +574,11 @@ export function DocGallery({
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="gap-1.5 flex shrink-0 items-center">
                         {layout === 'compact' && actions}
                         <DocStatusBadge status={doc.status} />
                         {doc.favorite && (
-                          <Star className="size-3.5 fill-accent-amber text-accent-amber shrink-0" />
+                          <Star className="size-3.5 shrink-0 fill-accent-amber text-accent-amber" />
                         )}
                       </div>
                     </div>
@@ -550,20 +586,20 @@ export function DocGallery({
 
                   <CardContent className="pt-0 pb-3">
                     {doc.snippet ? (
-                      <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed mb-3">
+                      <p className="text-xs leading-relaxed mb-3 line-clamp-2 text-muted-foreground">
                         {doc.snippet}
                       </p>
                     ) : (
-                      <p className="text-xs text-muted-foreground/60 italic mb-3">
+                      <p className="text-xs mb-3 text-muted-foreground/60 italic">
                         Empty document
                       </p>
                     )}
 
-                    <div className="flex items-center justify-between border-t border-border/60 pt-2.5 text-[11px] text-muted-foreground">
-                      <div className="flex items-center gap-2 truncate">
+                    <div className="pt-2.5 flex items-center justify-between border-t border-border/60 text-[11px] text-muted-foreground">
+                      <div className="gap-2 flex items-center truncate">
                         {doc.authorName && (
                           <>
-                            <span className="truncate max-w-[100px] font-medium text-foreground">
+                            <span className="font-medium max-w-[100px] truncate text-foreground">
                               {doc.authorName}
                             </span>
                             <span>•</span>
@@ -572,8 +608,11 @@ export function DocGallery({
                         <span>{doc.updatedAt}</span>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Badge variant="neutral" className="text-[10px] px-1.5 py-0">
+                      <div className="gap-2 flex shrink-0 items-center">
+                        <Badge
+                          variant="neutral"
+                          className="px-1.5 py-0 text-[10px]"
+                        >
                           {doc.category}
                         </Badge>
                         <span className="text-[10px] text-muted-foreground">

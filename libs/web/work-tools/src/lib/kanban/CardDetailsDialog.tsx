@@ -1,7 +1,12 @@
 import { aiApi } from '@org/api-client';
 import { useCurrentUser } from '@org/auth';
-import { type RelationType, type TaskStatus } from '@org/types';
+import {
+  WorkspacePermission,
+  type RelationType,
+  type TaskStatus,
+} from '@org/types';
 import { useSaveForLater } from '@org/web-chat/bookmarks';
+import { useWorkspacePermission } from '@org/web-workspace';
 import { FiledFilesSection } from '@org/web-upload';
 import {
   Button,
@@ -120,7 +125,7 @@ import {
   relationsFor,
   relationVerb,
 } from './relation-meta.js';
-import type { BoardAction } from './server-board.js';
+import { isoToDay, type BoardAction } from './server-board.js';
 import type {
   BoardMember,
   BoardState,
@@ -324,6 +329,7 @@ function CardDetailsBody({
   const currentUser = useCurrentUser();
   const navigate = useNavigate();
   const { slug: workspaceSlug } = useCurrentWorkspace();
+  const canDelete = useWorkspacePermission().can(WorkspacePermission.DELETE);
   const currentUserId = currentUser?.id;
 
   const [editingDescription, setEditingDescription] = useState(false);
@@ -703,9 +709,9 @@ function CardDetailsBody({
 
         {/* Right: Actions */}
         <div className="gap-1.5 flex shrink-0 items-center">
-          {formatDateShort(card.createdAt) ? (
+          {formatDateShort(isoToDay(card.createdAt)) ? (
             <span className="md:inline-block mr-2 hidden text-[11px] text-muted-foreground">
-              Created {formatDateShort(card.createdAt)}
+              Created {formatDateShort(isoToDay(card.createdAt))}
             </span>
           ) : null}
 
@@ -746,26 +752,28 @@ function CardDetailsBody({
                 <Copy className="size-3.5 mr-2" />
                 Copy task
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={() => {
-                  void confirm({
-                    title: `Delete “${card.title}”?`,
-                    description:
-                      "The task and its details are removed. This can't be undone.",
-                    confirmLabel: 'Delete task',
-                    destructive: true,
-                  }).then((ok) => {
-                    if (!ok) return;
-                    dispatch({ type: 'card/remove', cardId: card.id });
-                    onClose();
-                  });
-                }}
-              >
-                <Trash2 className="size-3.5 mr-2" />
-                Delete task
-              </DropdownMenuItem>
+              {canDelete ? <DropdownMenuSeparator /> : null}
+              {canDelete ? (
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => {
+                    void confirm({
+                      title: `Delete “${card.title}”?`,
+                      description:
+                        "The task and its details are removed. This can't be undone.",
+                      confirmLabel: 'Delete task',
+                      destructive: true,
+                    }).then((ok) => {
+                      if (!ok) return;
+                      dispatch({ type: 'card/remove', cardId: card.id });
+                      onClose();
+                    });
+                  }}
+                >
+                  <Trash2 className="size-3.5 mr-2" />
+                  Delete task
+                </DropdownMenuItem>
+              ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
 

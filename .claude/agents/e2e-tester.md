@@ -56,6 +56,7 @@ with status + body excerpt, or the DB/API value you checked).
 - The chat message list is virtualized: with the pane hidden, freshly loaded rows
   may not be in the DOM. Take one small screenshot (forces a paint) before calling
   a message "missing" after a reload.
+- The API client is axios: force a failure by stubbing `XMLHttpRequest.prototype.open`, not `fetch`. With the pane hidden, closed Radix dialogs stay mounted, so select `[data-state=open]`.
 - Text-search flags like "404" match numbers on the page (e.g. "40452ms"); read the
   surrounding text before reporting.
 - Chat notifications need a second real sender: API login → `POST /api/v1/matrix/session` → Matrix CS API `PUT .../send/m.room.message/<txn>`. Add `m.mentions.user_ids` for a mention. The pane has browser notifications denied, so stub `window.Notification` to capture OS calls. With the stub granted, assert `[data-sonner-toast]` stays empty.
@@ -108,6 +109,7 @@ persisted (reload the page, or read it back from the API).
   → all persist. DM a seeded user. Composer `/` menu opens.
 - **Channels**: create channel, open its settings tab, files tab, pins tab. The sidebar lists joined channels only; public channels they have not joined are in Browse channels. Opening one shows the "Join this channel" bar instead of the composer, with no false "not connected" error; create the room first (`POST /matrix/channels/:id/room`) or the test does not match real channels.
 - **Tasks/Kanban/Projects**: create a task, move it across columns, reload → persisted.
+  Project tabs live in `?view=` (`spreadsheet`, `cycles`, `modules`, ...). Seeded Members get 403 on deletes and see no delete controls: test deletes in a workspace the user owns.
 - **Docs/Notes**: create a doc, type, reload → content saved.
 - **Saved/Bookmarks**: save a message → shows in Saved.
 - **Meetings/Schedule**: create a meeting → listed.

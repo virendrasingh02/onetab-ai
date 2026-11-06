@@ -1,5 +1,10 @@
-import { AppSelect } from '@org/ui';
-import { cn } from '@org/utils';
+import {
+  AppSelect,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Switch,
+} from '@org/ui';
 import {
   FileText,
   FolderGit2,
@@ -17,7 +22,13 @@ import {
   Target,
   Timeline,
 } from 'lucide-react';
-import { useEffect, useRef, useState, type ComponentType } from 'react';
+import type { ComponentType, ReactNode } from 'react';
+import {
+  CARD_PROPERTY_LABELS,
+  useKanbanDisplayStore,
+  type BoardOrder,
+  type CardProperties,
+} from './kanban-display-store.js';
 
 export type ProjectViewMode =
   | 'list'
@@ -59,148 +70,74 @@ export const VIEW_MODES: Array<{
 ];
 
 export interface ViewDisplayMenuProps {
-  isOpen: boolean;
-  onClose: () => void;
-  viewMode: ProjectViewMode;
-  onViewModeChange: (mode: ProjectViewMode) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  trigger: ReactNode;
 }
 
+const ORDER_OPTIONS: Array<{ value: BoardOrder; label: string }> = [
+  { value: 'manual', label: 'Manual' },
+  { value: 'priority', label: 'Priority' },
+  { value: 'due', label: 'Due date' },
+  { value: 'title', label: 'Title' },
+  { value: 'created', label: 'Newest first' },
+];
+
+/** Board and list display options. They apply to this viewer only. */
 export function ViewDisplayMenu({
-  isOpen,
-  onClose,
-  viewMode,
-  onViewModeChange,
+  open,
+  onOpenChange,
+  trigger,
 }: ViewDisplayMenuProps) {
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [groupBy, setGroupBy] = useState<'status' | 'priority' | 'assignee'>('status');
-  const [orderBy, setOrderBy] = useState<'manual' | 'priority' | 'due' | 'created'>('manual');
-
-  // Display toggles state
-  const [displayProps, setDisplayProps] = useState({
-    showTicketId: true,
-    showPriority: true,
-    showDueDate: true,
-    showAssignee: true,
-    showLabels: true,
-    showSubtasks: true,
-  });
-
-  const toggleProp = (key: keyof typeof displayProps) => {
-    setDisplayProps((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  // Close on click outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        onClose();
-      }
-    }
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
+  const orderBy = useKanbanDisplayStore((state) => state.orderBy);
+  const setOrderBy = useKanbanDisplayStore((state) => state.setOrderBy);
+  const card = useKanbanDisplayStore((state) => state.card);
+  const toggleCardProperty = useKanbanDisplayStore(
+    (state) => state.toggleCardProperty,
+  );
 
   return (
-    <div
-      ref={menuRef}
-      className="absolute right-6 top-14 z-50 w-80 rounded-2xl border border-border bg-popover/95 backdrop-blur-xl p-4 text-xs font-sans text-popover-foreground shadow-2xl transition-all duration-200 space-y-4"
-    >
-      {/* View Switcher Grid */}
-      <div>
-        <h4 className="mb-2 text-xs font-bold text-foreground uppercase tracking-wider">
-          Layout View
-        </h4>
-        <div className="grid grid-cols-3 gap-1 p-1 bg-muted/40 rounded-xl border border-border/50">
-          {VIEW_MODES.slice(0, 9).map((mode) => {
-            const Icon = mode.icon;
-            return (
-              <button
-                key={mode.id}
-                type="button"
-                onClick={() => {
-                  onViewModeChange(mode.id);
-                  onClose();
-                }}
-                aria-pressed={viewMode === mode.id}
-                className={cn(
-                  'flex flex-col items-center justify-center gap-1.5 p-2 rounded-lg text-[11px] font-semibold transition-all duration-150',
-                  viewMode === mode.id
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                )}
-              >
-                <Icon className="size-4" />
-                <span>{mode.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Grouping and Sorting Options */}
-      <div className="space-y-3 pt-2 border-t border-border/60">
-        <div className="flex items-center justify-between">
-          <span className="font-semibold text-foreground">Group By</span>
-          <AppSelect
-            size="sm"
-            className="w-32"
-            value={groupBy}
-            onValueChange={(v) => setGroupBy(v as any)}
-            aria-label="Group by"
-            options={[
-              { value: 'status', label: 'Status' },
-              { value: 'priority', label: 'Priority' },
-              { value: 'assignee', label: 'Assignee' },
-            ]}
-          />
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      <PopoverContent align="end" className="w-72 space-y-3 p-3 text-xs">
+        <div className="space-y-1.5">
+          <div className="gap-3 flex items-center justify-between">
+            <span className="font-medium text-foreground">Order by</span>
+            <AppSelect
+              size="sm"
+              className="w-36"
+              value={orderBy}
+              onValueChange={(value) => setOrderBy(value as BoardOrder)}
+              aria-label="Order by"
+              options={ORDER_OPTIONS}
+            />
+          </div>
+          {orderBy !== 'manual' ? (
+            <p className="text-[11px] text-muted-foreground">
+              Only changes your view. The team's manual order is kept.
+            </p>
+          ) : null}
         </div>
 
-        <div className="flex items-center justify-between">
-          <span className="font-semibold text-foreground">Order By</span>
-          <AppSelect
-            size="sm"
-            className="w-32"
-            value={orderBy}
-            onValueChange={(v) => setOrderBy(v as any)}
-            aria-label="Order by"
-            options={[
-              { value: 'manual', label: 'Manual' },
-              { value: 'priority', label: 'Priority' },
-              { value: 'due', label: 'Due Date' },
-              { value: 'created', label: 'Created' },
-            ]}
-          />
-        </div>
-      </div>
-
-      {/* Property Display Toggles */}
-      <div className="space-y-2 pt-2 border-t border-border/60">
-        <h4 className="text-xs font-bold text-foreground uppercase tracking-wider mb-2">
-          Card Properties
-        </h4>
-        <div className="grid grid-cols-2 gap-2">
-          {Object.entries(displayProps).map(([key, isEnabled]) => (
+        <div className="space-y-1 pt-3 border-t border-border/60">
+          <p className="mb-1.5 font-medium text-foreground">Show on cards</p>
+          {(
+            Object.keys(CARD_PROPERTY_LABELS) as Array<keyof CardProperties>
+          ).map((key) => (
             <label
               key={key}
-              className="flex items-center gap-2 cursor-pointer select-none text-muted-foreground hover:text-foreground"
+              className="gap-3 py-1 flex cursor-pointer items-center justify-between rounded-md text-muted-foreground hover:text-foreground"
             >
-              <input
-                type="checkbox"
-                checked={isEnabled}
-                onChange={() => toggleProp(key as keyof typeof displayProps)}
-                className="size-3.5 rounded border-border text-primary focus:ring-0 cursor-pointer"
+              <span>{CARD_PROPERTY_LABELS[key]}</span>
+              <Switch
+                checked={card[key]}
+                onCheckedChange={() => toggleCardProperty(key)}
+                aria-label={CARD_PROPERTY_LABELS[key]}
               />
-              <span className="capitalize">{key.replace('show', '')}</span>
             </label>
           ))}
         </div>
-      </div>
-    </div>
+      </PopoverContent>
+    </Popover>
   );
 }

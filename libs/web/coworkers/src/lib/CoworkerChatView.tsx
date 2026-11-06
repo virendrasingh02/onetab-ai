@@ -147,7 +147,7 @@ function CoworkerMessageHeader({
                 size="sm"
                 className="size-7"
               />
-              <h2 className="text-base font-semibold tracking-tight truncate text-foreground">
+              <h2 className="text-base font-medium truncate tracking-[-0.01em] text-foreground">
                 {name}
               </h2>
             </button>

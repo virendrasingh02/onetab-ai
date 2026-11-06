@@ -659,7 +659,7 @@ export function InboxView() {
                 className="size-4 shrink-0 text-muted-foreground"
                 aria-hidden
               />
-              <h2 className="text-base font-semibold tracking-tight truncate text-foreground">
+              <h2 className="text-base font-medium truncate tracking-[-0.01em] text-foreground">
                 Inbox
               </h2>
             </div>

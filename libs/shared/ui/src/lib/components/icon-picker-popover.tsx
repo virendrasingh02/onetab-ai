@@ -261,92 +261,16 @@ export const ICON_COLOR_PRESETS = [
   { id: 'slate', label: 'Slate', hex: '#6B6F76' },
 ];
 
-export const EMOJI_CATEGORIES = [
-  {
-    name: 'Popular',
-    emojis: [
-      '📝',
-      '🚀',
-      '⚡',
-      '🎨',
-      '🛡️',
-      '📊',
-      '💡',
-      '📚',
-      '🧩',
-      '🔬',
-      '⚙️',
-      '🌐',
-      '🎯',
-      '🔥',
-      '✨',
-      '🌟',
-    ],
-  },
-  {
-    name: 'Smileys',
-    emojis: [
-      '😀',
-      '😃',
-      '😄',
-      '😁',
-      '🥳',
-      '😎',
-      '🤖',
-      '👾',
-      '👽',
-      '👻',
-      '🎃',
-      '😺',
-      '🤠',
-      '🧠',
-      '👀',
-      '🤙',
-    ],
-  },
-  {
-    name: 'Objects',
-    emojis: [
-      '📦',
-      '📁',
-      '📄',
-      '💻',
-      '📱',
-      '🖥️',
-      '🔑',
-      '🔒',
-      '🏷️',
-      '📌',
-      '🎨',
-      '🎭',
-      '🎬',
-      '🎧',
-      '🎤',
-      '🥁',
-    ],
-  },
-  {
-    name: 'Symbols',
-    emojis: [
-      '⏰',
-      '⌛',
-      '💰',
-      '💳',
-      '💎',
-      '🛒',
-      '🎁',
-      '🎂',
-      '☕',
-      '🍔',
-      '🍕',
-      '🍎',
-      '🌈',
-      '☀️',
-      '🌙',
-      '⭐',
-    ],
-  },
-];
+/*
+ * What the picker offers. `123` stays in the registry so anything already saved
+ * with it still draws, but its hand-drawn glyph is not one to offer new.
+ */
+const PICKER_ICON_NAMES = Object.keys(ICON_REGISTRY).filter(
+  (name) => name !== '123',
+);
+
+const TOOL_BUTTON_CLASS =
+  'size-7 flex shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground';
 
 export interface IconRendererProps {
   icon?: string;
@@ -407,11 +331,11 @@ export interface IconPickerPopoverProps {
    *
    * Anything that persists its icon to a column wants this: the caller uploads
    * the bytes and calls `onSelectIcon` with the resulting URL. Left out, the
-   * upload tab falls back to a data URI, which suits callers that keep their
+   * upload view falls back to a data URI, which suits callers that keep their
    * icon inside a document body rather than a field of its own.
    */
   onUploadFile?: (file: File) => void;
-  /** Hides the Upload tab entirely, for callers that store icons elsewhere. */
+  /** Hides the upload button, for callers that store icons elsewhere. */
   allowUpload?: boolean;
   /** Shown under the upload control — a rejected file, a failed upload. */
   uploadError?: string | null;
@@ -435,12 +359,9 @@ export function IconPickerPopover({
   trigger,
   align = 'start',
 }: IconPickerPopoverProps) {
-  const [activeTab, setActiveTab] = useState<'emoji' | 'icons' | 'upload'>(
-    'icons',
-  );
+  const [view, setView] = useState<'icons' | 'upload'>('icons');
   const [filterQuery, setFilterQuery] = useState('');
   const [selectedColor, setSelectedColor] = useState<string>(iconColor);
-  const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
   const [uploadedUrl, setUploadedUrl] = useState('');
   const [isOpen, setIsOpen] = useState(false);
 
@@ -448,17 +369,15 @@ export function IconPickerPopover({
   // from elsewhere — another tab, a rollback after a failed save — wins.
   useEffect(() => setSelectedColor(iconColor), [iconColor]);
 
-  const iconNames = useMemo(() => Object.keys(ICON_REGISTRY), []);
-
   const filteredIcons = useMemo(() => {
-    if (!filterQuery.trim()) return iconNames;
+    if (!filterQuery.trim()) return PICKER_ICON_NAMES;
     const q = filterQuery.toLowerCase().trim();
-    return iconNames.filter((name) => name.toLowerCase().includes(q));
-  }, [iconNames, filterQuery]);
+    return PICKER_ICON_NAMES.filter((name) => name.toLowerCase().includes(q));
+  }, [filterQuery]);
 
   const handleRandomIcon = () => {
-    const randomIndex = Math.floor(Math.random() * iconNames.length);
-    const randomIcon = iconNames[randomIndex];
+    const randomIndex = Math.floor(Math.random() * PICKER_ICON_NAMES.length);
+    const randomIcon = PICKER_ICON_NAMES[randomIndex];
     const randomColorObj =
       ICON_COLOR_PRESETS[Math.floor(Math.random() * ICON_COLOR_PRESETS.length)];
     setSelectedColor(randomColorObj.hex);
@@ -502,7 +421,12 @@ export function IconPickerPopover({
     <Popover
       open={isOpen}
       onOpenChange={(next) => {
-        if (!disabled) setIsOpen(next);
+        if (disabled) return;
+        setIsOpen(next);
+        if (!next) {
+          setFilterQuery('');
+          setView('icons');
+        }
       }}
     >
       <PopoverTrigger asChild>
@@ -512,7 +436,7 @@ export function IconPickerPopover({
             disabled={disabled}
             aria-busy={isPending}
             className={cn(
-              'size-16 rounded-2xl shadow-lg text-3xl flex cursor-pointer items-center justify-center overflow-hidden border-2 border-surface bg-surface-raised transition-transform',
+              'size-16 text-3xl flex cursor-pointer items-center justify-center overflow-hidden rounded-2xl border-2 border-surface bg-surface-raised shadow-lg transition-transform',
               disabled ? 'cursor-not-allowed opacity-60' : 'hover:scale-105',
               isPending && 'animate-pulse',
             )}
@@ -527,283 +451,178 @@ export function IconPickerPopover({
         )}
       </PopoverTrigger>
 
-      <PopoverContent
-        align={align}
-        className="p-0 text-xs w-[340px] overflow-hidden"
-      >
-        {/* Navigation Tabs Bar & Remove Button */}
-        <div className="px-3 py-2 flex items-center justify-between border-b border-border bg-surface-inset/60">
-          <div className="gap-4 flex items-center">
-            <button
-              type="button"
-              onClick={() => setActiveTab('emoji')}
-              className={cn(
-                'text-xs font-medium pb-0.5 cursor-pointer border-b-2 transition-colors',
-                activeTab === 'emoji'
-                  ? 'border-foreground text-foreground'
-                  : 'border-transparent text-muted-foreground hover:text-foreground',
-              )}
-            >
-              Emoji
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('icons')}
-              className={cn(
-                'text-xs font-medium pb-0.5 cursor-pointer border-b-2 transition-colors',
-                activeTab === 'icons'
-                  ? 'border-foreground text-foreground'
-                  : 'border-transparent text-muted-foreground hover:text-foreground',
-              )}
-            >
-              Icons
-            </button>
-            {allowUpload && (
-              <button
-                type="button"
-                onClick={() => setActiveTab('upload')}
-                className={cn(
-                  'text-xs font-medium pb-0.5 cursor-pointer border-b-2 transition-colors',
-                  activeTab === 'upload'
-                    ? 'border-foreground text-foreground'
-                    : 'border-transparent text-muted-foreground hover:text-foreground',
-                )}
-              >
-                Upload
-              </button>
-            )}
+      <PopoverContent align={align} className="p-2 space-y-2 text-xs w-[272px]">
+        {/* Search + actions: the one row of chrome the picker has. */}
+        <div className="gap-0.5 flex items-center">
+          <div className="mr-1 relative flex-1">
+            <Search className="left-2 size-3.5 absolute top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={filterQuery}
+              onChange={(e) => {
+                setFilterQuery(e.target.value);
+                setView('icons');
+              }}
+              placeholder="Search icons"
+              aria-label="Search icons"
+              className="h-7 pl-7 text-xs rounded-md border-border/60 bg-surface-raised/80 text-popover-foreground placeholder:text-subtle focus:border-border-strong"
+            />
           </div>
 
-          {onRemoveIcon && (
+          <button
+            type="button"
+            onClick={handleRandomIcon}
+            disabled={isPending}
+            title="Random icon"
+            aria-label="Random icon"
+            className={TOOL_BUTTON_CLASS}
+          >
+            <Shuffle className="size-3.5" />
+          </button>
+
+          {allowUpload && (
+            <button
+              type="button"
+              onClick={() =>
+                setView((current) =>
+                  current === 'upload' ? 'icons' : 'upload',
+                )
+              }
+              title="Upload an image"
+              aria-label="Upload an image"
+              aria-pressed={view === 'upload'}
+              className={cn(
+                TOOL_BUTTON_CLASS,
+                view === 'upload' && 'bg-muted text-foreground',
+              )}
+            >
+              <Upload className="size-3.5" />
+            </button>
+          )}
+
+          {onRemoveIcon && icon && (
             <button
               type="button"
               onClick={() => {
                 onRemoveIcon();
                 setIsOpen(false);
               }}
-              className="text-xs cursor-pointer text-muted-foreground transition-colors hover:text-popover-foreground"
+              title="Remove icon"
+              aria-label="Remove icon"
+              className={TOOL_BUTTON_CLASS}
             >
-              Remove
+              <Trash2 className="size-3.5" />
             </button>
           )}
         </div>
 
-        {/* Tab 1: ICONS (Ref Image Design) */}
-        {activeTab === 'icons' && (
-          <div className="p-3 space-y-3">
-            {/* Filter Search Bar + Action Controls */}
-            <div className="gap-1.5 flex items-center">
-              <div className="relative flex-1">
-                <Search className="left-2.5 size-3.5 absolute top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={filterQuery}
-                  onChange={(e) => setFilterQuery(e.target.value)}
-                  placeholder="Filter..."
-                  className="h-8 pl-8 text-xs rounded-md border-border/60 bg-surface-raised/80 text-popover-foreground placeholder:text-subtle focus:border-border-strong"
-                />
-              </div>
-
-              {/* Shuffle / Random Icon Button */}
-              <button
-                type="button"
-                onClick={handleRandomIcon}
-                title="Random Icon"
-                className="size-8 flex shrink-0 cursor-pointer items-center justify-center rounded-md border border-border/60 bg-surface-raised/80 text-secondary-foreground transition-colors hover:bg-selected hover:text-foreground"
-              >
-                <Shuffle className="size-3.5" />
-              </button>
-
-              {/* Color Selector Button */}
-              <Popover
-                open={isColorPickerOpen}
-                onOpenChange={setIsColorPickerOpen}
-              >
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    title="Change Icon Color"
-                    className="size-8 flex shrink-0 cursor-pointer items-center justify-center rounded-md border border-border/60 bg-surface-raised/80 transition-colors hover:bg-selected"
-                  >
-                    <span
-                      className="size-3.5 shadow-xs rounded-full border border-border-strong/30"
-                      style={{ backgroundColor: selectedColor }}
-                    />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent
-                  align="end"
-                  className="w-48 p-2 shadow-xl rounded-lg border border-border bg-popover text-popover-foreground"
+        {view === 'icons' && (
+          <>
+            {/* Colours sit in the open: one click, and the grid previews them. */}
+            <div
+              role="group"
+              aria-label="Icon colour"
+              className="flex items-center justify-between"
+            >
+              {ICON_COLOR_PRESETS.map((color) => (
+                <button
+                  key={color.id}
+                  type="button"
+                  disabled={isPending}
+                  aria-label={color.label}
+                  aria-pressed={selectedColor === color.hex}
+                  title={color.label}
+                  onClick={() => {
+                    setSelectedColor(color.hex);
+                    if (icon && ICON_REGISTRY[icon]) {
+                      onSelectIcon(icon, color.hex);
+                    }
+                  }}
+                  className="size-5 flex cursor-pointer items-center justify-center rounded-full"
                 >
-                  <p className="font-semibold mb-2 px-1 text-[11px] text-muted-foreground">
-                    Icon Color
-                  </p>
-                  <div className="gap-1.5 grid grid-cols-4">
-                    {ICON_COLOR_PRESETS.map((color) => (
-                      <button
-                        key={color.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedColor(color.hex);
-                          setIsColorPickerOpen(false);
-                          if (icon && ICON_REGISTRY[icon]) {
-                            onSelectIcon(icon, color.hex);
-                          }
-                        }}
-                        title={color.label}
-                        className="size-8 flex cursor-pointer items-center justify-center rounded-md border border-border transition-transform hover:scale-110"
-                        style={{ backgroundColor: color.hex }}
-                      >
-                        {selectedColor === color.hex && (
-                          <Check className="size-3.5 stroke-[3] text-background" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
+                  <span
+                    className={cn(
+                      'size-3 rounded-full transition-transform hover:scale-125',
+                      selectedColor === color.hex &&
+                        'ring-1 ring-foreground ring-offset-1 ring-offset-popover',
+                    )}
+                    style={{ backgroundColor: color.hex }}
+                  />
+                </button>
+              ))}
             </div>
 
-            {/* Scrollable Icon Grid */}
-            <div className="space-y-1">
-              <p className="font-semibold px-0.5 text-[11px] text-muted-foreground">
-                Icons
-              </p>
+            {filteredIcons.length > 0 ? (
               <ScrollArea
-                className="max-h-56"
-                contentClassName="grid grid-cols-6 gap-1.5 pr-1"
+                className="max-h-44"
+                contentClassName="grid grid-cols-8 gap-0.5 pr-1"
               >
                 {filteredIcons.map((name) => {
                   const IconComp = ICON_REGISTRY[name];
-                  const isSelected = icon === name;
                   return (
                     <button
                       key={name}
                       type="button"
+                      disabled={isPending}
                       onClick={() => {
                         onSelectIcon(name, selectedColor);
                         setIsOpen(false);
                       }}
                       title={name}
+                      aria-label={name}
+                      aria-pressed={icon === name}
                       className={cn(
-                        'size-10 flex cursor-pointer items-center justify-center rounded-lg border transition-all',
-                        isSelected
-                          ? 'shadow-sm scale-105 border-border-strong bg-selected/80'
-                          : 'border-transparent bg-surface-raised/40 hover:border-border hover:bg-surface-raised',
+                        'flex aspect-square cursor-pointer items-center justify-center rounded-md transition-colors',
+                        icon === name ? 'bg-selected' : 'hover:bg-muted',
                       )}
                     >
                       <IconComp
-                        className="size-5"
+                        className="size-4"
                         style={{ color: selectedColor }}
                       />
                     </button>
                   );
                 })}
               </ScrollArea>
-            </div>
-          </div>
+            ) : (
+              <p className="py-6 text-center text-muted-foreground">
+                No icons found
+              </p>
+            )}
+          </>
         )}
 
-        {/* Tab 2: EMOJI */}
-        {activeTab === 'emoji' && (
-          <div className="p-3 space-y-3">
-            <div className="relative">
-              <Search className="left-2.5 size-3.5 absolute top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={filterQuery}
-                onChange={(e) => setFilterQuery(e.target.value)}
-                placeholder="Search emojis..."
-                className="h-8 pl-8 text-xs rounded-md border-border/60 bg-surface-raised/80 text-popover-foreground placeholder:text-subtle focus:border-border-strong"
-              />
-            </div>
-
-            <ScrollArea className="max-h-56" contentClassName="space-y-3 pr-1">
-              {EMOJI_CATEGORIES.map((cat) => {
-                const filteredList = filterQuery.trim()
-                  ? cat.emojis.filter((e) => e.includes(filterQuery.trim()))
-                  : cat.emojis;
-
-                if (filteredList.length === 0) return null;
-
-                return (
-                  <div key={cat.name} className="space-y-1">
-                    <p className="font-semibold px-0.5 text-[10px] text-muted-foreground">
-                      {cat.name}
-                    </p>
-                    <div className="gap-1 grid grid-cols-7">
-                      {filteredList.map((emoji) => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          onClick={() => {
-                            onSelectIcon(emoji);
-                            setIsOpen(false);
-                          }}
-                          className="size-8 text-lg flex cursor-pointer items-center justify-center rounded-lg transition-transform hover:scale-110 hover:bg-surface-raised"
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </ScrollArea>
-          </div>
-        )}
-
-        {/* Tab 3: UPLOAD */}
-        {activeTab === 'upload' && allowUpload && (
-          <div className="p-4 space-y-4 text-xs">
-            <div>
-              <p className="font-semibold mb-1 text-foreground">Upload File</p>
-              <label className="p-4 gap-2 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-popover/50 transition-colors hover:border-border-strong hover:bg-surface-raised/50">
-                <Upload className="size-6 text-muted-foreground" />
-                <span className="font-medium text-center text-secondary-foreground">
-                  Click or drag image file here
-                </span>
-                <span className="text-[10px] text-subtle">
-                  {isPending ? 'Uploading…' : 'PNG, JPG, SVG up to 5MB'}
-                </span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileUpload}
-                  disabled={isPending}
-                  className="hidden"
-                />
-              </label>
-              {uploadError ? (
-                <p className="mt-1.5 text-[11px] text-destructive">
-                  {uploadError}
-                </p>
-              ) : null}
-            </div>
-
-            <div className="gap-2 my-2 relative flex items-center">
-              <div className="flex-1 border-t border-border" />
-              <span className="font-semibold text-[10px] text-subtle uppercase">
-                OR LINK
+        {view === 'upload' && allowUpload && (
+          <div className="space-y-2">
+            <label className="p-3 gap-1 flex cursor-pointer flex-col items-center justify-center rounded-md border border-dashed border-border transition-colors hover:border-border-strong hover:bg-muted/50">
+              <span className="font-medium text-secondary-foreground">
+                Choose an image
               </span>
-              <div className="flex-1 border-t border-border" />
-            </div>
+              <span className="text-[10px] text-subtle">
+                {isPending ? 'Uploading…' : 'PNG, JPG, SVG up to 5MB'}
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileUpload}
+                disabled={isPending}
+                className="hidden"
+              />
+            </label>
+            {uploadError ? (
+              <p className="text-[11px] text-destructive">{uploadError}</p>
+            ) : null}
 
-            <form onSubmit={handleUrlSubmit} className="space-y-2">
-              <p className="font-semibold text-foreground">Image URL</p>
-              <div className="gap-2 flex">
-                <Input
-                  value={uploadedUrl}
-                  onChange={(e) => setUploadedUrl(e.target.value)}
-                  placeholder="https://example.com/icon.png"
-                  className="h-8 text-xs rounded-md border-border/60 bg-surface-raised/80 text-popover-foreground placeholder:text-subtle focus:border-border-strong"
-                />
-                <Button
-                  type="submit"
-                  size="sm"
-                  className="h-8 text-xs"
-                >
-                  Submit
-                </Button>
-              </div>
+            <form onSubmit={handleUrlSubmit} className="gap-1 flex">
+              <Input
+                value={uploadedUrl}
+                onChange={(e) => setUploadedUrl(e.target.value)}
+                placeholder="Or paste an image URL"
+                aria-label="Image URL"
+                className="h-7 text-xs rounded-md border-border/60 bg-surface-raised/80 text-popover-foreground placeholder:text-subtle focus:border-border-strong"
+              />
+              <Button type="submit" size="sm" className="h-7 text-xs">
+                Add
+              </Button>
             </form>
           </div>
         )}

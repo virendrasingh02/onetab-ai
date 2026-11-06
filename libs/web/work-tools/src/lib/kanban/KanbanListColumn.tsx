@@ -14,7 +14,9 @@ import {
   ScrollArea,
   Textarea,
 } from '@org/ui';
+import { WorkspacePermission } from '@org/types';
 import { cn } from '@org/utils';
+import { useWorkspacePermission } from '@org/web-workspace';
 import { useSaveForLater } from '@org/web-chat/bookmarks';
 import {
   ArrowDownUp,
@@ -24,7 +26,13 @@ import {
   Plus,
   X,
 } from 'lucide-react';
-import { useEffect, useRef, useState, type KeyboardEvent, type Ref } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type Ref,
+} from 'react';
 import { KanbanCardTile } from './KanbanCardTile.js';
 import { StatusIcon } from './kanban-icons.js';
 import type { BoardAction } from './server-board.js';
@@ -34,7 +42,7 @@ import type { BoardDrag } from './use-board-drag.js';
 const SORT_OPTIONS: Array<{ key: SortKey; label: string }> = [
   { key: 'due', label: 'Due date' },
   { key: 'priority', label: 'Priority' },
-  { key: 'title', label: 'Card title' },
+  { key: 'title', label: 'Title' },
   { key: 'created', label: 'Newest first' },
 ];
 
@@ -74,6 +82,7 @@ export function KanbanListColumn({
   onConvertCardToDoc,
 }: KanbanListColumnProps) {
   const { saveAction } = useSaveForLater();
+  const canDelete = useWorkspacePermission().can(WorkspacePermission.DELETE);
   const sectionRef = useRef<HTMLElement>(null);
   /** The `<ul>` — the drag engine measures the tiles inside it. */
   const cardsRef = useRef<HTMLUListElement>(null);
@@ -177,8 +186,17 @@ export function KanbanListColumn({
             {list.title}
           </h2>
 
-          <span className="text-xs font-medium text-muted-foreground/70 tabular-nums">
-            {list.cards.length}
+          <span
+            className="text-xs font-medium text-muted-foreground/70 tabular-nums"
+            title={
+              hiddenCount > 0
+                ? `${visibleCards.length} of ${list.cards.length} shown`
+                : undefined
+            }
+          >
+            {hiddenCount > 0
+              ? `${visibleCards.length}/${list.cards.length}`
+              : list.cards.length}
           </span>
         </div>
 
@@ -188,7 +206,8 @@ export function KanbanListColumn({
             size="icon-sm"
             onClick={() => openComposer('bottom')}
             className="size-6 text-muted-foreground hover:text-foreground"
-            title="Add card"
+            title="Add task"
+            aria-label={`Add task to ${list.title}`}
           >
             <Plus className="size-3.5" />
           </Button>
@@ -209,7 +228,7 @@ export function KanbanListColumn({
               <DropdownMenuLabel>List actions</DropdownMenuLabel>
               <DropdownMenuItem onSelect={() => openComposer('top')}>
                 <Plus />
-                Add card
+                Add task at top
               </DropdownMenuItem>
 
               <DropdownMenuSub>
@@ -240,7 +259,7 @@ export function KanbanListColumn({
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
                   <CornerUpRight />
-                  Move all cards to
+                  Move all tasks to
                 </DropdownMenuSubTrigger>
                 <DropdownMenuPortal>
                   <DropdownMenuSubContent className="w-44">
@@ -269,27 +288,29 @@ export function KanbanListColumn({
                 </DropdownMenuPortal>
               </DropdownMenuSub>
 
-              <DropdownMenuSeparator />
+              {canDelete ? <DropdownMenuSeparator /> : null}
 
-              <DropdownMenuItem
-                variant="destructive"
-                disabled={list.cards.length === 0}
-                onSelect={() => {
-                  void confirm({
-                    title: `Delete all ${list.cards.length} card${
-                      list.cards.length === 1 ? '' : 's'
-                    } in “${list.title}”?`,
-                    description: "This can't be undone.",
-                    confirmLabel: 'Delete all cards',
-                    destructive: true,
-                  }).then((ok) => {
-                    if (ok) dispatch({ type: 'list/clear', listId: list.id });
-                  });
-                }}
-              >
-                <Eraser />
-                Delete all cards
-              </DropdownMenuItem>
+              {canDelete ? (
+                <DropdownMenuItem
+                  variant="destructive"
+                  disabled={list.cards.length === 0}
+                  onSelect={() => {
+                    void confirm({
+                      title: `Delete all ${list.cards.length} task${
+                        list.cards.length === 1 ? '' : 's'
+                      } in “${list.title}”?`,
+                      description: "This can't be undone.",
+                      confirmLabel: 'Delete all tasks',
+                      destructive: true,
+                    }).then((ok) => {
+                      if (ok) dispatch({ type: 'list/clear', listId: list.id });
+                    });
+                  }}
+                >
+                  <Eraser />
+                  Delete all tasks
+                </DropdownMenuItem>
+              ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -312,7 +333,7 @@ export function KanbanListColumn({
         contentClassName="px-2 pb-1"
       >
         {/* `relative`: the drop placeholder is positioned against this list. */}
-        <ul ref={cardsRef} className="relative min-h-6 space-y-2">
+        <ul ref={cardsRef} className="min-h-6 space-y-2 relative">
           {/*
             Keyed off the unfiltered count rather than off what is on screen: a
             card in the air still belongs to this column, and letting the empty
@@ -332,9 +353,9 @@ export function KanbanListColumn({
               )}
             >
               {hiddenCount > 0
-                ? `${hiddenCount} card${hiddenCount === 1 ? '' : 's'} hidden by filters`
+                ? `${hiddenCount} task${hiddenCount === 1 ? '' : 's'} hidden by filters`
                 : drag.activeCardId
-                  ? 'Drop a card here'
+                  ? 'Drop here'
                   : null}
             </li>
           ) : null}
@@ -351,11 +372,13 @@ export function KanbanListColumn({
               drag={drag.getCardHandlers(card.id, list.id, index)}
               onOpen={() => onOpenCard(card.id)}
               onCopy={() => dispatch({ type: 'card/copy', cardId: card.id })}
+              canDelete={canDelete}
               onDelete={() => {
                 void confirm({
                   title: `Delete “${card.title}”?`,
-                  description: "The task and its details are removed. This can't be undone.",
-                  confirmLabel: 'Delete card',
+                  description:
+                    "The task and its details are removed. This can't be undone.",
+                  confirmLabel: 'Delete task',
                   destructive: true,
                 }).then((ok) => {
                   if (ok) dispatch({ type: 'card/remove', cardId: card.id });
@@ -407,7 +430,7 @@ export function KanbanListColumn({
             data-kanban-placeholder
             aria-hidden
             hidden
-            className="pointer-events-none absolute inset-x-0 top-0 mt-0! rounded-xl border-2 border-dashed border-primary/40 bg-primary/5"
+            className="inset-x-0 top-0 mt-0! pointer-events-none absolute rounded-xl border-2 border-dashed border-primary/40 bg-primary/5"
           />
 
           {hiddenCount > 0 && visibleCards.length > 0 ? (
@@ -436,7 +459,7 @@ export function KanbanListColumn({
             onClick={() => openComposer('bottom')}
             className="w-full justify-start text-muted-foreground"
           >
-            Add a card
+            Add task
           </Button>
         </div>
       ) : null}
@@ -469,21 +492,21 @@ function CardComposer({
         ref={ref}
         rows={2}
         value={value}
-        placeholder="Enter a title…"
-        aria-label="Card title"
+        placeholder="Task title"
+        aria-label="Task title"
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={onKeyDown}
-        className="text-sm shadow-xs bg-surface"
+        className="text-sm bg-surface shadow-xs"
       />
       <div className="gap-2 flex items-center">
         <Button size="sm" onClick={onSubmit} disabled={!value.trim()}>
-          Add card
+          Add task
         </Button>
         <Button
           variant="ghost"
           size="icon-sm"
           onClick={onClose}
-          aria-label="Cancel adding a card"
+          aria-label="Cancel adding a task"
         >
           <X />
         </Button>

@@ -161,8 +161,13 @@ export function useTeamMutations(workspaceId: string | undefined) {
   });
 
   const update = useMutation({
-    mutationFn: ({ teamId, input }: { teamId: string; input: UpdateTeamInput }) =>
-      workToolsApi.updateTeam(workspaceId as string, teamId, input),
+    mutationFn: ({
+      teamId,
+      input,
+    }: {
+      teamId: string;
+      input: UpdateTeamInput;
+    }) => workToolsApi.updateTeam(workspaceId as string, teamId, input),
     onSuccess: invalidate,
   });
 
@@ -207,8 +212,13 @@ export function useTaskLabelMutations(workspaceId: string | undefined) {
   });
 
   const update = useMutation({
-    mutationFn: ({ labelId, input }: { labelId: string; input: UpdateTaskLabelInput }) =>
-      workToolsApi.updateTaskLabel(workspaceId as string, labelId, input),
+    mutationFn: ({
+      labelId,
+      input,
+    }: {
+      labelId: string;
+      input: UpdateTaskLabelInput;
+    }) => workToolsApi.updateTaskLabel(workspaceId as string, labelId, input),
     onSuccess: invalidateAll,
   });
 
@@ -252,7 +262,8 @@ export function useInitiativeMutations(workspaceId: string | undefined) {
     }: {
       initiativeId: string;
       input: UpdateInitiativeInput;
-    }) => workToolsApi.updateInitiative(workspaceId as string, initiativeId, input),
+    }) =>
+      workToolsApi.updateInitiative(workspaceId as string, initiativeId, input),
     onSuccess: invalidate,
   });
 
@@ -282,7 +293,8 @@ export function useProjectDetail(
 ) {
   return useQuery({
     queryKey: queryKeys.workTools.project(workspaceId ?? '', projectId ?? ''),
-    queryFn: () => workToolsApi.project(workspaceId as string, projectId as string),
+    queryFn: () =>
+      workToolsApi.project(workspaceId as string, projectId as string),
     enabled: !!workspaceId && !!projectId,
     staleTime: 15_000,
   });
@@ -365,8 +377,13 @@ export function useEpicMutations(workspaceId: string | undefined) {
   });
 
   const update = useMutation({
-    mutationFn: ({ epicId, input }: { epicId: string; input: UpdateEpicInput }) =>
-      workToolsApi.updateEpic(workspaceId as string, epicId, input),
+    mutationFn: ({
+      epicId,
+      input,
+    }: {
+      epicId: string;
+      input: UpdateEpicInput;
+    }) => workToolsApi.updateEpic(workspaceId as string, epicId, input),
     onSuccess: invalidate,
   });
 
@@ -431,16 +448,19 @@ export function useCycles(
 ) {
   return useQuery({
     queryKey: queryKeys.workTools.cycles(workspaceId ?? '', projectId, teamId),
-    queryFn: () => workToolsApi.cycles(workspaceId as string, projectId, teamId),
+    queryFn: () =>
+      workToolsApi.cycles(workspaceId as string, projectId, teamId),
     enabled: !!workspaceId,
   });
 }
 
 export function useCycleMutations(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
+  // `cycles(workspaceId)` ends in 'all', 'all', so it is not a prefix of a
+  // project-scoped cycle query: a new cycle would stay invisible until reload.
   const invalidate = () =>
     queryClient.invalidateQueries({
-      queryKey: queryKeys.workTools.cycles(workspaceId ?? ''),
+      queryKey: queryKeys.workTools.all(workspaceId ?? ''),
     });
 
   const create = useMutation({
@@ -471,17 +491,31 @@ export function useCycleMutations(workspaceId: string | undefined) {
 
 // --- tasks / universal work items -------------------------------------------
 
+/** A task with an edit applied, for showing it before the server answers. */
+function applyTaskPatch(task: Task, input: UpdateTaskInput): Task {
+  const { customFields, ...fields } = input;
+  return {
+    ...task,
+    ...(fields as Partial<Task>),
+    ...(customFields
+      ? { customFields: { ...task.customFields, ...customFields } }
+      : {}),
+  };
+}
+
 export function useTasks(
   workspaceId: string | undefined,
-  params?: {
-    projectId?: string;
-    teamId?: string;
-    cycleId?: string;
-    epicId?: string;
-    moduleId?: string;
-    assigneeId?: string;
-    search?: string;
-  } | string,
+  params?:
+    | {
+        projectId?: string;
+        teamId?: string;
+        cycleId?: string;
+        epicId?: string;
+        moduleId?: string;
+        assigneeId?: string;
+        search?: string;
+      }
+    | string,
 ) {
   const projectId = typeof params === 'string' ? params : params?.projectId;
   const filterParams = typeof params === 'object' ? params : undefined;
@@ -518,6 +552,44 @@ export function useTaskMutations(workspaceId: string | undefined) {
       queryKey: queryKeys.workTools.all(workspaceId ?? ''),
     });
 
+  /*
+   * Edits land in every cached task list before the request goes out, so a
+   * dropped card stays where it was dropped. A failure restores the snapshot;
+   * the error toast comes from the app's MutationCache.
+   */
+  const taskWriteKey = ['work-tools', workspaceId ?? '', 'task-write'];
+  const tasksKey = ['work-tools', workspaceId ?? '', 'tasks'];
+  type TaskSnapshot = Array<[readonly unknown[], unknown]>;
+
+  const patchCachedTasks = async (
+    change: (tasks: Task[]) => Task[],
+  ): Promise<TaskSnapshot> => {
+    await queryClient.cancelQueries({ queryKey: tasksKey });
+    const snapshot = queryClient.getQueriesData({ queryKey: tasksKey });
+    for (const [key, data] of snapshot) {
+      // The prefix also covers a task's comments and relations, which are
+      // arrays too; a list key is the only one with filters in its last slot.
+      const isList = typeof key[4] === 'object' && key[4] !== null;
+      if (isList && Array.isArray(data)) {
+        queryClient.setQueryData(key, change(data as Task[]));
+      }
+    }
+    return snapshot;
+  };
+
+  const restoreCachedTasks = (snapshot: TaskSnapshot | undefined) => {
+    for (const [key, data] of snapshot ?? []) {
+      queryClient.setQueryData(key, data);
+    }
+  };
+
+  /** Refetch once the last write in a burst lands, so a drag can't flicker. */
+  const settle = () => {
+    if (queryClient.isMutating({ mutationKey: taskWriteKey }) <= 1) {
+      void invalidate();
+    }
+  };
+
   const create = useMutation({
     mutationFn: async (input: CreateTaskInput): Promise<Task | null> => {
       if (phase === 'offline') {
@@ -537,28 +609,54 @@ export function useTaskMutations(workspaceId: string | undefined) {
       invalidate();
       if (!task) {
         toast.info("You're offline", {
-          description: 'This task will be created once your connection returns.',
+          description:
+            'This task will be created once your connection returns.',
         });
       }
     },
   });
 
   const update = useMutation({
-    mutationFn: ({ taskId, input }: { taskId: string; input: UpdateTaskInput }) =>
-      workToolsApi.updateTask(workspaceId as string, taskId, input),
-    onSuccess: invalidate,
+    mutationKey: taskWriteKey,
+    mutationFn: ({
+      taskId,
+      input,
+    }: {
+      taskId: string;
+      input: UpdateTaskInput;
+    }) => workToolsApi.updateTask(workspaceId as string, taskId, input),
+    onMutate: ({ taskId, input }) =>
+      patchCachedTasks((tasks) =>
+        tasks.map((task) =>
+          task.id === taskId ? applyTaskPatch(task, input) : task,
+        ),
+      ),
+    onError: (_error, _input, snapshot) => restoreCachedTasks(snapshot),
+    onSettled: settle,
   });
 
   const move = useMutation({
+    mutationKey: taskWriteKey,
     mutationFn: ({ taskId, input }: { taskId: string; input: MoveTaskInput }) =>
       workToolsApi.moveTask(workspaceId as string, taskId, input),
-    onSuccess: invalidate,
+    onMutate: ({ taskId, input }) =>
+      patchCachedTasks((tasks) =>
+        tasks.map((task) =>
+          task.id === taskId ? { ...task, ...input } : task,
+        ),
+      ),
+    onError: (_error, _input, snapshot) => restoreCachedTasks(snapshot),
+    onSettled: settle,
   });
 
   const remove = useMutation({
+    mutationKey: taskWriteKey,
     mutationFn: (taskId: string) =>
       workToolsApi.deleteTask(workspaceId as string, taskId),
-    onSuccess: invalidate,
+    onMutate: (taskId) =>
+      patchCachedTasks((tasks) => tasks.filter((task) => task.id !== taskId)),
+    onError: (_error, _input, snapshot) => restoreCachedTasks(snapshot),
+    onSettled: settle,
   });
 
   return { create, update, move, remove };
@@ -608,8 +706,13 @@ export function useSavedViews(
   teamId?: string,
 ) {
   return useQuery({
-    queryKey: queryKeys.workTools.savedViews(workspaceId ?? '', projectId, teamId),
-    queryFn: () => workToolsApi.savedViews(workspaceId as string, projectId, teamId),
+    queryKey: queryKeys.workTools.savedViews(
+      workspaceId ?? '',
+      projectId,
+      teamId,
+    ),
+    queryFn: () =>
+      workToolsApi.savedViews(workspaceId as string, projectId, teamId),
     enabled: !!workspaceId,
   });
 }
@@ -628,8 +731,13 @@ export function useSavedViewMutations(workspaceId: string | undefined) {
   });
 
   const update = useMutation({
-    mutationFn: ({ viewId, input }: { viewId: string; input: UpdateSavedViewInput }) =>
-      workToolsApi.updateSavedView(workspaceId as string, viewId, input),
+    mutationFn: ({
+      viewId,
+      input,
+    }: {
+      viewId: string;
+      input: UpdateSavedViewInput;
+    }) => workToolsApi.updateSavedView(workspaceId as string, viewId, input),
     onSuccess: invalidate,
   });
 
@@ -676,11 +784,7 @@ export function useIntakeMutations(workspaceId: string | undefined) {
       intakeId: string;
       input: ConvertIntakeRequestInput;
     }) =>
-      workToolsApi.convertIntakeRequest(
-        workspaceId as string,
-        intakeId,
-        input,
-      ),
+      workToolsApi.convertIntakeRequest(workspaceId as string, intakeId, input),
     onSuccess: invalidate,
   });
 
@@ -700,7 +804,10 @@ export function useProjectUpdates(
   projectId: string | undefined,
 ) {
   return useQuery({
-    queryKey: queryKeys.workTools.projectUpdates(workspaceId ?? '', projectId ?? ''),
+    queryKey: queryKeys.workTools.projectUpdates(
+      workspaceId ?? '',
+      projectId ?? '',
+    ),
     queryFn: () =>
       workToolsApi.projectUpdates(workspaceId as string, projectId as string),
     enabled: !!workspaceId && !!projectId,
@@ -730,10 +837,7 @@ export function useTaskComments(
   taskId: string | null | undefined,
 ) {
   return useQuery({
-    queryKey: queryKeys.workTools.taskComments(
-      workspaceId ?? '',
-      taskId ?? '',
-    ),
+    queryKey: queryKeys.workTools.taskComments(workspaceId ?? '', taskId ?? ''),
     queryFn: () =>
       workToolsApi.taskComments(workspaceId as string, taskId as string),
     enabled: !!workspaceId && !!taskId,
@@ -779,7 +883,8 @@ export function useAddTaskComment(
       });
       if (result === 'queued') {
         toast.info("You're offline", {
-          description: 'This comment will be posted once your connection returns.',
+          description:
+            'This comment will be posted once your connection returns.',
         });
       }
     },
@@ -924,8 +1029,13 @@ export function useMeetingMutations(
   });
 
   const addParticipants = useMutation({
-    mutationFn: ({ id, input }: { id: string; input: MeetingParticipantsInput }) =>
-      workToolsApi.addMeetingParticipants(ws, id, input),
+    mutationFn: ({
+      id,
+      input,
+    }: {
+      id: string;
+      input: MeetingParticipantsInput;
+    }) => workToolsApi.addMeetingParticipants(ws, id, input),
     onSuccess: syncDetail,
   });
 
@@ -942,8 +1052,13 @@ export function useMeetingMutations(
   });
 
   const addNote = useMutation({
-    mutationFn: ({ id, input }: { id: string; input: CreateMeetingNoteInput }) =>
-      workToolsApi.addMeetingNote(ws, id, input),
+    mutationFn: ({
+      id,
+      input,
+    }: {
+      id: string;
+      input: CreateMeetingNoteInput;
+    }) => workToolsApi.addMeetingNote(ws, id, input),
     onSuccess: (_data, { id }) =>
       queryClient.invalidateQueries({
         queryKey: queryKeys.workTools.meeting(ws, id),
@@ -1034,7 +1149,8 @@ export function useDocument(
 ) {
   return useQuery({
     queryKey: queryKeys.workTools.document(workspaceId ?? '', docId ?? ''),
-    queryFn: () => workToolsApi.document(workspaceId as string, docId as string),
+    queryFn: () =>
+      workToolsApi.document(workspaceId as string, docId as string),
     enabled: !!workspaceId && !!docId,
     retry: false,
   });
@@ -1054,8 +1170,13 @@ export function useDocumentMutations(workspaceId: string | undefined) {
   });
 
   const update = useMutation({
-    mutationFn: ({ docId, input }: { docId: string; input: UpdateDocumentInput }) =>
-      workToolsApi.updateDocument(workspaceId as string, docId, input),
+    mutationFn: ({
+      docId,
+      input,
+    }: {
+      docId: string;
+      input: UpdateDocumentInput;
+    }) => workToolsApi.updateDocument(workspaceId as string, docId, input),
     onSuccess: (doc) => {
       queryClient.setQueryData(
         queryKeys.workTools.document(workspaceId ?? '', doc.id),
@@ -1076,7 +1197,9 @@ export function useDocumentMutations(workspaceId: string | undefined) {
   return { create, update, remove };
 }
 
-export function groupTasksByStatus(tasks: Task[] | undefined): Record<string, Task[]> {
+export function groupTasksByStatus(
+  tasks: Task[] | undefined,
+): Record<string, Task[]> {
   const groups: Record<string, Task[]> = {};
   if (!tasks) return groups;
   for (const task of tasks) {
@@ -1113,7 +1236,11 @@ export function useConvertTaskToDocument(
 ) {
   const queryClient = useQueryClient();
   return useCallback(
-    async (task: { id: string; title: string; description?: string | null }) => {
+    async (task: {
+      id: string;
+      title: string;
+      description?: string | null;
+    }) => {
       if (!workspaceId) throw new Error('Workspace context required');
       const doc = await workToolsApi.createDocument(workspaceId, {
         title: task.title,
@@ -1135,7 +1262,9 @@ export function useConvertTaskToDocument(
         queryKey: queryKeys.workTools.documents(workspaceId),
       });
       toast.success('Document created from task', {
-        action: onOpen ? { label: 'Open', onClick: () => onOpen(doc.id) } : undefined,
+        action: onOpen
+          ? { label: 'Open', onClick: () => onOpen(doc.id) }
+          : undefined,
       });
       return doc;
     },

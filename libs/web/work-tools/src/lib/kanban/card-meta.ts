@@ -164,22 +164,44 @@ export function matchesFilter(
 ): boolean {
   const query = filter.query.trim().toLowerCase();
   if (query) {
-    const haystack = `${card.title} ${card.description}`.toLowerCase();
+    const haystack =
+      `${card.ticketId ?? ''} ${card.title} ${card.description}`.toLowerCase();
     if (!haystack.includes(query)) return false;
   }
 
   // AI Prompt Natural Language Filter
   if (filter.aiQuery?.trim()) {
     const aiText = filter.aiQuery.trim().toLowerCase();
-    const fullContent = `${card.title} ${card.description} ${card.priority} ${card.milestone || ''}`.toLowerCase();
+    const fullContent =
+      `${card.title} ${card.description} ${card.priority} ${card.milestone || ''}`.toLowerCase();
 
     // Check key phrases
     if (aiText.includes('urgent') && card.priority !== 'URGENT') return false;
     if (aiText.includes('high') && card.priority !== 'HIGH') return false;
-    if (aiText.includes('overdue') && (!card.dueDate || daysUntil(card.dueDate) >= 0 || card.dueComplete)) return false;
+    if (
+      aiText.includes('overdue') &&
+      (!card.dueDate || daysUntil(card.dueDate) >= 0 || card.dueComplete)
+    )
+      return false;
 
     // General fallback token match
-    const tokens = aiText.split(/\s+/).filter((t) => !['show', 'me', 'all', 'tasks', 'projects', 'with', 'the', 'and', 'for', 'in'].includes(t));
+    const tokens = aiText
+      .split(/\s+/)
+      .filter(
+        (t) =>
+          ![
+            'show',
+            'me',
+            'all',
+            'tasks',
+            'projects',
+            'with',
+            'the',
+            'and',
+            'for',
+            'in',
+          ].includes(t),
+      );
     if (tokens.length > 0) {
       const matchesAnyToken = tokens.some((t) => fullContent.includes(t));
       if (!matchesAnyToken) return false;
@@ -202,7 +224,8 @@ export function matchesFilter(
   }
 
   if (filter.milestones.length > 0) {
-    if (!card.milestone || !filter.milestones.includes(card.milestone)) return false;
+    if (!card.milestone || !filter.milestones.includes(card.milestone))
+      return false;
   }
 
   switch (filter.due) {

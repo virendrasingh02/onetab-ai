@@ -1,3 +1,4 @@
+import type { Project } from '@org/types';
 import {
   Badge,
   Breadcrumb,
@@ -17,6 +18,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  ProjectGlyph,
 } from '@org/ui';
 import { IconPicker, useIconEditor, type IconSource } from '@org/icons';
 import { cn } from '@org/utils';
@@ -42,6 +44,8 @@ import {
   type DocStatus,
 } from './doc-types.js';
 
+type ProjectMark = Pick<Project, 'icon' | 'iconColor' | 'color'>;
+
 interface DocHeaderProps {
   doc: DocItem;
   onUpdateTitle: (title: string) => void;
@@ -51,7 +55,9 @@ interface DocHeaderProps {
   onUpdateCategory: (category: DocCategory) => void;
   onToggleFavorite: () => void;
   onUpdateProject?: (projectId?: string, projectName?: string) => void;
-  projects?: Array<{ id: string; name: string; slug: string }>;
+  projects?: Array<
+    { id: string; name: string; slug: string } & Partial<ProjectMark>
+  >;
   workspaceSlug?: string;
 }
 
@@ -121,16 +127,17 @@ export function DocHeader({
   };
 
   return (
-    <div className="relative w-full rounded-xl overflow-hidden border border-border bg-surface shadow-sm mb-6 transition-all">
+    <div className="mb-6 relative w-full overflow-hidden rounded-xl border border-border bg-surface shadow-sm transition-all">
       {/* Notion Cover Banner Header */}
       <div
-        className="h-36 md:h-44 w-full relative transition-all duration-300 group"
+        className="h-36 md:h-44 group relative w-full transition-all duration-300"
         style={{
-          background: doc.cover || 'linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)',
+          background:
+            doc.cover || 'linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)',
         }}
       >
         {/* Cover Actions Overlay */}
-        <div className="absolute top-3 right-3 flex items-center gap-2 opacity-90 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-md p-1.5 rounded-lg border border-white/10">
+        <div className="top-3 right-3 gap-2 bg-black/40 backdrop-blur-md p-1.5 border-white/10 absolute flex items-center rounded-lg border opacity-90 transition-opacity group-hover:opacity-100">
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -143,17 +150,19 @@ export function DocHeader({
               </Button>
             </PopoverTrigger>
             <PopoverContent align="end" className="w-64 p-3 space-y-2">
-              <p className="text-xs font-semibold text-foreground">Header Banner Preset</p>
-              <div className="grid grid-cols-2 gap-2">
+              <p className="text-xs font-semibold text-foreground">
+                Header Banner Preset
+              </p>
+              <div className="gap-2 grid grid-cols-2">
                 {COVER_PRESETS.map((preset) => (
                   <button
                     key={preset.id}
                     type="button"
                     onClick={() => onUpdateCover(preset.style)}
-                    className="h-10 rounded-md border border-border overflow-hidden hover:scale-105 transition-transform flex items-end p-1 text-[10px] text-white font-medium shadow-sm"
+                    className="h-10 p-1 text-white font-medium flex items-end overflow-hidden rounded-md border border-border text-[10px] shadow-sm transition-transform hover:scale-105"
                     style={{ background: preset.style }}
                   >
-                    <span className="bg-black/50 px-1 rounded backdrop-blur-xs truncate max-w-full">
+                    <span className="bg-black/50 px-1 rounded backdrop-blur-xs max-w-full truncate">
                       {preset.name}
                     </span>
                   </button>
@@ -168,13 +177,15 @@ export function DocHeader({
             onClick={onToggleFavorite}
             className={cn(
               'text-white hover:bg-white/20 text-xs h-7 px-2 gap-1',
-              doc.favorite && 'text-accent-amber font-semibold',
+              doc.favorite && 'font-semibold text-accent-amber',
             )}
           >
             <Star
               className={cn(
                 'size-3.5',
-                doc.favorite ? 'fill-accent-amber text-accent-amber' : 'text-white',
+                doc.favorite
+                  ? 'fill-accent-amber text-accent-amber'
+                  : 'text-white',
               )}
             />
             <span>{doc.favorite ? 'Favorited' : 'Favorite'}</span>
@@ -189,7 +200,7 @@ export function DocHeader({
           <IconPicker editor={iconEditor} required align="start" />
 
           {/* Status & Category Selector */}
-          <div className="flex items-center gap-2 pt-8">
+          <div className="gap-2 pt-8 flex items-center">
             {/* Status Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -198,34 +209,42 @@ export function DocHeader({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-36">
-                <DropdownMenuLabel className="text-[11px]">Set Status</DropdownMenuLabel>
+                <DropdownMenuLabel className="text-[11px]">
+                  Set Status
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {(['Draft', 'In Review', 'Finalized', 'Archived'] as DocStatus[]).map(
-                  (st) => (
-                    <DropdownMenuItem
-                      key={st}
-                      onClick={() => onUpdateStatus(st)}
-                      className="text-xs justify-between"
-                    >
-                      {st}
-                      {doc.status === st ? '✓' : ''}
-                    </DropdownMenuItem>
-                  ),
-                )}
+                {(
+                  ['Draft', 'In Review', 'Finalized', 'Archived'] as DocStatus[]
+                ).map((st) => (
+                  <DropdownMenuItem
+                    key={st}
+                    onClick={() => onUpdateStatus(st)}
+                    className="text-xs justify-between"
+                  >
+                    {st}
+                    {doc.status === st ? '✓' : ''}
+                  </DropdownMenuItem>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
 
             {/* Category Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs gap-1"
+                >
                   <Tag className="size-3 text-muted-foreground" />
                   <span>{doc.category}</span>
                   <ChevronDown className="size-3 text-subtle" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuLabel className="text-[11px]">Category</DropdownMenuLabel>
+                <DropdownMenuLabel className="text-[11px]">
+                  Category
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {(
                   [
@@ -258,13 +277,23 @@ export function DocHeader({
                     className={cn(
                       'h-7 text-xs gap-1.5',
                       doc.projectId
-                        ? 'border-brand/40 bg-brand/5 text-foreground font-medium'
+                        ? 'font-medium border-brand/40 bg-brand/5 text-foreground'
                         : 'text-muted-foreground',
                     )}
                   >
-                    <FolderKanban className="size-3.5 text-primary" />
+                    {linkedProject ? (
+                      <ProjectGlyph
+                        icon={linkedProject.icon}
+                        iconColor={linkedProject.iconColor}
+                        color={linkedProject.color}
+                        size="xs"
+                      />
+                    ) : (
+                      <FolderKanban className="size-3.5 text-primary" />
+                    )}
                     <span className="max-w-[120px] truncate">
-                      {projectLabel || (doc.projectId ? 'Project' : 'Link Project')}
+                      {projectLabel ||
+                        (doc.projectId ? 'Project' : 'Link Project')}
                     </span>
                     <ChevronDown className="size-3 text-subtle" />
                   </Button>
@@ -281,14 +310,25 @@ export function DocHeader({
                         onClick={() => onUpdateProject(p.id, p.name)}
                         className="text-xs justify-between"
                       >
-                        <span className="truncate">{p.name}</span>
+                        <span className="gap-2 min-w-0 flex items-center">
+                          <ProjectGlyph
+                            icon={p.icon}
+                            iconColor={p.iconColor}
+                            color={p.color}
+                            size="xs"
+                          />
+                          <span className="truncate">{p.name}</span>
+                        </span>
                         {doc.projectId === p.id && (
                           <Check className="size-3.5 shrink-0 text-primary" />
                         )}
                       </DropdownMenuItem>
                     ))
                   ) : (
-                    <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+                    <DropdownMenuItem
+                      disabled
+                      className="text-xs text-muted-foreground"
+                    >
                       No projects available
                     </DropdownMenuItem>
                   )}
@@ -317,7 +357,7 @@ export function DocHeader({
                 <BreadcrumbLink asChild>
                   <button
                     type="button"
-                    className="flex items-center gap-1 cursor-pointer"
+                    className="gap-1 flex cursor-pointer items-center"
                     onClick={() => {
                       if (workspaceSlug) {
                         navigate(`/w/${workspaceSlug}/docs?tab=gallery`);
@@ -336,7 +376,7 @@ export function DocHeader({
                     <BreadcrumbLink asChild>
                       <button
                         type="button"
-                        className="flex items-center gap-1 text-primary cursor-pointer hover:underline"
+                        className="gap-1 flex cursor-pointer items-center text-primary hover:underline"
                         onClick={() => {
                           if (workspaceSlug) {
                             navigate(
@@ -347,7 +387,16 @@ export function DocHeader({
                           }
                         }}
                       >
-                        <FolderKanban className="size-3" />
+                        {linkedProject ? (
+                          <ProjectGlyph
+                            icon={linkedProject.icon}
+                            iconColor={linkedProject.iconColor}
+                            color={linkedProject.color}
+                            size="xs"
+                          />
+                        ) : (
+                          <FolderKanban className="size-3" />
+                        )}
                         {projectLabel}
                       </button>
                     </BreadcrumbLink>
@@ -360,7 +409,7 @@ export function DocHeader({
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbPage className="font-semibold text-foreground truncate max-w-[200px]">
+                <BreadcrumbPage className="font-semibold max-w-[200px] truncate text-foreground">
                   {doc.title}
                 </BreadcrumbPage>
               </BreadcrumbItem>
@@ -379,7 +428,7 @@ export function DocHeader({
                 if (e.key === 'Enter') handleTitleSubmit();
               }}
               autoFocus
-              className="text-2xl md:text-3xl font-extrabold tracking-tight bg-surface-raised border-primary h-auto py-1 px-2 text-foreground"
+              className="text-2xl md:text-3xl font-extrabold tracking-tight py-1 px-2 h-auto border-primary bg-surface-raised text-foreground"
             />
           ) : (
             <h1
@@ -387,7 +436,7 @@ export function DocHeader({
                 setTitleInput(doc.title);
                 setIsEditingTitle(true);
               }}
-              className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground hover:bg-accent/40 rounded px-1 -ml-1 py-0.5 cursor-pointer transition-colors flex items-center justify-between group/title"
+              className="text-2xl md:text-3xl font-extrabold tracking-tight rounded px-1 -ml-1 py-0.5 group/title flex cursor-pointer items-center justify-between text-foreground transition-colors hover:bg-accent/40"
               title="Click to edit document title"
             >
               <span>{doc.title}</span>
@@ -396,16 +445,16 @@ export function DocHeader({
         </div>
 
         {/* Header Metrics */}
-        <div className="flex flex-wrap items-center gap-4 mt-3 pt-3 border-t border-border/60 text-[11px] text-muted-foreground">
-          <div className="flex items-center gap-1.5">
+        <div className="gap-4 mt-3 pt-3 flex flex-wrap items-center border-t border-border/60 text-[11px] text-muted-foreground">
+          <div className="gap-1.5 flex items-center">
             <Clock className="size-3.5 text-subtle" />
             <span>Updated {doc.updatedAt}</span>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="gap-1.5 flex items-center">
             <FileText className="size-3.5 text-subtle" />
             <span>{wordCount(doc.blocks)} words</span>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="gap-1.5 flex items-center">
             <Sparkles className="size-3.5 text-accent-blue" />
             <span>~{readingTimeMinutes} min read</span>
           </div>

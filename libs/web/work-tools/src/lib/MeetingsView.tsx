@@ -20,6 +20,7 @@ import {
   type EntityAction,
   PageBar,
   PageTabBar,
+  ProjectGlyph,
 } from '@org/ui';
 import { cn, formatDateTime } from '@org/utils';
 import {
@@ -354,7 +355,15 @@ function MeetingCard({
               {status.label}
             </Badge>
             {meeting.project ? (
-              <Badge variant="outline">{meeting.project.name}</Badge>
+              <Badge variant="outline" className="gap-1">
+                <ProjectGlyph
+                  icon={meeting.project.icon}
+                  iconColor={meeting.project.iconColor}
+                  color={meeting.project.color}
+                  size="xs"
+                />
+                {meeting.project.name}
+              </Badge>
             ) : null}
             {meeting._count.notes > 0 ? (
               <Badge variant="neutral" className="gap-1 text-[10px]">

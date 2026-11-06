@@ -23,11 +23,7 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useCurrentUser } from '@org/auth';
-import {
-  APP_LOGOS,
-  getAppDisplayName,
-  type ComposerContext,
-} from '@org/types';
+import { APP_LOGOS, getAppDisplayName, type ComposerContext } from '@org/types';
 import {
   ChatPanel,
   ConversationTabsShell,
@@ -162,7 +158,6 @@ export interface AppModelItem {
   integrationId?: string;
 }
 
-
 export { APP_LOGOS };
 
 export const DEFAULT_WORKSPACE_APPS: AppModelItem[] = [
@@ -171,7 +166,8 @@ export const DEFAULT_WORKSPACE_APPS: AppModelItem[] = [
     name: 'Gmail',
     category: 'Productivity & Project Management',
     provider: 'gmail',
-    description: 'Read, search, and send email directly through your connected Gmail account.',
+    description:
+      'Read, search, and send email directly through your connected Gmail account.',
     quickStarters: [
       'Show my unread emails',
       'Find emails from John about the invoice',
@@ -183,7 +179,8 @@ export const DEFAULT_WORKSPACE_APPS: AppModelItem[] = [
     name: 'Google Calendar',
     category: 'Productivity & Project Management',
     provider: 'google_calendar',
-    description: 'Agenda, availability, and event management for your connected Google Calendar.',
+    description:
+      'Agenda, availability, and event management for your connected Google Calendar.',
     quickStarters: [
       'What meetings do I have tomorrow?',
       'Find a free 30-minute slot this week',
@@ -195,7 +192,8 @@ export const DEFAULT_WORKSPACE_APPS: AppModelItem[] = [
     name: 'Google Drive',
     category: 'Productivity & Project Management',
     provider: 'google_drive',
-    description: 'Search and browse files and folders across your connected Google Drive.',
+    description:
+      'Search and browse files and folders across your connected Google Drive.',
     quickStarters: [
       'Find my latest project document',
       'Search for spreadsheets mentioning revenue',
@@ -207,7 +205,8 @@ export const DEFAULT_WORKSPACE_APPS: AppModelItem[] = [
     name: 'Google Docs',
     category: 'Productivity & Project Management',
     provider: 'google_docs',
-    description: 'Browse and read Google Docs — real document text, ready for summarization.',
+    description:
+      'Browse and read Google Docs — real document text, ready for summarization.',
     quickStarters: [
       'Find the roadmap document',
       'Summarize the latest product spec',
@@ -219,7 +218,8 @@ export const DEFAULT_WORKSPACE_APPS: AppModelItem[] = [
     name: 'Google Sheets',
     category: 'Productivity & Project Management',
     provider: 'google_sheets',
-    description: 'Browse spreadsheets and read real cell data from your connected Google Sheets.',
+    description:
+      'Browse spreadsheets and read real cell data from your connected Google Sheets.',
     quickStarters: [
       'Show my recent spreadsheets',
       'Get the values in Sheet1!A1:D50 of the budget sheet',
@@ -296,7 +296,8 @@ export const DEFAULT_WORKSPACE_APPS: AppModelItem[] = [
     name: 'Slack',
     category: 'Customer Support & Communication',
     provider: 'slack',
-    description: 'Search, read, and post in channels and DMs in your connected Slack workspace.',
+    description:
+      'Search, read, and post in channels and DMs in your connected Slack workspace.',
     quickStarters: [
       'Summarize the #engineering channel',
       'Find messages about the mobile release',
@@ -308,7 +309,8 @@ export const DEFAULT_WORKSPACE_APPS: AppModelItem[] = [
     name: 'Notion',
     category: 'Productivity & Project Management',
     provider: 'notion',
-    description: 'Search real pages and databases shared with this integration.',
+    description:
+      'Search real pages and databases shared with this integration.',
     quickStarters: [
       'Find our product roadmap',
       'Summarize this page',
@@ -320,7 +322,8 @@ export const DEFAULT_WORKSPACE_APPS: AppModelItem[] = [
     name: 'Trello',
     category: 'Productivity & Project Management',
     provider: 'trello',
-    description: 'Real boards, lists, and cards from your connected Trello account.',
+    description:
+      'Real boards, lists, and cards from your connected Trello account.',
     quickStarters: [
       'Show overdue cards',
       'Create a card for the mobile issue',
@@ -478,7 +481,9 @@ function AppConversation({ appId }: { appId: string }) {
   );
 
   if (integrationsQuery.isLoading && allApps.length === 0) {
-    return <ChatConversationSkeleton avatarShape="rounded" avatarSize="sm" hasTabs />;
+    return (
+      <ChatConversationSkeleton avatarShape="rounded" avatarSize="sm" hasTabs />
+    );
   }
 
   if (!app) {
@@ -591,7 +596,7 @@ function AppMessageHeader({ app }: { app: AppModelItem }) {
                 size="sm"
                 className="size-7"
               />
-              <h2 className="text-base font-semibold tracking-tight truncate text-foreground">
+              <h2 className="text-base font-medium truncate tracking-[-0.01em] text-foreground">
                 {name}
               </h2>
             </button>
@@ -744,13 +749,16 @@ function AppMessageHeader({ app }: { app: AppModelItem }) {
                           destructive: true,
                         }).then((ok) => {
                           if (ok)
-                            disconnect.mutate(app.integrationId ?? app.provider, {
-                              onSuccess: () =>
-                                toast.success(`${app.name} disconnected`),
-                            });
+                            disconnect.mutate(
+                              app.integrationId ?? app.provider,
+                              {
+                                onSuccess: () =>
+                                  toast.success(`${app.name} disconnected`),
+                              },
+                            );
                         });
                       }}
-                      className="gap-2.5 text-destructive focus:text-destructive cursor-pointer"
+                      className="gap-2.5 cursor-pointer text-destructive focus:text-destructive"
                     >
                       <Unplug className="size-4" />
                       <span>Disconnect app</span>
@@ -801,7 +809,9 @@ function AppDetailPanel({ app }: { app: AppModelItem }) {
    */
   const handleConnect = async () => {
     const providerKey = app.provider.toUpperCase();
-    const capabilities = providersQuery.data?.find((p) => p.provider === providerKey);
+    const capabilities = providersQuery.data?.find(
+      (p) => p.provider === providerKey,
+    );
 
     try {
       const result = await connect.mutateAsync({ provider: app.provider });
@@ -828,15 +838,19 @@ function AppDetailPanel({ app }: { app: AppModelItem }) {
   }
 
   return (
-    <div className="min-h-0 flex flex-1 flex-col items-center justify-center p-8 overflow-y-auto">
-      <div className="max-w-md w-full text-center space-y-4">
+    <div className="min-h-0 p-8 flex flex-1 flex-col items-center justify-center overflow-y-auto">
+      <div className="max-w-md space-y-4 w-full text-center">
         <EmptyState
           size="lg"
           icon={<Blocks />}
           title={`Connect ${app.name} to start a conversation`}
           description={`Once ${app.name} is connected it gets its own chat, the same as any teammate or AI agent — ask it to run its available actions, or wait for it to post activity.`}
           action={
-            <Button size="sm" disabled={isBusy} onClick={() => void handleConnect()}>
+            <Button
+              size="sm"
+              disabled={isBusy}
+              onClick={() => void handleConnect()}
+            >
               {isBusy ? <Spinner className="mr-2 size-4" /> : null}
               Connect {app.name}
             </Button>
@@ -1054,11 +1068,17 @@ function NewAppMessage() {
               aria-label="Loading workspace apps..."
             >
               {Array.from({ length: 4 }).map((_, idx) => (
-                <div key={idx} className="gap-3 p-2.5 flex w-full items-center rounded-xl">
+                <div
+                  key={idx}
+                  className="gap-3 p-2.5 flex w-full items-center rounded-xl"
+                >
                   <SkeletonAvatar size="md" shape="rounded" />
-                  <div className="min-w-0 flex-1 space-y-1.5">
-                    <div className="flex items-center gap-2">
-                      <SkeletonText width={idx % 2 === 0 ? 'w-24' : 'w-32'} size="sm" />
+                  <div className="min-w-0 space-y-1.5 flex-1">
+                    <div className="gap-2 flex items-center">
+                      <SkeletonText
+                        width={idx % 2 === 0 ? 'w-24' : 'w-32'}
+                        size="sm"
+                      />
                       <Skeleton className="h-3.5 w-10 rounded" />
                       <Skeleton className="h-3.5 w-14 rounded" />
                     </div>

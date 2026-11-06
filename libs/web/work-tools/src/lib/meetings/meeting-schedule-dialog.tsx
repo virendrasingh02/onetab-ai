@@ -30,6 +30,7 @@ import {
   toast,
   type UserSelectorMember,
   DateTimePicker,
+  ProjectGlyph,
 } from '@org/ui';
 import { createMeetingSchema, type CreateMeetingInput } from '@org/validation';
 import { useEffect } from 'react';
@@ -302,7 +303,15 @@ export function MeetingScheduleDialog({
                         <SelectItem value="none">No project</SelectItem>
                         {(projects.data ?? []).map((p) => (
                           <SelectItem key={p.id} value={p.id}>
-                            {p.name}
+                            <span className="gap-2 flex items-center">
+                              <ProjectGlyph
+                                icon={p.icon}
+                                iconColor={p.iconColor}
+                                color={p.color}
+                                size="xs"
+                              />
+                              {p.name}
+                            </span>
                           </SelectItem>
                         ))}
                       </SelectContent>

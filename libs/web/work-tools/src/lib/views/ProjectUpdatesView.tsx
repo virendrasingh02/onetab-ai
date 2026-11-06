@@ -10,6 +10,7 @@ import {
   DialogBody,
   DialogHeader,
   DialogTitle,
+  EmptyState,
   Input,
   Select,
   SelectContent,
@@ -30,6 +31,13 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useState } from 'react';
+
+const HEALTH_LABELS: Record<ProjectHealth, string> = {
+  HEALTHY: 'On track',
+  AT_RISK: 'At risk',
+  OFF_TRACK: 'Off track',
+  COMPLETED: 'Completed',
+};
 
 interface ProjectUpdatesViewProps {
   projectId: string;
@@ -84,16 +92,14 @@ export function ProjectUpdatesView({
   };
 
   return (
-    <div className="flex flex-col w-full h-full gap-6 p-4 overflow-y-auto max-w-4xl mx-auto">
+    <div className="gap-6 p-4 max-w-4xl mx-auto flex h-full w-full flex-col overflow-y-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-            <HeartPulse className="size-5 text-primary" />
-            Project Health & Status Updates
-          </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Weekly summaries, blockers, and milestone progress for {projectName}.
+          <h2 className="text-base font-semibold text-foreground">Updates</h2>
+          <p className="text-xs mt-0.5 text-muted-foreground">
+            Progress and blockers for {projectName}. Publishing sets the
+            project's health.
           </p>
         </div>
 
@@ -103,24 +109,26 @@ export function ProjectUpdatesView({
           className="gap-1.5 text-xs"
         >
           <Plus className="size-3.5" />
-          Publish Update
+          Publish update
         </Button>
       </div>
 
       {/* Updates Stream */}
-      <div className="flex flex-col gap-4">
+      <div className="gap-4 flex flex-col">
         {updates.length === 0 ? (
-          <div className="p-12 text-center text-xs text-muted-foreground border border-dashed border-border rounded-xl">
-            No status updates published yet. Keep the team informed by publishing an update.
-          </div>
+          <EmptyState
+            icon={<HeartPulse />}
+            title="No updates yet"
+            description="Share where the project stands so everyone sees the same picture."
+          />
         ) : (
           updates.map((up) => (
             <Card
               key={up.id}
-              className="border border-border/60 bg-card/80 shadow-xs overflow-hidden"
+              className="overflow-hidden border border-border/60 bg-card/80 shadow-xs"
             >
-              <CardHeader className="p-4 pb-3 bg-muted/20 border-b border-border/40 flex flex-row items-center justify-between">
-                <div className="flex items-center gap-3">
+              <CardHeader className="p-4 pb-3 flex flex-row items-center justify-between border-b border-border/40 bg-muted/20">
+                <div className="gap-3 flex items-center">
                   {up.author && (
                     <UserAvatar
                       name={up.author.displayName || up.author.name}
@@ -131,9 +139,11 @@ export function ProjectUpdatesView({
                     />
                   )}
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="gap-2 flex items-center">
                       <span className="text-xs font-bold text-foreground">
-                        {up.author?.displayName || up.author?.name || 'Team Member'}
+                        {up.author?.displayName ||
+                          up.author?.name ||
+                          'Team Member'}
                       </span>
                       <span className="text-[11px] text-muted-foreground">
                         {new Date(up.createdAt).toLocaleDateString(undefined, {
@@ -143,7 +153,7 @@ export function ProjectUpdatesView({
                         })}
                       </span>
                     </div>
-                    <CardTitle className="text-sm font-bold text-foreground mt-0.5">
+                    <CardTitle className="text-sm font-bold mt-0.5 text-foreground">
                       {up.title}
                     </CardTitle>
                   </div>
@@ -151,67 +161,75 @@ export function ProjectUpdatesView({
 
                 <span
                   className={cn(
-                    'text-[10px] font-bold px-2.5 py-0.5 rounded-full border uppercase',
+                    'font-semibold px-2.5 py-0.5 rounded-full border text-[10px]',
                     up.status === ProjectHealth.HEALTHY &&
-                      'bg-accent-green-soft text-accent-green border-accent-green/30',
+                      'border-accent-green/30 bg-accent-green-soft text-accent-green',
                     up.status === ProjectHealth.AT_RISK &&
-                      'bg-accent-amber-soft text-accent-amber border-accent-amber/30',
+                      'border-accent-amber/30 bg-accent-amber-soft text-accent-amber',
                     up.status === ProjectHealth.OFF_TRACK &&
-                      'bg-destructive/10 text-destructive border-destructive/30',
+                      'border-destructive/30 bg-destructive/10 text-destructive',
                     up.status === ProjectHealth.COMPLETED &&
-                      'bg-accent-blue-soft text-accent-blue border-accent-blue/30',
+                      'border-accent-blue/30 bg-accent-blue-soft text-accent-blue',
                   )}
                 >
-                  {up.status}
+                  {HEALTH_LABELS[up.status]}
                 </span>
               </CardHeader>
 
-              <CardContent className="p-4 flex flex-col gap-3 text-xs">
+              <CardContent className="p-4 gap-3 text-xs flex flex-col">
                 {up.body && (
-                  <p className="text-muted-foreground whitespace-pre-line leading-relaxed">
+                  <p className="leading-relaxed whitespace-pre-line text-muted-foreground">
                     {up.body}
                   </p>
                 )}
 
                 {/* 4 Pillars Breakdown */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                <div className="sm:grid-cols-2 gap-3 pt-2 grid grid-cols-1">
                   {up.completedSummary && (
-                    <div className="p-2.5 rounded-lg bg-accent-green/5 border border-accent-green/20">
-                      <span className="font-bold text-accent-green flex items-center gap-1 mb-1">
+                    <div className="p-2.5 rounded-lg border border-accent-green/20 bg-accent-green/5">
+                      <span className="font-bold gap-1 mb-1 flex items-center text-accent-green">
                         <CheckCircle2 className="size-3.5" />
                         Completed
                       </span>
-                      <p className="text-muted-foreground">{up.completedSummary}</p>
+                      <p className="text-muted-foreground">
+                        {up.completedSummary}
+                      </p>
                     </div>
                   )}
 
                   {up.inProgressSummary && (
-                    <div className="p-2.5 rounded-lg bg-primary/5 border border-primary/20">
-                      <span className="font-bold text-primary flex items-center gap-1 mb-1">
+                    <div className="p-2.5 rounded-lg border border-primary/20 bg-primary/5">
+                      <span className="font-bold gap-1 mb-1 flex items-center text-primary">
                         <Clock className="size-3.5" />
                         In Progress
                       </span>
-                      <p className="text-muted-foreground">{up.inProgressSummary}</p>
+                      <p className="text-muted-foreground">
+                        {up.inProgressSummary}
+                      </p>
                     </div>
                   )}
 
                   {up.blockersSummary && (
-                    <div className="p-2.5 rounded-lg bg-destructive/5 border border-destructive/20">
-                      <span className="font-bold text-destructive flex items-center gap-1 mb-1">
+                    <div className="p-2.5 rounded-lg border border-destructive/20 bg-destructive/5">
+                      <span className="font-bold gap-1 mb-1 flex items-center text-destructive">
                         <AlertTriangle className="size-3.5" />
                         Blockers / Risks
                       </span>
-                      <p className="text-muted-foreground">{up.blockersSummary}</p>
+                      <p className="text-muted-foreground">
+                        {up.blockersSummary}
+                      </p>
                     </div>
                   )}
 
                   {up.nextStepsSummary && (
-                    <div className="p-2.5 rounded-lg bg-accent-violet/5 border border-accent-violet/20">
-                      <span className="font-bold text-accent-violet flex items-center gap-1 mb-1">
+                    <div className="p-2.5 rounded-lg border border-accent-violet/20 bg-accent-violet/5">
+                      <span className="font-bold gap-1 mb-1 flex items-center text-accent-violet">
                         <Sparkles className="size-3.5" />
                         Next Steps
                       </span>
-                      <p className="text-muted-foreground">{up.nextStepsSummary}</p>
+                      <p className="text-muted-foreground">
+                        {up.nextStepsSummary}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -225,12 +243,14 @@ export function ProjectUpdatesView({
       <Dialog open={isPublishOpen} onOpenChange={setIsPublishOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Publish Status Update</DialogTitle>
+            <DialogTitle>Publish update</DialogTitle>
           </DialogHeader>
-          <DialogBody className="flex flex-col gap-3">
-            <div className="grid grid-cols-3 gap-2">
+          <DialogBody className="gap-3 flex flex-col">
+            <div className="gap-2 grid grid-cols-3">
               <div className="col-span-2">
-                <label className="text-xs font-semibold mb-1 block">Update Title</label>
+                <label className="text-xs font-semibold mb-1 block">
+                  Title
+                </label>
                 <Input
                   placeholder="e.g. Sprint 24 Progress & Alpha Testing"
                   value={title}
@@ -238,7 +258,9 @@ export function ProjectUpdatesView({
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold mb-1 block">Health State</label>
+                <label className="text-xs font-semibold mb-1 block">
+                  Health
+                </label>
                 <Select
                   value={status}
                   onValueChange={(val) => setStatus(val as ProjectHealth)}
@@ -249,7 +271,7 @@ export function ProjectUpdatesView({
                   <SelectContent>
                     {Object.values(ProjectHealth).map((h) => (
                       <SelectItem key={h} value={h}>
-                        <span className="capitalize">{h.toLowerCase()}</span>
+                        {HEALTH_LABELS[h]}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -258,7 +280,9 @@ export function ProjectUpdatesView({
             </div>
 
             <div>
-              <label className="text-xs font-semibold mb-1 block">General Overview</label>
+              <label className="text-xs font-semibold mb-1 block">
+                Summary
+              </label>
               <Textarea
                 rows={3}
                 placeholder="High-level narrative of current project momentum"
@@ -267,7 +291,7 @@ export function ProjectUpdatesView({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="gap-2 grid grid-cols-2">
               <div>
                 <label className="text-xs font-semibold mb-1 block text-accent-green">
                   Completed Highlights
@@ -292,7 +316,7 @@ export function ProjectUpdatesView({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="gap-2 grid grid-cols-2">
               <div>
                 <label className="text-xs font-semibold mb-1 block text-destructive">
                   Blockers & Risks
@@ -322,7 +346,7 @@ export function ProjectUpdatesView({
               Cancel
             </Button>
             <Button onClick={handlePublish} disabled={!title.trim()}>
-              Publish Update
+              Publish update
             </Button>
           </DialogFooter>
         </DialogContent>

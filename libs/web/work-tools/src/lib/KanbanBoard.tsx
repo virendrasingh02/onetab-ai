@@ -14,7 +14,8 @@ import {
 import { CardDetailsDialog } from './kanban/CardDetailsDialog.js';
 import { KanbanListColumn } from './kanban/KanbanListColumn.js';
 import { LinearFilterMenu } from './kanban/LinearFilterMenu.js';
-import type { BoardAction } from './kanban/server-board.js';
+import { useKanbanDisplayStore } from './kanban/kanban-display-store.js';
+import { compareBy, type BoardAction } from './kanban/server-board.js';
 import type { BoardState, KanbanCard } from './kanban/types.js';
 import { useBoardDrag, type DragSlot } from './kanban/use-board-drag.js';
 
@@ -79,16 +80,19 @@ export function KanbanBoard({
       ? (docId) => navigate(`/w/${workspaceSlug}/docs/${docId}`)
       : undefined,
   );
-  const [internalFilter, setInternalFilter] = useState<BoardFilter>(EMPTY_FILTER);
+  const [internalFilter, setInternalFilter] =
+    useState<BoardFilter>(EMPTY_FILTER);
   const filter = externalFilter ?? internalFilter;
   const setFilter = externalSetFilter ?? setInternalFilter;
 
-  const [internalIsFilterMenuOpen, setInternalIsFilterMenuOpen] = useState(false);
+  const [internalIsFilterMenuOpen, setInternalIsFilterMenuOpen] =
+    useState(false);
   const isFilterMenuOpen = externalIsFilterMenuOpen ?? internalIsFilterMenuOpen;
   const setIsFilterMenuOpen =
     externalSetIsFilterMenuOpen ?? setInternalIsFilterMenuOpen;
 
-  const [internalShowAIFilterInput, setInternalShowAIFilterInput] = useState(false);
+  const [internalShowAIFilterInput, setInternalShowAIFilterInput] =
+    useState(false);
   const showAIFilterInput =
     externalShowAIFilterInput ?? internalShowAIFilterInput;
   const setShowAIFilterInput =
@@ -99,16 +103,21 @@ export function KanbanBoard({
 
   const scrollerRef = useRef<HTMLDivElement>(null);
 
+  const orderBy = useKanbanDisplayStore((state) => state.orderBy);
+
   const visibleByList = useMemo(() => {
     const map = new Map<TaskStatus, KanbanCard[]>();
     for (const list of board.lists) {
+      const cards = list.cards.filter((card) =>
+        matchesFilter(card, filter, list.id),
+      );
       map.set(
         list.id,
-        list.cards.filter((card) => matchesFilter(card, filter, list.id)),
+        orderBy === 'manual' ? cards : cards.sort(compareBy(orderBy)),
       );
     }
     return map;
-  }, [board.lists, filter]);
+  }, [board.lists, filter, orderBy]);
 
   const filterCount = useMemo(() => countActiveFilters(filter), [filter]);
 
@@ -167,11 +176,11 @@ export function KanbanBoard({
   return (
     <div className="group/board min-h-128 px-4 sm:px-6 py-4 sm:py-6 flex h-full flex-col overflow-hidden text-foreground">
       {/* Board Filter Controls & AI Overlay */}
-      <div className="relative mb-2 shrink-0 space-y-2">
+      <div className="mb-2 space-y-2 relative shrink-0">
         {/* AI Filter Input Prompt Overlay Bar */}
         {showAIFilterInput && (
-          <div className="flex items-center gap-2 p-2 rounded-xl border border-accent-violet/40 bg-accent-violet-soft text-xs animate-in fade-in">
-            <Sparkles className="size-4 text-accent-violet shrink-0" />
+          <div className="gap-2 p-2 text-xs animate-in fade-in flex items-center rounded-xl border border-accent-violet/40 bg-accent-violet-soft">
+            <Sparkles className="size-4 shrink-0 text-accent-violet" />
             <Input
               autoFocus
               value={aiPromptInput}
@@ -179,8 +188,8 @@ export function KanbanBoard({
                 setAiPromptInput(e.target.value);
                 setFilter((prev) => ({ ...prev, aiQuery: e.target.value }));
               }}
-              placeholder='Ask AI filter (e.g. "show high priority tasks in progress" or "overdue tasks")...'
-              className="flex-1 text-xs h-7 bg-transparent border-none shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/70"
+              placeholder='Describe what to show, e.g. "urgent", "overdue" or a word from the title'
+              className="text-xs h-7 flex-1 border-none bg-transparent shadow-none placeholder:text-muted-foreground/70 focus-visible:ring-0"
             />
             {aiPromptInput && (
               <button
@@ -198,13 +207,13 @@ export function KanbanBoard({
 
         {/* Active Filter Chips Pill Bar */}
         {filterCount > 0 && (
-          <div className="flex items-center gap-1.5 flex-wrap text-xs pt-1">
-            <span className="text-[11px] font-medium text-muted-foreground">
+          <div className="gap-1.5 text-xs pt-1 flex flex-wrap items-center">
+            <span className="font-medium text-[11px] text-muted-foreground">
               Active filters:
             </span>
 
             {filter.query && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent text-[11px] font-medium">
+              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent text-[11px]">
                 Query: "{filter.query}"
                 <X
                   className="size-3 cursor-pointer hover:text-foreground"
@@ -214,17 +223,19 @@ export function KanbanBoard({
             )}
 
             {filter.aiQuery && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent-violet-soft text-accent-violet text-[11px] font-medium">
-                ✨ AI: "{filter.aiQuery}"
+              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent-violet-soft text-[11px] text-accent-violet">
+                Smart filter: "{filter.aiQuery}"
                 <X
                   className="size-3 cursor-pointer hover:text-foreground"
-                  onClick={() => setFilter((prev) => ({ ...prev, aiQuery: '' }))}
+                  onClick={() =>
+                    setFilter((prev) => ({ ...prev, aiQuery: '' }))
+                  }
                 />
               </span>
             )}
 
             {filter.status.length > 0 && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent text-[11px] font-medium">
+              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent text-[11px]">
                 Status ({filter.status.length})
                 <X
                   className="size-3 cursor-pointer hover:text-foreground"
@@ -234,7 +245,7 @@ export function KanbanBoard({
             )}
 
             {filter.priorities.length > 0 && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent text-[11px] font-medium">
+              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent text-[11px]">
                 Priority ({filter.priorities.length})
                 <X
                   className="size-3 cursor-pointer hover:text-foreground"
@@ -246,7 +257,7 @@ export function KanbanBoard({
             )}
 
             {filter.memberIds.length > 0 && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent text-[11px] font-medium">
+              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent text-[11px]">
                 Assignee ({filter.memberIds.length})
                 <X
                   className="size-3 cursor-pointer hover:text-foreground"
@@ -258,7 +269,7 @@ export function KanbanBoard({
             )}
 
             {filter.milestones.length > 0 && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent text-[11px] font-medium">
+              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent text-[11px]">
                 Milestones ({filter.milestones.length})
                 <X
                   className="size-3 cursor-pointer hover:text-foreground"
@@ -270,7 +281,7 @@ export function KanbanBoard({
             )}
 
             {filter.due !== 'any' && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent text-[11px] font-medium capitalize">
+              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent text-[11px] capitalize">
                 Due: {filter.due}
                 <X
                   className="size-3 cursor-pointer hover:text-foreground"
@@ -284,7 +295,7 @@ export function KanbanBoard({
                 setFilter(EMPTY_FILTER);
                 setAiPromptInput('');
               }}
-              className="text-[11px] text-muted-foreground hover:text-foreground underline ml-1"
+              className="ml-1 text-[11px] text-muted-foreground underline hover:text-foreground"
             >
               Clear all
             </button>
@@ -305,11 +316,11 @@ export function KanbanBoard({
 
       {/* Kanban Columns Drag Scroller */}
       {isLoading ? (
-        <div className="flex flex-1 items-start gap-4 overflow-hidden pb-4">
+        <div className="gap-4 pb-4 flex flex-1 items-start overflow-hidden">
           {[0, 1, 2, 3].map((column) => (
             <div
               key={column}
-              className="w-72 shrink-0 rounded-xl border bg-surface-muted p-3"
+              className="w-72 p-3 shrink-0 rounded-xl border bg-surface-muted"
             >
               <SkeletonList rows={3} />
             </div>
@@ -318,7 +329,7 @@ export function KanbanBoard({
       ) : (
         <div
           ref={scrollerRef}
-          className="no-scrollbar relative flex flex-1 items-start gap-4 overflow-x-auto pb-4"
+          className="scrollbar-subtle gap-4 pb-4 relative flex flex-1 items-start overflow-x-auto"
         >
           {board.lists.map((list, index) => (
             <KanbanListColumn
@@ -349,7 +360,7 @@ export function KanbanBoard({
             data-kanban-column-placeholder
             aria-hidden
             hidden
-            className="pointer-events-none absolute left-0 top-0 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5"
+            className="left-0 top-0 pointer-events-none absolute rounded-xl border-2 border-dashed border-primary/40 bg-primary/5"
           />
         </div>
       )}

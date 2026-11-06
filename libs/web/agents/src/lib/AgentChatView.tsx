@@ -183,7 +183,9 @@ function AgentConversation({ agentId }: { agentId: string }) {
   const agent = agentsQuery.data?.find((a) => a.id === agentId);
 
   if (agentsQuery.isLoading && !agent) {
-    return <ChatConversationSkeleton avatarShape="rounded" avatarSize="sm" hasTabs />;
+    return (
+      <ChatConversationSkeleton avatarShape="rounded" avatarSize="sm" hasTabs />
+    );
   }
 
   if (agentsQuery.error) {
@@ -314,7 +316,7 @@ function AgentMessageHeader({ agent }: { agent: AgentModelItem }) {
                 size="sm"
                 className="size-7"
               />
-              <h2 className="text-base font-semibold tracking-tight truncate text-foreground">
+              <h2 className="text-base font-medium truncate tracking-[-0.01em] text-foreground">
                 {agent.name}
               </h2>
             </button>
@@ -409,9 +411,7 @@ function AgentMessageHeader({ agent }: { agent: AgentModelItem }) {
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem
-                  onClick={() =>
-                    navigate(`/w/${slug}/ai/agents/${agent.id}`)
-                  }
+                  onClick={() => navigate(`/w/${slug}/ai/agents/${agent.id}`)}
                   className="gap-2.5 cursor-pointer"
                 >
                   <Wrench className="size-4 text-accent-violet" />
@@ -530,43 +530,43 @@ function AgentConversationPanel({ agent }: { agent: AgentModelItem }) {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="min-h-0 flex h-full flex-col">
       <div className="min-h-0 flex flex-1 flex-col">
-    <ConversationTabsShell
-      filesContext={{ type: 'AGENT', id: agent.id }}
-      roomId={roomId}
-      workspaceId={workspaceId}
-      currentUserId={currentUser?.id}
-    >
-      <ChatPanel
-        roomId={roomId}
-        title={agent.name}
-        subtitle={agent.model ? `${agent.model} · AI Agent` : 'AI Agent'}
-        showHeader={false}
-        workspaceId={workspaceId}
-        showMembers={false}
-        showEncryptedBadge={false}
-        composerContext={composerContext}
-        extraTimelineRows={connectRow}
-        welcome={{
-          kind: 'direct',
-          welcomeMessage: agent.welcomeMessage,
-          peer: {
-            name: agent.name,
-            userId: `agent-${agent.id}`,
-            kind: 'agent',
-            role: agent.model ? `${agent.model} · AI agent` : 'AI agent',
-            avatarNode: (
-              <AgentAvatar
-                name={agent.name}
-                avatarUrl={agent.avatarUrl}
-                size="lg"
-              />
-            ),
-          },
-        }}
-      />
-    </ConversationTabsShell>
+        <ConversationTabsShell
+          filesContext={{ type: 'AGENT', id: agent.id }}
+          roomId={roomId}
+          workspaceId={workspaceId}
+          currentUserId={currentUser?.id}
+        >
+          <ChatPanel
+            roomId={roomId}
+            title={agent.name}
+            subtitle={agent.model ? `${agent.model} · AI Agent` : 'AI Agent'}
+            showHeader={false}
+            workspaceId={workspaceId}
+            showMembers={false}
+            showEncryptedBadge={false}
+            composerContext={composerContext}
+            extraTimelineRows={connectRow}
+            welcome={{
+              kind: 'direct',
+              welcomeMessage: agent.welcomeMessage,
+              peer: {
+                name: agent.name,
+                userId: `agent-${agent.id}`,
+                kind: 'agent',
+                role: agent.model ? `${agent.model} · AI agent` : 'AI agent',
+                avatarNode: (
+                  <AgentAvatar
+                    name={agent.name}
+                    avatarUrl={agent.avatarUrl}
+                    size="lg"
+                  />
+                ),
+              },
+            }}
+          />
+        </ConversationTabsShell>
       </div>
     </div>
   );
@@ -635,9 +635,12 @@ function NewAgentMessage() {
                   className="gap-2.5 p-2.5 flex w-full items-center rounded-md"
                 >
                   <SkeletonAvatar size="md" shape="rounded" />
-                  <div className="min-w-0 flex-1 space-y-1.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <SkeletonText width={idx % 2 === 0 ? 'w-28' : 'w-36'} size="sm" />
+                  <div className="min-w-0 space-y-1.5 flex-1">
+                    <div className="gap-2 flex items-center justify-between">
+                      <SkeletonText
+                        width={idx % 2 === 0 ? 'w-28' : 'w-36'}
+                        size="sm"
+                      />
                       <Skeleton className="h-3.5 w-12 rounded" />
                     </div>
                     <SkeletonText width="w-44" size="xs" />

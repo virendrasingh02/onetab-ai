@@ -8,6 +8,7 @@ import {
   DialogBody,
   DialogHeader,
   DialogTitle,
+  EmptyState,
   Input,
   Select,
   SelectContent,
@@ -15,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
   Textarea,
+  ProjectGlyph,
 } from '@org/ui';
 import {
   IntakeSource,
@@ -72,12 +74,20 @@ export function IntakeTriageView({
   onDecline,
   onCreateIntake,
 }: IntakeTriageViewProps) {
-  const [selectedIntake, setSelectedIntake] = useState<IntakeRequest | null>(null);
+  const [selectedIntake, setSelectedIntake] = useState<IntakeRequest | null>(
+    null,
+  );
   const [isConvertOpen, setIsConvertOpen] = useState(false);
   const [targetProjectId, setTargetProjectId] = useState<string>('');
-  const [targetType, setTargetType] = useState<WorkItemType>(WorkItemType.REQUEST);
-  const [targetPriority, setTargetPriority] = useState<TaskPriority>(TaskPriority.MEDIUM);
-  const [targetAssignee, setTargetAssignee] = useState<string | undefined>(undefined);
+  const [targetType, setTargetType] = useState<WorkItemType>(
+    WorkItemType.REQUEST,
+  );
+  const [targetPriority, setTargetPriority] = useState<TaskPriority>(
+    TaskPriority.MEDIUM,
+  );
+  const [targetAssignee, setTargetAssignee] = useState<string | undefined>(
+    undefined,
+  );
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -139,29 +149,26 @@ export function IntakeTriageView({
   };
 
   return (
-    <div className="flex flex-col w-full h-full gap-6 p-4 overflow-y-auto">
+    <div className="gap-6 p-4 flex h-full w-full flex-col overflow-y-auto">
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="sm:flex-row sm:items-center gap-3 flex flex-col justify-between">
         <div>
-          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-            <Inbox className="size-5 text-primary" />
-            Intake & Triage Queue
-          </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Capture, triage, and convert incoming requests from users, email, Slack, and AI agents.
+          <h2 className="text-base font-semibold text-foreground">Intake</h2>
+          <p className="text-xs mt-0.5 text-muted-foreground">
+            Review incoming requests and turn the right ones into tasks.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="gap-2 flex items-center">
           {/* Status Filter */}
-          <div className="flex items-center gap-1 p-1 bg-muted/60 rounded-xl border border-border/50">
+          <div className="gap-1 p-1 flex items-center rounded-xl border border-border/50 bg-muted/60">
             {['PENDING', 'CONVERTED', 'DECLINED', 'ALL'].map((st) => (
               <button
                 key={st}
                 type="button"
                 onClick={() => setFilterStatus(st)}
                 className={cn(
-                  'px-3 py-1 rounded-lg text-xs font-semibold transition-all capitalize cursor-pointer',
+                  'px-3 py-1 text-xs font-semibold cursor-pointer rounded-lg capitalize transition-all',
                   filterStatus === st
                     ? 'bg-card text-foreground shadow-xs'
                     : 'text-muted-foreground hover:text-foreground',
@@ -178,47 +185,58 @@ export function IntakeTriageView({
             className="gap-1.5 text-xs"
           >
             <Plus className="size-3.5" />
-            New Request
+            New request
           </Button>
         </div>
       </div>
 
       {/* Requests Feed */}
-      <div className="flex flex-col gap-3">
+      <div className="gap-3 flex flex-col">
         {filteredRequests.length === 0 ? (
-          <div className="p-12 text-center text-xs text-muted-foreground border border-dashed border-border rounded-xl">
-            No incoming requests found for this filter.
-          </div>
+          <EmptyState
+            icon={<Inbox />}
+            title={
+              filterStatus === 'PENDING'
+                ? 'Nothing waiting for review'
+                : 'No requests here'
+            }
+            description="New requests appear here until someone accepts or declines them."
+          />
         ) : (
           filteredRequests.map((item) => (
             <Card
               key={item.id}
-              className="border border-border/60 bg-card/80 shadow-xs hover:border-primary/40 transition-all"
+              className="border border-border/60 bg-card/80 shadow-xs transition-all hover:border-primary/40"
             >
-              <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <CardContent className="p-4 sm:flex-row sm:items-center gap-4 flex flex-col justify-between">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                    <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-muted/80 px-2 py-0.5 rounded border border-border/50">
+                  <div className="gap-2 mb-1.5 flex flex-wrap items-center">
+                    <span className="gap-1 font-medium px-2 py-0.5 rounded inline-flex items-center border border-border/50 bg-muted/80 text-[11px]">
                       {renderSourceIcon(item.source)}
-                      <span className="capitalize">{item.source.toLowerCase()}</span>
+                      <span className="capitalize">
+                        {item.source.toLowerCase()}
+                      </span>
                     </span>
 
-                    <span className="inline-flex items-center gap-1 text-[11px]">
-                      <PriorityIcon priority={item.priority as TaskPriority} className="size-3.5" />
-                      <span className="capitalize text-muted-foreground">
+                    <span className="gap-1 inline-flex items-center text-[11px]">
+                      <PriorityIcon
+                        priority={item.priority as TaskPriority}
+                        className="size-3.5"
+                      />
+                      <span className="text-muted-foreground capitalize">
                         {item.priority.toLowerCase()}
                       </span>
                     </span>
 
                     <span
                       className={cn(
-                        'text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border',
+                        'font-bold px-2 py-0.5 rounded-full border text-[10px] uppercase',
                         item.status === IntakeStatus.PENDING &&
-                          'bg-accent-amber-soft text-accent-amber border-accent-amber/30',
+                          'border-accent-amber/30 bg-accent-amber-soft text-accent-amber',
                         item.status === IntakeStatus.CONVERTED &&
-                          'bg-accent-green-soft text-accent-green border-accent-green/30',
+                          'border-accent-green/30 bg-accent-green-soft text-accent-green',
                         item.status === IntakeStatus.DECLINED &&
-                          'bg-muted text-muted-foreground border-border',
+                          'border-border bg-muted text-muted-foreground',
                       )}
                     >
                       {item.status}
@@ -235,10 +253,12 @@ export function IntakeTriageView({
                     </span>
                   </div>
 
-                  <h3 className="text-sm font-bold text-foreground">{item.title}</h3>
+                  <h3 className="text-sm font-bold text-foreground">
+                    {item.title}
+                  </h3>
 
                   {item.description && (
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                    <p className="text-xs mt-1 line-clamp-2 text-muted-foreground">
                       {item.description}
                     </p>
                   )}
@@ -246,12 +266,12 @@ export function IntakeTriageView({
 
                 {/* Actions */}
                 {item.status === IntakeStatus.PENDING && (
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="gap-2 flex shrink-0 items-center">
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => onDecline(item.id)}
-                      className="text-xs text-muted-foreground hover:text-destructive gap-1"
+                      className="text-xs gap-1 text-muted-foreground hover:text-destructive"
                     >
                       <XCircle className="size-3.5" />
                       Decline
@@ -261,7 +281,7 @@ export function IntakeTriageView({
                       onClick={() => handleOpenConvert(item)}
                       className="text-xs gap-1.5"
                     >
-                      Convert to Issue
+                      Convert to task
                       <ArrowRight className="size-3.5" />
                     </Button>
                   </div>
@@ -276,11 +296,13 @@ export function IntakeTriageView({
       <Dialog open={isConvertOpen} onOpenChange={setIsConvertOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Convert to Work Item</DialogTitle>
+            <DialogTitle>Convert to task</DialogTitle>
           </DialogHeader>
-          <DialogBody className="flex flex-col gap-3">
+          <DialogBody className="gap-3 flex flex-col">
             <div>
-              <label className="text-xs font-semibold mb-1 block">Destination Project</label>
+              <label className="text-xs font-semibold mb-1 block">
+                Project
+              </label>
               <Select
                 value={targetProjectId}
                 onValueChange={(val) => setTargetProjectId(val)}
@@ -291,16 +313,24 @@ export function IntakeTriageView({
                 <SelectContent>
                   {projects.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.name} ({p.ticketPrefix || 'PRJ'})
+                      <span className="gap-2 flex items-center">
+                        <ProjectGlyph
+                          icon={p.icon}
+                          iconColor={p.iconColor}
+                          color={p.color}
+                          size="xs"
+                        />
+                        {p.name} ({p.ticketPrefix || 'PRJ'})
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="gap-2 grid grid-cols-2">
               <div>
-                <label className="text-xs font-semibold mb-1 block">Work Item Type</label>
+                <label className="text-xs font-semibold mb-1 block">Type</label>
                 <Select
                   value={targetType}
                   onValueChange={(val) => setTargetType(val as WorkItemType)}
@@ -319,10 +349,14 @@ export function IntakeTriageView({
               </div>
 
               <div>
-                <label className="text-xs font-semibold mb-1 block">Priority</label>
+                <label className="text-xs font-semibold mb-1 block">
+                  Priority
+                </label>
                 <Select
                   value={targetPriority}
-                  onValueChange={(val) => setTargetPriority(val as TaskPriority)}
+                  onValueChange={(val) =>
+                    setTargetPriority(val as TaskPriority)
+                  }
                 >
                   <SelectTrigger className="text-xs">
                     <SelectValue />
@@ -339,7 +373,9 @@ export function IntakeTriageView({
             </div>
 
             <div>
-              <label className="text-xs font-semibold mb-1 block">Assignee</label>
+              <label className="text-xs font-semibold mb-1 block">
+                Assignee
+              </label>
               <Select
                 value={targetAssignee || 'unassigned'}
                 onValueChange={(val) =>
@@ -365,7 +401,7 @@ export function IntakeTriageView({
               Cancel
             </Button>
             <Button onClick={handleExecuteConvert} disabled={!targetProjectId}>
-              Confirm & Convert
+              Convert
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -375,9 +411,9 @@ export function IntakeTriageView({
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>File Intake Request</DialogTitle>
+            <DialogTitle>New request</DialogTitle>
           </DialogHeader>
-          <DialogBody className="flex flex-col gap-3">
+          <DialogBody className="gap-3 flex flex-col">
             <div>
               <label className="text-xs font-semibold mb-1 block">Title</label>
               <Input
@@ -387,7 +423,9 @@ export function IntakeTriageView({
               />
             </div>
             <div>
-              <label className="text-xs font-semibold mb-1 block">Description</label>
+              <label className="text-xs font-semibold mb-1 block">
+                Description
+              </label>
               <Textarea
                 rows={3}
                 placeholder="Full details, repro steps or requirements"
@@ -395,9 +433,11 @@ export function IntakeTriageView({
                 onChange={(e) => setNewDesc(e.target.value)}
               />
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="gap-2 grid grid-cols-2">
               <div>
-                <label className="text-xs font-semibold mb-1 block">Requester Name</label>
+                <label className="text-xs font-semibold mb-1 block">
+                  Requester
+                </label>
                 <Input
                   placeholder="e.g. John Doe"
                   value={newRequester}
@@ -405,7 +445,9 @@ export function IntakeTriageView({
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold mb-1 block">Source</label>
+                <label className="text-xs font-semibold mb-1 block">
+                  Source
+                </label>
                 <Select
                   value={newSource}
                   onValueChange={(val) => setNewSource(val as IntakeSource)}
@@ -429,7 +471,7 @@ export function IntakeTriageView({
               Cancel
             </Button>
             <Button onClick={handleCreateSubmit} disabled={!newTitle.trim()}>
-              Submit Request
+              Submit request
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -159,9 +159,21 @@ export function createdByAgentOf(
   };
 }
 
-export function checklistOf(task: Pick<Task, 'customFields'>): TaskChecklistItem[] {
+export function checklistOf(
+  task: Pick<Task, 'customFields'>,
+): TaskChecklistItem[] {
   const raw = task.customFields?.['checklist'];
   return Array.isArray(raw) ? raw.filter(isChecklistItem) : [];
+}
+
+/** A task's readable id, for views that draw tasks rather than cards. */
+export function taskTicket(
+  task: Pick<Task, 'identifier' | 'ticketNumber' | 'project'>,
+): string {
+  if (task.project?.ticketPrefix && task.ticketNumber !== null) {
+    return `${task.project.ticketPrefix}-${task.ticketNumber}`;
+  }
+  return task.identifier || 'Task';
 }
 
 export function taskToCard(
@@ -194,6 +206,13 @@ export function taskToCard(
       ? milestoneTitles.get(task.milestoneId)
       : undefined,
     commentCount: task._count.comments,
+    subtasks: task.subItems?.length
+      ? {
+          done: task.subItems.filter((item) => item.status === TaskStatus.DONE)
+            .length,
+          total: task.subItems.length,
+        }
+      : undefined,
     dueDate: isoToDay(task.dueDate),
     dueComplete: TERMINAL.has(task.status),
     priority: task.priority,
@@ -279,7 +298,12 @@ export function buildBoard({
  * directly.
  */
 export type BoardAction =
-  | { type: 'card/add'; listId: TaskStatus; title: string; edge?: 'top' | 'bottom' }
+  | {
+      type: 'card/add';
+      listId: TaskStatus;
+      title: string;
+      edge?: 'top' | 'bottom';
+    }
   /** A column dragged to a new place in the row; `toIndex` is over all columns. */
   | { type: 'list/move'; listId: TaskStatus; toIndex: number }
   | { type: 'card/update'; cardId: string; patch: CardPatch }
@@ -312,7 +336,7 @@ const PRIORITY_RANK: Record<Priority, number> = {
   LOW: 3,
 };
 
-function compareBy(key: SortKey) {
+export function compareBy(key: SortKey) {
   return (a: KanbanCard, b: KanbanCard): number => {
     switch (key) {
       case 'due':
@@ -531,8 +555,11 @@ export function useServerBoard({
             priority: found.card.priority,
             projectId: projectId ?? null,
             assigneeId: found.card.memberIds[0] ?? null,
+            assigneeIds: found.card.memberIds,
             dueDate: found.card.dueDate ? dayToIso(found.card.dueDate) : null,
-            startDate: found.card.startDate ? dayToIso(found.card.startDate) : null,
+            startDate: found.card.startDate
+              ? dayToIso(found.card.startDate)
+              : null,
             labels: found.card.labels,
             ...(found.card.checklist.length > 0
               ? { customFields: { checklist: found.card.checklist } }
@@ -592,7 +619,10 @@ export function useServerBoard({
         case 'list/sort': {
           const column = listOf(action.listId);
           if (!column || column.cards.length < 2) return;
-          applyOrder(action.listId, [...column.cards].sort(compareBy(action.by)));
+          applyOrder(
+            action.listId,
+            [...column.cards].sort(compareBy(action.by)),
+          );
           return;
         }
 

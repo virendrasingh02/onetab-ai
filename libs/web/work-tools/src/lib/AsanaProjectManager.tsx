@@ -2,6 +2,7 @@ import { IconPicker, ProjectIconPicker, useIconEditor } from '@org/icons';
 import {
   ProjectStatus,
   TaskStatus,
+  WorkspacePermission,
   type IconSelection,
   type ProjectDetail,
 } from '@org/types';
@@ -19,10 +20,12 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
   EmptyState,
   Input,
-  KbdShortcut,
   ProjectGlyph,
   Select,
   SelectContent,
@@ -42,13 +45,13 @@ import { ApiError, workToolsApi } from '@org/api-client';
 import {
   Check,
   ChevronDown,
-  Command,
   FileText,
   Filter,
   FolderGit2,
   FolderKanban,
   FolderOpen,
   GanttChartSquare,
+  CircleDot,
   Hash,
   HeartPulse,
   Inbox,
@@ -70,6 +73,7 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import type { CreateTaskInput } from '@org/validation';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ProjectDashboardView } from './asana/ProjectDashboardView.js';
 import { ProjectListView } from './asana/ProjectListView.js';
@@ -77,9 +81,11 @@ import { ProjectTimelineView } from './asana/ProjectTimelineView.js';
 import {
   countActiveFilters,
   EMPTY_FILTER,
+  matchesFilter,
   type BoardFilter,
 } from './kanban/card-meta.js';
 import { CardDetailsDialog } from './kanban/CardDetailsDialog.js';
+import { CreateTaskDialog } from './kanban/CreateTaskDialog.js';
 import {
   ImportBoardDialog,
   type ImportResult,
@@ -290,14 +296,32 @@ function slugify(text: string): string {
     .replace(/-+$/, '');
 }
 
-/** Tabs a link can open with `?view=`. */
-const LINKABLE_VIEWS: readonly ProjectViewMode[] = [
-  'projects',
-  'settings',
+/** The tab lives in `?view=`, so a reload or a shared link lands on it. */
+const VIEW_IDS: readonly ProjectViewMode[] = [
+  'dashboard',
+  'board',
+  'list',
+  'spreadsheet',
+  'timeline',
+  'gantt',
+  'docs',
   'cycles',
+  'modules',
   'initiatives',
   'intake',
-  'docs',
+  'updates',
+  'files',
+  'settings',
+  'projects',
+];
+
+/** Views that draw the project's tasks, and so answer to search and filters. */
+const TASK_VIEWS: readonly ProjectViewMode[] = [
+  'board',
+  'list',
+  'spreadsheet',
+  'timeline',
+  'gantt',
 ];
 
 export function AsanaProjectManager() {
@@ -335,7 +359,22 @@ export function AsanaProjectManager() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     null,
   );
-  const [viewMode, setViewMode] = useState<ProjectViewMode>('board');
+  const viewParam = searchParams.get('view') as ProjectViewMode | null;
+  const viewMode: ProjectViewMode =
+    viewParam && VIEW_IDS.includes(viewParam) ? viewParam : 'board';
+  const setViewMode = useCallback(
+    (mode: ProjectViewMode) => {
+      setSearchParams((current) => {
+        const next = new URLSearchParams(current);
+        if (mode === 'board') next.delete('view');
+        else next.set('view', mode);
+        return next;
+      });
+    },
+    [setSearchParams],
+  );
+  const isTaskView = TASK_VIEWS.includes(viewMode);
+  const canAddTask = isTaskView || viewMode === 'dashboard';
 
   // `/projects/:slug` is the deep link. An id still resolves (links persisted
   // server-side), as does the old `?project=` query form.
@@ -383,30 +422,25 @@ export function AsanaProjectManager() {
 
     const openNewProject = searchParams.get('newProject') === 'true';
     const openImport = searchParams.get('import') === 'true';
-    // `?view=settings` is the sidebar's "Project settings" deep link.
-    const viewParam = searchParams.get('view') as ProjectViewMode | null;
-    const linkedView =
-      viewParam && LINKABLE_VIEWS.includes(viewParam) ? viewParam : null;
-    if (!openNewProject && !openImport && !linkedView && !cardParam) return;
+    if (!openNewProject && !openImport && !cardParam) return;
 
     if (openNewProject) setIsNewProjectOpen(true);
     if (openImport) setIsImportOpen(true);
-    if (linkedView) setViewMode(linkedView);
 
     const next = new URLSearchParams(searchParams);
     next.delete('newProject');
     next.delete('import');
-    next.delete('view');
     next.delete('card');
     next.delete('taskId');
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
 
-  const openProject = (projectId: string) => {
+  const openProject = (projectId: string, view?: ProjectViewMode) => {
     setSelectedProjectId(projectId);
     const slug = projects.find((project) => project.id === projectId)?.slug;
-    navigate(`/w/${workspaceSlug}/projects/${slug ?? projectId}`);
-    setViewMode('board');
+    navigate(
+      `/w/${workspaceSlug}/projects/${slug ?? projectId}${view ? `?view=${view}` : ''}`,
+    );
   };
 
   const board = useServerBoard({
@@ -433,14 +467,47 @@ export function AsanaProjectManager() {
   const [isCommandMenuOpen, setIsCommandMenuOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
 
-  const handleQuickAddTask = useCallback(() => {
-    board.dispatch({
-      type: 'card/add',
-      listId: TaskStatus.TODO,
-      title: 'New Task',
-      edge: 'top',
+  /** Set while the new-task dialog is open: the column it starts on. */
+  const [newTaskStatus, setNewTaskStatus] = useState<TaskStatus | null>(null);
+  const openNewTask = useCallback((status?: TaskStatus) => {
+    setNewTaskStatus(status ?? TaskStatus.TODO);
+  }, []);
+
+  const createTask = async (input: CreateTaskInput) => {
+    const task = await taskMutations.create.mutateAsync({
+      ...input,
+      projectId: activeProject?.id ?? null,
     });
-  }, [board]);
+    if (task) {
+      toast.success('Task created', {
+        description: task.title,
+        action: {
+          label: 'Open',
+          onClick: () => setSelectedCardId(task.id),
+        },
+      });
+    }
+  };
+
+  /** The board, narrowed by the search box and filter menu, for every task view. */
+  const filteredBoard = useMemo(
+    () => ({
+      ...board.board,
+      lists: board.board.lists.map((list) => ({
+        ...list,
+        cards: list.cards.filter((card) =>
+          matchesFilter(card, filter, list.id),
+        ),
+      })),
+    }),
+    [board.board, filter],
+  );
+  const filteredTasks = useMemo(() => {
+    const visible = new Set(
+      filteredBoard.lists.flatMap((list) => list.cards.map((card) => card.id)),
+    );
+    return projectTasks.filter((task) => visible.has(task.id));
+  }, [filteredBoard, projectTasks]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -462,18 +529,32 @@ export function AsanaProjectManager() {
       }
 
       if (isInput) return;
-
-      if (e.key.toLowerCase() === 'c' && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault();
-        handleQuickAddTask();
+      // A letter typed at an open dialog or menu is not a board shortcut.
+      if (
+        document.querySelector(
+          '[role="dialog"][data-state="open"], [role="menu"][data-state="open"]',
+        )
+      ) {
+        return;
       }
 
-      if (e.key.toLowerCase() === 'f' && !e.metaKey && !e.ctrlKey) {
+      const plainKey = !e.metaKey && !e.ctrlKey && !e.altKey;
+
+      if (e.key.toLowerCase() === 'c' && plainKey && canAddTask) {
+        e.preventDefault();
+        openNewTask();
+      }
+
+      if (e.key.toLowerCase() === 'f' && plainKey && isTaskView) {
         e.preventDefault();
         setIsFilterMenuOpen((prev) => !prev);
       }
 
-      if (e.key.toLowerCase() === 'v' && !e.metaKey && !e.ctrlKey) {
+      if (
+        e.key.toLowerCase() === 'v' &&
+        plainKey &&
+        (viewMode === 'board' || viewMode === 'list')
+      ) {
         e.preventDefault();
         setIsViewDisplayOpen((prev) => !prev);
       }
@@ -486,7 +567,7 @@ export function AsanaProjectManager() {
 
     window.addEventListener('keydown', handleKeyDown, true);
     return () => window.removeEventListener('keydown', handleKeyDown, true);
-  }, [handleQuickAddTask]);
+  }, [canAddTask, isTaskView, openNewTask, viewMode]);
 
   const [isNewProjectOpen, setIsNewProjectOpen] = useState(false);
   const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
@@ -619,7 +700,9 @@ export function AsanaProjectManager() {
   const removeProject = async (projectId: string) => {
     try {
       await projectMutations.remove.mutateAsync(projectId);
-      if (selectedProjectId === projectId) {
+      // The open project, however it was reached: a project opened from a link
+      // never set `selectedProjectId`, and the URL would be left pointing at it.
+      if (activeProject?.id === projectId) {
         const remaining = projects.filter((p) => p.id !== projectId);
         if (remaining.length > 0) {
           openProject(remaining[0].id);
@@ -717,11 +800,7 @@ export function AsanaProjectManager() {
         onClose={() => setIsCommandMenuOpen(false)}
         lists={board.board.lists}
         onOpenCard={(cardId) => setSelectedCardId(cardId)}
-        onQuickAddTask={(listId) => {
-          if (listId) {
-            handleQuickAddTask();
-          }
-        }}
+        onQuickAddTask={openNewTask}
         onViewModeChange={(mode) => setViewMode(mode)}
         onOpenFilter={() => setIsFilterMenuOpen(true)}
         onOpenNewProject={openNewProject}
@@ -730,6 +809,18 @@ export function AsanaProjectManager() {
       <LinearShortcutsDialog
         isOpen={isShortcutsOpen}
         onClose={() => setIsShortcutsOpen(false)}
+      />
+
+      <CreateTaskDialog
+        open={newTaskStatus !== null}
+        onOpenChange={(open) => {
+          if (!open) setNewTaskStatus(null);
+        }}
+        projectName={activeProject?.name}
+        lists={board.board.lists}
+        members={members}
+        defaultStatus={newTaskStatus ?? TaskStatus.TODO}
+        onCreate={createTask}
       />
     </>
   );
@@ -750,10 +841,7 @@ export function AsanaProjectManager() {
               can,
               path: `/w/${workspaceSlug}/projects/${project.id}`,
               onOpen: () => openProject(project.id),
-              onOpenSettings: () => {
-                openProject(project.id);
-                setViewMode('settings');
-              },
+              onOpenSettings: () => openProject(project.id, 'settings'),
               onRename: async () => {
                 const name = await prompts.promptText({
                   title: 'Rename project',
@@ -832,18 +920,18 @@ export function AsanaProjectManager() {
                     icon={activeProject.icon}
                     iconColor={activeProject.iconColor}
                     color={activeProject.color}
-                    size="md"
+                    size="sm"
                   />
                 </button>
               }
             />
           ) : (
-            <ProjectGlyph size="md" />
+            <ProjectGlyph size="sm" />
           )}
 
           {/* Project Title with Quick Project Switcher Dropdown */}
           <div className="gap-1.5 flex items-center">
-            <h1 className="text-base font-semibold tracking-tight text-foreground">
+            <h1 className="text-base font-medium truncate tracking-[-0.01em] text-foreground">
               {activeProject?.name ?? 'Projects'}
             </h1>
             {projects.length > 0 && (
@@ -906,68 +994,6 @@ export function AsanaProjectManager() {
             )}
           </div>
 
-          {/* Dynamic Ticket Prefix Badge with Click-to-Copy */}
-          {activeProject?.ticketPrefix && (
-            <button
-              type="button"
-              onClick={() => {
-                navigator.clipboard.writeText(
-                  activeProject.ticketPrefix as string,
-                );
-                toast.success(`Copied prefix ${activeProject.ticketPrefix}`);
-              }}
-              className="gap-1 font-bold px-2 py-0.5 rounded inline-flex cursor-pointer items-center border border-brand/30 bg-brand/10 font-mono text-[11px] text-brand-text transition-colors hover:bg-brand/20"
-              title="Click to copy ticket prefix"
-            >
-              <Hash className="size-3" />
-              <span>{activeProject.ticketPrefix}</span>
-            </button>
-          )}
-
-          {/* Status Badge with Dropdown to Change Status */}
-          {activeProject && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="cursor-pointer"
-                  aria-label={`Project status: ${STATUS_LABELS[activeProject.status]}. Change status`}
-                >
-                  <Badge
-                    variant="neutral"
-                    className="gap-1 cursor-pointer text-[10px] hover:bg-muted"
-                  >
-                    <span>{STATUS_LABELS[activeProject.status]}</span>
-                    <ChevronDown className="size-2.5 opacity-60" />
-                  </Badge>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-36">
-                <DropdownMenuLabel className="text-[11px]">
-                  Set Status
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {PROJECT_STATUSES.map((st) => (
-                  <DropdownMenuItem
-                    key={st}
-                    onClick={() =>
-                      projectMutations.update.mutate({
-                        projectId: activeProject.id,
-                        input: { status: st },
-                      })
-                    }
-                    className="text-xs justify-between"
-                  >
-                    {STATUS_LABELS[st]}
-                    {activeProject.status === st && (
-                      <Check className="size-3.5 shrink-0 text-primary" />
-                    )}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-
           {activeProject ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -975,6 +1001,7 @@ export function AsanaProjectManager() {
                   type="button"
                   className="p-1 cursor-pointer rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   title="Project options"
+                  aria-label="Project options"
                 >
                   <MoreHorizontal className="size-4" />
                 </button>
@@ -987,6 +1014,53 @@ export function AsanaProjectManager() {
                   <Pencil className="size-3.5 text-primary" />
                   Edit project details
                 </DropdownMenuItem>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="text-xs gap-2">
+                    <CircleDot className="size-3.5 text-muted-foreground" />
+                    <span className="flex-1">Status</span>
+                    <span className="text-muted-foreground">
+                      {STATUS_LABELS[activeProject.status]}
+                    </span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-36">
+                    {PROJECT_STATUSES.map((st) => (
+                      <DropdownMenuItem
+                        key={st}
+                        onClick={() =>
+                          projectMutations.update.mutate({
+                            projectId: activeProject.id,
+                            input: { status: st },
+                          })
+                        }
+                        className="text-xs justify-between"
+                      >
+                        {STATUS_LABELS[st]}
+                        {activeProject.status === st && (
+                          <Check className="size-3.5 shrink-0 text-primary" />
+                        )}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                {activeProject.ticketPrefix && (
+                  <DropdownMenuItem
+                    onClick={() => {
+                      navigator.clipboard.writeText(
+                        activeProject.ticketPrefix as string,
+                      );
+                      toast.success(
+                        `Copied prefix ${activeProject.ticketPrefix}`,
+                      );
+                    }}
+                    className="text-xs gap-2"
+                  >
+                    <Hash className="size-3.5 text-muted-foreground" />
+                    <span className="flex-1">Copy ticket prefix</span>
+                    <span className="font-mono text-muted-foreground">
+                      {activeProject.ticketPrefix}
+                    </span>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem
                   onClick={() => setViewMode('settings')}
                   className="text-xs gap-2"
@@ -1002,117 +1076,112 @@ export function AsanaProjectManager() {
                   All projects
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => handleDeleteProject(activeProject.id)}
-                  className="text-xs gap-2 text-destructive focus:text-destructive"
+                  onClick={() => setIsShortcutsOpen(true)}
+                  className="text-xs gap-2"
                 >
-                  <Trash2 className="size-3.5" />
-                  Delete project
+                  <Keyboard className="size-3.5 text-muted-foreground" />
+                  Keyboard shortcuts
                 </DropdownMenuItem>
+                {can(WorkspacePermission.DELETE) ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => handleDeleteProject(activeProject.id)}
+                      className="text-xs gap-2 text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="size-3.5" />
+                      Delete project
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
               </DropdownMenuContent>
             </DropdownMenu>
           ) : null}
         </div>
 
-        {/* Right Action Bar */}
+        {/* Right Action Bar. Each control shows only where it does something. */}
         <div className="gap-2 flex flex-wrap items-center">
-          <button
-            type="button"
-            onClick={() => setIsCommandMenuOpen(true)}
-            className="gap-1.5 px-2.5 h-7 text-xs font-medium flex cursor-pointer items-center rounded-md border border-border/60 bg-surface text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            title="Open Command Palette (⌘K)"
-          >
-            <Command className="size-3.5 text-muted-foreground" />
-            <span className="sm:inline hidden">Search</span>
-            <KbdShortcut
-              keys={['mod', 'K']}
-              size="xs"
-              variant="muted"
-              responsive
-            />
-          </button>
+          {isTaskView ? (
+            <>
+              <div className="w-36 sm:w-48 relative">
+                <Search className="w-3.5 h-3.5 left-2.5 top-2 absolute text-muted-foreground" />
+                <Input
+                  placeholder="Search tasks..."
+                  aria-label="Search tasks"
+                  value={filter.query}
+                  onChange={(e) =>
+                    setFilter((prev) => ({ ...prev, query: e.target.value }))
+                  }
+                  className="pl-8 text-xs h-7 bg-muted/40"
+                />
+              </div>
 
-          <button
-            type="button"
-            onClick={() => setIsShortcutsOpen(true)}
-            className="size-7 flex cursor-pointer items-center justify-center rounded-md border border-border/60 bg-surface text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            title="Keyboard Shortcuts (?)"
-          >
-            <Keyboard className="size-3.5" />
-          </button>
+              <div className="relative">
+                <Button
+                  variant={
+                    isFilterMenuOpen || filterCount > 0
+                      ? 'secondary'
+                      : 'outline'
+                  }
+                  size="sm"
+                  onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
+                  className="gap-1.5 text-xs h-7 font-medium cursor-pointer"
+                >
+                  <Filter className="size-3.5 text-muted-foreground" />
+                  <span>Filter</span>
+                  {filterCount > 0 ? (
+                    <Badge
+                      variant="count"
+                      className="bg-brand/20 text-brand-text"
+                    >
+                      {filterCount}
+                    </Badge>
+                  ) : null}
+                </Button>
 
-          <div className="w-36 sm:w-48 relative">
-            <Search className="w-3.5 h-3.5 left-2.5 top-2.5 absolute text-muted-foreground" />
-            <Input
-              placeholder="Filter tasks..."
-              value={filter.query}
-              onChange={(e) =>
-                setFilter((prev) => ({ ...prev, query: e.target.value }))
-              }
-              className="pl-8 text-xs h-7 bg-muted/40"
-            />
-          </div>
+                <LinearFilterMenu
+                  filter={filter}
+                  setFilter={setFilter}
+                  members={members}
+                  milestones={milestones}
+                  isOpen={isFilterMenuOpen}
+                  onClose={() => setIsFilterMenuOpen(false)}
+                  onActivateAIFilter={() => setShowAIFilterInput(true)}
+                />
+              </div>
+            </>
+          ) : null}
 
-          <div className="relative">
-            <Button
-              variant={
-                isFilterMenuOpen || filterCount > 0 ? 'secondary' : 'outline'
-              }
-              size="sm"
-              onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
-              className="gap-1.5 text-xs h-7 font-medium cursor-pointer"
-            >
-              <Filter className="size-3.5 text-muted-foreground" />
-              <span>Filter</span>
-              {filterCount > 0 ? (
-                <Badge variant="count" className="bg-brand/20 text-brand-text">
-                  {filterCount}
-                </Badge>
-              ) : null}
-            </Button>
-
-            <LinearFilterMenu
-              filter={filter}
-              setFilter={setFilter}
-              members={members}
-              milestones={milestones}
-              isOpen={isFilterMenuOpen}
-              onClose={() => setIsFilterMenuOpen(false)}
-              onActivateAIFilter={() => setShowAIFilterInput(true)}
-            />
-          </div>
-
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setIsViewDisplayOpen(!isViewDisplayOpen)}
-              className={cn(
-                'gap-1.5 px-3 h-7 text-xs font-medium flex cursor-pointer items-center rounded-md border border-border/60 transition-colors hover:bg-accent',
-                isViewDisplayOpen &&
-                  'font-semibold border-primary/50 bg-accent text-foreground',
-              )}
-              title="Switch view"
-            >
-              <SlidersHorizontal className="size-3.5 text-muted-foreground" />
-              <span>View</span>
-            </button>
-
+          {viewMode === 'board' || viewMode === 'list' ? (
             <ViewDisplayMenu
-              isOpen={isViewDisplayOpen}
-              onClose={() => setIsViewDisplayOpen(false)}
-              viewMode={viewMode}
-              onViewModeChange={setViewMode}
+              open={isViewDisplayOpen}
+              onOpenChange={setIsViewDisplayOpen}
+              trigger={
+                <Button
+                  variant={isViewDisplayOpen ? 'secondary' : 'outline'}
+                  size="sm"
+                  className="gap-1.5 text-xs h-7 font-medium cursor-pointer"
+                  title="Display options (V)"
+                >
+                  <SlidersHorizontal className="size-3.5 text-muted-foreground" />
+                  <span>Display</span>
+                </Button>
+              }
             />
-          </div>
+          ) : null}
 
-          <Button
-            size="sm"
-            onClick={handleQuickAddTask}
-            disabled={!activeProject || board.isMutating}
-            className="gap-1.5 font-semibold text-xs h-7"
-          >
-            <Plus className="w-4 h-4" />
-            Add Task
-          </Button>
+          {canAddTask ? (
+            <Button
+              size="sm"
+              onClick={() => openNewTask()}
+              disabled={!activeProject}
+              className="gap-1.5 font-semibold text-xs h-7"
+              title="Add task (C)"
+            >
+              <Plus className="w-4 h-4" />
+              Add task
+            </Button>
+          ) : null}
         </div>
       </header>
 
@@ -1181,42 +1250,37 @@ export function AsanaProjectManager() {
 
             {viewMode === 'list' && (
               <ProjectListView
-                board={board.board}
+                board={filteredBoard}
                 dispatch={board.dispatch}
                 onSelectCard={(card) => setSelectedCardId(card.id)}
-                searchQuery={filter.query}
                 isLoading={board.isLoading}
               />
             )}
 
             {viewMode === 'spreadsheet' && (
               <ProjectSpreadsheetView
-                tasks={projectTasks}
+                tasks={filteredTasks}
                 members={publicMembers}
                 onSelectTask={(task) => setSelectedCardId(task.id)}
                 onUpdateTask={(taskId, patch) => {
                   taskMutations.update.mutate({ taskId, input: patch as any });
                 }}
-                onQuickAddTask={handleQuickAddTask}
-                searchQuery={filter.query}
               />
             )}
 
             {viewMode === 'timeline' && (
               <ProjectTimelineView
-                board={board.board}
+                board={filteredBoard}
                 onSelectCard={(card) => setSelectedCardId(card.id)}
-                searchQuery={filter.query}
               />
             )}
 
             {viewMode === 'gantt' && (
               <ProjectGanttView
-                tasks={projectTasks}
+                tasks={filteredTasks}
                 milestones={activeProject?.milestones}
                 members={publicMembers}
                 onSelectTask={(task) => setSelectedCardId(task.id)}
-                searchQuery={filter.query}
               />
             )}
 
@@ -1249,15 +1313,18 @@ export function AsanaProjectManager() {
                 tasks={projectTasks}
                 members={publicMembers}
                 onSelectTask={(task) => setSelectedCardId(task.id)}
-                onCreateCycle={(input) => {
-                  cycleMutations.create.mutate({
+                onCreateCycle={(input) =>
+                  cycleMutations.create.mutateAsync({
                     ...input,
                     projectId: activeProject?.id,
-                  });
-                }}
-                onUpdateCycleStatus={(cycleId, status) => {
-                  cycleMutations.update.mutate({ cycleId, input: { status } });
-                }}
+                  })
+                }
+                onUpdateCycle={(cycleId, input) =>
+                  cycleMutations.update.mutateAsync({ cycleId, input })
+                }
+                onDeleteCycle={(cycleId) =>
+                  cycleMutations.remove.mutateAsync(cycleId)
+                }
                 onAssignTaskToCycle={(taskId, cycleId) => {
                   taskMutations.update.mutate({ taskId, input: { cycleId } });
                 }}
@@ -1272,8 +1339,27 @@ export function AsanaProjectManager() {
                 tasks={projectTasks}
                 members={publicMembers}
                 onSelectTask={(task) => setSelectedCardId(task.id)}
-                onCreateEpic={(input) => epicMutations.create.mutate(input)}
-                onCreateModule={(input) => moduleMutations.create.mutate(input)}
+                onCreateEpic={(input) =>
+                  epicMutations.create.mutateAsync(input)
+                }
+                onUpdateEpic={(epicId, input) =>
+                  epicMutations.update.mutateAsync({ epicId, input })
+                }
+                onDeleteEpic={(epicId) =>
+                  epicMutations.remove.mutateAsync(epicId)
+                }
+                onCreateModule={(input) =>
+                  moduleMutations.create.mutateAsync(input)
+                }
+                onUpdateModule={(moduleId, input) =>
+                  moduleMutations.update.mutateAsync({ moduleId, input })
+                }
+                onDeleteModule={(moduleId) =>
+                  moduleMutations.remove.mutateAsync(moduleId)
+                }
+                onLinkTask={(taskId, link) =>
+                  taskMutations.update.mutate({ taskId, input: link })
+                }
               />
             )}
 
@@ -1284,7 +1370,16 @@ export function AsanaProjectManager() {
                 members={publicMembers}
                 onSelectProject={openProject}
                 onCreateInitiative={(input) =>
-                  initiativeMutations.create.mutate(input)
+                  initiativeMutations.create.mutateAsync(input)
+                }
+                onUpdateInitiative={(initiativeId, input) =>
+                  initiativeMutations.update.mutateAsync({
+                    initiativeId,
+                    input,
+                  })
+                }
+                onDeleteInitiative={(initiativeId) =>
+                  initiativeMutations.remove.mutateAsync(initiativeId)
                 }
               />
             )}
@@ -1295,7 +1390,12 @@ export function AsanaProjectManager() {
                 projects={projects}
                 members={publicMembers}
                 onConvert={(intakeId, input) => {
-                  intakeMutations.convert.mutate({ intakeId, input });
+                  intakeMutations.convert.mutate(
+                    { intakeId, input },
+                    {
+                      onSuccess: () => toast.success('Request added as a task'),
+                    },
+                  );
                 }}
                 onDecline={(intakeId) => {
                   intakeMutations.decline.mutate(intakeId);
@@ -1330,22 +1430,25 @@ export function AsanaProjectManager() {
 
             {viewMode === 'settings' && activeProject && (
               <ProjectSettingsView
+                // Remounts per project: the form holds its own draft, and a
+                // draft of the last project must not be saved onto this one.
+                key={activeProject.id}
                 project={activeProject}
                 teams={teamsQuery.data || []}
                 members={publicMembers}
-                onUpdateProject={(patch) => {
-                  projectMutations.update.mutate({
+                onUpdateProject={(patch) =>
+                  projectMutations.update.mutateAsync({
                     projectId: activeProject.id,
                     input: patch,
-                  });
-                }}
-                onUpdateIdentifierSettings={(input) => {
-                  projectMutations.updateIdentifierSettings.mutate({
+                  })
+                }
+                onUpdateIdentifierSettings={(input) =>
+                  projectMutations.updateIdentifierSettings.mutateAsync({
                     projectId: activeProject.id,
                     input,
-                  });
-                }}
-                onDeleteProject={() => handleDeleteProject(activeProject.id)}
+                  })
+                }
+                onDeleteProject={() => removeProject(activeProject.id)}
               />
             )}
           </>
@@ -1479,24 +1582,27 @@ function ProjectDialog({
               </div>
             </div>
 
-            <div className="gap-1.5 flex flex-col">
-              <label className="text-xs font-semibold" htmlFor="project-slug">
-                Project slug
-              </label>
-              <Input
-                id="project-slug"
-                required
-                placeholder="project-slug"
-                value={draft.slug}
-                onChange={(e) =>
-                  setDraft((prev) => ({
-                    ...prev,
-                    slug: slugify(e.target.value),
-                  }))
-                }
-                className="text-xs font-mono"
-              />
-            </div>
+            {/* A slug is fixed once created: links to the project depend on it. */}
+            {!showStatus && (
+              <div className="gap-1.5 flex flex-col">
+                <label className="text-xs font-semibold" htmlFor="project-slug">
+                  Project slug
+                </label>
+                <Input
+                  id="project-slug"
+                  required
+                  placeholder="project-slug"
+                  value={draft.slug}
+                  onChange={(e) =>
+                    setDraft((prev) => ({
+                      ...prev,
+                      slug: slugify(e.target.value),
+                    }))
+                  }
+                  className="text-xs font-mono"
+                />
+              </div>
+            )}
 
             <div className="gap-1.5 flex flex-col">
               <label

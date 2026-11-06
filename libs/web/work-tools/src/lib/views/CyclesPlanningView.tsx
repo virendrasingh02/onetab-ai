@@ -1,15 +1,23 @@
 import {
+  Badge,
   Button,
   Card,
   CardContent,
   CardHeader,
   CardTitle,
+  confirm,
   Dialog,
   DialogContent,
   DialogFooter,
   DialogBody,
   DialogHeader,
   DialogTitle,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  EmptyState,
+  Field,
   Input,
   Progress,
   Select,
@@ -22,6 +30,7 @@ import {
 } from '@org/ui';
 import {
   CycleStatus,
+  WorkspacePermission,
   type Cycle,
   type PublicUser,
   type Task,
@@ -30,26 +39,70 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
+  MoreHorizontal,
+  Pencil,
+  Play,
   Plus,
   RotateCw,
+  Trash2,
   Zap,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
+import { useWorkspacePermission } from '@org/web-workspace';
 import { StatusIcon } from '../kanban/kanban-icons.js';
+import { dayToIso, isoToDay, taskTicket } from '../kanban/server-board.js';
+
+const CYCLE_STATUS_LABELS: Record<CycleStatus, string> = {
+  DRAFT: 'Draft',
+  UPCOMING: 'Upcoming',
+  ACTIVE: 'Active',
+  COMPLETED: 'Completed',
+  ARCHIVED: 'Archived',
+};
+
+interface CycleDraft {
+  id?: string;
+  name: string;
+  goal: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+function newCycleDraft(): CycleDraft {
+  const end = new Date();
+  end.setDate(end.getDate() + 14);
+  return {
+    name: '',
+    goal: '',
+    startDate: isoToDay(new Date().toISOString()),
+    endDate: isoToDay(end.toISOString()),
+  };
+}
 
 interface CyclesPlanningViewProps {
   cycles: Cycle[];
   tasks: Task[];
   members: PublicUser[];
   onSelectTask: (task: Task) => void;
+  /** Each rejects on failure; the app's mutation handler shows the error. */
   onCreateCycle: (input: {
     name: string;
     description?: string;
     goal?: string;
     startDate: string;
     endDate: string;
-  }) => void;
-  onUpdateCycleStatus: (cycleId: string, status: CycleStatus) => void;
+  }) => Promise<Cycle>;
+  onUpdateCycle: (
+    cycleId: string,
+    input: {
+      name?: string;
+      goal?: string | null;
+      startDate?: string;
+      endDate?: string;
+      status?: CycleStatus;
+    },
+  ) => Promise<unknown>;
+  onDeleteCycle: (cycleId: string) => Promise<unknown>;
   onAssignTaskToCycle: (taskId: string, cycleId: string | null) => void;
 }
 
@@ -58,75 +111,169 @@ export function CyclesPlanningView({
   tasks,
   onSelectTask,
   onCreateCycle,
+  onUpdateCycle,
+  onDeleteCycle,
   onAssignTaskToCycle,
 }: CyclesPlanningViewProps) {
-  const [selectedCycleId, setSelectedCycleId] = useState<string | null>(
-    () => cycles.find((c) => c.status === CycleStatus.ACTIVE)?.id || cycles[0]?.id || null,
-  );
+  const canDelete = useWorkspacePermission().can(WorkspacePermission.DELETE);
+  const [pickedCycleId, setPickedCycleId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<CycleDraft | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [name, setName] = useState('');
-  const [goal, setGoal] = useState('');
-  const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 14);
-    return d.toISOString().split('T')[0];
-  });
-
-  const selectedCycle = cycles.find((c) => c.id === selectedCycleId);
-  const cycleTasks = tasks.filter((t) => t.cycleId === selectedCycleId);
+  // Derived, not stored: cycles arrive after the first render, and a deleted
+  // cycle has to fall back to something.
+  const selectedCycle =
+    cycles.find((c) => c.id === pickedCycleId) ??
+    cycles.find((c) => c.status === CycleStatus.ACTIVE) ??
+    cycles[0];
+  const selectedCycleId = selectedCycle?.id ?? null;
+  const cycleTasks = selectedCycle
+    ? tasks.filter((t) => t.cycleId === selectedCycle.id)
+    : [];
   const backlogTasks = tasks.filter((t) => !t.cycleId);
 
   const completedCount = cycleTasks.filter((t) => t.status === 'DONE').length;
   const totalCount = cycleTasks.length;
-  const progressPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+  const progressPct =
+    totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
-  const totalEstimate = cycleTasks.reduce((acc, t) => acc + (t.estimate || 0), 0);
+  const totalEstimate = cycleTasks.reduce(
+    (acc, t) => acc + (t.estimate || 0),
+    0,
+  );
   const completedEstimate = cycleTasks
     .filter((t) => t.status === 'DONE')
     .reduce((acc, t) => acc + (t.estimate || 0), 0);
 
-  const handleCreate = () => {
-    if (!name.trim()) return;
-    onCreateCycle({
-      name: name.trim(),
-      goal: goal.trim() || undefined,
-      startDate: new Date(startDate).toISOString(),
-      endDate: new Date(endDate).toISOString(),
-    });
-    setIsCreateOpen(false);
-    setName('');
-    setGoal('');
+  const draftDatesValid =
+    !!draft?.startDate && !!draft.endDate && draft.startDate <= draft.endDate;
+
+  const handleSave = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!draft || !draft.name.trim() || !draftDatesValid) return;
+
+    const input = {
+      name: draft.name.trim(),
+      startDate: dayToIso(draft.startDate as string),
+      endDate: dayToIso(draft.endDate as string),
+    };
+    setSaving(true);
+    try {
+      if (draft.id) {
+        await onUpdateCycle(draft.id, {
+          ...input,
+          goal: draft.goal.trim() || null,
+        });
+      } else {
+        const created = await onCreateCycle({
+          ...input,
+          goal: draft.goal.trim() || undefined,
+        });
+        setPickedCycleId(created.id);
+      }
+      setDraft(null);
+    } catch {
+      // The draft stays open so nothing typed is lost.
+    } finally {
+      setSaving(false);
+    }
   };
 
+  const handleDelete = async (cycle: Cycle) => {
+    const ok = await confirm({
+      title: `Delete “${cycle.name}”?`,
+      description:
+        'Its tasks stay in the project and go back to having no cycle.',
+      confirmLabel: 'Delete cycle',
+      destructive: true,
+    });
+    if (ok) await onDeleteCycle(cycle.id).catch(() => undefined);
+  };
+
+  const setStatus = (status: CycleStatus) => {
+    if (selectedCycle) {
+      onUpdateCycle(selectedCycle.id, { status }).catch(() => undefined);
+    }
+  };
+
+  if (cycles.length === 0) {
+    return (
+      <div className="p-4 flex h-full w-full items-center justify-center">
+        <EmptyState
+          icon={<RotateCw />}
+          title="No cycles yet"
+          description="A cycle is a fixed stretch of time with a goal. Plan one, then pull tasks into it."
+          action={
+            <Button
+              size="sm"
+              leadingIcon={<Plus />}
+              onClick={() => setDraft(newCycleDraft())}
+            >
+              New cycle
+            </Button>
+          }
+        />
+        {renderDialog()}
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col w-full h-full gap-6 p-4 overflow-y-auto">
+    <div className="gap-6 p-4 flex h-full w-full flex-col overflow-y-auto">
       {/* Top Banner: Active Cycle Overview & Stats */}
-      <div className="flex flex-col lg:flex-row gap-4 items-stretch">
+      <div className="lg:flex-row gap-4 flex flex-col items-stretch">
         {/* Left: Cycle Selector & Status */}
         <Card className="flex-1 border border-border/60 bg-card/80 shadow-xs">
           <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="size-8 rounded-lg bg-primary/10 grid place-items-center text-primary">
+            <div className="gap-3 flex items-center">
+              <div className="size-8 grid place-items-center rounded-lg bg-primary/10 text-primary">
                 <RotateCw className="size-4" />
               </div>
               <div>
-                <CardTitle className="text-sm font-semibold">
-                  {selectedCycle ? selectedCycle.name : 'Select or Create a Cycle'}
+                <CardTitle className="text-sm font-semibold gap-2 flex items-center">
+                  {selectedCycle?.name}
+                  {selectedCycle ? (
+                    <Badge variant="neutral" className="text-[10px]">
+                      {CYCLE_STATUS_LABELS[selectedCycle.status]}
+                    </Badge>
+                  ) : null}
                 </CardTitle>
                 {selectedCycle?.goal && (
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <p className="text-xs mt-0.5 text-muted-foreground">
                     Goal: {selectedCycle.goal}
                   </p>
                 )}
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="gap-2 flex items-center">
+              {selectedCycle?.status === CycleStatus.ACTIVE ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setStatus(CycleStatus.COMPLETED)}
+                  className="gap-1.5 text-xs h-8"
+                >
+                  <CheckCircle2 className="size-3.5" />
+                  Complete
+                </Button>
+              ) : selectedCycle &&
+                selectedCycle.status !== CycleStatus.COMPLETED &&
+                selectedCycle.status !== CycleStatus.ARCHIVED ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setStatus(CycleStatus.ACTIVE)}
+                  className="gap-1.5 text-xs h-8"
+                >
+                  <Play className="size-3.5" />
+                  Start
+                </Button>
+              ) : null}
+
               <Select
                 value={selectedCycleId || ''}
-                onValueChange={(val) => setSelectedCycleId(val)}
+                onValueChange={(val) => setPickedCycleId(val)}
               >
                 <SelectTrigger className="h-8 text-xs w-44">
                   <SelectValue placeholder="Choose cycle" />
@@ -134,7 +281,7 @@ export function CyclesPlanningView({
                 <SelectContent>
                   {cycles.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
-                      {c.name} ({c.status})
+                      {c.name} ({CYCLE_STATUS_LABELS[c.status]})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -142,26 +289,69 @@ export function CyclesPlanningView({
 
               <Button
                 size="sm"
-                onClick={() => setIsCreateOpen(true)}
+                onClick={() => setDraft(newCycleDraft())}
                 className="gap-1.5 text-xs h-8"
               >
                 <Plus className="size-3.5" />
-                New Cycle
+                New cycle
               </Button>
+
+              {selectedCycle ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Actions for ${selectedCycle.name}`}
+                    >
+                      <MoreHorizontal className="size-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-40">
+                    <DropdownMenuItem
+                      onSelect={() =>
+                        setDraft({
+                          id: selectedCycle.id,
+                          name: selectedCycle.name,
+                          goal: selectedCycle.goal ?? '',
+                          startDate: isoToDay(selectedCycle.startDate),
+                          endDate: isoToDay(selectedCycle.endDate),
+                        })
+                      }
+                      className="gap-2 text-xs"
+                    >
+                      <Pencil className="size-3.5" />
+                      Edit
+                    </DropdownMenuItem>
+                    {canDelete ? (
+                      <DropdownMenuItem
+                        variant="destructive"
+                        onSelect={() => void handleDelete(selectedCycle)}
+                        className="gap-2 text-xs"
+                      >
+                        <Trash2 className="size-3.5" />
+                        Delete
+                      </DropdownMenuItem>
+                    ) : null}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : null}
             </div>
           </CardHeader>
 
-          <CardContent className="p-4 pt-3 flex flex-col gap-3">
+          <CardContent className="p-4 pt-3 gap-3 flex flex-col">
             {selectedCycle && (
               <>
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
+                <div className="text-xs flex items-center justify-between text-muted-foreground">
+                  <span className="gap-1 flex items-center">
                     <Calendar className="size-3.5" />
-                    {new Date(selectedCycle.startDate).toLocaleDateString()} –{' '}
+                    {new Date(
+                      selectedCycle.startDate,
+                    ).toLocaleDateString()} –{' '}
                     {new Date(selectedCycle.endDate).toLocaleDateString()}
                   </span>
                   <span className="font-semibold text-foreground">
-                    {progressPct}% Completed ({completedCount}/{totalCount} tasks)
+                    {progressPct}% done ({completedCount}/{totalCount} tasks)
                   </span>
                 </div>
                 <Progress value={progressPct} className="h-2" />
@@ -171,11 +361,11 @@ export function CyclesPlanningView({
         </Card>
 
         {/* Right: Metrics Tiles */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 shrink-0 lg:w-[420px]">
-          <Card className="border border-border/60 p-3 bg-muted/20 flex flex-col justify-between">
-            <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
+        <div className="sm:grid-cols-3 gap-3 lg:w-[420px] grid shrink-0 grid-cols-2">
+          <Card className="p-3 flex flex-col justify-between border border-border/60 bg-muted/20">
+            <span className="font-medium gap-1 flex items-center text-[11px] text-muted-foreground">
               <Zap className="size-3.5 text-accent-amber" />
-              Velocity
+              Points done
             </span>
             <div className="text-xl font-bold text-foreground">
               {completedEstimate}{' '}
@@ -185,16 +375,18 @@ export function CyclesPlanningView({
             </div>
           </Card>
 
-          <Card className="border border-border/60 p-3 bg-muted/20 flex flex-col justify-between">
-            <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
+          <Card className="p-3 flex flex-col justify-between border border-border/60 bg-muted/20">
+            <span className="font-medium gap-1 flex items-center text-[11px] text-muted-foreground">
               <CheckCircle2 className="size-3.5 text-accent-green" />
-              Done Tasks
+              Tasks done
             </span>
-            <div className="text-xl font-bold text-accent-green">{completedCount}</div>
+            <div className="text-xl font-bold text-accent-green">
+              {completedCount}
+            </div>
           </Card>
 
-          <Card className="border border-border/60 p-3 bg-muted/20 flex flex-col justify-between col-span-2 sm:col-span-1">
-            <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
+          <Card className="p-3 sm:col-span-1 col-span-2 flex flex-col justify-between border border-border/60 bg-muted/20">
+            <span className="font-medium gap-1 flex items-center text-[11px] text-muted-foreground">
               <Clock className="size-3.5 text-accent-blue" />
               Remaining
             </span>
@@ -206,40 +398,44 @@ export function CyclesPlanningView({
       </div>
 
       {/* Main Area: 2 Columns - In Cycle vs Backlog Carry-Over */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1">
+      <div className="lg:grid-cols-2 gap-6 grid flex-1 grid-cols-1">
         {/* In-Cycle Work Items */}
-        <div className="flex flex-col border border-border/60 rounded-xl bg-card overflow-hidden shadow-xs">
-          <div className="px-4 py-3 bg-muted/40 border-b border-border/60 flex items-center justify-between">
-            <span className="font-semibold text-xs text-foreground uppercase tracking-wider">
-              Work Items in {selectedCycle?.name || 'Cycle'} ({cycleTasks.length})
+        <div className="flex flex-col overflow-hidden rounded-xl border border-border/60 bg-card shadow-xs">
+          <div className="px-4 py-3 flex items-center justify-between border-b border-border/60 bg-muted/40">
+            <span className="font-medium text-xs text-foreground">
+              In {selectedCycle?.name || 'cycle'} ({cycleTasks.length})
             </span>
           </div>
 
-          <div className="flex-1 p-2 overflow-y-auto divide-y divide-border/30 space-y-1">
+          <div className="p-2 space-y-1 flex-1 divide-y divide-border/30 overflow-y-auto">
             {cycleTasks.length === 0 ? (
-              <div className="py-12 text-center text-xs text-muted-foreground">
-                No work items assigned to this cycle yet. Move items from the backlog.
+              <div className="py-12 text-xs text-center text-muted-foreground">
+                Nothing in this cycle yet. Add tasks from the list beside this
+                one.
               </div>
             ) : (
               cycleTasks.map((task) => (
                 <div
                   key={task.id}
                   onClick={() => onSelectTask(task)}
-                  className="p-2.5 rounded-lg hover:bg-muted/40 transition-colors flex items-center justify-between group cursor-pointer border border-transparent hover:border-border/40"
+                  className="p-2.5 group flex cursor-pointer items-center justify-between rounded-lg border border-transparent transition-colors hover:border-border/40 hover:bg-muted/40"
                 >
-                  <div className="flex items-center gap-2.5 truncate pr-2">
-                    <StatusIcon status={task.status} className="size-3.5 shrink-0" />
-                    <span className="font-mono text-[10px] text-brand-text/80 font-bold">
-                      {task.identifier || 'TASK'}
+                  <div className="gap-2.5 pr-2 flex items-center truncate">
+                    <StatusIcon
+                      status={task.status}
+                      className="size-3.5 shrink-0"
+                    />
+                    <span className="font-mono text-[10px] text-muted-foreground">
+                      {taskTicket(task)}
                     </span>
-                    <span className="text-xs text-foreground font-medium truncate">
+                    <span className="text-xs font-medium truncate text-foreground">
                       {task.title}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="gap-2 flex shrink-0 items-center">
                     {task.estimate != null && (
-                      <span className="text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                      <span className="px-1.5 py-0.5 rounded bg-muted font-mono text-[10px] text-muted-foreground">
                         {task.estimate} pts
                       </span>
                     )}
@@ -259,7 +455,7 @@ export function CyclesPlanningView({
                         e.stopPropagation();
                         onAssignTaskToCycle(task.id, null);
                       }}
-                      className="text-[10px] text-muted-foreground hover:text-destructive h-6 px-1.5"
+                      className="h-6 px-1.5 text-[10px] text-muted-foreground hover:text-destructive"
                     >
                       Remove
                     </Button>
@@ -271,38 +467,41 @@ export function CyclesPlanningView({
         </div>
 
         {/* Backlog Items to Add */}
-        <div className="flex flex-col border border-border/60 rounded-xl bg-card overflow-hidden shadow-xs">
-          <div className="px-4 py-3 bg-muted/40 border-b border-border/60 flex items-center justify-between">
-            <span className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">
-              Workspace Backlog ({backlogTasks.length})
+        <div className="flex flex-col overflow-hidden rounded-xl border border-border/60 bg-card shadow-xs">
+          <div className="px-4 py-3 flex items-center justify-between border-b border-border/60 bg-muted/40">
+            <span className="font-medium text-xs text-muted-foreground">
+              Not in a cycle ({backlogTasks.length})
             </span>
           </div>
 
-          <div className="flex-1 p-2 overflow-y-auto divide-y divide-border/30 space-y-1">
+          <div className="p-2 space-y-1 flex-1 divide-y divide-border/30 overflow-y-auto">
             {backlogTasks.length === 0 ? (
-              <div className="py-12 text-center text-xs text-muted-foreground">
-                No backlog work items available.
+              <div className="py-12 text-xs text-center text-muted-foreground">
+                Every task in this project is in a cycle.
               </div>
             ) : (
               backlogTasks.map((task) => (
                 <div
                   key={task.id}
                   onClick={() => onSelectTask(task)}
-                  className="p-2.5 rounded-lg hover:bg-muted/40 transition-colors flex items-center justify-between group cursor-pointer border border-transparent hover:border-border/40"
+                  className="p-2.5 group flex cursor-pointer items-center justify-between rounded-lg border border-transparent transition-colors hover:border-border/40 hover:bg-muted/40"
                 >
-                  <div className="flex items-center gap-2.5 truncate pr-2">
-                    <StatusIcon status={task.status} className="size-3.5 shrink-0" />
-                    <span className="font-mono text-[10px] text-brand-text/80 font-bold">
-                      {task.identifier || 'TASK'}
+                  <div className="gap-2.5 pr-2 flex items-center truncate">
+                    <StatusIcon
+                      status={task.status}
+                      className="size-3.5 shrink-0"
+                    />
+                    <span className="font-mono text-[10px] text-muted-foreground">
+                      {taskTicket(task)}
                     </span>
-                    <span className="text-xs text-foreground font-medium truncate">
+                    <span className="text-xs font-medium truncate text-foreground">
                       {task.title}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="gap-2 flex shrink-0 items-center">
                     {task.estimate != null && (
-                      <span className="text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                      <span className="px-1.5 py-0.5 rounded bg-muted font-mono text-[10px] text-muted-foreground">
                         {task.estimate} pts
                       </span>
                     )}
@@ -314,10 +513,10 @@ export function CyclesPlanningView({
                           e.stopPropagation();
                           onAssignTaskToCycle(task.id, selectedCycleId);
                         }}
-                        className="text-[10px] h-6 px-2 gap-1 text-primary"
+                        className="h-6 px-2 gap-1 text-[10px] text-primary"
                       >
                         <Plus className="size-3" />
-                        Add to Cycle
+                        Add
                       </Button>
                     )}
                   </div>
@@ -328,50 +527,97 @@ export function CyclesPlanningView({
         </div>
       </div>
 
-      {/* Create Cycle Dialog */}
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>New Planning Cycle</DialogTitle>
-          </DialogHeader>
-          <DialogBody className="flex flex-col gap-3">
-            <div>
-              <label className="text-xs font-semibold mb-1 block">Cycle Name</label>
-              <Input
-                placeholder="e.g. Sprint 24 or Q3 Launch"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold mb-1 block">Cycle Goal</label>
-              <Input
-                placeholder="Key outcome or deliverable"
-                value={goal}
-                onChange={(e) => setGoal(e.target.value)}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-xs font-semibold mb-1 block">Start Date</label>
-                <DatePicker value={startDate} onChange={(d) => setStartDate(d ?? '')} />
-              </div>
-              <div>
-                <label className="text-xs font-semibold mb-1 block">End Date</label>
-                <DatePicker value={endDate} onChange={(d) => setEndDate(d ?? '')} />
-              </div>
-            </div>
-          </DialogBody>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreate} disabled={!name.trim()}>
-              Create Cycle
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {renderDialog()}
     </div>
   );
+
+  function renderDialog() {
+    return (
+      <Dialog
+        open={draft !== null}
+        onOpenChange={(open) => {
+          if (!open) setDraft(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          {draft ? (
+            <form onSubmit={handleSave}>
+              <DialogHeader>
+                <DialogTitle>
+                  {draft.id ? 'Edit cycle' : 'New cycle'}
+                </DialogTitle>
+              </DialogHeader>
+              <DialogBody className="gap-3 flex flex-col">
+                <Field label="Name" required>
+                  <Input
+                    autoFocus
+                    maxLength={100}
+                    placeholder="e.g. Sprint 24"
+                    value={draft.name}
+                    onChange={(e) =>
+                      setDraft({ ...draft, name: e.target.value })
+                    }
+                  />
+                </Field>
+                <Field label="Goal" optional>
+                  <Input
+                    maxLength={500}
+                    placeholder="What this cycle should deliver"
+                    value={draft.goal}
+                    onChange={(e) =>
+                      setDraft({ ...draft, goal: e.target.value })
+                    }
+                  />
+                </Field>
+                <div className="gap-3 grid grid-cols-2">
+                  <Field label="Start date" required>
+                    <DatePicker
+                      value={draft.startDate}
+                      onChange={(startDate) =>
+                        setDraft({ ...draft, startDate })
+                      }
+                    />
+                  </Field>
+                  <Field
+                    label="End date"
+                    required
+                    error={
+                      draft.startDate &&
+                      draft.endDate &&
+                      draft.startDate > draft.endDate
+                        ? 'Must be after the start date'
+                        : undefined
+                    }
+                  >
+                    <DatePicker
+                      value={draft.endDate}
+                      onChange={(endDate) => setDraft({ ...draft, endDate })}
+                    />
+                  </Field>
+                </div>
+              </DialogBody>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDraft(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  loading={saving}
+                  disabled={!draft.name.trim() || !draftDatesValid}
+                >
+                  {draft.id ? 'Save changes' : 'Create cycle'}
+                </Button>
+              </DialogFooter>
+            </form>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+    );
+  }
 }

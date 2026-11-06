@@ -258,15 +258,15 @@ export function GroupConversation({
         isChannel={isChannel}
         workspacePeople={allWorkspacePeople}
         chatActionsRef={setChatActionsSlot}
-          headerEnd={headerEnd}
+        headerEnd={headerEnd}
         addPeopleOpen={addPeopleOpen}
         onAddPeopleOpenChange={setAddPeopleOpen}
         membersPanelOpen={membersPanelOpen}
         onToggleMembersPanel={() => setMembersPanelOpen((open) => !open)}
         onStartHuddle={() => setHuddleRequest((count) => count + 1)}
       />
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-        <div className="flex-1 flex flex-col min-w-0">
+      <div className="min-h-0 flex flex-1 overflow-hidden">
+        <div className="min-w-0 flex flex-1 flex-col">
           <ConversationTabsShell
             filesContext={{ type: 'DIRECT', id: roomId }}
             roomId={roomId}
@@ -301,7 +301,7 @@ export function GroupConversation({
         </div>
 
         {membersPanelOpen ? (
-          <div className="w-80 shrink-0 h-full">
+          <div className="w-80 h-full shrink-0">
             <Suspense fallback={null}>
               <GroupMembersPanel
                 roomId={roomId}
@@ -494,7 +494,7 @@ function GroupHeader({
       <div className="gap-2.5 px-3 sm:px-6 pt-2 pb-1 min-h-11 flex flex-wrap items-center justify-between">
         <div className="min-w-0 gap-2.5 flex items-center">
           {/* Group Avatar with optional upload trigger */}
-          <div className="relative group/avatar shrink-0">
+          <div className="group/avatar relative shrink-0">
             <GroupAvatar
               name={title}
               avatarUrl={roomAvatarUrl}
@@ -508,7 +508,7 @@ function GroupHeader({
                 onClick={() => avatarInputRef.current?.click()}
                 title="Change group avatar"
                 aria-label="Change group avatar"
-                className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-lg text-white opacity-0 group-hover/avatar:opacity-100 transition-opacity cursor-pointer"
+                className="inset-0 bg-black/60 text-white absolute flex cursor-pointer items-center justify-center rounded-lg opacity-0 transition-opacity group-hover/avatar:opacity-100"
               >
                 <Camera className="size-3.5" />
               </button>
@@ -523,17 +523,17 @@ function GroupHeader({
           </div>
 
           <div className="min-w-0">
-            <h2 className="text-base font-semibold tracking-tight truncate text-foreground">
+            <h2 className="text-base font-medium truncate tracking-[-0.01em] text-foreground">
               {title}
             </h2>
             <button
               type="button"
               onClick={onToggleMembersPanel}
-              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 cursor-pointer"
+              className="gap-1 flex cursor-pointer items-center text-[11px] text-muted-foreground transition-colors hover:text-foreground"
             >
               {onlineCount > 0 ? (
-                <span className="inline-flex items-center gap-1 text-success font-medium">
-                  <span className="size-1.5 rounded-full bg-success inline-block" />
+                <span className="gap-1 font-medium inline-flex items-center text-success">
+                  <span className="size-1.5 inline-block rounded-full bg-success" />
                   {onlineCount} online
                 </span>
               ) : null}
@@ -556,7 +556,9 @@ function GroupHeader({
                 aria-pressed={membersPanelOpen}
                 aria-label="View members"
                 onClick={onToggleMembersPanel}
-                className={cn(membersPanelOpen && 'bg-accent text-accent-foreground')}
+                className={cn(
+                  membersPanelOpen && 'bg-accent text-accent-foreground',
+                )}
               >
                 <Users className="size-4" />
               </Button>
@@ -600,7 +602,9 @@ function GroupHeader({
                   className="gap-2.5"
                 >
                   <Users className="size-4" />
-                  <span>{membersPanelOpen ? 'Hide members' : 'View members'}</span>
+                  <span>
+                    {membersPanelOpen ? 'Hide members' : 'View members'}
+                  </span>
                 </DropdownMenuItem>
 
                 {!isChannel ? (
@@ -692,7 +696,10 @@ function GroupHeader({
                 {onStartHuddle ? (
                   <>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={onStartHuddle} className="gap-2.5">
+                    <DropdownMenuItem
+                      onClick={onStartHuddle}
+                      className="gap-2.5"
+                    >
                       <Headphones className="size-4" />
                       <span>Start a huddle</span>
                     </DropdownMenuItem>
@@ -832,7 +839,7 @@ function AddPeopleDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="h-80 border-t border-border flex flex-col">
+        <div className="h-80 flex flex-col border-t border-border">
           <PeoplePicker
             members={workspacePeople}
             selectedIds={selected}

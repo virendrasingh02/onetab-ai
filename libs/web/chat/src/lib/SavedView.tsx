@@ -256,7 +256,7 @@ export function SavedView() {
               className="size-4 shrink-0 text-muted-foreground"
               aria-hidden
             />
-            <h2 className="text-base font-semibold tracking-tight truncate text-foreground">
+            <h2 className="text-base font-medium truncate tracking-[-0.01em] text-foreground">
               Saved
             </h2>
             <Badge variant="outline" className="px-1.5 py-0 h-5 text-[11px]">

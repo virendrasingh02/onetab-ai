@@ -92,7 +92,9 @@ export function ProjectGallery({
 }: ProjectGalleryProps) {
   const [search, setSearch] = useState('');
   const [layout, setLayout] = useState<'grid' | 'compact'>('grid');
-  const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'all'>(
+    'all',
+  );
 
   /*
    * Completion is read off the tasks rather than stored, so it stays correct as
@@ -138,7 +140,7 @@ export function ProjectGallery({
           wrapperClassName="w-48 sm:w-72"
         />
 
-        <div className="flex items-center gap-2">
+        <div className="gap-2 flex items-center">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -190,7 +192,7 @@ export function ProjectGallery({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <div className="flex items-center rounded-md border border-border p-0.5">
+          <div className="p-0.5 flex items-center rounded-md border border-border">
             <button
               type="button"
               onClick={() => setLayout('grid')}
@@ -269,15 +271,18 @@ export function ProjectGallery({
         ) : (
           <div
             className={cn(
-              'grid gap-3',
-              layout === 'grid' ? 'sm:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1',
+              'gap-3 grid',
+              layout === 'grid'
+                ? 'sm:grid-cols-2 xl:grid-cols-3'
+                : 'grid-cols-1',
             )}
           >
             {visibleProjects.map((project) => {
               const counted = stats.get(project.id);
               const total = counted?.total ?? project._count.tasks;
               const done = counted?.done ?? 0;
-              const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+              const percent =
+                total === 0 ? 0 : Math.round((done / total) * 100);
               const accent = accentClasses[accentForHex(project.color)];
               const isActive = project.id === activeProjectId;
 
@@ -290,100 +295,85 @@ export function ProjectGallery({
                   entity={project}
                   label={project.name}
                 >
-                <Card
-                  onClick={() => onOpenProject(project.id)}
-                  className={cn(
-                    'cursor-pointer bg-surface text-foreground border-border',
-                    'hover:border-border-strong hover:bg-surface-raised',
-                    isActive && `ring-1 ${accent.ring} border-transparent`,
-                  )}
-                >
-                  <CardHeader>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex min-w-0 items-center gap-2">
-                        {/*
-                          The icon when the project has one, else the card's own
-                          accent dot rather than `ProjectGlyph`'s raw swatch —
-                          the accent is themed and already tints the progress
-                          bar and the selected ring below it.
-                        */}
-                        {project.icon ? (
+                  <Card
+                    onClick={() => onOpenProject(project.id)}
+                    className={cn(
+                      'cursor-pointer border-border bg-surface text-foreground',
+                      'hover:border-border-strong hover:bg-surface-raised',
+                      isActive && `ring-1 ${accent.ring} border-transparent`,
+                    )}
+                  >
+                    <CardHeader>
+                      <div className="gap-2 flex items-start justify-between">
+                        <div className="min-w-0 gap-2 flex items-center">
                           <ProjectGlyph
                             icon={project.icon}
                             iconColor={project.iconColor}
+                            color={project.color}
                             size="sm"
                           />
-                        ) : (
-                          <span
-                            className={cn(
-                              'size-2 shrink-0 rounded-full',
-                              accent.bg,
-                            )}
-                            aria-hidden
+                          <CardTitle className="truncate text-foreground">
+                            {project.name}
+                          </CardTitle>
+                          {isActive ? (
+                            <Check className="size-3.5 shrink-0 text-primary" />
+                          ) : null}
+                        </div>
+
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <ActionDropdownMenu
+                            actions={() => projectActions(project)}
+                            scope={`project:${project.id}`}
+                            entityType="project"
+                            entity={project}
+                            contentClassName="w-52"
+                            trigger={
+                              <button
+                                type="button"
+                                title="Project options"
+                                aria-label={`Options for ${project.name}`}
+                                className="rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                              >
+                                <ChevronDown className="size-3.5" />
+                              </button>
+                            }
                           />
-                        )}
-                        <CardTitle className="truncate text-foreground">
-                          {project.name}
-                        </CardTitle>
-                        {isActive ? (
-                          <Check className="size-3.5 shrink-0 text-primary" />
-                        ) : null}
+                        </div>
                       </div>
 
-                      <div onClick={(e) => e.stopPropagation()}>
-                        <ActionDropdownMenu
-                          actions={() => projectActions(project)}
-                          scope={`project:${project.id}`}
-                          entityType="project"
-                          entity={project}
-                          contentClassName="w-52"
-                          trigger={
-                            <button
-                              type="button"
-                              title="Project options"
-                              aria-label={`Options for ${project.name}`}
-                              className="rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                            >
-                              <ChevronDown className="size-3.5" />
-                            </button>
-                          }
-                        />
+                      <CardDescription className="line-clamp-2 text-muted-foreground">
+                        {project.description || 'No description.'}
+                      </CardDescription>
+                    </CardHeader>
+
+                    <CardContent className="space-y-3">
+                      <div className="gap-2 flex items-center">
+                        <Badge variant="neutral">
+                          {STATUS_LABELS[project.status]}
+                        </Badge>
+                        <span className="text-[11px] text-muted-foreground tabular-nums">
+                          {done}/{total} done
+                        </span>
                       </div>
-                    </div>
 
-                    <CardDescription className="line-clamp-2 text-muted-foreground">
-                      {project.description || 'No description.'}
-                    </CardDescription>
-                  </CardHeader>
+                      <Progress
+                        value={percent}
+                        accent={accentForHex(project.color)}
+                        size="sm"
+                        label={`${project.name} is ${percent}% complete`}
+                      />
 
-                  <CardContent className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="neutral">
-                        {STATUS_LABELS[project.status]}
-                      </Badge>
-                      <span className="text-[11px] tabular-nums text-muted-foreground">
-                        {done}/{total} done
-                      </span>
-                    </div>
-
-                    <Progress
-                      value={percent}
-                      accent={accentForHex(project.color)}
-                      size="sm"
-                      label={`${project.name} is ${percent}% complete`}
-                    />
-
-                    <div className="flex items-center justify-between text-[11px] text-subtle">
-                      <span>
-                        {project.milestones.length} milestone
-                        {project.milestones.length === 1 ? '' : 's'}
-                      </span>
-                      <span>
-                        {new Date(project.updatedAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
+                      <div className="flex items-center justify-between text-[11px] text-subtle">
+                        <span>
+                          {project.milestones.length} milestone
+                          {project.milestones.length === 1 ? '' : 's'}
+                        </span>
+                        <span>
+                          {new Date(project.updatedAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </EntityContextMenu>
               );
             })}

@@ -18,6 +18,7 @@ import {
   SkeletonList,
   Toolbar,
   toast,
+  IconRenderer,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import type { ProjectDetail } from '@org/types';
@@ -156,16 +157,22 @@ function LinkDocMenu({
             <DropdownMenuItem
               key={d.id}
               onClick={() => onLinkDoc(d.id)}
-              className="text-xs flex items-center justify-between gap-2"
+              className="text-xs gap-2 flex items-center justify-between"
             >
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="shrink-0">{d.icon || '📝'}</span>
+              <div className="gap-2 min-w-0 flex items-center">
+                <span className="shrink-0">
+                  <IconRenderer
+                    icon={d.icon}
+                    iconColor={d.iconColor}
+                    sizeClassName="size-3.5"
+                  />
+                </span>
                 <span className="truncate">
                   {d.title || 'Untitled Document'}
                 </span>
               </div>
               {/* A doc has one project, so linking moves it from this one. */}
-              <Badge variant="neutral" className="text-[9px] shrink-0">
+              <Badge variant="neutral" className="shrink-0 text-[9px]">
                 {d.projectName ? `In ${d.projectName}` : d.category}
               </Badge>
             </DropdownMenuItem>
@@ -217,10 +224,10 @@ export function ProjectDocsView({
   const actionsDisabled = isLoading || isError;
 
   return (
-    <div className="flex h-full flex-col overflow-hidden px-4 sm:px-6 py-4">
+    <div className="px-4 sm:px-6 py-4 flex h-full flex-col overflow-hidden">
       {/* Top action toolbar */}
-      <Toolbar className="mb-4 shrink-0 justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2">
+      <Toolbar className="mb-4 gap-2 shrink-0 flex-wrap justify-between">
+        <div className="gap-2 flex items-center">
           <SearchInput
             value={search}
             onValueChange={setSearch}
@@ -233,8 +240,12 @@ export function ProjectDocsView({
           </Badge>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <LinkDocMenu project={project} docs={unlinkedDocs} onLinkDoc={onLinkDoc}>
+        <div className="gap-2 flex flex-wrap items-center">
+          <LinkDocMenu
+            project={project}
+            docs={unlinkedDocs}
+            onLinkDoc={onLinkDoc}
+          >
             <Button
               variant="outline"
               size="sm"
@@ -318,7 +329,7 @@ export function ProjectDocsView({
             title={`No documents linked to ${project.name}`}
             description="Keep your project specs, technical requirements, sprint goals, and decision logs centralized right here alongside your tasks."
             action={
-              <div className="flex flex-wrap gap-2 justify-center">
+              <div className="gap-2 flex flex-wrap justify-center">
                 <Button
                   size="sm"
                   onClick={() => onCreateProjectDoc('prd')}
@@ -330,7 +341,9 @@ export function ProjectDocsView({
                   size="sm"
                   variant="outline"
                   onClick={() => onCreateProjectDoc('meeting')}
-                  leadingIcon={<BookOpen className="size-3.5 text-accent-blue" />}
+                  leadingIcon={
+                    <BookOpen className="size-3.5 text-accent-blue" />
+                  }
                 >
                   Create Sprint Notes
                 </Button>
@@ -359,22 +372,22 @@ export function ProjectDocsView({
             description="Try a different search term to find project documentation."
           />
         ) : (
-          <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="gap-3.5 sm:grid-cols-2 lg:grid-cols-3 grid">
             {visibleDocs.map((doc) => {
               return (
                 <Card
                   key={doc.id}
                   onClick={() => onSelectDoc(doc.id)}
-                  className="group cursor-pointer bg-surface text-foreground border-border overflow-hidden transition-all duration-200 hover:border-border-strong hover:bg-surface-raised hover:shadow-xs"
+                  className="group cursor-pointer overflow-hidden border-border bg-surface text-foreground transition-all duration-200 hover:border-border-strong hover:bg-surface-raised hover:shadow-xs"
                 >
                   {/* Gradient cover header */}
                   <div
-                    className="h-14 w-full relative"
+                    className="h-14 relative w-full"
                     style={{ background: doc.cover || DEFAULT_COVER }}
                   >
                     <div
                       className={cn(
-                        'absolute top-2 right-2 flex items-center gap-1 bg-black/40 backdrop-blur-md p-1 rounded-md',
+                        'top-2 right-2 gap-1 bg-black/40 backdrop-blur-md p-1 absolute flex items-center rounded-md',
                         CARD_ACTIONS_REVEAL,
                       )}
                     >
@@ -395,22 +408,25 @@ export function ProjectDocsView({
                   </div>
 
                   <CardHeader className="pt-3 pb-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="gap-2 flex items-start justify-between">
+                      <div className="gap-2.5 min-w-0 flex items-center">
                         <span className="text-xl shrink-0 select-none">
-                          {doc.icon || '📝'}
+                          <IconRenderer
+                            icon={doc.icon}
+                            iconColor={doc.iconColor}
+                          />
                         </span>
                         <div className="min-w-0">
-                          <CardTitle className="text-sm font-semibold truncate group-hover:text-primary transition-colors">
+                          <CardTitle className="text-sm font-semibold truncate transition-colors group-hover:text-primary">
                             {/* The focusable control: its click bubbles to the card. */}
                             <button
                               type="button"
-                              className="max-w-full truncate cursor-pointer text-left"
+                              className="max-w-full cursor-pointer truncate text-left"
                             >
                               {doc.title || 'Untitled Document'}
                             </button>
                           </CardTitle>
-                          <CardDescription className="text-[11px] text-muted-foreground truncate mt-0.5">
+                          <CardDescription className="mt-0.5 truncate text-[11px] text-muted-foreground">
                             {doc.category}
                           </CardDescription>
                         </div>
@@ -422,21 +438,21 @@ export function ProjectDocsView({
 
                   <CardContent className="pt-0 pb-3">
                     {doc.snippet ? (
-                      <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed mb-3">
+                      <p className="text-xs leading-relaxed mb-3 line-clamp-2 text-muted-foreground">
                         {doc.snippet}
                       </p>
                     ) : (
-                      <p className="text-xs text-muted-foreground/60 italic mb-3">
+                      <p className="text-xs mb-3 text-muted-foreground/60 italic">
                         Empty document
                       </p>
                     )}
 
-                    <div className="flex items-center justify-between border-t border-border/60 pt-2.5 text-[11px] text-muted-foreground">
-                      <span className="truncate max-w-[120px]">
+                    <div className="pt-2.5 flex items-center justify-between border-t border-border/60 text-[11px] text-muted-foreground">
+                      <span className="max-w-[120px] truncate">
                         {doc.updatedAt}
                       </span>
 
-                      <div className="flex items-center gap-1.5 shrink-0 text-[10px] text-muted-foreground">
+                      <div className="gap-1.5 flex shrink-0 items-center text-[10px] text-muted-foreground">
                         <Sparkles className="size-3 text-accent-blue" />
                         <span>{readingMinutes(doc.blocks)}m read</span>
                       </div>

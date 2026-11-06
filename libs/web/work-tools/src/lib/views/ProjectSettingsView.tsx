@@ -23,6 +23,7 @@ import {
 import {
   IdentifierPrefixMode,
   ProjectHealth,
+  WorkspacePermission,
   type ProjectDetail,
   type PublicUser,
   type Team,
@@ -36,7 +37,8 @@ import {
   Sparkles,
   X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useWorkspacePermission } from '@org/web-workspace';
 import {
   CoworkerAvatar,
   CoworkerStatusDot,
@@ -57,14 +59,22 @@ interface ProjectSettingsViewProps {
   project: ProjectDetail;
   teams: Team[];
   members: PublicUser[];
-  onUpdateProject: (patch: Record<string, any>) => void;
+  /** Reject on failure; the app's mutation handler shows the error. */
+  onUpdateProject: (patch: Record<string, any>) => Promise<unknown>;
   onUpdateIdentifierSettings: (input: {
     ticketPrefix?: string;
     identifierPrefixMode?: IdentifierPrefixMode;
     regenerate?: boolean;
-  }) => void;
+  }) => Promise<unknown>;
   onDeleteProject: () => void;
 }
+
+const HEALTH_LABELS: Record<ProjectHealth, string> = {
+  HEALTHY: 'On track',
+  AT_RISK: 'At risk',
+  OFF_TRACK: 'Off track',
+  COMPLETED: 'Completed',
+};
 
 export function ProjectSettingsView({
   project,
@@ -74,6 +84,8 @@ export function ProjectSettingsView({
   onUpdateIdentifierSettings,
   onDeleteProject,
 }: ProjectSettingsViewProps) {
+  const canDelete = useWorkspacePermission().can(WorkspacePermission.DELETE);
+
   // General State
   const [name, setName] = useState(project.name);
   const [description, setDescription] = useState(project.description || '');
@@ -85,81 +97,113 @@ export function ProjectSettingsView({
   const [prefixMode, setPrefixMode] = useState<IdentifierPrefixMode>(
     project.identifierPrefixMode || IdentifierPrefixMode.AUTO,
   );
-  const [customPrefix, setCustomPrefix] = useState(project.ticketPrefix || 'PRJ');
+  const [customPrefix, setCustomPrefix] = useState(
+    project.ticketPrefix || 'PRJ',
+  );
   const [isRegenerateConfirmOpen, setIsRegenerateConfirmOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [savingGeneral, setSavingGeneral] = useState(false);
+  const [savingIdentifier, setSavingIdentifier] = useState(false);
+
+  // A regenerate changes the prefix on the server.
+  useEffect(() => {
+    if (project.ticketPrefix) setCustomPrefix(project.ticketPrefix);
+  }, [project.ticketPrefix]);
 
   const nextNumber = (project.ticketSeq || 0) + 1;
   const previewTicket = formatTicketIdentifier(customPrefix, nextNumber);
 
-  const handleSaveGeneral = () => {
-    onUpdateProject({
-      name: name.trim(),
-      description: description.trim() || null,
-      health,
-      leadId: leadId === 'none' ? null : leadId,
-      teamId: teamId === 'none' ? null : teamId,
-    });
-    toast.success('Project details saved');
+  const handleSaveGeneral = async () => {
+    setSavingGeneral(true);
+    try {
+      await onUpdateProject({
+        name: name.trim(),
+        description: description.trim() || null,
+        health,
+        leadId: leadId === 'none' ? null : leadId,
+        teamId: teamId === 'none' ? null : teamId,
+      });
+      toast.success('Project details saved');
+    } catch {
+      // The error toast comes from the mutation handler.
+    } finally {
+      setSavingGeneral(false);
+    }
   };
 
-  const handleSaveIdentifier = () => {
-    onUpdateIdentifierSettings({
-      ticketPrefix: customPrefix.trim().toUpperCase(),
-      identifierPrefixMode: prefixMode,
-    });
-    toast.success('Identifier settings updated');
+  const handleSaveIdentifier = async () => {
+    setSavingIdentifier(true);
+    try {
+      await onUpdateIdentifierSettings({
+        ticketPrefix: customPrefix.trim().toUpperCase(),
+        identifierPrefixMode: prefixMode,
+      });
+      toast.success('Identifier settings updated');
+    } catch {
+      // The error toast comes from the mutation handler.
+    } finally {
+      setSavingIdentifier(false);
+    }
   };
 
-  const handleConfirmRegenerate = () => {
-    onUpdateIdentifierSettings({
-      identifierPrefixMode: IdentifierPrefixMode.AUTO,
-      regenerate: true,
-    });
+  const handleConfirmRegenerate = async () => {
     setIsRegenerateConfirmOpen(false);
-    toast.success('Prefix regenerated from project name');
+    try {
+      await onUpdateIdentifierSettings({
+        identifierPrefixMode: IdentifierPrefixMode.AUTO,
+        regenerate: true,
+      });
+      setPrefixMode(IdentifierPrefixMode.AUTO);
+      toast.success('Prefix regenerated from project name');
+    } catch {
+      // The error toast comes from the mutation handler.
+    }
   };
 
   return (
-    <div className="flex flex-col w-full h-full gap-6 p-4 overflow-y-auto max-w-4xl mx-auto">
+    <div className="gap-6 p-4 max-w-4xl mx-auto flex h-full w-full flex-col overflow-y-auto">
       {/* 1. Dynamic Identifier Configuration Card */}
-      <Card className="border border-primary/40 bg-card/90 shadow-xs">
+      <Card className="border border-border/60 bg-card/80 shadow-xs">
         <CardHeader className="p-5 pb-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="size-8 rounded-lg bg-primary/10 grid place-items-center text-primary">
+            <div className="gap-2.5 flex items-center">
+              <div className="size-8 grid place-items-center rounded-lg bg-primary/10 text-primary">
                 <Hash className="size-4" />
               </div>
               <div>
                 <CardTitle className="text-base font-bold text-foreground">
-                  Dynamic Ticket Identifier System
+                  Task IDs
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Configure prefix generation rules and sequential work item numbering.
+                  Choose the prefix used for task numbers in this project.
                 </CardDescription>
               </div>
             </div>
 
             {/* Live Preview Badge */}
-            <div className="flex items-center gap-2 bg-muted/60 border border-border/80 px-3 py-1.5 rounded-lg">
-              <span className="text-[11px] text-muted-foreground font-medium">
-                Next Issue:
+            <div className="gap-2 px-3 py-1.5 flex items-center rounded-lg border border-border/80 bg-muted/60">
+              <span className="font-medium text-[11px] text-muted-foreground">
+                Next task:
               </span>
-              <span className="font-mono text-xs font-bold text-brand-text bg-brand/10 px-2 py-0.5 rounded border border-brand/30">
+              <span className="text-xs font-bold px-2 py-0.5 rounded border border-brand/30 bg-brand/10 font-mono text-brand-text">
                 {previewTicket}
               </span>
             </div>
           </div>
         </CardHeader>
 
-        <CardContent className="p-5 pt-2 flex flex-col gap-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <CardContent className="p-5 pt-2 gap-4 flex flex-col">
+          <div className="sm:grid-cols-2 gap-4 grid grid-cols-1">
             {/* Prefix Mode */}
             <div>
-              <label className="text-xs font-semibold mb-1.5 block">Prefix Mode</label>
+              <label className="text-xs font-semibold mb-1.5 block">
+                Prefix Mode
+              </label>
               <Select
                 value={prefixMode}
-                onValueChange={(val) => setPrefixMode(val as IdentifierPrefixMode)}
+                onValueChange={(val) =>
+                  setPrefixMode(val as IdentifierPrefixMode)
+                }
               >
                 <SelectTrigger className="text-xs">
                   <SelectValue />
@@ -181,21 +225,21 @@ export function ProjectSettingsView({
             {/* Prefix Input */}
             <div>
               <label className="text-xs font-semibold mb-1.5 block">
-                Identifier Stem Prefix
+                Prefix
               </label>
               <Input
                 disabled={prefixMode === IdentifierPrefixMode.LOCKED}
                 value={customPrefix}
                 onChange={(e) => setCustomPrefix(e.target.value.toUpperCase())}
                 placeholder="e.g. WEB, MOB, API"
-                className="font-mono uppercase font-bold"
+                className="font-bold font-mono uppercase"
                 maxLength={8}
               />
             </div>
           </div>
 
           {/* Action Row */}
-          <div className="flex items-center justify-between pt-2 border-t border-border/40">
+          <div className="pt-2 flex items-center justify-between border-t border-border/40">
             <Button
               type="button"
               variant="outline"
@@ -204,11 +248,17 @@ export function ProjectSettingsView({
               className="text-xs gap-1.5"
             >
               <RefreshCw className="size-3.5" />
-              Regenerate from Title
+              Regenerate from name
             </Button>
 
-            <Button size="sm" onClick={handleSaveIdentifier} className="text-xs">
-              Save Identifier Settings
+            <Button
+              size="sm"
+              onClick={handleSaveIdentifier}
+              loading={savingIdentifier}
+              disabled={!customPrefix.trim()}
+              className="text-xs"
+            >
+              Save task IDs
             </Button>
           </div>
         </CardContent>
@@ -225,15 +275,19 @@ export function ProjectSettingsView({
           </CardDescription>
         </CardHeader>
 
-        <CardContent className="p-5 pt-2 flex flex-col gap-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <CardContent className="p-5 pt-2 gap-4 flex flex-col">
+          <div className="sm:grid-cols-2 gap-4 grid grid-cols-1">
             <div>
-              <label className="text-xs font-semibold mb-1.5 block">Project Name</label>
+              <label className="text-xs font-semibold mb-1.5 block">
+                Project Name
+              </label>
               <Input value={name} onChange={(e) => setName(e.target.value)} />
             </div>
 
             <div>
-              <label className="text-xs font-semibold mb-1.5 block">Health Status</label>
+              <label className="text-xs font-semibold mb-1.5 block">
+                Health Status
+              </label>
               <Select
                 value={health}
                 onValueChange={(val) => setHealth(val as ProjectHealth)}
@@ -244,7 +298,7 @@ export function ProjectSettingsView({
                 <SelectContent>
                   {Object.values(ProjectHealth).map((h) => (
                     <SelectItem key={h} value={h}>
-                      <span className="capitalize">{h.toLowerCase()}</span>
+                      {HEALTH_LABELS[h]}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -253,7 +307,9 @@ export function ProjectSettingsView({
           </div>
 
           <div>
-            <label className="text-xs font-semibold mb-1.5 block">Description</label>
+            <label className="text-xs font-semibold mb-1.5 block">
+              Description
+            </label>
             <Textarea
               rows={3}
               value={description}
@@ -262,9 +318,11 @@ export function ProjectSettingsView({
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="sm:grid-cols-2 gap-4 grid grid-cols-1">
             <div>
-              <label className="text-xs font-semibold mb-1.5 block">Project Lead</label>
+              <label className="text-xs font-semibold mb-1.5 block">
+                Project Lead
+              </label>
               <Select value={leadId} onValueChange={setLeadId}>
                 <SelectTrigger className="text-xs">
                   <SelectValue placeholder="Assign a lead" />
@@ -281,7 +339,9 @@ export function ProjectSettingsView({
             </div>
 
             <div>
-              <label className="text-xs font-semibold mb-1.5 block">Assigned Team</label>
+              <label className="text-xs font-semibold mb-1.5 block">
+                Assigned Team
+              </label>
               <Select value={teamId} onValueChange={setTeamId}>
                 <SelectTrigger className="text-xs">
                   <SelectValue placeholder="Select team" />
@@ -298,49 +358,61 @@ export function ProjectSettingsView({
             </div>
           </div>
 
-          <div className="flex justify-end pt-2 border-t border-border/40">
-            <Button size="sm" onClick={handleSaveGeneral} className="text-xs">
-              Save Changes
+          <div className="pt-2 flex justify-end border-t border-border/40">
+            <Button
+              size="sm"
+              onClick={handleSaveGeneral}
+              loading={savingGeneral}
+              disabled={name.trim().length < 2}
+              className="text-xs"
+            >
+              Save changes
             </Button>
           </div>
         </CardContent>
       </Card>
 
       {/* 2b. AI Coworkers */}
-      <ProjectCoworkersCard workspaceId={project.workspaceId} projectId={project.id} />
+      <ProjectCoworkersCard
+        workspaceId={project.workspaceId}
+        projectId={project.id}
+      />
 
       {/* 3. Danger Zone */}
-      <Card className="border border-destructive/30 bg-destructive/5 shadow-xs">
-        <CardHeader className="p-5 pb-2">
-          <CardTitle className="text-sm font-bold text-destructive flex items-center gap-1.5">
-            <AlertTriangle className="size-4" />
-            Danger Zone
-          </CardTitle>
-          <CardDescription className="text-xs text-muted-foreground">
-            Irreversible actions that affect all work items in this project.
-          </CardDescription>
-        </CardHeader>
+      {canDelete ? (
+        <Card className="border border-destructive/30 bg-destructive/5 shadow-xs">
+          <CardHeader className="p-5 pb-2">
+            <CardTitle className="text-sm font-bold gap-1.5 flex items-center text-destructive">
+              <AlertTriangle className="size-4" />
+              Danger Zone
+            </CardTitle>
+            <CardDescription className="text-xs text-muted-foreground">
+              Irreversible actions that affect all work items in this project.
+            </CardDescription>
+          </CardHeader>
 
-        <CardContent className="p-5 pt-2 flex items-center justify-between">
-          <div>
-            <span className="text-xs font-bold text-foreground block">
-              Delete this project
-            </span>
-            <span className="text-[11px] text-muted-foreground">
-              Permanently delete all tasks, milestones, and cycles associated with this project.
-            </span>
-          </div>
+          <CardContent className="p-5 pt-2 flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold block text-foreground">
+                Delete this project
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                Permanently delete all tasks, milestones, and cycles associated
+                with this project.
+              </span>
+            </div>
 
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => setIsDeleteConfirmOpen(true)}
-            className="text-xs"
-          >
-            Delete Project
-          </Button>
-        </CardContent>
-      </Card>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setIsDeleteConfirmOpen(true)}
+              className="text-xs"
+            >
+              Delete Project
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* Regenerate Warning Dialog */}
       <Dialog
@@ -351,8 +423,9 @@ export function ProjectSettingsView({
           <DialogHeader>
             <DialogTitle>Regenerate Ticket Prefix?</DialogTitle>
             <DialogDescription className="text-xs">
-              This will update the project's ticket prefix to match the current project title.
-              Existing ticket numbers will remain intact with the new prefix applied to future tickets.
+              This will update the project's ticket prefix to match the current
+              project title. Existing ticket numbers will remain intact with the
+              new prefix applied to future tickets.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -362,7 +435,9 @@ export function ProjectSettingsView({
             >
               Cancel
             </Button>
-            <Button onClick={handleConfirmRegenerate}>Confirm Regenerate</Button>
+            <Button onClick={handleConfirmRegenerate}>
+              Confirm Regenerate
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -375,8 +450,8 @@ export function ProjectSettingsView({
               Delete Project “{project.name}”?
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Are you sure? This action cannot be undone and will permanently remove all work items,
-              sprints, and docs under this project.
+              Are you sure? This action cannot be undone and will permanently
+              remove all work items, sprints, and docs under this project.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -431,7 +506,8 @@ function ProjectCoworkersCard({
       { projectId, coworkerId },
       {
         onSuccess: () => toast.success('Coworker added to project'),
-        onError: () => toast.error('Could not add the coworker to this project'),
+        onError: () =>
+          toast.error('Could not add the coworker to this project'),
       },
     );
   };
@@ -448,20 +524,25 @@ function ProjectCoworkersCard({
 
   return (
     <Card className="shadow-xs">
-      <CardHeader className="p-5 pb-2 flex flex-row items-center justify-between space-y-0">
+      <CardHeader className="p-5 pb-2 space-y-0 flex flex-row items-center justify-between">
         <div>
-          <CardTitle className="text-sm font-bold flex items-center gap-1.5">
+          <CardTitle className="text-sm font-bold gap-1.5 flex items-center">
             <Sparkles className="size-4 text-primary" />
             AI Coworkers
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
-            Persistent AI teammates with access to this project's context and tasks.
+            Persistent AI teammates with access to this project's context and
+            tasks.
           </CardDescription>
         </div>
         {availableToAdd.length > 0 ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline" className="h-7 text-xs gap-1 px-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs gap-1 px-2"
+              >
                 <Plus className="size-3" />
                 <span>Add</span>
               </Button>
@@ -480,7 +561,7 @@ function ProjectCoworkersCard({
                     showStatusDot={false}
                   />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-xs font-medium">
+                    <span className="text-xs font-medium block truncate">
                       {coworker.name}
                     </span>
                     <span className="block truncate text-[10px] text-muted-foreground">
@@ -508,7 +589,7 @@ function ProjectCoworkersCard({
             {(projectCoworkers.data ?? []).map((link) => (
               <div
                 key={link.id}
-                className="p-3 rounded-xl border border-border bg-surface flex items-center gap-2.5"
+                className="p-3 gap-2.5 flex items-center rounded-xl border border-border bg-surface"
               >
                 <CoworkerAvatar
                   name={link.coworker.name}
@@ -517,13 +598,13 @@ function ProjectCoworkersCard({
                   size="sm"
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-foreground truncate">
+                  <div className="gap-1.5 flex items-center">
+                    <span className="text-xs font-bold truncate text-foreground">
                       {link.coworker.name}
                     </span>
                     <CoworkerStatusDot status={link.coworker.status} />
                   </div>
-                  <span className="text-[10px] text-muted-foreground truncate block">
+                  <span className="block truncate text-[10px] text-muted-foreground">
                     {link.coworker.role}
                   </span>
                 </div>
@@ -531,7 +612,7 @@ function ProjectCoworkersCard({
                   size="icon-sm"
                   variant="ghost"
                   onClick={() => handleRemove(link.coworkerId)}
-                  className="size-6 text-muted-foreground hover:text-destructive shrink-0"
+                  className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
                   title="Remove coworker from project"
                 >
                   <X className="size-3.5" />

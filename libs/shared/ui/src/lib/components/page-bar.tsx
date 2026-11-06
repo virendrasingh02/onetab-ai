@@ -60,7 +60,7 @@ export function PageBar({
               {icon}
             </span>
           ) : null}
-          <Heading className="text-base font-semibold tracking-tight truncate text-foreground">
+          <Heading className="text-base font-medium truncate tracking-[-0.01em] text-foreground">
             {title}
           </Heading>
           {meta ? (
