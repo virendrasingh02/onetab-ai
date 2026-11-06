@@ -44,6 +44,7 @@ with status + body excerpt, or the DB/API value you checked).
 - `javascript_tool` times out at ~45s: sweep at most ~8 routes per call.
 - A hidden browser pane pauses rAF — prefer `read_page` / `get_page_text` over
   screenshots when the pane is hidden; take screenshots only as proof.
+- A hidden pane also holds back `matchMedia` `change` events, which only fire when a frame paints. After `resize_window`, `innerWidth` is new but a JS media-query hook keeps its old value, so take a small screenshot after each resize before reading layout. `find` ref clicks can also land wrong when the viewport is scaled down to fit the pane; click by screenshot coordinates there.
 - Web `/w/:slug/ai*` and `/coworkers` intentionally redirect to Studio on :4202.
 - After edits to shared libs (`libs/**`, `@org/types`), Vite may serve stale code:
   restart the affected server before calling something broken. A stale Prisma client

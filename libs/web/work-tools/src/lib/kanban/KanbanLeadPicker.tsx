@@ -24,6 +24,8 @@ export interface KanbanLeadPickerProps {
   trigger?: React.ReactNode;
   align?: 'start' | 'center' | 'end';
   multiple?: boolean;
+  /** The clear row's text; a lead is only one of the roles this picks. */
+  noneLabel?: string;
 }
 
 export function KanbanLeadPicker({
@@ -36,6 +38,7 @@ export function KanbanLeadPicker({
   trigger,
   align = 'end',
   multiple = false,
+  noneLabel = 'No lead',
 }: KanbanLeadPickerProps) {
   const searchField = useMenuSearchField();
   const [open, setOpen] = useState(false);
@@ -176,7 +179,7 @@ export function KanbanLeadPicker({
           >
             <div className="gap-2.5 min-w-0 flex items-center">
               <UnassignedLeadIcon className="size-4" />
-              <span className="truncate">No lead</span>
+              <span className="truncate">{noneLabel}</span>
             </div>
 
             <div className="gap-2 flex items-center text-muted-foreground/80">

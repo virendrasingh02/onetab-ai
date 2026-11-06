@@ -4,7 +4,7 @@ import {
   DropdownMenuTrigger,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { Check, Search, X } from 'lucide-react';
+import { Check, Plus, Search, Settings2, X } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { useMenuSearchField } from './menu-search-field.js';
 
@@ -28,6 +28,14 @@ export interface KanbanRefPickerProps {
   emptyMessage?: string;
   /** Below this count the search box is skipped — the list is already short. */
   searchThreshold?: number;
+  /** What a new item is called, e.g. "epic". Needed with `onCreate`. */
+  itemNoun?: string;
+  /** Turns the search box into "search or create": typing a new name offers it. */
+  onCreate?: (name: string) => void;
+  /** Names shorter than this can't be created; the API sets the limit. */
+  minCreateLength?: number;
+  /** Footer link to where this list is managed, e.g. "Manage epics". */
+  manage?: { label: string; onSelect: () => void };
 }
 
 /**
@@ -45,6 +53,10 @@ export function KanbanRefPicker({
   noneLabel = 'None',
   emptyMessage = 'Nothing to pick from yet',
   searchThreshold = 8,
+  itemNoun = 'item',
+  onCreate,
+  minCreateLength = 1,
+  manage,
 }: KanbanRefPickerProps) {
   const searchField = useMenuSearchField();
   const [open, setOpen] = useState(false);
@@ -56,7 +68,19 @@ export function KanbanRefPicker({
     return items.filter((item) => item.label.toLowerCase().includes(q));
   }, [items, query]);
 
-  const showSearch = items.length > searchThreshold;
+  const showSearch = Boolean(onCreate) || items.length > searchThreshold;
+
+  const newName = query.trim();
+  const canCreate =
+    Boolean(onCreate) &&
+    newName.length >= minCreateLength &&
+    !items.some((item) => item.label.toLowerCase() === newName.toLowerCase());
+
+  const create = () => {
+    onCreate?.(newName);
+    setQuery('');
+    setOpen(false);
+  };
 
   return (
     <DropdownMenu
@@ -80,9 +104,22 @@ export function KanbanRefPicker({
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search..."
+              placeholder={
+                onCreate
+                  ? items.length > 0
+                    ? `Search or create ${itemNoun}...`
+                    : `Name a new ${itemNoun}...`
+                  : 'Search...'
+              }
               className="text-xs p-0 w-full border-none bg-transparent text-foreground outline-none placeholder:text-muted-foreground focus:ring-0"
               {...searchField.inputProps}
+              onKeyDown={(event) => {
+                searchField.inputProps.onKeyDown(event);
+                if (event.key === 'Enter' && canCreate && !filtered.length) {
+                  event.preventDefault();
+                  create();
+                }
+              }}
             />
             {query && (
               <button
@@ -119,7 +156,7 @@ export function KanbanRefPicker({
             )}
           </button>
 
-          {filtered.length === 0 ? (
+          {filtered.length === 0 && canCreate ? null : filtered.length === 0 ? (
             <div className="px-3 py-3 text-xs text-center text-muted-foreground">
               {items.length === 0 ? emptyMessage : 'No matches'}
             </div>
@@ -162,7 +199,36 @@ export function KanbanRefPicker({
               );
             })
           )}
+
+          {canCreate ? (
+            <button
+              type="button"
+              onClick={create}
+              className="px-2.5 py-1.5 gap-2.5 text-xs font-medium flex w-full cursor-pointer items-center rounded-lg text-foreground transition-colors hover:bg-accent/60"
+            >
+              <Plus className="size-3.5 shrink-0" aria-hidden />
+              <span className="truncate">
+                Create {itemNoun} “{newName}”
+              </span>
+            </button>
+          ) : null}
         </div>
+
+        {manage ? (
+          <div className="mt-1 pt-1 border-t border-border/60">
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                manage.onSelect();
+              }}
+              className="px-2.5 py-1.5 gap-2.5 text-xs font-medium flex w-full cursor-pointer items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+            >
+              <Settings2 className="size-3.5 shrink-0" aria-hidden />
+              <span className="truncate">{manage.label}</span>
+            </button>
+          </div>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );

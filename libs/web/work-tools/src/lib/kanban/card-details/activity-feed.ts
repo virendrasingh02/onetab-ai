@@ -156,6 +156,13 @@ function describeField(
       return describeTime(oldValue, newValue);
     case 'labels':
       return describeLabels(oldValue, newValue);
+    case 'reporterId': {
+      if (!newValue) return 'removed the reporter';
+      const reporter = lookups.memberName(newValue);
+      return reporter
+        ? `set the reporter to ${reporter}`
+        : 'changed the reporter';
+    }
     case 'parentId': {
       if (!newValue) return 'removed the parent';
       const parent = lookups.taskName(newValue);

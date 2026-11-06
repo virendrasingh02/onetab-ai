@@ -25,7 +25,33 @@ export function useIsWideViewport(): boolean {
   );
 }
 
-/** One label/value line of the properties rail. */
+/** A titled block of property rows; every block after the first gets a rule. */
+export function PropertyGroup({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section
+      aria-label={title}
+      className="pt-4 first:pt-0 border-t border-border/60 first:border-t-0"
+    >
+      <h3 className="mb-1 text-xs font-semibold text-muted-foreground">
+        {title}
+      </h3>
+      <div className="space-y-0.5">{children}</div>
+    </section>
+  );
+}
+
+/**
+ * One label/value line of the properties rail. The label holds the height of
+ * one row, so it stays on the first line when the value wraps, as tags do.
+ * Inside a narrow `@container`, such as the side panel, the label gives up its
+ * icon so the value keeps enough room.
+ */
 export function PropertyRow({
   label,
   icon: Icon,
@@ -36,12 +62,12 @@ export function PropertyRow({
   children: ReactNode;
 }) {
   return (
-    <div className="min-h-8 gap-2 grid grid-cols-[6.25rem_minmax(0,1fr)] items-center">
-      <span className="gap-2 text-xs flex items-center text-muted-foreground">
-        <Icon className="size-3.5 shrink-0" aria-hidden />
+    <div className="gap-2 grid grid-cols-[7.25rem_minmax(0,1fr)] items-start @max-[18rem]:grid-cols-[5.25rem_minmax(0,1fr)] @max-[18rem]:gap-1">
+      <span className="h-9 gap-2 text-sm flex items-center text-muted-foreground">
+        <Icon className="size-4 shrink-0 @max-[18rem]:hidden" aria-hidden />
         <span className="truncate">{label}</span>
       </span>
-      <div className="min-w-0 gap-1 flex items-center">{children}</div>
+      <div className="min-h-9 min-w-0 gap-1 flex items-center">{children}</div>
     </div>
   );
 }
@@ -63,7 +89,7 @@ export const ValueButton = forwardRef<HTMLButtonElement, ValueButtonProps>(
         type="button"
         {...props}
         className={cn(
-          'h-7 min-w-0 gap-1.5 px-1.5 text-xs font-medium inline-flex max-w-full items-center rounded-md',
+          'h-8 min-w-0 gap-2 px-2 text-sm font-medium inline-flex max-w-full items-center overflow-hidden rounded-md whitespace-nowrap @max-[18rem]:px-1',
           'transition-colors duration-(--duration-fast) outline-none',
           'hover:bg-accent/60 focus-visible:ring-1 focus-visible:ring-ring',
           'disabled:cursor-default disabled:hover:bg-transparent',
@@ -76,6 +102,28 @@ export const ValueButton = forwardRef<HTMLButtonElement, ValueButtonProps>(
     );
   },
 );
+
+/** A small icon action after a value, such as clearing or opening it. */
+export const ValueAction = forwardRef<
+  HTMLButtonElement,
+  ButtonHTMLAttributes<HTMLButtonElement> & { icon: LucideIcon }
+>(function ValueAction({ icon: Icon, className, ...props }, ref) {
+  return (
+    <button
+      ref={ref}
+      type="button"
+      {...props}
+      className={cn(
+        'size-7 inline-flex shrink-0 items-center justify-center rounded-md text-muted-foreground',
+        'transition-colors duration-(--duration-fast) outline-none',
+        'hover:bg-accent/60 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring',
+        className,
+      )}
+    >
+      <Icon className="size-3.5" aria-hidden />
+    </button>
+  );
+});
 
 /** A titled block of the main column that can be folded away. */
 export function Section({

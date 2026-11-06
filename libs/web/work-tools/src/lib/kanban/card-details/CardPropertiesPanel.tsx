@@ -7,6 +7,7 @@ import {
   PopoverContent,
   PopoverTrigger,
   Skeleton,
+  UserAvatar,
   UserAvatarGroup,
 } from '@org/ui';
 import { cn, formatRelative } from '@org/utils';
@@ -16,18 +17,25 @@ import {
   CalendarDays,
   CircleDashed,
   CornerUpLeft,
+  ExternalLink,
   Flag,
   Gauge,
   Layers,
   Repeat,
   Tag,
   Timer,
+  UserRound,
   Users,
   UsersRound,
   X,
 } from 'lucide-react';
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { describeDue, DUE_TONE_CLASSES, parseDay } from '../card-meta.js';
+import {
+  describeDue,
+  DUE_TEXT_CLASSES,
+  dueCountdown,
+  parseDay,
+} from '../card-meta.js';
 import { KanbanEstimatePicker } from '../KanbanEstimatePicker.js';
 import { KanbanLabelPicker } from '../KanbanLabelPicker.js';
 import { KanbanLeadPicker } from '../KanbanLeadPicker.js';
@@ -35,6 +43,7 @@ import { KanbanPriorityPicker } from '../KanbanPriorityPicker.js';
 import {
   KanbanRefPicker,
   type KanbanRefPickerItem,
+  type KanbanRefPickerProps,
 } from '../KanbanRefPicker.js';
 import { KanbanStatusPicker } from '../KanbanStatusPicker.js';
 import {
@@ -45,7 +54,12 @@ import { PriorityIcon, StatusIcon } from '../kanban-icons.js';
 import { useKanbanLabels } from '../kanban-custom-store.js';
 import { formatMinutes, parseDuration } from '../relation-meta.js';
 import type { BoardMember, KanbanCard, Priority } from '../types.js';
-import { PropertyRow, ValueButton } from './primitives.js';
+import {
+  PropertyGroup,
+  PropertyRow,
+  ValueAction,
+  ValueButton,
+} from './primitives.js';
 
 const QUICK_MINUTES = [15, 30, 60, 120];
 
@@ -88,8 +102,8 @@ function TimeLogPopover({
           {minutes > 0 ? formatMinutes(minutes) : 'Log time'}
         </ValueButton>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-64 space-y-2.5 p-3">
-        <div className="text-xs flex items-center justify-between">
+      <PopoverContent align="start" className="w-72 space-y-3 p-3">
+        <div className="text-sm flex items-center justify-between">
           <span className="font-semibold text-foreground">Log time</span>
           <span className="text-muted-foreground">
             {minutes > 0 ? `${formatMinutes(minutes)} so far` : 'Nothing yet'}
@@ -103,7 +117,7 @@ function TimeLogPopover({
               size="sm"
               variant="outline"
               onClick={() => add(quick)}
-              className="h-7 px-0 text-xs"
+              className="h-8 px-0 text-xs"
             >
               +{formatMinutes(quick)}
             </Button>
@@ -115,13 +129,13 @@ function TimeLogPopover({
             onChange={(event) => setText(event.target.value)}
             placeholder="e.g. 1h 30m"
             aria-label="Time to add"
-            className="h-7 text-xs flex-1"
+            className="h-8 text-sm flex-1"
           />
           <Button
             type="submit"
             size="sm"
             disabled={!parsed}
-            className="h-7 text-xs"
+            className="h-8"
           >
             Add
           </Button>
@@ -163,6 +177,7 @@ export interface CardPropertiesPanelProps {
   onStartDateChange: (day: string | null) => void;
   onDueDateChange: (day: string | null) => void;
   onToggleLabel: (label: string) => void;
+  onReporterChange: (id: string | null) => void;
   onTimeChange: (minutes: number) => void;
   onEstimateChange: (estimate: number | null) => void;
   onTeamChange: (id: string | null) => void;
@@ -170,6 +185,16 @@ export interface CardPropertiesPanelProps {
   onModuleChange: (id: string | null) => void;
   onCycleChange: (id: string | null) => void;
   onParentChange: (id: string | null) => void;
+  /** Absent when the viewer may not create, which hides "Create" in the menus. */
+  onCreateEpic?: (name: string) => void;
+  onCreateModule?: (name: string) => void;
+  onCreateCycle?: (name: string) => void;
+  onManageTeams: () => void;
+  /** Absent outside a project, where its tabs don't exist. */
+  onManageView?: (view: 'cycles' | 'modules') => void;
+  /** Undefined when the parent isn't on this board. */
+  onOpenParent?: () => void;
+  onOpenMeeting: (meetingId: string) => void;
 }
 
 export function CardPropertiesPanel({
@@ -191,6 +216,7 @@ export function CardPropertiesPanel({
   onStartDateChange,
   onDueDateChange,
   onToggleLabel,
+  onReporterChange,
   onTimeChange,
   onEstimateChange,
   onTeamChange,
@@ -198,6 +224,13 @@ export function CardPropertiesPanel({
   onModuleChange,
   onCycleChange,
   onParentChange,
+  onCreateEpic,
+  onCreateModule,
+  onCreateCycle,
+  onManageTeams,
+  onManageView,
+  onOpenParent,
+  onOpenMeeting,
 }: CardPropertiesPanelProps) {
   const { colorOf } = useKanbanLabels();
 
@@ -209,26 +242,46 @@ export function CardPropertiesPanel({
       ? (assignees[0].displayName ?? assignees[0].name)
       : `${assignees.length} people`;
 
+  /* The member list answers first, so a new pick shows before the refetch. */
+  const reporter =
+    members.find((member) => member.id === detail?.reporterId) ??
+    detail?.reporter ??
+    undefined;
+
   const due = describeDue(card);
+  const countdown = dueCountdown(card);
 
   /* Until the task loads, "No team" would be a claim we can't back up. */
   const loaded = (node: ReactNode) =>
-    detail ? node : <Skeleton className="h-4 w-20" />;
+    detail ? node : <Skeleton className="h-5 w-24" />;
 
-  const refRow = (
-    label: string,
-    icon: typeof Boxes,
-    items: KanbanRefPickerItem[],
-    selectedId: string | null | undefined,
-    onSelect: (id: string | null) => void,
-    noneLabel: string,
-    emptyMessage: string,
-  ) => {
+  const refRow = ({
+    label,
+    icon,
+    items,
+    selectedId,
+    onSelect,
+    noneLabel,
+    emptyMessage,
+    ...picker
+  }: {
+    label: string;
+    icon: typeof Boxes;
+    items: KanbanRefPickerItem[];
+    selectedId: string | null | undefined;
+    onSelect: (id: string | null) => void;
+    noneLabel: string;
+    emptyMessage: string;
+  } & Pick<
+    KanbanRefPickerProps,
+    'itemNoun' | 'onCreate' | 'minCreateLength' | 'manage'
+  >) => {
     const selected = items.find((item) => item.id === selectedId);
     return (
       <PropertyRow label={label} icon={icon}>
         {loaded(
           <KanbanRefPicker
+            {...picker}
             items={items}
             selectedId={selectedId}
             onSelect={onSelect}
@@ -236,6 +289,13 @@ export function CardPropertiesPanel({
             emptyMessage={emptyMessage}
             trigger={
               <ValueButton empty={!selected} disabled={!canEdit}>
+                {selected?.color ? (
+                  <span
+                    aria-hidden
+                    className="size-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: selected.color }}
+                  />
+                ) : null}
                 <span className="truncate">{selected?.label ?? 'None'}</span>
               </ValueButton>
             }
@@ -249,9 +309,12 @@ export function CardPropertiesPanel({
     ? linkableTasks.find((task) => task.id === detail.parentId)
     : undefined;
 
+  const manageView = (label: string, view: 'cycles' | 'modules') =>
+    onManageView ? { label, onSelect: () => onManageView(view) } : undefined;
+
   return (
-    <div className="space-y-4 text-xs">
-      <div className="space-y-0.5">
+    <div className="@container space-y-4">
+      <PropertyGroup title="Details">
         <PropertyRow label="Status" icon={CircleDashed}>
           <KanbanStatusPicker
             status={statusId}
@@ -260,7 +323,7 @@ export function CardPropertiesPanel({
               <ValueButton disabled={!canEdit}>
                 <StatusIcon
                   status={statusId}
-                  className="size-3.5"
+                  className="size-4"
                   showTooltip={false}
                 />
                 <span className="truncate">{statusTitle}</span>
@@ -278,7 +341,7 @@ export function CardPropertiesPanel({
             }
             trigger={
               <ValueButton disabled={!canEdit}>
-                <PriorityIcon priority={card.priority} className="size-3.5" />
+                <PriorityIcon priority={card.priority} className="size-4" />
                 <span className="capitalize">
                   {card.priority.toLowerCase()}
                 </span>
@@ -289,6 +352,7 @@ export function CardPropertiesPanel({
 
         <PropertyRow label="Assignees" icon={Users}>
           <KanbanLeadPicker
+            align="start"
             selectedMemberIds={card.memberIds}
             currentMemberId={card.memberIds[0]}
             members={members}
@@ -309,6 +373,85 @@ export function CardPropertiesPanel({
           />
         </PropertyRow>
 
+        <PropertyRow label="Reporter" icon={UserRound}>
+          {loaded(
+            <KanbanLeadPicker
+              align="start"
+              currentMemberId={detail?.reporterId}
+              noneLabel="No reporter"
+              members={members}
+              onSelectMember={onReporterChange}
+              trigger={
+                <ValueButton empty={!reporter} disabled={!canEdit}>
+                  {reporter ? (
+                    <>
+                      <UserAvatar
+                        name={reporter.displayName ?? reporter.name}
+                        src={reporter.avatarUrl}
+                        seed={reporter.id}
+                        size="xs"
+                        indicator={false}
+                      />
+                      <span className="truncate">
+                        {reporter.displayName ?? reporter.name}
+                      </span>
+                    </>
+                  ) : (
+                    'None'
+                  )}
+                </ValueButton>
+              }
+            />,
+          )}
+        </PropertyRow>
+
+        <PropertyRow label="Tags" icon={Tag}>
+          <div className="min-w-0 gap-1 py-1 flex flex-wrap items-center">
+            {card.labels.map((label) => {
+              const color = colorOf(label);
+              return (
+                <span
+                  key={label}
+                  className="h-6 gap-0.5 pl-2 text-xs font-medium inline-flex max-w-full items-center rounded-full border"
+                  style={{
+                    backgroundColor: `${color}18`,
+                    borderColor: `${color}40`,
+                    color,
+                    paddingRight: canEdit ? '0.125rem' : '0.5rem',
+                  }}
+                >
+                  <span className="truncate">{label}</span>
+                  {canEdit ? (
+                    <button
+                      type="button"
+                      onClick={() => onToggleLabel(label)}
+                      aria-label={`Remove tag ${label}`}
+                      className="size-5 inline-flex shrink-0 items-center justify-center rounded-full opacity-70 outline-none hover:opacity-100 focus-visible:ring-1 focus-visible:ring-ring"
+                    >
+                      <X className="size-3" aria-hidden />
+                    </button>
+                  ) : null}
+                </span>
+              );
+            })}
+            <KanbanLabelPicker
+              selectedLabels={card.labels}
+              onToggleLabel={onToggleLabel}
+              trigger={
+                <ValueButton
+                  empty
+                  disabled={!canEdit}
+                  className={cn(card.labels.length > 0 && 'h-6 text-xs')}
+                >
+                  {card.labels.length > 0 ? 'Edit' : 'Add tag'}
+                </ValueButton>
+              }
+            />
+          </div>
+        </PropertyRow>
+      </PropertyGroup>
+
+      <PropertyGroup title="Schedule">
         <PropertyRow label="Start date" icon={CalendarDays}>
           <DatePicker
             value={card.startDate ?? ''}
@@ -318,7 +461,9 @@ export function CardPropertiesPanel({
             onChange={(day) => onStartDateChange(day || null)}
             trigger={
               <ValueButton empty={!card.startDate} disabled={!canEdit}>
-                {card.startDate ? formatDay(card.startDate) : 'None'}
+                <span className="truncate">
+                  {card.startDate ? formatDay(card.startDate) : 'None'}
+                </span>
               </ValueButton>
             }
           />
@@ -336,15 +481,24 @@ export function CardPropertiesPanel({
                 empty={!card.dueDate}
                 disabled={!canEdit}
                 title={due?.hint}
-                className={cn(
-                  due && 'border',
-                  due && DUE_TONE_CLASSES[due.tone],
-                )}
+                className={cn(due && DUE_TEXT_CLASSES[due.tone])}
               >
-                {card.dueDate && due ? formatDay(card.dueDate) : 'None'}
+                <span className="truncate">
+                  {card.dueDate && due ? formatDay(card.dueDate) : 'None'}
+                </span>
               </ValueButton>
             }
           />
+          {countdown ? (
+            <span
+              className={cn(
+                'text-xs font-medium shrink-0 @max-[18rem]:hidden',
+                due && DUE_TEXT_CLASSES[due.tone],
+              )}
+            >
+              {countdown}
+            </span>
+          ) : null}
         </PropertyRow>
 
         <PropertyRow label="Estimate" icon={Gauge}>
@@ -373,77 +527,57 @@ export function CardPropertiesPanel({
             />,
           )}
         </PropertyRow>
-      </div>
+      </PropertyGroup>
 
-      <div className="pt-3 border-t border-border/60">
-        <PropertyRow label="Tags" icon={Tag}>
-          <div className="min-w-0 gap-1 flex flex-wrap items-center">
-            {card.labels.map((label) => {
-              const color = colorOf(label);
-              return (
-                <span
-                  key={label}
-                  className="px-2 leading-5 font-medium inline-flex max-w-full items-center truncate rounded-full border text-[11px]"
-                  style={{
-                    backgroundColor: `${color}18`,
-                    borderColor: `${color}40`,
-                    color,
-                  }}
-                >
-                  {label}
-                </span>
-              );
-            })}
-            <KanbanLabelPicker
-              selectedLabels={card.labels}
-              onToggleLabel={onToggleLabel}
-              trigger={
-                <ValueButton empty disabled={!canEdit}>
-                  {card.labels.length > 0 ? 'Edit' : 'Add tag'}
-                </ValueButton>
-              }
-            />
-          </div>
-        </PropertyRow>
-      </div>
-
-      <div className="space-y-0.5 pt-3 border-t border-border/60">
-        {refRow(
-          'Team',
-          UsersRound,
-          teamItems,
-          detail?.teamId,
-          onTeamChange,
-          'No team',
-          'No teams in this workspace yet',
-        )}
-        {refRow(
-          'Epic',
-          Layers,
-          epicItems,
-          detail?.epicId,
-          onEpicChange,
-          'No epic',
-          'No epics in this project yet',
-        )}
-        {refRow(
-          'Module',
-          Boxes,
-          moduleItems,
-          detail?.moduleId,
-          onModuleChange,
-          'No module',
-          'No modules in this project yet',
-        )}
-        {refRow(
-          'Cycle',
-          Repeat,
-          cycleItems,
-          detail?.cycleId,
-          onCycleChange,
-          'No cycle',
-          'No cycles in this project yet',
-        )}
+      <PropertyGroup title="Planning">
+        {refRow({
+          label: 'Team',
+          icon: UsersRound,
+          items: teamItems,
+          selectedId: detail?.teamId,
+          onSelect: onTeamChange,
+          noneLabel: 'No team',
+          emptyMessage: 'No teams in this workspace yet',
+          manage: { label: 'Manage teams', onSelect: onManageTeams },
+        })}
+        {refRow({
+          label: 'Epic',
+          icon: Layers,
+          items: epicItems,
+          selectedId: detail?.epicId,
+          onSelect: onEpicChange,
+          noneLabel: 'No epic',
+          emptyMessage: 'No epics in this project yet',
+          itemNoun: 'epic',
+          onCreate: onCreateEpic,
+          minCreateLength: 2,
+          manage: manageView('Manage epics', 'modules'),
+        })}
+        {refRow({
+          label: 'Module',
+          icon: Boxes,
+          items: moduleItems,
+          selectedId: detail?.moduleId,
+          onSelect: onModuleChange,
+          noneLabel: 'No module',
+          emptyMessage: 'No modules in this project yet',
+          itemNoun: 'module',
+          onCreate: onCreateModule,
+          minCreateLength: 2,
+          manage: manageView('Manage modules', 'modules'),
+        })}
+        {refRow({
+          label: 'Cycle',
+          icon: Repeat,
+          items: cycleItems,
+          selectedId: detail?.cycleId,
+          onSelect: onCycleChange,
+          noneLabel: 'No cycle',
+          emptyMessage: 'No cycles in this project yet',
+          itemNoun: 'cycle',
+          onCreate: onCreateCycle,
+          manage: manageView('Manage cycles', 'cycles'),
+        })}
 
         <PropertyRow label="Parent" icon={CornerUpLeft}>
           {loaded(
@@ -467,31 +601,44 @@ export function CardPropertiesPanel({
                   </ValueButton>
                 }
               />
+              {detail?.parentId && onOpenParent ? (
+                <ValueAction
+                  icon={ExternalLink}
+                  onClick={onOpenParent}
+                  aria-label="Open parent"
+                  title="Open parent"
+                />
+              ) : null}
               {detail?.parentId && canEdit ? (
-                <button
-                  type="button"
+                <ValueAction
+                  icon={X}
                   onClick={() => onParentChange(null)}
                   aria-label="Remove parent"
-                  className="rounded p-0.5 shrink-0 text-muted-foreground hover:bg-muted hover:text-foreground"
-                >
-                  <X className="size-3" aria-hidden />
-                </button>
+                  title="Remove parent"
+                />
               ) : null}
             </>,
           )}
         </PropertyRow>
-      </div>
+      </PropertyGroup>
 
-      <div className="space-y-0.5 pt-3 border-t border-border/60 text-[11px] text-muted-foreground">
-        <p>
-          Created {formatRelative(card.createdAt)}
-          {detail?.reporter
-            ? ` by ${detail.reporter.displayName ?? detail.reporter.name}`
-            : ''}
-        </p>
+      <div className="space-y-1 pt-4 text-xs border-t border-border/60 text-muted-foreground">
+        <p>Created {formatRelative(card.createdAt)}</p>
         {detail ? <p>Updated {formatRelative(detail.updatedAt)}</p> : null}
+        {detail?.completedAt ? (
+          <p>Completed {formatRelative(detail.completedAt)}</p>
+        ) : null}
         {detail?.meeting ? (
-          <p>From the meeting {detail.meeting.title}</p>
+          <p>
+            From the meeting{' '}
+            <button
+              type="button"
+              onClick={() => detail.meeting && onOpenMeeting(detail.meeting.id)}
+              className="font-medium rounded-sm text-foreground outline-none hover:underline focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              {detail.meeting.title}
+            </button>
+          </p>
         ) : null}
       </div>
     </div>

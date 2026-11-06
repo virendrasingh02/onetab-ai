@@ -96,6 +96,7 @@ const TRACKED_TASK_FIELDS = [
   'estimate',
   'timeSpent',
   'labels',
+  'reporterId',
   'teamId',
   'epicId',
   'cycleId',

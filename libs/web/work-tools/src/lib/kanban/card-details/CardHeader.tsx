@@ -4,6 +4,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   toast,
@@ -108,6 +111,34 @@ function CardViewSwitcher() {
   );
 }
 
+/** The same choice as `CardViewSwitcher`, for a toolbar with no room for it. */
+function CardViewMenuItems() {
+  const mode = useKanbanCardViewStore((s) => s.mode);
+  const setMode = useKanbanCardViewStore((s) => s.setMode);
+
+  return (
+    <>
+      <DropdownMenuSeparator />
+      <DropdownMenuLabel>View</DropdownMenuLabel>
+      <DropdownMenuRadioGroup
+        value={mode}
+        onValueChange={(value) => setMode(value as KanbanCardViewMode)}
+      >
+        {VIEW_OPTIONS.map((option) => (
+          <DropdownMenuRadioItem
+            key={option.mode}
+            value={option.mode}
+            indicator="check"
+          >
+            <option.icon className="mr-2 size-3.5" aria-hidden />
+            {option.label}
+          </DropdownMenuRadioItem>
+        ))}
+      </DropdownMenuRadioGroup>
+    </>
+  );
+}
+
 async function copyToClipboard(text: string, confirmation: string) {
   try {
     await navigator.clipboard.writeText(text);
@@ -125,7 +156,11 @@ export interface CardHeaderProps {
   /** The Studio agent that filed this task, when one did. */
   agent: { name: string; onOpen?: () => void } | undefined;
   link: string;
-  /** The rail is ~320px wide, so the header drops its labels there. */
+  /**
+   * For the rail and phones, where the full toolbar would cover the ticket ID:
+   * labels go, and the view switcher moves into the More menu, which already
+   * has Copy link.
+   */
   compact: boolean;
   canEdit: boolean;
   canCreate: boolean;
@@ -194,7 +229,7 @@ export function CardHeader({
             void copyToClipboard(identifier, `Copied ${identifier}`)
           }
           title="Copy ticket ID"
-          className="px-1 py-0.5 font-semibold shrink-0 rounded-md font-mono text-foreground transition-colors outline-none hover:bg-accent/60 focus-visible:ring-1 focus-visible:ring-ring"
+          className="min-w-0 px-1 py-0.5 font-semibold truncate rounded-md font-mono text-foreground transition-colors outline-none hover:bg-accent/60 focus-visible:ring-1 focus-visible:ring-ring"
         >
           {identifier}
         </button>
@@ -238,7 +273,7 @@ export function CardHeader({
             disabled={!agent.onOpen}
             onClick={agent.onOpen}
             title={`Created by the agent ${agent.name}`}
-            className="h-6 min-w-0 gap-1 px-1.5 font-medium inline-flex items-center rounded-md bg-accent-violet-soft text-accent-violet enabled:hover:underline disabled:cursor-default"
+            className="h-6 min-w-0 gap-1 px-1.5 font-medium inline-flex items-center overflow-hidden rounded-md bg-accent-violet-soft text-accent-violet enabled:hover:underline disabled:cursor-default"
           >
             <Sparkles className="size-3 shrink-0" aria-hidden />
             <span className="max-w-28 truncate">{agent.name}</span>
@@ -299,16 +334,18 @@ export function CardHeader({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => void copyToClipboard(link, 'Link copied')}
-          aria-label="Copy link to this task"
-          title="Copy link"
-          className="size-7 text-muted-foreground hover:text-foreground"
-        >
-          <Link2 className="size-3.5" aria-hidden />
-        </Button>
+        {compact ? null : (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => void copyToClipboard(link, 'Link copied')}
+            aria-label="Copy link to this task"
+            title="Copy link"
+            className="size-7 text-muted-foreground hover:text-foreground"
+          >
+            <Link2 className="size-3.5" aria-hidden />
+          </Button>
+        )}
 
         <Button
           variant="ghost"
@@ -360,6 +397,7 @@ export function CardHeader({
               <CopyPlus className="mr-2 size-3.5" aria-hidden />
               Duplicate task
             </DropdownMenuItem>
+            {compact ? <CardViewMenuItems /> : null}
             {canDelete ? <DropdownMenuSeparator /> : null}
             {canDelete ? (
               <DropdownMenuItem variant="destructive" onSelect={onDelete}>
@@ -370,8 +408,12 @@ export function CardHeader({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <span className="mx-0.5 h-4 w-px bg-border/80" aria-hidden />
-        <CardViewSwitcher />
+        {compact ? null : (
+          <>
+            <span className="mx-0.5 h-4 w-px bg-border/80" aria-hidden />
+            <CardViewSwitcher />
+          </>
+        )}
 
         <Button
           variant="ghost"

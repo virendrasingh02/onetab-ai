@@ -29,8 +29,11 @@ import {
   useAddTaskComment,
   useConvertTaskToDocument,
   useCurrentWorkspace,
+  useCycleMutations,
   useCycles,
+  useEpicMutations,
   useEpics,
+  useModuleMutations,
   useModules,
   useRelationMutations,
   useTaskCommentMutations,
@@ -170,7 +173,7 @@ export function CardDetailsDialog({
           'p-0 shadow-2xl rounded-2xl border border-border bg-card text-card-foreground transition-all duration-200',
           mode === 'full'
             ? 'max-h-[96dvh] w-[98vw] max-w-none'
-            : 'max-w-6xl w-[94vw]',
+            : 'max-w-304 w-[94vw]',
         )}
         onOpenAutoFocus={(event) => {
           event.preventDefault();
@@ -309,6 +312,9 @@ function CardDetailsBody({
   const epicsQuery = useEpics(workspaceId, projectId);
   const modulesQuery = useModules(workspaceId, projectId);
   const cyclesQuery = useCycles(workspaceId, projectId);
+  const epicMutations = useEpicMutations(workspaceId);
+  const moduleMutations = useModuleMutations(workspaceId);
+  const cycleMutations = useCycleMutations(workspaceId);
   // Shares its query key (and cache) with the board's own `useTasks` call.
   const projectTasksQuery = useTasks(workspaceId, projectId);
   const relationsQuery = useWorkItemRelations(workspaceId, card.id);
@@ -405,6 +411,62 @@ function CardDetailsBody({
   const updateTask = (
     input: Parameters<typeof taskMutations.update.mutate>[0]['input'],
   ) => taskMutations.update.mutate({ taskId: card.id, input });
+
+  /* Made from a picker, so the new item goes straight onto this task. */
+  const createFailed = (noun: string) => () =>
+    toast.error(`Could not create the ${noun}`);
+
+  const handleCreateEpic = (name: string) => {
+    if (!projectId) return;
+    epicMutations.create.mutate(
+      { projectId, name },
+      {
+        onSuccess: (epic) => updateTask({ epicId: epic.id }),
+        onError: createFailed('epic'),
+      },
+    );
+  };
+
+  const handleCreateModule = (name: string) => {
+    if (!projectId) return;
+    moduleMutations.create.mutate(
+      { projectId, name },
+      {
+        onSuccess: (module) => updateTask({ moduleId: module.id }),
+        onError: createFailed('module'),
+      },
+    );
+  };
+
+  const handleCreateCycle = (name: string) => {
+    if (!projectId) return;
+    const startDate = new Date();
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + DEFAULT_CYCLE_DAYS);
+    cycleMutations.create.mutate(
+      {
+        projectId,
+        name,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+      },
+      {
+        onSuccess: (cycle) => {
+          updateTask({ cycleId: cycle.id });
+          toast.success(
+            `Cycle “${cycle.name}” runs for ${DEFAULT_CYCLE_DAYS} days. Change its dates under Cycles.`,
+          );
+        },
+        onError: createFailed('cycle'),
+      },
+    );
+  };
+
+  /* The card is a layer over the page, so it steps aside for the new one. */
+  const leaveTo = (path: string) => {
+    onClose();
+    navigate(path);
+  };
 
   /* A link can point at a task from another project, which this board lacks. */
   const canOpen = (taskId: string) => Boolean(findCard(board, taskId));
@@ -567,6 +629,7 @@ function CardDetailsBody({
       onStartDateChange={(startDate) => updateCard({ startDate })}
       onDueDateChange={(dueDate) => updateCard({ dueDate })}
       onToggleLabel={handleToggleLabel}
+      onReporterChange={(reporterId) => updateTask({ reporterId })}
       onTimeChange={(timeSpent) => updateTask({ timeSpent })}
       onEstimateChange={(estimate) => updateTask({ estimate })}
       onTeamChange={(teamId) => updateTask({ teamId })}
@@ -574,6 +637,24 @@ function CardDetailsBody({
       onModuleChange={(moduleId) => updateTask({ moduleId })}
       onCycleChange={(cycleId) => updateTask({ cycleId })}
       onParentChange={(parentId) => updateTask({ parentId })}
+      onCreateEpic={canCreate && projectId ? handleCreateEpic : undefined}
+      onCreateModule={canCreate && projectId ? handleCreateModule : undefined}
+      onCreateCycle={canCreate && projectId ? handleCreateCycle : undefined}
+      onManageTeams={() => leaveTo(`/w/${workspaceSlug}/settings/kanban-tasks`)}
+      onManageView={
+        projectId
+          ? (view) =>
+              leaveTo(`/w/${workspaceSlug}/projects/${projectId}?view=${view}`)
+          : undefined
+      }
+      onOpenParent={
+        detail?.parentId && canOpen(detail.parentId)
+          ? () => detail.parentId && onOpenCard(detail.parentId)
+          : undefined
+      }
+      onOpenMeeting={(meetingId) =>
+        leaveTo(`/w/${workspaceSlug}/meetings?meeting=${meetingId}`)
+      }
     />
   );
 
@@ -600,7 +681,7 @@ function CardDetailsBody({
             : undefined
         }
         link={`${window.location.origin}${window.location.pathname}?card=${card.id}`}
-        compact={compact}
+        compact={singleColumn}
         canEdit={canEdit}
         canCreate={canCreate}
         canDelete={canDelete}
@@ -817,7 +898,7 @@ function CardDetailsBody({
         {singleColumn ? null : (
           <aside
             aria-label="Task properties"
-            className="w-76 px-4 py-4 shrink-0 overflow-y-auto border-l border-border/60 bg-surface-inset/30"
+            className="w-88 px-5 py-5 shrink-0 overflow-y-auto border-l border-border/60 bg-surface-inset/30"
           >
             {properties}
           </aside>
@@ -826,6 +907,9 @@ function CardDetailsBody({
     </div>
   );
 }
+
+/** New cycles run this long until someone sets real dates. */
+const DEFAULT_CYCLE_DAYS = 14;
 
 function patchAction(
   cardId: string,

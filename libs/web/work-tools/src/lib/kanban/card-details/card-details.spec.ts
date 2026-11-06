@@ -1,5 +1,6 @@
 import type { TaskComment, WorkItemActivity } from '@org/types';
 import { describe, expect, it } from 'vitest';
+import { dueCountdown } from '../card-meta.js';
 import { parseDuration } from '../relation-meta.js';
 import {
   buildTimeline,
@@ -76,6 +77,14 @@ describe('describeActivity', () => {
     expect(team('gone')).toBe('changed the team');
   });
 
+  it('names the new reporter', () => {
+    const reporter = (newValue: string | null) =>
+      describeActivity(row({ fieldChanged: 'reporterId', newValue }), lookups);
+    expect(reporter('u2')).toBe('set the reporter to Ben');
+    expect(reporter('gone')).toBe('changed the reporter');
+    expect(reporter(null)).toBe('removed the reporter');
+  });
+
   it('diffs tags', () => {
     expect(
       describeActivity(
@@ -146,6 +155,32 @@ describe('parseDuration', () => {
 
   it.each(['', '0', 'soon', '1x'])('rejects "%s"', (text) => {
     expect(parseDuration(text)).toBeNull();
+  });
+});
+
+describe('dueCountdown', () => {
+  const inDays = (days: number) => {
+    const day = new Date();
+    day.setDate(day.getDate() + days);
+    const month = String(day.getMonth() + 1).padStart(2, '0');
+    const date = String(day.getDate()).padStart(2, '0');
+    return `${day.getFullYear()}-${month}-${date}`;
+  };
+  const countdown = (days: number, dueComplete = false) =>
+    dueCountdown({ dueDate: inDays(days), dueComplete });
+
+  it('counts down the last week and counts up once late', () => {
+    expect(countdown(-3)).toBe('3 days late');
+    expect(countdown(-1)).toBe('1 day late');
+    expect(countdown(0)).toBe('Today');
+    expect(countdown(1)).toBe('Tomorrow');
+    expect(countdown(7)).toBe('In 7 days');
+  });
+
+  it('stays quiet when the date is far off, finished or unset', () => {
+    expect(countdown(8)).toBeUndefined();
+    expect(countdown(-3, true)).toBeUndefined();
+    expect(dueCountdown({ dueDate: null })).toBeUndefined();
   });
 });
 

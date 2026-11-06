@@ -91,6 +91,28 @@ export const DUE_TONE_CLASSES: Record<DueTone, string> = {
   later: 'border-transparent bg-muted text-muted-foreground',
 };
 
+/** The same tones as text, for a due date that sits among plain values. */
+export const DUE_TEXT_CLASSES: Record<DueTone, string> = {
+  complete: 'text-accent-green',
+  overdue: 'text-accent-rose',
+  today: 'text-accent-orange',
+  soon: 'text-accent-amber',
+  later: 'text-foreground',
+};
+
+/** How close a due date is, in words. Undefined once it needs no attention. */
+export function dueCountdown(
+  card: Pick<KanbanCard, 'dueDate' | 'dueComplete'>,
+): string | undefined {
+  if (!card.dueDate || card.dueComplete) return undefined;
+  const days = daysUntil(card.dueDate);
+  if (days < -1) return `${-days} days late`;
+  if (days === -1) return '1 day late';
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Tomorrow';
+  return days <= 7 ? `In ${days} days` : undefined;
+}
+
 /* ------------------------------------------------------------ priority --- */
 
 export const PRIORITIES: Priority[] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
