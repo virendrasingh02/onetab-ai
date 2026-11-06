@@ -1,3 +1,4 @@
+import { queryKeys } from '@org/api-client';
 import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { applyRealtimeEvent } from './realtime-invalidation-map.js';
@@ -117,16 +118,46 @@ describe('applyRealtimeEvent', () => {
     );
   });
 
-  it('task.updated invalidates the task detail and the board', () => {
+  it('task.updated and task.assigned invalidate only the tasks prefix', () => {
+    for (const type of ['task.updated', 'task.assigned']) {
+      const local = ctx();
+      applyRealtimeEvent(evt(type, { workspaceId: WS, taskId: 't1' }), {
+        queryClient: local.qc,
+        workspaceId: WS,
+      });
+      expect(keys(local.invalidate)).toEqual([['work-tools', WS, 'tasks']]);
+    }
+  });
+
+  it('the tasks prefix reaches an open task’s detail, comments and relations', async () => {
+    const qc = new QueryClient();
+    const open = [
+      queryKeys.workTools.task(WS, 't1'),
+      queryKeys.workTools.taskComments(WS, 't1'),
+      queryKeys.workTools.relations(WS, 't1'),
+    ];
+    for (const key of open) qc.setQueryData(key, {});
+
     applyRealtimeEvent(evt('task.updated', { workspaceId: WS, taskId: 't1' }), {
-      queryClient: c.qc,
+      queryClient: qc,
       workspaceId: WS,
     });
-    const flat = keys(c.invalidate).map((k) => JSON.stringify(k));
-    expect(flat).toContain(JSON.stringify(['work-tools', WS, 'tasks']));
-    expect(
-      flat.some((k) => k.includes('"detail"') && k.includes('"t1"')),
-    ).toBe(true);
+
+    for (const key of open) {
+      expect(qc.getQueryState(key)?.isInvalidated).toBe(true);
+    }
+  });
+
+  it('hands keys to `schedule` instead of invalidating them', () => {
+    const schedule = vi.fn();
+    const applied = applyRealtimeEvent(evt('kanban.updated', { workspaceId: WS }), {
+      queryClient: c.qc,
+      workspaceId: WS,
+      schedule,
+    });
+    expect(applied).toBe(1);
+    expect(schedule).toHaveBeenCalledWith(['work-tools', WS, 'tasks']);
+    expect(c.invalidate).not.toHaveBeenCalled();
   });
 
   it('channel.* events invalidate the channel list', () => {

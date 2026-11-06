@@ -7,6 +7,8 @@ export interface InvalidationContext {
   queryClient: QueryClient;
   /** The workspace the app is currently showing. */
   workspaceId: string;
+  /** Takes each stale key instead of invalidating it straight away. */
+  schedule?: (queryKey: readonly unknown[]) => void;
 }
 
 /**
@@ -16,7 +18,7 @@ export interface InvalidationContext {
  * scheduled polls, catch-up reconciliation and realtime events all go through
  * one consistent invalidation map.
  *
- * Returns the number of query keys invalidated (0 if the event was ignored),
+ * Returns the number of query keys marked stale (0 if the event was ignored),
  * for metrics.
  *
  * Workspace safety: an event whose `workspaceId` does not match the active
@@ -28,7 +30,7 @@ export function applyRealtimeEvent(
   event: RealtimeEvent,
   ctx: InvalidationContext,
 ): number {
-  const { queryClient, workspaceId } = ctx;
+  const { queryClient, workspaceId, schedule } = ctx;
   if (!workspaceId) return 0;
 
   const eventWorkspaceId =
@@ -47,7 +49,8 @@ export function applyRealtimeEvent(
   const ws = workspaceId;
   const invalidated: unknown[][] = [];
   const invalidate = (queryKey: readonly unknown[]) => {
-    queryClient.invalidateQueries({ queryKey: queryKey as unknown[] });
+    if (schedule) schedule(queryKey);
+    else queryClient.invalidateQueries({ queryKey: queryKey as unknown[] });
     invalidated.push(queryKey as unknown[]);
   };
 
@@ -85,17 +88,12 @@ export function applyRealtimeEvent(
       break;
     }
 
+    // This prefix also covers each task's detail, comments and relations.
     case RealtimeEventType.TaskCreated:
     case RealtimeEventType.TaskDeleted:
-    case RealtimeEventType.KanbanUpdated: {
-      invalidate(['work-tools', ws, 'tasks']);
-      break;
-    }
-
+    case RealtimeEventType.KanbanUpdated:
     case RealtimeEventType.TaskUpdated:
     case RealtimeEventType.TaskAssigned: {
-      const taskId = (event.payload as { taskId?: string } | undefined)?.taskId;
-      if (taskId) invalidate(queryKeys.workTools.task(ws, taskId));
       invalidate(['work-tools', ws, 'tasks']);
       break;
     }

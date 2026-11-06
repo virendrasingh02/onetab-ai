@@ -6,6 +6,7 @@ import {
   type RealtimeEventBus,
 } from '@org/realtime';
 import type { QueryClient } from '@tanstack/react-query';
+import { InvalidationBatcher } from './realtime-invalidation-batcher.js';
 import { applyRealtimeEvent } from './realtime-invalidation-map.js';
 import { OfflineActionQueue, type ActionExecutor } from './offline-queue.js';
 import { runCatchup, writeCursor } from './sync-catchup.js';
@@ -65,6 +66,15 @@ export class BackgroundSyncManager {
       });
     },
   );
+
+  private readonly invalidations = new InvalidationBatcher((keys) => {
+    if (!this.queryClient) return;
+    for (const queryKey of keys) {
+      this.queryClient.invalidateQueries({ queryKey });
+    }
+    // A realtime event is proof the stream is live and current.
+    this.markSynced();
+  });
 
   private workspaceId: string | null = null;
   private connectionState: RealtimeConnectionState = 'disconnected';
@@ -163,6 +173,9 @@ export class BackgroundSyncManager {
     if (this.workspaceId === workspaceId) return;
     const previous = this.workspaceId;
     this.workspaceId = workspaceId;
+    // Safe to drop: the cursor only advances on flush, so coming back to this
+    // workspace catches up on whatever was pending here.
+    this.invalidations.clear();
 
     if (previous && this.queryClient) {
       // Stop any background refetch aimed at the workspace we are leaving so it
@@ -186,6 +199,7 @@ export class BackgroundSyncManager {
 
   dispose(): void {
     this.disposed = true;
+    this.invalidations.clear();
     for (const fn of this.detachFns) fn();
     this.detachFns = [];
     this.scheduler?.stop();
@@ -258,9 +272,10 @@ export class BackgroundSyncManager {
     const applied = applyRealtimeEvent(event, {
       queryClient: this.queryClient,
       workspaceId: this.workspaceId,
+      schedule: (queryKey) => this.invalidations.add(queryKey),
     });
-    if (applied > 0) {
-      // A realtime event is proof the stream is live and current.
+    // Agent and run events refresh on their own timers, so no flush will follow.
+    if (applied > 0 && this.invalidations.size === 0) {
       this.markSynced();
     }
   }

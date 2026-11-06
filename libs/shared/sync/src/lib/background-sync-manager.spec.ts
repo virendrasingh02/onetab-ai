@@ -3,6 +3,11 @@ import type { SyncChangesDigest } from '@org/types';
 import { QueryClient } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BackgroundSyncManager } from './background-sync-manager.js';
+import {
+  INVALIDATION_MAX_WAIT_MS,
+  INVALIDATION_WINDOW_MS,
+} from './realtime-invalidation-batcher.js';
+import { readCursor } from './sync-catchup.js';
 import { useSyncStore } from './sync-store.js';
 
 const { changes } = vi.hoisted(() => ({ changes: vi.fn() }));
@@ -70,19 +75,103 @@ describe('BackgroundSyncManager', () => {
     manager.dispose();
   });
 
-  it('routes a realtime event through the invalidation map for the active workspace', async () => {
-    await manager.setWorkspace(WS);
-    invalidate.mockClear();
+  describe('realtime invalidation batching', () => {
+    const emit = (type: string, payload: object = {}, workspaceId = WS) =>
+      bus.emit({
+        id: `e-${Math.random()}`,
+        type,
+        timestamp: new Date().toISOString(),
+        workspaceId,
+        payload: { workspaceId, ...payload },
+      });
+    const invalidatedKeys = () =>
+      invalidate.mock.calls.map(
+        (call: unknown[]) => (call[0] as { queryKey: unknown[] }).queryKey,
+      );
 
-    bus.emit({
-      id: 'e1',
-      type: 'channel.created',
-      timestamp: new Date().toISOString(),
-      workspaceId: WS,
-      payload: { workspaceId: WS },
+    beforeEach(async () => {
+      await manager.setWorkspace(WS);
+      invalidate.mockClear();
+      vi.useFakeTimers();
     });
 
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['channels', WS] });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('applies a single event within the window', () => {
+      emit('channel.created');
+      expect(invalidate).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(INVALIDATION_WINDOW_MS);
+
+      expect(invalidate).toHaveBeenCalledTimes(1);
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: ['channels', WS] });
+    });
+
+    it('turns a burst of task events into one invalidation per key', () => {
+      for (let i = 0; i < 25; i++) {
+        emit('kanban.updated', { taskId: `t${i}` });
+        emit('task.updated', { taskId: `t${i}` });
+        emit('comment.created', { taskId: `t${i}` });
+        emit('notification.read');
+      }
+
+      vi.advanceTimersByTime(INVALIDATION_WINDOW_MS);
+
+      const keys = invalidatedKeys();
+      expect(keys.filter((k) => k[0] === 'work-tools')).toEqual([
+        ['work-tools', WS, 'tasks'],
+      ]);
+      expect(new Set(keys.map((k) => JSON.stringify(k))).size).toBe(keys.length);
+      expect(keys).toHaveLength(4); // the tasks prefix + three notification keys
+    });
+
+    it('keeps refreshing during an endless stream of events', () => {
+      for (let elapsed = 0; elapsed < 3000; elapsed += 100) {
+        emit('kanban.updated');
+        vi.advanceTimersByTime(100);
+      }
+
+      expect(invalidate).toHaveBeenCalledTimes(3);
+    });
+
+    it('drops pending keys on workspace switch and leaves the cursor for catch-up', async () => {
+      const cursor = readCursor(WS);
+      vi.advanceTimersByTime(1000);
+      emit('channel.created');
+
+      await manager.setWorkspace('ws_2');
+      vi.advanceTimersByTime(INVALIDATION_MAX_WAIT_MS);
+
+      expect(invalidatedKeys()).not.toContainEqual(['channels', WS]);
+      expect(readCursor(WS)).toBe(cursor);
+    });
+
+    it('drops pending keys on dispose', () => {
+      emit('channel.created');
+
+      manager.dispose();
+      vi.advanceTimersByTime(INVALIDATION_MAX_WAIT_MS);
+
+      expect(invalidate).not.toHaveBeenCalled();
+    });
+
+    it('marks the stream synced when the batch flushes', () => {
+      useSyncStore.setState({ lastSyncedAt: null });
+      emit('channel.created');
+      expect(useSyncStore.getState().lastSyncedAt).toBeNull();
+
+      vi.advanceTimersByTime(INVALIDATION_WINDOW_MS);
+
+      expect(useSyncStore.getState().lastSyncedAt).not.toBeNull();
+    });
+
+    it('marks the stream synced at once for an event with its own refresh timer', () => {
+      useSyncStore.setState({ lastSyncedAt: null });
+      emit('agent.updated', { agentId: 'a1' });
+      expect(useSyncStore.getState().lastSyncedAt).not.toBeNull();
+    });
   });
 
   it('ignores a realtime event for a different workspace', async () => {

@@ -14,9 +14,13 @@ vi.mock('@org/realtime', async (importOriginal) => ({
   useRealtime: () => realtime.value,
 }));
 
+import { INVALIDATION_WINDOW_MS } from './realtime-invalidation-batcher.js';
 import { SyncProvider } from './sync-provider.js';
 
 const WORKSPACE = 'ws-1';
+
+const wait = (ms: number) =>
+  act(() => new Promise((resolve) => setTimeout(resolve, ms)));
 
 function renderProvider() {
   const bus = new RealtimeEventBus();
@@ -51,10 +55,11 @@ describe('SyncProvider', () => {
   it('still applies realtime events after StrictMode re-runs its effects', async () => {
     const { invalidate, emitKanbanUpdate } = renderProvider();
     // Past the tick a stray disposal would have fired on.
-    await act(() => new Promise((resolve) => setTimeout(resolve, 5)));
+    await wait(5);
     invalidate.mockClear();
 
     emitKanbanUpdate();
+    await wait(INVALIDATION_WINDOW_MS + 20);
 
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: ['work-tools', WORKSPACE, 'tasks'],
@@ -64,10 +69,11 @@ describe('SyncProvider', () => {
   it('stops applying realtime events after a real unmount', async () => {
     const { view, invalidate, emitKanbanUpdate } = renderProvider();
     view.unmount();
-    await act(() => new Promise((resolve) => setTimeout(resolve, 5)));
+    await wait(5);
     invalidate.mockClear();
 
     emitKanbanUpdate();
+    await wait(INVALIDATION_WINDOW_MS + 20);
 
     expect(invalidate).not.toHaveBeenCalled();
   });
