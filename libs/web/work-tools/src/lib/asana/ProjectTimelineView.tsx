@@ -1,16 +1,29 @@
-import { Button, SkeletonList, UserAvatar } from '@org/ui';
+import {
+  Badge,
+  Button,
+  DatePicker,
+  EntityContextMenu,
+  SkeletonList,
+  UserAvatar,
+  UserAvatarGroup,
+} from '@org/ui';
 import { TaskStatus } from '@org/types';
 import { cn } from '@org/utils';
 import {
   CalendarOff,
+  CalendarPlus,
   CalendarRange,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { parseDay, todayISO } from '../kanban/card-meta.js';
+import { useKanbanDisplayStore } from '../kanban/kanban-display-store.js';
 import { StatusIcon } from '../kanban/kanban-icons.js';
+import type { BoardAction } from '../kanban/server-board.js';
+import { useBoardTaskActions } from '../kanban/task-actions.js';
+import { statusColor, useKnownWorkflowStates } from '../kanban/task-states.js';
 import {
   PROJECT_VIEW_PADDING,
   TaskTicket,
@@ -19,6 +32,9 @@ import {
 import type { BoardState, KanbanCard, KanbanList } from '../kanban/types.js';
 
 interface ProjectTimelineViewProps {
+  workspaceId?: string;
+  /** The board's writes — the same ones the board and list views use. */
+  dispatch: (action: BoardAction) => void;
   board: BoardState;
   onSelectCard: (card: KanbanCard, listId: string) => void;
   isLoading?: boolean;
@@ -34,29 +50,17 @@ const DAY_MS = 86_400_000;
 
 type Phase = 'done' | 'active' | 'upcoming' | 'cancelled';
 
-/** Bar colour by status category, so custom statuses colour with their built-in. */
-const PHASE_META: Record<Phase, { label: string; bar: string; dot: string }> = {
-  upcoming: {
-    label: 'Not started',
-    bar: 'border-accent-amber/40 bg-accent-amber-soft text-accent-amber',
-    dot: 'bg-accent-amber',
-  },
-  active: {
-    label: 'In progress',
-    bar: 'border-accent-blue/40 bg-accent-blue-soft text-accent-blue',
-    dot: 'bg-accent-blue',
-  },
-  done: {
-    label: 'Done',
-    bar: 'border-accent-green/40 bg-accent-green-soft text-accent-green',
-    dot: 'bg-accent-green',
-  },
-  cancelled: {
-    label: 'Cancelled',
-    bar: 'border-border bg-muted text-muted-foreground line-through',
-    dot: 'bg-muted-foreground/50',
-  },
-};
+/**
+ * Bars paint in their status's own colour — the same one the board column,
+ * status icon and pickers use — tinted so the title stays readable.
+ */
+function barStyle(color: string): CSSProperties {
+  return {
+    backgroundColor: `color-mix(in srgb, ${color} 16%, var(--card))`,
+    borderColor: `color-mix(in srgb, ${color} 45%, transparent)`,
+    color: `color-mix(in srgb, ${color} 70%, var(--foreground))`,
+  };
+}
 
 function phaseOf(list: KanbanList): Phase {
   switch (list.category) {
@@ -98,6 +102,8 @@ interface Row {
 }
 
 export function ProjectTimelineView({
+  workspaceId,
+  dispatch,
   board,
   onSelectCard,
   isLoading = false,
@@ -112,6 +118,16 @@ export function ProjectTimelineView({
     return d;
   });
   const [showUndated, setShowUndated] = useState(false);
+  const workflow = useKnownWorkflowStates();
+  const show = useKanbanDisplayStore((state) => state.card);
+  // The board card's own menu, on right-click of any row.
+  const taskActions = useBoardTaskActions({
+    workspaceId,
+    lists: board.lists,
+    members: board.members,
+    dispatch,
+    onOpen: onSelectCard,
+  });
 
   const days = useMemo(
     () =>
@@ -239,12 +255,10 @@ export function ProjectTimelineView({
         </div>
 
         <div className="gap-4 text-xs flex flex-wrap items-center text-muted-foreground">
-          {(['upcoming', 'active', 'done'] as const).map((phase) => (
-            <span key={phase} className="gap-1.5 flex items-center">
-              <span
-                className={cn('size-2.5 rounded-full', PHASE_META[phase].dot)}
-              />
-              {PHASE_META[phase].label}
+          {board.lists.map((list) => (
+            <span key={list.id} className="gap-1.5 flex items-center">
+              <StatusIcon status={list.id} showTooltip={false} />
+              {list.title}
             </span>
           ))}
         </div>
@@ -309,7 +323,7 @@ export function ProjectTimelineView({
                 const clippedEnd = to > SPAN - 1;
                 const startCol = Math.max(0, from) + 2;
                 const endCol = Math.min(SPAN - 1, to) + 3;
-                const member = board.members.find((m) =>
+                const assignees = board.members.filter((m) =>
                   card.memberIds.includes(m.id),
                 );
                 const dates =
@@ -319,89 +333,107 @@ export function ProjectTimelineView({
                     ? `${card.startDate} → ${card.dueDate}`
                     : `Due ${card.dueDate ?? card.startDate}`;
                 return (
-                  <div
+                  <EntityContextMenu
                     key={card.id}
-                    className="group min-h-10 grid transition-colors hover:bg-muted/30"
-                    style={gridStyle}
+                    actions={() => taskActions(card, list.id)}
+                    scope={`task:${card.id}`}
+                    entityType="task"
+                    entity={card}
+                    label={`“${card.title}”`}
+                    longPress={false}
                   >
-                    {/* Task cell */}
-                    <button
-                      type="button"
-                      onClick={() => onSelectCard(card, list.id)}
-                      className="px-4 py-2 gap-2 min-w-0 text-sm flex items-center text-left focus-visible:bg-muted/50 focus-visible:outline-none"
-                      style={{ gridColumn: 1, gridRow: 1 }}
+                    <div
+                      className="group min-h-10 grid transition-colors hover:bg-muted/30"
+                      style={gridStyle}
                     >
-                      <StatusIcon
-                        status={list.id}
-                        className="size-3.5 shrink-0"
-                        showTooltip={false}
-                      />
-                      <TaskTicket ticket={card.ticketId ?? card.identifier} />
-                      <span
-                        className={cn(
-                          'min-w-0 font-medium flex-1 truncate group-hover:text-primary',
-                          phase === 'done' &&
-                            'text-muted-foreground line-through',
-                        )}
+                      {/* Task cell */}
+                      <button
+                        type="button"
+                        onClick={() => onSelectCard(card, list.id)}
+                        className="px-4 py-2 gap-2 min-w-0 text-sm flex items-center text-left focus-visible:bg-muted/50 focus-visible:outline-none"
+                        style={{ gridColumn: 1, gridRow: 1 }}
                       >
-                        {card.title}
-                      </span>
-                      {member ? (
-                        <UserAvatar
-                          name={member.name}
-                          src={member.avatarUrl}
-                          seed={member.id}
-                          size="xs"
+                        <StatusIcon
+                          status={list.id}
+                          className="size-3.5 shrink-0"
+                          showTooltip={false}
                         />
-                      ) : null}
-                    </button>
-
-                    {/* Day cells */}
-                    {days.map((day, i) => {
-                      const weekend = day.getDay() === 0 || day.getDay() === 6;
-                      return (
-                        <div
-                          key={isoDay(day)}
-                          aria-hidden
+                        {(show.ticketId ?? true) ? (
+                          <TaskTicket
+                            ticket={card.ticketId ?? card.identifier}
+                          />
+                        ) : null}
+                        <span
                           className={cn(
-                            'border-l border-border/40',
-                            weekend && 'bg-muted/30',
-                            i === todayIndex && 'bg-primary/5',
+                            'min-w-0 font-medium flex-1 truncate',
+                            phase === 'done' &&
+                              'text-muted-foreground line-through',
                           )}
-                          style={{ gridColumn: i + 2, gridRow: 1 }}
-                        />
-                      );
-                    })}
+                        >
+                          {card.title}
+                        </span>
+                        {(show.assignee ?? true) && assignees.length > 1 ? (
+                          <UserAvatarGroup users={assignees} size="xs" />
+                        ) : (show.assignee ?? true) && assignees[0] ? (
+                          <UserAvatar
+                            name={assignees[0].displayName ?? assignees[0].name}
+                            src={assignees[0].avatarUrl}
+                            seed={assignees[0].id}
+                            presence={assignees[0].presence}
+                            size="xs"
+                          />
+                        ) : null}
+                      </button>
 
-                    {/* Bar */}
-                    <button
-                      type="button"
-                      onClick={() => onSelectCard(card, list.id)}
-                      title={`${card.title} · ${dates}`}
-                      className={cn(
-                        'mx-0.5 h-6 px-2 gap-1 min-w-0 font-medium z-10 flex items-center self-center border text-[11px] shadow-xs transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-                        PHASE_META[phase].bar,
-                        clippedStart
-                          ? 'rounded-l-none border-l-0'
-                          : 'rounded-l-md',
-                        clippedEnd
-                          ? 'rounded-r-none border-r-0'
-                          : 'rounded-r-md',
-                      )}
-                      style={{
-                        gridColumn: `${startCol} / ${endCol}`,
-                        gridRow: 1,
-                      }}
-                    >
-                      {clippedStart ? (
-                        <ChevronLeft className="size-3 shrink-0" />
-                      ) : null}
-                      <span className="truncate">{card.title}</span>
-                      {clippedEnd ? (
-                        <ChevronRight className="size-3 ml-auto shrink-0" />
-                      ) : null}
-                    </button>
-                  </div>
+                      {/* Day cells */}
+                      {days.map((day, i) => {
+                        const weekend =
+                          day.getDay() === 0 || day.getDay() === 6;
+                        return (
+                          <div
+                            key={isoDay(day)}
+                            aria-hidden
+                            className={cn(
+                              'border-l border-border/40',
+                              weekend && 'bg-muted/30',
+                              i === todayIndex && 'bg-primary/5',
+                            )}
+                            style={{ gridColumn: i + 2, gridRow: 1 }}
+                          />
+                        );
+                      })}
+
+                      {/* Bar */}
+                      <button
+                        type="button"
+                        onClick={() => onSelectCard(card, list.id)}
+                        title={`${card.title} · ${dates}`}
+                        className={cn(
+                          'mx-0.5 h-6 px-2 gap-1 min-w-0 font-medium z-10 flex items-center self-center border text-[11px] shadow-xs transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                          phase === 'cancelled' && 'line-through',
+                          clippedStart
+                            ? 'rounded-l-none border-l-0'
+                            : 'rounded-l-md',
+                          clippedEnd
+                            ? 'rounded-r-none border-r-0'
+                            : 'rounded-r-md',
+                        )}
+                        style={{
+                          ...barStyle(statusColor(list.id, workflow)),
+                          gridColumn: `${startCol} / ${endCol}`,
+                          gridRow: 1,
+                        }}
+                      >
+                        {clippedStart ? (
+                          <ChevronLeft className="size-3 shrink-0" />
+                        ) : null}
+                        <span className="truncate">{card.title}</span>
+                        {clippedEnd ? (
+                          <ChevronRight className="size-3 ml-auto shrink-0" />
+                        ) : null}
+                      </button>
+                    </div>
+                  </EntityContextMenu>
                 );
               })}
             </div>
@@ -425,30 +457,66 @@ export function ProjectTimelineView({
             )}
             <CalendarOff className="size-4 text-muted-foreground" />
             <span>No dates</span>
-            <span className="text-xs font-normal text-muted-foreground tabular-nums">
+            <Badge variant="neutral" className="min-w-5 tabular-nums">
               {undated.length}
-            </span>
+            </Badge>
             <span className="text-xs font-normal ml-auto text-muted-foreground">
-              Open a task to set its start or due date
+              Set a due date to put a task on the timeline
             </span>
           </button>
           {showUndated ? (
             <div className="divide-y divide-border/40 border-t border-border/60">
               {undated.map(({ card, list }) => (
-                <button
+                <EntityContextMenu
                   key={card.id}
-                  type="button"
-                  onClick={() => onSelectCard(card, list.id)}
-                  className="px-4 py-2 gap-2 text-sm min-w-0 flex w-full items-center text-left transition-colors hover:bg-muted/30"
+                  actions={() => taskActions(card, list.id)}
+                  scope={`task:${card.id}`}
+                  entityType="task"
+                  entity={card}
+                  label={`“${card.title}”`}
+                  longPress={false}
                 >
-                  <StatusIcon
-                    status={list.id}
-                    className="size-3.5 shrink-0"
-                    showTooltip={false}
-                  />
-                  <TaskTicket ticket={card.ticketId ?? card.identifier} />
-                  <span className="min-w-0 flex-1 truncate">{card.title}</span>
-                </button>
+                  <div className="pr-3 gap-2 flex items-center transition-colors hover:bg-muted/30">
+                    <button
+                      type="button"
+                      onClick={() => onSelectCard(card, list.id)}
+                      className="px-4 py-2 gap-2 text-sm min-w-0 flex flex-1 items-center text-left focus-visible:bg-muted/50 focus-visible:outline-none"
+                    >
+                      <StatusIcon
+                        status={list.id}
+                        className="size-3.5 shrink-0"
+                        showTooltip={false}
+                      />
+                      {(show.ticketId ?? true) ? (
+                        <TaskTicket ticket={card.ticketId ?? card.identifier} />
+                      ) : null}
+                      <span className="min-w-0 flex-1 truncate">
+                        {card.title}
+                      </span>
+                    </button>
+                    {/* Scheduling right here puts the task straight onto the grid. */}
+                    <DatePicker
+                      value={card.dueDate}
+                      onChange={(day) =>
+                        dispatch({
+                          type: 'card/update',
+                          cardId: card.id,
+                          patch: { dueDate: day ?? null },
+                        })
+                      }
+                      trigger={
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                        >
+                          <CalendarPlus className="size-3.5" />
+                          Set due date
+                        </Button>
+                      }
+                    />
+                  </div>
+                </EntityContextMenu>
               ))}
             </div>
           ) : null}

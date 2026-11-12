@@ -1,4 +1,5 @@
 import {
+  Badge,
   Button,
   confirm,
   DropdownMenu,
@@ -157,10 +158,10 @@ export function KanbanListColumn({
       aria-label={list.title}
       hidden={drag.activeListId === list.id}
       className={cn(
-        'w-[85vw] sm:w-80 md:w-84 xl:w-[320px] 2xl:w-[340px] flex max-h-full shrink-0 flex-col rounded-xl border border-border bg-surface-muted',
-        'transition-[box-shadow] duration-(--duration-fast)',
+        'sm:w-80 md:w-84 xl:w-[320px] 2xl:w-[340px] min-h-0 flex w-[85vw] shrink-0 flex-col rounded-xl',
+        'transition-[box-shadow,background-color] duration-(--duration-fast)',
         // Set by the drag engine on whichever column is under the pointer.
-        'data-drop-target:ring-2 data-drop-target:ring-primary/25',
+        'data-drop-target:bg-surface-muted data-drop-target:ring-2 data-drop-target:ring-primary/25',
       )}
     >
       {/*
@@ -175,7 +176,7 @@ export function KanbanListColumn({
         onPointerDown={columnDrag.onPointerDown}
         onKeyDown={columnDrag.onKeyDown}
         className={cn(
-          'gap-2 px-3 py-2 flex items-center justify-between border-b border-border/40 bg-surface/40 rounded-t-xl',
+          'gap-2 pl-3 pr-1.5 h-10 flex shrink-0 items-center justify-between rounded-lg',
           'cursor-grab touch-manipulation select-none',
           'focus-visible:ring-[3px] focus-visible:ring-ring/30 focus-visible:outline-none',
         )}
@@ -183,12 +184,14 @@ export function KanbanListColumn({
         <div className="gap-2 min-w-0 flex flex-1 items-center">
           <StatusIcon status={list.id} className="size-4 shrink-0" />
 
-          <h2 className="min-w-0 py-0.5 text-xs font-semibold flex-1 truncate text-foreground">
+          <h2 className="min-w-0 text-sm font-semibold truncate text-foreground">
             {list.title}
           </h2>
 
-          <span
-            className="text-xs font-medium text-muted-foreground/80 tabular-nums shrink-0"
+          <Badge
+            variant="neutral"
+            className="min-w-5 tabular-nums"
+            aria-label={`${list.cards.length} task${list.cards.length === 1 ? '' : 's'}`}
             title={
               hiddenCount > 0
                 ? `${visibleCards.length} of ${list.cards.length} shown`
@@ -198,7 +201,7 @@ export function KanbanListColumn({
             {hiddenCount > 0
               ? `${visibleCards.length}/${list.cards.length}`
               : list.cards.length}
-          </span>
+          </Badge>
         </div>
 
         <div data-no-drag className="gap-0.5 flex shrink-0 items-center">
@@ -318,20 +321,22 @@ export function KanbanListColumn({
       </header>
 
       {composer === 'top' ? (
-        <CardComposer
-          ref={composerRef}
-          value={draft}
-          onChange={setDraft}
-          onSubmit={submitDraft}
-          onClose={() => setComposer(null)}
-          onKeyDown={handleComposerKeyDown}
-        />
+        <div className="px-2.5 pb-2.5">
+          <CardComposer
+            ref={composerRef}
+            value={draft}
+            onChange={setDraft}
+            onSubmit={submitDraft}
+            onClose={() => setComposer(null)}
+            onKeyDown={handleComposerKeyDown}
+          />
+        </div>
       ) : null}
 
       <ScrollArea
         className="min-h-0 flex-1"
         viewportRef={cardsScrollRef}
-        contentClassName="px-2.5 py-2.5"
+        contentClassName="px-2.5 pt-0.5 pb-2.5"
       >
         {/* `relative`: the drop placeholder is positioned against this list. */}
         <ul ref={cardsRef} className="min-h-8 space-y-2.5 relative">
@@ -348,8 +353,8 @@ export function KanbanListColumn({
                 hiddenCount > 0
                   ? 'py-8 rounded-xl border border-dashed border-border/60 bg-card/20'
                   : drag.activeCardId
-                    ? 'h-24 flex items-center justify-center rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 text-primary font-medium'
-                    : 'h-28 flex flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border/60 bg-card/20 text-muted-foreground/60',
+                    ? 'h-24 font-medium flex items-center justify-center rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 text-primary'
+                    : 'h-24 gap-1 flex flex-col items-center justify-center rounded-xl border border-dashed border-border/70 text-muted-foreground',
               )}
             >
               {hiddenCount > 0 ? (
@@ -358,15 +363,11 @@ export function KanbanListColumn({
                 'Drop task here'
               ) : (
                 <>
-                  <CircleDashed className="size-4 opacity-40" />
+                  <CircleDashed className="size-4 opacity-50" />
                   <span className="text-xs font-medium">No tasks</span>
-                  <button
-                    type="button"
-                    onClick={() => openComposer('bottom')}
-                    className="mt-0.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:underline transition-colors cursor-pointer"
-                  >
-                    + Add task
-                  </button>
+                  <span className="text-[11px] text-muted-foreground/80">
+                    Drag a task here or add one
+                  </span>
                 </>
               )}
             </li>
@@ -451,30 +452,31 @@ export function KanbanListColumn({
             </li>
           ) : null}
         </ul>
-      </ScrollArea>
 
-      {composer === 'bottom' ? (
-        <CardComposer
-          ref={composerRef}
-          value={draft}
-          onChange={setDraft}
-          onSubmit={submitDraft}
-          onClose={() => setComposer(null)}
-          onKeyDown={handleComposerKeyDown}
-        />
-      ) : composer === null ? (
-        <div className="p-2 pt-1 border-t border-border/40">
+        {/* Adding sits right under the last card, where the new one lands. */}
+        {composer === 'bottom' ? (
+          <div className="mt-2.5">
+            <CardComposer
+              ref={composerRef}
+              value={draft}
+              onChange={setDraft}
+              onSubmit={submitDraft}
+              onClose={() => setComposer(null)}
+              onKeyDown={handleComposerKeyDown}
+            />
+          </div>
+        ) : composer === null ? (
           <Button
             variant="ghost"
             size="sm"
             leadingIcon={<Plus className="size-3.5" />}
             onClick={() => openComposer('bottom')}
-            className="w-full justify-start text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-surface h-8 rounded-md transition-all"
+            className="mt-1.5 h-8 text-xs font-medium w-full justify-start rounded-md text-muted-foreground hover:bg-surface hover:text-foreground"
           >
             Add task
           </Button>
-        </div>
-      ) : null}
+        ) : null}
+      </ScrollArea>
     </section>
   );
 }
@@ -499,7 +501,7 @@ function CardComposer({
   onKeyDown,
 }: CardComposerProps) {
   return (
-    <div className="p-2.5 space-y-2 border-t border-border/50 bg-surface/80 rounded-b-xl">
+    <div className="p-2 space-y-2 rounded-lg border border-border bg-card shadow-xs">
       <Textarea
         ref={ref}
         rows={2}
@@ -508,7 +510,7 @@ function CardComposer({
         aria-label="Task title"
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={onKeyDown}
-        className="text-sm bg-background border-input shadow-xs rounded-md placeholder:text-muted-foreground"
+        className="min-h-14 text-sm px-1 resize-none border-0 bg-transparent shadow-none placeholder:text-muted-foreground focus-visible:ring-0"
       />
       <div className="gap-2 flex items-center justify-between">
         <Button

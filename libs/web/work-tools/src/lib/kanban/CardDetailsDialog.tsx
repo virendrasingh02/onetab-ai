@@ -29,12 +29,6 @@ import {
   useAddTaskComment,
   useConvertTaskToDocument,
   useCurrentWorkspace,
-  useCycleMutations,
-  useCycles,
-  useEpicMutations,
-  useEpics,
-  useModuleMutations,
-  useModules,
   useRelationMutations,
   useTaskCommentMutations,
   useTaskComments,
@@ -69,7 +63,7 @@ import type { BoardState, KanbanCard, KanbanList, Priority } from './types.js';
 
 export interface CardDetailsDialogProps {
   workspaceId: string | undefined;
-  /** The open project — Epic/Module/Cycle and the parent/relation task pickers scope to it. */
+  /** The open project — the parent/relation task pickers scope to it. */
   projectId: string | undefined;
   board: BoardState;
   /** Open card, or null when the dialog is closed. */
@@ -301,7 +295,7 @@ function CardDetailsBody({
   const commentMutations = useTaskCommentMutations(workspaceId, card.id);
 
   /*
-   * Team/Epic/Module/Cycle/Estimate/time/Parent/sub-issues/history all live on
+   * Team/Estimate/time/Parent/sub-issues/history all live on
    * the real `Task`, not the board's narrower `KanbanCard` projection — so the
    * card fetches its own full detail, the same way it fetches comments.
    */
@@ -309,12 +303,6 @@ function CardDetailsBody({
   const detail = taskDetail.data;
   const taskMutations = useTaskMutations(workspaceId);
   const teamsQuery = useTeams(workspaceId);
-  const epicsQuery = useEpics(workspaceId, projectId);
-  const modulesQuery = useModules(workspaceId, projectId);
-  const cyclesQuery = useCycles(workspaceId, projectId);
-  const epicMutations = useEpicMutations(workspaceId);
-  const moduleMutations = useModuleMutations(workspaceId);
-  const cycleMutations = useCycleMutations(workspaceId);
   // Shares its query key (and cache) with the board's own `useTasks` call.
   const projectTasksQuery = useTasks(workspaceId, projectId);
   const relationsQuery = useWorkItemRelations(workspaceId, card.id);
@@ -351,40 +339,10 @@ function CardDetailsBody({
       })),
     [teamsQuery.data],
   );
-  const epicItems: KanbanRefPickerItem[] = useMemo(
-    () =>
-      (epicsQuery.data ?? []).map((e) => ({
-        id: e.id,
-        label: e.name,
-        color: e.color,
-      })),
-    [epicsQuery.data],
-  );
-  const moduleItems: KanbanRefPickerItem[] = useMemo(
-    () =>
-      (modulesQuery.data ?? []).map((m) => ({
-        id: m.id,
-        label: m.name,
-        color: m.color,
-      })),
-    [modulesQuery.data],
-  );
-  const cycleItems: KanbanRefPickerItem[] = useMemo(
-    () =>
-      (cyclesQuery.data ?? []).map((c) => ({
-        id: c.id,
-        label: c.name,
-        sublabel: c.status,
-      })),
-    [cyclesQuery.data],
-  );
 
   const lookups: ActivityLookups = useMemo(() => {
     const refs: Record<string, KanbanRefPickerItem[]> = {
       teamId: teamItems,
-      epicId: epicItems,
-      moduleId: moduleItems,
-      cycleId: cycleItems,
     };
     return {
       memberName: (id) => {
@@ -397,70 +355,13 @@ function CardDetailsBody({
         return task ? (task.identifier ?? task.title) : undefined;
       },
     };
-  }, [
-    board.members,
-    teamItems,
-    epicItems,
-    moduleItems,
-    cycleItems,
-    linkableTasks,
-  ]);
+  }, [board.members, teamItems, linkableTasks]);
 
   const updateCard = (patch: Parameters<typeof patchAction>[1]) =>
     dispatch(patchAction(card.id, patch));
   const updateTask = (
     input: Parameters<typeof taskMutations.update.mutate>[0]['input'],
   ) => taskMutations.update.mutate({ taskId: card.id, input });
-
-  /* Made from a picker, so the new item goes straight onto this task. */
-  const createFailed = (noun: string) => () =>
-    toast.error(`Could not create the ${noun}`);
-
-  const handleCreateEpic = (name: string) => {
-    if (!projectId) return;
-    epicMutations.create.mutate(
-      { projectId, name },
-      {
-        onSuccess: (epic) => updateTask({ epicId: epic.id }),
-        onError: createFailed('epic'),
-      },
-    );
-  };
-
-  const handleCreateModule = (name: string) => {
-    if (!projectId) return;
-    moduleMutations.create.mutate(
-      { projectId, name },
-      {
-        onSuccess: (module) => updateTask({ moduleId: module.id }),
-        onError: createFailed('module'),
-      },
-    );
-  };
-
-  const handleCreateCycle = (name: string) => {
-    if (!projectId) return;
-    const startDate = new Date();
-    const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + DEFAULT_CYCLE_DAYS);
-    cycleMutations.create.mutate(
-      {
-        projectId,
-        name,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-      },
-      {
-        onSuccess: (cycle) => {
-          updateTask({ cycleId: cycle.id });
-          toast.success(
-            `Cycle “${cycle.name}” runs for ${DEFAULT_CYCLE_DAYS} days. Change its dates under Cycles.`,
-          );
-        },
-        onError: createFailed('cycle'),
-      },
-    );
-  };
 
   /* The card is a layer over the page, so it steps aside for the new one. */
   const leaveTo = (path: string) => {
@@ -612,9 +513,6 @@ function CardDetailsBody({
       statusTitle={listTitle}
       members={board.members}
       teamItems={teamItems}
-      epicItems={epicItems}
-      moduleItems={moduleItems}
-      cycleItems={cycleItems}
       linkableTasks={linkableTasks}
       parentExcludeIds={parentExcludeIds}
       canEdit={canEdit}
@@ -635,20 +533,8 @@ function CardDetailsBody({
       onTimeChange={(timeSpent) => updateTask({ timeSpent })}
       onEstimateChange={(estimate) => updateTask({ estimate })}
       onTeamChange={(teamId) => updateTask({ teamId })}
-      onEpicChange={(epicId) => updateTask({ epicId })}
-      onModuleChange={(moduleId) => updateTask({ moduleId })}
-      onCycleChange={(cycleId) => updateTask({ cycleId })}
       onParentChange={(parentId) => updateTask({ parentId })}
-      onCreateEpic={canCreate && projectId ? handleCreateEpic : undefined}
-      onCreateModule={canCreate && projectId ? handleCreateModule : undefined}
-      onCreateCycle={canCreate && projectId ? handleCreateCycle : undefined}
       onManageTeams={() => leaveTo(`/w/${workspaceSlug}/settings/kanban-tasks`)}
-      onManageView={
-        projectId
-          ? (view) =>
-              leaveTo(`/w/${workspaceSlug}/projects/${projectId}?view=${view}`)
-          : undefined
-      }
       onOpenParent={
         detail?.parentId && canOpen(detail.parentId)
           ? () => detail.parentId && onOpenCard(detail.parentId)
@@ -923,9 +809,6 @@ function CardDetailsBody({
     </div>
   );
 }
-
-/** New cycles run this long until someone sets real dates. */
-const DEFAULT_CYCLE_DAYS = 14;
 
 function patchAction(
   cardId: string,

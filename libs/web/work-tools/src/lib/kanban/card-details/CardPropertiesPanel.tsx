@@ -12,7 +12,6 @@ import {
 } from '@org/ui';
 import { cn, formatRelative } from '@org/utils';
 import {
-  Boxes,
   CalendarClock,
   CalendarDays,
   CircleDashed,
@@ -20,8 +19,6 @@ import {
   ExternalLink,
   Flag,
   Gauge,
-  Layers,
-  Repeat,
   Tag,
   Timer,
   UserRound,
@@ -131,12 +128,7 @@ function TimeLogPopover({
             aria-label="Time to add"
             className="h-8 text-sm flex-1"
           />
-          <Button
-            type="submit"
-            size="sm"
-            disabled={!parsed}
-            className="h-8"
-          >
+          <Button type="submit" size="sm" disabled={!parsed} className="h-8">
             Add
           </Button>
         </form>
@@ -166,9 +158,6 @@ export interface CardPropertiesPanelProps {
   statusTitle: string;
   members: BoardMember[];
   teamItems: KanbanRefPickerItem[];
-  epicItems: KanbanRefPickerItem[];
-  moduleItems: KanbanRefPickerItem[];
-  cycleItems: KanbanRefPickerItem[];
   linkableTasks: KanbanTaskLinkOption[];
   parentExcludeIds: string[];
   canEdit: boolean;
@@ -182,17 +171,8 @@ export interface CardPropertiesPanelProps {
   onTimeChange: (minutes: number) => void;
   onEstimateChange: (estimate: number | null) => void;
   onTeamChange: (id: string | null) => void;
-  onEpicChange: (id: string | null) => void;
-  onModuleChange: (id: string | null) => void;
-  onCycleChange: (id: string | null) => void;
   onParentChange: (id: string | null) => void;
-  /** Absent when the viewer may not create, which hides "Create" in the menus. */
-  onCreateEpic?: (name: string) => void;
-  onCreateModule?: (name: string) => void;
-  onCreateCycle?: (name: string) => void;
   onManageTeams: () => void;
-  /** Absent outside a project, where its tabs don't exist. */
-  onManageView?: (view: 'cycles' | 'modules') => void;
   /** Undefined when the parent isn't on this board. */
   onOpenParent?: () => void;
   onOpenMeeting: (meetingId: string) => void;
@@ -205,9 +185,6 @@ export function CardPropertiesPanel({
   statusTitle,
   members,
   teamItems,
-  epicItems,
-  moduleItems,
-  cycleItems,
   linkableTasks,
   parentExcludeIds,
   canEdit,
@@ -221,15 +198,8 @@ export function CardPropertiesPanel({
   onTimeChange,
   onEstimateChange,
   onTeamChange,
-  onEpicChange,
-  onModuleChange,
-  onCycleChange,
   onParentChange,
-  onCreateEpic,
-  onCreateModule,
-  onCreateCycle,
   onManageTeams,
-  onManageView,
   onOpenParent,
   onOpenMeeting,
 }: CardPropertiesPanelProps) {
@@ -267,7 +237,7 @@ export function CardPropertiesPanel({
     ...picker
   }: {
     label: string;
-    icon: typeof Boxes;
+    icon: typeof UsersRound;
     items: KanbanRefPickerItem[];
     selectedId: string | null | undefined;
     onSelect: (id: string | null) => void;
@@ -310,11 +280,8 @@ export function CardPropertiesPanel({
     ? linkableTasks.find((task) => task.id === detail.parentId)
     : undefined;
 
-  const manageView = (label: string, view: 'cycles' | 'modules') =>
-    onManageView ? { label, onSelect: () => onManageView(view) } : undefined;
-
   return (
-    <div className="@container space-y-4">
+    <div className="space-y-4 @container">
       <PropertyGroup title="Details">
         <PropertyRow label="Status" icon={CircleDashed}>
           <KanbanStatusPicker
@@ -540,44 +507,6 @@ export function CardPropertiesPanel({
           noneLabel: 'No team',
           emptyMessage: 'No teams in this workspace yet',
           manage: { label: 'Manage teams', onSelect: onManageTeams },
-        })}
-        {refRow({
-          label: 'Epic',
-          icon: Layers,
-          items: epicItems,
-          selectedId: detail?.epicId,
-          onSelect: onEpicChange,
-          noneLabel: 'No epic',
-          emptyMessage: 'No epics in this project yet',
-          itemNoun: 'epic',
-          onCreate: onCreateEpic,
-          minCreateLength: 2,
-          manage: manageView('Manage epics', 'modules'),
-        })}
-        {refRow({
-          label: 'Module',
-          icon: Boxes,
-          items: moduleItems,
-          selectedId: detail?.moduleId,
-          onSelect: onModuleChange,
-          noneLabel: 'No module',
-          emptyMessage: 'No modules in this project yet',
-          itemNoun: 'module',
-          onCreate: onCreateModule,
-          minCreateLength: 2,
-          manage: manageView('Manage modules', 'modules'),
-        })}
-        {refRow({
-          label: 'Cycle',
-          icon: Repeat,
-          items: cycleItems,
-          selectedId: detail?.cycleId,
-          onSelect: onCycleChange,
-          noneLabel: 'No cycle',
-          emptyMessage: 'No cycles in this project yet',
-          itemNoun: 'cycle',
-          onCreate: onCreateCycle,
-          manage: manageView('Manage cycles', 'cycles'),
         })}
 
         <PropertyRow label="Parent" icon={CornerUpLeft}>

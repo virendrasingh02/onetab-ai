@@ -84,10 +84,10 @@ const DEFAULT_TASK_STATES: ReadonlyArray<{
   color: string;
 }> = [
   { builtin: TaskStatus.BACKLOG, name: 'Backlog', color: '#94a3b8' },
-  { builtin: TaskStatus.TODO, name: 'Planned', color: '#64748b' },
-  { builtin: TaskStatus.IN_PROGRESS, name: 'In Progress', color: '#eab308' },
+  { builtin: TaskStatus.TODO, name: 'Planned', color: '#3b82f6' },
+  { builtin: TaskStatus.IN_PROGRESS, name: 'In Progress', color: '#f59e0b' },
   { builtin: TaskStatus.IN_REVIEW, name: 'In Review', color: '#8b5cf6' },
-  { builtin: TaskStatus.DONE, name: 'Completed', color: '#3b82f6' },
+  { builtin: TaskStatus.DONE, name: 'Completed', color: '#10b981' },
   { builtin: TaskStatus.CANCELLED, name: 'Cancelled', color: '#64748b' },
 ];
 

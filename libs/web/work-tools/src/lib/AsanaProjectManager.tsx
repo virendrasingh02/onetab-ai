@@ -64,7 +64,6 @@ import {
   Send,
   Settings,
   SlidersHorizontal,
-  Table,
   Timeline,
   Trash2,
   TriangleAlert,
@@ -116,7 +115,6 @@ import {
   useTasks,
   useWorkspaceMembers,
 } from './use-work-tools.js';
-import { ProjectSpreadsheetView } from './views/ProjectSpreadsheetView.js';
 import { ProjectUpdatesView } from './views/ProjectUpdatesView.js';
 import { ProjectFilesView } from './asana/ProjectFilesView.js';
 import { ProjectDocsTab } from './views/ProjectDocsView.js';
@@ -281,7 +279,6 @@ const VIEW_IDS: readonly ProjectViewMode[] = [
   'dashboard',
   'board',
   'list',
-  'spreadsheet',
   'timeline',
   'docs',
   'updates',
@@ -290,12 +287,7 @@ const VIEW_IDS: readonly ProjectViewMode[] = [
 ];
 
 /** Views that draw the project's tasks, and so answer to search and filters. */
-const TASK_VIEWS: readonly ProjectViewMode[] = [
-  'board',
-  'list',
-  'spreadsheet',
-  'timeline',
-];
+const TASK_VIEWS: readonly ProjectViewMode[] = ['board', 'list', 'timeline'];
 
 export function AsanaProjectManager() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -469,7 +461,7 @@ export function AsanaProjectManager() {
   };
 
   // Tabs that were removed still arrive from old links: the settings tab moved
-  // to the main settings, and Gantt was folded into Timeline.
+  // to the main settings, Gantt was folded into Timeline and Table into List.
   const legacySettingsProjectId =
     viewParam === 'settings' ? activeProject?.id : undefined;
   useEffect(() => {
@@ -479,6 +471,8 @@ export function AsanaProjectManager() {
   }, [legacySettingsProjectId]);
   useEffect(() => {
     if (viewParam === 'gantt') setViewMode('timeline');
+    // The Table tab was folded into List.
+    if (viewParam === 'spreadsheet') setViewMode('list');
   }, [viewParam, setViewMode]);
 
   const board = useServerBoard({
@@ -553,12 +547,6 @@ export function AsanaProjectManager() {
     }),
     [board.board, filter],
   );
-  const filteredTasks = useMemo(() => {
-    const visible = new Set(
-      filteredBoard.lists.flatMap((list) => list.cards.map((card) => card.id)),
-    );
-    return projectTasks.filter((task) => visible.has(task.id));
-  }, [filteredBoard, projectTasks]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -1254,7 +1242,6 @@ export function AsanaProjectManager() {
             { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
             { id: 'board', label: 'Board', icon: Kanban },
             { id: 'list', label: 'List', icon: List },
-            { id: 'spreadsheet', label: 'Table', icon: Table },
             { id: 'timeline', label: 'Timeline', icon: Timeline },
             { id: 'docs', label: 'Docs', icon: FileText },
             { id: 'updates', label: 'Updates', icon: HeartPulse },
@@ -1303,6 +1290,7 @@ export function AsanaProjectManager() {
 
             {viewMode === 'list' && (
               <ProjectListView
+                workspaceId={workspaceId}
                 board={filteredBoard}
                 dispatch={board.dispatch}
                 onSelectCard={(card) => setSelectedCardId(card.id)}
@@ -1312,23 +1300,10 @@ export function AsanaProjectManager() {
               />
             )}
 
-            {viewMode === 'spreadsheet' && (
-              <ProjectSpreadsheetView
-                tasks={filteredTasks}
-                members={publicMembers}
-                onSelectTask={(task) => setSelectedCardId(task.id)}
-                onUpdateTask={(taskId, patch) => {
-                  taskMutations.update.mutate({ taskId, input: patch as any });
-                }}
-                isLoading={board.isLoading}
-                filtered={filterCount > 0}
-                onClearFilters={clearFilters}
-                onAddTask={canAddTask ? () => openNewTask() : undefined}
-              />
-            )}
-
             {viewMode === 'timeline' && (
               <ProjectTimelineView
+                workspaceId={workspaceId}
+                dispatch={board.dispatch}
                 board={filteredBoard}
                 onSelectCard={(card) => setSelectedCardId(card.id)}
                 isLoading={board.isLoading}

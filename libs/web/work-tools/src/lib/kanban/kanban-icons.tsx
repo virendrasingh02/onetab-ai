@@ -2,8 +2,10 @@ import { TaskStatus } from '@org/types';
 import { Hint } from '@org/ui';
 import { cn } from '@org/utils';
 import type { CSSProperties } from 'react';
+import { PRIORITY_COLORS } from './card-meta.js';
 import {
   knownState,
+  STATUS_CATEGORY_COLORS,
   stateTint,
   useKnownWorkflowStates,
 } from './task-states.js';
@@ -88,7 +90,11 @@ function renderStatusSvg(
   label?: string,
   tint?: string,
 ) {
-  const style: CSSProperties | undefined = tint ? { color: tint } : undefined;
+  // Every built-in paints from the one status palette unless a colour is given.
+  const color =
+    tint ??
+    STATUS_CATEGORY_COLORS[status as keyof typeof STATUS_CATEGORY_COLORS];
+  const style: CSSProperties | undefined = color ? { color } : undefined;
   switch (status) {
     case 'BACKLOG':
     case TaskStatus.BACKLOG:
@@ -96,7 +102,7 @@ function renderStatusSvg(
         <svg
           viewBox="0 0 16 16"
           fill="none"
-          className={cn('size-3.5 text-accent-amber shrink-0', className)}
+          className={cn('size-3.5 shrink-0', className)}
           aria-label={label ?? 'Backlog'}
           role="img"
           style={style}
@@ -119,7 +125,7 @@ function renderStatusSvg(
         <svg
           viewBox="0 0 16 16"
           fill="none"
-          className={cn('size-3.5 text-muted-foreground/70 shrink-0', className)}
+          className={cn('size-3.5 shrink-0', className)}
           aria-label={label ?? 'Planned'}
           role="img"
           style={style}
@@ -140,16 +146,13 @@ function renderStatusSvg(
         <svg
           viewBox="0 0 16 16"
           fill="none"
-          className={cn('size-3.5 text-accent-amber shrink-0', className)}
+          className={cn('size-3.5 shrink-0', className)}
           aria-label={label ?? 'In Progress'}
           role="img"
           style={style}
         >
           <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
-          <path
-            d="M8 8L8 2A6 6 0 0 1 14 8Z"
-            fill="currentColor"
-          />
+          <path d="M8 8L8 2A6 6 0 0 1 14 8Z" fill="currentColor" />
         </svg>
       );
 
@@ -159,7 +162,7 @@ function renderStatusSvg(
         <svg
           viewBox="0 0 16 16"
           fill="none"
-          className={cn('size-3.5 text-primary shrink-0', className)}
+          className={cn('size-3.5 shrink-0', className)}
           aria-label={label ?? 'In Review'}
           role="img"
           style={style}
@@ -176,7 +179,7 @@ function renderStatusSvg(
         <svg
           viewBox="0 0 16 16"
           fill="none"
-          className={cn('size-3.5 text-accent-blue shrink-0', className)}
+          className={cn('size-3.5 shrink-0', className)}
           aria-label={label ?? 'Completed'}
           role="img"
           style={style}
@@ -199,7 +202,7 @@ function renderStatusSvg(
         <svg
           viewBox="0 0 16 16"
           fill="none"
-          className={cn('size-3.5 text-muted-foreground/70 shrink-0', className)}
+          className={cn('size-3.5 shrink-0', className)}
           aria-label={label ?? 'Cancelled'}
           role="img"
           style={style}
@@ -222,7 +225,7 @@ function renderStatusSvg(
           role="img"
           style={tint ? { borderColor: tint } : undefined}
           className={cn(
-            'size-3.5 rounded-full border border-muted-foreground shrink-0 inline-block',
+            'size-3.5 inline-block shrink-0 rounded-full border border-muted-foreground',
             className,
           )}
         />
@@ -256,7 +259,7 @@ export function StatusIcon({
 
   return (
     <Hint label={label} side={side}>
-      <span className="inline-flex items-center justify-center shrink-0">
+      <span className="inline-flex shrink-0 items-center justify-center">
         {icon}
       </span>
     </Hint>
@@ -271,13 +274,18 @@ export interface PriorityIconProps {
 }
 
 export function PriorityIcon({ priority, className }: PriorityIconProps) {
+  // Theme-fixed: the same red/orange/yellow/grey in every view and workspace.
+  const style: CSSProperties | undefined =
+    priority in PRIORITY_COLORS
+      ? { color: PRIORITY_COLORS[priority as Priority] }
+      : undefined;
   switch (priority) {
     case 'NO_PRIORITY':
     case 'NONE':
       return (
         <span
           className={cn(
-            'text-muted-foreground font-mono text-[11px] tracking-tight shrink-0 select-none inline-block w-3.5 text-center leading-none',
+            'tracking-tight w-3.5 inline-block shrink-0 text-center font-mono text-[11px] leading-none text-muted-foreground select-none',
             className,
           )}
         >
@@ -291,13 +299,21 @@ export function PriorityIcon({ priority, className }: PriorityIconProps) {
         <svg
           viewBox="0 0 16 16"
           fill="none"
-          className={cn('size-3.5 text-muted-foreground shrink-0', className)}
+          className={cn('size-3.5 shrink-0', className)}
           aria-hidden="true"
+          style={style}
         >
-          <rect x="2" y="2" width="12" height="12" rx="2.5" fill="currentColor" />
+          <rect
+            x="2"
+            y="2"
+            width="12"
+            height="12"
+            rx="2.5"
+            fill="currentColor"
+          />
           <path
             d="M8 5V8.5M8 11V11.5"
-            stroke="var(--bg-surface, #ffffff)"
+            stroke="#ffffff"
             strokeWidth="1.75"
             strokeLinecap="round"
           />
@@ -310,12 +326,34 @@ export function PriorityIcon({ priority, className }: PriorityIconProps) {
         <svg
           viewBox="0 0 16 16"
           fill="none"
-          className={cn('size-3.5 text-muted-foreground shrink-0', className)}
+          className={cn('size-3.5 shrink-0', className)}
           aria-hidden="true"
+          style={style}
         >
-          <rect x="2" y="10" width="2.5" height="4" rx="0.5" fill="currentColor" />
-          <rect x="6.75" y="6.5" width="2.5" height="7.5" rx="0.5" fill="currentColor" />
-          <rect x="11.5" y="3" width="2.5" height="11" rx="0.5" fill="currentColor" />
+          <rect
+            x="2"
+            y="10"
+            width="2.5"
+            height="4"
+            rx="0.5"
+            fill="currentColor"
+          />
+          <rect
+            x="6.75"
+            y="6.5"
+            width="2.5"
+            height="7.5"
+            rx="0.5"
+            fill="currentColor"
+          />
+          <rect
+            x="11.5"
+            y="3"
+            width="2.5"
+            height="11"
+            rx="0.5"
+            fill="currentColor"
+          />
         </svg>
       );
 
@@ -325,11 +363,26 @@ export function PriorityIcon({ priority, className }: PriorityIconProps) {
         <svg
           viewBox="0 0 16 16"
           fill="none"
-          className={cn('size-3.5 text-muted-foreground shrink-0', className)}
+          className={cn('size-3.5 shrink-0', className)}
           aria-hidden="true"
+          style={style}
         >
-          <rect x="2" y="10" width="2.5" height="4" rx="0.5" fill="currentColor" />
-          <rect x="6.75" y="6.5" width="2.5" height="7.5" rx="0.5" fill="currentColor" />
+          <rect
+            x="2"
+            y="10"
+            width="2.5"
+            height="4"
+            rx="0.5"
+            fill="currentColor"
+          />
+          <rect
+            x="6.75"
+            y="6.5"
+            width="2.5"
+            height="7.5"
+            rx="0.5"
+            fill="currentColor"
+          />
           <rect
             x="11.5"
             y="3"
@@ -348,10 +401,18 @@ export function PriorityIcon({ priority, className }: PriorityIconProps) {
         <svg
           viewBox="0 0 16 16"
           fill="none"
-          className={cn('size-3.5 text-muted-foreground shrink-0', className)}
+          className={cn('size-3.5 shrink-0', className)}
           aria-hidden="true"
+          style={style}
         >
-          <rect x="2" y="10" width="2.5" height="4" rx="0.5" fill="currentColor" />
+          <rect
+            x="2"
+            y="10"
+            width="2.5"
+            height="4"
+            rx="0.5"
+            fill="currentColor"
+          />
           <rect
             x="6.75"
             y="6.5"
@@ -389,7 +450,7 @@ export function CubeProjectIcon({ className }: { className?: string }) {
       strokeWidth="1.75"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className={cn('size-4 text-accent-amber shrink-0', className)}
+      className={cn('size-4 shrink-0 text-accent-amber', className)}
       aria-hidden="true"
     >
       <path d="m7.5 4.27 9 5.15" />
@@ -405,7 +466,7 @@ export function UnassignedLeadIcon({ className }: { className?: string }) {
     <svg
       viewBox="0 0 16 16"
       fill="none"
-      className={cn('size-3.5 text-muted-foreground/70 shrink-0', className)}
+      className={cn('size-3.5 shrink-0 text-muted-foreground/70', className)}
       aria-hidden="true"
     >
       <circle

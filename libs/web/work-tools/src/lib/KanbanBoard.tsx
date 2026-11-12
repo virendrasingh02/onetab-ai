@@ -17,6 +17,7 @@ import { useKanbanDisplayStore } from './kanban/kanban-display-store.js';
 import { compareBy, type BoardAction } from './kanban/server-board.js';
 import type { BoardState, KanbanCard } from './kanban/types.js';
 import { useBoardDrag, type DragSlot } from './kanban/use-board-drag.js';
+import { useBoardPan } from './kanban/use-board-pan.js';
 
 export type {
   BoardMember,
@@ -171,6 +172,10 @@ export function KanbanBoard({
     onDrop: handleDrop,
     onColumnDrop: handleColumnDrop,
   });
+  const pan = useBoardPan(
+    scrollerRef,
+    Boolean(drag.activeCardId || drag.activeListId),
+  );
 
   return (
     <div className="group/board min-h-128 px-4 sm:px-6 py-4 flex h-full flex-col overflow-hidden text-foreground">
@@ -328,7 +333,9 @@ export function KanbanBoard({
       ) : (
         <div
           ref={scrollerRef}
-          className="scrollbar-subtle gap-4 sm:gap-5 pb-6 min-h-0 relative flex flex-1 items-start overflow-x-auto"
+          onPointerDown={pan.onPointerDown}
+          // Blank space pans the board; `data-panning` is set while it does.
+          className="scrollbar-subtle gap-4 sm:gap-5 pb-6 min-h-0 relative flex flex-1 cursor-grab items-stretch overflow-x-auto data-panning:cursor-grabbing data-panning:select-none"
         >
           {board.lists.map((list, index) => (
             <KanbanListColumn

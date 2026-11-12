@@ -116,14 +116,25 @@ export function dueCountdown(
 
 export const PRIORITIES: Priority[] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
 
+/**
+ * The one priority palette (theme-fixed): icons, dots, pickers and charts all
+ * read it, so "High" is the same orange on the board, list, table and modal.
+ */
+export const PRIORITY_COLORS: Record<Priority, string> = {
+  URGENT: '#ef4444',
+  HIGH: '#f97316',
+  MEDIUM: '#eab308',
+  LOW: '#94a3b8',
+};
+
 export const PRIORITY_META: Record<
   Priority,
   { label: string; variant: BadgeProps['variant']; dot: string }
 > = {
-  LOW: { label: 'Low', variant: 'neutral', dot: 'bg-muted-foreground/50' },
-  MEDIUM: { label: 'Medium', variant: 'info', dot: 'bg-info' },
-  HIGH: { label: 'High', variant: 'warning', dot: 'bg-warning' },
-  URGENT: { label: 'Urgent', variant: 'destructive', dot: 'bg-destructive' },
+  LOW: { label: 'Low', variant: 'neutral', dot: 'bg-[#94a3b8]' },
+  MEDIUM: { label: 'Medium', variant: 'warning', dot: 'bg-[#eab308]' },
+  HIGH: { label: 'High', variant: 'warning', dot: 'bg-[#f97316]' },
+  URGENT: { label: 'Urgent', variant: 'destructive', dot: 'bg-[#ef4444]' },
 };
 
 /* ------------------------------------------------------------- filters --- */

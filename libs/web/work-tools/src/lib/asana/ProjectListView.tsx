@@ -1,19 +1,16 @@
 import {
+  ActionDropdownMenu,
+  Badge,
   Button,
-  confirm,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
   DatePicker,
+  EntityContextMenu,
   Input,
   ScrollArea,
   SkeletonList,
   UserAvatar,
   UserAvatarGroup,
 } from '@org/ui';
-import { TaskStatus, WorkspacePermission } from '@org/types';
-import { useWorkspacePermission } from '@org/web-workspace';
+import { TaskStatus } from '@org/types';
 import { cn } from '@org/utils';
 import {
   Calendar,
@@ -21,15 +18,25 @@ import {
   ChevronDown,
   ChevronRight,
   Circle,
+  MoreHorizontal,
   Plus,
-  Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
-import { describeDue, DUE_TEXT_CLASSES } from '../kanban/card-meta.js';
+import {
+  describeDue,
+  DUE_TEXT_CLASSES,
+  PRIORITY_META,
+} from '../kanban/card-meta.js';
 import { useKanbanDisplayStore } from '../kanban/kanban-display-store.js';
-import { PriorityIcon, StatusIcon } from '../kanban/kanban-icons.js';
+import {
+  PriorityIcon,
+  StatusIcon,
+  UnassignedLeadIcon,
+} from '../kanban/kanban-icons.js';
+import { KanbanLeadPicker } from '../kanban/KanbanLeadPicker.js';
 import { KanbanPriorityPicker } from '../kanban/KanbanPriorityPicker.js';
 import { KanbanStatusPicker } from '../kanban/KanbanStatusPicker.js';
+import { useBoardTaskActions } from '../kanban/task-actions.js';
 import { useWorkflowStates } from '../kanban/task-states.js';
 import {
   PROJECT_VIEW_PADDING,
@@ -45,18 +52,16 @@ import type {
   Priority,
 } from '../kanban/types.js';
 
-const PRIORITY_LABELS: Record<Priority, string> = {
-  URGENT: 'Urgent',
-  HIGH: 'High',
-  MEDIUM: 'Medium',
-  LOW: 'Low',
-};
+/** Controls a row owns; a click on them never opens the task. */
+const ROW_CONTROLS =
+  'button, a, input, textarea, [data-no-drag], [role="menu"]';
 
-/** An inline cell control: borderless until hovered, matching the Table view. */
+/** An inline cell control: borderless until hovered. */
 const CELL_TRIGGER =
   'h-7 px-1.5 gap-1.5 inline-flex max-w-full min-w-0 items-center rounded-md border border-transparent bg-transparent text-left text-xs text-foreground transition-colors hover:border-border hover:bg-muted/50 focus-visible:border-ring focus-visible:outline-none';
 
 interface ProjectListViewProps {
+  workspaceId?: string;
   board: BoardState;
   dispatch: (action: BoardAction) => void;
   onSelectCard: (card: KanbanCard, listId: KanbanList['id']) => void;
@@ -67,6 +72,7 @@ interface ProjectListViewProps {
 }
 
 export function ProjectListView({
+  workspaceId,
   board,
   dispatch,
   onSelectCard,
@@ -75,8 +81,24 @@ export function ProjectListView({
   onClearFilters,
 }: ProjectListViewProps) {
   const orderBy = useKanbanDisplayStore((state) => state.orderBy);
-  const canDelete = useWorkspacePermission().can(WorkspacePermission.DELETE);
-  const { nameOf } = useWorkflowStates();
+  const show = useKanbanDisplayStore((state) => state.card);
+  const { nameOf, categoryOf } = useWorkflowStates();
+  // The board card's own menu: same actions, same order, in every view.
+  const taskActions = useBoardTaskActions({
+    workspaceId,
+    lists: board.lists,
+    members: board.members,
+    dispatch,
+    onOpen: onSelectCard,
+  });
+  // "Done" is a status, not the due-date tick: these are where the circle
+  // sends a task, by category, so renamed or custom statuses still work.
+  const doneListId =
+    board.lists.find((l) => categoryOf(l.id) === TaskStatus.DONE)?.id ??
+    TaskStatus.DONE;
+  const todoListId =
+    board.lists.find((l) => categoryOf(l.id) === TaskStatus.TODO)?.id ??
+    TaskStatus.TODO;
   const [collapsedLists, setCollapsedLists] = useState<Record<string, boolean>>(
     {},
   );
@@ -161,9 +183,9 @@ export function ProjectListView({
                 <StatusIcon status={list.id} className="size-4" />
                 <h3 className="text-sm font-semibold gap-2 flex items-center text-foreground">
                   {list.title}
-                  <span className="text-xs font-normal text-muted-foreground tabular-nums">
+                  <Badge variant="neutral" className="min-w-5 tabular-nums">
                     {totalCount}
-                  </span>
+                  </Badge>
                 </h3>
               </div>
 
@@ -207,258 +229,291 @@ export function ProjectListView({
                       const assignedMember = assignedMembers[0];
 
                       const ticketId = card.ticketId ?? card.identifier;
+                      const isDone = categoryOf(list.id) === TaskStatus.DONE;
+                      const actions = () => taskActions(card, list.id);
                       return (
-                        <tr
+                        <EntityContextMenu
                           key={card.id}
-                          className={cn(
-                            'group transition-colors hover:bg-muted/30',
-                            card.dueComplete && 'bg-muted/10 opacity-60',
-                          )}
+                          actions={actions}
+                          scope={`task:${card.id}`}
+                          entityType="task"
+                          entity={card}
+                          label={`“${card.title}”`}
+                          longPress={false}
                         >
-                          {/* Task Name & Completion Toggle */}
-                          <td className="py-2.5 px-4">
-                            <div className="gap-2.5 min-w-0 flex items-center">
-                              {/*
+                          <tr
+                            tabIndex={0}
+                            onClick={(event) => {
+                              // The whole row opens the task, like a board card;
+                              // its own pickers and menu keep their clicks.
+                              const target = event.target as HTMLElement;
+                              if (!event.currentTarget.contains(target)) return;
+                              if (target.closest(ROW_CONTROLS)) return;
+                              onSelectCard(card, list.id);
+                            }}
+                            onKeyDown={(event) => {
+                              if (
+                                event.key === 'Enter' &&
+                                event.target === event.currentTarget
+                              ) {
+                                event.preventDefault();
+                                onSelectCard(card, list.id);
+                              }
+                            }}
+                            className="group cursor-pointer transition-colors hover:bg-muted/30 focus-visible:bg-muted/40 focus-visible:outline-none"
+                          >
+                            {/* Task Name & Completion Toggle */}
+                            <td className="py-2.5 px-4">
+                              <div className="gap-2.5 min-w-0 flex items-center">
+                                {/*
                                 "Done" is the column the task sits in, not a
                                 flag of its own, so ticking this moves the task
                                 rather than setting a field.
                               */}
-                              <button
-                                type="button"
-                                title={
-                                  card.dueComplete
-                                    ? `Move back to ${nameOf(TaskStatus.TODO)}`
-                                    : 'Mark as completed'
-                                }
-                                onClick={() =>
+                                <button
+                                  type="button"
+                                  title={
+                                    isDone
+                                      ? `Move back to ${nameOf(todoListId)}`
+                                      : `Mark as ${nameOf(doneListId)}`
+                                  }
+                                  aria-label={
+                                    isDone
+                                      ? `Reopen ${card.title}`
+                                      : `Complete ${card.title}`
+                                  }
+                                  onClick={() =>
+                                    dispatch({
+                                      type: 'card/move',
+                                      cardId: card.id,
+                                      toListId: isDone
+                                        ? todoListId
+                                        : doneListId,
+                                      toIndex: 0,
+                                    })
+                                  }
+                                  className="shrink-0 text-muted-foreground transition-colors hover:text-[#10b981]"
+                                >
+                                  {isDone ? (
+                                    <CheckCircle2 className="size-4 text-white fill-[#10b981]" />
+                                  ) : (
+                                    <Circle className="size-4" />
+                                  )}
+                                </button>
+
+                                {(show.ticketId ?? true) ? (
+                                  <TaskTicket ticket={ticketId} />
+                                ) : null}
+
+                                <span
+                                  className={cn(
+                                    'font-medium min-w-0 truncate text-foreground',
+                                    isDone &&
+                                      'text-muted-foreground line-through',
+                                  )}
+                                >
+                                  {card.title}
+                                </span>
+
+                                {(show.labels ?? true) ? (
+                                  <TaskLabelChips
+                                    labels={card.labels}
+                                    className="sm:flex hidden"
+                                  />
+                                ) : null}
+                              </div>
+                            </td>
+
+                            {/* Assignee */}
+                            <td className="py-2.5 px-3">
+                              <KanbanLeadPicker
+                                selectedMemberIds={card.memberIds}
+                                currentMemberId={card.memberIds[0]}
+                                members={board.members}
+                                multiple
+                                onSelectMembers={(memberIds) =>
                                   dispatch({
-                                    type: 'card/move',
+                                    type: 'card/update',
                                     cardId: card.id,
-                                    toListId: card.dueComplete
-                                      ? TaskStatus.TODO
-                                      : TaskStatus.DONE,
-                                    toIndex: 0,
+                                    patch: { memberIds },
                                   })
                                 }
-                                className="shrink-0 text-muted-foreground transition-colors hover:text-accent-green"
-                              >
-                                {card.dueComplete ? (
-                                  <CheckCircle2 className="w-4 h-4 fill-accent-green text-accent-green" />
-                                ) : (
-                                  <Circle className="w-4 h-4" />
-                                )}
-                              </button>
-
-                              <TaskTicket ticket={ticketId} />
-
-                              <button
-                                type="button"
-                                onClick={() => onSelectCard(card, list.id)}
-                                className={cn(
-                                  'font-medium min-w-0 truncate text-left text-foreground transition-colors hover:text-primary',
-                                  card.dueComplete &&
-                                    'text-muted-foreground line-through',
-                                )}
-                              >
-                                {card.title}
-                              </button>
-
-                              <TaskLabelChips
-                                labels={card.labels}
-                                className="sm:flex hidden"
-                              />
-                            </div>
-                          </td>
-
-                          {/* Assignee */}
-                          <td className="py-2.5 px-3">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <button type="button" className={CELL_TRIGGER}>
-                                  {assignedMember ? (
-                                    <>
-                                      {assignedMembers.length > 1 ? (
-                                        <UserAvatarGroup
-                                          users={assignedMembers}
-                                          size="xs"
-                                        />
-                                      ) : (
-                                        <UserAvatar
-                                          name={assignedMember.name}
-                                          src={assignedMember.avatarUrl}
-                                          seed={assignedMember.id}
-                                          presence={assignedMember.presence}
-                                          statusEmoji={
-                                            assignedMember.statusEmoji
-                                          }
-                                          statusText={assignedMember.statusText}
-                                          size="xs"
-                                        />
-                                      )}
-                                      <span className="truncate">
-                                        {assignedMembers.length > 1
-                                          ? `${assignedMembers.length} assignees`
-                                          : assignedMember.name}
-                                      </span>
-                                    </>
-                                  ) : (
-                                    <span className="text-muted-foreground">
-                                      Unassigned
-                                    </span>
-                                  )}
-                                </button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start">
-                                {board.members.map((member) => (
-                                  <DropdownMenuItem
-                                    key={member.id}
-                                    onClick={() =>
-                                      dispatch({
-                                        type: 'card/toggleMember',
-                                        cardId: card.id,
-                                        memberId: member.id,
-                                      })
-                                    }
-                                    className="gap-2 flex items-center"
-                                  >
-                                    <UserAvatar
-                                      name={member.name}
-                                      src={member.avatarUrl}
-                                      seed={member.id}
-                                      presence={member.presence}
-                                      statusEmoji={member.statusEmoji}
-                                      statusText={member.statusText}
-                                      size="xs"
-                                    />
-                                    <span>{member.name}</span>
-                                  </DropdownMenuItem>
-                                ))}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </td>
-
-                          {/* Due date */}
-                          <td className="py-1.5 px-3">
-                            <DatePicker
-                              value={card.dueDate}
-                              onChange={(day) =>
-                                dispatch({
-                                  type: 'card/update',
-                                  cardId: card.id,
-                                  patch: { dueDate: day ?? null },
-                                })
-                              }
-                              trigger={
-                                <button type="button" className={CELL_TRIGGER}>
-                                  <Calendar className="size-3.5 shrink-0 text-muted-foreground" />
-                                  {dueInfo ? (
-                                    <span
-                                      className={cn(
-                                        'truncate',
-                                        DUE_TEXT_CLASSES[dueInfo.tone],
-                                      )}
-                                    >
-                                      {dueInfo.label}
-                                    </span>
-                                  ) : (
-                                    <span className="text-muted-foreground">
-                                      No date
-                                    </span>
-                                  )}
-                                </button>
-                              }
-                            />
-                          </td>
-
-                          {/* Priority */}
-                          <td className="py-1.5 px-3">
-                            <KanbanPriorityPicker
-                              required
-                              priority={card.priority}
-                              onPriorityChange={(value) =>
-                                dispatch({
-                                  type: 'card/update',
-                                  cardId: card.id,
-                                  patch: { priority: value as Priority },
-                                })
-                              }
-                              trigger={
-                                <button type="button" className={CELL_TRIGGER}>
-                                  <PriorityIcon
-                                    priority={card.priority}
-                                    className="size-3.5"
-                                  />
-                                  <span className="truncate">
-                                    {PRIORITY_LABELS[card.priority]}
-                                  </span>
-                                </button>
-                              }
-                            />
-                          </td>
-
-                          {/* Status */}
-                          <td className="py-1.5 px-3 pr-4">
-                            <div className="gap-1 flex items-center justify-between">
-                              <KanbanStatusPicker
-                                status={list.id}
-                                onStatusChange={(toListId) => {
-                                  if (toListId === list.id) return;
-                                  const target = board.lists.find(
-                                    (l) => l.id === toListId,
-                                  );
+                                onSelectMember={(memberId) =>
                                   dispatch({
-                                    type: 'card/move',
+                                    type: 'card/update',
                                     cardId: card.id,
-                                    toListId,
-                                    toIndex: target?.cards.length ?? 0,
-                                  });
-                                }}
+                                    patch: {
+                                      memberIds: memberId ? [memberId] : [],
+                                    },
+                                  })
+                                }
+                                align="start"
                                 trigger={
                                   <button
                                     type="button"
                                     className={CELL_TRIGGER}
                                   >
-                                    <StatusIcon
-                                      status={list.id}
+                                    {assignedMember ? (
+                                      <>
+                                        {assignedMembers.length > 1 ? (
+                                          <UserAvatarGroup
+                                            users={assignedMembers}
+                                            size="xs"
+                                          />
+                                        ) : (
+                                          <UserAvatar
+                                            name={assignedMember.name}
+                                            src={assignedMember.avatarUrl}
+                                            seed={assignedMember.id}
+                                            presence={assignedMember.presence}
+                                            statusEmoji={
+                                              assignedMember.statusEmoji
+                                            }
+                                            statusText={
+                                              assignedMember.statusText
+                                            }
+                                            size="xs"
+                                          />
+                                        )}
+                                        <span className="truncate">
+                                          {assignedMembers.length > 1
+                                            ? `${assignedMembers.length} assignees`
+                                            : (assignedMember.displayName ??
+                                              assignedMember.name)}
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <UnassignedLeadIcon className="size-4" />
+                                        <span className="text-muted-foreground">
+                                          Unassigned
+                                        </span>
+                                      </>
+                                    )}
+                                  </button>
+                                }
+                              />
+                            </td>
+
+                            {/* Due date */}
+                            <td className="py-1.5 px-3">
+                              <DatePicker
+                                value={card.dueDate}
+                                onChange={(day) =>
+                                  dispatch({
+                                    type: 'card/update',
+                                    cardId: card.id,
+                                    patch: { dueDate: day ?? null },
+                                  })
+                                }
+                                trigger={
+                                  <button
+                                    type="button"
+                                    className={CELL_TRIGGER}
+                                  >
+                                    <Calendar className="size-3.5 shrink-0 text-muted-foreground" />
+                                    {dueInfo ? (
+                                      <span
+                                        className={cn(
+                                          'truncate',
+                                          DUE_TEXT_CLASSES[dueInfo.tone],
+                                        )}
+                                      >
+                                        {dueInfo.label}
+                                      </span>
+                                    ) : (
+                                      <span className="text-muted-foreground">
+                                        No date
+                                      </span>
+                                    )}
+                                  </button>
+                                }
+                              />
+                            </td>
+
+                            {/* Priority */}
+                            <td className="py-1.5 px-3">
+                              <KanbanPriorityPicker
+                                required
+                                priority={card.priority}
+                                onPriorityChange={(value) =>
+                                  dispatch({
+                                    type: 'card/update',
+                                    cardId: card.id,
+                                    patch: { priority: value as Priority },
+                                  })
+                                }
+                                trigger={
+                                  <button
+                                    type="button"
+                                    className={CELL_TRIGGER}
+                                  >
+                                    <PriorityIcon
+                                      priority={card.priority}
                                       className="size-3.5"
-                                      showTooltip={false}
                                     />
                                     <span className="truncate">
-                                      {list.title}
+                                      {PRIORITY_META[card.priority]?.label ??
+                                        card.priority}
                                     </span>
                                   </button>
                                 }
                               />
+                            </td>
 
-                              {canDelete ? (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    void confirm({
-                                      title: `Delete “${card.title}”?`,
-                                      description:
-                                        "The task and its details are removed. This can't be undone.",
-                                      confirmLabel: 'Delete task',
-                                      destructive: true,
-                                    }).then((ok) => {
-                                      if (ok) {
-                                        dispatch({
-                                          type: 'card/remove',
-                                          cardId: card.id,
-                                        });
-                                      }
+                            {/* Status */}
+                            <td className="py-1.5 px-3 pr-4">
+                              <div className="gap-1 flex items-center justify-between">
+                                <KanbanStatusPicker
+                                  status={list.id}
+                                  onStatusChange={(toListId) => {
+                                    if (toListId === list.id) return;
+                                    const target = board.lists.find(
+                                      (l) => l.id === toListId,
+                                    );
+                                    dispatch({
+                                      type: 'card/move',
+                                      cardId: card.id,
+                                      toListId,
+                                      toIndex: target?.cards.length ?? 0,
                                     });
                                   }}
-                                  aria-label={`Delete ${card.title}`}
-                                  className="p-1 rounded text-muted-foreground/60 opacity-0 transition-all group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100"
-                                  title="Delete task"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              ) : null}
-                            </div>
-                          </td>
-                        </tr>
+                                  trigger={
+                                    <button
+                                      type="button"
+                                      className={CELL_TRIGGER}
+                                    >
+                                      <StatusIcon
+                                        status={list.id}
+                                        className="size-3.5"
+                                        showTooltip={false}
+                                      />
+                                      <span className="truncate">
+                                        {list.title}
+                                      </span>
+                                    </button>
+                                  }
+                                />
+
+                                <ActionDropdownMenu
+                                  actions={actions}
+                                  scope={`task:${card.id}`}
+                                  entityType="task"
+                                  entity={card}
+                                  trigger={
+                                    <button
+                                      type="button"
+                                      aria-label={`Actions for “${card.title}”`}
+                                      className="size-6 flex shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-muted hover:text-foreground focus-visible:opacity-100 data-[state=open]:opacity-100"
+                                    >
+                                      <MoreHorizontal className="size-3.5" />
+                                    </button>
+                                  }
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        </EntityContextMenu>
                       );
                     })}
 

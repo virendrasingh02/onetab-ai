@@ -238,9 +238,6 @@ export function taskToCard(
     checklist: checklistOf(task),
     createdByAgent: createdByAgentOf(task),
     estimate: task.estimate ?? null,
-    cycle: task.cycle?.name ?? null,
-    epic: task.epic?.name ?? null,
-    module: task.module?.name ?? null,
     relationCount:
       (task.relations?.length ?? 0) +
       ((task as { targetRelations?: unknown[] }).targetRelations?.length ?? 0),
@@ -540,7 +537,10 @@ export function useServerBoard({
                   ? undefined
                   : mutations.move.mutateAsync({
                       taskId: task.id,
-                      input: { ...statePatch(states, action.listId), orderIndex },
+                      input: {
+                        ...statePatch(states, action.listId),
+                        orderIndex,
+                      },
                     }),
               )
               .catch(() => undefined);

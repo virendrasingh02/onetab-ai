@@ -48,7 +48,8 @@ export const useKanbanDisplayStore = create<KanbanDisplayState>()(
       orderBy: 'manual',
       card: {
         ticketId: true,
-        status: true,
+        // The column already says the status; the badge is opt-in.
+        status: false,
         priority: true,
         dueDate: true,
         assignee: true,
@@ -63,6 +64,18 @@ export const useKanbanDisplayStore = create<KanbanDisplayState>()(
           card: { ...state.card, [key]: !state.card[key] },
         })),
     }),
-    { name: 'onetab_kanban_display_v1' },
+    {
+      name: 'onetab_kanban_display_v1',
+      version: 2,
+      // v2 hides the status badge by default: on a board grouped by status it
+      // only repeated the column's name.
+      migrate: (persisted, version) => {
+        const state = persisted as KanbanDisplayState;
+        if (version < 2 && state?.card) {
+          return { ...state, card: { ...state.card, status: false } };
+        }
+        return state;
+      },
+    },
   ),
 );

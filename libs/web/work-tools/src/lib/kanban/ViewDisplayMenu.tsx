@@ -18,7 +18,6 @@ import {
   List,
   RotateCw,
   Settings,
-  Table,
   Target,
   Timeline,
 } from 'lucide-react';
@@ -55,7 +54,6 @@ export const VIEW_MODES: Array<{
   { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
   { id: 'board', label: 'Board', icon: Kanban },
   { id: 'list', label: 'List', icon: List },
-  { id: 'spreadsheet', label: 'Table', icon: Table },
   { id: 'timeline', label: 'Timeline', icon: Timeline },
   { id: 'gantt', label: 'Gantt', icon: GanttChartSquare },
   { id: 'docs', label: 'Docs', icon: FileText },

@@ -28,6 +28,8 @@ export interface DragGhostOptions {
   height?: number;
   /** The pick-up transform, when the default card tilt is too much. */
   lift?: string;
+  /** Classes for the clone — a column lane has no surface of its own. */
+  className?: string;
 }
 
 export interface DragGhost {
@@ -40,7 +42,7 @@ export interface DragGhost {
 
 export function createDragGhost(
   source: HTMLElement,
-  { width, height, lift = LIFTED }: DragGhostOptions,
+  { width, height, lift = LIFTED, className }: DragGhostOptions,
 ): DragGhost {
   const layer = document.createElement('div');
   layer.setAttribute('data-kanban-ghost', '');
@@ -58,6 +60,7 @@ export function createDragGhost(
   clone.removeAttribute('data-kanban-card');
   clone.removeAttribute('data-kanban-list');
   clone.hidden = false;
+  if (className) clone.classList.add(...className.split(' '));
   clone.style.width = '100%';
   clone.style.margin = '0';
   clone.style.cursor = 'grabbing';
@@ -67,6 +70,7 @@ export function createDragGhost(
   if (height !== undefined) {
     clone.style.height = '100%';
     clone.style.maxHeight = 'none';
+    clone.style.overflow = 'hidden';
   }
   layer.append(clone);
   document.body.append(layer);

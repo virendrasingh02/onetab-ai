@@ -43,11 +43,11 @@ export interface CustomLabelItem {
 export type ChecklistItem = TaskChecklistItem;
 
 export const KANBAN_STATUSES: readonly CustomStatusItem[] = [
-  { id: 'BACKLOG', label: 'Backlog', key: '1', color: '#f59e0b' },
-  { id: 'TODO', label: 'Planned', key: '2', color: '#94a3b8' },
-  { id: 'IN_PROGRESS', label: 'In Progress', key: '3', color: '#eab308' },
+  { id: 'BACKLOG', label: 'Backlog', key: '1', color: '#94a3b8' },
+  { id: 'TODO', label: 'Planned', key: '2', color: '#3b82f6' },
+  { id: 'IN_PROGRESS', label: 'In Progress', key: '3', color: '#f59e0b' },
   { id: 'IN_REVIEW', label: 'In Review', key: '4', color: '#8b5cf6' },
-  { id: 'DONE', label: 'Completed', key: '5', color: '#3b82f6' },
+  { id: 'DONE', label: 'Completed', key: '5', color: '#10b981' },
   { id: 'CANCELLED', label: 'Cancelled', key: '6', color: '#64748b' },
 ];
 
@@ -56,7 +56,7 @@ export const KANBAN_PRIORITIES: readonly CustomPriorityItem[] = [
   { id: 'URGENT', label: 'Urgent', key: '1', color: '#ef4444' },
   { id: 'HIGH', label: 'High', key: '2', color: '#f97316' },
   { id: 'MEDIUM', label: 'Medium', key: '3', color: '#eab308' },
-  { id: 'LOW', label: 'Low', key: '4', color: '#3b82f6' },
+  { id: 'LOW', label: 'Low', key: '4', color: '#94a3b8' },
 ];
 
 export const LABEL_COLORS = [

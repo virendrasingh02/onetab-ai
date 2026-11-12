@@ -123,10 +123,7 @@ export {
   UnifiedWorkManager,
   type AsanaViewMode,
 } from './lib/AsanaProjectManager.js';
-export { ProjectSpreadsheetView } from './lib/views/ProjectSpreadsheetView.js';
 export { ProjectGanttView } from './lib/views/ProjectGanttView.js';
-export { CyclesPlanningView } from './lib/views/CyclesPlanningView.js';
-export { ModulesEpicsView } from './lib/views/ModulesEpicsView.js';
 export { InitiativesView } from './lib/views/InitiativesView.js';
 export { IntakeTriageView } from './lib/views/IntakeTriageView.js';
 export { ProjectUpdatesView } from './lib/views/ProjectUpdatesView.js';
@@ -175,5 +172,8 @@ export {
 } from './lib/use-context-links.js';
 export { CallDetailPage } from './lib/CallDetailPage.js';
 
-export { buildProjectActions, type ProjectActionOptions } from './lib/actions/project-actions.js';
+export {
+  buildProjectActions,
+  type ProjectActionOptions,
+} from './lib/actions/project-actions.js';
 export { useConvertTaskToDocument } from './lib/use-work-tools.js';

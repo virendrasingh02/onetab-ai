@@ -62,6 +62,27 @@ const SHIFT_TRANSITION = 'transform 200ms cubic-bezier(0.2, 0, 0, 1)';
 /** A column is a much bigger thing to tilt than a card, so it tilts less. */
 const COLUMN_LIFT = 'rotate(1.5deg) scale(1.02)';
 
+/** Smallest a lifted column (and the gap it holds) is drawn. */
+const COLUMN_MIN_HEIGHT = 160;
+
+/**
+ * How tall a column's content is — header, cards and the add row — rather
+ * than the full-height lane it sits in, so the ghost and its placeholder are
+ * the size of what was picked up.
+ */
+function columnContentHeight(section: HTMLElement, rect: DOMRect): number {
+  // The scroll content is `min-h-full`, so its own height is the lane's; the
+  // bottom of its last child (the add row) is where the content really ends.
+  const viewport = section.querySelector<HTMLElement>(
+    '.simplebar-content-wrapper',
+  );
+  const last = viewport?.firstElementChild?.lastElementChild;
+  if (!viewport || !last) return rect.height;
+  const content =
+    last.getBoundingClientRect().bottom + viewport.scrollTop - rect.top + 10;
+  return Math.min(rect.height, Math.max(COLUMN_MIN_HEIGHT, content));
+}
+
 /** Where a card would land: a column, and an index among that column's cards. */
 export interface DragSlot {
   listId: TaskStatus;
@@ -315,28 +336,31 @@ export function useBoardDrag({
   /* ----------------------------------------------------- painting: cards --- */
 
   /** Puts a column's tiles back the way they were found. */
-  const clearColumn = useCallback((session: CardSession, listId: TaskStatus) => {
-    const column = session.metrics.get(listId);
-    if (!column) return;
+  const clearColumn = useCallback(
+    (session: CardSession, listId: TaskStatus) => {
+      const column = session.metrics.get(listId);
+      if (!column) return;
 
-    for (const card of column.cards) {
-      // Transition off first: closing the gap is a correction, not a move.
-      card.el.style.transition = '';
-      card.el.style.transform = '';
-    }
-    column.nodes.list.style.paddingBottom = '';
-    delete column.nodes.section.dataset.dropTarget;
+      for (const card of column.cards) {
+        // Transition off first: closing the gap is a correction, not a move.
+        card.el.style.transition = '';
+        card.el.style.transform = '';
+      }
+      column.nodes.list.style.paddingBottom = '';
+      delete column.nodes.section.dataset.dropTarget;
 
-    const marker = query(column.nodes.list, '[data-kanban-placeholder]');
-    if (marker) {
-      marker.hidden = true;
-      marker.style.transition = 'none';
-      marker.style.transform = '';
-    }
+      const marker = query(column.nodes.list, '[data-kanban-placeholder]');
+      if (marker) {
+        marker.hidden = true;
+        marker.style.transition = 'none';
+        marker.style.transform = '';
+      }
 
-    const empty = query(column.nodes.list, '[data-kanban-empty]');
-    if (empty) empty.style.display = '';
-  }, []);
+      const empty = query(column.nodes.list, '[data-kanban-empty]');
+      if (empty) empty.style.display = '';
+    },
+    [],
+  );
 
   /**
    * Opens the gap at `slot`: everything from that index down slides one card
@@ -470,7 +494,8 @@ export function useBoardDrag({
 
       session.row.forEach((column, seat) => {
         const next = seat >= at ? `translate3d(${session.gap}px, 0, 0)` : '';
-        if (column.el.style.transform !== next) column.el.style.transform = next;
+        if (column.el.style.transform !== next)
+          column.el.style.transform = next;
       });
 
       const scroller = scrollerRef.current;
@@ -590,7 +615,8 @@ export function useBoardDrag({
           for (const card of column.cards) card.el.style.transition = '';
         }
         flushSync(() => setActiveCardId(null));
-        for (const listId of session.metrics.keys()) clearColumn(session, listId);
+        for (const listId of session.metrics.keys())
+          clearColumn(session, listId);
         session.metrics.clear();
       } else {
         for (const column of session.row) column.el.style.transition = '';
@@ -719,6 +745,11 @@ export function useBoardDrag({
     ): Session => {
       const source = pending.source;
       const rect = source.getBoundingClientRect();
+      // A column is a full-height lane; what moves is its header and cards.
+      const height =
+        pending.kind === 'column'
+          ? columnContentHeight(source, rect)
+          : rect.height;
       const base: SessionBase = {
         mode,
         source,
@@ -728,7 +759,7 @@ export function useBoardDrag({
             ? rect.height + CARD_GAP
             : rect.width + COLUMN_GAP,
         width: rect.width,
-        height: rect.height,
+        height,
         pointerId: pending.pointerId,
         grabX: x - rect.left,
         grabY: y - rect.top,
@@ -789,10 +820,14 @@ export function useBoardDrag({
       const rect = pending.source.getBoundingClientRect();
       session.ghost = createDragGhost(pending.source, {
         width: rect.width,
-        // A column's height has to be pinned: its `max-h-full` has nothing to
-        // resolve against once the clone is out of the board's layout.
-        height: pending.kind === 'column' ? rect.height : undefined,
+        // A column's height has to be pinned — it fills the board, which the
+        // clone is no longer in — and only to its content, not the whole lane.
+        height: pending.kind === 'column' ? session.height : undefined,
         lift: pending.kind === 'column' ? COLUMN_LIFT : undefined,
+        className:
+          pending.kind === 'column'
+            ? 'bg-surface-muted border border-border'
+            : undefined,
       });
       session.ghost.moveTo(rect.left, rect.top);
 
@@ -843,7 +878,10 @@ export function useBoardDrag({
           event.stopPropagation();
           event.preventDefault();
         };
-        window.addEventListener('click', swallow, { capture: true, once: true });
+        window.addEventListener('click', swallow, {
+          capture: true,
+          once: true,
+        });
         window.setTimeout(
           () => window.removeEventListener('click', swallow, { capture: true }),
           0,
@@ -1102,7 +1140,9 @@ export function useBoardDrag({
     // A card is its own handle; a column is grabbed by the header and lifted
     // whole, so the press has to walk up to the section it belongs to.
     const source =
-      kind === 'card' ? handle : handle.closest<HTMLElement>('[data-kanban-list]');
+      kind === 'card'
+        ? handle
+        : handle.closest<HTMLElement>('[data-kanban-list]');
     if (!source) return null;
 
     return {

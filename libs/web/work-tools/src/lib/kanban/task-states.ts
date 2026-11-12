@@ -24,30 +24,53 @@ export const STATUS_CATEGORY_LABELS: Record<TaskStatus, string> = {
   CANCELLED: 'Cancelled',
 };
 
+/**
+ * The one status palette. Every status icon, column, picker, chart and
+ * timeline bar paints from these (or from a colour the workspace picked), and
+ * they are theme-fixed: a workspace theme never recolours a status.
+ *
+ * Grey → blue → amber → violet → green reads as progress at a glance.
+ */
+export const STATUS_CATEGORY_COLORS: Record<TaskStatus, string> = {
+  BACKLOG: '#94a3b8',
+  TODO: '#3b82f6',
+  IN_PROGRESS: '#f59e0b',
+  IN_REVIEW: '#8b5cf6',
+  DONE: '#10b981',
+  CANCELLED: '#64748b',
+};
+
+/**
+ * What the server seeded before the palette above. A built-in still carrying
+ * its old seed colour was never recoloured by anyone, so it takes the new one.
+ */
+const LEGACY_SEED_COLORS: Partial<Record<TaskStatus, string>> = {
+  TODO: '#64748b',
+  IN_PROGRESS: '#eab308',
+  DONE: '#3b82f6',
+};
+
 /** The built-ins as the server seeds them; also what renders before it answers. */
 export const DEFAULT_WORKFLOW_STATES: readonly TaskWorkflowState[] = [
-  { id: 'BACKLOG', name: 'Backlog', color: '#94a3b8' },
-  { id: 'TODO', name: 'Planned', color: '#64748b' },
-  { id: 'IN_PROGRESS', name: 'In Progress', color: '#eab308' },
-  { id: 'IN_REVIEW', name: 'In Review', color: '#8b5cf6' },
-  { id: 'DONE', name: 'Completed', color: '#3b82f6' },
-  { id: 'CANCELLED', name: 'Cancelled', color: '#64748b' },
+  { id: 'BACKLOG', name: 'Backlog' },
+  { id: 'TODO', name: 'Planned' },
+  { id: 'IN_PROGRESS', name: 'In Progress' },
+  { id: 'IN_REVIEW', name: 'In Review' },
+  { id: 'DONE', name: 'Completed' },
+  { id: 'CANCELLED', name: 'Cancelled' },
 ].map((state, index) => ({
   ...state,
+  color: STATUS_CATEGORY_COLORS[state.id as TaskStatus],
   category: state.id as TaskStatus,
   builtin: true,
   position: (index + 1) * 1024,
 }));
 
-const DEFAULT_COLORS = new Map(
-  DEFAULT_WORKFLOW_STATES.map((state) => [state.id, state.color]),
-);
-
 /** Colours offered when adding or editing a status. */
 export const STATUS_COLORS = [
   '#94a3b8',
   '#64748b',
-  '#eab308',
+  '#f59e0b',
   '#f97316',
   '#8b5cf6',
   '#ec4899',
@@ -57,21 +80,33 @@ export const STATUS_COLORS = [
   '#ef4444',
 ] as const;
 
-/**
- * The colour to paint a state's icon in, or undefined to keep the built-in
- * icon's theme colour (a built-in nobody recoloured).
- */
+/** Swaps an untouched legacy seed colour for the current palette's. */
+function normalizeState(state: TaskWorkflowState): TaskWorkflowState {
+  if (!state.builtin) return state;
+  const legacy = LEGACY_SEED_COLORS[state.category];
+  return legacy && state.color.toLowerCase() === legacy
+    ? { ...state, color: STATUS_CATEGORY_COLORS[state.category] }
+    : state;
+}
+
+/** The colour a status paints in: its own, else its category's. */
+export function statusColor(
+  id: string | null | undefined,
+  states: readonly TaskWorkflowState[] = snapshot,
+): string {
+  const state = id ? states.find((item) => item.id === id) : undefined;
+  if (state?.color) return state.color;
+  return (
+    STATUS_CATEGORY_COLORS[(state?.category ?? id) as TaskStatus] ??
+    STATUS_CATEGORY_COLORS.TODO
+  );
+}
+
+/** The colour to paint a state's icon in. */
 export function stateTint(
   state: TaskWorkflowState | undefined,
 ): string | undefined {
-  if (!state) return undefined;
-  if (
-    state.builtin &&
-    DEFAULT_COLORS.get(state.id) === state.color.toLowerCase()
-  ) {
-    return undefined;
-  }
-  return state.color;
+  return state?.color;
 }
 
 /* --------------------------------------------- last-known workflow store --- */
@@ -145,11 +180,18 @@ export function useWorkflowStates(): WorkflowStates {
   const { workspaceId } = useCurrentWorkspace();
   const query = useTaskStates(workspaceId);
   const known = useKnownWorkflowStates();
-  const states = query.data && query.data.length > 0 ? query.data : known;
+  const fetched = useMemo(
+    () =>
+      query.data && query.data.length > 0
+        ? query.data.map(normalizeState)
+        : undefined,
+    [query.data],
+  );
+  const states = fetched ?? known;
 
   useEffect(() => {
-    if (query.data && query.data.length > 0) publish(query.data);
-  }, [query.data]);
+    if (fetched) publish(fetched);
+  }, [fetched]);
 
   const index = useMemo(
     () => new Map(states.map((state) => [state.id, state])),

@@ -50,7 +50,6 @@ describe('Kanban Board & Card UX', () => {
       startDate: '2026-10-15',
       dueDate: '2026-10-21',
       milestone: 'Delivery',
-      cycle: 'Checkout sprint 2',
       estimate: 2,
       relationCount: 1,
       labels: ['Mobile', 'Bug'],
@@ -101,9 +100,6 @@ describe('Kanban Board & Card UX', () => {
 
     // Milestone pill
     expect(screen.getByText('Delivery')).toBeInTheDocument();
-
-    // Cycle / Sprint pill
-    expect(screen.getByText('Checkout sprint 2')).toBeInTheDocument();
 
     // Estimate pill with Δ 2
     expect(screen.getByText('Δ')).toBeInTheDocument();
@@ -173,8 +169,6 @@ describe('Kanban Board & Card UX', () => {
 
     // Clicking add button opens the inline composer
     await userEvent.click(addButtons[addButtons.length - 1]);
-    expect(
-      screen.getByPlaceholderText('Task title'),
-    ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Task title')).toBeInTheDocument();
   });
 });
