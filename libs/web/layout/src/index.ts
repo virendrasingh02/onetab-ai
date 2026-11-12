@@ -1,4 +1,5 @@
 export { AppShell, type AppShellProps } from './lib/app-shell.js';
+export { AccountMenu, type AccountMenuProps } from './lib/account-menu.js';
 export { DirectMessagesPage } from './lib/direct-messages-page.js';
 export { AppHeader, type AppHeaderProps } from './lib/app-header.js';
 export { AppRail, type AppRailProps } from './lib/app-rail.js';

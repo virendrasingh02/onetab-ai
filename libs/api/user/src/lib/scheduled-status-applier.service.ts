@@ -155,29 +155,52 @@ export class ScheduledStatusApplierService {
     }
   }
 
-  /** Clear a lapsed *manual* status — this used to only be masked at read time. */
+  /**
+   * Clear a lapsed *manual* status — this used to only be masked at read time.
+   * A timed "pause notifications" (BUSY presence, status expiry as its end)
+   * lapses here too, with or without status text, and hands presence back.
+   */
   private async clearExpiredManual(now: Date): Promise<void> {
     const expired = await this.prisma.user.findMany({
       where: {
         scheduledStatusAppliedId: null,
-        statusText: { not: null },
         statusExpiresAt: { not: null, lte: now },
+        OR: [{ statusText: { not: null } }, { presence: 'BUSY' }],
       },
-      select: { id: true },
+      select: { id: true, presence: true },
       take: 500,
     });
     if (expired.length === 0) return;
 
-    await this.prisma.user.updateMany({
-      where: { id: { in: expired.map((u) => u.id) } },
-      data: { statusText: null, statusEmoji: null, statusExpiresAt: null },
-    });
+    const pausedIds = expired
+      .filter((u) => u.presence === 'BUSY')
+      .map((u) => u.id);
+    const otherIds = expired
+      .filter((u) => u.presence !== 'BUSY')
+      .map((u) => u.id);
+    const cleared = {
+      statusText: null,
+      statusEmoji: null,
+      statusExpiresAt: null,
+    };
+
+    await this.prisma.$transaction([
+      this.prisma.user.updateMany({
+        where: { id: { in: otherIds } },
+        data: cleared,
+      }),
+      this.prisma.user.updateMany({
+        where: { id: { in: pausedIds } },
+        data: { ...cleared, presence: 'ONLINE' },
+      }),
+    ]);
 
     for (const u of expired) {
       await this.broadcast(u.id, {
         statusText: null,
         statusEmoji: null,
-        presence: null,
+        // ONLINE releases the realtime layer's BUSY hold.
+        presence: u.presence === 'BUSY' ? 'ONLINE' : null,
         source: 'expiry',
       });
     }

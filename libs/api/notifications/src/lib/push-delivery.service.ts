@@ -47,6 +47,15 @@ function minutesOf(hhmm: string): number | null {
  * zone. The window may wrap midnight ("22:00"–"07:00"). A malformed window or
  * unknown zone never suppresses anything.
  */
+/** BUSY presence = notifications paused, until its status expiry (if any). */
+export function isNotificationsPaused(
+  user: { presence?: string | null; statusExpiresAt?: Date | null } | null,
+  now: Date,
+): boolean {
+  if (user?.presence !== 'BUSY') return false;
+  return !user.statusExpiresAt || user.statusExpiresAt > now;
+}
+
 export function isWithinQuietHours(
   now: Date,
   timeZone: string,
@@ -140,7 +149,7 @@ export class PushDeliveryService {
       }),
       this.prisma.user.findUnique({
         where: { id: event.recipientId },
-        select: { timezone: true },
+        select: { timezone: true, presence: true, statusExpiresAt: true },
       }),
       this.prisma.workspace.findUnique({
         where: { id: event.workspaceId },
@@ -149,6 +158,9 @@ export class PushDeliveryService {
     ]);
 
     if (preference && !preference.pushEnabled) return 0;
+    // "Pause notifications" (BUSY presence) holds pushes until it lapses;
+    // the in-app inbox still records everything.
+    if (isNotificationsPaused(user, now)) return 0;
     if (
       isWithinQuietHours(
         now,

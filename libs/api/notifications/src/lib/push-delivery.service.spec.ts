@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   isExpoPushToken,
+  isNotificationsPaused,
   isWithinQuietHours,
   PushDeliveryService,
 } from './push-delivery.service.js';
@@ -155,6 +156,18 @@ describe('PushDeliveryService', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('stays silent while notifications are paused (BUSY)', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      timezone: 'UTC',
+      presence: 'BUSY',
+      statusExpiresAt: new Date('2026-10-20T09:00:00Z'),
+    });
+    expect(await service.deliver(event, new Date('2026-10-19T12:00:00Z'))).toBe(
+      0,
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('does nothing when the user has no mobile devices', async () => {
     prisma.pushRegistration.findMany.mockResolvedValue([
       { id: 'r_web', pushKey: 'https://push.example/endpoint' },
@@ -174,5 +187,26 @@ describe('PushDeliveryService', () => {
     );
     expect(await service.deliver(event)).toBe(0);
     expect(prisma.pushRegistration.findMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('isNotificationsPaused', () => {
+  const now = new Date('2026-10-19T12:00:00Z');
+  it('is paused only while BUSY and before the expiry', () => {
+    expect(isNotificationsPaused({ presence: 'ONLINE' }, now)).toBe(false);
+    expect(isNotificationsPaused({ presence: 'BUSY' }, now)).toBe(true);
+    expect(
+      isNotificationsPaused(
+        { presence: 'BUSY', statusExpiresAt: new Date('2026-10-19T13:00:00Z') },
+        now,
+      ),
+    ).toBe(true);
+    expect(
+      isNotificationsPaused(
+        { presence: 'BUSY', statusExpiresAt: new Date('2026-10-19T11:00:00Z') },
+        now,
+      ),
+    ).toBe(false);
+    expect(isNotificationsPaused(null, now)).toBe(false);
   });
 });
