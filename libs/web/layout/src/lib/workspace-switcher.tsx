@@ -86,6 +86,11 @@ export interface WorkspaceMenuProps {
 /**
  * The loudest thing happening anywhere *else*.
  */
+/** One tile style for every footer action so the icons read as a set and line
+ *  up with the size-6 workspace avatars above. */
+const ACTION_ICON_TILE =
+  'size-6 flex shrink-0 items-center justify-center rounded-md border border-border bg-surface-inset/60 text-muted-foreground';
+
 function summariseOthers(
   workspaces: WorkspaceSummary[],
   currentId: string,
@@ -302,8 +307,8 @@ export function WorkspaceMenu({
           sideOffset={6}
           className="w-72 sm:w-80 p-1.5 shadow-2xl space-y-1.5 rounded-xl border border-border bg-popover text-foreground select-none"
         >
-          {/* Quick Search when 3 or more workspaces exist */}
-          {linkedWorkspaceCount >= 3 && (
+          {/* Quick Search once there are more than 5 workspaces */}
+          {linkedWorkspaceCount > 5 && (
             <div className="px-1.5 py-1" onKeyDown={(e) => e.stopPropagation()}>
               <SearchInput
                 value={searchQuery}
@@ -511,8 +516,8 @@ export function WorkspaceMenu({
             }}
             className="gap-2.5 px-2 py-1.5 text-sm flex cursor-pointer items-center rounded-lg hover:bg-accent/60"
           >
-            <span className="size-5 flex shrink-0 items-center justify-center rounded-md border border-primary/30 bg-primary/10 text-primary">
-              <MailPlus className="size-3" />
+            <span className={ACTION_ICON_TILE}>
+              <MailPlus className="size-3.5" />
             </span>
             <span className="font-medium text-foreground">
               Invite to {current.name}
@@ -524,8 +529,8 @@ export function WorkspaceMenu({
             onClick={handleOpenAddAccount}
             className="gap-2.5 px-2 py-1.5 text-sm flex cursor-pointer items-center rounded-lg hover:bg-accent/60"
           >
-            <span className="size-5 flex shrink-0 items-center justify-center rounded-md border border-dashed border-border text-primary">
-              <UserPlus className="size-3" />
+            <span className={ACTION_ICON_TILE}>
+              <UserPlus className="size-3.5" />
             </span>
             <span className="font-medium text-foreground">Add account</span>
           </DropdownMenuItem>
@@ -541,10 +546,10 @@ export function WorkspaceMenu({
               to={`/w/${current.slug}/settings`}
               onClick={() => setMenuOpen(false)}
             >
-              <span className="size-5 flex shrink-0 items-center justify-center rounded-md border border-border text-subtle">
-                <Settings className="size-3" />
+              <span className={ACTION_ICON_TILE}>
+                <Settings className="size-3.5" />
               </span>
-              <span className="font-medium">Workspace Settings</span>
+              <span className="font-medium text-foreground">Workspace Settings</span>
             </Link>
           </DropdownMenuItem>
 
@@ -555,10 +560,10 @@ export function WorkspaceMenu({
             className="gap-2.5 px-2 py-1.5 text-sm flex cursor-pointer items-center rounded-lg hover:bg-accent/60"
           >
             <Link to="/workspaces/new" onClick={() => setMenuOpen(false)}>
-              <span className="size-5 flex shrink-0 items-center justify-center rounded-md border border-dashed border-border text-subtle">
-                <Plus className="size-3" />
+              <span className={ACTION_ICON_TILE}>
+                <Plus className="size-3.5" />
               </span>
-              <span className="font-medium">Add workspace</span>
+              <span className="font-medium text-foreground">Add workspace</span>
             </Link>
           </DropdownMenuItem>
         </DropdownMenuContent>

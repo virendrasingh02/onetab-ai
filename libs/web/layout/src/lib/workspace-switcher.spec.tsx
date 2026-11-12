@@ -98,7 +98,7 @@ describe('WorkspaceMenu / Switcher', () => {
     expect(screen.getByText('Mie Team')).toBeInTheDocument();
   });
 
-  it('opens the switcher, lists the account and its workspaces, and filters by search', async () => {
+  it('opens the switcher, lists the account and its workspaces', async () => {
     const user = userEvent.setup();
     renderInProviders(
       <WorkspaceMenu
@@ -125,8 +125,29 @@ describe('WorkspaceMenu / Switcher', () => {
     // Plan/billing lives in Settings, not the switcher.
     expect(screen.queryByText('Plans & Billing')).toBeNull();
     expect(screen.queryByText(/Micro-Agents/)).toBeNull();
+    // Search only appears once there are more than 5 workspaces.
+    expect(
+      screen.queryByPlaceholderText(/search workspaces or emails/i),
+    ).toBeNull();
+  });
 
-    // Test search filter
+  it('shows the search box past 5 workspaces and filters by it', async () => {
+    const user = userEvent.setup();
+    const extra = ['Delta', 'Echo', 'Foxtrot'].map((name, i) => ({
+      ...mockWorkspaces[2],
+      id: `ws-x${i}`,
+      name,
+      slug: name.toLowerCase(),
+    }));
+    renderInProviders(
+      <WorkspaceMenu
+        workspaces={[...mockWorkspaces, ...extra]}
+        current={mockWorkspaces[0]}
+        userEmail="virendra@gmail.com"
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: /Current workspace/i }));
+
     const searchInput = screen.getByPlaceholderText(
       /search workspaces or emails/i,
     );
