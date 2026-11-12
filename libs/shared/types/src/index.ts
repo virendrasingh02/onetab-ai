@@ -412,6 +412,7 @@ export type {
   TaskProjectRef,
   Team,
   TaskLabel,
+  TaskWorkflowState,
   TaskChecklistItem,
   WorkDocument,
   WorkDocumentChild,

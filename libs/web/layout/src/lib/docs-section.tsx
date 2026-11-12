@@ -2,10 +2,6 @@ import {
   ActionDropdownMenu,
   Button,
   copyToClipboard,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
   EntityContextMenu,
   entityUrl,
   Hint,
@@ -23,21 +19,19 @@ import {
   FileText,
   FolderPlus,
   Link2,
-  MoreVertical,
   MoveRight,
   Pencil,
   Plus,
   Star,
   Trash2,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useSplitViewAction } from './split-view/use-split-view-action.js';
 import {
   FavoriteToggle,
+  isOnPath,
   navActionClass,
-  navGroupHeaderClass,
-  navGroupTriggerClass,
   navIconClass,
   NAV_ROW_ACTIONS_PADDING,
   navRowClass,
@@ -46,6 +40,7 @@ import {
   Section,
   type NavDepth,
 } from './nav-primitives.js';
+import { useSidebarStore } from './navigation/sidebar-store.js';
 import { useSidebarFavorites } from './use-sidebar-favorites.js';
 
 export interface DocItemData {
@@ -56,6 +51,28 @@ export interface DocItemData {
   companyId?: string;
   parentId?: string | null;
 }
+
+/**
+ * The doc the current URL points at, or null. `/docs/:docId` is the canonical
+ * route; `?doc=` is the old query form, which still resolves.
+ */
+export function activeDocId(
+  location: { pathname: string; search: string },
+  workspaceSlug: string,
+): string | null {
+  const base = `/w/${workspaceSlug}/docs`;
+  if (!isOnPath(location.pathname, base)) return null;
+  const fromPath = location.pathname.slice(base.length + 1).split('/')[0];
+  return fromPath || new URLSearchParams(location.search).get('doc');
+}
+
+/**
+ * Indented list under a parent row. The guide line runs under the parent's
+ * icon, the same treatment `NavGroup` gives its rows, so nesting reads from
+ * position and not only from font weight.
+ */
+const NAV_NESTED_LIST_CLASS =
+  'ml-4.5 pl-1.5 space-y-0.5 border-l border-border/60';
 
 export function DocNavRow({
   doc,
@@ -179,47 +196,62 @@ export function DocNavRow({
       entity={doc}
       label={doc.title}
     >
-      <li className="group/row space-y-0.5 relative">
-        <NavLink
-          to={docPath}
-          className={navRowClass(isSelected, {
-            depth,
-            extra: NAV_ROW_ACTIONS_PADDING,
-          })}
-        >
-          <IconRenderer
-            icon={doc.icon}
-            iconColor={doc.iconColor}
-            fallbackEmoji="📝"
-            sizeClassName={navIconClass(depth)}
-          />
-          <span className="flex-1 truncate">{doc.title}</span>
-        </NavLink>
+      <li className="space-y-0.5">
+        {/* The hover group is the row alone: with subpages inside it, the
+            actions centred on the whole block and showed while a subpage was
+            hovered. */}
+        <div className="group/row relative">
+          <NavLink
+            to={docPath}
+            aria-current={isSelected ? 'page' : undefined}
+            className={navRowClass(isSelected, {
+              depth,
+              extra: NAV_ROW_ACTIONS_PADDING,
+            })}
+          >
+            <IconRenderer
+              icon={doc.icon}
+              iconColor={doc.iconColor}
+              fallbackEmoji="📝"
+              sizeClassName={navIconClass(depth)}
+            />
+            <span className="flex-1 truncate">{doc.title}</span>
+          </NavLink>
 
-        <NavRowActions isPinned={isFavorite}>
-          <FavoriteToggle
-            isFavorite={isFavorite}
-            onToggle={() => onToggleFavorite(doc)}
-          />
-          <ActionDropdownMenu
-            modal={false}
-            actions={actions}
-            scope={`doc:${doc.id}`}
-            entityType="doc"
-            entity={doc}
-            contentClassName="w-64"
-            trigger={<NavRowMenuButton label={`Options for ${doc.title}`} />}
-          />
-        </NavRowActions>
+          <NavRowActions isPinned={isFavorite}>
+            <FavoriteToggle
+              isFavorite={isFavorite}
+              onToggle={() => onToggleFavorite(doc)}
+            />
+            <ActionDropdownMenu
+              modal={false}
+              actions={actions}
+              scope={`doc:${doc.id}`}
+              entityType="doc"
+              entity={doc}
+              contentClassName="w-64"
+              trigger={<NavRowMenuButton label={`Options for ${doc.title}`} />}
+            />
+          </NavRowActions>
+        </div>
 
-        {children}
+        {children ? (
+          <ul className={NAV_NESTED_LIST_CLASS}>{children}</ul>
+        ) : null}
       </li>
     </EntityContextMenu>
   );
 }
 
+/** Key for a docs folder in the sidebar store's persisted collapse map. */
+function folderKey(folderId: string) {
+  return `docs-folder:${folderId}`;
+}
+
 /**
  * The docs tree, over the same `useDocsWorkspace` projection the editor uses.
+ *
+ * Folders are the API's "companies"; the UI calls them folders throughout.
  */
 export function DocsTreeSection({
   workspaceSlug,
@@ -233,28 +265,37 @@ export function DocsTreeSection({
   const { workspaceId } = useCurrentWorkspace();
   const workspace = useDocsWorkspace(workspaceId);
   const { isFavorite, toggleFavorite } = useSidebarFavorites(workspaceId);
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  // Persisted with the rest of the sidebar's collapse state.
+  const collapsedGroups = useSidebarStore((s) => s.collapsedGroups);
+  const toggleGroupCollapsed = useSidebarStore((s) => s.toggleGroupCollapsed);
+  const setGroupCollapsed = useSidebarStore((s) => s.setGroupCollapsed);
 
   const { companies, docs } = workspace;
+  const currentDocId = activeDocId(location, workspaceSlug);
+  const currentFolderId = currentDocId
+    ? docs.find((d) => d.id === currentDocId)?.companyId
+    : undefined;
 
-  const toggleCompany = (id: string) =>
-    setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }));
+  // Opening a doc reveals it: a collapsed folder would hide where you are.
+  useEffect(() => {
+    if (currentFolderId) setGroupCollapsed(folderKey(currentFolderId), false);
+  }, [currentFolderId, setGroupCollapsed]);
 
-  const addCompany = async () => {
+  const addFolder = async () => {
     const name = await prompts.promptText({
-      title: 'Add company',
-      label: 'Company name',
-      placeholder: 'Acme Inc.',
-      confirmLabel: 'Add company',
+      title: 'New folder',
+      label: 'Folder name',
+      placeholder: 'e.g. Product specs',
+      confirmLabel: 'Create folder',
     });
     if (!name) return;
     await workspace.addCompany(name);
   };
 
-  const renameCompany = async (id: string, currentName: string) => {
+  const renameFolder = async (id: string, currentName: string) => {
     const name = await prompts.promptText({
-      title: 'Rename company',
-      label: 'Company name',
+      title: 'Rename folder',
+      label: 'Folder name',
       defaultValue: currentName,
       confirmLabel: 'Rename',
     });
@@ -262,13 +303,16 @@ export function DocsTreeSection({
     workspace.renameCompany(id, name);
   };
 
-  const deleteCompany = async (id: string, name: string) => {
+  const deleteFolder = async (id: string, name: string, docCount: number) => {
     if (companies.length <= 1) return;
 
     const confirmed = await prompts.confirmAction({
       title: `Delete “${name}”?`,
-      description: 'Every document inside this company is deleted too.',
-      confirmLabel: 'Delete company',
+      description:
+        docCount === 0
+          ? 'This folder is empty.'
+          : `${docCount === 1 ? 'The 1 document' : `All ${docCount} documents`} inside this folder will be deleted too. This cannot be undone.`,
+      confirmLabel: 'Delete folder',
       destructive: true,
     });
     if (!confirmed) return;
@@ -284,7 +328,9 @@ export function DocsTreeSection({
       undefined,
       parentId,
     );
-    if (docId) navigate(`/w/${workspaceSlug}/docs/${docId}`);
+    if (!docId) return;
+    setGroupCollapsed(folderKey(companyId), false);
+    navigate(`/w/${workspaceSlug}/docs/${docId}`);
   };
 
   const renameDoc = async (id: string, currentTitle: string) => {
@@ -314,6 +360,36 @@ export function DocsTreeSection({
     workspace.deleteDoc(id);
   };
 
+  /* Subpages nest one level, so only a top-level doc (one given `subpages`)
+     offers "Add subpage". */
+  const renderDoc = (
+    doc: (typeof docs)[number],
+    folderId: string,
+    subpages?: typeof docs,
+  ) => (
+    <DocNavRow
+      key={doc.id}
+      doc={doc}
+      workspaceSlug={workspaceSlug}
+      isSelected={doc.id === currentDocId}
+      isFavorite={isFavorite('doc', doc.id)}
+      onToggleFavorite={() => toggleFavorite('doc', doc.id)}
+      onAddSubpage={subpages ? () => void addDoc(folderId, doc.id) : undefined}
+      onRename={() => void renameDoc(doc.id, doc.title)}
+      onDuplicate={() => void duplicateDoc(doc.id)}
+      onMoveToCompany={(targetId) =>
+        workspace.moveDocToCompany(doc.id, targetId)
+      }
+      onDelete={() => void deleteDoc(doc.id, doc.title)}
+      companies={companies}
+      depth={1}
+    >
+      {subpages && subpages.length > 0
+        ? subpages.map((child) => renderDoc(child, folderId))
+        : null}
+    </DocNavRow>
+  );
+
   return (
     <Section
       title="Docs & Knowledge"
@@ -326,13 +402,13 @@ export function DocsTreeSection({
             : undefined
       }
       action={
-        <div className="gap-0.5 flex items-center opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-within:opacity-100">
-          <Hint label="Add company">
+        <div className="gap-0.5 flex items-center opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
+          <Hint label="New folder">
             <Button
               variant="ghost"
               size="icon-sm"
-              onClick={() => void addCompany()}
-              aria-label="Add company"
+              onClick={() => void addFolder()}
+              aria-label="New folder"
               className="size-5 p-0"
             >
               <FolderPlus className="size-3.5" />
@@ -355,173 +431,134 @@ export function DocsTreeSection({
       }
     >
       {companies.map((company) => {
-        const companyDocs = docs.filter((d) => d.companyId === company.id);
-        const rootDocs = companyDocs.filter((d) => !d.parentId);
-        const isCollapsed = !!collapsed[company.id];
+        const folderDocs = docs.filter((d) => d.companyId === company.id);
+        const rootDocs = folderDocs.filter((d) => !d.parentId);
+        const isCollapsed = !!collapsedGroups[folderKey(company.id)];
+
+        /* One list behind the "⋯" menu, right-click and the touch sheet. */
+        const folderActions: EntityAction[] = [
+          {
+            id: 'add-doc',
+            group: 'edit',
+            label: 'New document',
+            icon: Plus,
+            run: () => void addDoc(company.id),
+          },
+          {
+            id: 'rename',
+            group: 'edit',
+            label: 'Rename…',
+            icon: Pencil,
+            run: () => void renameFolder(company.id, company.name),
+          },
+          {
+            id: 'delete',
+            group: 'danger',
+            label: 'Delete…',
+            icon: Trash2,
+            destructive: true,
+            hidden: companies.length <= 1,
+            run: () =>
+              void deleteFolder(company.id, company.name, folderDocs.length),
+          },
+        ];
 
         return (
-          <li key={company.id} className="mt-1 space-y-0.5">
-            <div
-              className={navGroupHeaderClass({ extra: 'group/comp relative' })}
+          <li key={company.id} className="space-y-0.5">
+            <EntityContextMenu
+              actions={folderActions}
+              scope={`doc-folder:${company.id}`}
+              label={company.name}
             >
-              <button
-                type="button"
-                onClick={() => toggleCompany(company.id)}
-                aria-expanded={!isCollapsed}
-                className={cn(navGroupTriggerClass, 'group/comp-btn')}
-              >
-                <span className="shrink-0">{company.icon || '🏠'}</span>
-                <span className="truncate">{company.name}</span>
-                <ChevronDown
-                  className={cn(
-                    'size-3 shrink-0 text-subtle opacity-0 transition-all duration-150',
-                    'group-focus-within/comp:opacity-100 group-hover/comp:opacity-100',
-                    isCollapsed && '-rotate-90',
-                  )}
-                  aria-hidden
-                />
-              </button>
-
-              <div className="gap-0.5 flex items-center opacity-0 transition-opacity group-focus-within/comp:opacity-100 group-hover/comp:opacity-100">
-                <Hint label={`Add doc in ${company.name}`}>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => void addDoc(company.id)}
-                    aria-label={`Add doc in ${company.name}`}
-                    className="size-5 p-0"
+              <div className="group/row relative">
+                <button
+                  type="button"
+                  onClick={() => toggleGroupCollapsed(folderKey(company.id))}
+                  aria-expanded={!isCollapsed}
+                  className={navActionClass({
+                    depth: 1,
+                    extra: cn(
+                      'font-semibold text-foreground',
+                      NAV_ROW_ACTIONS_PADDING,
+                    ),
+                  })}
+                >
+                  <span
+                    className={navIconClass(
+                      1,
+                      'flex items-center justify-center leading-none',
+                    )}
+                    aria-hidden
                   >
-                    <Plus className="size-3" />
-                  </Button>
-                </Hint>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
+                    {company.icon || '📁'}
+                  </span>
+                  <span className="truncate">{company.name}</span>
+                  <ChevronDown
+                    className={cn(
+                      'size-3 shrink-0 text-subtle transition-transform duration-150',
+                      isCollapsed && '-rotate-90',
+                    )}
+                    aria-hidden
+                  />
+                  {/* What a closed folder is hiding. Gives way to the actions. */}
+                  {isCollapsed && folderDocs.length > 0 ? (
+                    <span className="font-medium ml-auto text-[11px] text-subtle tabular-nums group-focus-within/row:hidden group-hover/row:hidden pointer-coarse:hidden">
+                      {folderDocs.length}
+                    </span>
+                  ) : null}
+                </button>
+
+                <NavRowActions>
+                  <Hint label={`New document in ${company.name}`}>
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      className="size-5 p-0"
-                      aria-label={`Options for ${company.name}`}
+                      onClick={() => void addDoc(company.id)}
+                      aria-label={`New document in ${company.name}`}
+                      className="size-5 p-0 text-muted-foreground hover:text-foreground"
                     >
-                      <MoreVertical className="size-3" />
+                      <Plus className="size-3.5" />
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-44">
-                    <DropdownMenuItem
-                      onSelect={() => void addDoc(company.id)}
-                      className="gap-2 text-xs"
-                    >
-                      <Plus className="size-3" />
-                      Add doc
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onSelect={() =>
-                        void renameCompany(company.id, company.name)
-                      }
-                      className="gap-2 text-xs"
-                    >
-                      <Pencil className="size-3" />
-                      Rename folder
-                    </DropdownMenuItem>
-                    {companies.length > 1 ? (
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onSelect={() =>
-                          void deleteCompany(company.id, company.name)
-                        }
-                        className="gap-2 text-xs"
-                      >
-                        <Trash2 className="size-3" />
-                        Delete folder
-                      </DropdownMenuItem>
-                    ) : null}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                  </Hint>
+                  <ActionDropdownMenu
+                    modal={false}
+                    actions={folderActions}
+                    scope={`doc-folder:${company.id}`}
+                    contentClassName="w-56"
+                    trigger={
+                      <NavRowMenuButton label={`Options for ${company.name}`} />
+                    }
+                  />
+                </NavRowActions>
               </div>
-            </div>
+            </EntityContextMenu>
 
             {!isCollapsed ? (
-              <ul className="space-y-0.5">
+              <ul className={NAV_NESTED_LIST_CLASS}>
                 {rootDocs.length === 0 ? (
                   <li>
                     <button
                       type="button"
                       onClick={() => void addDoc(company.id)}
-                      className={navActionClass({ depth: 1 })}
+                      className={navActionClass({
+                        depth: 1,
+                        extra: 'font-normal text-subtle',
+                      })}
                     >
                       <Plus className={navIconClass(1)} aria-hidden />
                       <span className="flex-1 truncate">
-                        Add the first page
+                        Empty. Add a document
                       </span>
                     </button>
                   </li>
                 ) : (
-                  rootDocs.map((doc) => {
-                    const isSelected =
-                      location.pathname.includes('/docs') &&
-                      location.search.includes(`doc=${doc.id}`);
-                    const children = companyDocs.filter(
-                      (d) => d.parentId === doc.id,
-                    );
-
-                    return (
-                      <DocNavRow
-                        key={doc.id}
-                        doc={doc}
-                        workspaceSlug={workspaceSlug}
-                        isSelected={isSelected}
-                        isFavorite={isFavorite('doc', doc.id)}
-                        onToggleFavorite={() => toggleFavorite('doc', doc.id)}
-                        onAddSubpage={() => void addDoc(company.id, doc.id)}
-                        onRename={() => void renameDoc(doc.id, doc.title)}
-                        onDuplicate={() => void duplicateDoc(doc.id)}
-                        onMoveToCompany={(targetCompanyId) =>
-                          workspace.moveDocToCompany(doc.id, targetCompanyId)
-                        }
-                        onDelete={() => void deleteDoc(doc.id, doc.title)}
-                        companies={companies}
-                        depth={1}
-                      >
-                        {children.length > 0 ? (
-                          <ul className="space-y-0.5">
-                            {children.map((child) => {
-                              const childSelected =
-                                location.pathname.includes('/docs') &&
-                                location.search.includes(`doc=${child.id}`);
-                              return (
-                                <DocNavRow
-                                  key={child.id}
-                                  doc={child}
-                                  workspaceSlug={workspaceSlug}
-                                  isSelected={childSelected}
-                                  isFavorite={isFavorite('doc', child.id)}
-                                  onToggleFavorite={() =>
-                                    toggleFavorite('doc', child.id)
-                                  }
-                                  onRename={() =>
-                                    void renameDoc(child.id, child.title)
-                                  }
-                                  onDuplicate={() =>
-                                    void duplicateDoc(child.id)
-                                  }
-                                  onMoveToCompany={(targetCompanyId) =>
-                                    workspace.moveDocToCompany(
-                                      child.id,
-                                      targetCompanyId,
-                                    )
-                                  }
-                                  onDelete={() =>
-                                    void deleteDoc(child.id, child.title)
-                                  }
-                                  companies={companies}
-                                  depth={2}
-                                />
-                              );
-                            })}
-                          </ul>
-                        ) : null}
-                      </DocNavRow>
-                    );
-                  })
+                  rootDocs.map((doc) =>
+                    renderDoc(
+                      doc,
+                      company.id,
+                      folderDocs.filter((d) => d.parentId === doc.id),
+                    ),
+                  )
                 )}
               </ul>
             ) : null}

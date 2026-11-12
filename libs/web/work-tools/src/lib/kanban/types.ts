@@ -81,8 +81,13 @@ export interface KanbanCard {
 }
 
 export interface KanbanList {
-  /** The `TaskStatus` this column collects. */
-  id: TaskStatus;
+  /**
+   * The workflow state this column collects: a built-in status name (`DONE`)
+   * or a custom state's id.
+   */
+  id: string;
+  /** The `TaskStatus` its tasks carry — what "done" / "open" checks read. */
+  category: TaskStatus;
   title: string;
   cards: KanbanCard[];
 }

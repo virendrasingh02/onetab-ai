@@ -1,4 +1,3 @@
-import type { TaskStatus } from '@org/types';
 import { Input, SkeletonList } from '@org/ui';
 import { Sparkles, X } from 'lucide-react';
 import { useCurrentUser } from '@org/auth';
@@ -106,7 +105,7 @@ export function KanbanBoard({
   const orderBy = useKanbanDisplayStore((state) => state.orderBy);
 
   const visibleByList = useMemo(() => {
-    const map = new Map<TaskStatus, KanbanCard[]>();
+    const map = new Map<string, KanbanCard[]>();
     for (const list of board.lists) {
       const cards = list.cards.filter((card) =>
         matchesFilter(card, filter, list.id),
@@ -160,7 +159,7 @@ export function KanbanBoard({
   );
 
   const handleColumnDrop = useCallback(
-    (listId: TaskStatus, toIndex: number) => {
+    (listId: string, toIndex: number) => {
       dispatch({ type: 'list/move', listId, toIndex });
     },
     [dispatch],

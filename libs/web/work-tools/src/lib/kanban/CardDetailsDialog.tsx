@@ -4,7 +4,6 @@ import {
   type RelationType,
   type Task,
   type TaskChecklistItem,
-  type TaskStatus,
   type WorkItemType,
 } from '@org/types';
 import { ShareToChatDialog } from '@org/web-chat';
@@ -619,7 +618,7 @@ function CardDetailsBody({
       linkableTasks={linkableTasks}
       parentExcludeIds={parentExcludeIds}
       canEdit={canEdit}
-      onStatusChange={(status: TaskStatus) =>
+      onStatusChange={(status: string) =>
         dispatch({
           type: 'card/move',
           cardId: card.id,

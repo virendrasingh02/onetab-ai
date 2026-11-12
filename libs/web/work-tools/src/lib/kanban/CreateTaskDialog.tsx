@@ -20,7 +20,9 @@ import { UserPlus } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { PRIORITY_META } from './card-meta.js';
 import { KanbanLeadPicker } from './KanbanLeadPicker.js';
+import { KanbanStatusPicker } from './KanbanStatusPicker.js';
 import { dayToIso } from './server-board.js';
+import { useWorkflowStates } from './task-states.js';
 import type { BoardMember, KanbanList } from './types.js';
 
 export interface CreateTaskDialogProps {
@@ -30,7 +32,8 @@ export interface CreateTaskDialogProps {
   /** The project's columns, in board order. */
   lists: Array<Pick<KanbanList, 'id' | 'title'>>;
   members: BoardMember[];
-  defaultStatus?: TaskStatus;
+  /** Workflow state id the task starts in. */
+  defaultStatus?: string;
   /** Rejects on failure, which keeps the dialog and what was typed. */
   onCreate: (input: CreateTaskInput) => Promise<unknown>;
 }
@@ -54,7 +57,8 @@ export function CreateTaskDialog({
   const titleRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [status, setStatus] = useState<TaskStatus>(defaultStatus);
+  const [status, setStatus] = useState<string>(defaultStatus);
+  const { patchFor } = useWorkflowStates();
   const [priority, setPriority] = useState<TaskPriority>(TaskPriority.MEDIUM);
   const [memberIds, setMemberIds] = useState<string[]>([]);
   const [dueDate, setDueDate] = useState<string | undefined>();
@@ -85,7 +89,7 @@ export function CreateTaskDialog({
       await onCreate({
         title: name,
         description: description.trim() || null,
-        status,
+        ...patchFor(status),
         priority,
         assigneeId: memberIds[0] ?? null,
         assigneeIds: memberIds,
@@ -140,14 +144,10 @@ export function CreateTaskDialog({
 
             <div className="gap-3 grid grid-cols-2">
               <Field label="Status">
-                <AppSelect
-                  value={status}
-                  onValueChange={(value) => setStatus(value as TaskStatus)}
-                  aria-label="Status"
-                  options={lists.map((list) => ({
-                    value: list.id,
-                    label: list.title,
-                  }))}
+                <KanbanStatusPicker
+                  variant="field"
+                  status={status}
+                  onStatusChange={setStatus}
                 />
               </Field>
 

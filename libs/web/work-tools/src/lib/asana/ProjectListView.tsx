@@ -31,6 +31,7 @@ import {
 } from '../kanban/card-meta.js';
 import { useKanbanDisplayStore } from '../kanban/kanban-display-store.js';
 import { PriorityIcon, StatusIcon } from '../kanban/kanban-icons.js';
+import { useWorkflowStates } from '../kanban/task-states.js';
 import { compareBy, type BoardAction } from '../kanban/server-board.js';
 import type { BoardState, KanbanCard, KanbanList } from '../kanban/types.js';
 
@@ -49,11 +50,12 @@ export function ProjectListView({
 }: ProjectListViewProps) {
   const orderBy = useKanbanDisplayStore((state) => state.orderBy);
   const canDelete = useWorkspacePermission().can(WorkspacePermission.DELETE);
+  const { nameOf } = useWorkflowStates();
   const [collapsedLists, setCollapsedLists] = useState<Record<string, boolean>>(
     {},
   );
   const [newTaskInput, setNewTaskInput] = useState<{
-    listId: TaskStatus;
+    listId: string;
     title: string;
   } | null>(null);
 
@@ -61,7 +63,7 @@ export function ProjectListView({
     setCollapsedLists((prev) => ({ ...prev, [listId]: !prev[listId] }));
   };
 
-  const handleCreateTask = (listId: TaskStatus) => {
+  const handleCreateTask = (listId: string) => {
     if (newTaskInput?.title.trim()) {
       dispatch({
         type: 'card/add',
@@ -183,7 +185,7 @@ export function ProjectListView({
                                 type="button"
                                 title={
                                   card.dueComplete
-                                    ? 'Move back to Planned'
+                                    ? `Move back to ${nameOf(TaskStatus.TODO)}`
                                     : 'Mark as completed'
                                 }
                                 onClick={() =>

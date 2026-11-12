@@ -1,4 +1,4 @@
-import type { Task, TaskStatus } from '@org/types';
+import type { Task } from '@org/types';
 import {
   Button,
   DatePicker,
@@ -161,7 +161,8 @@ export interface CardPropertiesPanelProps {
   card: KanbanCard;
   /** The full task; undefined while it loads. */
   detail: Task | undefined;
-  statusId: TaskStatus;
+  /** Workflow state id. */
+  statusId: string;
   statusTitle: string;
   members: BoardMember[];
   teamItems: KanbanRefPickerItem[];
@@ -171,7 +172,7 @@ export interface CardPropertiesPanelProps {
   linkableTasks: KanbanTaskLinkOption[];
   parentExcludeIds: string[];
   canEdit: boolean;
-  onStatusChange: (status: TaskStatus) => void;
+  onStatusChange: (stateId: string) => void;
   onPriorityChange: (priority: Priority) => void;
   onAssigneesChange: (memberIds: string[]) => void;
   onStartDateChange: (day: string | null) => void;

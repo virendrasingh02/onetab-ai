@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -52,10 +53,12 @@ import type {
   CreateTaskCommentInput,
   CreateTaskInput,
   CreateTaskLabelInput,
+  CreateTaskStateInput,
   CreateTeamInput,
   CreateWorkItemRelationInput,
   MoveTaskInput,
   ProjectIdentifierSettingsInput,
+  ReorderTaskStatesInput,
   UpdateCalendarEventInput,
   UpdateCycleInput,
   UpdateDocumentInput,
@@ -67,8 +70,49 @@ import type {
   UpdateTaskCommentInput,
   UpdateTaskInput,
   UpdateTaskLabelInput,
+  UpdateTaskStateInput,
   UpdateTeamInput,
 } from '@org/validation';
+
+/**
+ * The six built-in statuses as a new workspace's workflow starts out. Names
+ * here are the ones every menu shows until someone renames them.
+ */
+const DEFAULT_TASK_STATES: ReadonlyArray<{
+  builtin: TaskStatus;
+  name: string;
+  color: string;
+}> = [
+  { builtin: TaskStatus.BACKLOG, name: 'Backlog', color: '#94a3b8' },
+  { builtin: TaskStatus.TODO, name: 'Planned', color: '#64748b' },
+  { builtin: TaskStatus.IN_PROGRESS, name: 'In Progress', color: '#eab308' },
+  { builtin: TaskStatus.IN_REVIEW, name: 'In Review', color: '#8b5cf6' },
+  { builtin: TaskStatus.DONE, name: 'Completed', color: '#3b82f6' },
+  { builtin: TaskStatus.CANCELLED, name: 'Cancelled', color: '#64748b' },
+];
+
+const TASK_STATUS_VALUES = new Set<string>(Object.values(TaskStatus));
+
+interface TaskStateRow {
+  id: string;
+  name: string;
+  color: string;
+  category: TaskStatus;
+  builtin: TaskStatus | null;
+  position: number;
+}
+
+/** Built-ins go out under their status name, so the enum still identifies them. */
+function taskStateDto(row: TaskStateRow) {
+  return {
+    id: row.builtin ?? row.id,
+    name: row.name,
+    color: row.color,
+    category: row.category,
+    builtin: row.builtin !== null,
+    position: row.position,
+  };
+}
 
 /** Converts an optional ISO string from a DTO into a `Date` for Prisma. */
 function at(value: string | null | undefined): Date | null | undefined {
@@ -275,6 +319,207 @@ export class WorkToolsService {
         WHERE "workspaceId" = ${workspaceId} AND ${label.name} = ANY("labels")`,
       this.prisma.taskLabel.delete({ where: { id: labelId } }),
     ]);
+  }
+
+  // --- task workflow states -------------------------------------------------
+  //
+  // `Task.status` stays the enum and always holds the state's category, so the
+  // completion stamp, "open work" queries, automations and analytics read it
+  // unchanged. `Task.stateId` only names a custom state; null means the
+  // built-in one for the category. Built-ins are rows too, seeded on first
+  // read, so they can be renamed, recoloured and reordered, never deleted.
+
+  async getTaskStates(workspaceId: string) {
+    await this.ensureDefaultTaskStates(workspaceId);
+    const rows = await this.prisma.taskWorkflowState.findMany({
+      where: { workspaceId },
+      orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+    });
+    return rows.map(taskStateDto);
+  }
+
+  async createTaskState(workspaceId: string, input: CreateTaskStateInput) {
+    assertContentAllowed(input.name);
+    await this.ensureDefaultTaskStates(workspaceId);
+    await this.assertTaskStateNameFree(workspaceId, input.name);
+    const siblings = await this.prisma.taskWorkflowState.findMany({
+      where: { workspaceId },
+      orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+      select: { id: true, category: true },
+    });
+    const row = await this.prisma.taskWorkflowState.create({
+      data: {
+        workspaceId,
+        name: input.name,
+        category: input.category as TaskStatus,
+        ...(input.color ? { color: input.color } : {}),
+      },
+    });
+    // Lands after the last state of its category, so "QA" added under In
+    // review sits next to In Review rather than at the far right.
+    let insertAt = siblings.length;
+    for (let i = siblings.length - 1; i >= 0; i -= 1) {
+      if (siblings[i].category === input.category) {
+        insertAt = i + 1;
+        break;
+      }
+    }
+    const ids = siblings.map((sibling) => sibling.id);
+    ids.splice(insertAt, 0, row.id);
+    await this.writeTaskStateOrder(ids);
+    return taskStateDto({ ...row, position: (insertAt + 1) * ORDER_STRIDE });
+  }
+
+  async updateTaskState(
+    workspaceId: string,
+    stateId: string,
+    input: UpdateTaskStateInput,
+  ) {
+    const row = await this.assertTaskState(workspaceId, stateId);
+    if (input.name !== undefined && input.name !== row.name) {
+      assertContentAllowed(input.name);
+      await this.assertTaskStateNameFree(workspaceId, input.name, row.id);
+    }
+    const updated = await this.prisma.taskWorkflowState.update({
+      where: { id: row.id },
+      data: {
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.color !== undefined ? { color: input.color } : {}),
+      },
+    });
+    return taskStateDto(updated);
+  }
+
+  async reorderTaskStates(workspaceId: string, input: ReorderTaskStatesInput) {
+    await this.ensureDefaultTaskStates(workspaceId);
+    const rows = await this.prisma.taskWorkflowState.findMany({
+      where: { workspaceId },
+      orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+    });
+    const byClientId = new Map(rows.map((r) => [r.builtin ?? r.id, r.id]));
+    const listed = input.ids
+      .map((id) => byClientId.get(id))
+      .filter((id): id is string => !!id);
+    const listedSet = new Set(listed);
+    // Anything the caller left out keeps its relative place, after the rest.
+    const order = [
+      ...listed,
+      ...rows.map((r) => r.id).filter((id) => !listedSet.has(id)),
+    ];
+    await this.writeTaskStateOrder(order);
+    return this.getTaskStates(workspaceId);
+  }
+
+  async deleteTaskState(workspaceId: string, stateId: string): Promise<void> {
+    const row = await this.assertTaskState(workspaceId, stateId);
+    if (row.builtin) {
+      throw new BadRequestException(
+        'Built-in statuses can be renamed but not deleted',
+      );
+    }
+    // Its tasks fall back to the built-in status of the same category (the FK
+    // nulls `stateId`); board column orders drop the id.
+    await this.prisma.$transaction([
+      this.prisma.$executeRaw`
+        UPDATE "projects"
+        SET "columnOrder" = array_remove("columnOrder", ${row.id})
+        WHERE "workspaceId" = ${workspaceId} AND ${row.id} = ANY("columnOrder")`,
+      this.prisma.taskWorkflowState.delete({ where: { id: row.id } }),
+    ]);
+  }
+
+  private async ensureDefaultTaskStates(workspaceId: string) {
+    const seeded = await this.prisma.taskWorkflowState.count({
+      where: { workspaceId, builtin: { not: null } },
+    });
+    if (seeded >= DEFAULT_TASK_STATES.length) return;
+    await this.prisma.taskWorkflowState.createMany({
+      data: DEFAULT_TASK_STATES.map((state, index) => ({
+        workspaceId,
+        name: state.name,
+        color: state.color,
+        category: state.builtin,
+        builtin: state.builtin,
+        position: (index + 1) * ORDER_STRIDE,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  private async writeTaskStateOrder(ids: string[]) {
+    await this.prisma.$transaction(
+      ids.map((id, index) =>
+        this.prisma.taskWorkflowState.update({
+          where: { id },
+          data: { position: (index + 1) * ORDER_STRIDE },
+        }),
+      ),
+    );
+  }
+
+  /** A state by the id clients use: a status name for built-ins, else the row id. */
+  private async assertTaskState(workspaceId: string, stateId: string) {
+    const isBuiltin = TASK_STATUS_VALUES.has(stateId);
+    if (isBuiltin) await this.ensureDefaultTaskStates(workspaceId);
+    const row = await this.prisma.taskWorkflowState.findFirst({
+      where: isBuiltin
+        ? { workspaceId, builtin: stateId as TaskStatus }
+        : { workspaceId, id: stateId },
+    });
+    if (!row) throw new NotFoundException('Status not found');
+    return row;
+  }
+
+  private async assertTaskStateNameFree(
+    workspaceId: string,
+    name: string,
+    exceptId?: string,
+  ) {
+    const clash = await this.prisma.taskWorkflowState.findFirst({
+      where: {
+        workspaceId,
+        name: { equals: name, mode: 'insensitive' },
+        ...(exceptId ? { id: { not: exceptId } } : {}),
+      },
+      select: { id: true },
+    });
+    if (clash) {
+      throw new ConflictException(`A status named "${name}" already exists`);
+    }
+  }
+
+  /**
+   * The `status`/`stateId` pair a task write should store.
+   *
+   * `stateId` wins when sent: a built-in id (`DONE`) is that status with no
+   * custom state, a custom id stores its category as `status`. A bare `status`
+   * clears the custom state, unless it repeats the task's current category, so
+   * a patch that only echoes the status does not knock a task out of "QA".
+   */
+  private async resolveTaskState(
+    workspaceId: string,
+    input: { status?: string; stateId?: string | null },
+    existing?: { status: string; stateId: string | null },
+  ): Promise<{ status?: TaskStatus; stateId?: string | null }> {
+    const { status, stateId } = input;
+    if (stateId) {
+      if (TASK_STATUS_VALUES.has(stateId)) {
+        return { status: stateId as TaskStatus, stateId: null };
+      }
+      const row = await this.prisma.taskWorkflowState.findFirst({
+        where: { id: stateId, workspaceId, builtin: null },
+        select: { id: true, category: true },
+      });
+      if (!row) throw new NotFoundException('Status not found');
+      return { status: row.category, stateId: row.id };
+    }
+    if (status === undefined) {
+      return stateId === null ? { stateId: null } : {};
+    }
+    if (stateId === undefined && existing && existing.status === status) {
+      return { status: status as TaskStatus };
+    }
+    return { status: status as TaskStatus, stateId: null };
   }
 
   // --- initiatives ----------------------------------------------------------
@@ -1119,7 +1364,8 @@ export class WorkToolsService {
     assertContentAllowed(input.title, input.description);
     await this.assertTaskLinks(workspaceId, input);
 
-    const status = (input.status as TaskStatus) ?? TaskStatus.TODO;
+    const resolved = await this.resolveTaskState(workspaceId, input);
+    const status = resolved.status ?? TaskStatus.TODO;
     const projectId = input.projectId ?? null;
 
     const assigneeIds = this.orderAssignees(
@@ -1149,6 +1395,7 @@ export class WorkToolsService {
         title: input.title,
         description: input.description ?? null,
         status,
+        stateId: resolved.stateId ?? null,
         ...(status === TaskStatus.DONE ? { completedAt: new Date() } : {}),
         priority: (input.priority as TaskPriority) ?? TaskPriority.MEDIUM,
         type: (input.type as WorkItemType) ?? WorkItemType.TASK,
@@ -1224,6 +1471,8 @@ export class WorkToolsService {
     assertContentAllowed(input.title, input.description);
     const existing = await this.assertTask(workspaceId, taskId);
     await this.assertTaskLinks(workspaceId, input);
+    const resolved = await this.resolveTaskState(workspaceId, input, existing);
+    const nextStatus = resolved.status;
 
     const nextAssigneeIds =
       input.assigneeIds !== undefined
@@ -1253,9 +1502,8 @@ export class WorkToolsService {
         ? { description: input.description }
         : {}),
       ...(input.type !== undefined ? { type: input.type as WorkItemType } : {}),
-      ...(input.status !== undefined
-        ? { status: input.status as TaskStatus }
-        : {}),
+      ...(nextStatus !== undefined ? { status: nextStatus } : {}),
+      ...(resolved.stateId !== undefined ? { stateId: resolved.stateId } : {}),
       ...(input.priority !== undefined
         ? { priority: input.priority as TaskPriority }
         : {}),
@@ -1284,8 +1532,8 @@ export class WorkToolsService {
       ...(input.dueDate !== undefined ? { dueDate: at(input.dueDate) } : {}),
       ...(input.completedAt !== undefined
         ? { completedAt: at(input.completedAt) }
-        : input.status !== undefined
-          ? this.completionStamp(existing.status, input.status)
+        : nextStatus !== undefined
+          ? this.completionStamp(existing.status, nextStatus)
           : {}),
       ...(input.estimate !== undefined ? { estimate: input.estimate } : {}),
       ...(input.timeSpent !== undefined ? { timeSpent: input.timeSpent } : {}),
@@ -1313,10 +1561,13 @@ export class WorkToolsService {
       !this.sameStringSet(nextAssigneeIds, existing.assigneeIds);
 
     if (actorId) {
-      if (input.status && input.status !== existing.status) {
+      // Logged as state ids, so the feed can name a custom status.
+      const oldState = existing.stateId ?? existing.status;
+      const newState = updated.stateId ?? updated.status;
+      if (oldState !== newState) {
         await this.logActivity(workspaceId, taskId, actorId, 'STATUS_CHANGED', {
-          oldValue: existing.status,
-          newValue: input.status,
+          oldValue: oldState,
+          newValue: newState,
         });
       }
       if (input.priority && input.priority !== existing.priority) {
@@ -1365,7 +1616,7 @@ export class WorkToolsService {
     }
 
     const becameDone =
-      input.status === TaskStatus.DONE && existing.status !== TaskStatus.DONE;
+      nextStatus === TaskStatus.DONE && existing.status !== TaskStatus.DONE;
     if (becameDone) {
       this.events.emit(AppEvent.TaskCompleted, {
         workspaceId,
@@ -1410,27 +1661,31 @@ export class WorkToolsService {
     actorId?: string,
   ) {
     const existing = await this.assertTask(workspaceId, taskId);
+    const resolved = await this.resolveTaskState(workspaceId, input, existing);
+    const status = resolved.status ?? (input.status as TaskStatus);
 
     const updated = await this.prisma.task.update({
       where: { id: taskId },
       data: {
-        status: input.status,
+        status,
+        ...(resolved.stateId !== undefined
+          ? { stateId: resolved.stateId }
+          : {}),
         orderIndex: input.orderIndex,
-        ...this.completionStamp(existing.status, input.status),
+        ...this.completionStamp(existing.status, status),
       },
     });
 
-    if (actorId && input.status !== existing.status) {
+    const oldState = existing.stateId ?? existing.status;
+    const newState = updated.stateId ?? updated.status;
+    if (actorId && oldState !== newState) {
       await this.logActivity(workspaceId, taskId, actorId, 'STATUS_CHANGED', {
-        oldValue: existing.status,
-        newValue: input.status,
+        oldValue: oldState,
+        newValue: newState,
       });
     }
 
-    if (
-      input.status === TaskStatus.DONE &&
-      existing.status !== TaskStatus.DONE
-    ) {
+    if (status === TaskStatus.DONE && existing.status !== TaskStatus.DONE) {
       this.events.emit(AppEvent.TaskCompleted, {
         workspaceId,
         actorId: actorId ?? null,
@@ -1446,7 +1701,7 @@ export class WorkToolsService {
       workspaceId,
       actorId: actorId ?? null,
       taskId: updated.id,
-      toStatus: input.status,
+      toStatus: status,
       newOrder: input.orderIndex,
     });
 

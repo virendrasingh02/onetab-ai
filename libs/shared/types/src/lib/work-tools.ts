@@ -53,6 +53,23 @@ export interface Team extends IconSelection {
 }
 
 /** An entry in the workspace's label catalogue. `Task.labels` holds the names. */
+/**
+ * One status in the workspace's task workflow, in board order.
+ *
+ * Built-in statuses use their `TaskStatus` name as `id` (`DONE`), so code that
+ * compares against the enum keeps working; custom ones use their row id and
+ * sit under a `category`, which is what `Task.status` holds for their tasks.
+ */
+export interface TaskWorkflowState {
+  id: string;
+  name: string;
+  /** `#rrggbb`. */
+  color: string;
+  category: TaskStatus;
+  builtin: boolean;
+  position: number;
+}
+
 export interface TaskLabel {
   id: string;
   workspaceId: string;
@@ -156,9 +173,9 @@ export interface Project extends IconSelection {
   leadId?: string | null;
   initiativeId?: string | null;
   /**
-   * The board's columns, left to right.
+   * The board's columns, left to right, as workflow state ids.
    */
-  columnOrder: TaskStatus[];
+  columnOrder: string[];
   /** Uppercase stem of this project's ticket ids, e.g. `WEB` in `WEB-42`. */
   ticketPrefix: string | null;
   identifierPrefixMode?: IdentifierPrefixMode;
@@ -218,6 +235,8 @@ export interface Task {
   title: string;
   description: string | null;
   status: TaskStatus;
+  /** A custom workflow status; null/absent means the built-in for `status`. */
+  stateId?: string | null;
   priority: TaskPriority;
   dueDate: IsoDateString | null;
   startDate?: IsoDateString | null;

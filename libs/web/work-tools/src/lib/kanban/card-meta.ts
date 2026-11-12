@@ -1,4 +1,3 @@
-import type { TaskStatus } from '@org/types';
 import type { BadgeProps } from '@org/ui';
 import type { KanbanCard, Priority } from './types.js';
 
@@ -142,8 +141,8 @@ export type DueFilter = 'any' | 'overdue' | 'today' | 'week' | 'none';
 export interface BoardFilter {
   query: string;
   aiQuery?: string;
-  /** Status columns to keep. Empty means all of them. */
-  status: TaskStatus[];
+  /** Workflow state ids (columns) to keep. Empty means all of them. */
+  status: string[];
   priorities: Priority[];
   /** Assignee ids. */
   memberIds: string[];
@@ -182,7 +181,7 @@ export function countActiveFilters(filter: BoardFilter): number {
 export function matchesFilter(
   card: KanbanCard,
   filter: BoardFilter,
-  listId?: TaskStatus,
+  listId?: string,
 ): boolean {
   const query = filter.query.trim().toLowerCase();
   if (query) {

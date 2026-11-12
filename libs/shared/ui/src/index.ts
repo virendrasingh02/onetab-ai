@@ -587,6 +587,7 @@ export {
 } from './lib/components/sidebar-activity-indicator.js';
 
 export {
+  SIDEBAR_VIEW_OPTIONS,
   useSidebarCustomizerStore,
   type SidebarCustomizerStore,
   type SidebarCustomizerTab,

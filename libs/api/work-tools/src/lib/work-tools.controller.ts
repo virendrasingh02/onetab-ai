@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -41,6 +42,8 @@ import {
   updateTaskCommentSchema,
   createTaskSchema,
   createTaskLabelSchema,
+  createTaskStateSchema,
+  reorderTaskStatesSchema,
   createTeamSchema,
   createWorkItemRelationSchema,
   moveTaskSchema,
@@ -55,6 +58,7 @@ import {
   updateSavedViewSchema,
   updateTaskSchema,
   updateTaskLabelSchema,
+  updateTaskStateSchema,
   updateTeamSchema,
   type ConvertIntakeRequestInput,
   type CreateCalendarEventInput,
@@ -71,6 +75,8 @@ import {
   type UpdateTaskCommentInput,
   type CreateTaskInput,
   type CreateTaskLabelInput,
+  type CreateTaskStateInput,
+  type ReorderTaskStatesInput,
   type CreateTeamInput,
   type CreateWorkItemRelationInput,
   type MoveTaskInput,
@@ -85,6 +91,7 @@ import {
   type UpdateSavedViewInput,
   type UpdateTaskInput,
   type UpdateTaskLabelInput,
+  type UpdateTaskStateInput,
   type UpdateTeamInput,
   createCrossObjectLinkSchema,
   type CreateCrossObjectLinkInput,
@@ -218,6 +225,55 @@ export class WorkToolsController {
     @Param('labelId') labelId: string,
   ) {
     return this.workTools.deleteTaskLabel(workspaceId, labelId);
+  }
+
+  // --- task workflow states -------------------------------------------------
+  //
+  // The workflow is workspace configuration shared by every board, so
+  // changing it is MANAGE_SETTINGS (admins). Members read it and move tasks
+  // between statuses through the task routes.
+
+  @Get('task-states')
+  getTaskStates(@WorkspaceId() workspaceId: string) {
+    return this.workTools.getTaskStates(workspaceId);
+  }
+
+  @Post('task-states')
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
+  createTaskState(
+    @WorkspaceId() workspaceId: string,
+    @Body(zodBody(createTaskStateSchema)) body: CreateTaskStateInput,
+  ) {
+    return this.workTools.createTaskState(workspaceId, body);
+  }
+
+  @Put('task-states/order')
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
+  reorderTaskStates(
+    @WorkspaceId() workspaceId: string,
+    @Body(zodBody(reorderTaskStatesSchema)) body: ReorderTaskStatesInput,
+  ) {
+    return this.workTools.reorderTaskStates(workspaceId, body);
+  }
+
+  @Patch('task-states/:stateId')
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
+  updateTaskState(
+    @WorkspaceId() workspaceId: string,
+    @Param('stateId') stateId: string,
+    @Body(zodBody(updateTaskStateSchema)) body: UpdateTaskStateInput,
+  ) {
+    return this.workTools.updateTaskState(workspaceId, stateId, body);
+  }
+
+  @Delete('task-states/:stateId')
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteTaskState(
+    @WorkspaceId() workspaceId: string,
+    @Param('stateId') stateId: string,
+  ) {
+    return this.workTools.deleteTaskState(workspaceId, stateId);
   }
 
   // --- initiatives ----------------------------------------------------------

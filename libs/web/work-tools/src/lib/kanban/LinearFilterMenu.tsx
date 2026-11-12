@@ -1,4 +1,3 @@
-import { TASK_STATUS_ORDER, type TaskStatus } from '@org/types';
 import { KbdShortcut } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -13,7 +12,8 @@ import {
   Users,
 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
-import { STATUS_TITLES } from './server-board.js';
+import { StatusIcon } from './kanban-icons.js';
+import { useWorkflowStates } from './task-states.js';
 import type { BoardFilter, DueFilter } from './card-meta.js';
 import type { BoardMember, Priority } from './types.js';
 
@@ -37,6 +37,7 @@ export function LinearFilterMenu({
   onClose,
   onActivateAIFilter,
 }: LinearFilterMenuProps) {
+  const { states } = useWorkflowStates();
   const [menuSearch, setMenuSearch] = useState('');
   const [activeSubMenu, setActiveSubMenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -70,7 +71,7 @@ export function LinearFilterMenu({
 
   if (!isOpen) return null;
 
-  const toggleStatus = (status: TaskStatus) => {
+  const toggleStatus = (status: string) => {
     setFilter((prev) => ({
       ...prev,
       status: prev.status.includes(status)
@@ -232,13 +233,16 @@ export function LinearFilterMenu({
               {isSubOpen && (
                 <div className="mt-1 ml-4 p-1.5 space-y-0.5 text-xs rounded-lg border border-border/80 bg-surface/95 shadow-lg">
                   {cat.id === 'status' &&
-                    TASK_STATUS_ORDER.map((status) => (
+                    states.map(({ id: status, name }) => (
                       <button
                         key={status}
                         onClick={() => toggleStatus(status)}
                         className="px-2 py-1 text-xs flex w-full items-center justify-between rounded-md text-left hover:bg-accent hover:text-foreground"
                       >
-                        <span>{STATUS_TITLES[status]}</span>
+                        <span className="gap-2 flex items-center min-w-0">
+                          <StatusIcon status={status} showTooltip={false} />
+                          <span className="truncate">{name}</span>
+                        </span>
                         {filter.status.includes(status) && (
                           <Check className="size-3 text-primary" />
                         )}

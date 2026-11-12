@@ -20,12 +20,9 @@ import {
   useTeamMutations,
   useTeams,
 } from '../use-work-tools.js';
-import { PriorityIcon, StatusIcon } from './kanban-icons.js';
-import {
-  KANBAN_PRIORITIES,
-  KANBAN_STATUSES,
-  LABEL_COLORS,
-} from './kanban-custom-store.js';
+import { PriorityIcon } from './kanban-icons.js';
+import { KANBAN_PRIORITIES, LABEL_COLORS } from './kanban-custom-store.js';
+import { WorkflowStatusesSettings } from './workflow-statuses-settings.js';
 
 /** The server's message for a rejected request, when it sent one. */
 function errorMessage(error: unknown, fallback: string): string {
@@ -98,8 +95,9 @@ function SectionHeading({
 /**
  * Settings → Tasks & Kanban.
  *
- * Statuses and priorities are enums on the server — every board shares them —
- * so they are shown, with their menu shortcuts, rather than edited. Labels are
+ * Statuses are the workspace workflow (`WorkflowStatusesSettings`): renamed,
+ * recoloured and extended here for every board. Priorities are an enum on the
+ * server, so they are shown with their menu shortcuts rather than edited. Labels are
  * the workspace's `TaskLabel` catalogue and teams are `Team` rows; both are
  * shared with every member and every device.
  */
@@ -215,33 +213,13 @@ export function WorkspaceKanbanSettings() {
           Tasks & Kanban
         </h1>
         <p className="text-xs text-muted-foreground mt-1">
-          Workspace labels and teams, shared by every board. Ticket IDs are set
+          Statuses, labels and teams, shared by every board. Ticket IDs are set
           per project, from the project&apos;s identifier settings.
         </p>
       </div>
 
       {/* ---------------- STATUSES ---------------- */}
-      <div className="space-y-3">
-        <SectionHeading title={<>Board statuses ({KANBAN_STATUSES.length})</>} />
-        <div className="rounded-xl border border-border bg-surface shadow-xs divide-y divide-border/60 overflow-hidden">
-          {KANBAN_STATUSES.map((status) => (
-            <div
-              key={status.id}
-              className="p-3.5 flex items-center justify-between gap-4"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <StatusIcon status={status.id as never} className="size-4" />
-                <span className="text-xs font-semibold text-foreground">
-                  {status.label}
-                </span>
-              </div>
-              <span className="font-mono text-[11px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded border border-border/50">
-                Key: {status.key}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <WorkflowStatusesSettings />
 
       {/* ---------------- PRIORITIES ---------------- */}
       <div className="space-y-3">

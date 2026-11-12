@@ -1,6 +1,12 @@
 import { TaskStatus } from '@org/types';
 import { Hint } from '@org/ui';
 import { cn } from '@org/utils';
+import type { CSSProperties } from 'react';
+import {
+  knownState,
+  stateTint,
+  useKnownWorkflowStates,
+} from './task-states.js';
 import type { Priority } from './types.js';
 
 /* ----------------------------------------------------------- status icons --- */
@@ -22,6 +28,8 @@ export interface StatusIconProps {
   tooltipLabel?: string;
   /** Tooltip placement side. Defaults to 'top'. */
   side?: 'top' | 'right' | 'bottom' | 'left';
+  /** Overrides the workflow state's colour. */
+  color?: string;
 }
 
 export function getStatusLabel(
@@ -36,6 +44,8 @@ export function getStatusLabel(
     | string
     | null,
 ): string {
+  const named = knownState(status ?? undefined)?.name;
+  if (named) return named;
   switch (status) {
     case 'BACKLOG':
     case TaskStatus.BACKLOG:
@@ -76,7 +86,9 @@ function renderStatusSvg(
     | string,
   className?: string,
   label?: string,
+  tint?: string,
 ) {
+  const style: CSSProperties | undefined = tint ? { color: tint } : undefined;
   switch (status) {
     case 'BACKLOG':
     case TaskStatus.BACKLOG:
@@ -87,6 +99,7 @@ function renderStatusSvg(
           className={cn('size-3.5 text-accent-amber shrink-0', className)}
           aria-label={label ?? 'Backlog'}
           role="img"
+          style={style}
         >
           <circle
             cx="8"
@@ -109,6 +122,7 @@ function renderStatusSvg(
           className={cn('size-3.5 text-muted-foreground/70 shrink-0', className)}
           aria-label={label ?? 'Planned'}
           role="img"
+          style={style}
         >
           <polygon
             points="8,2 13.5,5.2 13.5,10.8 8,14 2.5,10.8 2.5,5.2"
@@ -129,6 +143,7 @@ function renderStatusSvg(
           className={cn('size-3.5 text-accent-amber shrink-0', className)}
           aria-label={label ?? 'In Progress'}
           role="img"
+          style={style}
         >
           <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
           <path
@@ -147,6 +162,7 @@ function renderStatusSvg(
           className={cn('size-3.5 text-primary shrink-0', className)}
           aria-label={label ?? 'In Review'}
           role="img"
+          style={style}
         >
           <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
           <circle cx="8" cy="8" r="3" fill="currentColor" />
@@ -163,6 +179,7 @@ function renderStatusSvg(
           className={cn('size-3.5 text-accent-blue shrink-0', className)}
           aria-label={label ?? 'Completed'}
           role="img"
+          style={style}
         >
           <circle cx="8" cy="8" r="6.75" fill="currentColor" />
           <path
@@ -185,6 +202,7 @@ function renderStatusSvg(
           className={cn('size-3.5 text-muted-foreground/70 shrink-0', className)}
           aria-label={label ?? 'Cancelled'}
           role="img"
+          style={style}
         >
           <circle cx="8" cy="8" r="6.75" fill="currentColor" />
           <path
@@ -202,6 +220,7 @@ function renderStatusSvg(
           title={label}
           aria-label={label ?? 'Status'}
           role="img"
+          style={tint ? { borderColor: tint } : undefined}
           className={cn(
             'size-3.5 rounded-full border border-muted-foreground shrink-0 inline-block',
             className,
@@ -217,9 +236,19 @@ export function StatusIcon({
   showTooltip = true,
   tooltipLabel,
   side = 'top',
+  color,
 }: StatusIconProps) {
-  const label = tooltipLabel ?? getStatusLabel(status);
-  const icon = renderStatusSvg(status, className, label);
+  // A custom status draws its category's icon in its own colour; a renamed
+  // built-in keeps its icon. Both come from the workspace's workflow.
+  const states = useKnownWorkflowStates();
+  const state = states.find((item) => item.id === status);
+  const label = tooltipLabel ?? state?.name ?? getStatusLabel(status);
+  const icon = renderStatusSvg(
+    state?.category ?? status,
+    className,
+    label,
+    color ?? stateTint(state),
+  );
 
   if (!showTooltip) {
     return icon;

@@ -326,7 +326,7 @@ export function ModulesEpicsView({
                         onSelect={() => link(task.id, active.id)}
                         className="gap-2 text-xs"
                       >
-                        <StatusIcon status={task.status} className="size-3.5" />
+                        <StatusIcon status={task.stateId || task.status} className="size-3.5" />
                         <span className="truncate">{task.title}</span>
                       </DropdownMenuItem>
                     ))}
@@ -352,7 +352,7 @@ export function ModulesEpicsView({
                       className="min-w-0 gap-2 p-1 flex flex-1 cursor-pointer items-center text-left"
                     >
                       <StatusIcon
-                        status={task.status}
+                        status={task.stateId || task.status}
                         className="size-3.5 shrink-0"
                       />
                       <span className="shrink-0 font-mono text-[10px] text-muted-foreground">

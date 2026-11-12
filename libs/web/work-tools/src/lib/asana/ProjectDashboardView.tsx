@@ -110,11 +110,12 @@ export function ProjectDashboardView({
     board.lists.forEach((list) => {
       list.cards.forEach((card) => {
         // A cancelled task is neither work left nor work finished.
-        if (list.id !== TaskStatus.CANCELLED) total++;
-        if (list.id === TaskStatus.DONE) completed++;
+        // By category, so custom statuses count with the built-in they sit under.
+        if (list.category !== TaskStatus.CANCELLED) total++;
+        if (list.category === TaskStatus.DONE) completed++;
         if (
-          list.id === TaskStatus.IN_PROGRESS ||
-          list.id === TaskStatus.IN_REVIEW
+          list.category === TaskStatus.IN_PROGRESS ||
+          list.category === TaskStatus.IN_REVIEW
         ) {
           inProgress++;
         }

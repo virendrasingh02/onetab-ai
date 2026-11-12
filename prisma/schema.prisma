@@ -437,6 +437,7 @@ model Workspace {
   recentActivities          RecentActivity[]
   tasks                     Task[]
   taskLabels                TaskLabel[]
+  taskWorkflowStates        TaskWorkflowState[]
   teams                     Team[]
   initiatives               Initiative[]
   epics                     Epic[]
@@ -1487,6 +1488,30 @@ model TaskLabel {
   @@map("task_labels")
 }
 
+/// One status in a workspace's task workflow. The six built-in statuses are
+/// rows too (`builtin` set, seeded on first read) so they can be renamed,
+/// recoloured and reordered; custom ones (`builtin` null) sit under one of the
+/// `TaskStatus` categories, and `Task.status` always holds that category so
+/// every enum-based query (done, open, completedAt) keeps working.
+model TaskWorkflowState {
+  id          String      @id @default(cuid())
+  workspaceId String
+  name        String
+  color       String      @default("#64748b")
+  category    TaskStatus
+  /// The built-in status this row stands for; null for a custom status.
+  builtin     TaskStatus?
+  position    Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+
+  @@unique([workspaceId, builtin])
+  @@index([workspaceId, position])
+  @@map("task_workflow_states")
+}
+
 model Team {
   id             String                @id @default(cuid())
   workspaceId    String
@@ -1553,7 +1578,8 @@ model Project {
   healthScore          Int?
   startDate            DateTime?
   targetDate           DateTime?
-  columnOrder          TaskStatus[]             @default([])
+  /// Board column order: workflow state ids (built-ins by their status name).
+  columnOrder          String[]                 @default([])
   ticketPrefix         String?
   identifierPrefixMode IdentifierPrefixMode     @default(AUTO)
   ticketSeq            Int                      @default(0)
@@ -1719,6 +1745,8 @@ model Task {
   title           String
   description     String?
   status          TaskStatus               @default(TODO)
+  /// A custom workflow status; null means the built-in one for `status`.
+  stateId         String?
   priority        TaskPriority             @default(MEDIUM)
   startDate       DateTime?
   dueDate         DateTime?
@@ -1745,6 +1773,7 @@ model Task {
   parent          Task?                    @relation("TaskSubItems", fields: [parentId], references: [id])
   subItems        Task[]                   @relation("TaskSubItems")
   meeting         Meeting?                 @relation("MeetingActionItems", fields: [meetingId], references: [id])
+  state           TaskWorkflowState?       @relation(fields: [stateId], references: [id], onDelete: SetNull)
   callActionItems CallActionItem[]
   sourceRelations WorkItemRelation[]       @relation("RelationSource")
   targetRelations WorkItemRelation[]       @relation("RelationTarget")

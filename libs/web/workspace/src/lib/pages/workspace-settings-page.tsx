@@ -54,7 +54,8 @@ import {
   toast,
   useStatusModalStore,
   useSidebarCustomizerStore,
-  type SidebarViewMode,
+  SIDEBAR_VIEW_OPTIONS,
+  SegmentedControl,
   SettingsBadge,
   SettingsCard,
   SettingsRow,
@@ -165,6 +166,8 @@ export interface WorkspaceSettingsPageProps {
   importPanel?: ReactNode;
   /** The kanban field-customisation panel, from `@org/web-work-tools`. */
   kanbanPanel?: ReactNode;
+  /** Per-project settings (details, task IDs, coworkers), from `@org/web-work-tools`. */
+  projectsPanel?: ReactNode;
   /** The theme customization panel, from `@org/web-settings`. */
   themePanel?: ReactNode;
   /** The full profile panel, from `@org/web-profile`. */
@@ -196,6 +199,7 @@ function policySubjectLabel(role: PolicySubjectRole | undefined): string {
 export function WorkspaceSettingsPage({
   importPanel,
   kanbanPanel,
+  projectsPanel,
   themePanel,
   profilePanel,
   workProfilePanel,
@@ -1074,33 +1078,17 @@ export function WorkspaceSettingsPage({
               <SettingsRow
                 title={<>Sidebar view</>}
                 description={
-                  <>
-                    Sections groups channels and DMs separately. Activity lists
-                    every conversation newest first, with a message preview
-                  </>
+                  SIDEBAR_VIEW_OPTIONS.find(
+                    (option) => option.value === sidebarLayoutMode,
+                  )?.description
                 }
               >
-                <Select
+                <SegmentedControl
+                  aria-label="Sidebar view"
                   value={sidebarLayoutMode}
-                  onValueChange={(value) =>
-                    setSidebarLayoutMode(value as SidebarViewMode)
-                  }
-                >
-                  <SelectTrigger
-                    aria-label="Sidebar view"
-                    className="w-32 h-8 text-xs border-border bg-surface"
-                  >
-                    <SelectValue placeholder="Sections" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="sections" className="text-xs">
-                      Sections
-                    </SelectItem>
-                    <SelectItem value="activity" className="text-xs">
-                      Activity
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                  onChange={setSidebarLayoutMode}
+                  options={SIDEBAR_VIEW_OPTIONS}
+                />
               </SettingsRow>
 
               <SettingsRow
@@ -1936,6 +1924,8 @@ export function WorkspaceSettingsPage({
       )}
 
       {currentTab === 'kanban-tasks' && kanbanPanel}
+
+      {currentTab === 'projects' && projectsPanel}
 
       {currentTab === 'documents' && (
         <div className="space-y-8">

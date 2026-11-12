@@ -1,5 +1,6 @@
 import type { PublicUser, TaskComment, WorkItemActivity } from '@org/types';
 import { KANBAN_PRIORITIES, KANBAN_STATUSES } from '../kanban-custom-store.js';
+import { knownState } from '../task-states.js';
 import { formatMinutes } from '../relation-meta.js';
 
 /** Resolves the ids a history row stores into the names people recognise. */
@@ -18,7 +19,12 @@ const REF_FIELD_NOUN: Record<string, string> = {
 };
 
 function statusLabel(value: string | null): string {
-  return KANBAN_STATUSES.find((s) => s.id === value)?.label ?? value ?? 'none';
+  // History rows store state ids; the workflow names custom ones.
+  return (
+    knownState(value)?.name ??
+    KANBAN_STATUSES.find((s) => s.id === value)?.label ??
+    (value ? 'a removed status' : 'none')
+  );
 }
 
 function priorityLabel(value: string | null): string {

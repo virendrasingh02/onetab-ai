@@ -5,6 +5,25 @@ export type SidebarCustomizerTab = 'sections' | 'items' | 'indicators';
 /** Sections (default) or the newest-first activity list. */
 export type SidebarViewMode = 'sections' | 'activity';
 
+/** The two sidebar views, worded once for every place that offers the choice. */
+export const SIDEBAR_VIEW_OPTIONS: ReadonlyArray<{
+  value: SidebarViewMode;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: 'sections',
+    label: 'Sections',
+    description: 'Starred, channels and direct messages in their own groups.',
+  },
+  {
+    value: 'activity',
+    label: 'Activity',
+    description:
+      'Every conversation in one list, newest first, with a message preview.',
+  },
+];
+
 export interface SidebarCustomizerStore {
   /** Whether the sidebar-customizer dialog is open. */
   open: boolean;

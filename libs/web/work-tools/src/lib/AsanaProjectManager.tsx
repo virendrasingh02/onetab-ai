@@ -48,14 +48,11 @@ import {
   ChevronDown,
   FileText,
   Filter,
-  FolderGit2,
   FolderKanban,
   FolderOpen,
-  GanttChartSquare,
   CircleDot,
   Hash,
   HeartPulse,
-  Inbox,
   Kanban,
   Keyboard,
   LayoutDashboard,
@@ -63,13 +60,11 @@ import {
   MoreHorizontal,
   Pencil,
   Plus,
-  RotateCw,
   Search,
   Send,
   Settings,
   SlidersHorizontal,
   Table,
-  Target,
   Timeline,
   Trash2,
   TriangleAlert,
@@ -113,33 +108,16 @@ import { buildProjectActions } from './actions/project-actions.js';
 import { useWorkspacePermission } from '@org/web-workspace';
 import {
   useCurrentWorkspace,
-  useCycleMutations,
-  useCycles,
-  useEpicMutations,
-  useEpics,
-  useInitiativeMutations,
-  useInitiatives,
-  useIntakeMutations,
-  useIntakeRequests,
-  useModuleMutations,
-  useModules,
   useProjectMutations,
   useProjects,
   useProjectUpdateMutations,
   useProjectUpdates,
   useTaskMutations,
   useTasks,
-  useTeams,
   useWorkspaceMembers,
 } from './use-work-tools.js';
 import { ProjectSpreadsheetView } from './views/ProjectSpreadsheetView.js';
-import { ProjectGanttView } from './views/ProjectGanttView.js';
-import { CyclesPlanningView } from './views/CyclesPlanningView.js';
-import { ModulesEpicsView } from './views/ModulesEpicsView.js';
-import { InitiativesView } from './views/InitiativesView.js';
-import { IntakeTriageView } from './views/IntakeTriageView.js';
 import { ProjectUpdatesView } from './views/ProjectUpdatesView.js';
-import { ProjectSettingsView } from './views/ProjectSettingsView.js';
 import { ProjectFilesView } from './asana/ProjectFilesView.js';
 import { ProjectDocsTab } from './views/ProjectDocsView.js';
 
@@ -305,15 +283,9 @@ const VIEW_IDS: readonly ProjectViewMode[] = [
   'list',
   'spreadsheet',
   'timeline',
-  'gantt',
   'docs',
-  'cycles',
-  'modules',
-  'initiatives',
-  'intake',
   'updates',
   'files',
-  'settings',
   'projects',
 ];
 
@@ -323,7 +295,6 @@ const TASK_VIEWS: readonly ProjectViewMode[] = [
   'list',
   'spreadsheet',
   'timeline',
-  'gantt',
 ];
 
 export function AsanaProjectManager() {
@@ -342,11 +313,6 @@ export function AsanaProjectManager() {
   const prompts = usePromptDialog();
   const { can } = useWorkspacePermission();
 
-  const teamsQuery = useTeams(workspaceId);
-  const initiativesQuery = useInitiatives(workspaceId);
-  const initiativeMutations = useInitiativeMutations(workspaceId);
-  const intakeQuery = useIntakeRequests(workspaceId);
-  const intakeMutations = useIntakeMutations(workspaceId);
 
   const projects = projectsQuery.data ?? [];
   const members = useMemo(
@@ -404,12 +370,6 @@ export function AsanaProjectManager() {
     );
   }, [canonicalProjectSlug, navigate, searchParams, workspaceSlug]);
 
-  const epicsQuery = useEpics(workspaceId, activeProject?.id);
-  const epicMutations = useEpicMutations(workspaceId);
-  const modulesQuery = useModules(workspaceId, activeProject?.id);
-  const moduleMutations = useModuleMutations(workspaceId);
-  const cyclesQuery = useCycles(workspaceId, activeProject?.id);
-  const cycleMutations = useCycleMutations(workspaceId);
   const projectUpdatesQuery = useProjectUpdates(workspaceId, activeProject?.id);
   const projectUpdateMutations = useProjectUpdateMutations(workspaceId);
 
@@ -500,6 +460,27 @@ export function AsanaProjectManager() {
     );
   };
 
+  /** Project settings live in the main settings, under Projects. */
+  const openProjectSettings = (projectId: string, replace = false) => {
+    const slug = projects.find((project) => project.id === projectId)?.slug;
+    navigate(
+      `/w/${workspaceSlug}/settings/projects?project=${encodeURIComponent(slug ?? projectId)}`,
+      { replace },
+    );
+  };
+
+  // Tabs that were removed still arrive from old links: the settings tab moved
+  // to the main settings, and Gantt was folded into Timeline.
+  const legacySettingsProjectId =
+    viewParam === 'settings' ? activeProject?.id : undefined;
+  useEffect(() => {
+    if (legacySettingsProjectId) openProjectSettings(legacySettingsProjectId, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [legacySettingsProjectId]);
+  useEffect(() => {
+    if (viewParam === 'gantt') setViewMode('timeline');
+  }, [viewParam, setViewMode]);
+
   const board = useServerBoard({
     workspaceId,
     project: activeProject,
@@ -534,8 +515,8 @@ export function AsanaProjectManager() {
     });
 
   /** Set while the new-task dialog is open: the column it starts on. */
-  const [newTaskStatus, setNewTaskStatus] = useState<TaskStatus | null>(null);
-  const openNewTask = useCallback((status?: TaskStatus) => {
+  const [newTaskStatus, setNewTaskStatus] = useState<string | null>(null);
+  const openNewTask = useCallback((status?: string) => {
     setNewTaskStatus(status ?? TaskStatus.TODO);
   }, []);
 
@@ -907,7 +888,7 @@ export function AsanaProjectManager() {
               can,
               path: `/w/${workspaceSlug}/projects/${project.id}`,
               onOpen: () => openProject(project.id),
-              onOpenSettings: () => openProject(project.id, 'settings'),
+              onOpenSettings: () => openProjectSettings(project.id),
               onShare: () => shareProject(project),
               onRename: async () => {
                 const name = await prompts.promptText({
@@ -1136,7 +1117,7 @@ export function AsanaProjectManager() {
                   Share in chat…
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => setViewMode('settings')}
+                  onClick={() => openProjectSettings(activeProject.id)}
                   className="text-xs gap-2"
                 >
                   <Settings className="size-3.5 text-muted-foreground" />
@@ -1271,15 +1252,9 @@ export function AsanaProjectManager() {
             { id: 'list', label: 'List', icon: List },
             { id: 'spreadsheet', label: 'Table', icon: Table },
             { id: 'timeline', label: 'Timeline', icon: Timeline },
-            { id: 'gantt', label: 'Gantt', icon: GanttChartSquare },
             { id: 'docs', label: 'Docs', icon: FileText },
-            { id: 'cycles', label: 'Cycles', icon: RotateCw },
-            { id: 'modules', label: 'Modules & Epics', icon: FolderGit2 },
-            { id: 'initiatives', label: 'Initiatives', icon: Target },
-            { id: 'intake', label: 'Intake', icon: Inbox },
             { id: 'updates', label: 'Updates', icon: HeartPulse },
             { id: 'files', label: 'Files', icon: FolderOpen },
-            { id: 'settings', label: 'Settings', icon: Settings },
           ].map((v) => {
             const Icon = v.icon;
             return (
@@ -1349,15 +1324,6 @@ export function AsanaProjectManager() {
               />
             )}
 
-            {viewMode === 'gantt' && (
-              <ProjectGanttView
-                tasks={filteredTasks}
-                milestones={activeProject?.milestones}
-                members={publicMembers}
-                onSelectTask={(task) => setSelectedCardId(task.id)}
-              />
-            )}
-
             {viewMode === 'docs' && activeProject && (
               <ProjectDocsTab
                 project={activeProject}
@@ -1381,108 +1347,6 @@ export function AsanaProjectManager() {
               />
             )}
 
-            {viewMode === 'cycles' && (
-              <CyclesPlanningView
-                cycles={cyclesQuery.data || []}
-                tasks={projectTasks}
-                members={publicMembers}
-                onSelectTask={(task) => setSelectedCardId(task.id)}
-                onCreateCycle={(input) =>
-                  cycleMutations.create.mutateAsync({
-                    ...input,
-                    projectId: activeProject?.id,
-                  })
-                }
-                onUpdateCycle={(cycleId, input) =>
-                  cycleMutations.update.mutateAsync({ cycleId, input })
-                }
-                onDeleteCycle={(cycleId) =>
-                  cycleMutations.remove.mutateAsync(cycleId)
-                }
-                onAssignTaskToCycle={(taskId, cycleId) => {
-                  taskMutations.update.mutate({ taskId, input: { cycleId } });
-                }}
-              />
-            )}
-
-            {viewMode === 'modules' && activeProject && (
-              <ModulesEpicsView
-                projectId={activeProject.id}
-                epics={epicsQuery.data || []}
-                modules={modulesQuery.data || []}
-                tasks={projectTasks}
-                members={publicMembers}
-                onSelectTask={(task) => setSelectedCardId(task.id)}
-                onCreateEpic={(input) =>
-                  epicMutations.create.mutateAsync(input)
-                }
-                onUpdateEpic={(epicId, input) =>
-                  epicMutations.update.mutateAsync({ epicId, input })
-                }
-                onDeleteEpic={(epicId) =>
-                  epicMutations.remove.mutateAsync(epicId)
-                }
-                onCreateModule={(input) =>
-                  moduleMutations.create.mutateAsync(input)
-                }
-                onUpdateModule={(moduleId, input) =>
-                  moduleMutations.update.mutateAsync({ moduleId, input })
-                }
-                onDeleteModule={(moduleId) =>
-                  moduleMutations.remove.mutateAsync(moduleId)
-                }
-                onLinkTask={(taskId, link) =>
-                  taskMutations.update.mutate({ taskId, input: link })
-                }
-              />
-            )}
-
-            {viewMode === 'initiatives' && (
-              <InitiativesView
-                initiatives={initiativesQuery.data || []}
-                projects={projects}
-                members={publicMembers}
-                onSelectProject={openProject}
-                onCreateInitiative={(input) =>
-                  initiativeMutations.create.mutateAsync(input)
-                }
-                onUpdateInitiative={(initiativeId, input) =>
-                  initiativeMutations.update.mutateAsync({
-                    initiativeId,
-                    input,
-                  })
-                }
-                onDeleteInitiative={(initiativeId) =>
-                  initiativeMutations.remove.mutateAsync(initiativeId)
-                }
-              />
-            )}
-
-            {viewMode === 'intake' && (
-              <IntakeTriageView
-                intakeRequests={intakeQuery.data || []}
-                projects={projects}
-                members={publicMembers}
-                onConvert={(intakeId, input) => {
-                  intakeMutations.convert.mutate(
-                    { intakeId, input },
-                    {
-                      onSuccess: () => toast.success('Request added as a task'),
-                    },
-                  );
-                }}
-                onDecline={(intakeId) => {
-                  intakeMutations.decline.mutate(intakeId);
-                }}
-                onCreateIntake={(input) => {
-                  intakeMutations.create.mutate({
-                    ...input,
-                    projectId: activeProject?.id,
-                  });
-                }}
-              />
-            )}
-
             {viewMode === 'updates' && activeProject && (
               <ProjectUpdatesView
                 projectId={activeProject.id}
@@ -1502,29 +1366,6 @@ export function AsanaProjectManager() {
               />
             )}
 
-            {viewMode === 'settings' && activeProject && (
-              <ProjectSettingsView
-                // Remounts per project: the form holds its own draft, and a
-                // draft of the last project must not be saved onto this one.
-                key={activeProject.id}
-                project={activeProject}
-                teams={teamsQuery.data || []}
-                members={publicMembers}
-                onUpdateProject={(patch) =>
-                  projectMutations.update.mutateAsync({
-                    projectId: activeProject.id,
-                    input: patch,
-                  })
-                }
-                onUpdateIdentifierSettings={(input) =>
-                  projectMutations.updateIdentifierSettings.mutateAsync({
-                    projectId: activeProject.id,
-                    input,
-                  })
-                }
-                onDeleteProject={() => removeProject(activeProject.id)}
-              />
-            )}
           </>
         )}
       </main>

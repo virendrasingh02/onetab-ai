@@ -65,7 +65,7 @@ export interface KanbanCardTileProps {
   onDelete: () => void;
   /** False hides "Delete task": the API would refuse it. */
   canDelete?: boolean;
-  onMoveToList: (toListId: TaskStatus) => void;
+  onMoveToList: (toListId: string) => void;
   onAssigneeChange?: (memberId: string | null) => void;
   onAssigneesChange?: (memberIds: string[]) => void;
   /** Field edits (priority, due date, assignees) from the card's action menu. */
@@ -147,7 +147,7 @@ export function KanbanCardTile({
   const due = describeDue(card);
   const checklistDone = card.checklist.filter((item) => item.done).length;
   const ticket = card.ticketId ?? card.identifier;
-  const currentStatus = (listId as TaskStatus) || TaskStatus.TODO;
+  const currentStatus: string = listId || TaskStatus.TODO;
   // The lead is the primary assignee — `assigneeIds[0]` on the task.
   const currentLeadId = card.memberIds[0];
   const cardName = `“${card.title}”`;
@@ -213,7 +213,7 @@ export function KanbanCardTile({
         label: list.title,
         checked: list.id === listId,
         disabled: list.id === listId,
-        run: () => onMoveToList(list.id as TaskStatus),
+        run: () => onMoveToList(list.id),
       })),
     },
     {
@@ -263,7 +263,7 @@ export function KanbanCardTile({
         .map((list): EntityAction => ({
           id: `move-${list.id}`,
           label: list.title,
-          run: () => onMoveToList(list.id as TaskStatus),
+          run: () => onMoveToList(list.id),
         })),
     },
     {

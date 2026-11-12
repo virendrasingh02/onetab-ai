@@ -21,6 +21,7 @@ import type {
   SavedView,
   Task,
   TaskLabel,
+  TaskWorkflowState,
   Team,
   WorkDocument,
   WorkItemRelation,
@@ -45,6 +46,7 @@ import type {
   CreateTaskCommentInput,
   CreateTaskInput,
   CreateTaskLabelInput,
+  CreateTaskStateInput,
   CreateTeamInput,
   CreateWorkItemRelationInput,
   MeetingParticipantsInput,
@@ -62,6 +64,7 @@ import type {
   UpdateSavedViewInput,
   UpdateTaskInput,
   UpdateTaskLabelInput,
+  UpdateTaskStateInput,
   UpdateTeamInput,
 } from '@org/validation';
 import {
@@ -229,6 +232,92 @@ export function useTaskLabelMutations(workspaceId: string | undefined) {
   });
 
   return { create, update, remove };
+}
+
+// --- task workflow states -----------------------------------------------------
+
+/** The workspace's statuses, in board order. Built-ins carry their enum name as id. */
+export function useTaskStates(workspaceId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.workTools.taskStates(workspaceId ?? ''),
+    queryFn: (): Promise<TaskWorkflowState[]> =>
+      workToolsApi.taskStates(workspaceId as string),
+    enabled: !!workspaceId,
+    staleTime: 60_000,
+  });
+}
+
+export function useTaskStateMutations(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+  const key = queryKeys.workTools.taskStates(workspaceId ?? '');
+  const invalidateStates = () => queryClient.invalidateQueries({ queryKey: key });
+  // Deleting a status moves its tasks and edits column orders.
+  const invalidateAll = () =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.workTools.all(workspaceId ?? ''),
+    });
+
+  const create = useMutation({
+    mutationFn: (input: CreateTaskStateInput) =>
+      workToolsApi.createTaskState(workspaceId as string, input),
+    onSuccess: invalidateStates,
+  });
+
+  const update = useMutation({
+    mutationFn: ({
+      stateId,
+      input,
+    }: {
+      stateId: string;
+      input: UpdateTaskStateInput;
+    }) => workToolsApi.updateTaskState(workspaceId as string, stateId, input),
+    onMutate: async ({ stateId, input }) => {
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<TaskWorkflowState[]>(key);
+      queryClient.setQueryData<TaskWorkflowState[]>(key, (states) =>
+        states?.map((state) =>
+          state.id === stateId ? { ...state, ...input } : state,
+        ),
+      );
+      return { previous };
+    },
+    onError: (_error, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(key, context.previous);
+    },
+    onSettled: invalidateStates,
+  });
+
+  /** Optimistic: the list reorders at once and rolls back if the save fails. */
+  const reorder = useMutation({
+    mutationFn: (ids: string[]) =>
+      workToolsApi.reorderTaskStates(workspaceId as string, ids),
+    onMutate: async (ids) => {
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<TaskWorkflowState[]>(key);
+      if (previous) {
+        const byId = new Map(previous.map((state) => [state.id, state]));
+        queryClient.setQueryData<TaskWorkflowState[]>(
+          key,
+          ids
+            .map((id) => byId.get(id))
+            .filter((state): state is TaskWorkflowState => !!state),
+        );
+      }
+      return { previous };
+    },
+    onError: (_error, _ids, context) => {
+      if (context?.previous) queryClient.setQueryData(key, context.previous);
+    },
+    onSettled: invalidateStates,
+  });
+
+  const remove = useMutation({
+    mutationFn: (stateId: string) =>
+      workToolsApi.deleteTaskState(workspaceId as string, stateId),
+    onSuccess: invalidateAll,
+  });
+
+  return { create, update, reorder, remove };
 }
 
 // --- initiatives ------------------------------------------------------------

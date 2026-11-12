@@ -129,6 +129,11 @@ const WorkspaceKanbanSettings = lazy(() =>
     default: m.WorkspaceKanbanSettings,
   })),
 );
+const WorkspaceProjectSettings = lazy(() =>
+  import('@org/web-work-tools').then((m) => ({
+    default: m.WorkspaceProjectSettings,
+  })),
+);
 const ThemeSettings = lazy(() =>
   import('@org/web-settings').then((m) => ({
     default: m.ThemeSettings,
@@ -149,6 +154,7 @@ function WorkspaceSettings() {
       <WorkspaceSettingsPage
         importPanel={<SlackNotionImportView embedded />}
         kanbanPanel={<WorkspaceKanbanSettings />}
+        projectsPanel={<WorkspaceProjectSettings />}
         themePanel={<ThemeSettings />}
         profilePanel={<ProfileSettingsPanel />}
         workProfilePanel={<EmployeeSettingsPanel />}

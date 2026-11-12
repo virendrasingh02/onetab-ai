@@ -96,7 +96,10 @@ export function ProjectNavRow({
     can,
     path: projectPath,
     onOpen: () => navigate(projectPath),
-    onOpenSettings: () => navigate(`${projectPath}?view=settings`),
+    onOpenSettings: () =>
+      navigate(
+        `/w/${workspaceSlug}/settings/projects?project=${encodeURIComponent(project.slug)}`,
+      ),
     onRename: mutations ? handleRename : undefined,
     onSetStatus: mutations
       ? (status) =>

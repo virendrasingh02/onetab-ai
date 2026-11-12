@@ -48,7 +48,7 @@ export const KANBAN_STATUSES: readonly CustomStatusItem[] = [
   { id: 'IN_PROGRESS', label: 'In Progress', key: '3', color: '#eab308' },
   { id: 'IN_REVIEW', label: 'In Review', key: '4', color: '#8b5cf6' },
   { id: 'DONE', label: 'Completed', key: '5', color: '#3b82f6' },
-  { id: 'CANCELLED', label: 'Canceled', key: '6', color: '#64748b' },
+  { id: 'CANCELLED', label: 'Cancelled', key: '6', color: '#64748b' },
 ];
 
 export const KANBAN_PRIORITIES: readonly CustomPriorityItem[] = [

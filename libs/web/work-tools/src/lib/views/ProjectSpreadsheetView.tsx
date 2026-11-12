@@ -6,20 +6,12 @@ import {
   SelectTrigger,
   UserAvatar,
 } from '@org/ui';
-import {
-  TaskPriority,
-  TaskStatus,
-  type PublicUser,
-  type Task,
-} from '@org/types';
+import { TaskPriority, type PublicUser, type Task } from '@org/types';
 import { useState } from 'react';
 import { PriorityIcon, StatusIcon } from '../kanban/kanban-icons.js';
-import {
-  dayToIso,
-  isoToDay,
-  STATUS_TITLES,
-  taskTicket,
-} from '../kanban/server-board.js';
+import { KanbanStatusPicker } from '../kanban/KanbanStatusPicker.js';
+import { dayToIso, isoToDay, taskTicket } from '../kanban/server-board.js';
+import { stateIdOf, useWorkflowStates } from '../kanban/task-states.js';
 
 interface ProjectSpreadsheetViewProps {
   tasks: Task[];
@@ -34,6 +26,7 @@ export function ProjectSpreadsheetView({
   onSelectTask,
   onUpdateTask,
 }: ProjectSpreadsheetViewProps) {
+  const { nameOf, patchFor } = useWorkflowStates();
   const [editingCell, setEditingCell] = useState<{
     taskId: string;
     field: string;
@@ -140,34 +133,27 @@ export function ProjectSpreadsheetView({
                       className="py-2 px-3 font-sans"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <Select
-                        value={task.status}
-                        onValueChange={(val) =>
-                          onUpdateTask(task.id, { status: val as TaskStatus })
+                      <KanbanStatusPicker
+                        status={stateIdOf(task)}
+                        onStatusChange={(id) =>
+                          onUpdateTask(task.id, patchFor(id))
                         }
-                      >
-                        <SelectTrigger className="h-6 text-xs p-1 gap-1 w-full justify-between border-transparent bg-transparent hover:border-border hover:bg-muted/50">
-                          <div className="gap-1.5 flex items-center truncate">
+                        trigger={
+                          <button
+                            type="button"
+                            className="h-6 text-xs p-1 gap-1.5 flex w-full items-center rounded-md border border-transparent bg-transparent text-left hover:border-border hover:bg-muted/50"
+                          >
                             <StatusIcon
-                              status={task.status}
+                              status={stateIdOf(task)}
                               className="size-3.5"
+                              showTooltip={false}
                             />
                             <span className="text-xs truncate">
-                              {STATUS_TITLES[task.status] || task.status}
+                              {nameOf(stateIdOf(task))}
                             </span>
-                          </div>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.values(TaskStatus).map((st) => (
-                            <SelectItem key={st} value={st}>
-                              <div className="gap-2 flex items-center">
-                                <StatusIcon status={st} className="size-3.5" />
-                                <span>{STATUS_TITLES[st] || st}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                          </button>
+                        }
+                      />
                     </td>
 
                     {/* Priority */}

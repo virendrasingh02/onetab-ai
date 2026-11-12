@@ -1,9 +1,9 @@
 import {
-  TASK_STATUS_ORDER,
   TaskStatus,
   type ProjectDetail,
   type Task,
   type TaskChecklistItem,
+  type TaskWorkflowState,
   type WorkspaceMember,
 } from '@org/types';
 import type { CreateTaskInput, UpdateTaskInput } from '@org/validation';
@@ -13,6 +13,12 @@ import {
   useTaskMutations,
   useTasks,
 } from '../use-work-tools.js';
+import {
+  DEFAULT_WORKFLOW_STATES,
+  statePatch,
+  stateIdOf,
+  useWorkflowStates,
+} from './task-states.js';
 import type {
   BoardMember,
   BoardState,
@@ -25,20 +31,16 @@ import type {
 /**
  * The board, over the tasks API.
  *
- * The column *set* comes from `TASK_STATUS_ORDER` rather than from data: the
- * server owns the status enum, so there is no action that can add, rename or
- * delete a column. Their left-to-right *order* is the project's `columnOrder`,
- * so dragging a column is an `updateProject`.
+ * The column *set* is the workspace's workflow (`task-states.ts`): the six
+ * built-ins plus any custom status, added and renamed in one place for every
+ * board. Their left-to-right *order* is the project's `columnOrder`, so
+ * dragging a column is an `updateProject`.
  */
 
-export const STATUS_TITLES: Record<TaskStatus, string> = {
-  BACKLOG: 'Backlog',
-  TODO: 'Planned',
-  IN_PROGRESS: 'In Progress',
-  IN_REVIEW: 'In Review',
-  DONE: 'Completed',
-  CANCELLED: 'Cancelled',
-};
+/** Built-in names, for code with no workflow in reach. Prefer `useWorkflowStates`. */
+export const STATUS_TITLES: Record<TaskStatus, string> = Object.fromEntries(
+  DEFAULT_WORKFLOW_STATES.map((state) => [state.id, state.name]),
+) as Record<TaskStatus, string>;
 
 /** Columns where nothing is outstanding any more. */
 const TERMINAL: ReadonlySet<TaskStatus> = new Set([
@@ -116,23 +118,37 @@ function renumber(cards: KanbanCard[]): number[] {
  * The columns a project draws, left to right.
  *
  * `columnOrder` is the project's, but it is not trusted to be complete: a
- * status added to the enum after the project was last saved would otherwise
- * vanish from the board along with every task in it. Anything missing is
- * appended in enum order, and anything unrecognised is dropped.
+ * status added to the workflow after the project was last saved would
+ * otherwise vanish from the board along with every task in it. Anything
+ * missing is placed after the nearest earlier workflow state the order does
+ * list (so a new "QA" lands beside In Review), and unknown ids are dropped.
  */
-export function columnsFor(project: ProjectDetail | undefined): TaskStatus[] {
-  const known = new Set(TASK_STATUS_ORDER);
-  const seen = new Set<TaskStatus>();
-  const ordered: TaskStatus[] = [];
-
-  for (const status of project?.columnOrder ?? []) {
-    if (!known.has(status) || seen.has(status)) continue;
-    seen.add(status);
-    ordered.push(status);
+export function columnsFor(
+  project: Pick<ProjectDetail, 'columnOrder'> | undefined,
+  states: readonly TaskWorkflowState[] = DEFAULT_WORKFLOW_STATES,
+): TaskWorkflowState[] {
+  const byId = new Map(states.map((state) => [state.id, state]));
+  const ordered: TaskWorkflowState[] = [];
+  const seen = new Set<string>();
+  for (const id of project?.columnOrder ?? []) {
+    const state = byId.get(id);
+    if (!state || seen.has(id)) continue;
+    seen.add(id);
+    ordered.push(state);
   }
-  for (const status of TASK_STATUS_ORDER) {
-    if (!seen.has(status)) ordered.push(status);
-  }
+  states.forEach((state, index) => {
+    if (seen.has(state.id)) return;
+    seen.add(state.id);
+    let at = 0;
+    for (let i = index - 1; i >= 0; i -= 1) {
+      const anchor = ordered.indexOf(states[i]);
+      if (anchor !== -1) {
+        at = anchor + 1;
+        break;
+      }
+    }
+    ordered.splice(at, 0, state);
+  });
   return ordered;
 }
 
@@ -242,6 +258,8 @@ export function membersFrom(
 
 export interface BuildBoardInput {
   project: ProjectDetail | undefined;
+  /** The workspace workflow; the built-ins when omitted. */
+  states?: readonly TaskWorkflowState[];
   tasks: Task[] | undefined;
   members: BoardMember[];
   currentUserId: string | undefined;
@@ -250,6 +268,7 @@ export interface BuildBoardInput {
 /** Groups tasks into the status columns, in the order the board draws them. */
 export function buildBoard({
   project,
+  states = DEFAULT_WORKFLOW_STATES,
   tasks,
   members,
   currentUserId,
@@ -261,17 +280,20 @@ export function buildBoard({
     ]),
   );
 
-  const byStatus = new Map<TaskStatus, Task[]>(
-    TASK_STATUS_ORDER.map((status) => [status, []]),
+  const columns = columnsFor(project, states);
+  const byState = new Map<string, Task[]>(
+    columns.map((state) => [state.id, []]),
   );
   for (const task of tasks ?? []) {
-    byStatus.get(task.status)?.push(task);
+    // A custom state this workspace no longer has falls back to its category.
+    (byState.get(stateIdOf(task)) ?? byState.get(task.status))?.push(task);
   }
 
-  const lists: KanbanList[] = columnsFor(project).map((status) => ({
-    id: status,
-    title: STATUS_TITLES[status],
-    cards: (byStatus.get(status) ?? [])
+  const lists: KanbanList[] = columns.map((state) => ({
+    id: state.id,
+    category: state.category,
+    title: state.name,
+    cards: (byState.get(state.id) ?? [])
       .slice()
       .sort((a, b) => a.orderIndex - b.orderIndex)
       .map((task) => taskToCard(task, milestoneTitles, project?.ticketPrefix)),
@@ -300,20 +322,20 @@ export function buildBoard({
 export type BoardAction =
   | {
       type: 'card/add';
-      listId: TaskStatus;
+      listId: string;
       title: string;
       edge?: 'top' | 'bottom';
     }
   /** A column dragged to a new place in the row; `toIndex` is over all columns. */
-  | { type: 'list/move'; listId: TaskStatus; toIndex: number }
+  | { type: 'list/move'; listId: string; toIndex: number }
   | { type: 'card/update'; cardId: string; patch: CardPatch }
   | { type: 'card/remove'; cardId: string }
   | { type: 'card/copy'; cardId: string }
-  | { type: 'card/move'; cardId: string; toListId: TaskStatus; toIndex: number }
+  | { type: 'card/move'; cardId: string; toListId: string; toIndex: number }
   | { type: 'card/toggleMember'; cardId: string; memberId: string }
-  | { type: 'list/sort'; listId: TaskStatus; by: SortKey }
-  | { type: 'list/clear'; listId: TaskStatus }
-  | { type: 'list/moveAll'; fromListId: TaskStatus; toListId: TaskStatus };
+  | { type: 'list/sort'; listId: string; by: SortKey }
+  | { type: 'list/clear'; listId: string }
+  | { type: 'list/moveAll'; fromListId: string; toListId: string };
 
 /** The card fields that map onto a task the server will accept. */
 export interface CardPatch {
@@ -419,23 +441,28 @@ export function useServerBoard({
   const tasks = useTasks(workspaceId, projectId);
   const mutations = useTaskMutations(workspaceId);
   const projectMutations = useProjectMutations(workspaceId);
+  const { states } = useWorkflowStates();
 
   const board = useMemo(
     () =>
       buildBoard({
         project,
+        states,
         tasks: tasks.data,
         members,
         currentUserId,
       }),
-    [project, tasks.data, members, currentUserId],
+    [project, states, tasks.data, members, currentUserId],
   );
 
   /** Where each task currently sits — the fields the cards deliberately drop. */
   const placement = useMemo(() => {
-    const map = new Map<string, { status: TaskStatus; orderIndex: number }>();
+    const map = new Map<string, { stateId: string; orderIndex: number }>();
     for (const task of tasks.data ?? []) {
-      map.set(task.id, { status: task.status, orderIndex: task.orderIndex });
+      map.set(task.id, {
+        stateId: stateIdOf(task),
+        orderIndex: task.orderIndex,
+      });
     }
     return map;
   }, [tasks.data]);
@@ -452,24 +479,25 @@ export function useServerBoard({
         return undefined;
       };
 
-      const listOf = (status: TaskStatus) =>
-        board.lists.find((list) => list.id === status);
+      const listOf = (stateId: string) =>
+        board.lists.find((list) => list.id === stateId);
 
       /**
        * Writes `cards` into `status` in the given order, touching only the
        * cards that are not already in the right column at the right position.
        */
-      const applyOrder = (status: TaskStatus, cards: KanbanCard[]): void => {
+      const applyOrder = (stateId: string, cards: KanbanCard[]): void => {
         const indices = renumber(cards);
+        const target = statePatch(states, stateId);
         void Promise.all(
           cards.flatMap((card, at) => {
             const now = placement.get(card.id);
-            if (now?.status === status && now.orderIndex === indices[at]) {
+            if (now?.stateId === stateId && now.orderIndex === indices[at]) {
               return [];
             }
             return mutations.move.mutateAsync({
               taskId: card.id,
-              input: { status, orderIndex: indices[at] },
+              input: { ...target, orderIndex: indices[at] },
             });
           }),
           // Each move rolls itself back on failure; the batch only needs to not
@@ -484,7 +512,7 @@ export function useServerBoard({
         case 'card/add': {
           const input: CreateTaskInput = {
             title: action.title,
-            status: action.listId,
+            ...statePatch(states, action.listId),
             projectId: projectId ?? null,
           };
           // The server files new tasks at the top of their column, which is
@@ -505,7 +533,7 @@ export function useServerBoard({
                   ? undefined
                   : mutations.move.mutateAsync({
                       taskId: task.id,
-                      input: { status: action.listId, orderIndex },
+                      input: { ...statePatch(states, action.listId), orderIndex },
                     }),
               )
               .catch(() => undefined);
@@ -551,7 +579,7 @@ export function useServerBoard({
           mutations.create.mutate({
             title: `${found.card.title} (copy)`,
             description: found.card.description || null,
-            status: found.list.id,
+            ...statePatch(states, found.list.id),
             priority: found.card.priority,
             projectId: projectId ?? null,
             assigneeId: found.card.memberIds[0] ?? null,
@@ -573,7 +601,16 @@ export function useServerBoard({
           if (!found) return;
 
           const target = listOf(action.toListId);
-          if (!target) return;
+          if (!target) {
+            // A status created a moment ago (from a status menu) has no column
+            // on this render yet. The server reads the category from the
+            // state itself, so move the card to the top of it now.
+            mutations.move.mutate({
+              taskId: action.cardId,
+              input: { ...statePatch(states, action.toListId), orderIndex: 0 },
+            });
+            return;
+          }
 
           const remaining = target.cards.filter(
             (card) => card.id !== action.cardId,
@@ -587,7 +624,7 @@ export function useServerBoard({
           if (orderIndex !== undefined) {
             mutations.move.mutate({
               taskId: action.cardId,
-              input: { status: action.toListId, orderIndex },
+              input: { ...statePatch(states, action.toListId), orderIndex },
             });
             return;
           }
@@ -647,7 +684,7 @@ export function useServerBoard({
           return;
       }
     },
-    [board.lists, mutations, placement, projectId, projectMutations],
+    [board.lists, mutations, placement, projectId, projectMutations, states],
   );
 
   return {

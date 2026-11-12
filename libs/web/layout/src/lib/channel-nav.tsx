@@ -88,7 +88,11 @@ import {
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { SidebarFooterActions } from './create-menu.js';
 import { DirectMessagesSection } from './direct-messages-section.js';
-import { DocNavRow, DocsTreeSection } from './docs-section.js';
+import {
+  activeDocId,
+  DocNavRow,
+  DocsTreeSection,
+} from './docs-section.js';
 import {
   FavoriteToggle,
   IconOnlyNavRow,
@@ -112,7 +116,7 @@ import {
 import { partitionChannelsByInactivity } from './inactivity-utils.js';
 import {
   ActivityConversationList,
-  SidebarLayoutMenu,
+  SidebarViewSwitch,
 } from './activity-conversation-list.js';
 import {
   ACTIVITY_ROW_ACTIONS_CLASS,
@@ -1229,9 +1233,7 @@ export function ChannelNav({
     });
 
     starredDocs.forEach((doc) => {
-      const isSelected =
-        location.pathname.includes('/docs') &&
-        location.search.includes(`doc=${doc.id}`);
+      const isSelected = activeDocId(location, workspaceSlug) === doc.id;
       list.push({
         id: `doc-${doc.id}`,
         render: () => (
@@ -1753,7 +1755,6 @@ export function ChannelNav({
                         }
                         action={
                           <div className="gap-0.5 flex items-center">
-                            <SidebarLayoutMenu className="size-5 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100" />
                             <ChannelOrganizationMenu
                               workspaceId={workspaceId}
                               onManageSections={() =>
@@ -1771,6 +1772,8 @@ export function ChannelNav({
                                 <Plus className="size-3.5" />
                               </Button>
                             </Hint>
+                            {/* Last, so it sits on the same edge in both views. */}
+                            <SidebarViewSwitch className="ml-0.5" />
                           </div>
                         }
                       >

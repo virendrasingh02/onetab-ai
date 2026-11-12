@@ -135,7 +135,7 @@ export function ProjectGanttView({
                   </span>
                 </div>
                 <StatusIcon
-                  status={task.status}
+                  status={task.stateId || task.status}
                   className="size-3.5 shrink-0"
                 />
               </div>

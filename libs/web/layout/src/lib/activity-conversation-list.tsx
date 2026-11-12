@@ -7,14 +7,9 @@ import {
 import { useUserPresenceMap } from '@org/realtime';
 import type { ChannelSummary, WorkspaceMember } from '@org/types';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
   GroupAvatar,
   Hint,
+  SIDEBAR_VIEW_OPTIONS,
   SkeletonList,
   toPresenceStatus,
   UserAvatar,
@@ -28,8 +23,21 @@ import {
   type RoomActivityEntry,
 } from '@org/web-chat';
 import { useMembers } from '@org/web-members';
-import { Hash, LayoutList, Lock } from 'lucide-react';
-import { Fragment, useMemo, type ReactNode } from 'react';
+import {
+  Hash,
+  History,
+  LayoutList,
+  Lock,
+  type LucideIcon,
+} from 'lucide-react';
+import {
+  Fragment,
+  useEffect,
+  useMemo,
+  useRef,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react';
 import { useLocation } from 'react-router-dom';
 import type { ActivityRowContent } from './activity-row-link.js';
 import { DirectMessageRow, GroupDmRow } from './direct-messages-section.js';
@@ -105,44 +113,104 @@ function toIndicator(
   return { level: 'none', count: 0 };
 }
 
-/** The view switch shared by both sidebar layouts. */
-export function SidebarLayoutMenu({ className }: { className?: string }) {
+const VIEW_ICONS: Record<SidebarLayoutMode, LucideIcon> = {
+  sections: LayoutList,
+  activity: History,
+};
+
+/**
+ * Each view renders its own copy of the switch, so a keyboard change would
+ * drop focus when the old copy unmounts. The new copy picks it back up.
+ */
+let refocusViewSwitch = false;
+
+/**
+ * The view switch shared by both sidebar layouts: one click per view, with the
+ * current one always showing.
+ */
+export function SidebarViewSwitch({ className }: { className?: string }) {
   const layoutMode = useSidebarStore((s) => s.layoutMode);
   const setLayoutMode = useSidebarStore((s) => s.setLayoutMode);
+  const groupRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!refocusViewSwitch) return;
+    refocusViewSwitch = false;
+    groupRef.current
+      ?.querySelector<HTMLElement>('[aria-checked="true"]')
+      ?.focus();
+  }, []);
+
+  const select = (mode: SidebarLayoutMode, viaKeyboard: boolean) => {
+    if (mode === layoutMode) return;
+    refocusViewSwitch = viaKeyboard;
+    setLayoutMode(mode);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const step =
+      event.key === 'ArrowRight' || event.key === 'ArrowDown'
+        ? 1
+        : event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+          ? -1
+          : 0;
+    if (step === 0) return;
+    event.preventDefault();
+    const count = SIDEBAR_VIEW_OPTIONS.length;
+    const current = SIDEBAR_VIEW_OPTIONS.findIndex(
+      (option) => option.value === layoutMode,
+    );
+    select(SIDEBAR_VIEW_OPTIONS[(current + step + count) % count].value, true);
+  };
+
   return (
-    <DropdownMenu>
-      <Hint label="Sidebar view">
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            aria-label="Change sidebar view"
-            className={cn(
-              'size-6 p-0 inline-flex shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground',
-              'outline-none focus-visible:ring-1 focus-visible:ring-ring',
-              className,
-            )}
+    <div
+      ref={groupRef}
+      role="radiogroup"
+      aria-label="Sidebar view"
+      onKeyDown={handleKeyDown}
+      className={cn(
+        'gap-px p-px inline-flex shrink-0 items-center rounded-md border border-border bg-surface-inset',
+        className,
+      )}
+    >
+      {SIDEBAR_VIEW_OPTIONS.map((option) => {
+        const Icon = VIEW_ICONS[option.value];
+        const selected = option.value === layoutMode;
+        return (
+          <Hint
+            key={option.value}
+            side="bottom"
+            className="max-w-56"
+            label={
+              <span className="gap-0.5 flex flex-col">
+                <span className="font-medium">{option.label} view</span>
+                <span className="opacity-80">{option.description}</span>
+              </span>
+            }
           >
-            <LayoutList className="size-3.5" />
-          </button>
-        </DropdownMenuTrigger>
-      </Hint>
-      <DropdownMenuContent align="end" side="bottom" className="w-56">
-        <DropdownMenuLabel className="tracking-wide text-[11px] text-muted-foreground uppercase">
-          Sidebar view
-        </DropdownMenuLabel>
-        <DropdownMenuRadioGroup
-          value={layoutMode}
-          onValueChange={(value) => setLayoutMode(value as SidebarLayoutMode)}
-        >
-          <DropdownMenuRadioItem value="sections" className="text-xs">
-            Sections
-          </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="activity" className="text-xs">
-            Activity — newest first
-          </DropdownMenuRadioItem>
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              aria-label={`${option.label} view`}
+              tabIndex={selected ? 0 : -1}
+              onClick={(event) => select(option.value, event.detail === 0)}
+              className={cn(
+                'h-4.5 w-5 inline-flex items-center justify-center rounded-[5px] transition-colors',
+                'outline-none focus-visible:ring-1 focus-visible:ring-ring',
+                'pointer-coarse:size-7',
+                selected
+                  ? 'bg-background text-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <Icon className="size-3 pointer-coarse:size-3.5" />
+            </button>
+          </Hint>
+        );
+      })}
+    </div>
   );
 }
 
@@ -402,12 +470,19 @@ export function ActivityConversationList({
   };
 
   return (
-    <section aria-label="Conversations" className="space-y-2">
-      <div className="gap-1.5 px-1 flex items-center">
+    <section aria-label="Conversations" className="mt-2.5 mb-1 space-y-1.5">
+      {/* Mirrors a sidebar section header, so the switch stays where it was. */}
+      <div className="gap-1.5 px-2.5 py-1 flex items-center justify-between select-none">
+        <h3 className="font-semibold tracking-wide truncate text-[11px] text-foreground/75 uppercase">
+          Conversations
+        </h3>
+        <SidebarViewSwitch />
+      </div>
+      <div className="px-2">
         <div
           role="group"
           aria-label="Filter conversations"
-          className="gap-1.5 min-w-0 flex flex-1 flex-wrap items-center"
+          className="gap-1 flex flex-wrap items-center"
         >
           {FILTERS.map((chip) => {
             const selected = filter === chip.value;
@@ -418,7 +493,8 @@ export function ActivityConversationList({
                 aria-pressed={selected}
                 onClick={() => setFilter(selected ? 'all' : chip.value)}
                 className={cn(
-                  'h-6 px-2.5 text-xs font-medium rounded-full border transition-colors',
+                  // Sized so all three fit one row at the sidebar's default width.
+                  'h-6 px-2 font-medium rounded-full border text-[11px] transition-colors',
                   'outline-none focus-visible:ring-1 focus-visible:ring-ring',
                   'pointer-coarse:h-8',
                   selected
@@ -431,7 +507,6 @@ export function ActivityConversationList({
             );
           })}
         </div>
-        <SidebarLayoutMenu />
       </div>
 
       {showSkeleton ? (

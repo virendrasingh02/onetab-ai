@@ -1,4 +1,3 @@
-import { type TaskStatus } from '@org/types';
 import {
   Dialog,
   DialogContent,
@@ -25,7 +24,7 @@ export interface LinearCommandMenuProps {
   onClose: () => void;
   lists: KanbanList[];
   onOpenCard?: (cardId: string) => void;
-  onQuickAddTask?: (listId?: TaskStatus) => void;
+  onQuickAddTask?: (listId?: string) => void;
   onViewModeChange?: (mode: 'board' | 'list' | 'timeline' | 'dashboard' | 'projects') => void;
   onOpenFilter?: () => void;
   onOpenNewProject?: () => void;

@@ -71,6 +71,7 @@ import {
   Users,
   Workflow,
   X,
+  FolderKanban,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -253,6 +254,12 @@ const NAV_GROUPS: NavGroup[] = [
         label: 'Tasks & Kanban',
         icon: Kanban,
         keywords: 'board cards projects columns',
+      },
+      {
+        id: 'projects',
+        label: 'Projects',
+        icon: FolderKanban,
+        keywords: 'project details task ids prefix coworkers lead team delete',
       },
       {
         id: 'documents',

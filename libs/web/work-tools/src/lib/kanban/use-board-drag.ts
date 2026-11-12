@@ -1,4 +1,5 @@
-import type { TaskStatus } from '@org/types';
+/** A column's id: a workflow state id. */
+type TaskStatus = string;
 import {
   useCallback,
   useEffect,

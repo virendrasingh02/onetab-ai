@@ -638,7 +638,7 @@ export function MeetingDetailSheet({
                           key={task.id}
                           className="gap-2 p-2.5 flex items-center rounded-lg border border-border"
                         >
-                          <StatusIcon status={task.status} className="size-4" />
+                          <StatusIcon status={task.stateId || task.status} className="size-4" />
                           <span
                             className={cn(
                               'text-sm flex-1 truncate',

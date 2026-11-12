@@ -72,15 +72,16 @@ export const createProjectSchema = z.object({
   ...iconPatchShape,
 });
 
+/**
+ * Workflow state ids, left to right. Built-ins are their status name, custom
+ * statuses their id; the board appends any state the list leaves out.
+ */
 export const columnOrderSchema = z
-  .array(z.enum(TaskStatus))
+  .array(z.string().min(1).max(64))
+  .max(100)
   .refine(
     (order) => new Set(order).size === order.length,
     'A status can only appear once in the column order',
-  )
-  .refine(
-    (order) => order.length === Object.keys(TaskStatus).length,
-    'The column order must list every status',
   );
 
 export const updateProjectSchema = z.object({
@@ -164,6 +165,23 @@ export const createTaskLabelSchema = z.object({
 export const updateTaskLabelSchema = z.object({
   name: z.string().trim().min(1).max(50).optional(),
   color: labelColor.optional(),
+});
+
+// --- task workflow states ---------------------------------------------------
+
+export const createTaskStateSchema = z.object({
+  name: z.string().trim().min(1).max(40),
+  color: labelColor.optional(),
+  category: z.enum(TaskStatus),
+});
+
+export const updateTaskStateSchema = z.object({
+  name: z.string().trim().min(1).max(40).optional(),
+  color: labelColor.optional(),
+});
+
+export const reorderTaskStatesSchema = z.object({
+  ids: z.array(z.string().min(1).max(64)).min(1).max(100),
 });
 
 // --- initiatives ------------------------------------------------------------
@@ -293,6 +311,8 @@ export const createTaskSchema = z.object({
   description: optionalText(10000),
   type: z.enum(WorkItemType).optional(),
   status: z.enum(TaskStatus).optional(),
+  /** A custom workflow status; its category overrides `status`. */
+  stateId: z.string().max(64).nullable().optional(),
   priority: z.enum(TaskPriority).optional(),
   projectId: z.string().nullable().optional(),
   sprintId: z.string().nullable().optional(),
@@ -318,6 +338,8 @@ export const updateTaskSchema = z.object({
   description: optionalText(10000),
   type: z.enum(WorkItemType).optional(),
   status: z.enum(TaskStatus).optional(),
+  /** A custom workflow status; its category overrides `status`. */
+  stateId: z.string().max(64).nullable().optional(),
   priority: z.enum(TaskPriority).optional(),
   projectId: z.string().nullable().optional(),
   sprintId: z.string().nullable().optional(),
@@ -342,6 +364,7 @@ export const updateTaskSchema = z.object({
 
 export const moveTaskSchema = z.object({
   status: z.enum(TaskStatus),
+  stateId: z.string().max(64).nullable().optional(),
   orderIndex: z.number().int().min(0),
 });
 
@@ -554,6 +577,9 @@ export type CreateTeamInput = z.infer<typeof createTeamSchema>;
 export type UpdateTeamInput = z.infer<typeof updateTeamSchema>;
 export type CreateTaskLabelInput = z.infer<typeof createTaskLabelSchema>;
 export type UpdateTaskLabelInput = z.infer<typeof updateTaskLabelSchema>;
+export type CreateTaskStateInput = z.infer<typeof createTaskStateSchema>;
+export type UpdateTaskStateInput = z.infer<typeof updateTaskStateSchema>;
+export type ReorderTaskStatesInput = z.infer<typeof reorderTaskStatesSchema>;
 export type CreateInitiativeInput = z.infer<typeof createInitiativeSchema>;
 export type UpdateInitiativeInput = z.infer<typeof updateInitiativeSchema>;
 export type CreateEpicInput = z.infer<typeof createEpicSchema>;

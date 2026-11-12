@@ -251,6 +251,7 @@ import type {
   TaskComment,
   Team,
   TaskLabel,
+  TaskWorkflowState,
   Upload,
   UploadContextType,
   UploadDestinations,
@@ -440,6 +441,7 @@ import type {
   CreateTaskInput,
   CreateTeamInput,
   CreateTaskLabelInput,
+  CreateTaskStateInput,
   CreateWorkItemRelationInput,
   CreateWorkspaceInput,
   DesktopAuthorizeInput,
@@ -486,6 +488,7 @@ import type {
   UpdateTaskInput,
   UpdateTeamInput,
   UpdateTaskLabelInput,
+  UpdateTaskStateInput,
   UpdateUserPreferencesInput,
   UpdateWorkspaceInput,
   OAuthInitQueryInput,
@@ -2290,6 +2293,44 @@ export const workToolsApi = {
   deleteTaskLabel: (workspaceId: string, labelId: string) =>
     request<void>(
       http.delete(`/workspaces/${workspaceId}/work-tools/labels/${labelId}`),
+    ),
+
+  // --- task workflow states -------------------------------------------------
+
+  taskStates: (workspaceId: string) =>
+    request<TaskWorkflowState[]>(
+      http.get(`/workspaces/${workspaceId}/work-tools/task-states`),
+    ),
+
+  createTaskState: (workspaceId: string, input: CreateTaskStateInput) =>
+    request<TaskWorkflowState>(
+      http.post(`/workspaces/${workspaceId}/work-tools/task-states`, input),
+    ),
+
+  updateTaskState: (
+    workspaceId: string,
+    stateId: string,
+    input: UpdateTaskStateInput,
+  ) =>
+    request<TaskWorkflowState>(
+      http.patch(
+        `/workspaces/${workspaceId}/work-tools/task-states/${encodeURIComponent(stateId)}`,
+        input,
+      ),
+    ),
+
+  reorderTaskStates: (workspaceId: string, ids: string[]) =>
+    request<TaskWorkflowState[]>(
+      http.put(`/workspaces/${workspaceId}/work-tools/task-states/order`, {
+        ids,
+      }),
+    ),
+
+  deleteTaskState: (workspaceId: string, stateId: string) =>
+    request<void>(
+      http.delete(
+        `/workspaces/${workspaceId}/work-tools/task-states/${encodeURIComponent(stateId)}`,
+      ),
     ),
 
   // --- initiatives ----------------------------------------------------------

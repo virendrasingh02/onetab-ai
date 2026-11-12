@@ -48,6 +48,13 @@ export {
   type Priority,
 } from './lib/KanbanBoard.js';
 export { KanbanStatusPicker } from './lib/kanban/KanbanStatusPicker.js';
+export {
+  DEFAULT_WORKFLOW_STATES,
+  STATUS_CATEGORY_LABELS,
+  stateIdOf,
+  statePatch,
+  useWorkflowStates,
+} from './lib/kanban/task-states.js';
 export { KanbanPriorityPicker } from './lib/kanban/KanbanPriorityPicker.js';
 export { KanbanLeadPicker } from './lib/kanban/KanbanLeadPicker.js';
 export { KanbanLabelPicker } from './lib/kanban/KanbanLabelPicker.js';
@@ -77,6 +84,7 @@ export {
   UnassignedLeadIcon,
 } from './lib/kanban/kanban-icons.js';
 export { WorkspaceKanbanSettings } from './lib/kanban/workspace-kanban-settings.js';
+export { WorkspaceProjectSettings } from './lib/kanban/workspace-project-settings.js';
 export { ProjectGallery } from './lib/kanban/ProjectGallery.js';
 export {
   buildBoard,

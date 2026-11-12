@@ -27,6 +27,7 @@ import {
   Hint,
   ScrollArea,
   SegmentedControl,
+  SIDEBAR_VIEW_OPTIONS,
   Switch,
   useSidebarCustomizerStore,
   ResponsiveTabs,
@@ -707,8 +708,11 @@ export function SidebarCustomizerDialog({
                           Sidebar view
                         </p>
                         <p className="text-[11px] text-muted-foreground">
-                          Activity replaces Starred, Channels and DMs with one
-                          newest-first list.
+                          {
+                            SIDEBAR_VIEW_OPTIONS.find(
+                              (option) => option.value === layoutMode,
+                            )?.description
+                          }
                         </p>
                       </div>
                       <SegmentedControl
@@ -717,10 +721,7 @@ export function SidebarCustomizerDialog({
                         onChange={(value) =>
                           setLayoutMode(value as SidebarLayoutMode)
                         }
-                        options={[
-                          { value: 'sections', label: 'Sections' },
-                          { value: 'activity', label: 'Activity' },
-                        ]}
+                        options={SIDEBAR_VIEW_OPTIONS}
                       />
                     </div>
                   ) : null}

@@ -93,7 +93,7 @@ export function CardSubIssues({
                   className="size-4 grid shrink-0 place-items-center"
                 >
                   <StatusIcon
-                    status={sub.status}
+                    status={sub.stateId || sub.status}
                     className="size-3.5"
                     showTooltip={false}
                   />
