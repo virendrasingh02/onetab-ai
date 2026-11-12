@@ -78,6 +78,16 @@ export interface KanbanCard {
   checklist: TaskChecklistItem[];
   /** Set when a Studio agent created the task (`Task.customFields.createdByAgent`). */
   createdByAgent?: { name: string; workflowId?: string; runId?: string };
+  /** Story points / effort estimate. */
+  estimate?: number | null;
+  /** Active sprint or cycle name. */
+  cycle?: string | null;
+  /** Associated epic name. */
+  epic?: string | null;
+  /** Associated module name. */
+  module?: string | null;
+  /** Count of linked relations / dependencies. */
+  relationCount?: number;
 }
 
 export interface KanbanList {

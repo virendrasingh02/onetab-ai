@@ -13,22 +13,26 @@ export type BoardOrder = 'manual' | SortKey;
 
 export interface CardProperties {
   ticketId: boolean;
+  status: boolean;
   priority: boolean;
   dueDate: boolean;
   assignee: boolean;
   labels: boolean;
   progress: boolean;
   comments: boolean;
+  estimate: boolean;
 }
 
 export const CARD_PROPERTY_LABELS: Record<keyof CardProperties, string> = {
   ticketId: 'Task ID',
+  status: 'Status badge',
   priority: 'Priority',
   dueDate: 'Due date',
   assignee: 'Assignee',
   labels: 'Labels',
   progress: 'Checklist and sub-items',
   comments: 'Comments',
+  estimate: 'Estimate points',
 };
 
 interface KanbanDisplayState {
@@ -44,12 +48,14 @@ export const useKanbanDisplayStore = create<KanbanDisplayState>()(
       orderBy: 'manual',
       card: {
         ticketId: true,
+        status: true,
         priority: true,
         dueDate: true,
         assignee: true,
         labels: true,
         progress: true,
         comments: true,
+        estimate: true,
       },
       setOrderBy: (orderBy) => set({ orderBy }),
       toggleCardProperty: (key) =>

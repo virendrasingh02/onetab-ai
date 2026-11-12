@@ -237,6 +237,13 @@ export function taskToCard(
     startDate: isoToDay(task.startDate ?? null),
     checklist: checklistOf(task),
     createdByAgent: createdByAgentOf(task),
+    estimate: task.estimate ?? null,
+    cycle: task.cycle?.name ?? null,
+    epic: task.epic?.name ?? null,
+    module: task.module?.name ?? null,
+    relationCount:
+      (task.relations?.length ?? 0) +
+      ((task as { targetRelations?: unknown[] }).targetRelations?.length ?? 0),
   };
 }
 

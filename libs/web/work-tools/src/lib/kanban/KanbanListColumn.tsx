@@ -20,6 +20,7 @@ import { useWorkspacePermission } from '@org/web-workspace';
 import { useSaveForLater } from '@org/web-chat/bookmarks';
 import {
   ArrowDownUp,
+  CircleDashed,
   CornerUpRight,
   Eraser,
   MoreHorizontal,
@@ -156,7 +157,7 @@ export function KanbanListColumn({
       aria-label={list.title}
       hidden={drag.activeListId === list.id}
       className={cn(
-        'sm:w-72 flex max-h-full w-[82vw] shrink-0 flex-col rounded-xl border bg-surface-muted',
+        'w-[85vw] sm:w-80 md:w-84 xl:w-[320px] 2xl:w-[340px] flex max-h-full shrink-0 flex-col rounded-xl border border-border bg-surface-muted',
         'transition-[box-shadow] duration-(--duration-fast)',
         // Set by the drag engine on whichever column is under the pointer.
         'data-drop-target:ring-2 data-drop-target:ring-primary/25',
@@ -174,20 +175,20 @@ export function KanbanListColumn({
         onPointerDown={columnDrag.onPointerDown}
         onKeyDown={columnDrag.onKeyDown}
         className={cn(
-          'gap-1.5 px-3 py-2 flex items-center justify-between rounded-t-xl border-b border-border/40 bg-surface/40',
+          'gap-2 px-3 py-2 flex items-center justify-between border-b border-border/40 bg-surface/40 rounded-t-xl',
           'cursor-grab touch-manipulation select-none',
           'focus-visible:ring-[3px] focus-visible:ring-ring/30 focus-visible:outline-none',
         )}
       >
         <div className="gap-2 min-w-0 flex flex-1 items-center">
-          <StatusIcon status={list.id} />
+          <StatusIcon status={list.id} className="size-4 shrink-0" />
 
           <h2 className="min-w-0 py-0.5 text-xs font-semibold flex-1 truncate text-foreground">
             {list.title}
           </h2>
 
           <span
-            className="text-xs font-medium text-muted-foreground/70 tabular-nums"
+            className="text-xs font-medium text-muted-foreground/80 tabular-nums shrink-0"
             title={
               hiddenCount > 0
                 ? `${visibleCards.length} of ${list.cards.length} shown`
@@ -330,10 +331,10 @@ export function KanbanListColumn({
       <ScrollArea
         className="min-h-0 flex-1"
         viewportRef={cardsScrollRef}
-        contentClassName="px-2 pb-1"
+        contentClassName="px-2.5 py-2.5"
       >
         {/* `relative`: the drop placeholder is positioned against this list. */}
-        <ul ref={cardsRef} className="min-h-6 space-y-2 relative">
+        <ul ref={cardsRef} className="min-h-8 space-y-2.5 relative">
           {/*
             Keyed off the unfiltered count rather than off what is on screen: a
             card in the air still belongs to this column, and letting the empty
@@ -343,20 +344,31 @@ export function KanbanListColumn({
             <li
               data-kanban-empty
               className={cn(
-                'px-2 text-xs text-center text-muted-foreground',
+                'px-3 text-xs text-center text-muted-foreground transition-all',
                 hiddenCount > 0
-                  ? 'py-6'
-                  : // A quiet drop area. Every empty column of a new board
-                    // used to repeat "Drop a card here" above "Add a card";
-                    // the words now appear only while a card is in the air.
-                    'h-12 flex items-center justify-center rounded-lg border border-dashed border-border/60',
+                  ? 'py-8 rounded-xl border border-dashed border-border/60 bg-card/20'
+                  : drag.activeCardId
+                    ? 'h-24 flex items-center justify-center rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 text-primary font-medium'
+                    : 'h-28 flex flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border/60 bg-card/20 text-muted-foreground/60',
               )}
             >
-              {hiddenCount > 0
-                ? `${hiddenCount} task${hiddenCount === 1 ? '' : 's'} hidden by filters`
-                : drag.activeCardId
-                  ? 'Drop here'
-                  : null}
+              {hiddenCount > 0 ? (
+                `${hiddenCount} task${hiddenCount === 1 ? '' : 's'} hidden by filters`
+              ) : drag.activeCardId ? (
+                'Drop task here'
+              ) : (
+                <>
+                  <CircleDashed className="size-4 opacity-40" />
+                  <span className="text-xs font-medium">No tasks</span>
+                  <button
+                    type="button"
+                    onClick={() => openComposer('bottom')}
+                    className="mt-0.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:underline transition-colors cursor-pointer"
+                  >
+                    + Add task
+                  </button>
+                </>
+              )}
             </li>
           ) : null}
 
@@ -451,13 +463,13 @@ export function KanbanListColumn({
           onKeyDown={handleComposerKeyDown}
         />
       ) : composer === null ? (
-        <div className="p-2">
+        <div className="p-2 pt-1 border-t border-border/40">
           <Button
             variant="ghost"
             size="sm"
-            leadingIcon={<Plus />}
+            leadingIcon={<Plus className="size-3.5" />}
             onClick={() => openComposer('bottom')}
-            className="w-full justify-start text-muted-foreground"
+            className="w-full justify-start text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-surface h-8 rounded-md transition-all"
           >
             Add task
           </Button>
@@ -487,7 +499,7 @@ function CardComposer({
   onKeyDown,
 }: CardComposerProps) {
   return (
-    <div className="p-2 space-y-2">
+    <div className="p-2.5 space-y-2 border-t border-border/50 bg-surface/80 rounded-b-xl">
       <Textarea
         ref={ref}
         rows={2}
@@ -496,10 +508,15 @@ function CardComposer({
         aria-label="Task title"
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={onKeyDown}
-        className="text-sm bg-surface shadow-xs"
+        className="text-sm bg-background border-input shadow-xs rounded-md placeholder:text-muted-foreground"
       />
-      <div className="gap-2 flex items-center">
-        <Button size="sm" onClick={onSubmit} disabled={!value.trim()}>
+      <div className="gap-2 flex items-center justify-between">
+        <Button
+          size="sm"
+          onClick={onSubmit}
+          disabled={!value.trim()}
+          className="font-medium px-3 h-8 text-xs"
+        >
           Add task
         </Button>
         <Button
@@ -507,8 +524,9 @@ function CardComposer({
           size="icon-sm"
           onClick={onClose}
           aria-label="Cancel adding a task"
+          className="size-8"
         >
-          <X />
+          <X className="size-4" />
         </Button>
       </div>
     </div>

@@ -315,11 +315,11 @@ export function KanbanBoard({
 
       {/* Kanban Columns Drag Scroller */}
       {isLoading ? (
-        <div className="gap-4 pb-4 flex flex-1 items-start overflow-hidden">
+        <div className="gap-4 sm:gap-5 pb-6 flex flex-1 items-start overflow-hidden">
           {[0, 1, 2, 3].map((column) => (
             <div
               key={column}
-              className="w-72 p-3 shrink-0 rounded-xl border bg-surface-muted"
+              className="w-[85vw] sm:w-80 md:w-84 xl:w-[320px] 2xl:w-[340px] p-3 shrink-0 rounded-xl border border-border bg-surface-muted"
             >
               <SkeletonList rows={3} />
             </div>
@@ -328,7 +328,7 @@ export function KanbanBoard({
       ) : (
         <div
           ref={scrollerRef}
-          className="scrollbar-subtle gap-4 pb-4 relative flex flex-1 items-start overflow-x-auto"
+          className="scrollbar-subtle gap-4 sm:gap-5 pb-6 relative flex flex-1 items-start overflow-x-auto min-h-0"
         >
           {board.lists.map((list, index) => (
             <KanbanListColumn
