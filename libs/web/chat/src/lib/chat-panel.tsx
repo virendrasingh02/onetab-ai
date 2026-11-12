@@ -52,6 +52,7 @@ import {
 } from './chat-surface.js';
 import { useSavedIds, useToggleSaved } from './use-saved-messages.js';
 import { useMatrix } from './matrix-provider.js';
+import { useChatTasks } from './use-chat-tasks.js';
 import { useUnreadMentions } from './use-unread-mentions.js';
 import { usePinnedOutsideTimeline } from './use-pinned-messages.js';
 import { useReadReceiptsEnabled } from './use-read-receipts-enabled.js';
@@ -206,6 +207,7 @@ export function ChatPanel({
   const { workspace, slug: workspaceSlug } = useCurrentWorkspace();
   const currentUser = useCurrentUser();
   const navigate = useNavigate();
+  const { startTask } = useChatTasks();
   const policiesQuery = useWorkspacePolicies(workspaceId);
   const canReact = isPolicyRoleAllowed(
     workspace?.role,
@@ -543,58 +545,29 @@ export function ChatPanel({
   );
 
   /*
-   * "Create task" and "Assign to me" are one action: a real task with the
-   * message as its description, linked back to the message (context links),
-   * optionally assigned to the reader. The assignee is the platform user id —
+   * "Create task" and "Assign to me" are one action: a real task in a
+   * project, with the message as its description, linked back to the message
+   * (context links), optionally assigned to the reader. The assignee is the platform user id —
    * a Matrix id (`@user:server`) is not a workspace member and was rejected.
    */
   const createTaskFromMessage = useCallback(
-    async (message: Message, assignToMe: boolean) => {
-      if (!workspaceId) {
-        toast.error('Open a workspace to create tasks.');
-        return;
-      }
+    (message: Message, assignToMe: boolean) => {
       const { where, href, text } = describeSource(message);
-      const taskTitle =
-        text.slice(0, 80).replace(/\s+/g, ' ').trim() || 'Follow up on message';
-      try {
-        const task = await workToolsApi.createTask(workspaceId, {
-          title: taskTitle,
+      return startTask(
+        {
+          title:
+            text.slice(0, 80).replace(/\s+/g, ' ').trim() ||
+            'Follow up on message',
           description: `From ${message.senderName} in ${where}:\n\n${text}\n\n[View message](${href})`,
-          status: 'TODO',
-          priority: 'MEDIUM',
           assigneeId: assignToMe ? currentUser?.id : undefined,
-        });
-        if (task?.id) {
-          // The link powers "View related context"; the task exists either way.
-          void contextLinksApi
-            .createLink(workspaceId, {
-              sourceType: 'message',
-              sourceId: message.id,
-              targetType: 'task',
-              targetId: task.id,
-              linkType: 'RESOLVES',
-            })
-            .catch(() => undefined);
-        }
-        toast.success(assignToMe ? 'Task assigned to you' : 'Task created', {
-          description: `"${taskTitle}"`,
-          action: workspaceSlug
-            ? {
-                label: 'Open tasks',
-                onClick: () => navigate(`/w/${workspaceSlug}/projects`),
-              }
-            : undefined,
-        });
-      } catch {
-        toast.error(
-          assignToMe
-            ? 'Could not assign the task.'
-            : 'Could not create the task.',
-        );
-      }
+          roomId,
+          sourceMessageId: message.id,
+        },
+        // "Assign to me" is one click when the project is not in doubt.
+        { quick: assignToMe },
+      );
     },
-    [workspaceId, workspaceSlug, currentUser?.id, describeSource, navigate],
+    [currentUser?.id, describeSource, roomId, startTask],
   );
 
   const handleAssignToMe = useCallback(

@@ -3,6 +3,11 @@ export { AuthenticatedMediaBridge } from './lib/authenticated-media-bridge.js';
 export { CallModal } from './lib/call-modal.js';
 export { CallOverlayBridge } from './lib/call-overlay-bridge.js';
 export { LinkPreviewBridge } from './lib/link-preview-bridge.js';
+export { ChatTaskDialogHost } from './lib/chat-task-dialog-host.js';
+export {
+  ShareToChatDialog,
+  type ShareToChatTarget,
+} from './lib/share-to-chat-dialog.js';
 export { useCall, type UseCallResult } from './lib/use-call.js';
 export {
   ChatNotificationBridge,

@@ -7,20 +7,18 @@ import {
   channelApi,
   queryKeys,
   remindersApi,
-  workToolsApi,
 } from '@org/api-client';
 import { usePresence } from '@org/realtime';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   ChannelRole,
-  TaskPriority,
-  TaskStatus,
   toPlatformUserId,
   type ComposerContext,
   type ComposerMentionMeta,
 } from '@org/types';
 import type { SlashCommand } from '@org/chat-ui';
 import { parseReminder } from './slash-remind-parse.js';
+import { useChatTasks } from './use-chat-tasks.js';
 
 export interface SlashCommandInvocation {
   /** Without the slash, e.g. `remind`. */
@@ -75,6 +73,7 @@ export function useSlashCommands({
 }: Options) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { startTask } = useChatTasks();
   const currentUser = useCurrentUser();
   const { status: selfStatus, setManualAway } = usePresence(currentUser?.id);
   const { slug, workspaceId: currentWorkspaceId } = useCurrentWorkspace();
@@ -216,21 +215,15 @@ export function useSlashCommands({
             );
             return true;
           }
-          try {
-            await workToolsApi.createTask(workspaceId, {
+          // Lands in this conversation's project, or asks which one.
+          await startTask(
+            {
               title: title.slice(0, 200),
-              status: TaskStatus.TODO,
-              priority: TaskPriority.MEDIUM,
               assigneeId: assignee ? toPlatformUserId(assignee.id) : undefined,
-            });
-            toast.success(
-              assignee
-                ? `Task assigned to ${assignee.displayName ?? 'them'}`
-                : 'Task created',
-            );
-          } catch (err) {
-            toast.error(failure(err, 'Could not create the task.'));
-          }
+              roomId,
+            },
+            { quick: true },
+          );
           return true;
         }
 
@@ -308,6 +301,7 @@ export function useSlashCommands({
       slug,
       navigate,
       roomId,
+      startTask,
     ],
   );
 }

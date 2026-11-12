@@ -1,8 +1,8 @@
 import type { LinkPreview } from '@org/types';
 import { Hint } from '@org/ui';
 import { cn } from '@org/utils';
-import { ExternalLink, Globe, X } from 'lucide-react';
-import { useState } from 'react';
+import { CircleCheck, ExternalLink, Globe, X } from 'lucide-react';
+import { useState, type MouseEvent } from 'react';
 
 export interface LinkPreviewCardProps {
   preview: LinkPreview;
@@ -11,6 +11,19 @@ export interface LinkPreviewCardProps {
   /** When true, renders a more compact variation for staging inside the composer. */
   compact?: boolean;
   className?: string;
+}
+
+/** A link into this app, e.g. to a task: it opens here, not in a new tab. */
+function inAppPath(url: string): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const parsed = new URL(url, window.location.origin);
+    return parsed.origin === window.location.origin
+      ? `${parsed.pathname}${parsed.search}${parsed.hash}`
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 export function LinkPreviewCard({
@@ -33,6 +46,25 @@ export function LinkPreviewCard({
   } = preview;
 
   const displayDomain = domain || siteName || 'external link';
+  const appPath = inAppPath(url);
+  /*
+   * In-app links route without a reload: the router follows `popstate`, which
+   * keeps this `type:ui` library free of a router dependency. Modified clicks
+   * (new tab, new window) are left to the browser.
+   */
+  const linkProps = appPath
+    ? {
+        href: appPath,
+        onClick: (event: MouseEvent<HTMLAnchorElement>) => {
+          if (event.metaKey || event.ctrlKey || event.shiftKey || event.button) {
+            return;
+          }
+          event.preventDefault();
+          window.history.pushState(null, '', appPath);
+          window.dispatchEvent(new PopStateEvent('popstate'));
+        },
+      }
+    : { href: url, target: '_blank', rel: 'noopener noreferrer' };
   const showImage = !imageError && Boolean(image);
   const showFavicon = !faviconError && Boolean(favicon);
 
@@ -57,6 +89,8 @@ export function LinkPreviewCard({
               className="size-3.5 shrink-0 rounded-xs object-contain"
               onError={() => setFaviconError(true)}
             />
+          ) : appPath ? (
+            <CircleCheck className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
           ) : (
             <Globe className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
           )}
@@ -65,24 +99,22 @@ export function LinkPreviewCard({
             {siteName || displayDomain}
           </span>
 
-          <ExternalLink className="size-3 shrink-0 opacity-40 group-hover/preview:opacity-80" aria-hidden="true" />
+          {appPath ? null : (
+            <ExternalLink className="size-3 shrink-0 opacity-40 group-hover/preview:opacity-80" aria-hidden="true" />
+          )}
         </div>
 
         {/* Title */}
         {title ? (
           <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
+            {...linkProps}
             className="text-sm font-semibold text-brand-text transition-colors hover:underline focus-visible:underline focus-visible:outline-hidden line-clamp-2"
           >
             {title}
           </a>
         ) : (
           <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
+            {...linkProps}
             className="text-xs font-semibold text-brand-text truncate hover:underline"
           >
             {url}

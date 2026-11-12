@@ -7,6 +7,7 @@ import {
   type TaskStatus,
   type WorkItemType,
 } from '@org/types';
+import { ShareToChatDialog } from '@org/web-chat';
 import { useSaveForLater } from '@org/web-chat/bookmarks';
 import { useWorkspacePermission } from '@org/web-workspace';
 import { FiledFilesSection } from '@org/web-upload';
@@ -602,6 +603,8 @@ function CardDetailsBody({
   const agent = card.createdByAgent;
   const workflowId = agent?.workflowId;
 
+  const [isShareOpen, setIsShareOpen] = useState(false);
+
   const properties = (
     <CardPropertiesPanel
       card={card}
@@ -682,6 +685,7 @@ function CardDetailsBody({
         }
         link={`${window.location.origin}${window.location.pathname}?card=${card.id}`}
         compact={singleColumn}
+        onShare={() => setIsShareOpen(true)}
         canEdit={canEdit}
         canCreate={canCreate}
         canDelete={canDelete}
@@ -904,6 +908,19 @@ function CardDetailsBody({
           </aside>
         )}
       </div>
+
+      <ShareToChatDialog
+        target={
+          isShareOpen
+            ? {
+                noun: 'task',
+                title: `${identifier} · ${card.title}`,
+                url: `${window.location.pathname}?card=${card.id}`,
+              }
+            : null
+        }
+        onOpenChange={setIsShareOpen}
+      />
     </div>
   );
 }

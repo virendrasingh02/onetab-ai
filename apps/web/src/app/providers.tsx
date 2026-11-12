@@ -40,6 +40,7 @@ import {
   useMirrorPresenceToMatrix,
   CallOverlayBridge,
   LinkPreviewBridge,
+  ChatTaskDialogHost,
   MatrixProvider,
 } from '@org/web-chat';
 import {
@@ -723,6 +724,7 @@ export function Providers({ children }: { children: ReactNode }) {
                 <AuthenticatedMediaBridge>
                   <CallOverlayBridge />
                   <LinkPreviewBridge />
+                  <ChatTaskDialogHost />
                   <RealtimeAppBridge>
                     <TooltipProvider>
                       <MediaPreviewProvider>

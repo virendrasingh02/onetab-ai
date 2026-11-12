@@ -32,6 +32,7 @@ import {
   ListTree,
   Maximize2,
   MessageSquareText,
+  Send,
   MoreHorizontal,
   PanelRight,
   PenLine,
@@ -170,6 +171,8 @@ export interface CardHeaderProps {
   aiBusy: boolean;
   isSaved: boolean;
   onToggleSaved: () => void;
+  /** Opens "Share in chat" for this task. */
+  onShare: () => void;
   onTypeChange: (type: WorkItemType) => void;
   onRunAi: (task: CardAiTask) => void;
   onConvertToDoc: () => void;
@@ -193,6 +196,7 @@ export function CardHeader({
   aiBusy,
   isSaved,
   onToggleSaved,
+  onShare,
   onTypeChange,
   onRunAi,
   onConvertToDoc,
@@ -384,6 +388,10 @@ export function CardHeader({
             >
               <Copy className="mr-2 size-3.5" aria-hidden />
               Copy link
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={onShare}>
+              <Send className="mr-2 size-3.5" aria-hidden />
+              Share in chat…
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() =>

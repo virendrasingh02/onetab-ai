@@ -42,6 +42,7 @@ import {
 import { cn } from '@org/utils';
 import { useCurrentUser } from '@org/auth';
 import { ApiError, workToolsApi } from '@org/api-client';
+import { ShareToChatDialog, type ShareToChatTarget } from '@org/web-chat';
 import {
   Check,
   ChevronDown,
@@ -64,6 +65,7 @@ import {
   Plus,
   RotateCw,
   Search,
+  Send,
   Settings,
   SlidersHorizontal,
   Table,
@@ -415,14 +417,9 @@ export function AsanaProjectManager() {
   const projectTasks = rawTasksQuery.data ?? [];
 
   useEffect(() => {
-    const cardParam = searchParams.get('card') ?? searchParams.get('taskId');
-    if (cardParam) {
-      setSelectedCardId(cardParam);
-    }
-
     const openNewProject = searchParams.get('newProject') === 'true';
     const openImport = searchParams.get('import') === 'true';
-    if (!openNewProject && !openImport && !cardParam) return;
+    if (!openNewProject && !openImport) return;
 
     if (openNewProject) setIsNewProjectOpen(true);
     if (openImport) setIsImportOpen(true);
@@ -430,10 +427,70 @@ export function AsanaProjectManager() {
     const next = new URLSearchParams(searchParams);
     next.delete('newProject');
     next.delete('import');
-    next.delete('card');
-    next.delete('taskId');
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
+
+  /*
+   * `?card=<id>` (and the older `?taskId=`) opens a task. Links from chat,
+   * Saved, the dashboard and agents often carry no project, or the wrong one,
+   * so a task that is not on this board is looked up and its own project
+   * opened first. The param stays until the task is on screen.
+   */
+  const cardParam = searchParams.get('card') ?? searchParams.get('taskId');
+  const boardSettled =
+    !projectsQuery.isLoading && (!activeProject || !rawTasksQuery.isLoading);
+  const cardIsHere = projectTasks.some((task) => task.id === cardParam);
+  useEffect(() => {
+    if (!cardParam || !workspaceId || !boardSettled) return;
+
+    const clearParam = () =>
+      setSearchParams(
+        (current) => {
+          const next = new URLSearchParams(current);
+          next.delete('card');
+          next.delete('taskId');
+          return next;
+        },
+        { replace: true },
+      );
+
+    if (cardIsHere) {
+      setSelectedCardId(cardParam);
+      clearParam();
+      return;
+    }
+
+    let cancelled = false;
+    workToolsApi
+      .task(workspaceId, cardParam)
+      .then((task) => {
+        if (cancelled) return;
+        const home = projects.find((project) => project.id === task.projectId);
+        if (!home) {
+          toast.error('This task is not in a project, so it has no board.');
+          clearParam();
+        } else if (home.id === activeProject?.id) {
+          // Created a moment ago: the board's list has not caught up yet.
+          void rawTasksQuery.refetch();
+        } else {
+          navigate(
+            `/w/${workspaceSlug}/projects/${home.slug}?card=${cardParam}`,
+            { replace: true },
+          );
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        toast.error('That task was deleted, or you do not have access to it.');
+        clearParam();
+      });
+    return () => {
+      cancelled = true;
+    };
+    // `projects` and the queries are read at fire time; re-running on their
+    // identity would refetch the task on every background refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardParam, cardIsHere, boardSettled, workspaceId, activeProject?.id]);
 
   const openProject = (projectId: string, view?: ProjectViewMode) => {
     setSelectedProjectId(projectId);
@@ -466,6 +523,15 @@ export function AsanaProjectManager() {
   const [isViewDisplayOpen, setIsViewDisplayOpen] = useState(false);
   const [isCommandMenuOpen, setIsCommandMenuOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const [shareTarget, setShareTarget] = useState<ShareToChatTarget | null>(
+    null,
+  );
+  const shareProject = (project: { name: string; slug: string }) =>
+    setShareTarget({
+      noun: 'project',
+      title: project.name,
+      url: `/w/${workspaceSlug}/projects/${project.slug}`,
+    });
 
   /** Set while the new-task dialog is open: the column it starts on. */
   const [newTaskStatus, setNewTaskStatus] = useState<TaskStatus | null>(null);
@@ -842,6 +908,7 @@ export function AsanaProjectManager() {
               path: `/w/${workspaceSlug}/projects/${project.id}`,
               onOpen: () => openProject(project.id),
               onOpenSettings: () => openProject(project.id, 'settings'),
+              onShare: () => shareProject(project),
               onRename: async () => {
                 const name = await prompts.promptText({
                   title: 'Rename project',
@@ -1061,6 +1128,13 @@ export function AsanaProjectManager() {
                     </span>
                   </DropdownMenuItem>
                 )}
+                <DropdownMenuItem
+                  onClick={() => shareProject(activeProject)}
+                  className="text-xs gap-2"
+                >
+                  <Send className="size-3.5 text-muted-foreground" />
+                  Share in chat…
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => setViewMode('settings')}
                   className="text-xs gap-2"
@@ -1454,6 +1528,11 @@ export function AsanaProjectManager() {
           </>
         )}
       </main>
+
+      <ShareToChatDialog
+        target={shareTarget}
+        onOpenChange={(open) => !open && setShareTarget(null)}
+      />
 
       {/* Card Details Modal Dialog */}
       {selectedCardId && (

@@ -7,6 +7,7 @@ import {
   FolderOpen,
   Link2,
   Pencil,
+  Send,
   Settings,
   Star,
   Trash2,
@@ -26,6 +27,8 @@ export interface ProjectActionOptions {
   /** Deletes without asking — the action confirms first. */
   onDelete?: () => unknown;
   onExport?: () => unknown;
+  /** Opens "Share in chat" for this project. */
+  onShare?: () => unknown;
   favorite?: { isFavorite: boolean; onToggle: () => void };
 }
 
@@ -48,6 +51,7 @@ export function buildProjectActions({
   onSetStatus,
   onDelete,
   onExport,
+  onShare,
   favorite,
 }: ProjectActionOptions): EntityAction[] {
   const canUpdate = can(WorkspacePermission.UPDATE);
@@ -89,6 +93,14 @@ export function buildProjectActions({
       icon: Link2,
       shortcut: 'C',
       run: () => copyToClipboard(entityUrl(path)),
+    },
+    {
+      id: 'share',
+      group: 'organize',
+      label: 'Share in chat…',
+      icon: Send,
+      hidden: !onShare,
+      run: onShare,
     },
     {
       id: 'export',
