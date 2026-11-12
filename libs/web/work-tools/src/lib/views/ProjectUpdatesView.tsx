@@ -92,7 +92,7 @@ export function ProjectUpdatesView({
   };
 
   return (
-    <div className="gap-6 p-4 max-w-4xl mx-auto flex h-full w-full flex-col overflow-y-auto">
+    <div className="gap-6 px-4 sm:px-6 py-4 max-w-4xl mx-auto flex h-full w-full flex-col overflow-y-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

@@ -10,6 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   Progress,
+  SkeletonList,
   UserAvatar,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -34,6 +35,7 @@ import {
   PRIORITY_META,
 } from '../kanban/card-meta.js';
 import { PriorityIcon } from '../kanban/kanban-icons.js';
+import { PROJECT_VIEW_PADDING, TaskTicket } from '../kanban/task-view-parts.js';
 import type { BoardState, KanbanCard, Priority } from '../kanban/types.js';
 
 /**
@@ -83,6 +85,7 @@ interface ProjectDashboardViewProps {
   status?: ProjectStatus;
   onStatusChange?: (status: ProjectStatus) => void;
   onSelectCard?: (card: KanbanCard, listId: string) => void;
+  isLoading?: boolean;
 }
 
 export function ProjectDashboardView({
@@ -90,6 +93,7 @@ export function ProjectDashboardView({
   status = ProjectStatus.ACTIVE,
   onStatusChange,
   onSelectCard,
+  isLoading = false,
 }: ProjectDashboardViewProps) {
   // Calculated Metrics
   const metrics = useMemo(() => {
@@ -119,11 +123,13 @@ export function ProjectDashboardView({
         ) {
           inProgress++;
         }
+        // Cancelled work is closed: it is never overdue or pressing.
+        const isOpen =
+          !card.dueComplete && list.category !== TaskStatus.CANCELLED;
         const isOverdue =
-          !!card.dueDate && !card.dueComplete && daysUntil(card.dueDate) < 0;
+          isOpen && !!card.dueDate && daysUntil(card.dueDate) < 0;
         const isPressing =
-          !card.dueComplete &&
-          (card.priority === 'HIGH' || card.priority === 'URGENT');
+          isOpen && (card.priority === 'HIGH' || card.priority === 'URGENT');
         if (isOverdue) overdue++;
         if (isPressing) urgentOrHigh++;
         if (isOverdue || isPressing) attention.push({ card, listId: list.id });
@@ -159,8 +165,21 @@ export function ProjectDashboardView({
       (a, b) => metrics.memberTaskCounts[b.id] - metrics.memberTaskCounts[a.id],
     );
 
+  if (isLoading) {
+    return (
+      <div className={cn(PROJECT_VIEW_PADDING, 'max-w-7xl mx-auto w-full')}>
+        <SkeletonList rows={6} />
+      </div>
+    );
+  }
+
   return (
-    <div className="gap-6 p-4 max-w-7xl mx-auto flex w-full flex-col text-foreground">
+    <div
+      className={cn(
+        PROJECT_VIEW_PADDING,
+        'gap-6 max-w-7xl mx-auto flex w-full flex-col text-foreground',
+      )}
+    >
       {/* Project Status Banner */}
       <div
         className={cn(
@@ -221,7 +240,7 @@ export function ProjectDashboardView({
         <div className="gap-4 flex min-w-[200px] items-center">
           <div className="flex-1">
             <div className="text-xs font-semibold mb-1 flex justify-between">
-              <span>Overall Completion</span>
+              <span>Completion</span>
               <span>{metrics.completionRate}%</span>
             </div>
             <Progress value={metrics.completionRate} className="h-2" />
@@ -323,9 +342,7 @@ export function ProjectDashboardView({
                     priority={card.priority}
                     className="size-3.5 shrink-0"
                   />
-                  <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
-                    {card.ticketId}
-                  </span>
+                  <TaskTicket ticket={card.ticketId ?? card.identifier} />
                   <span className="min-w-0 font-medium flex-1 truncate text-foreground">
                     {card.title}
                   </span>

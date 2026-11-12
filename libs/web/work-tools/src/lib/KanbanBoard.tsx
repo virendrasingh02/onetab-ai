@@ -173,7 +173,7 @@ export function KanbanBoard({
   });
 
   return (
-    <div className="group/board min-h-128 px-4 sm:px-6 py-4 sm:py-6 flex h-full flex-col overflow-hidden text-foreground">
+    <div className="group/board min-h-128 px-4 sm:px-6 py-4 flex h-full flex-col overflow-hidden text-foreground">
       {/* Board Filter Controls & AI Overlay */}
       <div className="mb-2 space-y-2 relative shrink-0">
         {/* AI Filter Input Prompt Overlay Bar */}
@@ -319,7 +319,7 @@ export function KanbanBoard({
           {[0, 1, 2, 3].map((column) => (
             <div
               key={column}
-              className="w-[85vw] sm:w-80 md:w-84 xl:w-[320px] 2xl:w-[340px] p-3 shrink-0 rounded-xl border border-border bg-surface-muted"
+              className="sm:w-80 md:w-84 xl:w-[320px] 2xl:w-[340px] p-3 w-[85vw] shrink-0 rounded-xl border border-border bg-surface-muted"
             >
               <SkeletonList rows={3} />
             </div>
@@ -328,7 +328,7 @@ export function KanbanBoard({
       ) : (
         <div
           ref={scrollerRef}
-          className="scrollbar-subtle gap-4 sm:gap-5 pb-6 relative flex flex-1 items-start overflow-x-auto min-h-0"
+          className="scrollbar-subtle gap-4 sm:gap-5 pb-6 min-h-0 relative flex flex-1 items-start overflow-x-auto"
         >
           {board.lists.map((list, index) => (
             <KanbanListColumn

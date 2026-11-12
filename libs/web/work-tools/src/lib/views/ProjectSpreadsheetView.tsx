@@ -4,203 +4,221 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
+  SkeletonList,
   UserAvatar,
 } from '@org/ui';
-import { TaskPriority, type PublicUser, type Task } from '@org/types';
+import { TaskStatus, type PublicUser, type Task } from '@org/types';
+import { cn } from '@org/utils';
+import { Calendar } from 'lucide-react';
 import { useState } from 'react';
+import { describeDue, DUE_TEXT_CLASSES } from '../kanban/card-meta.js';
 import { PriorityIcon, StatusIcon } from '../kanban/kanban-icons.js';
+import { KanbanPriorityPicker } from '../kanban/KanbanPriorityPicker.js';
 import { KanbanStatusPicker } from '../kanban/KanbanStatusPicker.js';
 import { dayToIso, isoToDay, taskTicket } from '../kanban/server-board.js';
+import {
+  PROJECT_VIEW_PADDING,
+  TaskLabelChips,
+  TaskTicket,
+  TaskViewEmpty,
+} from '../kanban/task-view-parts.js';
 import { stateIdOf, useWorkflowStates } from '../kanban/task-states.js';
+import type { KanbanCard, Priority } from '../kanban/types.js';
 
 interface ProjectSpreadsheetViewProps {
   tasks: Task[];
   members: PublicUser[];
   onSelectTask: (task: Task) => void;
   onUpdateTask: (taskId: string, patch: Partial<Task>) => void;
+  isLoading?: boolean;
+  /** True when search or filters are narrowing `tasks`. */
+  filtered?: boolean;
+  onClearFilters?: () => void;
+  onAddTask?: () => void;
 }
+
+/** An inline cell control: borderless until hovered, like a spreadsheet cell. */
+const CELL_TRIGGER =
+  'h-7 px-1.5 gap-1.5 flex w-full min-w-0 items-center rounded-md border border-transparent bg-transparent text-left text-xs text-foreground transition-colors hover:border-border hover:bg-muted/50 focus-visible:border-ring focus-visible:outline-none';
+
+const PRIORITY_LABELS: Record<Priority, string> = {
+  URGENT: 'Urgent',
+  HIGH: 'High',
+  MEDIUM: 'Medium',
+  LOW: 'Low',
+};
 
 export function ProjectSpreadsheetView({
   tasks,
   members,
   onSelectTask,
   onUpdateTask,
+  isLoading = false,
+  filtered = false,
+  onClearFilters,
+  onAddTask,
 }: ProjectSpreadsheetViewProps) {
   const { nameOf, patchFor } = useWorkflowStates();
-  const [editingCell, setEditingCell] = useState<{
-    taskId: string;
-    field: string;
-  } | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
 
-  const filteredTasks = tasks;
-
-  const handleTitleBlur = (taskId: string) => {
-    if (editTitle.trim()) {
-      onUpdateTask(taskId, { title: editTitle.trim() });
-    }
-    setEditingCell(null);
+  const commitTitle = (task: Task) => {
+    const next = editTitle.trim();
+    if (next && next !== task.title) onUpdateTask(task.id, { title: next });
+    setEditingId(null);
   };
 
+  if (isLoading) {
+    return (
+      <div className={PROJECT_VIEW_PADDING}>
+        <SkeletonList rows={8} />
+      </div>
+    );
+  }
+
+  if (tasks.length === 0) {
+    return (
+      <div className={PROJECT_VIEW_PADDING}>
+        <TaskViewEmpty
+          filtered={filtered}
+          onClearFilters={onClearFilters}
+          onAddTask={onAddTask}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="p-4 h-full">
-      <div className="flex h-full w-full flex-col overflow-hidden rounded-xl border border-border/60 bg-background shadow-xs select-none">
-        {/* Header bar */}
+    <div className={cn(PROJECT_VIEW_PADDING, 'h-full')}>
+      <div className="flex h-full w-full flex-col overflow-hidden rounded-xl border border-border/60 bg-card shadow-xs">
         <div className="px-4 py-2.5 text-xs font-medium flex items-center border-b border-border/60 bg-muted/40 text-muted-foreground">
-          {filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'}
+          {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
         </div>
 
-        {/* Spreadsheet Table */}
-        <div className="flex-1 overflow-auto">
-          <table className="text-xs w-full border-collapse text-left">
-            <thead className="top-0 font-medium sticky z-10 border-b border-border/80 bg-muted/60 text-[11px] text-muted-foreground">
+        <div className="scrollbar-subtle flex-1 overflow-auto">
+          <table className="text-xs min-w-240 w-full border-collapse text-left">
+            <thead className="top-0 font-medium sticky z-10 border-b border-border/60 bg-muted/60 text-[11px] text-muted-foreground">
               <tr>
-                <th className="py-2.5 px-3 w-28">ID</th>
-                <th className="py-2.5 px-3 min-w-[240px]">Title</th>
+                <th className="py-2.5 px-3 w-24">ID</th>
+                <th className="py-2.5 px-3 min-w-60">Title</th>
                 <th className="py-2.5 px-3 w-36">Status</th>
-                <th className="py-2.5 px-3 w-32">Priority</th>
+                <th className="py-2.5 px-3 w-28">Priority</th>
                 <th className="py-2.5 px-3 w-40">Assignee</th>
-                <th className="py-2.5 px-3 w-40">Due date</th>
-                <th className="py-2.5 px-3 w-24">Estimate</th>
-                <th className="py-2.5 px-3 w-36">Labels</th>
+                <th className="py-2.5 px-3 w-32">Due date</th>
+                <th className="py-2.5 px-3 w-20">Estimate</th>
+                <th className="py-2.5 px-3 w-40">Labels</th>
               </tr>
             </thead>
-            <tbody className="text-xs divide-y divide-border/40">
-              {filteredTasks.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={8}
-                    className="py-12 text-center font-sans text-muted-foreground"
-                  >
-                    No tasks to show
-                  </td>
-                </tr>
-              ) : (
-                filteredTasks.map((task) => (
+            <tbody className="divide-y divide-border/40">
+              {tasks.map((task) => {
+                const stateId = stateIdOf(task);
+                // Only the two fields describeDue reads.
+                const due = describeDue({
+                  dueDate: isoToDay(task.dueDate),
+                  dueComplete: task.status === TaskStatus.DONE,
+                } as KanbanCard);
+                const assigneeName =
+                  task.assignee?.displayName || task.assignee?.name || '';
+                const subDone =
+                  task.subItems?.filter((s) => s.status === 'DONE').length ?? 0;
+                return (
                   <tr
                     key={task.id}
                     className="group cursor-pointer transition-colors hover:bg-muted/30"
                     onClick={() => onSelectTask(task)}
                   >
-                    {/* Identifier */}
-                    <td className="py-2 px-3 font-semibold shrink-0 text-primary">
-                      <span className="gap-1 px-1.5 py-0.5 rounded inline-flex items-center border border-brand/20 bg-brand/10 font-mono text-[11px] text-brand-text">
-                        {taskTicket(task)}
-                      </span>
+                    <td className="py-1.5 px-3">
+                      <TaskTicket ticket={taskTicket(task)} />
                     </td>
 
-                    {/* Title */}
+                    {/* Title: click to edit in place, like a spreadsheet cell. */}
                     <td
-                      className="py-2 px-3 font-medium font-sans text-foreground"
+                      className="py-1.5 px-3 font-medium text-foreground"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setEditingCell({ taskId: task.id, field: 'title' });
+                        setEditingId(task.id);
                         setEditTitle(task.title);
                       }}
                     >
-                      {editingCell?.taskId === task.id &&
-                      editingCell.field === 'title' ? (
+                      {editingId === task.id ? (
                         <input
                           autoFocus
                           type="text"
+                          aria-label="Task title"
                           value={editTitle}
                           onChange={(e) => setEditTitle(e.target.value)}
-                          onBlur={() => handleTitleBlur(task.id)}
+                          onBlur={() => commitTitle(task)}
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleTitleBlur(task.id);
-                            if (e.key === 'Escape') setEditingCell(null);
+                            if (e.key === 'Enter') commitTitle(task);
+                            if (e.key === 'Escape') setEditingId(null);
                           }}
-                          className="rounded px-1.5 py-0.5 text-xs w-full border border-primary bg-background font-sans text-foreground shadow-xs outline-none"
+                          className="h-7 px-1.5 text-xs w-full rounded-md border border-ring bg-background text-foreground shadow-xs outline-none"
                         />
                       ) : (
-                        <div className="gap-2 flex items-center">
-                          <span className="truncate">{task.title}</span>
-                          {task.subItems && task.subItems.length > 0 && (
-                            <span className="px-1.5 py-0.2 rounded bg-muted font-mono text-[10px] text-muted-foreground">
-                              {
-                                task.subItems.filter((s) => s.status === 'DONE')
-                                  .length
-                              }
-                              /{task.subItems.length}
+                        <div className="gap-2 min-w-0 flex items-center">
+                          <span className="truncate" title="Click to rename">
+                            {task.title}
+                          </span>
+                          {task.subItems && task.subItems.length > 0 ? (
+                            <span className="shrink-0 font-mono text-[11px] text-muted-foreground tabular-nums">
+                              {subDone}/{task.subItems.length}
                             </span>
-                          )}
+                          ) : null}
                         </div>
                       )}
                     </td>
 
-                    {/* Status */}
                     <td
-                      className="py-2 px-3 font-sans"
+                      className="py-1.5 px-3"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <KanbanStatusPicker
-                        status={stateIdOf(task)}
+                        status={stateId}
                         onStatusChange={(id) =>
                           onUpdateTask(task.id, patchFor(id))
                         }
                         trigger={
-                          <button
-                            type="button"
-                            className="h-6 text-xs p-1 gap-1.5 flex w-full items-center rounded-md border border-transparent bg-transparent text-left hover:border-border hover:bg-muted/50"
-                          >
+                          <button type="button" className={CELL_TRIGGER}>
                             <StatusIcon
-                              status={stateIdOf(task)}
+                              status={stateId}
                               className="size-3.5"
                               showTooltip={false}
                             />
-                            <span className="text-xs truncate">
-                              {nameOf(stateIdOf(task))}
+                            <span className="truncate">{nameOf(stateId)}</span>
+                          </button>
+                        }
+                      />
+                    </td>
+
+                    <td
+                      className="py-1.5 px-3"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <KanbanPriorityPicker
+                        required
+                        priority={task.priority}
+                        onPriorityChange={(value) =>
+                          onUpdateTask(task.id, {
+                            priority: value as Task['priority'],
+                          })
+                        }
+                        trigger={
+                          <button type="button" className={CELL_TRIGGER}>
+                            <PriorityIcon
+                              priority={task.priority}
+                              className="size-3.5"
+                            />
+                            <span className="truncate">
+                              {PRIORITY_LABELS[task.priority as Priority] ??
+                                task.priority}
                             </span>
                           </button>
                         }
                       />
                     </td>
 
-                    {/* Priority */}
                     <td
-                      className="py-2 px-3 font-sans"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Select
-                        value={task.priority}
-                        onValueChange={(val) =>
-                          onUpdateTask(task.id, {
-                            priority: val as TaskPriority,
-                          })
-                        }
-                      >
-                        <SelectTrigger className="h-6 text-xs p-1 gap-1 w-full justify-between border-transparent bg-transparent hover:border-border hover:bg-muted/50">
-                          <div className="gap-1.5 flex items-center truncate">
-                            <PriorityIcon
-                              priority={task.priority}
-                              className="size-3.5"
-                            />
-                            <span className="text-xs truncate capitalize">
-                              {task.priority.toLowerCase()}
-                            </span>
-                          </div>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.values(TaskPriority).map((pr) => (
-                            <SelectItem key={pr} value={pr}>
-                              <div className="gap-2 flex items-center">
-                                <PriorityIcon
-                                  priority={pr}
-                                  className="size-3.5"
-                                />
-                                <span className="capitalize">
-                                  {pr.toLowerCase()}
-                                </span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </td>
-
-                    {/* Assignee */}
-                    <td
-                      className="py-2 px-3 font-sans"
+                      className="py-1.5 px-3"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <Select
@@ -211,55 +229,49 @@ export function ProjectSpreadsheetView({
                           })
                         }
                       >
-                        <SelectTrigger className="h-6 text-xs p-1 gap-1 w-full justify-between border-transparent bg-transparent hover:border-border hover:bg-muted/50">
-                          <div className="gap-1.5 flex items-center truncate">
+                        <SelectTrigger
+                          aria-label="Assignee"
+                          className={cn(CELL_TRIGGER, 'justify-between')}
+                        >
+                          <span className="gap-1.5 min-w-0 flex items-center">
                             {task.assignee ? (
                               <>
                                 <UserAvatar
-                                  name={
-                                    task.assignee.displayName ||
-                                    task.assignee.name
-                                  }
+                                  name={assigneeName}
                                   seed={task.assignee.id}
                                   src={task.assignee.avatarUrl}
                                   size="xs"
-                                  className="size-4"
                                 />
-                                <span className="text-xs truncate">
-                                  {task.assignee.displayName ||
-                                    task.assignee.name}
-                                </span>
+                                <span className="truncate">{assigneeName}</span>
                               </>
                             ) : (
-                              <span className="text-xs text-muted-foreground">
+                              <span className="text-muted-foreground">
                                 Unassigned
                               </span>
                             )}
-                          </div>
+                          </span>
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="unassigned">Unassigned</SelectItem>
                           {members.map((m) => (
                             <SelectItem key={m.id} value={m.id}>
-                              <div className="gap-2 flex items-center">
+                              <span className="gap-2 flex items-center">
                                 <UserAvatar
                                   name={m.displayName || m.name}
                                   seed={m.id}
                                   src={m.avatarUrl}
                                   size="xs"
-                                  className="size-4"
                                 />
                                 <span>{m.displayName || m.name}</span>
-                              </div>
+                              </span>
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </td>
 
-                    {/* Due Date */}
                     <td
-                      className="py-1 px-3 text-xs font-sans"
+                      className="py-1.5 px-3"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <DatePicker
@@ -269,14 +281,30 @@ export function ProjectSpreadsheetView({
                             dueDate: day ? dayToIso(day) : null,
                           })
                         }
-                        placeholder="No date"
-                        className="[&_button]:h-6 [&_button]:px-1 [&_button]:text-xs w-full [&_button]:border-transparent [&_button]:bg-transparent [&_button]:shadow-none [&_button]:hover:border-border"
+                        trigger={
+                          <button type="button" className={CELL_TRIGGER}>
+                            <Calendar className="size-3.5 shrink-0 text-muted-foreground" />
+                            {due ? (
+                              <span
+                                className={cn(
+                                  'truncate',
+                                  DUE_TEXT_CLASSES[due.tone],
+                                )}
+                              >
+                                {due.label}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">
+                                No date
+                              </span>
+                            )}
+                          </button>
+                        }
                       />
                     </td>
 
-                    {/* Estimate */}
                     <td
-                      className="py-1 px-3 text-xs"
+                      className="py-1.5 px-3"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <input
@@ -294,30 +322,20 @@ export function ProjectSpreadsheetView({
                             onUpdateTask(task.id, { estimate: next });
                           }
                         }}
-                        className="h-6 w-16 rounded px-1 border border-transparent bg-transparent text-foreground tabular-nums outline-none hover:border-border focus:border-primary"
+                        className="h-7 w-16 px-1.5 text-xs rounded-md border border-transparent bg-transparent text-foreground tabular-nums transition-colors outline-none hover:border-border focus:border-ring"
                       />
                     </td>
 
-                    {/* Labels */}
-                    <td className="py-2 px-3 font-sans">
-                      <div className="gap-1 flex items-center overflow-hidden">
-                        {task.labels && task.labels.length > 0 ? (
-                          task.labels.slice(0, 2).map((lbl) => (
-                            <span
-                              key={lbl}
-                              className="px-1.5 py-0.5 rounded max-w-[80px] truncate border border-border/40 bg-muted/80 text-[10px] text-muted-foreground"
-                            >
-                              {lbl}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-muted-foreground/40">—</span>
-                        )}
-                      </div>
+                    <td className="py-1.5 px-3">
+                      {task.labels && task.labels.length > 0 ? (
+                        <TaskLabelChips labels={task.labels} />
+                      ) : (
+                        <span className="text-muted-foreground/50">—</span>
+                      )}
                     </td>
                   </tr>
-                ))
-              )}
+                );
+              })}
             </tbody>
           </table>
         </div>

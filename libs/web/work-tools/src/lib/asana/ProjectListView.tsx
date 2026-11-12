@@ -5,14 +5,15 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DatePicker,
   Input,
   ScrollArea,
+  SkeletonList,
   UserAvatar,
   UserAvatarGroup,
 } from '@org/ui';
 import { TaskStatus, WorkspacePermission } from '@org/types';
 import { useWorkspacePermission } from '@org/web-workspace';
-import { SkeletonList } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   Calendar,
@@ -24,22 +25,45 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
-import {
-  describeDue,
-  PRIORITIES,
-  DUE_TONE_CLASSES,
-} from '../kanban/card-meta.js';
+import { describeDue, DUE_TEXT_CLASSES } from '../kanban/card-meta.js';
 import { useKanbanDisplayStore } from '../kanban/kanban-display-store.js';
 import { PriorityIcon, StatusIcon } from '../kanban/kanban-icons.js';
+import { KanbanPriorityPicker } from '../kanban/KanbanPriorityPicker.js';
+import { KanbanStatusPicker } from '../kanban/KanbanStatusPicker.js';
 import { useWorkflowStates } from '../kanban/task-states.js';
+import {
+  PROJECT_VIEW_PADDING,
+  TaskLabelChips,
+  TaskTicket,
+  TaskViewEmpty,
+} from '../kanban/task-view-parts.js';
 import { compareBy, type BoardAction } from '../kanban/server-board.js';
-import type { BoardState, KanbanCard, KanbanList } from '../kanban/types.js';
+import type {
+  BoardState,
+  KanbanCard,
+  KanbanList,
+  Priority,
+} from '../kanban/types.js';
+
+const PRIORITY_LABELS: Record<Priority, string> = {
+  URGENT: 'Urgent',
+  HIGH: 'High',
+  MEDIUM: 'Medium',
+  LOW: 'Low',
+};
+
+/** An inline cell control: borderless until hovered, matching the Table view. */
+const CELL_TRIGGER =
+  'h-7 px-1.5 gap-1.5 inline-flex max-w-full min-w-0 items-center rounded-md border border-transparent bg-transparent text-left text-xs text-foreground transition-colors hover:border-border hover:bg-muted/50 focus-visible:border-ring focus-visible:outline-none';
 
 interface ProjectListViewProps {
   board: BoardState;
   dispatch: (action: BoardAction) => void;
   onSelectCard: (card: KanbanCard, listId: KanbanList['id']) => void;
   isLoading?: boolean;
+  /** True when search or filters are narrowing the board. */
+  filtered?: boolean;
+  onClearFilters?: () => void;
 }
 
 export function ProjectListView({
@@ -47,6 +71,8 @@ export function ProjectListView({
   dispatch,
   onSelectCard,
   isLoading = false,
+  filtered = false,
+  onClearFilters,
 }: ProjectListViewProps) {
   const orderBy = useKanbanDisplayStore((state) => state.orderBy);
   const canDelete = useWorkspacePermission().can(WorkspacePermission.DELETE);
@@ -77,36 +103,53 @@ export function ProjectListView({
 
   if (isLoading) {
     return (
-      <div className="p-4">
+      <div className={PROJECT_VIEW_PADDING}>
         <SkeletonList rows={6} />
       </div>
     );
   }
 
+  // While filtering, a section with no matches is noise: show only the hits.
+  const lists = filtered
+    ? board.lists.filter((list) => list.cards.length > 0)
+    : board.lists;
+
+  if (filtered && lists.length === 0) {
+    return (
+      <div className={PROJECT_VIEW_PADDING}>
+        <TaskViewEmpty filtered onClearFilters={onClearFilters} />
+      </div>
+    );
+  }
+
   return (
-    <div className="gap-6 p-4 flex w-full max-w-full flex-col overflow-x-auto text-foreground">
-      {board.lists.map((list) => {
+    <div
+      className={cn(
+        PROJECT_VIEW_PADDING,
+        'gap-4 flex w-full max-w-full flex-col overflow-x-auto text-foreground',
+      )}
+    >
+      {lists.map((list) => {
         const isCollapsed = collapsedLists[list.id];
         const filteredCards =
           orderBy === 'manual'
             ? list.cards
             : [...list.cards].sort(compareBy(orderBy));
-        const completedCount = filteredCards.filter(
-          (c) => c.dueComplete,
-        ).length;
         const totalCount = filteredCards.length;
 
         return (
           <div
             key={list.id}
-            className="flex flex-col overflow-hidden rounded-xl border border-border/60 bg-card/60 shadow-xs transition-all duration-200"
+            className="flex flex-col overflow-hidden rounded-xl border border-border/60 bg-card shadow-xs"
           >
             {/* Section Header */}
-            <div className="px-4 py-3 flex items-center justify-between border-b border-border/40 bg-muted/40 select-none">
-              <div className="gap-3 flex items-center">
+            <div className="px-3 py-2 flex items-center justify-between border-b border-border/60 bg-muted/40 select-none">
+              <div className="gap-2 flex items-center">
                 <button
                   type="button"
                   onClick={() => toggleCollapse(list.id)}
+                  aria-expanded={!isCollapsed}
+                  aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${list.title}`}
                   className="p-1 rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   {isCollapsed ? (
@@ -116,10 +159,10 @@ export function ProjectListView({
                   )}
                 </button>
                 <StatusIcon status={list.id} className="size-4" />
-                <h3 className="text-sm font-semibold tracking-tight gap-2 flex items-center text-foreground">
+                <h3 className="text-sm font-semibold gap-2 flex items-center text-foreground">
                   {list.title}
-                  <span className="text-xs font-normal px-2 py-0.5 rounded-full border border-border/40 bg-muted text-muted-foreground">
-                    {completedCount}/{totalCount}
+                  <span className="text-xs font-normal text-muted-foreground tabular-nums">
+                    {totalCount}
                   </span>
                 </h3>
               </div>
@@ -133,8 +176,8 @@ export function ProjectListView({
                   }
                   className="text-xs text-muted-foreground hover:text-foreground"
                 >
-                  <Plus className="w-3.5 h-3.5 mr-1" />
-                  Add Task
+                  <Plus className="size-3.5" />
+                  Add task
                 </Button>
               </div>
             </div>
@@ -143,15 +186,14 @@ export function ProjectListView({
             {!isCollapsed && (
               <ScrollArea className="w-full">
                 <table className="text-xs w-full min-w-[720px] border-collapse text-left">
-                  <thead>
-                    <tr className="font-medium border-b border-border/30 bg-muted/20 text-muted-foreground/70">
-                      <th className="py-2.5 px-4 w-[40%]">Task Name</th>
-                      <th className="py-2.5 px-3 w-[15%]">Assignee</th>
-                      <th className="py-2.5 px-3 w-[15%]">Due Date</th>
-                      <th className="py-2.5 px-3 w-[15%]">Priority</th>
-                      <th className="py-2.5 px-3 pr-4 w-[15%] text-right">
-                        Status / Move
-                      </th>
+                  {/* Headers only label rows; an empty section has none. */}
+                  <thead className={cn(totalCount === 0 && 'sr-only')}>
+                    <tr className="font-medium border-b border-border/40 text-[11px] text-muted-foreground">
+                      <th className="py-2 px-4 w-[40%]">Task</th>
+                      <th className="py-2 px-3 w-[15%]">Assignee</th>
+                      <th className="py-2 px-3 w-[15%]">Due date</th>
+                      <th className="py-2 px-3 w-[13%]">Priority</th>
+                      <th className="py-2 px-3 pr-4 w-[17%]">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/30">
@@ -207,17 +249,13 @@ export function ProjectListView({
                                 )}
                               </button>
 
-                              {ticketId ? (
-                                <span className="font-semibold px-1.5 py-0.2 rounded shrink-0 border border-border/50 bg-muted/70 font-mono text-[10.5px] text-muted-foreground">
-                                  {ticketId}
-                                </span>
-                              ) : null}
+                              <TaskTicket ticket={ticketId} />
 
                               <button
                                 type="button"
                                 onClick={() => onSelectCard(card, list.id)}
                                 className={cn(
-                                  'font-medium max-w-[300px] truncate text-left text-foreground transition-colors hover:text-primary hover:underline',
+                                  'font-medium min-w-0 truncate text-left text-foreground transition-colors hover:text-primary',
                                   card.dueComplete &&
                                     'text-muted-foreground line-through',
                                 )}
@@ -225,24 +263,10 @@ export function ProjectListView({
                                 {card.title}
                               </button>
 
-                              {card.labels.length > 0 && (
-                                <div className="sm:flex gap-1 hidden items-center">
-                                  {card.labels.slice(0, 2).map((lbl) => (
-                                    <span
-                                      key={lbl}
-                                      className="font-semibold px-1.5 py-0.2 rounded border border-accent-violet/20 bg-accent-violet-soft text-[9.5px] text-accent-violet"
-                                    >
-                                      {lbl}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-
-                              {card.milestone && (
-                                <span className="px-1.5 py-0.5 rounded ml-1 border border-border/40 bg-muted text-[10px] text-muted-foreground">
-                                  {card.milestone}
-                                </span>
-                              )}
+                              <TaskLabelChips
+                                labels={card.labels}
+                                className="sm:flex hidden"
+                              />
                             </div>
                           </td>
 
@@ -250,10 +274,7 @@ export function ProjectListView({
                           <td className="py-2.5 px-3">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <button
-                                  type="button"
-                                  className="gap-1.5 p-1 flex items-center rounded-md text-left text-muted-foreground transition-colors hover:bg-muted/60"
-                                >
+                                <button type="button" className={CELL_TRIGGER}>
                                   {assignedMember ? (
                                     <>
                                       {assignedMembers.length > 1 ? (
@@ -274,14 +295,14 @@ export function ProjectListView({
                                           size="xs"
                                         />
                                       )}
-                                      <span className="max-w-[90px] truncate">
+                                      <span className="truncate">
                                         {assignedMembers.length > 1
                                           ? `${assignedMembers.length} assignees`
                                           : assignedMember.name}
                                       </span>
                                     </>
                                   ) : (
-                                    <span className="text-[11px] text-muted-foreground/60 italic">
+                                    <span className="text-muted-foreground">
                                       Unassigned
                                     </span>
                                   )}
@@ -316,107 +337,98 @@ export function ProjectListView({
                             </DropdownMenu>
                           </td>
 
-                          {/* Due Date */}
-                          <td className="py-2.5 px-3">
-                            {dueInfo ? (
-                              <span
-                                className={cn(
-                                  'gap-1 px-2 py-0.5 rounded font-medium inline-flex items-center border text-[11px]',
-                                  DUE_TONE_CLASSES[dueInfo.tone],
-                                )}
-                              >
-                                <Calendar className="w-3 h-3" />
-                                {dueInfo.label}
-                              </span>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => onSelectCard(card, list.id)}
-                                className="text-[11px] text-muted-foreground/50 italic hover:text-muted-foreground"
-                              >
-                                Set date
-                              </button>
-                            )}
+                          {/* Due date */}
+                          <td className="py-1.5 px-3">
+                            <DatePicker
+                              value={card.dueDate}
+                              onChange={(day) =>
+                                dispatch({
+                                  type: 'card/update',
+                                  cardId: card.id,
+                                  patch: { dueDate: day ?? null },
+                                })
+                              }
+                              trigger={
+                                <button type="button" className={CELL_TRIGGER}>
+                                  <Calendar className="size-3.5 shrink-0 text-muted-foreground" />
+                                  {dueInfo ? (
+                                    <span
+                                      className={cn(
+                                        'truncate',
+                                        DUE_TEXT_CLASSES[dueInfo.tone],
+                                      )}
+                                    >
+                                      {dueInfo.label}
+                                    </span>
+                                  ) : (
+                                    <span className="text-muted-foreground">
+                                      No date
+                                    </span>
+                                  )}
+                                </button>
+                              }
+                            />
                           </td>
 
-                          {/* Priority with Linear Icon */}
-                          <td className="py-2.5 px-3">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <button
-                                  type="button"
-                                  className="gap-1.5 px-2 py-0.5 text-xs font-medium inline-flex cursor-pointer items-center rounded-md transition-colors hover:bg-muted/60"
-                                >
+                          {/* Priority */}
+                          <td className="py-1.5 px-3">
+                            <KanbanPriorityPicker
+                              required
+                              priority={card.priority}
+                              onPriorityChange={(value) =>
+                                dispatch({
+                                  type: 'card/update',
+                                  cardId: card.id,
+                                  patch: { priority: value as Priority },
+                                })
+                              }
+                              trigger={
+                                <button type="button" className={CELL_TRIGGER}>
                                   <PriorityIcon
                                     priority={card.priority}
                                     className="size-3.5"
                                   />
-                                  <span className="text-[11px] text-foreground/90 capitalize">
-                                    {card.priority
-                                      .toLowerCase()
-                                      .replace('_', ' ')}
+                                  <span className="truncate">
+                                    {PRIORITY_LABELS[card.priority]}
                                   </span>
                                 </button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start">
-                                {PRIORITIES.map((p) => (
-                                  <DropdownMenuItem
-                                    key={p}
-                                    onClick={() =>
-                                      dispatch({
-                                        type: 'card/update',
-                                        cardId: card.id,
-                                        patch: { priority: p },
-                                      })
-                                    }
-                                    className="gap-2 text-xs flex items-center"
-                                  >
-                                    <PriorityIcon
-                                      priority={p}
-                                      className="size-3.5"
-                                    />
-                                    <span className="capitalize">
-                                      {p.toLowerCase().replace('_', ' ')}
-                                    </span>
-                                  </DropdownMenuItem>
-                                ))}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                              }
+                            />
                           </td>
 
-                          {/* Status / List Move Dropdown */}
-                          <td className="py-2.5 px-3 pr-4 text-right">
-                            <div className="gap-2 flex items-center justify-end">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-6 font-normal gap-1 text-[11px]"
+                          {/* Status */}
+                          <td className="py-1.5 px-3 pr-4">
+                            <div className="gap-1 flex items-center justify-between">
+                              <KanbanStatusPicker
+                                status={list.id}
+                                onStatusChange={(toListId) => {
+                                  if (toListId === list.id) return;
+                                  const target = board.lists.find(
+                                    (l) => l.id === toListId,
+                                  );
+                                  dispatch({
+                                    type: 'card/move',
+                                    cardId: card.id,
+                                    toListId,
+                                    toIndex: target?.cards.length ?? 0,
+                                  });
+                                }}
+                                trigger={
+                                  <button
+                                    type="button"
+                                    className={CELL_TRIGGER}
                                   >
-                                    <span>{list.title}</span>
-                                    <ChevronDown className="w-3 h-3 text-muted-foreground" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  {board.lists.map((targetList) => (
-                                    <DropdownMenuItem
-                                      key={targetList.id}
-                                      disabled={targetList.id === list.id}
-                                      onClick={() =>
-                                        dispatch({
-                                          type: 'card/move',
-                                          cardId: card.id,
-                                          toListId: targetList.id,
-                                          toIndex: targetList.cards.length,
-                                        })
-                                      }
-                                    >
-                                      {targetList.title}
-                                    </DropdownMenuItem>
-                                  ))}
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                                    <StatusIcon
+                                      status={list.id}
+                                      className="size-3.5"
+                                      showTooltip={false}
+                                    />
+                                    <span className="truncate">
+                                      {list.title}
+                                    </span>
+                                  </button>
+                                }
+                              />
 
                               {canDelete ? (
                                 <button
@@ -450,14 +462,14 @@ export function ProjectListView({
                       );
                     })}
 
-                    {/* Quick Add Task Input Row */}
+                    {/* Quick add */}
                     {newTaskInput?.listId === list.id ? (
                       <tr className="bg-primary/5">
                         <td colSpan={5} className="py-2 px-4">
                           <div className="gap-2 flex items-center">
                             <Input
                               autoFocus
-                              placeholder="Write a task name... Press Enter to save"
+                              placeholder="Task name. Enter to add, Esc to cancel"
                               value={newTaskInput.title}
                               onChange={(e) =>
                                 setNewTaskInput({
@@ -499,7 +511,7 @@ export function ProjectListView({
                             className="py-1 text-xs gap-1.5 group flex w-full items-center text-left text-muted-foreground transition-colors hover:text-foreground"
                           >
                             <Plus className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground" />
-                            <span>Add task...</span>
+                            <span>Add task</span>
                           </button>
                         </td>
                       </tr>

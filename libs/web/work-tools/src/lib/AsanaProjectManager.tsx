@@ -313,7 +313,6 @@ export function AsanaProjectManager() {
   const prompts = usePromptDialog();
   const { can } = useWorkspacePermission();
 
-
   const projects = projectsQuery.data ?? [];
   const members = useMemo(
     () => membersFrom(membersQuery.data),
@@ -474,7 +473,8 @@ export function AsanaProjectManager() {
   const legacySettingsProjectId =
     viewParam === 'settings' ? activeProject?.id : undefined;
   useEffect(() => {
-    if (legacySettingsProjectId) openProjectSettings(legacySettingsProjectId, true);
+    if (legacySettingsProjectId)
+      openProjectSettings(legacySettingsProjectId, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [legacySettingsProjectId]);
   useEffect(() => {
@@ -500,6 +500,10 @@ export function AsanaProjectManager() {
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [showAIFilterInput, setShowAIFilterInput] = useState(false);
   const filterCount = countActiveFilters(filter);
+  const clearFilters = useCallback(() => {
+    setFilter(EMPTY_FILTER);
+    setShowAIFilterInput(false);
+  }, []);
 
   const [isViewDisplayOpen, setIsViewDisplayOpen] = useState(false);
   const [isCommandMenuOpen, setIsCommandMenuOpen] = useState(false);
@@ -1303,6 +1307,8 @@ export function AsanaProjectManager() {
                 dispatch={board.dispatch}
                 onSelectCard={(card) => setSelectedCardId(card.id)}
                 isLoading={board.isLoading}
+                filtered={filterCount > 0}
+                onClearFilters={clearFilters}
               />
             )}
 
@@ -1314,6 +1320,10 @@ export function AsanaProjectManager() {
                 onUpdateTask={(taskId, patch) => {
                   taskMutations.update.mutate({ taskId, input: patch as any });
                 }}
+                isLoading={board.isLoading}
+                filtered={filterCount > 0}
+                onClearFilters={clearFilters}
+                onAddTask={canAddTask ? () => openNewTask() : undefined}
               />
             )}
 
@@ -1321,6 +1331,10 @@ export function AsanaProjectManager() {
               <ProjectTimelineView
                 board={filteredBoard}
                 onSelectCard={(card) => setSelectedCardId(card.id)}
+                isLoading={board.isLoading}
+                filtered={filterCount > 0}
+                onClearFilters={clearFilters}
+                onAddTask={canAddTask ? () => openNewTask() : undefined}
               />
             )}
 
@@ -1344,6 +1358,7 @@ export function AsanaProjectManager() {
                   });
                 }}
                 onSelectCard={(card) => setSelectedCardId(card.id)}
+                isLoading={board.isLoading}
               />
             )}
 
@@ -1365,7 +1380,6 @@ export function AsanaProjectManager() {
                 projectName={activeProject.name}
               />
             )}
-
           </>
         )}
       </main>
