@@ -4,7 +4,9 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
+  ActionDropdownMenu,
   EntityContextMenu,
+  type EntityAction,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -19,6 +21,7 @@ import { cn } from '@org/utils';
 import {
   ChevronDown,
   MoreHorizontal,
+  Pencil,
   PinOff,
   SlidersHorizontal,
   Star,
@@ -539,6 +542,8 @@ export function Section({
   defaultOpen = true,
   open: openProp,
   onOpenChange,
+  menu,
+  onRename,
   children,
 }: {
   title: string;
@@ -550,10 +555,43 @@ export function Section({
   /** Controlled open state — when set, the caller owns collapse (and its persistence). */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /**
+   * Header actions, shown in a hover "⋯" menu and on right-click. "Rename
+   * section" is added on top automatically when `onRename` is set.
+   */
+  menu?: EntityAction[];
+  /**
+   * Makes the title renameable in place (double-click, or "Rename section"
+   * in the menu). Called with the trimmed label; '' means "reset to default".
+   */
+  onRename?: (label: string) => void;
   children: ReactNode;
 }) {
   const [openState, setOpenState] = useState(defaultOpen);
   const open = openProp ?? openState;
+  const [editing, setEditing] = useState(false);
+
+  const actions: EntityAction[] | undefined =
+    menu || onRename
+      ? [
+          ...(onRename
+            ? [
+                {
+                  id: 'section-rename',
+                  group: 'section-edit',
+                  label: 'Rename section',
+                  icon: Pencil,
+                  // Let the menu finish closing (and hand focus back) before
+                  // the input mounts, or it loses focus straight away.
+                  run: () => {
+                    window.setTimeout(() => setEditing(true), 0);
+                  },
+                } satisfies EntityAction,
+              ]
+            : []),
+          ...(menu ?? []),
+        ]
+      : undefined;
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
@@ -565,6 +603,78 @@ export function Section({
 
   const isEmpty = count === 0;
 
+  const header = (
+    <div className="group/section gap-1.5 px-2.5 py-1 flex items-center justify-between select-none">
+      <div className="gap-1.5 min-w-0 flex flex-1 items-center">
+        {editing && onRename ? (
+          <SectionTitleInput
+            initial={title}
+            onCommit={(next) => {
+              setEditing(false);
+              if (next !== title) onRename(next);
+            }}
+            onCancel={() => setEditing(false)}
+          />
+        ) : (
+          <CollapsibleTrigger
+            aria-label={`Toggle ${title} section`}
+            title={onRename ? 'Double-click to rename' : undefined}
+            onDoubleClick={
+              onRename
+                ? (event) => {
+                    event.preventDefault();
+                    setEditing(true);
+                  }
+                : undefined
+            }
+            className={cn(
+              'group/trigger gap-1 min-w-0 flex items-center rounded-md',
+              'font-semibold tracking-wide text-[11px] text-foreground/75 uppercase',
+              'transition-colors duration-(--duration-fast) hover:text-foreground',
+              'cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring',
+            )}
+          >
+            {/* One line, always: a long title ("Docs & Knowledge") next to
+                the section's actions used to wrap onto two centred lines. */}
+            <span className="truncate whitespace-nowrap">{title}</span>
+            <ChevronDown
+              className={cn(
+                'size-3 shrink-0 text-foreground/60 opacity-0 transition-all duration-150',
+                'group-focus-within/section:opacity-100 group-hover/section:opacity-100 pointer-coarse:opacity-100',
+                !open && '-rotate-90',
+              )}
+              aria-hidden
+            />
+          </CollapsibleTrigger>
+        )}
+        {editing ? null : inactiveTrigger}
+      </div>
+      {editing ? null : (
+        <div className="gap-0.5 flex shrink-0 items-center">
+          {actions ? (
+            <ActionDropdownMenu
+              modal={false}
+              actions={actions}
+              scope={`section:${title}`}
+              contentClassName="w-56"
+              trigger={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`${title} section options`}
+                  className="size-5 p-0 text-muted-foreground opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 hover:text-foreground focus-visible:opacity-100 data-[state=open]:opacity-100 pointer-coarse:opacity-100"
+                >
+                  <MoreHorizontal className="size-3.5" />
+                </Button>
+              }
+            />
+          ) : null}
+          {action}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <Collapsible
       open={open}
@@ -573,33 +683,17 @@ export function Section({
       asChild
     >
       <section aria-label={title}>
-        <div className="group/section gap-1.5 px-2.5 py-1 flex items-center justify-between select-none">
-          <div className="gap-1.5 min-w-0 flex items-center">
-            <CollapsibleTrigger
-              aria-label={`Toggle ${title} section`}
-              className={cn(
-                'group/trigger gap-1 min-w-0 flex items-center rounded-md',
-                'font-semibold tracking-wide text-[11px] text-foreground/75 uppercase',
-                'transition-colors duration-(--duration-fast) hover:text-foreground',
-                'cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring',
-              )}
-            >
-              {/* One line, always: a long title ("Docs & Knowledge") next to
-                  the section's actions used to wrap onto two centred lines. */}
-              <span className="truncate whitespace-nowrap">{title}</span>
-              <ChevronDown
-                className={cn(
-                  'size-3 shrink-0 text-foreground/60 opacity-0 transition-all duration-150',
-                  'group-focus-within/section:opacity-100 group-hover/section:opacity-100 pointer-coarse:opacity-100',
-                  !open && '-rotate-90',
-                )}
-                aria-hidden
-              />
-            </CollapsibleTrigger>
-            {inactiveTrigger}
-          </div>
-          {action}
-        </div>
+        {actions && !editing ? (
+          <EntityContextMenu
+            actions={actions}
+            scope={`section:${title}`}
+            label={title}
+          >
+            {header}
+          </EntityContextMenu>
+        ) : (
+          header
+        )}
 
         <CollapsibleContent>
           {isEmpty && emptyLabel ? (
@@ -621,6 +715,63 @@ export function Section({
         </CollapsibleContent>
       </section>
     </Collapsible>
+  );
+}
+
+/**
+ * In-place editor for a section title. Enter or blur saves, Escape cancels.
+ * Saving an empty value hands `''` to the caller ("reset to default name").
+ */
+function SectionTitleInput({
+  initial,
+  onCommit,
+  onCancel,
+}: {
+  initial: string;
+  onCommit: (label: string) => void;
+  onCancel: () => void;
+}) {
+  const [value, setValue] = useState(initial);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const doneRef = useRef(false);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, []);
+
+  const finish = (commit: boolean) => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    if (commit) onCommit(value.trim().replace(/\s+/g, ' '));
+    else onCancel();
+  };
+
+  return (
+    <input
+      ref={inputRef}
+      value={value}
+      maxLength={40}
+      aria-label="Section name"
+      placeholder="Section name"
+      onChange={(event) => setValue(event.target.value)}
+      onBlur={() => finish(true)}
+      onKeyDown={(event) => {
+        event.stopPropagation();
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          finish(true);
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          finish(false);
+        }
+      }}
+      className={cn(
+        'h-5 px-1 -ml-1 min-w-0 w-full rounded-sm border border-ring bg-background',
+        'font-semibold tracking-wide text-[11px] text-foreground uppercase',
+        'outline-none',
+      )}
+    />
   );
 }
 

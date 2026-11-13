@@ -97,6 +97,11 @@ import {
 } from './activity-row-link.js';
 import { useSidebarStore } from './navigation/sidebar-store.js';
 import { useSplitViewStore } from './split-view/split-view-store.js';
+import {
+  useCreateSection,
+  useManualSections,
+  useMoveToSection,
+} from './navigation/use-section-header.js';
 
 /**
  * One person's row.
@@ -141,6 +146,13 @@ export function DirectMessageRow({
   useEffect(() => {
     if (isActive && flagged) markSeen(member.user.id);
   }, [isActive, flagged, markSeen, member.user.id]);
+
+  const moveToSection = useMoveToSection({
+    workspaceId,
+    kind: 'dm',
+    itemId: member.user.id,
+    itemLabel: `Your conversation with ${name}`,
+  });
 
   const actions: EntityAction[] = [
     {
@@ -197,6 +209,7 @@ export function DirectMessageRow({
       shortcut: 'M',
       run: onToggleMuted,
     },
+    moveToSection.action,
     {
       id: 'copy-link',
       group: 'share',
@@ -322,15 +335,18 @@ export function DirectMessageRow({
   );
 
   return (
-    <EntityContextMenu
-      actions={actions}
-      scope={`dm:${member.user.id}`}
-      entityType="direct-message"
-      entity={member}
-      label={name}
-    >
-      {row}
-    </EntityContextMenu>
+    <>
+      <EntityContextMenu
+        actions={actions}
+        scope={`dm:${member.user.id}`}
+        entityType="direct-message"
+        entity={member}
+        label={name}
+      >
+        {row}
+      </EntityContextMenu>
+      {moveToSection.dialog}
+    </>
   );
 }
 
@@ -446,6 +462,12 @@ export function GroupDmRow({
   const openSplitView = useSplitViewStore((s) => s.open);
   const to = `/w/${workspaceSlug}/dms?room=${group.roomId}`;
   const hasUnread = !isMuted && group.unreadCount > 0;
+  const moveToSection = useMoveToSection({
+    workspaceId,
+    kind: 'dm',
+    itemId: group.roomId,
+    itemLabel: group.name,
+  });
 
   const actions: EntityAction[] = [
     {
@@ -484,6 +506,7 @@ export function GroupDmRow({
       shortcut: 'M',
       run: onToggleMuted,
     },
+    moveToSection.action,
     {
       id: 'copy-link',
       group: 'share',
@@ -568,15 +591,18 @@ export function GroupDmRow({
   );
 
   return (
-    <EntityContextMenu
-      actions={actions}
-      scope={`group-dm:${group.roomId}`}
-      entityType="group-dm"
-      entity={group}
-      label={group.name}
-    >
-      {row}
-    </EntityContextMenu>
+    <>
+      <EntityContextMenu
+        actions={actions}
+        scope={`group-dm:${group.roomId}`}
+        entityType="group-dm"
+        entity={group}
+        label={group.name}
+      >
+        {row}
+      </EntityContextMenu>
+      {moveToSection.dialog}
+    </>
   );
 }
 
@@ -600,6 +626,13 @@ export function DirectMessagesSection({
 }) {
   const { pathname } = useLocation();
   const { workspaceId } = useCurrentWorkspace();
+  const createSection = useCreateSection(workspaceId);
+  /* DMs filed under a custom section show there instead (Slack-style). */
+  const manualSections = useManualSections(workspaceId);
+  const sectionedDmIds = useMemo(
+    () => new Set(manualSections.flatMap((s) => s.dmIds ?? [])),
+    [manualSections],
+  );
   const currentUser = useCurrentUser();
   const members = useMembers(workspaceId);
   const groups = useGroupDirectMessages();
@@ -644,6 +677,7 @@ export function DirectMessagesSection({
 
     return groups.filter((group) => {
       if (!group.roomId || seenRooms.has(group.roomId)) return false;
+      if (sectionedDmIds.has(group.roomId)) return false;
       const lowerName = group.name.toLowerCase().trim();
       // If the group name matches any existing channel name, or if we've already seen this name, exclude it
       if (channelNames.has(lowerName) || seenNames.has(lowerName)) {
@@ -653,7 +687,7 @@ export function DirectMessagesSection({
       seenNames.add(lowerName);
       return true;
     });
-  }, [groups, channelNames]);
+  }, [groups, channelNames, sectionedDmIds]);
 
   const selfMember = useMemo(
     () =>
@@ -668,7 +702,11 @@ export function DirectMessagesSection({
   const rawPeople = useMemo(() => {
     const seen = new Set<string>();
     const roster = (members.data ?? []).filter((member) => {
-      if (member.user.id === currentUser?.id || seen.has(member.user.id)) {
+      if (
+        member.user.id === currentUser?.id ||
+        seen.has(member.user.id) ||
+        sectionedDmIds.has(member.user.id)
+      ) {
         return false;
       }
       seen.add(member.user.id);
@@ -679,7 +717,7 @@ export function DirectMessagesSection({
       ...roster.filter((member) => favoriteIds.includes(member.user.id)),
       ...roster.filter((member) => !favoriteIds.includes(member.user.id)),
     ];
-  }, [members.data, currentUser?.id, favoriteIds]);
+  }, [members.data, currentUser?.id, favoriteIds, sectionedDmIds]);
 
   const customOrder = workspaceId
     ? resourceOrders[workspaceId]?.dms
@@ -913,6 +951,7 @@ export function DirectMessagesSection({
   return (
     <Section
       title="Direct Messages"
+      menu={[createSection.action]}
       count={activePeople.length + activeGroups.length + (selfMember ? 1 : 0)}
       inactiveTrigger={
         inactiveDmItems.length > 0 ? (
@@ -998,6 +1037,85 @@ export function DirectMessagesSection({
           <span className="flex-1 truncate">Add teammates</span>
         </NavLink>
       </li>
+      {createSection.dialog}
     </Section>
+  );
+}
+
+/**
+ * The direct messages filed under one custom sidebar section, drawn with the
+ * same rows (and the same favourite / mute / unread state) as the Direct
+ * Messages section. Ids that no longer resolve — a member who left, a group
+ * you were removed from — are skipped.
+ */
+export function SectionDirectMessageRows({
+  dmIds,
+  workspaceSlug,
+  liveCounts,
+}: {
+  dmIds: string[];
+  workspaceSlug: string;
+  liveCounts?: LiveDirectMessageCounts;
+}) {
+  const { workspaceId } = useCurrentWorkspace();
+  const members = useMembers(workspaceId);
+  const groups = useGroupDirectMessages();
+  const preferences = useDirectMessagePreferences(workspaceId);
+  const notificationFeed = useNotificationFeed(workspaceId);
+  const feedDmActivity = useDirectMessageActivity(
+    workspaceId,
+    notificationFeed.data,
+  );
+  const dmActivity = useMemo(
+    () => mergeDirectMessageActivity(feedDmActivity, liveCounts),
+    [feedDmActivity, liveCounts],
+  );
+  const { favoriteIds, mutedIds } = preferences;
+
+  const memberById = useMemo(
+    () => new Map((members.data ?? []).map((m) => [m.user.id, m])),
+    [members.data],
+  );
+  const groupByRoom = useMemo(
+    () => new Map(groups.map((g) => [g.roomId, g])),
+    [groups],
+  );
+
+  return (
+    <>
+      {dmIds.map((id) => {
+        const member = memberById.get(id);
+        if (member) {
+          return (
+            <DirectMessageRow
+              key={id}
+              member={member}
+              workspaceId={workspaceId}
+              workspaceSlug={workspaceSlug}
+              isFavorite={favoriteIds.includes(id)}
+              isMuted={mutedIds.includes(id)}
+              activity={dmActivity[id]}
+              onToggleFavorite={() => preferences.toggleFavorite(id)}
+              onToggleMuted={() => preferences.toggleMuted(id)}
+            />
+          );
+        }
+        const group = groupByRoom.get(id);
+        if (group) {
+          return (
+            <GroupDmRow
+              key={id}
+              group={group}
+              workspaceSlug={workspaceSlug}
+              isFavorite={favoriteIds.includes(id)}
+              isMuted={mutedIds.includes(id)}
+              onToggleFavorite={() => preferences.toggleFavorite(id)}
+              onToggleMuted={() => preferences.toggleMuted(id)}
+            />
+          );
+        }
+        return null;
+      })}
+    </>
   );
 }

@@ -182,6 +182,7 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
   /* Not `setOpen(false)`: a hosted panel's owner has to hear about the close. */
   const dismissRightPanel = useRightPanelStore((s) => s.dismiss);
   const resetRightPanel = useRightPanelStore((s) => s.reset);
+  const closeProfileIfLeft = useRightPanelStore((s) => s.closeProfileIfLeft);
 
   const isAddAccountOpen = useWorkspaceStore(
     (s: WorkspaceState) => s.isAddAccountOpen,
@@ -397,6 +398,15 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
     setSidebarOpen(false);
     setRightPanelOpen(false);
   }, [location.pathname, isMobile, setSidebarOpen, setRightPanelOpen]);
+
+  /*
+   * A person's profile belongs to the conversation it was opened from —
+   * switching to another DM or channel closes it instead of leaving someone
+   * else's card beside the new conversation.
+   */
+  useEffect(() => {
+    closeProfileIfLeft(location.pathname);
+  }, [location.pathname, closeProfileIfLeft]);
 
   /*
    * A workspace switch starts the right rail over. Its open/closed state and

@@ -81,6 +81,14 @@ export interface RightPanelState {
   view: RightPanelView;
 
   profile: RightPanelProfile | null;
+  /**
+   * The route the profile was opened on. A person's profile belongs to the
+   * conversation it was opened from; moving to another DM or channel closes it
+   * (see `closeProfileIfLeft`). Captured at open time rather than diffed from
+   * the previous route so an opener that navigates first and then opens the
+   * profile keeps it.
+   */
+  profilePath: string | null;
   contextTarget: RightPanelContextTarget | null;
 
   /** Registered by whichever component currently owns each hosted view. */
@@ -104,6 +112,8 @@ export interface RightPanelState {
   reset: () => void;
 
   openProfile: (profile: RightPanelProfile | null) => void;
+  /** Closes the profile view if `pathname` is not the route it was opened on. */
+  closeProfileIfLeft: (pathname: string) => void;
   openContext: (target: RightPanelContextTarget) => void;
 
   setSlot: (view: RightPanelHostedView, element: HTMLElement | null) => void;
@@ -133,6 +143,7 @@ export const useRightPanelStore = create<RightPanelState>()(
       open: true,
       view: 'assistant',
       profile: null,
+      profilePath: null,
       contextTarget: null,
       hosted: emptyHosted(),
       slots: emptySlots(),
@@ -161,12 +172,33 @@ export const useRightPanelStore = create<RightPanelState>()(
           open: false,
           view: 'assistant',
           profile: null,
+          profilePath: null,
           contextTarget: null,
           hosted: emptyHosted(),
           slots: emptySlots(),
         }),
 
-      openProfile: (profile) => set({ profile, view: 'profile', open: true }),
+      openProfile: (profile) =>
+        set({
+          profile,
+          profilePath:
+            typeof window !== 'undefined' ? window.location.pathname : null,
+          view: 'profile',
+          open: true,
+        }),
+
+      closeProfileIfLeft: (pathname) => {
+        const { view, profilePath } = get();
+        if (view !== 'profile' || profilePath === pathname) return;
+        // Back to the assistant too, so reopening the rail later does not
+        // bring back a stale person from another conversation.
+        set({
+          open: false,
+          view: 'assistant',
+          profile: null,
+          profilePath: null,
+        });
+      },
       openContext: (target) =>
         set({ contextTarget: target, view: 'context', open: true }),
 

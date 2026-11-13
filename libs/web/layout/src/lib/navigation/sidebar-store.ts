@@ -9,6 +9,7 @@ import {
   type ChannelSortDirection,
   type ChannelSortMode,
   type ChannelSortPreference,
+  createSectionId,
   type SidebarSectionDef,
 } from './sidebar-sections.js';
 
@@ -135,7 +136,7 @@ export const DEFAULT_SIDEBAR_SECTIONS: readonly SidebarSectionConfig[] = [
   },
   {
     id: 'docs',
-    label: 'Docs',
+    label: 'Docs & Knowledge',
     description: 'Workspace document tree and notes',
     visible: true,
     order: 4,
@@ -156,25 +157,42 @@ export const DEFAULT_SIDEBAR_SECTIONS: readonly SidebarSectionConfig[] = [
   },
   {
     id: 'apps',
-    label: 'Apps & Integrations',
+    label: 'Apps',
     description: 'Connected tools and integrations',
     visible: true,
     order: 7,
   },
   {
     id: 'workflows',
-    label: 'Workflows',
+    label: 'Automations',
     description: 'Automations and triggers',
     visible: true,
     order: 8,
   },
 ];
 
+/** Visibility and order of one built-in section (its name never changes). */
+export interface SidebarSectionPreference {
+  visible: boolean;
+  order: number;
+}
+
+/** What a custom section can hold. */
+export type SectionItemKind = 'channel' | 'dm';
+
+/** Longest name a custom section accepts. */
+export const SECTION_LABEL_MAX = 40;
+
+/** Trims and caps a user-typed section label; '' means "no label". */
+export function normalizeSectionLabel(raw: string): string {
+  return raw.trim().replace(/\s+/g, ' ').slice(0, SECTION_LABEL_MAX);
+}
+
 export interface SidebarState {
   /** Customization per item id: visibility and sort order */
   items: Record<string, SidebarItemPreference>;
   /** Customization per major section id: visibility and sort order */
-  sections: Record<SidebarSectionId, { visible: boolean; order: number }>;
+  sections: Record<SidebarSectionId, SidebarSectionPreference>;
   /** Custom channel ordering per workspaceId (legacy alias) */
   channelOrders: Record<string, string[]>;
   /** Generic per-section custom item ordering: workspaceId -> sectionKey -> itemIds[] */
@@ -269,6 +287,17 @@ export interface SidebarState {
     direction?: ChannelSortDirection,
   ) => void;
   addSectionDef: (workspaceId: string, def: SidebarSectionDef) => void;
+  /**
+   * Create a named custom section, optionally filing channels / DMs into it
+   * (taking them out of any other custom section). Returns the new id.
+   */
+  createManualSection: (
+    workspaceId: string,
+    label: string,
+    items?: { channelIds?: string[]; dmIds?: string[] },
+  ) => string;
+  /** Move a custom section one step up/down among the workspace's sections. */
+  shiftSectionDef: (workspaceId: string, id: string, direction: -1 | 1) => void;
   updateSectionDef: (
     workspaceId: string,
     id: string,
@@ -277,6 +306,22 @@ export interface SidebarState {
   removeSectionDef: (workspaceId: string, id: string) => void;
   reorderSectionDefs: (workspaceId: string, orderedIds: string[]) => void;
   toggleSectionDefCollapsed: (workspaceId: string, id: string) => void;
+  /**
+   * File a channel or DM under a custom section, taking it out of any other
+   * custom section. Removing it sends it back to Channels / Direct Messages.
+   */
+  assignToSection: (
+    workspaceId: string,
+    sectionId: string,
+    kind: SectionItemKind,
+    itemId: string,
+  ) => void;
+  removeFromSection: (
+    workspaceId: string,
+    sectionId: string,
+    kind: SectionItemKind,
+    itemId: string,
+  ) => void;
   /** Add a channel to a manual section (removing it from any other manual one). */
   assignChannelToSection: (
     workspaceId: string,
@@ -322,6 +367,19 @@ function patchChannelMeta(
   return next;
 }
 
+/** A custom section with the given channels / DMs taken out of it. */
+function withoutItems(
+  def: SidebarSectionDef,
+  channelIds: string[],
+  dmIds: string[],
+): SidebarSectionDef {
+  return {
+    ...def,
+    channelIds: (def.channelIds ?? []).filter((c) => !channelIds.includes(c)),
+    dmIds: (def.dmIds ?? []).filter((d) => !dmIds.includes(d)),
+  };
+}
+
 /** Keep the visit tally bounded so the synced blob can't grow without limit. */
 const MAX_TRACKED_VISITS = 120;
 
@@ -354,10 +412,9 @@ function getDefaultItemPreferences(): Record<string, SidebarItemPreference> {
 
 function getDefaultSectionPreferences(): Record<
   SidebarSectionId,
-  { visible: boolean; order: number }
+  SidebarSectionPreference
 > {
-  const prefs: Record<SidebarSectionId, { visible: boolean; order: number }> =
-    {} as Record<SidebarSectionId, { visible: boolean; order: number }>;
+  const prefs = {} as Record<SidebarSectionId, SidebarSectionPreference>;
   DEFAULT_SIDEBAR_SECTIONS.forEach((sec) => {
     prefs[sec.id] = {
       visible: sec.visible,
@@ -494,12 +551,9 @@ export const useSidebarStore = create<SidebarState>()(
           const [removed] = reordered.splice(oldIndex, 1);
           reordered.splice(newIndex, 0, removed);
 
-          const nextSections: Record<
+          const nextSections = {} as Record<
             SidebarSectionId,
-            { visible: boolean; order: number }
-          > = {} as Record<
-            SidebarSectionId,
-            { visible: boolean; order: number }
+            SidebarSectionPreference
           >;
           reordered.forEach((id, idx) => {
             nextSections[id] = {
@@ -682,6 +736,51 @@ export const useSidebarStore = create<SidebarState>()(
           };
         }),
 
+      createManualSection: (workspaceId, label, items = {}) => {
+        const id = createSectionId();
+        const channelIds = items.channelIds ?? [];
+        const dmIds = items.dmIds ?? [];
+        set((state) => {
+          const existing = (state.sectionDefs[workspaceId] ?? []).map((s) =>
+            s.kind === 'manual' ? withoutItems(s, channelIds, dmIds) : s,
+          );
+          const def: SidebarSectionDef = {
+            id,
+            label: normalizeSectionLabel(label) || 'New section',
+            kind: 'manual',
+            order: existing.length,
+            collapsed: false,
+            hideWhenEmpty: false,
+            channelIds: [...channelIds],
+            dmIds: [...dmIds],
+          };
+          return {
+            sectionDefs: {
+              ...state.sectionDefs,
+              [workspaceId]: [...existing, def],
+            },
+          };
+        });
+        return id;
+      },
+
+      shiftSectionDef: (workspaceId, id, direction) =>
+        set((state) => {
+          const ordered = [...(state.sectionDefs[workspaceId] ?? [])].sort(
+            (a, b) => a.order - b.order,
+          );
+          const from = ordered.findIndex((s) => s.id === id);
+          const to = from + direction;
+          if (from === -1 || to < 0 || to >= ordered.length) return state;
+          [ordered[from], ordered[to]] = [ordered[to], ordered[from]];
+          return {
+            sectionDefs: {
+              ...state.sectionDefs,
+              [workspaceId]: ordered.map((s, order) => ({ ...s, order })),
+            },
+          };
+        }),
+
       updateSectionDef: (workspaceId, id, patch) =>
         set((state) => ({
           sectionDefs: {
@@ -736,38 +835,42 @@ export const useSidebarStore = create<SidebarState>()(
           },
         })),
 
-      assignChannelToSection: (workspaceId, sectionId, channelId) =>
+      assignToSection: (workspaceId, sectionId, kind, itemId) =>
         set((state) => ({
           sectionDefs: {
             ...state.sectionDefs,
             [workspaceId]: (state.sectionDefs[workspaceId] ?? []).map((s) => {
               if (s.kind !== 'manual') return s;
-              const without = (s.channelIds ?? []).filter(
-                (id) => id !== channelId,
-              );
-              return s.id === sectionId
-                ? { ...s, channelIds: [...without, channelId] }
-                : { ...s, channelIds: without };
+              const key = kind === 'dm' ? 'dmIds' : 'channelIds';
+              const without = (s[key] ?? []).filter((id) => id !== itemId);
+              return {
+                ...s,
+                [key]: s.id === sectionId ? [...without, itemId] : without,
+              };
             }),
           },
         })),
 
-      removeChannelFromSection: (workspaceId, sectionId, channelId) =>
+      removeFromSection: (workspaceId, sectionId, kind, itemId) =>
         set((state) => ({
           sectionDefs: {
             ...state.sectionDefs,
-            [workspaceId]: (state.sectionDefs[workspaceId] ?? []).map((s) =>
-              s.id === sectionId && s.kind === 'manual'
-                ? {
-                    ...s,
-                    channelIds: (s.channelIds ?? []).filter(
-                      (id) => id !== channelId,
-                    ),
-                  }
-                : s,
-            ),
+            [workspaceId]: (state.sectionDefs[workspaceId] ?? []).map((s) => {
+              if (s.id !== sectionId || s.kind !== 'manual') return s;
+              const key = kind === 'dm' ? 'dmIds' : 'channelIds';
+              return {
+                ...s,
+                [key]: (s[key] ?? []).filter((id) => id !== itemId),
+              };
+            }),
           },
         })),
+
+      assignChannelToSection: (workspaceId, sectionId, channelId) =>
+        get().assignToSection(workspaceId, sectionId, 'channel', channelId),
+
+      removeChannelFromSection: (workspaceId, sectionId, channelId) =>
+        get().removeFromSection(workspaceId, sectionId, 'channel', channelId),
 
       setChannelPriority: (workspaceId, channelId, priority) =>
         set((state) => ({

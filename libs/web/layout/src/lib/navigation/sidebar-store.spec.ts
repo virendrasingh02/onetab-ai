@@ -368,3 +368,65 @@ describe('Sidebar Store - Smart sections & channel sorting (§1.1 / §1.2)', () 
   });
 });
 
+describe('Sidebar Store - custom sections (Slack-style)', () => {
+  beforeEach(() => {
+    useSidebarStore.getState().resetAllPreferences();
+  });
+
+  it('creates a named section and takes its items out of other sections', () => {
+    const store = useSidebarStore.getState();
+    const first = store.createManualSection('ws1', '  Clients  ', {
+      channelIds: ['c1'],
+      dmIds: ['u1'],
+    });
+    const second = store.createManualSection('ws1', 'Launch', {
+      channelIds: ['c1', 'c2'],
+    });
+    const defs = useSidebarStore.getState().sectionDefs.ws1;
+    expect(defs.find((d) => d.id === first)).toMatchObject({
+      label: 'Clients',
+      channelIds: [],
+      dmIds: ['u1'],
+    });
+    expect(defs.find((d) => d.id === second)).toMatchObject({
+      label: 'Launch',
+      kind: 'manual',
+      order: 1,
+      channelIds: ['c1', 'c2'],
+    });
+  });
+
+  it('moves a DM between sections and back home without duplicating it', () => {
+    const store = useSidebarStore.getState();
+    const a = store.createManualSection('ws1', 'A', { dmIds: ['room1'] });
+    const b = store.createManualSection('ws1', 'B');
+    store.assignToSection('ws1', b, 'dm', 'room1');
+    let defs = useSidebarStore.getState().sectionDefs.ws1;
+    expect(defs.find((d) => d.id === a)?.dmIds).toEqual([]);
+    expect(defs.find((d) => d.id === b)?.dmIds).toEqual(['room1']);
+
+    store.removeFromSection('ws1', b, 'dm', 'room1');
+    defs = useSidebarStore.getState().sectionDefs.ws1;
+    expect(defs.flatMap((d) => d.dmIds ?? [])).toEqual([]);
+  });
+
+  it('deleting a section frees its channels and DMs', () => {
+    const store = useSidebarStore.getState();
+    const id = store.createManualSection('ws1', 'Gone', {
+      channelIds: ['c1'],
+      dmIds: ['u1'],
+    });
+    store.removeSectionDef('ws1', id);
+    expect(useSidebarStore.getState().sectionDefs.ws1).toEqual([]);
+  });
+
+  it('reorders custom sections one step at a time', () => {
+    const store = useSidebarStore.getState();
+    const first = store.createManualSection('ws1', 'One');
+    const second = store.createManualSection('ws1', 'Two');
+    store.shiftSectionDef('ws1', second, -1);
+    const shifted = useSidebarStore.getState().sectionDefs.ws1;
+    expect(shifted.map((d) => d.id)).toEqual([second, first]);
+    expect(shifted.map((d) => d.order)).toEqual([0, 1]);
+  });
+});

@@ -1,6 +1,7 @@
 import { UserProfileRightPanel } from '@org/chat-ui';
 import { toPlatformUserId, type CurrentUser } from '@org/types';
 import { Button, Hint, useRightPanelStore } from '@org/ui';
+import { cn } from '@org/utils';
 import { X } from 'lucide-react';
 import { useCallback, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -162,6 +163,7 @@ export function RightPanel({
       <PanelFrame
         title={person ? person.name : 'Your profile'}
         onClose={onClose}
+        surface
       >
         <EmployeeInfoBridge workspaceId={workspaceId}>
           <UserProfileRightPanel
@@ -245,15 +247,20 @@ function PanelFrame({
   title,
   subtitle,
   onClose,
+  surface = false,
   children,
 }: {
   title: string;
   subtitle?: ReactNode;
   onClose: () => void;
+  /** Paint the whole frame on `bg-surface`, for bodies that sit on it. */
+  surface?: boolean;
   children: ReactNode;
 }) {
   return (
-    <div className="min-h-0 flex h-full flex-col">
+    <div
+      className={cn('min-h-0 flex h-full flex-col', surface && 'bg-surface')}
+    >
       <div className="h-12 px-3 flex shrink-0 items-center justify-between border-b border-border">
         <div className="min-w-0 gap-2 flex items-center text-foreground">
           <div className="min-w-0">

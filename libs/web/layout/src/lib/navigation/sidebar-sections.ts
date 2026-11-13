@@ -209,6 +209,12 @@ export interface SidebarSectionDef {
   collapsed: boolean;
   /** Manual sections only — explicit channel membership, in display order. */
   channelIds?: string[];
+  /**
+   * Manual sections only — direct messages filed here: the peer's user id for
+   * a 1:1 DM, the Matrix room id for a group DM. They leave the Direct
+   * Messages section while they are here, and go back when removed.
+   */
+  dmIds?: string[];
   /** Smart sections only. */
   rule?: SmartRule;
   /** Hide the section entirely while it resolves to nothing. */

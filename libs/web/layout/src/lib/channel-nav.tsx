@@ -138,8 +138,15 @@ import {
 import { SidebarCustomizerDialog } from './navigation/sidebar-customizer-dialog.js';
 import {
   DEFAULT_SIDEBAR_SECTIONS,
+  normalizeSectionLabel,
   useSidebarStore,
 } from './navigation/sidebar-store.js';
+import {
+  customSectionMenu,
+  useCreateSection,
+  useMoveToSection,
+} from './navigation/use-section-header.js';
+import { SectionDirectMessageRows } from './direct-messages-section.js';
 import { SmartSectionsDialog } from './navigation/smart-sections-dialog.js';
 import { ProjectNavRow, ProjectsTreeSection } from './projects-section.js';
 import { useCoworkerMutations, useCoworkers } from '@org/web-coworkers';
@@ -207,7 +214,6 @@ function ChannelRow({
   onToggleFavorite,
   onSetNotificationLevel,
   prompts,
-  sectionOptions = [],
   activityContent,
 }: {
   channel: ChannelSummary;
@@ -220,8 +226,6 @@ function ChannelRow({
     level: ChannelNotificationLevel,
   ) => void;
   prompts: PromptDialog;
-  /** Manual sections this channel can be filed under (brief §1.1). */
-  sectionOptions?: { id: string; label: string; hasChannel: boolean }[];
   /** Draw the two-line activity-list layout instead of the compact row. */
   activityContent?: ActivityRowContent;
 }) {
@@ -245,12 +249,12 @@ function ChannelRow({
   const isHidden = meta?.hidden === true;
   const setChannelPriority = useSidebarStore((s) => s.setChannelPriority);
   const setChannelHidden = useSidebarStore((s) => s.setChannelHidden);
-  const assignChannelToSection = useSidebarStore(
-    (s) => s.assignChannelToSection,
-  );
-  const removeChannelFromSection = useSidebarStore(
-    (s) => s.removeChannelFromSection,
-  );
+  const moveToSection = useMoveToSection({
+    workspaceId,
+    kind: 'channel',
+    itemId: channel.id,
+    itemLabel: `#${channel.name}`,
+  });
 
   const isFavorite = channel.membership?.isFavorite ?? false;
   const isMuted = channel.membership?.isMuted ?? false;
@@ -314,26 +318,7 @@ function ChannelRow({
               }),
             ),
           },
-          {
-            id: 'section',
-            group: 'organize',
-            label: 'Move to section',
-            icon: FolderTree,
-            hidden: sectionOptions.length === 0,
-            children: sectionOptions.map((section): EntityAction => ({
-              id: `section-${section.id}`,
-              label: section.label,
-              checked: section.hasChannel,
-              run: () =>
-                section.hasChannel
-                  ? removeChannelFromSection(
-                      workspaceId,
-                      section.id,
-                      channel.id,
-                    )
-                  : assignChannelToSection(workspaceId, section.id, channel.id),
-            })),
-          },
+          moveToSection.action,
         ],
         onOpen: () => {
           persistLastChannel(workspaceId, channel.slug);
@@ -468,6 +453,7 @@ function ChannelRow({
       >
         {row}
       </EntityContextMenu>
+      {moveToSection.dialog}
       {dialog?.kind === 'details' && currentUser ? (
         <ChannelDetailsDialog
           open
@@ -531,7 +517,6 @@ interface SortableChannelRowProps {
     level: ChannelNotificationLevel,
   ) => void;
   prompts: PromptDialog;
-  sectionOptions?: { id: string; label: string; hasChannel: boolean }[];
 }
 
 function SortableChannelRow(props: SortableChannelRowProps) {
@@ -852,6 +837,24 @@ export function ChannelNav({
   const recordChannelVisit = useSidebarStore((s) => s.recordChannelVisit);
   const updateSectionDef = useSidebarStore((s) => s.updateSectionDef);
   const [sectionsDialogOpen, setSectionsDialogOpen] = useState(false);
+  const removeSectionDef = useSidebarStore((s) => s.removeSectionDef);
+  const shiftSectionDef = useSidebarStore((s) => s.shiftSectionDef);
+  const createSection = useCreateSection(workspaceId);
+
+  /* The Channels header keeps its name; its menu is where sections start. */
+  const channelsHeaderMenu = useMemo<EntityAction[]>(
+    () => [
+      createSection.action,
+      {
+        id: 'section-manage-all',
+        group: 'section-create',
+        label: 'Smart sections & sorting…',
+        icon: FolderTree,
+        run: () => setSectionsDialogOpen(true),
+      },
+    ],
+    [createSection.action],
+  );
 
   const isManualSort = channelSort.mode === 'manual';
 
@@ -986,24 +989,6 @@ export function ChannelNav({
     setChannelHidden,
     openSplitView,
   ]);
-
-  /* Manual sections the channel-row menu can file a channel under. */
-  const manualSections = useMemo(
-    () =>
-      (sectionDefs ?? [])
-        .filter((d) => d.kind === 'manual')
-        .sort((a, b) => a.order - b.order),
-    [sectionDefs],
-  );
-  const sectionOptionsFor = useCallback(
-    (channelId: string) =>
-      manualSections.map((s) => ({
-        id: s.id,
-        label: s.label,
-        hasChannel: (s.channelIds ?? []).includes(channelId),
-      })),
-    [manualSections],
-  );
 
   /* Record a channel open so "frequently visited" has data to sort on. One
      count per real navigation — the ref guard stops the channel-list refetch
@@ -1647,7 +1632,6 @@ export function ChannelNav({
                 <ChannelRow
                   channel={channel}
                   activity={channelActivity?.[channel.id]}
-                  sectionOptions={sectionOptionsFor(channel.id)}
                   {...rowProps}
                   activityContent={content}
                 />
@@ -1705,37 +1689,89 @@ export function ChannelNav({
                           ({ def, channels: list }) =>
                             list.length > 0 || !def.hideWhenEmpty,
                         )
-                        .map(({ def, channels: sectionChannels }) => (
-                          <Section
-                            key={def.id}
-                            title={def.label}
-                            count={sectionChannels.length}
-                            open={!def.collapsed}
-                            onOpenChange={(next) =>
-                              updateSectionDef(workspaceId, def.id, {
-                                collapsed: !next,
-                              })
-                            }
-                            emptyLabel={
-                              def.kind === 'manual'
-                                ? 'Add channels from a channel’s ⋯ menu.'
-                                : 'Nothing matches this rule right now.'
-                            }
-                          >
-                            {sectionChannels.map((channel) => (
-                              <ChannelRow
-                                key={channel.id}
-                                channel={channel}
-                                activity={channelActivity?.[channel.id]}
-                                sectionOptions={sectionOptionsFor(channel.id)}
-                                {...rowProps}
-                              />
-                            ))}
-                          </Section>
-                        ))}
+                        .map(
+                          (
+                            { def, channels: sectionChannels },
+                            index,
+                            shown,
+                          ) => (
+                            <Section
+                              key={def.id}
+                              title={def.label}
+                              count={
+                                sectionChannels.length +
+                                (def.dmIds?.length ?? 0)
+                              }
+                              open={!def.collapsed}
+                              onOpenChange={(next) =>
+                                updateSectionDef(workspaceId, def.id, {
+                                  collapsed: !next,
+                                })
+                              }
+                              onRename={(label) => {
+                                const clean = normalizeSectionLabel(label);
+                                // A custom section has no default to fall back
+                                // to, so an empty name just keeps the old one.
+                                if (clean) {
+                                  updateSectionDef(workspaceId, def.id, {
+                                    label: clean,
+                                  });
+                                }
+                              }}
+                              menu={customSectionMenu({
+                                def,
+                                index,
+                                total: shown.length,
+                                onShift: (direction) =>
+                                  shiftSectionDef(
+                                    workspaceId,
+                                    def.id,
+                                    direction,
+                                  ),
+                                onDelete: () =>
+                                  removeSectionDef(workspaceId, def.id),
+                                extra:
+                                  def.kind === 'smart'
+                                    ? [
+                                        {
+                                          id: 'section-edit-rule',
+                                          group: 'section-edit',
+                                          label: 'Edit rule…',
+                                          icon: FolderTree,
+                                          run: () =>
+                                            setSectionsDialogOpen(true),
+                                        },
+                                      ]
+                                    : [],
+                              })}
+                              emptyLabel={
+                                def.kind === 'manual'
+                                  ? 'Empty — use “Move to section” on any channel or direct message.'
+                                  : 'Nothing matches this rule right now.'
+                              }
+                            >
+                              {sectionChannels.map((channel) => (
+                                <ChannelRow
+                                  key={channel.id}
+                                  channel={channel}
+                                  activity={channelActivity?.[channel.id]}
+                                  {...rowProps}
+                                />
+                              ))}
+                              {def.dmIds?.length ? (
+                                <SectionDirectMessageRows
+                                  dmIds={def.dmIds}
+                                  workspaceSlug={workspaceSlug}
+                                  liveCounts={directMessageLiveCounts}
+                                />
+                              ) : null}
+                            </Section>
+                          ),
+                        )}
 
                       <Section
                         title="Channels"
+                        menu={channelsHeaderMenu}
                         count={activeUnsectionedChannels.length}
                         inactiveTrigger={
                           inactiveChannelItems.length > 0 ? (
@@ -1795,7 +1831,6 @@ export function ChannelNav({
                                   key={channel.id}
                                   channel={channel}
                                   activity={channelActivity?.[channel.id]}
-                                  sectionOptions={sectionOptionsFor(channel.id)}
                                   {...rowProps}
                                 />
                               ))}
@@ -1807,7 +1842,6 @@ export function ChannelNav({
                               key={channel.id}
                               channel={channel}
                               activity={channelActivity?.[channel.id]}
-                              sectionOptions={sectionOptionsFor(channel.id)}
                               {...rowProps}
                             />
                           ))
@@ -1914,6 +1948,8 @@ export function ChannelNav({
         open={customizerOpen}
         onOpenChange={setCustomizerOpen}
       />
+
+      {createSection.dialog}
 
       <SmartSectionsDialog
         open={sectionsDialogOpen}
