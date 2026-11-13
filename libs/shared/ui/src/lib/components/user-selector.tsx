@@ -107,7 +107,13 @@ export function UserSelector({
       const name = (m.displayName ?? m.name).toLowerCase();
       const rawName = m.name.toLowerCase();
       const email = (m.email ?? '').toLowerCase();
-      const role = (m.role || m.title || m.subtitle || m.description || '').toLowerCase();
+      const role = (
+        m.role ||
+        m.title ||
+        m.subtitle ||
+        m.description ||
+        ''
+      ).toLowerCase();
       return (
         name.includes(q) ||
         rawName.includes(q) ||
@@ -150,7 +156,7 @@ export function UserSelector({
     ? Math.max(0, selectedMembers.length - maxSelectedChips)
     : 0;
 
-  const activePlaceholder = query ? '' : (searchPlaceholder || placeholder);
+  const activePlaceholder = query ? '' : searchPlaceholder || placeholder;
 
   // Render input-style trigger (Chips with avatar, label, remove X + inline search input)
   const inputTrigger = (
@@ -166,24 +172,25 @@ export function UserSelector({
         }
       }}
       className={cn(
-        'min-h-[42px] w-full px-2.5 py-1.5 rounded-xl border border-border bg-surface-raised flex flex-wrap items-center gap-1.5 cursor-text transition-colors',
-        'hover:border-field-border focus-within:border-ring focus-within:ring-1 focus-within:ring-ring/25',
+        'px-2.5 py-1.5 gap-1.5 flex min-h-[42px] w-full cursor-text flex-wrap items-center rounded-xl border border-border bg-surface-raised transition-colors',
+        'focus-within:border-ring focus-within:ring-1 focus-within:ring-ring/25 hover:border-field-border',
         open && 'border-brand ring-1 ring-brand/25',
-        disabled && 'opacity-50 cursor-not-allowed pointer-events-none bg-muted/40',
+        disabled &&
+          'pointer-events-none cursor-not-allowed bg-muted/40 opacity-50',
         className,
       )}
     >
       <div
         role="group"
         aria-label="Selected members"
-        className="flex flex-wrap items-center gap-1.5"
+        className="gap-1.5 flex flex-wrap items-center"
       >
         {visibleChips.map((member) => {
           const displayName = member.displayName ?? member.name;
           return (
             <span
               key={member.id}
-              className="inline-flex items-center gap-1.5 pl-1 pr-2 py-0.5 rounded-full bg-surface border border-border/80 text-xs font-medium text-foreground shadow-2xs transition-all hover:bg-accent/40"
+              className="gap-1.5 pl-1 pr-2 py-0.5 text-xs font-medium shadow-2xs inline-flex items-center rounded-full border border-border/80 bg-surface text-foreground transition-all hover:bg-accent/40"
             >
               <UserAvatar
                 name={displayName}
@@ -192,7 +199,7 @@ export function UserSelector({
                 size="xs"
                 className="size-5 font-bold shrink-0"
               />
-              <span className="truncate max-w-[140px] text-xs font-medium">
+              <span className="text-xs font-medium max-w-[140px] truncate">
                 {displayName}
               </span>
               {!disabled && (
@@ -201,7 +208,7 @@ export function UserSelector({
                   tabIndex={-1}
                   aria-label={`Remove ${displayName}`}
                   onClick={(e) => removeUser(e, member.id)}
-                  className="text-muted-foreground hover:text-foreground hover:bg-muted/80 rounded-full p-0.5 transition-colors cursor-pointer"
+                  className="p-0.5 cursor-pointer rounded-full text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
                 >
                   <X className="size-3" />
                 </button>
@@ -211,7 +218,7 @@ export function UserSelector({
         })}
 
         {remainingCount > 0 && (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-surface border border-border text-[11px] font-medium text-muted-foreground">
+          <span className="px-2 py-0.5 font-medium inline-flex items-center rounded-full border border-border bg-surface text-meta text-muted-foreground">
             +{remainingCount} more
           </span>
         )}
@@ -239,7 +246,7 @@ export function UserSelector({
             setOpen(false);
           }
         }}
-        className="flex-1 min-w-[120px] bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none border-none p-0 focus:ring-0"
+        className="text-xs p-0 min-w-[120px] flex-1 border-none bg-transparent text-foreground outline-none placeholder:text-muted-foreground focus:ring-0"
       />
     </div>
   );
@@ -253,9 +260,9 @@ export function UserSelector({
         if (!disabled) setOpen((prev) => !prev);
       }}
       className={cn(
-        'inline-flex items-center gap-1.5 p-0.5 rounded-full transition-all cursor-pointer outline-none select-none',
+        'gap-1.5 p-0.5 inline-flex cursor-pointer items-center rounded-full transition-all outline-none select-none',
         'hover:ring-2 hover:ring-brand/40 focus-visible:ring-2 focus-visible:ring-ring',
-        disabled && 'opacity-50 cursor-not-allowed pointer-events-none',
+        disabled && 'pointer-events-none cursor-not-allowed opacity-50',
         className,
       )}
       aria-label={label}
@@ -263,14 +270,15 @@ export function UserSelector({
       {selectedMembers.length > 0 ? (
         <UserAvatarGroup users={selectedMembers} size="xs" />
       ) : (
-        <div className="size-5 rounded-full border border-dashed border-muted-foreground/50 flex items-center justify-center bg-muted/20 hover:bg-muted/40 transition-colors">
+        <div className="size-5 flex items-center justify-center rounded-full border border-dashed border-muted-foreground/50 bg-muted/20 transition-colors hover:bg-muted/40">
           <UserX className="size-3 text-muted-foreground" />
         </div>
       )}
     </button>
   );
 
-  const activeTrigger = trigger ?? (effectiveVariant === 'input' ? inputTrigger : avatarTrigger);
+  const activeTrigger =
+    trigger ?? (effectiveVariant === 'input' ? inputTrigger : avatarTrigger);
 
   return (
     <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
@@ -283,20 +291,20 @@ export function UserSelector({
           onOpenAutoFocus={(e) => e.preventDefault()}
           onCloseAutoFocus={(e) => e.preventDefault()}
           className={cn(
-            'z-50 w-72 sm:w-80 p-1.5 rounded-2xl border border-border bg-popover text-popover-foreground shadow-2xl space-y-0.5 select-none outline-none',
+            'w-72 sm:w-80 p-1.5 shadow-2xl space-y-0.5 z-50 rounded-2xl border border-border bg-popover text-popover-foreground outline-none select-none',
             popoverClassName,
           )}
         >
           {/* Search Input Box when trigger is not an inline input */}
           {effectiveVariant !== 'input' && (
-            <div className="relative flex items-center px-2.5 py-1.5 border-b border-border/60 mb-1">
-              <Search className="size-3.5 text-muted-foreground shrink-0 mr-2" />
+            <div className="px-2.5 py-1.5 mb-1 relative flex items-center border-b border-border/60">
+              <Search className="size-3.5 mr-2 shrink-0 text-muted-foreground" />
               <input
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={searchPlaceholder}
-                className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none border-none p-0 focus:ring-0"
+                className="text-xs p-0 w-full border-none bg-transparent text-foreground outline-none placeholder:text-muted-foreground focus:ring-0"
                 autoFocus
               />
               {query && (
@@ -312,19 +320,18 @@ export function UserSelector({
           )}
 
           {/* Member Options List matching reference image */}
-          <div className="max-h-64 overflow-y-auto space-y-0.5 py-0.5 scrollbar-subtle">
+          <div className="max-h-64 space-y-0.5 py-0.5 scrollbar-subtle overflow-y-auto">
             {isLoading ? (
-              <div
-                role="status"
-                aria-busy="true"
-                className="space-y-1 p-1"
-              >
+              <div role="status" aria-busy="true" className="space-y-1 p-1">
                 <span className="sr-only">Loading members…</span>
                 {Array.from({ length: 4 }, (_, i) => (
-                  <div key={i} className="w-full flex items-center justify-between px-3 py-2 rounded-xl">
-                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div
+                    key={i}
+                    className="px-3 py-2 flex w-full items-center justify-between rounded-xl"
+                  >
+                    <div className="gap-2.5 min-w-0 flex flex-1 items-center">
                       <SkeletonAvatar size="sm" shape="circle" />
-                      <div className="min-w-0 flex-1 space-y-1">
+                      <div className="min-w-0 space-y-1 flex-1">
                         <SkeletonText size="xs" className="w-28" />
                         <SkeletonText size="xs" className="w-20 opacity-70" />
                       </div>
@@ -333,7 +340,7 @@ export function UserSelector({
                 ))}
               </div>
             ) : filteredMembers.length === 0 ? (
-              <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+              <div className="px-3 py-4 text-xs text-center text-muted-foreground">
                 No users found
               </div>
             ) : (
@@ -354,29 +361,29 @@ export function UserSelector({
                     type="button"
                     onClick={() => toggleUser(member.id)}
                     className={cn(
-                      'w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-left cursor-pointer transition-colors duration-150 outline-none',
+                      'px-3 py-2 text-xs flex w-full cursor-pointer items-center justify-between rounded-xl text-left transition-colors duration-150 outline-none',
                       isSelected
                         ? 'bg-accent/40 text-foreground hover:bg-accent/70'
                         : 'text-foreground/90 hover:bg-accent/60',
                     )}
                   >
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="gap-3 min-w-0 flex flex-1 items-center">
                       {/* User Avatar */}
                       <UserAvatar
                         name={displayName}
                         seed={member.id}
                         src={member.avatarUrl}
                         size="sm"
-                        className="size-8 shrink-0 font-bold rounded-full"
+                        className="size-8 font-bold shrink-0 rounded-full"
                       />
 
                       {/* Name + Subtitle (Role/Title/Email) Stack */}
                       <div className="min-w-0 flex-1">
-                        <span className="block text-xs truncate font-semibold text-foreground leading-tight">
+                        <span className="text-xs font-semibold leading-tight block truncate text-foreground">
                           {displayName}
                         </span>
                         {subtitle && (
-                          <span className="block text-[11px] truncate text-muted-foreground mt-0.5 leading-tight font-normal">
+                          <span className="mt-0.5 leading-tight font-normal block truncate text-meta text-muted-foreground">
                             {subtitle}
                           </span>
                         )}
@@ -385,7 +392,7 @@ export function UserSelector({
 
                     {/* Clean Right-aligned checkmark when selected */}
                     {isSelected && (
-                      <Check className="size-4 text-foreground shrink-0 stroke-[2.5] ml-2" />
+                      <Check className="size-4 ml-2 shrink-0 stroke-[2.5] text-foreground" />
                     )}
                   </button>
                 );
@@ -396,16 +403,16 @@ export function UserSelector({
           {/* Invite new user footer */}
           {onInvite && (
             <>
-              <div className="h-px bg-border my-1" />
+              <div className="my-1 h-px bg-border" />
               <button
                 type="button"
                 onClick={() => {
                   setOpen(false);
                   onInvite();
                 }}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs cursor-pointer text-foreground/85 hover:bg-accent/60 font-medium transition-colors"
+                className="gap-2 px-3 py-2 text-xs font-medium flex w-full cursor-pointer items-center rounded-xl text-foreground/85 transition-colors hover:bg-accent/60"
               >
-                <Send className="size-3.5 text-muted-foreground shrink-0" />
+                <Send className="size-3.5 shrink-0 text-muted-foreground" />
                 <span>Invite and add...</span>
               </button>
             </>

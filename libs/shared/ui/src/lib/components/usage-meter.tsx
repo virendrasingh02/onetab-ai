@@ -4,7 +4,6 @@ import { Button } from './button.js';
 import { AlertCircle, AlertTriangle, ArrowUpRight } from 'lucide-react';
 import type { ResourceUsageMetric } from '@org/types';
 
-
 export interface UsageMeterProps {
   metric: ResourceUsageMetric;
   icon?: React.ElementType;
@@ -31,9 +30,10 @@ export function UsageMeter({
     barColorClass = 'bg-warning';
   }
 
-  const formattedUsed = metric.unit === 'bytes'
-    ? formatStorageBytes(metric.used)
-    : metric.used.toLocaleString();
+  const formattedUsed =
+    metric.unit === 'bytes'
+      ? formatStorageBytes(metric.used)
+      : metric.used.toLocaleString();
 
   const formattedLimit = isUnlimited
     ? 'Unlimited'
@@ -44,22 +44,27 @@ export function UsageMeter({
   return (
     <div
       className={cn(
-        'rounded-xl border border-border/80 bg-card p-4 space-y-3 shadow-2xs',
+        'p-4 space-y-3 shadow-2xs rounded-xl border border-border/80 bg-card',
         isExceeded && 'border-destructive/30 bg-destructive/5',
         isWarning && 'border-warning/30 bg-warning/5',
         className,
       )}
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          {Icon ? <Icon className="size-4 shrink-0 text-muted-foreground" /> : null}
-          <span className="text-xs font-semibold text-foreground truncate">
+      <div className="gap-2 flex items-center justify-between">
+        <div className="gap-2 min-w-0 flex items-center">
+          {Icon ? (
+            <Icon className="size-4 shrink-0 text-muted-foreground" />
+          ) : null}
+          <span className="text-xs font-semibold truncate text-foreground">
             {metric.label}
           </span>
         </div>
-        <div className="text-xs font-medium text-foreground shrink-0">
+        <div className="text-xs font-medium shrink-0 text-foreground">
           <span>{formattedUsed}</span>
-          <span className="text-muted-foreground font-normal"> / {formattedLimit}</span>
+          <span className="font-normal text-muted-foreground">
+            {' '}
+            / {formattedLimit}
+          </span>
         </div>
       </div>
 
@@ -68,19 +73,22 @@ export function UsageMeter({
         <div className="space-y-1.5">
           <div className="h-2 w-full overflow-hidden rounded-full bg-muted/70">
             <div
-              className={cn('h-full rounded-full transition-all duration-500', barColorClass)}
+              className={cn(
+                'h-full rounded-full transition-all duration-500',
+                barColorClass,
+              )}
               style={{ width: `${Math.min(100, metric.percentage)}%` }}
             />
           </div>
-          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+          <div className="flex items-center justify-between text-meta text-muted-foreground">
             <span>{metric.percentage}% utilized</span>
             {isExceeded ? (
-              <span className="flex items-center gap-1 font-semibold text-destructive">
+              <span className="gap-1 font-semibold flex items-center text-destructive">
                 <AlertCircle className="size-3" />
                 Limit reached
               </span>
             ) : isWarning ? (
-              <span className="flex items-center gap-1 font-medium text-warning-text">
+              <span className="gap-1 font-medium flex items-center text-warning-text">
                 <AlertTriangle className="size-3" />
                 Near limit
               </span>
@@ -88,15 +96,17 @@ export function UsageMeter({
           </div>
         </div>
       ) : (
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span className="text-xs font-medium text-primary">✓ Unlimited quota</span>
+        <div className="text-xs flex items-center justify-between text-muted-foreground">
+          <span className="text-xs font-medium text-primary">
+            ✓ Unlimited quota
+          </span>
         </div>
       )}
 
       {/* Contextual Warning & Upgrade CTA */}
       {(isExceeded || isWarning) && showUpgradeButton && onUpgradeClick ? (
-        <div className="pt-1 flex items-center justify-between gap-2">
-          <p className="text-[11px] text-muted-foreground leading-tight">
+        <div className="pt-1 gap-2 flex items-center justify-between">
+          <p className="leading-tight text-meta text-muted-foreground">
             {isExceeded
               ? 'Upgrade to continue without interruption.'
               : 'Approaching plan quota limit.'}
@@ -105,7 +115,7 @@ export function UsageMeter({
             variant={isExceeded ? 'destructive' : 'outline'}
             size="xs"
             onClick={onUpgradeClick}
-            className="text-[11px] font-semibold shrink-0 h-6 px-2"
+            className="font-semibold h-6 px-2 shrink-0 text-meta"
           >
             <span>Upgrade</span>
             <ArrowUpRight className="size-3 ml-0.5" />

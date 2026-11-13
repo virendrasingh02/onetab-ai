@@ -48,10 +48,12 @@ export function UserIdentity({
   const primaryName = displayName ?? name;
   const secondaryText =
     subtitle ??
-    (handle ? `@${handle.replace(/^@/, '')}` : email ?? (displayName ? `@${name}` : null));
+    (handle
+      ? `@${handle.replace(/^@/, '')}`
+      : (email ?? (displayName ? `@${name}` : null)));
 
   return (
-    <div className={cn('inline-flex items-center gap-2.5 min-w-0', className)}>
+    <div className={cn('gap-2.5 min-w-0 inline-flex items-center', className)}>
       <UserAvatar
         name={primaryName}
         src={src}
@@ -63,11 +65,11 @@ export function UserIdentity({
         statusText={statusText}
         className={avatarClassName}
       />
-      <div className="min-w-0 flex-1 leading-tight">
-        <div className="flex items-center gap-1.5 min-w-0">
+      <div className="min-w-0 leading-tight flex-1">
+        <div className="gap-1.5 min-w-0 flex items-center">
           <span
             className={cn(
-              'font-semibold text-xs text-foreground truncate',
+              'font-semibold text-xs truncate text-foreground',
               nameClassName,
             )}
           >
@@ -78,7 +80,7 @@ export function UserIdentity({
         {secondaryText ? (
           <span
             className={cn(
-              'block text-[11px] text-muted-foreground truncate font-mono',
+              'block truncate font-mono text-meta text-muted-foreground',
               subtitleClassName,
             )}
           >
