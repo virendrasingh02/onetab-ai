@@ -1,4 +1,4 @@
-import type { CurrentUser } from '@org/types';
+import type { CurrentUser, PlanTier } from '@org/types';
 import { create } from 'zustand';
 
 /**
@@ -30,6 +30,8 @@ export interface AccountWorkspace {
   iconColor: string | null;
   avatarUrl: string | null;
   memberCount: number;
+  /** Billing plan tier; absent in caches written before it was added. */
+  plan?: PlanTier;
 }
 
 export interface Account {

@@ -12,6 +12,7 @@ import type {
   WorkspaceStatus,
 } from './enums.js';
 import type { WorkspacePermission } from './permissions.js';
+import type { PlanTier } from './plans.js';
 
 /** ISO-8601 timestamp. Transport is always a string; parse at the edge. */
 export type IsoDateString = string;
@@ -339,6 +340,9 @@ export interface WorkspaceSummary extends Workspace {
   permissions: readonly WorkspacePermission[];
   memberCount: number;
   channelCount: number;
+  /** The workspace's billing plan tier (free/pro/max/enterprise). Optional for
+   *  older payloads and cached slices. */
+  plan?: PlanTier;
   /** The email address associated with the viewer's membership in this workspace. */
   email?: string | null;
   /** The viewer's membership status in this workspace. */

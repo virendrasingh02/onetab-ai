@@ -8,7 +8,7 @@ import {
   type AuthResponse,
   type SignInResponse,
 } from '@org/api-client';
-import type { CurrentUser } from '@org/types';
+import type { CurrentUser, PlanTier } from '@org/types';
 import type {
   LoginInput,
   RegisterInput,
@@ -194,6 +194,7 @@ function toAccountWorkspace(w: {
   iconColor?: string | null;
   avatarUrl?: string | null;
   memberCount: number;
+  plan?: PlanTier;
 }): AccountWorkspace {
   return {
     id: w.id,
@@ -204,6 +205,7 @@ function toAccountWorkspace(w: {
     iconColor: w.iconColor ?? null,
     avatarUrl: w.avatarUrl ?? null,
     memberCount: w.memberCount,
+    plan: w.plan,
   };
 }
 

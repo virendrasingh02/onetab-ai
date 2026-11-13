@@ -20,6 +20,7 @@ import {
   ApiErrorCode,
   WorkspaceRole,
   WorkspaceStatus,
+  normalizePlanTier,
   permissionsForRole,
   pickAvatarColor,
   type MembershipStatus,
@@ -72,6 +73,7 @@ export class WorkspaceService {
         workspace: {
           include: {
             _count: { select: { members: true, channels: true } },
+            subscription: { select: { planTier: true } },
           },
         },
       },
@@ -79,6 +81,7 @@ export class WorkspaceService {
 
     return memberships.map((membership) => ({
       ...toWorkspace(membership.workspace),
+      plan: normalizePlanTier(membership.workspace.subscription?.planTier),
       role: membership.role as WorkspaceRole,
       permissions: permissionsForRole(membership.role as WorkspaceRole),
       memberCount: membership.workspace._count.members,
@@ -93,6 +96,7 @@ export class WorkspaceService {
       where: { slug },
       include: {
         _count: { select: { members: true, channels: true } },
+        subscription: { select: { planTier: true } },
         members: {
           where: { userId },
           select: {
@@ -114,6 +118,7 @@ export class WorkspaceService {
     const role = member.role as WorkspaceRole;
     return {
       ...toWorkspace(workspace),
+      plan: normalizePlanTier(workspace.subscription?.planTier),
       role,
       permissions: permissionsForRole(role),
       memberCount: workspace._count.members,
@@ -185,6 +190,7 @@ export class WorkspaceService {
 
     return {
       ...toWorkspace(workspace),
+      plan: 'free',
       role: WorkspaceRole.OWNER,
       permissions: permissionsForRole(WorkspaceRole.OWNER),
       memberCount: workspace._count.members,

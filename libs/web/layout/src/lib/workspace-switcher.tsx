@@ -44,7 +44,14 @@ import { Link } from 'react-router-dom';
 /** A row's shape is the common subset of a full summary and a cached slice. */
 type SwitcherWorkspace = Pick<
   WorkspaceSummary,
-  'id' | 'name' | 'slug' | 'avatarUrl' | 'icon' | 'iconColor' | 'memberCount'
+  | 'id'
+  | 'name'
+  | 'slug'
+  | 'avatarUrl'
+  | 'icon'
+  | 'iconColor'
+  | 'memberCount'
+  | 'plan'
 >;
 
 /**
@@ -386,6 +393,8 @@ export function WorkspaceMenu({
                             ? `/w/${workspace.slug}`
                             : workspaceEntryPath(workspace);
 
+                          const rowPlan = isSelected ? plan : workspace.plan;
+
                           const body = (
                             <>
                               <WorkspaceAvatar
@@ -398,23 +407,32 @@ export function WorkspaceMenu({
                                 className="shrink-0 rounded-sm"
                               />
                               <span className="min-w-0 leading-tight flex-1">
-                                <span className="gap-1.5 flex items-center">
-                                  <span className="font-semibold truncate text-foreground">
-                                    {workspace.name}
-                                  </span>
-                                  {isSelected ? (
-                                    <PlanBadge
-                                      plan={plan}
-                                      size="sm"
-                                      showIcon={false}
-                                      variant="subtle"
-                                      className="font-semibold shrink-0 text-[9px]"
-                                    />
-                                  ) : null}
+                                <span className="font-semibold block truncate text-foreground">
+                                  {workspace.name}
                                 </span>
-                                <span className="font-normal block truncate text-[10px] text-muted-foreground">
-                                  {workspace.memberCount} member
-                                  {workspace.memberCount === 1 ? '' : 's'}
+                                {/* Meta line: member count · plan. The open
+                                    workspace uses the live billing plan; the
+                                    others use the plan from the list payload. */}
+                                <span className="mt-0.5 gap-1.5 font-normal flex items-center text-[10px] text-muted-foreground">
+                                  <span className="truncate">
+                                    {workspace.memberCount} member
+                                    {workspace.memberCount === 1 ? '' : 's'}
+                                  </span>
+                                  {rowPlan ? (
+                                    <>
+                                      <span
+                                        aria-hidden
+                                        className="size-0.5 shrink-0 rounded-full bg-muted-foreground/60"
+                                      />
+                                      <PlanBadge
+                                        plan={rowPlan}
+                                        size="xs"
+                                        showIcon={false}
+                                        variant="subtle"
+                                        className="h-3.5 px-1 font-semibold shrink-0 rounded text-[8.5px]"
+                                      />
+                                    </>
+                                  ) : null}
                                 </span>
                               </span>
                             </>
