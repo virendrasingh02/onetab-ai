@@ -109,7 +109,7 @@ export function AppDownloadBanner({
           <Button
             variant="ghost"
             size="sm"
-            className="size-7 p-0 -mt-4 -mr-1.5 self-start cursor-pointer text-muted-foreground hover:text-foreground"
+            className="size-7 p-0 -mt-4 -mr-1.5 cursor-pointer self-start text-muted-foreground hover:text-foreground"
             onClick={() => handleSnooze(24)}
             title="Close (remind tomorrow)"
             aria-label="Close app download banner"
@@ -135,7 +135,7 @@ export function AppDownloadBanner({
               className="h-8 gap-1 px-2 sm:px-2.5 text-xs cursor-pointer bg-background/80 hover:bg-accent"
               aria-label="Snooze or dismiss app prompt"
             >
-              <Clock className="size-3.5 text-muted-foreground" />
+              <Clock className="size-3.5" />
               <span className={isMobile ? 'sm:inline hidden' : 'sr-only'}>
                 Remind Me
               </span>
@@ -196,16 +196,16 @@ export function AppDownloadBanner({
 
         {/* Close button — desktop has its own in the card header. */}
         {isMobile ? (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="size-8 p-0 cursor-pointer text-muted-foreground hover:text-foreground"
-          onClick={() => handleSnooze(24)}
-          title="Close (remind tomorrow)"
-          aria-label="Close app download banner"
-        >
-          <X className="size-4" />
-        </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="size-8 p-0 cursor-pointer text-muted-foreground hover:text-foreground"
+            onClick={() => handleSnooze(24)}
+            title="Close (remind tomorrow)"
+            aria-label="Close app download banner"
+          >
+            <X className="size-4" />
+          </Button>
         ) : null}
       </div>
     </div>

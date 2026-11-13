@@ -17,18 +17,32 @@ import {
   setApiUrlForDeepLinks,
 } from './main/deep-link.js';
 import { setSingleInstanceHeld } from './main/diagnostics.js';
-import { dispatchFileOpened, fileFromArgv, flushPendingFile } from './main/file-handler.js';
-import { dispatchHandoffActivity, flushPendingHandoff } from './main/handoff.js';
+import {
+  dispatchFileOpened,
+  fileFromArgv,
+  flushPendingFile,
+} from './main/file-handler.js';
+import {
+  dispatchHandoffActivity,
+  flushPendingHandoff,
+} from './main/handoff.js';
 import { registerIpcHandlers } from './main/ipc.js';
 import { applyDisplayMediaPolicy } from './main/display-media.js';
 import { applySessionPolicy } from './main/permissions.js';
-import { setJumpListIconSource, setupWindowsJumpList } from './main/jump-list.js';
+import {
+  setJumpListIconSource,
+  setupWindowsJumpList,
+} from './main/jump-list.js';
 import { focusApp } from './main/lifecycle.js';
 import { logger } from './main/logger.js';
 import { installAppMenu } from './main/menu.js';
 import { startStaticServer, type StaticServer } from './main/static-server.js';
 import { createTray, destroyTray } from './main/tray.js';
-import { scheduleUpdateChecks, setApiUrlForUpdates, setUpdateFeedUrl } from './main/updater.js';
+import {
+  scheduleUpdateChecks,
+  setApiUrlForUpdates,
+  setUpdateFeedUrl,
+} from './main/updater.js';
 import { shouldStartHidden, syncLoginItemOnLaunch } from './main/startup.js';
 import { getPreference } from './main/store.js';
 import {
@@ -58,7 +72,10 @@ const hasSingleInstanceLock = app.requestSingleInstanceLock({
 setSingleInstanceHeld(hasSingleInstanceLock);
 
 if (!hasSingleInstanceLock) {
-  logger.info('App', 'Another instance is already running. Handing off and quitting second instance.');
+  logger.info(
+    'App',
+    'Another instance is already running. Handing off and quitting second instance.',
+  );
   app.quit();
 }
 
@@ -80,7 +97,10 @@ if (process.platform === 'linux') {
  * GPU acceleration can only be switched off before `ready`, which is why the
  * saved preference is read here and why changing it asks for a restart.
  */
-if (hasSingleInstanceLock && !getPreference<boolean>('hardwareAcceleration', true)) {
+if (
+  hasSingleInstanceLock &&
+  !getPreference<boolean>('hardwareAcceleration', true)
+) {
   app.disableHardwareAcceleration();
 }
 
@@ -88,7 +108,8 @@ if (hasSingleInstanceLock && !getPreference<boolean>('hardwareAcceleration', tru
  * Where the renderer comes from.
  */
 async function resolveAppUrl(): Promise<string> {
-  const override = process.env['WEB_APP_URL'] || process.env['VITE_WEB_APP_URL'];
+  const override =
+    process.env['WEB_APP_URL'] || process.env['VITE_WEB_APP_URL'];
   if (override) return override;
   if (isDev) return 'http://localhost:4200';
 
@@ -98,7 +119,9 @@ async function resolveAppUrl(): Promise<string> {
     join(process.resourcesPath ?? here, 'web'),
     resolve(here, '../../web/dist'),
   ];
-  const root = candidates.find((candidate) => existsSync(join(candidate, 'index.html')));
+  const root = candidates.find((candidate) =>
+    existsSync(join(candidate, 'index.html')),
+  );
 
   if (!root) {
     throw new Error(
@@ -126,8 +149,11 @@ function sendCommand(command: DesktopCommand): void {
 }
 
 function registerGlobalShortcuts(): void {
-  const accelerator = process.platform === 'darwin' ? 'Cmd+Shift+Space' : 'Ctrl+Shift+Space';
-  const registered = globalShortcut.register(accelerator, () => sendCommand('open-search'));
+  const accelerator =
+    process.platform === 'darwin' ? 'Cmd+Shift+Space' : 'Ctrl+Shift+Space';
+  const registered = globalShortcut.register(accelerator, () =>
+    sendCommand('open-search'),
+  );
 
   if (!registered) {
     logger.warn('App', `Global shortcut ${accelerator} is unavailable.`);
@@ -135,7 +161,8 @@ function registerGlobalShortcuts(): void {
 }
 
 function reportFatal(error: unknown): void {
-  const detail = error instanceof Error ? (error.stack ?? error.message) : String(error);
+  const detail =
+    error instanceof Error ? (error.stack ?? error.message) : String(error);
   logger.error('App', 'Failed to start desktop app', detail);
 
   try {
@@ -182,7 +209,10 @@ async function initializeApp(): Promise<string> {
   installAppMenu(isDev);
   configureAboutPanel();
 
-  const savedTheme = getPreference<'system' | 'light' | 'dark'>('theme', 'system');
+  const savedTheme = getPreference<'system' | 'light' | 'dark'>(
+    'theme',
+    'system',
+  );
   nativeTheme.themeSource = savedTheme;
   nativeTheme.on('updated', () => {
     getMainWindow()?.webContents.send(IPC_EVENT.themeChanged, {
@@ -203,7 +233,11 @@ async function initializeApp(): Promise<string> {
 }
 
 function openWindow(appUrl: string, startHidden: boolean): void {
-  const window = createMainWindow({ appUrl, preloadPath: join(here, 'preload.js'), startHidden });
+  const window = createMainWindow({
+    appUrl,
+    preloadPath: join(here, 'preload.js'),
+    startHidden,
+  });
 
   window.webContents.on('did-finish-load', () => {
     if (!isHiddenLaunch()) showMainWindow();
@@ -213,22 +247,25 @@ function openWindow(appUrl: string, startHidden: boolean): void {
     window.webContents.send(IPC_EVENT.onlineStatus, true);
 
     // If an authenticated session was previously saved in OS safeStorage, deliver it
-    const storedSession = loadSecureSession();
-    if (storedSession) {
+    void loadSecureSession().then((storedSession) => {
+      if (!storedSession || window.isDestroyed()) return;
       logger.info('App', 'Delivering restored secure session to renderer');
       window.webContents.send(IPC_EVENT.authSessionChanged, storedSession);
-    }
+    });
   });
 
   if (isDev) {
     let attempts = 0;
-    window.webContents.on('did-fail-load', (_event, _code, _description, url, isMainFrame) => {
-      if (!isMainFrame || url !== appUrl || attempts >= 60) return;
-      attempts += 1;
-      setTimeout(() => {
-        if (!window.isDestroyed()) void window.loadURL(appUrl);
-      }, 1000);
-    });
+    window.webContents.on(
+      'did-fail-load',
+      (_event, _code, _description, url, isMainFrame) => {
+        if (!isMainFrame || url !== appUrl || attempts >= 60) return;
+        attempts += 1;
+        setTimeout(() => {
+          if (!window.isDestroyed()) void window.loadURL(appUrl);
+        }, 1000);
+      },
+    );
   }
 }
 
@@ -238,7 +275,10 @@ async function bootstrap(): Promise<void> {
   windowOpening = true;
   try {
     if (!appInitialized) {
-      logger.info('App', `Starting Onetab AI Desktop (Platform: ${process.platform}, Dev: ${isDev})`);
+      logger.info(
+        'App',
+        `Starting Onetab AI Desktop (Platform: ${process.platform}, Dev: ${isDev})`,
+      );
       resolvedAppUrl = await initializeApp();
     }
     if (!resolvedAppUrl) return;
@@ -247,7 +287,10 @@ async function bootstrap(): Promise<void> {
     // is never hidden even when started at login.
     const launchLink = deepLinkFromArgv(process.argv);
     const launchFile = fileFromArgv(process.argv);
-    openWindow(resolvedAppUrl, !launchLink && !launchFile && shouldStartHidden());
+    openWindow(
+      resolvedAppUrl,
+      !launchLink && !launchFile && shouldStartHidden(),
+    );
 
     // Launched by clicking a link (Windows/Linux put it in argv).
     void dispatchDeepLink(launchLink);
@@ -351,8 +394,14 @@ function registerAppListeners(): void {
   });
 
   app.on('accessibility-support-changed', (_event, enabled) => {
-    logger.info('App', `Accessibility support ${enabled ? 'enabled' : 'disabled'}`);
-    getMainWindow()?.webContents.send(IPC_EVENT.accessibilitySupportChanged, enabled);
+    logger.info(
+      'App',
+      `Accessibility support ${enabled ? 'enabled' : 'disabled'}`,
+    );
+    getMainWindow()?.webContents.send(
+      IPC_EVENT.accessibilitySupportChanged,
+      enabled,
+    );
   });
 }
 

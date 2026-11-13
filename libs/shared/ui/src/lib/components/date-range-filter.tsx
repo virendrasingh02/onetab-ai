@@ -111,7 +111,11 @@ export function DateRangeFilter({
 
   const applyCustom = () => {
     if (!draftFrom || !draftTo) return;
-    onChange({ preset: 'custom', from: toIsoDay(draftFrom), to: toIsoDay(draftTo) });
+    onChange({
+      preset: 'custom',
+      from: toIsoDay(draftFrom),
+      to: toIsoDay(draftTo),
+    });
     setCustomOpen(false);
   };
 
@@ -128,7 +132,7 @@ export function DateRangeFilter({
                 variant="outline"
                 size={triggerSize}
                 aria-label={`Date range: ${label}`}
-                leadingIcon={<CalendarDays className="text-muted-foreground" />}
+                leadingIcon={<CalendarDays className="" />}
                 trailingIcon={
                   <ChevronDown
                     className={cn(
@@ -137,7 +141,7 @@ export function DateRangeFilter({
                     )}
                   />
                 }
-                className="max-w-full font-medium"
+                className="font-medium max-w-full"
               >
                 <span className="truncate">{label}</span>
               </Button>
@@ -186,7 +190,7 @@ export function DateRangeFilter({
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 disabled
-                className="text-[11px] font-normal tabular-nums text-muted-foreground data-[disabled]:opacity-100"
+                className="font-normal text-[11px] text-muted-foreground tabular-nums data-[disabled]:opacity-100"
               >
                 {formatDateRangeSpan(resolved)}
               </DropdownMenuItem>
@@ -213,7 +217,7 @@ export function DateRangeFilter({
             aria-live="polite"
           >
             <div>
-              <div className="text-[10px] tracking-wider text-subtle uppercase">
+              <div className="tracking-wider text-[10px] text-subtle uppercase">
                 Start
               </div>
               <div className="font-medium text-foreground">
@@ -221,7 +225,7 @@ export function DateRangeFilter({
               </div>
             </div>
             <div>
-              <div className="text-[10px] tracking-wider text-subtle uppercase">
+              <div className="tracking-wider text-[10px] text-subtle uppercase">
                 End
               </div>
               <div

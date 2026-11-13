@@ -11,7 +11,10 @@ import {
   useRightPanelStore,
   AppSelect,
 } from '@org/ui';
-import { useContextOverview, useContextLinkMutations } from '@org/web-work-tools';
+import {
+  useContextOverview,
+  useContextLinkMutations,
+} from '@org/web-work-tools';
 import {
   Bot,
   CheckSquare,
@@ -70,11 +73,11 @@ export function UniversalContextPanel({
   const navigate = useNavigate();
   const setView = useRightPanelStore((s) => s.setView);
 
-  const { data: overview, isLoading, error } = useContextOverview(
-    workspaceId,
-    targetType,
-    targetId,
-  );
+  const {
+    data: overview,
+    isLoading,
+    error,
+  } = useContextOverview(workspaceId, targetType, targetId);
 
   const { createLink, isCreatingLink } = useContextLinkMutations(workspaceId);
 
@@ -121,13 +124,13 @@ export function UniversalContextPanel({
     (overview?.relatedAgents.length ?? 0);
 
   return (
-    <div className="flex h-full flex-col min-h-0 bg-background text-foreground">
+    <div className="min-h-0 flex h-full flex-col bg-background text-foreground">
       {/* Header */}
-      <div className="flex h-12 shrink-0 items-center justify-between border-b border-border px-3">
-        <div className="flex min-w-0 items-center gap-2">
+      <div className="h-12 px-3 flex shrink-0 items-center justify-between border-b border-border">
+        <div className="min-w-0 gap-2 flex items-center">
           <TargetIcon className="size-4 shrink-0 text-primary" />
-          <span className="truncate text-sm font-semibold">{displayTitle}</span>
-          <Badge variant="outline" className="text-[10px] uppercase font-mono">
+          <span className="text-sm font-semibold truncate">{displayTitle}</span>
+          <Badge variant="outline" className="font-mono text-[10px] uppercase">
             {targetType}
           </Badge>
         </div>
@@ -144,14 +147,14 @@ export function UniversalContextPanel({
       </div>
 
       {/* Action Toolbar */}
-      <div className="flex items-center gap-1.5 border-b border-border/60 bg-muted/30 px-3 py-2">
+      <div className="gap-1.5 px-3 py-2 flex items-center border-b border-border/60 bg-muted/30">
         <Button
           variant="outline"
           size="sm"
           className="h-7 gap-1 text-xs"
           onClick={handleAskAI}
         >
-          <Sparkles className="size-3.5 text-primary" />
+          <Sparkles className="size-3.5" />
           Ask AI
         </Button>
         <Button
@@ -172,15 +175,15 @@ export function UniversalContextPanel({
       {showAddLinkForm && (
         <form
           onSubmit={handleCreateLink}
-          className="border-b border-border bg-muted/40 p-3 space-y-2 text-xs"
+          className="p-3 space-y-2 text-xs border-b border-border bg-muted/40"
         >
-          <div className="font-medium text-foreground flex items-center gap-1">
+          <div className="font-medium gap-1 flex items-center text-foreground">
             <Link2 className="size-3.5 text-primary" />
             Connect Existing Item
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="gap-2 grid grid-cols-2">
             <div>
-              <label className="text-[10px] text-muted-foreground uppercase font-semibold">
+              <label className="font-semibold text-[10px] text-muted-foreground uppercase">
                 Type
               </label>
               <AppSelect
@@ -197,7 +200,7 @@ export function UniversalContextPanel({
               />
             </div>
             <div>
-              <label className="text-[10px] text-muted-foreground uppercase font-semibold">
+              <label className="font-semibold text-[10px] text-muted-foreground uppercase">
                 Relation
               </label>
               <AppSelect
@@ -215,7 +218,7 @@ export function UniversalContextPanel({
             </div>
           </div>
           <div>
-            <label className="text-[10px] text-muted-foreground uppercase font-semibold">
+            <label className="font-semibold text-[10px] text-muted-foreground uppercase">
               Item ID or Reference
             </label>
             <Input
@@ -228,7 +231,7 @@ export function UniversalContextPanel({
           {linkError && (
             <p className="text-[11px] text-destructive">{linkError}</p>
           )}
-          <div className="flex justify-end gap-1.5 pt-1">
+          <div className="gap-1.5 pt-1 flex justify-end">
             <Button
               type="button"
               variant="ghost"
@@ -251,45 +254,48 @@ export function UniversalContextPanel({
       )}
 
       {/* Main Body */}
-      <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-border/60">
+      <div className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto">
         {isLoading && (
-          <div className="flex h-48 items-center justify-center">
+          <div className="h-48 flex items-center justify-center">
             <Spinner className="size-6 text-primary" />
           </div>
         )}
 
         {error && !isLoading && (
-          <div className="p-4 text-center text-xs text-destructive">
+          <div className="p-4 text-xs text-center text-destructive">
             Failed to load context overview.
           </div>
         )}
 
-        {!isLoading && overview && totalLinkedItems === 0 && !showAddLinkForm && (
-          <div className="p-6 text-center">
-            <EmptyState
-              icon={<Link2 className="size-8 text-muted-foreground" />}
-              title="No connections yet"
-              description="Connect this item with related tasks, messages, or files to build a rich context graph."
-              action={
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowAddLinkForm(true)}
-                >
-                  Connect an item
-                </Button>
-              }
-            />
-          </div>
-        )}
+        {!isLoading &&
+          overview &&
+          totalLinkedItems === 0 &&
+          !showAddLinkForm && (
+            <div className="p-6 text-center">
+              <EmptyState
+                icon={<Link2 className="size-8 text-muted-foreground" />}
+                title="No connections yet"
+                description="Connect this item with related tasks, messages, or files to build a rich context graph."
+                action={
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowAddLinkForm(true)}
+                  >
+                    Connect an item
+                  </Button>
+                }
+              />
+            </div>
+          )}
 
         {!isLoading && overview && (
           <>
             {/* Related People */}
             {overview.relatedPeople.length > 0 && (
               <div className="p-3 space-y-2">
-                <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  <span className="flex items-center gap-1.5">
+                <div className="text-xs font-semibold tracking-wider flex items-center justify-between text-muted-foreground uppercase">
+                  <span className="gap-1.5 flex items-center">
                     <Users className="size-3.5" />
                     People ({overview.relatedPeople.length})
                   </span>
@@ -298,18 +304,18 @@ export function UniversalContextPanel({
                   {overview.relatedPeople.map((person) => (
                     <div
                       key={person.id}
-                      className="flex items-center justify-between rounded-lg border border-border/50 bg-card p-2 text-xs transition-colors hover:bg-muted/40"
+                      className="p-2 text-xs flex items-center justify-between rounded-lg border border-border/50 bg-card transition-colors hover:bg-muted/40"
                     >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="size-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-medium text-[11px] shrink-0">
+                      <div className="gap-2 min-w-0 flex items-center">
+                        <div className="size-6 font-medium flex shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] text-primary">
                           {person.name.charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0 truncate">
-                          <p className="font-medium text-foreground truncate">
+                          <p className="font-medium truncate text-foreground">
                             {person.name}
                           </p>
                           {person.role && (
-                            <p className="text-[10px] text-muted-foreground truncate">
+                            <p className="truncate text-[10px] text-muted-foreground">
                               {person.role}
                             </p>
                           )}
@@ -334,8 +340,8 @@ export function UniversalContextPanel({
             {/* Related Tasks */}
             {overview.relatedTasks.length > 0 && (
               <div className="p-3 space-y-2">
-                <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  <span className="flex items-center gap-1.5">
+                <div className="text-xs font-semibold tracking-wider flex items-center justify-between text-muted-foreground uppercase">
+                  <span className="gap-1.5 flex items-center">
                     <CheckSquare className="size-3.5" />
                     Tasks ({overview.relatedTasks.length})
                   </span>
@@ -346,9 +352,9 @@ export function UniversalContextPanel({
                       key={task.id}
                       type="button"
                       onClick={() => navigate(task.href)}
-                      className="w-full text-left rounded-lg border border-border/50 bg-card p-2 text-xs transition-colors hover:bg-muted/40 hover:border-primary/40 block group"
+                      className="p-2 text-xs group block w-full rounded-lg border border-border/50 bg-card text-left transition-colors hover:border-primary/40 hover:bg-muted/40"
                     >
-                      <div className="flex items-center justify-between gap-1 mb-1">
+                      <div className="gap-1 mb-1 flex items-center justify-between">
                         <span className="font-mono text-[10px] text-muted-foreground">
                           {task.identifier || task.id.slice(0, 7)}
                         </span>
@@ -356,12 +362,12 @@ export function UniversalContextPanel({
                           variant={
                             task.status === 'DONE' ? 'outline' : 'secondary'
                           }
-                          className="text-[9px] px-1 py-0 uppercase"
+                          className="px-1 py-0 text-[9px] uppercase"
                         >
                           {task.status}
                         </Badge>
                       </div>
-                      <div className="font-medium text-foreground group-hover:text-primary transition-colors truncate">
+                      <div className="font-medium truncate text-foreground transition-colors group-hover:text-primary">
                         {task.title}
                       </div>
                     </button>
@@ -373,8 +379,8 @@ export function UniversalContextPanel({
             {/* Related Messages */}
             {overview.relatedMessages.length > 0 && (
               <div className="p-3 space-y-2">
-                <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  <span className="flex items-center gap-1.5">
+                <div className="text-xs font-semibold tracking-wider flex items-center justify-between text-muted-foreground uppercase">
+                  <span className="gap-1.5 flex items-center">
                     <MessageSquare className="size-3.5" />
                     Messages ({overview.relatedMessages.length})
                   </span>
@@ -385,15 +391,17 @@ export function UniversalContextPanel({
                       key={msg.id}
                       type="button"
                       onClick={() => navigate(msg.href)}
-                      className="w-full text-left rounded-lg border border-border/50 bg-card p-2 text-xs transition-colors hover:bg-muted/40 hover:border-primary/40 block group"
+                      className="p-2 text-xs group block w-full rounded-lg border border-border/50 bg-card text-left transition-colors hover:border-primary/40 hover:bg-muted/40"
                     >
-                      <div className="flex items-center justify-between gap-1 mb-1 text-[10px] text-muted-foreground">
+                      <div className="gap-1 mb-1 flex items-center justify-between text-[10px] text-muted-foreground">
                         <span className="font-medium text-foreground">
                           {msg.senderName}
                         </span>
-                        <span>{msg.channelName ? `#${msg.channelName}` : ''}</span>
+                        <span>
+                          {msg.channelName ? `#${msg.channelName}` : ''}
+                        </span>
                       </div>
-                      <p className="line-clamp-2 text-muted-foreground group-hover:text-foreground text-[11px]">
+                      <p className="line-clamp-2 text-[11px] text-muted-foreground group-hover:text-foreground">
                         <MessagePreview text={msg.body} />
                       </p>
                     </button>
@@ -405,8 +413,8 @@ export function UniversalContextPanel({
             {/* Related Docs */}
             {overview.relatedDocs.length > 0 && (
               <div className="p-3 space-y-2">
-                <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  <span className="flex items-center gap-1.5">
+                <div className="text-xs font-semibold tracking-wider flex items-center justify-between text-muted-foreground uppercase">
+                  <span className="gap-1.5 flex items-center">
                     <FileText className="size-3.5" />
                     Documents ({overview.relatedDocs.length})
                   </span>
@@ -417,12 +425,12 @@ export function UniversalContextPanel({
                       key={doc.id}
                       type="button"
                       onClick={() => navigate(doc.href)}
-                      className="w-full text-left rounded-lg border border-border/50 bg-card p-2 text-xs transition-colors hover:bg-muted/40 hover:border-primary/40 flex items-center justify-between group"
+                      className="p-2 text-xs group flex w-full items-center justify-between rounded-lg border border-border/50 bg-card text-left transition-colors hover:border-primary/40 hover:bg-muted/40"
                     >
-                      <span className="truncate font-medium text-foreground group-hover:text-primary">
+                      <span className="font-medium truncate text-foreground group-hover:text-primary">
                         {doc.title}
                       </span>
-                      <ExternalLink className="size-3 text-muted-foreground shrink-0 ml-1" />
+                      <ExternalLink className="size-3 ml-1 shrink-0 text-muted-foreground" />
                     </button>
                   ))}
                 </div>
@@ -432,8 +440,8 @@ export function UniversalContextPanel({
             {/* Related Files */}
             {overview.relatedFiles.length > 0 && (
               <div className="p-3 space-y-2">
-                <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  <span className="flex items-center gap-1.5">
+                <div className="text-xs font-semibold tracking-wider flex items-center justify-between text-muted-foreground uppercase">
+                  <span className="gap-1.5 flex items-center">
                     <Paperclip className="size-3.5" />
                     Files ({overview.relatedFiles.length})
                   </span>
@@ -445,17 +453,17 @@ export function UniversalContextPanel({
                       href={file.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="rounded-lg border border-border/50 bg-card p-2 text-xs transition-colors hover:bg-muted/40 hover:border-primary/40 flex items-center justify-between group"
+                      className="p-2 text-xs group flex items-center justify-between rounded-lg border border-border/50 bg-card transition-colors hover:border-primary/40 hover:bg-muted/40"
                     >
                       <div className="min-w-0 truncate">
-                        <p className="font-medium text-foreground truncate group-hover:text-primary">
+                        <p className="font-medium truncate text-foreground group-hover:text-primary">
                           {file.filename}
                         </p>
                         <p className="text-[10px] text-muted-foreground">
                           {formatBytes(file.size)}
                         </p>
                       </div>
-                      <ExternalLink className="size-3 text-muted-foreground shrink-0 ml-1" />
+                      <ExternalLink className="size-3 ml-1 shrink-0 text-muted-foreground" />
                     </a>
                   ))}
                 </div>
@@ -465,8 +473,8 @@ export function UniversalContextPanel({
             {/* Related Agents */}
             {overview.relatedAgents.length > 0 && (
               <div className="p-3 space-y-2">
-                <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  <span className="flex items-center gap-1.5">
+                <div className="text-xs font-semibold tracking-wider flex items-center justify-between text-muted-foreground uppercase">
+                  <span className="gap-1.5 flex items-center">
                     <Bot className="size-3.5" />
                     Assigned Agents ({overview.relatedAgents.length})
                   </span>
@@ -475,9 +483,9 @@ export function UniversalContextPanel({
                   {overview.relatedAgents.map((agent) => (
                     <div
                       key={agent.id}
-                      className="rounded-lg border border-border/50 bg-card p-2 text-xs flex items-center justify-between"
+                      className="p-2 text-xs flex items-center justify-between rounded-lg border border-border/50 bg-card"
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="gap-2 flex items-center">
                         <Bot className="size-3.5 text-primary" />
                         <span className="font-medium text-foreground">
                           {agent.name}

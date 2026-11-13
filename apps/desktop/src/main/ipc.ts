@@ -69,7 +69,12 @@ import {
 } from './lifecycle.js';
 import { logger } from './logger.js';
 import { getStartupState, setStartupState } from './startup.js';
-import { checkForUpdates, downloadUpdate, installUpdate } from './updater.js';
+import {
+  AUTO_DOWNLOAD_UPDATES_KEY,
+  checkForUpdates,
+  downloadUpdate,
+  installUpdate,
+} from './updater.js';
 import { getPreference, setPreference } from './store.js';
 import { defaultMinimizeToTray, MINIMIZE_TO_TRAY_KEY } from './tray-policy.js';
 import { applyBadgeCount, refreshTrayMenu } from './tray.js';
@@ -103,9 +108,10 @@ const MIME_BY_EXTENSION: Record<string, string> = {
  * disagree about the default.
  */
 function preferenceDefault(key: string): unknown {
-  return key === MINIMIZE_TO_TRAY_KEY
-    ? defaultMinimizeToTray(process.platform)
-    : null;
+  if (key === MINIMIZE_TO_TRAY_KEY)
+    return defaultMinimizeToTray(process.platform);
+  if (key === AUTO_DOWNLOAD_UPDATES_KEY) return true;
+  return null;
 }
 
 function guessMimeType(path: string): string {

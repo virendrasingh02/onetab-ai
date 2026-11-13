@@ -236,9 +236,9 @@ export function DocHeader({
                   size="sm"
                   className="h-7 text-xs gap-1"
                 >
-                  <Tag className="size-3 text-muted-foreground" />
+                  <Tag className="size-3" />
                   <span>{doc.category}</span>
-                  <ChevronDown className="size-3 text-subtle" />
+                  <ChevronDown className="size-3" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44">
@@ -289,13 +289,13 @@ export function DocHeader({
                         size="xs"
                       />
                     ) : (
-                      <FolderKanban className="size-3.5 text-primary" />
+                      <FolderKanban className="size-3.5" />
                     )}
                     <span className="max-w-[120px] truncate">
                       {projectLabel ||
                         (doc.projectId ? 'Project' : 'Link Project')}
                     </span>
-                    <ChevronDown className="size-3 text-subtle" />
+                    <ChevronDown className="size-3" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">

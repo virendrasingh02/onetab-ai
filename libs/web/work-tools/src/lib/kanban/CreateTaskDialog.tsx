@@ -187,7 +187,7 @@ export function CreateTaskDialog({
                         </>
                       ) : (
                         <>
-                          <UserPlus className="text-muted-foreground" />
+                          <UserPlus className="" />
                           <span className="text-muted-foreground">
                             Unassigned
                           </span>

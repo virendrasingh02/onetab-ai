@@ -1,4 +1,5 @@
 import {
+  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
@@ -143,26 +144,28 @@ export function SidebarFooterActions({
     return (
       <div className="pt-2 pb-1 gap-1.5 px-1 flex w-full shrink-0 flex-col items-center border-t border-border/70">
         <Hint side="right" label="Invite members (I)">
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            size="icon"
             onClick={onOpenInvite}
             aria-label="Invite members (I)"
-            className="size-9 flex cursor-pointer items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors duration-150 outline-none hover:bg-primary hover:text-primary-foreground focus-visible:ring-1 focus-visible:ring-ring"
           >
             <UserPlus className="size-4" />
-          </button>
+          </Button>
         </Hint>
 
         <DropdownMenu>
           <Hint side="right" label="Create new...">
             <DropdownMenuTrigger asChild>
-              <button
+              <Button
                 type="button"
+                variant="secondary"
+                size="icon"
                 aria-label="Create new item"
-                className="size-9 flex items-center justify-center rounded-xl text-muted-foreground transition-colors duration-150 outline-none hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
               >
                 <Plus className="size-4" />
-              </button>
+              </Button>
             </DropdownMenuTrigger>
           </Hint>
 
@@ -241,14 +244,15 @@ export function SidebarFooterActions({
 
         {onOpenCustomizer && (
           <Hint side="right" label="Customize sidebar">
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon"
               onClick={onOpenCustomizer}
               aria-label="Customize sidebar"
-              className="size-9 flex items-center justify-center rounded-xl text-muted-foreground transition-colors duration-150 outline-none hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
             >
               <SlidersHorizontal className="size-4" />
-            </button>
+            </Button>
           </Hint>
         )}
       </div>
@@ -259,43 +263,35 @@ export function SidebarFooterActions({
   return (
     <div className="gap-1.5 flex w-full items-center">
       {/* Primary Invite Members Button */}
-      <button
+      <Button
         type="button"
+        variant="secondary"
+        size="md"
         onClick={onOpenInvite}
-        className={cn(
-          'group/invite-btn gap-2 px-2.5 py-1.5 flex flex-1 items-center justify-between',
-          'rounded-lg border border-border/70 bg-surface-raised/80 hover:border-primary/30 hover:bg-primary/10',
-          'text-xs font-medium text-foreground transition-all duration-150 ease-standard',
-          'cursor-pointer outline-none select-none focus-visible:ring-1 focus-visible:ring-ring',
-        )}
+        className="group/invite-btn min-w-0 px-2.5 flex-1 justify-between"
       >
-        <span className="gap-2 flex items-center truncate">
-          <UserPlus
-            className="size-3.5 shrink-0 text-primary transition-colors group-hover/invite-btn:text-primary"
-            aria-hidden
-          />
+        <span className="gap-2 min-w-0 flex items-center">
+          <UserPlus className="size-4 shrink-0" aria-hidden />
           <span className="truncate">Invite members</span>
         </span>
         <Kbd size="xs" variant="muted">
           I
         </Kbd>
-      </button>
+      </Button>
 
       {/* Quick Create Dropdown Button */}
       <DropdownMenu>
         <Hint label="Create new item">
           <DropdownMenuTrigger asChild>
-            <button
+            <Button
               type="button"
-              className={cn(
-                'size-8 flex shrink-0 items-center justify-center rounded-lg border border-border/70',
-                'bg-surface-raised/80 text-muted-foreground hover:border-border hover:bg-accent/80 hover:text-foreground',
-                'cursor-pointer transition-all duration-150 ease-standard outline-none select-none focus-visible:ring-1 focus-visible:ring-ring',
-              )}
+              variant="secondary"
+              size="icon"
+              className="shrink-0"
               aria-label="Create new item"
             >
-              <Plus className="size-3.5" />
-            </button>
+              <Plus className="size-4" />
+            </Button>
           </DropdownMenuTrigger>
         </Hint>
 

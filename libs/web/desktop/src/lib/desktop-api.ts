@@ -130,8 +130,9 @@ export type DesktopUpdateStatus =
       /** The installer's page was opened in the system browser (no in-app updater is configured). */
       openedInBrowser?: boolean;
     }
-  | { state: 'downloading'; percent: number }
-  | { state: 'ready'; version: string }
+  /** `mandatory` carries the API's verdict through, so a required update stays blocking. */
+  | { state: 'downloading'; percent: number; mandatory?: boolean }
+  | { state: 'ready'; version: string; mandatory?: boolean }
   | { state: 'not-available' }
   | { state: 'unsupported' }
   | { state: 'error'; message: string };
@@ -214,8 +215,6 @@ export interface DesktopStartupState {
   openAtLogin: boolean;
   startHidden: boolean;
   launchedAtLogin: boolean;
-  wasOpenedAsHidden?: boolean;
-  restoreState?: boolean;
   status?: string;
   executableWillLaunchAtLogin?: boolean;
 }

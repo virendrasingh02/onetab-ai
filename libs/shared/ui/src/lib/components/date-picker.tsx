@@ -88,12 +88,12 @@ export function DatePicker({
                   : placeholder
               }
               className={cn(
-                'h-9 px-3 font-normal shadow-xs w-full justify-start text-left',
+                'h-9 px-3 font-normal w-full justify-start text-left shadow-xs',
                 !dateValue && 'text-muted-foreground',
                 clearable && dateValue && 'pr-8',
               )}
             >
-              <CalendarIcon className="mr-2 size-4 shrink-0 text-muted-foreground" />
+              <CalendarIcon className="mr-2 size-4 shrink-0" />
               <span className="text-xs sm:text-sm truncate">
                 {dateValue ? format(dateValue, 'MMM d, yyyy') : placeholder}
               </span>

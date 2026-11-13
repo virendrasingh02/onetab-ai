@@ -336,8 +336,7 @@ export function MeetingDetailSheet({
                   className="text-xs h-8 flex-1"
                   onClick={() => setActiveSheetTab('summary')}
                 >
-                  <Sparkles className="size-3.5 mr-1.5 text-primary" /> AI Call
-                  Summary
+                  <Sparkles className="size-3.5 mr-1.5" /> AI Call Summary
                 </Button>
               </div>
             </SheetHeader>
@@ -638,7 +637,10 @@ export function MeetingDetailSheet({
                           key={task.id}
                           className="gap-2 p-2.5 flex items-center rounded-lg border border-border"
                         >
-                          <StatusIcon status={task.stateId || task.status} className="size-4" />
+                          <StatusIcon
+                            status={task.stateId || task.status}
+                            className="size-4"
+                          />
                           <span
                             className={cn(
                               'text-sm flex-1 truncate',

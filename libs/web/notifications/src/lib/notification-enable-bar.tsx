@@ -456,7 +456,7 @@ export function NotificationEnableBar({
                 size="sm"
                 className="h-6 gap-1.5 text-xs bg-background/80 hover:bg-accent"
               >
-                <Settings2 className="size-3.5 text-muted-foreground" />
+                <Settings2 className="size-3.5" />
                 <span className="font-medium">
                   {isMentionsOnly ? 'Mentions Only' : 'All Activity'}
                 </span>
@@ -509,7 +509,7 @@ export function NotificationEnableBar({
               size="sm"
               className="h-6 gap-1.5 text-xs bg-background/80 hover:bg-accent"
             >
-              <Clock className="size-3.5 text-muted-foreground" />
+              <Clock className="size-3.5" />
               <span>Remind Me</span>
               <ChevronDown className="size-3 opacity-60" />
             </Button>
@@ -544,7 +544,7 @@ export function NotificationEnableBar({
           size="sm"
           loading={isSubmitting}
           onClick={() => void handleEnable()}
-          className="h-6 gap-1.5 text-xs px-3 shadow-sm font-medium"
+          className="h-6 gap-1.5 text-xs px-3 font-medium shadow-sm"
         >
           <BellRing className="size-3.5" />
           <span>Enable Notifications</span>

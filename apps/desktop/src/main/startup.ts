@@ -1,5 +1,8 @@
 import { app } from 'electron';
-import type { DesktopStartupRequest, DesktopStartupState } from '../shared/ipc.js';
+import type {
+  DesktopStartupRequest,
+  DesktopStartupState,
+} from '../shared/ipc.js';
 import { detectDistribution } from './capabilities.js';
 import { logger } from './logger.js';
 import { getPreference, setPreference } from './store.js';
@@ -16,7 +19,8 @@ function unsupportedReason(): string | null {
     return 'Launch at login is not available on this operating system.';
   }
   // An unpackaged run would register `electron.exe` itself as the login item.
-  if (!app.isPackaged) return 'Launch at login is only available in installed builds.';
+  if (!app.isPackaged)
+    return 'Launch at login is only available in installed builds.';
   if (detectDistribution() === 'mac-app-store') {
     return 'Launch at login is managed by macOS for App Store builds.';
   }
@@ -24,7 +28,9 @@ function unsupportedReason(): string | null {
 }
 
 /** True when the OS started this process as a login item. */
-export function wasLaunchedAtLogin(argv: readonly string[] = process.argv): boolean {
+export function wasLaunchedAtLogin(
+  argv: readonly string[] = process.argv,
+): boolean {
   if (argv.includes(HIDDEN_LAUNCH_ARG)) return true;
   if (process.platform !== 'darwin') return false;
   try {
@@ -35,14 +41,18 @@ export function wasLaunchedAtLogin(argv: readonly string[] = process.argv): bool
 }
 
 /** Whether the window should stay hidden on this launch. */
-export function shouldStartHidden(argv: readonly string[] = process.argv): boolean {
+export function shouldStartHidden(
+  argv: readonly string[] = process.argv,
+): boolean {
   return wasLaunchedAtLogin(argv) && getPreference('startHidden', true);
 }
 
 function loginItemQuery() {
   // On Windows the registry entry is keyed by its arguments, so the query has
   // to repeat them or it reports "not a login item".
-  return process.platform === 'win32' ? { args: [HIDDEN_LAUNCH_ARG] } : undefined;
+  return process.platform === 'win32'
+    ? { args: [HIDDEN_LAUNCH_ARG] }
+    : undefined;
 }
 
 /**
@@ -56,20 +66,22 @@ export function getStartupState(): DesktopStartupState {
   const launchedAtLogin = wasLaunchedAtLogin();
 
   if (reason) {
-    return { supported: false, reason, openAtLogin: false, startHidden, launchedAtLogin };
+    return {
+      supported: false,
+      reason,
+      openAtLogin: false,
+      startHidden,
+      launchedAtLogin,
+    };
   }
 
   let openAtLogin = getPreference('launchAtLogin', false);
-  let wasOpenedAsHidden: boolean | undefined;
-  let restoreState: boolean | undefined;
   let status: string | undefined;
   let executableWillLaunchAtLogin: boolean | undefined;
 
   try {
     const settings = app.getLoginItemSettings(loginItemQuery());
     openAtLogin = settings.openAtLogin;
-    wasOpenedAsHidden = settings.wasOpenedAsHidden;
-    restoreState = settings.restoreState;
     status = settings.status;
     executableWillLaunchAtLogin = settings.executableWillLaunchAtLogin;
   } catch (error) {
@@ -81,20 +93,22 @@ export function getStartupState(): DesktopStartupState {
     openAtLogin,
     startHidden,
     launchedAtLogin,
-    wasOpenedAsHidden,
-    restoreState,
     status,
     executableWillLaunchAtLogin,
   };
 }
 
-export function setStartupState(request: DesktopStartupRequest): DesktopStartupState {
+export function setStartupState(
+  request: DesktopStartupRequest,
+): DesktopStartupState {
   if (typeof request !== 'object' || request === null) {
     throw new TypeError('Invalid startup request.');
   }
   const current = getStartupState();
   const openAtLogin =
-    typeof request.openAtLogin === 'boolean' ? request.openAtLogin : current.openAtLogin;
+    typeof request.openAtLogin === 'boolean'
+      ? request.openAtLogin
+      : current.openAtLogin;
   const startHidden =
     typeof request.startHidden === 'boolean'
       ? request.startHidden
@@ -110,9 +124,8 @@ export function setStartupState(request: DesktopStartupRequest): DesktopStartupS
   try {
     app.setLoginItemSettings({
       openAtLogin,
-      // `openAsHidden` is macOS-only and deprecated from macOS 13, where
-      // `wasOpenedAtLogin` is still reported; the argument covers Windows.
-      openAsHidden: startHidden,
+      // macOS reports `wasOpenedAtLogin` natively; the argument covers Windows.
+      // (Electron 44 removed the macOS-12-only `openAsHidden`.)
       args: startHidden ? [HIDDEN_LAUNCH_ARG] : [],
     });
   } catch (error) {

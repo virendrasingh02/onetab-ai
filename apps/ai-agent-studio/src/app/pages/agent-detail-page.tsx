@@ -1128,11 +1128,7 @@ function WorkflowCanvasInner({
           type="button"
           onClick={() => setIsCatalogOpen((prev) => !prev)}
           disabled={isLocked}
-          title={
-            isLocked
-              ? 'Unlock the canvas to add steps'
-              : 'Add a step'
-          }
+          title={isLocked ? 'Unlock the canvas to add steps' : 'Add a step'}
           aria-label="Add a step"
           className={cn(
             'size-8.5 flex shrink-0 cursor-pointer items-center justify-center rounded-full transition-all duration-200',
@@ -1164,7 +1160,7 @@ function WorkflowCanvasInner({
           aria-keyshortcuts="Shift+L"
           className="gap-1.5 text-xs font-semibold h-8 px-2.5 cursor-pointer rounded-xl text-foreground hover:text-primary"
         >
-          <Wand2 className="size-3.5 text-primary" />
+          <Wand2 className="size-3.5" />
           <span>Auto layout</span>
         </Button>
 
@@ -1760,7 +1756,10 @@ function WorkflowCanvasInner({
             id: `sticky_note-${Date.now().toString(36)}`,
             type: 'STICKY_NOTE',
             position: reactFlowInstance.screenToFlowPosition(pos),
-            data: { label: 'Sticky Note', config: { note: '', color: 'yellow' } },
+            data: {
+              label: 'Sticky Note',
+              config: { note: '', color: 'yellow' },
+            },
           })
         }
         onDuplicateNode={(node) => onDuplicateNode(node)}
@@ -4986,10 +4985,10 @@ export function AgentDetailPage() {
                       className="group h-9 px-2.5 text-xs font-medium w-full justify-between rounded-lg text-foreground"
                     >
                       <span className="gap-2.5 flex items-center">
-                        <Globe className="size-4 text-muted-foreground group-hover:text-primary" />
+                        <Globe className="size-4" />
                         Open web app
                       </span>
-                      <ArrowUpRight className="size-3.5 text-muted-foreground/70 group-hover:text-foreground" />
+                      <ArrowUpRight className="size-3.5 text-muted-foreground/70" />
                     </Button>
 
                     <Button
@@ -5009,7 +5008,7 @@ export function AgentDetailPage() {
                       className="group h-9 px-2.5 text-xs font-medium w-full justify-between rounded-lg text-foreground"
                     >
                       <span className="gap-2.5 flex items-center">
-                        <Copy className="size-4 text-muted-foreground group-hover:text-primary" />
+                        <Copy className="size-4" />
                         Copy API request
                       </span>
                       <span className="font-normal text-2xs text-muted-foreground">

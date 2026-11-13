@@ -169,7 +169,7 @@ export function NotificationDisplaySettingsPanel({
             onClick={resetPreferences}
             className="h-8 text-xs gap-1.5"
           >
-            <RotateCcw className="size-3.5 text-muted-foreground" />
+            <RotateCcw className="size-3.5" />
             <span>Reset Defaults</span>
           </Button>
 
@@ -292,7 +292,7 @@ export function NotificationDisplaySettingsPanel({
                   className="h-8 text-xs gap-1.5 shrink-0"
                 >
                   <span>OS Taskbar Settings</span>
-                  <ExternalLink className="size-3 text-muted-foreground" />
+                  <ExternalLink className="size-3" />
                 </Button>
               )}
               <Switch

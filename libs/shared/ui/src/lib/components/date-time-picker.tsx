@@ -219,7 +219,7 @@ export function DateTimePickerPanel({
         className="p-0 w-full"
       />
       <div className="space-y-1.5">
-        <span className="font-medium block text-xs text-muted-foreground">
+        <span className="font-medium text-xs block text-muted-foreground">
           Time
         </span>
         <TimePicker
@@ -301,12 +301,12 @@ export function DateTimePicker({
               ariaLabel ?? (display ? `Date and time: ${display}` : placeholder)
             }
             className={cn(
-              'h-9 px-3 font-normal shadow-xs w-full justify-start text-left',
+              'h-9 px-3 font-normal w-full justify-start text-left shadow-xs',
               !dateValue && 'text-muted-foreground',
               clearable && dateValue && 'pr-8',
             )}
           >
-            <CalendarClock className="mr-2 size-4 shrink-0 text-muted-foreground" />
+            <CalendarClock className="mr-2 size-4 shrink-0" />
             <span className="text-xs sm:text-sm truncate">
               {display ?? placeholder}
             </span>
@@ -338,11 +338,7 @@ export function DateTimePicker({
                 ) : (
                   <span />
                 )}
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => setOpen(false)}
-                >
+                <Button type="button" size="sm" onClick={() => setOpen(false)}>
                   Done
                 </Button>
               </div>
@@ -368,4 +364,3 @@ export function DateTimePicker({
     </div>
   );
 }
-

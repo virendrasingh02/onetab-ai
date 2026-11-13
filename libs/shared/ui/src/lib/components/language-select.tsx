@@ -53,9 +53,8 @@ export function LanguageSelect({
       (lang: LanguageConfig) =>
         lang.name.toLowerCase().includes(needle) ||
         lang.nativeName.toLowerCase().includes(needle) ||
-        lang.code.toLowerCase().includes(needle)
+        lang.code.toLowerCase().includes(needle),
     );
-
   }, [query]);
 
   const select = (code: SupportedLanguageCode) => {
@@ -79,25 +78,28 @@ export function LanguageSelect({
             compact
               ? 'h-8 px-2.5 text-xs font-normal gap-1.5'
               : 'h-9 px-3 text-xs font-normal w-full justify-between',
-            className
+            className,
           )}
         >
           <span className="min-w-0 gap-2 flex items-center">
             {compact ? (
-              <Globe className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+              <Globe className="size-3.5 shrink-0" aria-hidden />
             ) : (
-              <Globe className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+              <Globe className="size-3.5 shrink-0" aria-hidden />
             )}
-            <span className="truncate font-medium">
+            <span className="font-medium truncate">
               {compact ? currentLang.nativeName : currentLang.name}
             </span>
             {!compact && currentLang.nativeName !== currentLang.name && (
-              <span className="truncate text-muted-foreground text-[11px]">
+              <span className="truncate text-[11px] text-muted-foreground">
                 ({currentLang.nativeName})
               </span>
             )}
           </span>
-          <ChevronsUpDown className="size-3.5 shrink-0 opacity-50 ml-1.5" aria-hidden />
+          <ChevronsUpDown
+            className="size-3.5 ml-1.5 shrink-0 opacity-50"
+            aria-hidden
+          />
         </Button>
       </PopoverTrigger>
 
@@ -109,7 +111,7 @@ export function LanguageSelect({
         <div className="p-2 border-b">
           <div className="relative">
             <Search
-              className="size-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+              className="size-3.5 left-2.5 pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted-foreground"
               aria-hidden
             />
             <Input
@@ -123,13 +125,13 @@ export function LanguageSelect({
           </div>
         </div>
 
-        <ScrollArea className="max-h-64 overflow-y-auto p-1">
+        <ScrollArea className="max-h-64 p-1 overflow-y-auto">
           {matches.length === 0 ? (
             <div className="px-3 py-4 text-xs text-center text-muted-foreground">
               No languages found
             </div>
           ) : (
-            <div className="flex flex-col gap-0.5" role="listbox">
+            <div className="gap-0.5 flex flex-col" role="listbox">
               {matches.map((lang: LanguageConfig) => {
                 const isSelected = lang.code === currentLang.code;
 
@@ -141,18 +143,20 @@ export function LanguageSelect({
                     aria-selected={isSelected}
                     onClick={() => select(lang.code)}
                     className={cn(
-                      'w-full flex items-center justify-between px-2.5 py-1.5 rounded-sm text-xs text-left transition-colors',
-                      'hover:bg-accent hover:text-accent-foreground cursor-pointer',
-                      isSelected && 'bg-accent/60 font-medium'
+                      'px-2.5 py-1.5 text-xs flex w-full items-center justify-between rounded-sm text-left transition-colors',
+                      'cursor-pointer hover:bg-accent hover:text-accent-foreground',
+                      isSelected && 'font-medium bg-accent/60',
                     )}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="flex flex-col min-w-0">
-                        <span className="truncate font-medium">{lang.nativeName}</span>
-                        <span className="text-[11px] text-muted-foreground truncate">
+                    <div className="gap-2.5 min-w-0 flex items-center">
+                      <div className="min-w-0 flex flex-col">
+                        <span className="font-medium truncate">
+                          {lang.nativeName}
+                        </span>
+                        <span className="truncate text-[11px] text-muted-foreground">
                           {lang.name}
                           {lang.isRtl && (
-                            <span className="ml-1.5 px-1 py-0.2 text-[9px] rounded bg-muted uppercase tracking-wider font-mono">
+                            <span className="ml-1.5 px-1 py-0.2 rounded tracking-wider bg-muted font-mono text-[9px] uppercase">
                               RTL
                             </span>
                           )}
@@ -160,7 +164,10 @@ export function LanguageSelect({
                       </div>
                     </div>
                     {isSelected && (
-                      <Check className="size-3.5 text-brand-text shrink-0 ml-2" aria-hidden />
+                      <Check
+                        className="size-3.5 ml-2 shrink-0 text-brand-text"
+                        aria-hidden
+                      />
                     )}
                   </button>
                 );
@@ -172,4 +179,3 @@ export function LanguageSelect({
     </Popover>
   );
 }
-

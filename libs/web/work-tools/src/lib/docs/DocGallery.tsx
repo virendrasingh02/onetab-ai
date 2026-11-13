@@ -302,11 +302,11 @@ export function DocGallery({
                 size="sm"
                 className="h-8 gap-1.5 text-xs"
               >
-                <Tag className="size-3.5 text-muted-foreground" />
+                <Tag className="size-3.5" />
                 <span>
                   {categoryFilter === 'all' ? 'All categories' : categoryFilter}
                 </span>
-                <ChevronDown className="size-3 text-muted-foreground" />
+                <ChevronDown className="size-3" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
@@ -352,11 +352,11 @@ export function DocGallery({
                 size="sm"
                 className="h-8 gap-1.5 text-xs"
               >
-                <Filter className="size-3.5 text-muted-foreground" />
+                <Filter className="size-3.5" />
                 <span>
                   {statusFilter === 'all' ? 'All statuses' : statusFilter}
                 </span>
-                <ChevronDown className="size-3 text-muted-foreground" />
+                <ChevronDown className="size-3" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">

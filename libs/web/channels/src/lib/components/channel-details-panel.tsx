@@ -83,7 +83,10 @@ import {
   useChannelMembers,
   useChannelPreferences,
 } from '../use-channels.js';
-import { useChannelAgents, useChannelAgentMutations } from '../use-channel-agents.js';
+import {
+  useChannelAgents,
+  useChannelAgentMutations,
+} from '../use-channel-agents.js';
 import { useChannelApps, useChannelAppMutations } from '../use-channel-apps.js';
 import {
   archiveChannelConfirm,
@@ -94,12 +97,7 @@ import { useCanManageChannel } from '../use-can-manage-channel.js';
 import { ChannelSettingsTab } from './channel-settings-tab.js';
 
 export type ChannelDetailsTab =
-  | 'about'
-  | 'members'
-  | 'coworkers'
-  | 'apps'
-  | 'automations'
-  | 'settings';
+  'about' | 'members' | 'coworkers' | 'apps' | 'automations' | 'settings';
 
 export interface ChannelDetailsPanelProps {
   channel: ChannelSummary;
@@ -155,14 +153,15 @@ export function ChannelDetailsPanel({
   const members = useChannelMembers(workspaceId, channel.id);
   const memberList = members.data ?? [];
   const channelAgents = useChannelAgents(workspaceId, channel.id);
-  const channelAgentMutations = useChannelAgentMutations(workspaceId, channel.id);
+  const channelAgentMutations = useChannelAgentMutations(
+    workspaceId,
+    channel.id,
+  );
   const channelApps = useChannelApps(workspaceId, channel.id);
   const channelAppMutations = useChannelAppMutations(workspaceId, channel.id);
   const channelCoworkers = useChannelCoworkers(workspaceId, channel.id);
 
-  const [activeTab, setActiveTab] = useState<
-    ChannelDetailsTab
-  >(initialTab);
+  const [activeTab, setActiveTab] = useState<ChannelDetailsTab>(initialTab);
 
   useEffect(() => {
     setActiveTab(initialTab);
@@ -227,11 +226,7 @@ export function ChannelDetailsPanel({
 
       <Tabs
         value={activeTab}
-        onValueChange={(val) =>
-          setActiveTab(
-            val as ChannelDetailsTab,
-          )
-        }
+        onValueChange={(val) => setActiveTab(val as ChannelDetailsTab)}
         className="min-h-0 flex flex-1 flex-col"
       >
         {/* Same strip as the channel page's PageTabBar: compact underline tabs flush on the bottom rule. */}
@@ -310,18 +305,19 @@ export function ChannelDetailsPanel({
 
         <TabsContent
           value="apps"
-          className="min-h-0 flex flex-1 flex-col p-4 space-y-4 overflow-y-auto"
+          className="min-h-0 p-4 space-y-4 flex flex-1 flex-col overflow-y-auto"
         >
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-xs font-semibold text-foreground block">
+              <span className="text-xs font-semibold block text-foreground">
                 Channel AI Agents &amp; Apps
               </span>
               <span className="text-[10px] text-muted-foreground">
-                {(channelAgents.data ?? []).length} agents · {(channelApps.data ?? []).length} apps
+                {(channelAgents.data ?? []).length} agents ·{' '}
+                {(channelApps.data ?? []).length} apps
               </span>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="gap-1.5 flex items-center">
               {onAddApp ? (
                 <Button
                   size="sm"
@@ -348,7 +344,7 @@ export function ChannelDetailsPanel({
 
           {/* List of active AI agents */}
           <div className="space-y-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+            <span className="font-bold tracking-wider block text-[10px] text-muted-foreground uppercase">
               Active AI Agents ({(channelAgents.data ?? []).length})
             </span>
             {channelAgents.isLoading ? (
@@ -357,7 +353,7 @@ export function ChannelDetailsPanel({
               (channelAgents.data ?? []).map((link) => (
                 <div
                   key={link.id}
-                  className="p-3 rounded-xl border border-border bg-surface flex items-start gap-2.5 transition-colors hover:border-border-strong"
+                  className="p-3 gap-2.5 flex items-start rounded-xl border border-border bg-surface transition-colors hover:border-border-strong"
                 >
                   <UserAvatar
                     name={link.agent.name}
@@ -365,27 +361,27 @@ export function ChannelDetailsPanel({
                     size="sm"
                   />
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-1">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="text-xs font-bold text-foreground truncate">
+                    <div className="gap-1 flex items-center justify-between">
+                      <div className="gap-1.5 min-w-0 flex items-center">
+                        <span className="text-xs font-bold truncate text-foreground">
                           {link.agent.name}
                         </span>
                       </div>
                       <Badge
                         variant={link.isEnabled ? 'primary' : 'neutral'}
-                        className="text-[10px] py-0 h-4"
+                        className="py-0 h-4 text-[10px]"
                       >
                         {link.isEnabled ? 'Active' : 'Paused'}
                       </Badge>
                     </div>
-                    <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
+                    <p className="mt-0.5 line-clamp-2 text-[11px] text-muted-foreground">
                       {link.agent.description}
                     </p>
                     <div className="mt-2 flex items-center justify-between">
-                      <span className="text-[10px] font-mono text-muted-foreground">
+                      <span className="font-mono text-[10px] text-muted-foreground">
                         {link.agent.model}
                       </span>
-                      <div className="flex items-center gap-2">
+                      <div className="gap-2 flex items-center">
                         <button
                           type="button"
                           onClick={() =>
@@ -394,7 +390,7 @@ export function ChannelDetailsPanel({
                               isEnabled: !link.isEnabled,
                             })
                           }
-                          className="text-[10px] font-semibold text-primary hover:underline cursor-pointer"
+                          className="font-semibold cursor-pointer text-[10px] text-primary hover:underline"
                         >
                           {link.isEnabled ? 'Pause' : 'Enable'}
                         </button>
@@ -403,7 +399,7 @@ export function ChannelDetailsPanel({
                           onClick={() =>
                             channelAgentMutations.remove.mutate(link.agentId)
                           }
-                          className="text-[10px] font-semibold text-muted-foreground hover:text-destructive hover:underline cursor-pointer"
+                          className="font-semibold cursor-pointer text-[10px] text-muted-foreground hover:text-destructive hover:underline"
                         >
                           Remove
                         </button>
@@ -415,7 +411,7 @@ export function ChannelDetailsPanel({
             )}
 
             {/* List of connected apps */}
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block pt-2">
+            <span className="font-bold tracking-wider pt-2 block text-[10px] text-muted-foreground uppercase">
               Connected Apps ({(channelApps.data ?? []).length})
             </span>
             {channelApps.isLoading ? (
@@ -424,34 +420,38 @@ export function ChannelDetailsPanel({
               (channelApps.data ?? []).map((link) => (
                 <div
                   key={link.id}
-                  className="p-3 rounded-xl border border-border bg-surface flex items-start gap-2.5 transition-colors hover:border-border-strong"
+                  className="p-3 gap-2.5 flex items-start rounded-xl border border-border bg-surface transition-colors hover:border-border-strong"
                 >
                   <UserAvatar
-                    name={link.integration.displayName ?? link.integration.provider}
+                    name={
+                      link.integration.displayName ?? link.integration.provider
+                    }
                     seed={link.integrationId}
                     size="sm"
                   />
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-1">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="text-xs font-bold text-foreground truncate">
-                          {link.integration.displayName ?? link.integration.provider}
+                    <div className="gap-1 flex items-center justify-between">
+                      <div className="gap-1.5 min-w-0 flex items-center">
+                        <span className="text-xs font-bold truncate text-foreground">
+                          {link.integration.displayName ??
+                            link.integration.provider}
                         </span>
-                        <span className="text-[10px] font-mono text-accent-violet truncate">
+                        <span className="truncate font-mono text-[10px] text-accent-violet">
                           {link.integration.provider}
                         </span>
                       </div>
                       <Badge
                         variant={link.isEnabled ? 'primary' : 'neutral'}
                         className={cn(
-                          'text-[10px] py-0 h-4',
-                          link.isEnabled && 'bg-accent-violet-soft text-accent-violet border-accent-violet/20',
+                          'py-0 h-4 text-[10px]',
+                          link.isEnabled &&
+                            'border-accent-violet/20 bg-accent-violet-soft text-accent-violet',
                         )}
                       >
                         {link.isEnabled ? 'Connected' : 'Muted'}
                       </Badge>
                     </div>
-                    <div className="mt-2 flex items-center justify-end gap-2">
+                    <div className="mt-2 gap-2 flex items-center justify-end">
                       <button
                         type="button"
                         onClick={() =>
@@ -460,7 +460,7 @@ export function ChannelDetailsPanel({
                             isEnabled: !link.isEnabled,
                           })
                         }
-                        className="text-[10px] font-semibold text-accent-violet hover:underline cursor-pointer"
+                        className="font-semibold cursor-pointer text-[10px] text-accent-violet hover:underline"
                       >
                         {link.isEnabled ? 'Mute' : 'Enable'}
                       </button>
@@ -469,7 +469,7 @@ export function ChannelDetailsPanel({
                         onClick={() =>
                           channelAppMutations.remove.mutate(link.integrationId)
                         }
-                        className="text-[10px] font-semibold text-muted-foreground hover:text-destructive hover:underline cursor-pointer"
+                        className="font-semibold cursor-pointer text-[10px] text-muted-foreground hover:text-destructive hover:underline"
                       >
                         Disconnect
                       </button>
@@ -493,7 +493,7 @@ export function ChannelDetailsPanel({
 
         <TabsContent
           value="automations"
-          className="min-h-0 flex flex-1 flex-col p-4 space-y-4 overflow-y-auto"
+          className="min-h-0 p-4 space-y-4 flex flex-1 flex-col overflow-y-auto"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-foreground">
@@ -513,33 +513,34 @@ export function ChannelDetailsPanel({
           </div>
 
           <div className="space-y-2">
-            <div className="p-3 rounded-xl border border-border bg-surface flex items-start justify-between gap-2">
+            <div className="p-3 gap-2 flex items-start justify-between rounded-xl border border-border bg-surface">
               <div>
-                <div className="flex items-center gap-1.5">
+                <div className="gap-1.5 flex items-center">
                   <span className="text-xs font-bold text-foreground">
                     Welcome New Members
                   </span>
-                  <Badge variant="primary" className="text-[10px] py-0 h-4">
+                  <Badge variant="primary" className="py-0 h-4 text-[10px]">
                     Enabled
                   </Badge>
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Sends welcome guides &amp; tips when anyone joins #{channel.name}.
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Sends welcome guides &amp; tips when anyone joins #
+                  {channel.name}.
                 </p>
               </div>
             </div>
 
-            <div className="p-3 rounded-xl border border-border bg-surface flex items-start justify-between gap-2">
+            <div className="p-3 gap-2 flex items-start justify-between rounded-xl border border-border bg-surface">
               <div>
-                <div className="flex items-center gap-1.5">
+                <div className="gap-1.5 flex items-center">
                   <span className="text-xs font-bold text-foreground">
                     Daily Standup Reminder
                   </span>
-                  <Badge variant="primary" className="text-[10px] py-0 h-4">
+                  <Badge variant="primary" className="py-0 h-4 text-[10px]">
                     Enabled
                   </Badge>
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
                   Collects daily status updates at 9:30 AM every weekday.
                 </p>
               </div>
@@ -667,7 +668,7 @@ function NotificationMenu({
             )}
           />
           <span>{CHANNEL_NOTIFICATION_LEVEL_LABELS[level]}</span>
-          <ChevronDown className="size-3 text-muted-foreground" />
+          <ChevronDown className="size-3" />
         </Button>
       </DropdownMenuTrigger>
 
@@ -726,10 +727,7 @@ function AboutTab({
       {/* One bordered card of divided rows, so the fields read as one object
           rather than five loose paragraphs in a narrow column. */}
       <div className="divide-y divide-border rounded-card border border-border bg-surface-inset/40">
-        <DetailRow
-          label="Topic"
-          onEdit={canManage ? onEditDetails : undefined}
-        >
+        <DetailRow label="Topic" onEdit={canManage ? onEditDetails : undefined}>
           {channel.topic ? (
             <LinkifiedText text={channel.topic} />
           ) : (
@@ -937,7 +935,8 @@ function ChannelCoworkersTab({
       { channelId, coworkerId },
       {
         onSuccess: () => toast.success('Coworker added to channel'),
-        onError: () => toast.error('Could not add the coworker to this channel'),
+        onError: () =>
+          toast.error('Could not add the coworker to this channel'),
       },
     );
   };
@@ -962,9 +961,9 @@ function ChannelCoworkersTab({
 
   return (
     <div className="p-4 space-y-4">
-      <div className="flex items-center justify-between gap-2">
+      <div className="gap-2 flex items-center justify-between">
         <div>
-          <span className="text-xs font-semibold text-foreground block">
+          <span className="text-xs font-semibold block text-foreground">
             AI Coworkers in #{channelName}
           </span>
           <span className="text-[10px] text-muted-foreground">
@@ -993,7 +992,7 @@ function ChannelCoworkersTab({
                     showStatusDot={false}
                   />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-xs font-medium">
+                    <span className="text-xs font-medium block truncate">
                       {coworker.name}
                     </span>
                     <span className="block truncate text-[10px] text-muted-foreground">
@@ -1021,7 +1020,7 @@ function ChannelCoworkersTab({
           {(channelCoworkers.data ?? []).map((link) => (
             <div
               key={link.id}
-              className="p-3 rounded-xl border border-border bg-surface flex items-center gap-2.5 transition-colors hover:border-border-strong"
+              className="p-3 gap-2.5 flex items-center rounded-xl border border-border bg-surface transition-colors hover:border-border-strong"
             >
               <CoworkerAvatar
                 name={link.coworker.name}
@@ -1033,13 +1032,13 @@ function ChannelCoworkersTab({
                 to={`/w/${workspaceSlug}/coworkers/${link.coworkerId}`}
                 className="min-w-0 flex-1"
               >
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-foreground truncate">
+                <div className="gap-1.5 flex items-center">
+                  <span className="text-xs font-bold truncate text-foreground">
                     {link.coworker.name}
                   </span>
                   <CoworkerStatusDot status={link.coworker.status} />
                 </div>
-                <span className="text-[10px] text-muted-foreground truncate block">
+                <span className="block truncate text-[10px] text-muted-foreground">
                   {link.coworker.role}
                 </span>
               </Link>
@@ -1047,7 +1046,7 @@ function ChannelCoworkersTab({
                 size="sm"
                 variant={link.isEnabled ? 'outline' : 'subtle'}
                 onClick={() => handleToggle(link.coworkerId, link.isEnabled)}
-                className="h-6 text-[10px] px-2 shrink-0"
+                className="h-6 px-2 shrink-0 text-[10px]"
               >
                 {link.isEnabled ? 'Enabled' : 'Disabled'}
               </Button>
@@ -1055,7 +1054,7 @@ function ChannelCoworkersTab({
                 size="icon-sm"
                 variant="ghost"
                 onClick={() => handleRemove(link.coworkerId)}
-                className="size-6 text-muted-foreground hover:text-destructive shrink-0"
+                className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
                 title="Remove coworker from channel"
               >
                 <X className="size-3.5" />
@@ -1132,11 +1131,7 @@ function MembersTab({
     return notInChannel.filter((wm) => {
       const displayName = (wm.user.displayName ?? '').toLowerCase();
       const name = (wm.user.name ?? '').toLowerCase();
-      const jobTitle = (
-        wm.user.jobTitle ??
-        wm.user.title ??
-        ''
-      ).toLowerCase();
+      const jobTitle = (wm.user.jobTitle ?? wm.user.title ?? '').toLowerCase();
       return (
         displayName.includes(needle) ||
         name.includes(needle) ||
@@ -1232,7 +1227,7 @@ function MembersTab({
             <button
               type="button"
               onClick={() => setQuery('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent/60"
+              className="right-2 p-0.5 absolute top-1/2 -translate-y-1/2 rounded-full text-muted-foreground hover:bg-accent/60 hover:text-foreground"
               aria-label="Clear search"
             >
               <X className="size-3" />
@@ -1243,9 +1238,9 @@ function MembersTab({
         <button
           type="button"
           onClick={onAddPeople}
-          className="w-full px-2.5 py-1.5 flex items-center gap-2.5 rounded-lg bg-surface border border-border hover:border-border-strong hover:bg-accent/50 text-left transition-colors cursor-pointer"
+          className="px-2.5 py-1.5 gap-2.5 flex w-full cursor-pointer items-center rounded-lg border border-border bg-surface text-left transition-colors hover:border-border-strong hover:bg-accent/50"
         >
-          <div className="size-6 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
+          <div className="size-6 flex shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
             <UserPlus className="size-3.5" />
           </div>
           <span className="text-xs font-semibold text-foreground">
@@ -1254,16 +1249,19 @@ function MembersTab({
         </button>
       </div>
 
-      <ScrollArea className="min-h-0 flex-1" contentClassName="px-3 py-2 space-y-3">
+      <ScrollArea
+        className="min-h-0 flex-1"
+        contentClassName="px-3 py-2 space-y-3"
+      >
         {isEmailLike ? (
           <button
             type="button"
             onClick={() => void handleInviteEmail()}
             disabled={isInviting}
-            className="w-full p-2.5 flex items-center justify-between rounded-lg bg-surface border border-primary/40 hover:bg-primary/10 hover:border-primary text-foreground transition-all cursor-pointer group"
+            className="p-2.5 group flex w-full cursor-pointer items-center justify-between rounded-lg border border-primary/40 bg-surface text-foreground transition-all hover:border-primary hover:bg-primary/10"
           >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="size-7 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+            <div className="gap-2.5 min-w-0 flex items-center">
+              <div className="size-7 flex shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                 {isInviting ? (
                   <Loader2 className="size-3.5 animate-spin" />
                 ) : (
@@ -1271,12 +1269,15 @@ function MembersTab({
                 )}
               </div>
               <span className="text-xs font-medium truncate">
-                Invite <span className="font-semibold text-primary">{query.trim()}</span>
+                Invite{' '}
+                <span className="font-semibold text-primary">
+                  {query.trim()}
+                </span>
               </span>
             </div>
             <Badge
               variant="outline"
-              className="text-[10px] font-mono py-0 h-4.5 px-1.5 bg-background"
+              className="py-0 h-4.5 px-1.5 bg-background font-mono text-[10px]"
             >
               Enter
             </Badge>
@@ -1289,12 +1290,12 @@ function MembersTab({
           <>
             {/* Section 1: Members in this channel */}
             <div className="space-y-1">
-              <span className="text-[11px] font-bold text-muted-foreground block px-1">
+              <span className="font-bold px-1 block text-[11px] text-muted-foreground">
                 Members in this channel
               </span>
 
               {inChannelFiltered.length === 0 ? (
-                <p className="px-2 py-3 text-xs text-muted-foreground text-center">
+                <p className="px-2 py-3 text-xs text-center text-muted-foreground">
                   {query
                     ? 'No matching members in this channel.'
                     : 'No members yet.'}
@@ -1348,9 +1349,9 @@ function MembersTab({
                               });
                             }
                           }}
-                          className="group px-2 py-1.5 flex items-center justify-between gap-2.5 rounded-lg hover:bg-accent/50 text-left transition-colors cursor-pointer"
+                          className="group px-2 py-1.5 gap-2.5 flex cursor-pointer items-center justify-between rounded-lg text-left transition-colors hover:bg-accent/50"
                         >
-                          <div className="min-w-0 flex items-center gap-2.5 flex-1">
+                          <div className="min-w-0 gap-2.5 flex flex-1 items-center">
                             <UserAvatar
                               name={displayName}
                               src={member.user.avatarUrl ?? undefined}
@@ -1362,21 +1363,21 @@ function MembersTab({
                               className="shrink-0"
                             />
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5 min-w-0">
-                                <span className="text-xs font-semibold text-foreground truncate">
+                              <div className="gap-1.5 min-w-0 flex items-center">
+                                <span className="text-xs font-semibold truncate text-foreground">
                                   {displayName}
                                 </span>
                                 {isSelf ? (
-                                  <span className="text-[11px] text-muted-foreground shrink-0 font-normal">
+                                  <span className="font-normal shrink-0 text-[11px] text-muted-foreground">
                                     (you)
                                   </span>
                                 ) : null}
-                                <span className="text-xs text-muted-foreground truncate">
+                                <span className="text-xs truncate text-muted-foreground">
                                   {member.user.name}
                                 </span>
                               </div>
                               {subtitle ? (
-                                <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                                <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
                                   {subtitle}
                                 </p>
                               ) : null}
@@ -1384,7 +1385,7 @@ function MembersTab({
                           </div>
 
                           <div
-                            className="flex items-center gap-1 shrink-0"
+                            className="gap-1 flex shrink-0 items-center"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {member.membershipType === 'TEMPORARY' ? (
@@ -1399,7 +1400,7 @@ function MembersTab({
                               >
                                 <Badge
                                   variant="neutral"
-                                  className="gap-1 text-[10px] py-0 h-4 px-1.5"
+                                  className="gap-1 py-0 h-4 px-1.5 text-[10px]"
                                 >
                                   <Clock className="size-2.5" />
                                   Temp
@@ -1410,7 +1411,7 @@ function MembersTab({
                             {member.role === 'ADMIN' ? (
                               <Badge
                                 variant="neutral"
-                                className="text-[10px] py-0 h-4 px-1.5"
+                                className="py-0 h-4 px-1.5 text-[10px]"
                               >
                                 Admin
                               </Badge>
@@ -1421,7 +1422,7 @@ function MembersTab({
                                 <Button
                                   variant="ghost"
                                   size="icon-xs"
-                                  className="h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/70"
+                                  className="h-7 w-7 rounded-md text-muted-foreground hover:bg-accent/70 hover:text-foreground"
                                   aria-label={`Options for ${displayName}`}
                                 >
                                   <MoreVertical className="size-3.5" />
@@ -1487,8 +1488,8 @@ function MembersTab({
 
             {/* Section 2: Not in this channel */}
             {notInChannelFiltered.length > 0 ? (
-              <div className="pt-2 border-t border-border space-y-1">
-                <span className="text-[11px] font-bold text-muted-foreground block px-1">
+              <div className="pt-2 space-y-1 border-t border-border">
+                <span className="font-bold px-1 block text-[11px] text-muted-foreground">
                   Not in this channel
                 </span>
                 <ul className="space-y-0.5">
@@ -1503,8 +1504,8 @@ function MembersTab({
 
                     return (
                       <li key={wsMember.id}>
-                        <div className="group px-2 py-1.5 flex items-center justify-between gap-2.5 rounded-lg hover:bg-accent/50 text-left transition-colors">
-                          <div className="min-w-0 flex items-center gap-2.5 flex-1">
+                        <div className="group px-2 py-1.5 gap-2.5 flex items-center justify-between rounded-lg text-left transition-colors hover:bg-accent/50">
+                          <div className="min-w-0 gap-2.5 flex flex-1 items-center">
                             <UserAvatar
                               name={name}
                               src={wsMember.user.avatarUrl ?? undefined}
@@ -1516,16 +1517,16 @@ function MembersTab({
                               className="shrink-0"
                             />
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5 min-w-0">
-                                <span className="text-xs font-semibold text-foreground truncate">
+                              <div className="gap-1.5 min-w-0 flex items-center">
+                                <span className="text-xs font-semibold truncate text-foreground">
                                   {name}
                                 </span>
-                                <span className="text-xs text-muted-foreground truncate">
+                                <span className="text-xs truncate text-muted-foreground">
                                   {wsMember.user.name}
                                 </span>
                               </div>
                               {subtitle ? (
-                                <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                                <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
                                   {subtitle}
                                 </p>
                               ) : null}
@@ -1538,7 +1539,7 @@ function MembersTab({
                             disabled={isAdding || add.isPending}
                             loading={isAdding}
                             onClick={() => handleAddWorkspaceMember(wsMember)}
-                            className="h-7 text-xs px-2.5 shrink-0 rounded-md hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all cursor-pointer"
+                            className="h-7 text-xs px-2.5 shrink-0 cursor-pointer rounded-md transition-all hover:border-primary hover:bg-primary hover:text-primary-foreground"
                           >
                             Add to Channel
                           </Button>
@@ -1580,7 +1581,9 @@ function ChannelSettingsDropdown({
 
   const toggleArchive = async () => {
     const archived = !channel.isArchived;
-    if (!(await prompts.confirmAction(archiveChannelConfirm(channel, archived)))) {
+    if (
+      !(await prompts.confirmAction(archiveChannelConfirm(channel, archived)))
+    ) {
       return;
     }
     archive.mutate({ channelId: channel.id, archived });
@@ -1631,7 +1634,7 @@ function ChannelSettingsDropdown({
           variant="ghost"
           size="icon-sm"
           aria-label="Channel settings"
-          className="-mt-0.5 shrink-0 hover:bg-accent text-muted-foreground hover:text-foreground cursor-pointer"
+          className="-mt-0.5 shrink-0 cursor-pointer text-muted-foreground hover:bg-accent hover:text-foreground"
         >
           <MoreVertical className="size-4" />
         </Button>
@@ -1639,19 +1642,19 @@ function ChannelSettingsDropdown({
 
       <DropdownMenuContent
         align="end"
-        className="w-64 p-1.5 rounded-xl shadow-2xl border-border bg-surface text-foreground"
+        className="w-64 p-1.5 shadow-2xl rounded-xl border-border bg-surface text-foreground"
       >
         {canManage && (
           <DropdownMenuItem
             onSelect={onEditDetails}
             className="gap-2.5 px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent"
           >
-            <Settings className="size-4 text-muted-foreground shrink-0" />
-            <div className="flex flex-col min-w-0">
+            <Settings className="size-4 shrink-0 text-muted-foreground" />
+            <div className="min-w-0 flex flex-col">
               <span className="font-semibold text-foreground">
                 Rename &amp; edit details
               </span>
-              <span className="text-[10px] text-muted-foreground truncate">
+              <span className="truncate text-[10px] text-muted-foreground">
                 Name, topic and description
               </span>
             </div>
@@ -1669,12 +1672,12 @@ function ChannelSettingsDropdown({
           }
           className="gap-2.5 px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent"
         >
-          <Link2 className="size-4 text-muted-foreground shrink-0" />
-          <div className="flex flex-col min-w-0">
+          <Link2 className="size-4 shrink-0 text-muted-foreground" />
+          <div className="min-w-0 flex flex-col">
             <span className="font-semibold text-foreground">
               Copy channel link
             </span>
-            <span className="text-[10px] text-muted-foreground truncate">
+            <span className="truncate text-[10px] text-muted-foreground">
               Share this channel with a teammate
             </span>
           </div>
@@ -1684,12 +1687,12 @@ function ChannelSettingsDropdown({
           onSelect={handleExport}
           className="gap-2.5 px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent"
         >
-          <Download className="size-4 text-muted-foreground shrink-0" />
-          <div className="flex flex-col min-w-0">
+          <Download className="size-4 shrink-0 text-muted-foreground" />
+          <div className="min-w-0 flex flex-col">
             <span className="font-semibold text-foreground">
               Export channel history
             </span>
-            <span className="text-[10px] text-muted-foreground truncate">
+            <span className="truncate text-[10px] text-muted-foreground">
               Download channel metadata and details as JSON
             </span>
           </div>
@@ -1701,15 +1704,15 @@ function ChannelSettingsDropdown({
             className="gap-2.5 px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent"
           >
             {channel.isArchived ? (
-              <ArchiveRestore className="size-4 text-muted-foreground shrink-0" />
+              <ArchiveRestore className="size-4 shrink-0 text-muted-foreground" />
             ) : (
-              <Archive className="size-4 text-muted-foreground shrink-0" />
+              <Archive className="size-4 shrink-0 text-muted-foreground" />
             )}
-            <div className="flex flex-col min-w-0">
+            <div className="min-w-0 flex flex-col">
               <span className="font-semibold text-foreground">
                 {channel.isArchived ? 'Unarchive channel' : 'Archive channel'}
               </span>
-              <span className="text-[10px] text-muted-foreground truncate">
+              <span className="truncate text-[10px] text-muted-foreground">
                 {channel.isArchived
                   ? 'Make the channel active again'
                   : 'Keep the history, close the conversation'}
@@ -1725,12 +1728,12 @@ function ChannelSettingsDropdown({
               onSelect={() => void handleLeave()}
               className="gap-2.5 px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg text-destructive hover:bg-destructive/10 hover:text-destructive"
             >
-              <LogOut className="size-4 text-destructive shrink-0" />
-              <div className="flex flex-col min-w-0">
+              <LogOut className="size-4 shrink-0 text-destructive" />
+              <div className="min-w-0 flex flex-col">
                 <span className="font-semibold text-destructive">
                   Leave this channel
                 </span>
-                <span className="text-[10px] text-destructive/80 truncate">
+                <span className="truncate text-[10px] text-destructive/80">
                   {channel.visibility === 'PRIVATE'
                     ? 'You’ll need an invite to rejoin'
                     : 'Rejoin any time from Browse channels'}

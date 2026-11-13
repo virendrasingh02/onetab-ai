@@ -24,19 +24,32 @@ import { DesktopUpdateDialog } from './desktop-update-dialog.js';
  * act on (`idle` / `checking` / `not-available` / `unsupported`).
  */
 export function DesktopUpdateIndicator() {
-  const { isDesktop, updateStatus, installUpdate, checkForUpdates } = useDesktop();
+  const { isDesktop, updateStatus, installUpdate, checkForUpdates } =
+    useDesktop();
   const [dialogOpen, setDialogOpen] = useState(false);
 
   if (!isDesktop) return null;
 
+  // Mounted in every state: it opens itself (and stays open) for a mandatory
+  // update, and on request otherwise.
+  const dialog = (
+    <DesktopUpdateDialog
+      isOpenOverride={dialogOpen}
+      onCloseOverride={() => setDialogOpen(false)}
+    />
+  );
+
   if (updateStatus.state === 'available') {
     return (
       <>
-        <DesktopUpdateDialog
-          isOpenOverride={dialogOpen}
-          onCloseOverride={() => setDialogOpen(false)}
-        />
-        <Hint label={updateStatus.mandatory ? 'Mandatory update required' : `Version ${updateStatus.version} is available`}>
+        {dialog}
+        <Hint
+          label={
+            updateStatus.mandatory
+              ? 'Mandatory update required'
+              : `Version ${updateStatus.version} is available`
+          }
+        >
           <Button
             variant={updateStatus.mandatory ? 'destructive' : 'outline'}
             size="sm"
@@ -56,29 +69,40 @@ export function DesktopUpdateIndicator() {
 
   if (updateStatus.state === 'downloading') {
     return (
-      <Hint label={`Downloading update… ${updateStatus.percent}%`}>
-        <div className="gap-1.5 px-2 h-7 text-xs font-medium text-muted-foreground flex items-center rounded-md">
-          <Download className="size-3.5 shrink-0 animate-pulse text-primary" aria-hidden />
-          <span className="tabular-nums">{updateStatus.percent}%</span>
-        </div>
-      </Hint>
+      <>
+        {dialog}
+        <Hint label={`Downloading update… ${updateStatus.percent}%`}>
+          <div className="gap-1.5 px-2 h-7 text-xs font-medium flex items-center rounded-md text-muted-foreground">
+            <Download
+              className="size-3.5 animate-pulse shrink-0 text-primary"
+              aria-hidden
+            />
+            <span className="tabular-nums">{updateStatus.percent}%</span>
+          </div>
+        </Hint>
+      </>
     );
   }
 
   if (updateStatus.state === 'ready') {
     return (
-      <Hint label={`Version ${updateStatus.version} is ready — restart to finish installing`}>
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => void installUpdate()}
-          aria-label="Restart to install update"
-          className="gap-1 px-2 text-xs font-medium h-7 cursor-pointer"
+      <>
+        {dialog}
+        <Hint
+          label={`Version ${updateStatus.version} is ready — restart to finish installing`}
         >
-          <RotateCcw className="size-3.5" />
-          <span className="sm:inline hidden">Restart</span>
-        </Button>
-      </Hint>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => void installUpdate()}
+            aria-label="Restart to install update"
+            className="gap-1 px-2 text-xs font-medium h-7 cursor-pointer"
+          >
+            <RotateCcw className="size-3.5" />
+            <span className="sm:inline hidden">Restart to update</span>
+          </Button>
+        </Hint>
+      </>
     );
   }
 

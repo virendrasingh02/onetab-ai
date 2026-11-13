@@ -84,7 +84,10 @@ export function WidgetBuilderPage() {
     setSaving(true);
     try {
       if (isNew) {
-        const created = await widgetsApi.create(activeWorkspace.id, draftToPayload(definition));
+        const created = await widgetsApi.create(
+          activeWorkspace.id,
+          draftToPayload(definition),
+        );
         toast.success('Widget created successfully!');
         navigate(`/widgets/${created.id}`, { replace: true });
       } else if (widgetId) {
@@ -109,11 +112,17 @@ export function WidgetBuilderPage() {
     setTesting(true);
     try {
       if (widgetId && !isNew) {
-        const res = await widgetsApi.executeAction(activeWorkspace.id, widgetId, {
-          action: 'test_run',
-          payload: { timestamp: new Date().toISOString() },
-        });
-        toast.success('Test execution completed with status: ' + (res.status || 'success'));
+        const res = await widgetsApi.executeAction(
+          activeWorkspace.id,
+          widgetId,
+          {
+            action: 'test_run',
+            payload: { timestamp: new Date().toISOString() },
+          },
+        );
+        toast.success(
+          'Test execution completed with status: ' + (res.status || 'success'),
+        );
       } else {
         toast.info('Save the widget first to run a test execution.');
       }
@@ -139,28 +148,30 @@ export function WidgetBuilderPage() {
 
   if (loading) {
     return (
-      <div className="flex h-full w-full items-center justify-center p-12">
+      <div className="p-12 flex h-full w-full items-center justify-center">
         <Loader2 className="size-8 animate-spin text-primary" />
-        <span className="ml-3 text-sm text-muted-foreground">Loading widget definition...</span>
+        <span className="ml-3 text-sm text-muted-foreground">
+          Loading widget definition...
+        </span>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] w-full overflow-hidden bg-background">
+    <div className="flex h-[calc(100vh-4rem)] w-full flex-col overflow-hidden bg-background">
       {/* Top Header */}
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface px-4">
-        <div className="flex items-center gap-3">
+      <header className="h-14 px-4 flex shrink-0 items-center justify-between border-b border-border bg-surface">
+        <div className="gap-3 flex items-center">
           <Button
             variant="ghost"
             size="xs"
             onClick={() => navigate('/widgets')}
-            className="text-muted-foreground hover:text-foreground h-8"
+            className="h-8 text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="mr-1.5 size-4" /> Widgets
           </Button>
           <div className="h-4 w-px bg-border" />
-          <div className="flex items-center gap-2">
+          <div className="gap-2 flex items-center">
             <span className="font-semibold text-sm text-foreground">
               {definition.name || 'Untitled Widget'}
             </span>
@@ -176,7 +187,7 @@ export function WidgetBuilderPage() {
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-2">
+        <div className="gap-2 flex items-center">
           {/* Panel toggles */}
           <Button
             variant="ghost"
@@ -185,7 +196,11 @@ export function WidgetBuilderPage() {
             className="text-muted-foreground"
             title={showLeft ? 'Hide components' : 'Show components'}
           >
-            {showLeft ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
+            {showLeft ? (
+              <PanelLeftClose className="size-4" />
+            ) : (
+              <PanelLeftOpen className="size-4" />
+            )}
           </Button>
           <Button
             variant="ghost"
@@ -194,7 +209,11 @@ export function WidgetBuilderPage() {
             className="text-muted-foreground"
             title={showRight ? 'Hide configuration' : 'Show configuration'}
           >
-            {showRight ? <PanelRightClose className="size-4" /> : <PanelRightOpen className="size-4" />}
+            {showRight ? (
+              <PanelRightClose className="size-4" />
+            ) : (
+              <PanelRightOpen className="size-4" />
+            )}
           </Button>
 
           <div className="h-4 w-px bg-border" />
@@ -206,7 +225,11 @@ export function WidgetBuilderPage() {
             disabled={testing}
             className="text-xs h-8"
           >
-            {testing ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : <Play className="mr-1.5 size-3.5 text-primary" />}
+            {testing ? (
+              <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+            ) : (
+              <Play className="mr-1.5 size-3.5" />
+            )}
             Test Run
           </Button>
 
@@ -216,30 +239,37 @@ export function WidgetBuilderPage() {
             disabled={saving}
             className="text-xs h-8"
           >
-            {saving ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : <Save className="mr-1.5 size-3.5" />}
+            {saving ? (
+              <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+            ) : (
+              <Save className="mr-1.5 size-3.5" />
+            )}
             {isNew ? 'Create Widget' : 'Save & Publish'}
           </Button>
         </div>
       </header>
 
       {/* 3-Panel Builder Body */}
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+      <div className="min-h-0 flex flex-1 overflow-hidden">
         {/* Left Palette */}
         {showLeft && (
-          <aside className="w-72 shrink-0 h-full overflow-hidden transition-all">
+          <aside className="w-72 h-full shrink-0 overflow-hidden transition-all">
             <WidgetComponentPalette onSelectPreset={handleSelectPreset} />
           </aside>
         )}
 
         {/* Center Live Preview */}
-        <main className="flex-1 h-full min-w-0 p-4 bg-muted/20 overflow-hidden">
+        <main className="min-w-0 p-4 h-full flex-1 overflow-hidden bg-muted/20">
           <WidgetPreviewContainer definition={definition} className="h-full" />
         </main>
 
         {/* Right Configuration Drawer */}
         {showRight && (
-          <aside className="w-84 shrink-0 h-full overflow-hidden transition-all">
-            <WidgetConfigDrawer definition={definition} onChange={setDefinition} />
+          <aside className="w-84 h-full shrink-0 overflow-hidden transition-all">
+            <WidgetConfigDrawer
+              definition={definition}
+              onChange={setDefinition}
+            />
           </aside>
         )}
       </div>

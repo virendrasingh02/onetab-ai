@@ -82,7 +82,9 @@ export function RequirePlatformOperator({ children }: { children: ReactNode }) {
       // The API is unreachable — say so rather than presenting it as a sign-out.
       setState({ status: 'unauthenticated' });
       setLoginError(
-        err instanceof Error ? err.message : 'Could not reach the platform API.',
+        err instanceof Error
+          ? err.message
+          : 'Could not reach the platform API.',
       );
     } finally {
       if (isManualRetry) {
@@ -189,14 +191,25 @@ export function RequirePlatformOperator({ children }: { children: ReactNode }) {
             <span className="font-semibold tracking-wider px-1.5 py-0.5 rounded-md border border-brand/20 bg-brand/10 text-[10px] text-brand-text uppercase">
               Admin
             </span>
-            <span className={cn(
-              "font-mono text-[10px] px-2 py-0.5 rounded-full border inline-flex items-center gap-1.5",
-              loginError && loginError.toLowerCase().includes("reach")
-                ? "border-rose-500/30 bg-rose-500/10 text-rose-400"
-                : "border-success/30 bg-success/10 text-success-text"
-            )}>
-              <span className={cn("size-1.5 rounded-full", loginError && loginError.toLowerCase().includes("reach") ? "bg-rose-500" : "bg-success animate-pulse")} />
-              {loginError && loginError.toLowerCase().includes("reach") ? "API Offline" : "API Connected"}
+            <span
+              className={cn(
+                'px-2 py-0.5 gap-1.5 inline-flex items-center rounded-full border font-mono text-[10px]',
+                loginError && loginError.toLowerCase().includes('reach')
+                  ? 'border-rose-500/30 bg-rose-500/10 text-rose-400'
+                  : 'border-success/30 bg-success/10 text-success-text',
+              )}
+            >
+              <span
+                className={cn(
+                  'size-1.5 rounded-full',
+                  loginError && loginError.toLowerCase().includes('reach')
+                    ? 'bg-rose-500'
+                    : 'animate-pulse bg-success',
+                )}
+              />
+              {loginError && loginError.toLowerCase().includes('reach')
+                ? 'API Offline'
+                : 'API Connected'}
             </span>
           </div>
 
@@ -400,7 +413,7 @@ export function RequirePlatformOperator({ children }: { children: ReactNode }) {
                   loading={isCheckingSession}
                   leadingIcon={
                     !isCheckingSession ? (
-                      <RefreshCw className="size-3.5 text-muted-foreground" />
+                      <RefreshCw className="size-3.5" />
                     ) : undefined
                   }
                 >

@@ -46,7 +46,7 @@ export function setApiUrlForBackgroundSync(url: string): void {
 }
 
 async function authedGet<T>(path: string): Promise<T | null> {
-  const session = loadSecureSession();
+  const session = await loadSecureSession();
   if (!session?.accessToken) return null;
 
   const attempt = async (token: string) =>
@@ -69,7 +69,10 @@ async function authedGet<T>(path: string): Promise<T | null> {
   }
 }
 
-function fireNativeNotification(item: NotificationLite, workspaceSlug: string): void {
+function fireNativeNotification(
+  item: NotificationLite,
+  workspaceSlug: string,
+): void {
   if (!Notification.isSupported()) return;
 
   const notification = new Notification({
@@ -81,7 +84,9 @@ function fireNativeNotification(item: NotificationLite, workspaceSlug: string): 
     showMainWindow();
     getMainWindow()?.webContents.send(IPC_EVENT.notificationActivated, {
       id: item.id,
-      route: item.deepLink ? `/w/${workspaceSlug}/${item.deepLink}` : `/w/${workspaceSlug}`,
+      route: item.deepLink
+        ? `/w/${workspaceSlug}/${item.deepLink}`
+        : `/w/${workspaceSlug}`,
     });
   });
   notification.show();
@@ -96,7 +101,7 @@ export async function pollOnce(): Promise<void> {
   polling = true;
 
   try {
-    const session = loadSecureSession();
+    const session = await loadSecureSession();
     if (!session?.accessToken) return;
 
     const workspaces = await authedGet<WorkspaceSummaryLite[]>('/workspaces');
@@ -106,7 +111,10 @@ export async function pollOnce(): Promise<void> {
     // Only worth surfacing a native alert for something the person is not
     // already looking at live in the app.
     const isForeground =
-      !!window && !window.isDestroyed() && window.isVisible() && window.isFocused();
+      !!window &&
+      !window.isDestroyed() &&
+      window.isVisible() &&
+      window.isFocused();
 
     let total = 0;
     for (const workspace of workspaces) {

@@ -4,10 +4,19 @@ import type { DesktopUpdateStatus } from '../shared/ipc.js';
 const sent: DesktopUpdateStatus[] = [];
 const openExternal = vi.fn(async (_url: string) => undefined);
 const storeManaged = vi.hoisted(() => ({ value: false }));
+const prefs = vi.hoisted(() => ({ autoDownloadUpdates: false as boolean }));
+const powerListeners = vi.hoisted(() => new Map<string, () => void>());
 
 vi.mock('electron', () => ({
   app: { isPackaged: true, getVersion: () => '1.0.0' },
   shell: { openExternal },
+  powerMonitor: {
+    on: (event: string, cb: () => void) => powerListeners.set(event, cb),
+  },
+}));
+vi.mock('./store.js', () => ({
+  getPreference: (key: string, fallback: unknown) =>
+    key in prefs ? prefs[key as keyof typeof prefs] : fallback,
 }));
 vi.mock('./logger.js', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
@@ -18,7 +27,10 @@ vi.mock('./capabilities.js', () => ({
 }));
 vi.mock('./window.js', () => ({
   getMainWindow: () => ({
-    webContents: { send: (_channel: string, status: DesktopUpdateStatus) => sent.push(status) },
+    webContents: {
+      send: (_channel: string, status: DesktopUpdateStatus) =>
+        sent.push(status),
+    },
   }),
   markQuitting: vi.fn(),
 }));
@@ -35,9 +47,12 @@ function stubApi(body: unknown) {
 }
 
 /** Just enough of electron-updater to drive: it fires the events the real one does. */
-function fakeUpdater(options: { newerRelease?: boolean; downloadFails?: boolean } = {}) {
+function fakeUpdater(
+  options: { newerRelease?: boolean; downloadFails?: boolean } = {},
+) {
   const listeners = new Map<string, (payload?: unknown) => void>();
-  const emit = (event: string, payload?: unknown) => listeners.get(event)?.(payload);
+  const emit = (event: string, payload?: unknown) =>
+    listeners.get(event)?.(payload);
   const fake = {
     autoDownload: true,
     autoInstallOnAppQuit: false,
@@ -69,6 +84,7 @@ beforeEach(() => {
   sent.length = 0;
   openExternal.mockClear();
   storeManaged.value = false;
+  prefs.autoDownloadUpdates = false;
   updater.setApiUrlForUpdates(API);
   updater.setUpdateFeedUrl(null);
   updater.setAutoUpdaterLoader(null);
@@ -87,7 +103,11 @@ describe('checking for updates', () => {
 
   it('never offers a store build an installer from outside its store', async () => {
     storeManaged.value = true;
-    const fetchMock = stubApi({ updateAvailable: true, latestVersion: '2', downloadUrl: INSTALLER });
+    const fetchMock = stubApi({
+      updateAvailable: true,
+      latestVersion: '2',
+      downloadUrl: INSTALLER,
+    });
     await updater.checkForUpdates(false);
     expect(fetchMock).not.toHaveBeenCalled();
     expect(last()).toEqual({ state: 'unsupported' });
@@ -98,7 +118,12 @@ describe('checking for updates', () => {
 
 describe('"Update now" without an in-app updater (no feed configured)', () => {
   it('opens the installer page instead of doing nothing, and says so', async () => {
-    stubApi({ updateAvailable: true, latestVersion: '1.1.0', downloadUrl: INSTALLER, releaseNotes: 'Fixes' });
+    stubApi({
+      updateAvailable: true,
+      latestVersion: '1.1.0',
+      downloadUrl: INSTALLER,
+      releaseNotes: 'Fixes',
+    });
     await updater.checkForUpdates(false);
 
     await expect(updater.downloadUpdate()).resolves.toBe(true);
@@ -112,10 +137,18 @@ describe('"Update now" without an in-app updater (no feed configured)', () => {
   });
 
   it('keeps a mandatory update mandatory after sending the person to the page', async () => {
-    stubApi({ status: 'update-required', latestVersion: '2.0.0', downloadUrl: INSTALLER });
+    stubApi({
+      status: 'update-required',
+      latestVersion: '2.0.0',
+      downloadUrl: INSTALLER,
+    });
     await updater.checkForUpdates(false);
     await updater.downloadUpdate();
-    expect(last()).toMatchObject({ state: 'available', mandatory: true, openedInBrowser: true });
+    expect(last()).toMatchObject({
+      state: 'available',
+      mandatory: true,
+      openedInBrowser: true,
+    });
   });
 
   it('reports an error rather than a dead button when no installer is published', async () => {
@@ -127,7 +160,11 @@ describe('"Update now" without an in-app updater (no feed configured)', () => {
   });
 
   it('refuses a download URL that is not http(s)', async () => {
-    stubApi({ updateAvailable: true, latestVersion: '1.1.0', downloadUrl: 'file:///C:/Windows/System32/calc.exe' });
+    stubApi({
+      updateAvailable: true,
+      latestVersion: '1.1.0',
+      downloadUrl: 'file:///C:/Windows/System32/calc.exe',
+    });
     await updater.checkForUpdates(false);
     await expect(updater.downloadUpdate()).resolves.toBe(false);
     expect(openExternal).not.toHaveBeenCalled();
@@ -136,7 +173,11 @@ describe('"Update now" without an in-app updater (no feed configured)', () => {
   it('does not touch electron-updater at all without a feed', async () => {
     const loader = vi.fn(() => ({ autoUpdater: fakeUpdater() }));
     updater.setAutoUpdaterLoader(loader);
-    stubApi({ updateAvailable: true, latestVersion: '1.1.0', downloadUrl: INSTALLER });
+    stubApi({
+      updateAvailable: true,
+      latestVersion: '1.1.0',
+      downloadUrl: INSTALLER,
+    });
     await updater.checkForUpdates(false);
     await updater.downloadUpdate();
     expect(loader).not.toHaveBeenCalled();
@@ -166,29 +207,56 @@ describe('in-app updating (feed configured)', () => {
     const fake = fakeUpdater();
     updater.setUpdateFeedUrl(FEED);
     updater.setAutoUpdaterLoader(() => ({ autoUpdater: fake }));
-    stubApi({ status: 'update-required', latestVersion: '1.1.0', downloadUrl: INSTALLER, releaseNotes: 'Security' });
+    stubApi({
+      status: 'update-required',
+      latestVersion: '1.1.0',
+      downloadUrl: INSTALLER,
+      releaseNotes: 'Security',
+    });
     await updater.checkForUpdates(false);
 
     await expect(updater.downloadUpdate()).resolves.toBe(true);
 
     const states = sent.map((s) => s.state);
     expect(states).toContain('downloading');
-    expect(last()).toEqual({ state: 'ready', version: '1.1.0' });
+    expect(last()).toEqual({
+      state: 'ready',
+      version: '1.1.0',
+      mandatory: true,
+    });
+    // Downloading stayed blocking too.
+    expect(
+      sent
+        .filter((s) => s.state === 'downloading')
+        .every((s) => 'mandatory' in s && s.mandatory),
+    ).toBe(true);
     // The mandatory flag survived the updater's own `update-available` event,
     // so the blocking dialog never turned dismissable mid-update.
     const reAvailable = sent.filter((s) => s.state === 'available').at(-1);
-    expect(reAvailable).toMatchObject({ mandatory: true, releaseNotes: 'Security', openedInBrowser: false });
+    expect(reAvailable).toMatchObject({
+      mandatory: true,
+      releaseNotes: 'Security',
+      openedInBrowser: false,
+    });
     expect(openExternal).not.toHaveBeenCalled();
 
     expect(updater.installUpdate()).toBe(true);
-    expect(fake.quitAndInstall).toHaveBeenCalledWith(false, true);
+    // Silent NSIS run on Windows: updating is a restart, not a setup wizard.
+    expect(fake.quitAndInstall).toHaveBeenCalledWith(
+      process.platform === 'win32',
+      true,
+    );
   });
 
   it('falls back to the installer page when the in-app download fails', async () => {
     const fake = fakeUpdater({ downloadFails: true });
     updater.setUpdateFeedUrl(FEED);
     updater.setAutoUpdaterLoader(() => ({ autoUpdater: fake }));
-    stubApi({ updateAvailable: true, latestVersion: '1.1.0', downloadUrl: INSTALLER });
+    stubApi({
+      updateAvailable: true,
+      latestVersion: '1.1.0',
+      downloadUrl: INSTALLER,
+    });
     await updater.checkForUpdates(false);
 
     await expect(updater.downloadUpdate()).resolves.toBe(true);
@@ -201,7 +269,11 @@ describe('in-app updating (feed configured)', () => {
     const fake = fakeUpdater({ newerRelease: false });
     updater.setUpdateFeedUrl(FEED);
     updater.setAutoUpdaterLoader(() => ({ autoUpdater: fake }));
-    stubApi({ updateAvailable: true, latestVersion: '1.1.0', downloadUrl: INSTALLER });
+    stubApi({
+      updateAvailable: true,
+      latestVersion: '1.1.0',
+      downloadUrl: INSTALLER,
+    });
     await updater.checkForUpdates(false);
 
     await expect(updater.downloadUpdate()).resolves.toBe(true);
@@ -216,9 +288,147 @@ describe('in-app updating (feed configured)', () => {
     updater.setAutoUpdaterLoader(() => {
       throw new Error("Cannot find module 'electron-updater'");
     });
-    stubApi({ updateAvailable: true, latestVersion: '1.1.0', downloadUrl: INSTALLER });
+    stubApi({
+      updateAvailable: true,
+      latestVersion: '1.1.0',
+      downloadUrl: INSTALLER,
+    });
     await updater.checkForUpdates(false);
     await expect(updater.downloadUpdate()).resolves.toBe(true);
     expect(openExternal).toHaveBeenCalledWith(INSTALLER);
+  });
+});
+
+describe('automatic background download (default)', () => {
+  const FEED = 'https://downloads.example.com/desktop/';
+
+  beforeEach(() => {
+    prefs.autoDownloadUpdates = true;
+  });
+
+  it('fetches the update right after the check, ending at "restart to update"', async () => {
+    const fake = fakeUpdater();
+    updater.setUpdateFeedUrl(FEED);
+    updater.setAutoUpdaterLoader(() => ({ autoUpdater: fake }));
+    stubApi({
+      updateAvailable: true,
+      latestVersion: '1.1.0',
+      downloadUrl: INSTALLER,
+    });
+
+    await updater.checkForUpdates(false);
+
+    await vi.waitFor(() =>
+      expect(last()).toEqual({ state: 'ready', version: '1.1.0' }),
+    );
+    expect(fake.downloadUpdate).toHaveBeenCalledTimes(1);
+    expect(openExternal).not.toHaveBeenCalled();
+  });
+
+  it('a failed background download never opens the browser; the update stays available', async () => {
+    const fake = fakeUpdater({ downloadFails: true });
+    updater.setUpdateFeedUrl(FEED);
+    updater.setAutoUpdaterLoader(() => ({ autoUpdater: fake }));
+    stubApi({
+      updateAvailable: true,
+      latestVersion: '1.1.0',
+      downloadUrl: INSTALLER,
+    });
+
+    await updater.checkForUpdates(false);
+
+    await vi.waitFor(() => expect(fake.downloadUpdate).toHaveBeenCalled());
+    await vi.waitFor(() =>
+      expect(last()).toMatchObject({ state: 'available', version: '1.1.0' }),
+    );
+    expect(openExternal).not.toHaveBeenCalled();
+    expect(sent.some((s) => s.state === 'error')).toBe(false);
+  });
+
+  it('"Update now" during a failing background download still reaches the installer page', async () => {
+    const fake = fakeUpdater({ downloadFails: true });
+    updater.setUpdateFeedUrl(FEED);
+    updater.setAutoUpdaterLoader(() => ({ autoUpdater: fake }));
+    stubApi({
+      updateAvailable: true,
+      latestVersion: '1.1.0',
+      downloadUrl: INSTALLER,
+    });
+
+    await updater.checkForUpdates(false);
+    await expect(updater.downloadUpdate()).resolves.toBe(true);
+    expect(openExternal).toHaveBeenCalledWith(INSTALLER);
+  });
+
+  it('does not re-check (and lose "ready") once an update is downloaded', async () => {
+    const fake = fakeUpdater();
+    updater.setUpdateFeedUrl(FEED);
+    updater.setAutoUpdaterLoader(() => ({ autoUpdater: fake }));
+    const fetchMock = stubApi({
+      updateAvailable: true,
+      latestVersion: '1.1.0',
+      downloadUrl: INSTALLER,
+    });
+
+    await updater.checkForUpdates(false);
+    await vi.waitFor(() => expect(last()?.state).toBe('ready'));
+    fetchMock.mockClear();
+
+    await updater.checkForUpdates(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(last()?.state).toBe('ready');
+  });
+});
+
+describe('background checks', () => {
+  const FEED = 'https://downloads.example.com/desktop/';
+
+  it('a failing scheduled check leaves no warning behind', async () => {
+    const fake = fakeUpdater();
+    fake.checkForUpdates.mockImplementation(async () => {
+      throw new Error('getaddrinfo ENOTFOUND');
+    });
+    updater.setUpdateFeedUrl(FEED);
+    updater.setAutoUpdaterLoader(() => ({ autoUpdater: fake }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('offline');
+      }),
+    );
+
+    await updater.checkForUpdates(false, API, { background: true });
+
+    expect(
+      sent.some((s) => s.state === 'error' || s.state === 'checking'),
+    ).toBe(false);
+  });
+
+  it('a manual check still reports the failure', async () => {
+    const fake = fakeUpdater();
+    fake.checkForUpdates.mockImplementation(async () => {
+      throw new Error('getaddrinfo ENOTFOUND');
+    });
+    updater.setUpdateFeedUrl(FEED);
+    updater.setAutoUpdaterLoader(() => ({ autoUpdater: fake }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('offline');
+      }),
+    );
+
+    await updater.checkForUpdates(false);
+
+    expect(last()).toMatchObject({ state: 'error' });
+  });
+
+  it('concurrent checks share one request', async () => {
+    const fetchMock = stubApi({ status: 'up-to-date' });
+    await Promise.all([
+      updater.checkForUpdates(false),
+      updater.checkForUpdates(false),
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

@@ -148,13 +148,13 @@ export function ProjectGallery({
                 size="sm"
                 className="h-8 gap-1.5 text-xs"
               >
-                <Filter className="size-3.5 text-muted-foreground" />
+                <Filter className="size-3.5" />
                 <span>
                   {statusFilter === 'all'
                     ? 'All statuses'
                     : STATUS_LABELS[statusFilter]}
                 </span>
-                <ChevronDown className="size-3.5 text-muted-foreground" />
+                <ChevronDown className="size-3.5" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
@@ -229,7 +229,7 @@ export function ProjectGallery({
             onClick={onImport}
             className="h-8 gap-1.5 text-xs"
           >
-            <Import className="size-3.5 text-muted-foreground" />
+            <Import className="size-3.5" />
             Import
           </Button>
 

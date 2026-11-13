@@ -1174,7 +1174,7 @@ export function AsanaProjectManager() {
                   onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
                   className="gap-1.5 text-xs h-7 font-medium cursor-pointer"
                 >
-                  <Filter className="size-3.5 text-muted-foreground" />
+                  <Filter className="size-3.5" />
                   <span>Filter</span>
                   {filterCount > 0 ? (
                     <Badge
@@ -1210,7 +1210,7 @@ export function AsanaProjectManager() {
                   className="gap-1.5 text-xs h-7 font-medium cursor-pointer"
                   title="Display options (V)"
                 >
-                  <SlidersHorizontal className="size-3.5 text-muted-foreground" />
+                  <SlidersHorizontal className="size-3.5" />
                   <span>Display</span>
                 </Button>
               }

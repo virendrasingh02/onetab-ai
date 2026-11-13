@@ -252,9 +252,9 @@ export function ProjectDocsView({
               className="h-8 gap-1.5 text-xs"
               disabled={actionsDisabled}
             >
-              <Link2 className="size-3.5 text-muted-foreground" />
+              <Link2 className="size-3.5" />
               <span>Link existing doc</span>
-              <ChevronDown className="size-3 text-muted-foreground" />
+              <ChevronDown className="size-3" />
             </Button>
           </LinkDocMenu>
 

@@ -74,10 +74,7 @@ export function TimezoneSelect({
           )}
         >
           <span className="min-w-0 gap-2 flex items-center">
-            <Globe
-              className="size-3.5 shrink-0 text-muted-foreground"
-              aria-hidden
-            />
+            <Globe className="size-3.5 shrink-0" aria-hidden />
             <span className="truncate">{describeTimezone(value)}</span>
           </span>
           <span className="gap-2 flex shrink-0 items-center text-muted-foreground">

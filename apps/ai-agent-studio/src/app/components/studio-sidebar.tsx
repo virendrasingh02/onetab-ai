@@ -31,7 +31,12 @@ import {
 import type { ComponentType, ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { NavLink, scopeStudioPath, useLocation, useNavigate } from '../router.js';
+import {
+  NavLink,
+  scopeStudioPath,
+  useLocation,
+  useNavigate,
+} from '../router.js';
 import {
   fetchWorkspaceApprovals,
   workspaceApprovalsKey,
@@ -69,7 +74,12 @@ export function buildNavGroups(slug: string): NavGroup[] {
       title: 'Plan, Run & Approve',
       showsPendingApprovals: true,
       items: [
-        { to: studioCorePath(slug), label: 'Studio Home', icon: Home, end: true },
+        {
+          to: studioCorePath(slug),
+          label: 'Studio Home',
+          icon: Home,
+          end: true,
+        },
         { to: studioCorePath(slug, 'runs'), label: 'Runs', icon: Activity },
         {
           to: studioCorePath(slug, 'approvals'),
@@ -159,7 +169,10 @@ export function buildNavGroups(slug: string): NavGroup[] {
   ];
   return groups.map((g) => ({
     ...g,
-    items: g.items.map((item) => ({ ...item, to: scopeStudioPath(slug, item.to) })),
+    items: g.items.map((item) => ({
+      ...item,
+      to: scopeStudioPath(slug, item.to),
+    })),
   }));
 }
 
@@ -175,7 +188,8 @@ const ROW_BASE =
 const ROW_ACTIVE =
   'font-semibold text-primary-text bg-primary/12 shadow-2xs ring-1 ring-inset ring-primary/20';
 
-const ROW_IDLE = 'font-medium text-foreground/90 hover:bg-accent/70 hover:text-foreground';
+const ROW_IDLE =
+  'font-medium text-foreground/90 hover:bg-accent/70 hover:text-foreground';
 
 const ICON_ROW =
   'relative mx-auto flex size-9 items-center justify-center rounded-xl transition-all duration-150 outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer';
@@ -183,13 +197,20 @@ const ICON_ROW =
 const ICON_ACTIVE =
   'bg-primary/12 text-primary-text shadow-2xs ring-1 ring-inset ring-primary/20';
 
-const ICON_IDLE = 'text-muted-foreground hover:bg-accent/70 hover:text-foreground';
+const ICON_IDLE =
+  'text-muted-foreground hover:bg-accent/70 hover:text-foreground';
 
-function CountBadge({ count, className }: { count: number; className?: string }) {
+function CountBadge({
+  count,
+  className,
+}: {
+  count: number;
+  className?: string;
+}) {
   return (
     <span
       className={cn(
-        'ml-auto inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-destructive/12 px-1.5 font-mono text-2xs font-semibold tabular-nums text-destructive',
+        'h-4 min-w-4 px-1.5 font-semibold ml-auto inline-flex shrink-0 items-center justify-center rounded-full bg-destructive/12 font-mono text-2xs text-destructive tabular-nums',
         className,
       )}
     >
@@ -199,8 +220,12 @@ function CountBadge({ count, className }: { count: number; className?: string })
 }
 
 /** Whether `pathname` is this row's page, or one of the pages it stands for. */
-function isNavItemActive(item: Pick<NavItem, 'to' | 'end' | 'match'>, pathname: string): boolean {
-  const under = (to: string) => pathname === to || pathname.startsWith(to + '/');
+function isNavItemActive(
+  item: Pick<NavItem, 'to' | 'end' | 'match'>,
+  pathname: string,
+): boolean {
+  const under = (to: string) =>
+    pathname === to || pathname.startsWith(to + '/');
   if (item.end ? pathname === item.to : under(item.to)) return true;
   return item.match?.some(under) ?? false;
 }
@@ -244,7 +269,7 @@ function StudioNavRow({
         >
           <Icon className="size-4 shrink-0" />
           {hasCount ? (
-            <span className="absolute right-1 top-1 size-2 rounded-full bg-destructive ring-2 ring-card" />
+            <span className="right-1 top-1 size-2 absolute rounded-full bg-destructive ring-2 ring-card" />
           ) : null}
         </NavLink>
       </Hint>
@@ -283,21 +308,23 @@ function StudioNavSection({
   return (
     <Collapsible open={open} onOpenChange={onOpenChange} asChild>
       <section aria-label={title} className="mt-3.5 first:mt-1">
-        <div className="group/section flex items-center px-2 py-1 select-none">
+        <div className="group/section px-2 py-1 flex items-center select-none">
           <CollapsibleTrigger
             aria-label={`Toggle ${title} section`}
-            className="flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded-md text-xs font-semibold uppercase tracking-wide text-foreground/75 outline-none transition-colors duration-(--duration-fast) hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
+            className="min-w-0 gap-1 text-xs font-semibold tracking-wide flex flex-1 cursor-pointer items-center rounded-md text-foreground/75 uppercase transition-colors duration-(--duration-fast) outline-none hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
           >
             <span className="truncate">{title}</span>
             <ChevronDown
               className={cn(
-                'size-3 shrink-0 text-foreground/60 opacity-0 transition-all duration-150 group-hover/section:opacity-100 group-focus-within/section:opacity-100 pointer-coarse:opacity-100',
+                'size-3 shrink-0 text-foreground/60 opacity-0 transition-all duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 pointer-coarse:opacity-100',
                 !open && '-rotate-90 opacity-100',
               )}
               aria-hidden
             />
           </CollapsibleTrigger>
-          {!open && collapsedCount ? <CountBadge count={collapsedCount} /> : null}
+          {!open && collapsedCount ? (
+            <CountBadge count={collapsedCount} />
+          ) : null}
         </div>
         <CollapsibleContent>
           <div className="mt-0.5 space-y-0.5">{children}</div>
@@ -312,7 +339,10 @@ const LAST_ROUTE_KEY = 'onetab_studio_last_route_by_workspace';
 
 function readLastRoutes(): Record<string, string> {
   try {
-    return JSON.parse(localStorage.getItem(LAST_ROUTE_KEY) ?? '{}') as Record<string, string>;
+    return JSON.parse(localStorage.getItem(LAST_ROUTE_KEY) ?? '{}') as Record<
+      string,
+      string
+    >;
   } catch {
     return {};
   }
@@ -344,7 +374,7 @@ export interface StudioSidebarProps {
  * Clean floating card Studio sidebar matching the main platform shell layout:
  * - Top CTA: Create with AI button
  * - Scrollable Navigation: Authentic categorized sections with collapsible state
- * - Pinned Footer: Invite Team button
+ * - Pinned Footer: Invite members button
  */
 export function StudioSidebar({
   className,
@@ -360,7 +390,10 @@ export function StudioSidebar({
     onCloseMobile?.();
     navigate('/settings?tab=members&invite=1');
   };
-  const navGroups = useMemo(() => buildNavGroups(activeWorkspace.slug), [activeWorkspace.slug]);
+  const navGroups = useMemo(
+    () => buildNavGroups(activeWorkspace.slug),
+    [activeWorkspace.slug],
+  );
 
   const { data: pendingApprovals = [] } = useQuery({
     queryKey: workspaceApprovalsKey(activeWorkspace.id, 'PENDING'),
@@ -370,16 +403,18 @@ export function StudioSidebar({
   const pendingCount = pendingApprovals.length;
 
   // All sections open by default; the user's folds persist across reloads.
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
-    const defaults = Object.fromEntries(navGroups.map((g) => [g.id, true]));
-    try {
-      const saved = localStorage.getItem(EXPANDED_GROUPS_KEY);
-      if (saved) return { ...defaults, ...JSON.parse(saved) };
-    } catch {
-      // ignore
-    }
-    return defaults;
-  });
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
+    () => {
+      const defaults = Object.fromEntries(navGroups.map((g) => [g.id, true]));
+      try {
+        const saved = localStorage.getItem(EXPANDED_GROUPS_KEY);
+        if (saved) return { ...defaults, ...JSON.parse(saved) };
+      } catch {
+        // ignore
+      }
+      return defaults;
+    },
+  );
 
   const setGroupOpen = useCallback((groupId: string, open: boolean) => {
     setExpandedGroups((prev) => {
@@ -425,12 +460,20 @@ export function StudioSidebar({
   const renderPanel = (collapsed: boolean) => (
     <>
       {/* Primary journey entry: describe → plan → build */}
-      <div className="shrink-0 p-2.5 pb-2.5 border-b border-border/40">
+      <div className="p-2.5 pb-2.5 shrink-0 border-b border-border/40">
         {collapsed ? (
           <div className="flex justify-center">
             <Hint side="right" label="Create with AI">
-              <Button asChild size="icon-lg" className="size-9 rounded-xl shadow-xs cursor-pointer">
-                <NavLink to="/create" onClick={onCloseMobile} aria-label="Create with AI">
+              <Button
+                asChild
+                size="icon-lg"
+                className="size-9 cursor-pointer rounded-xl shadow-xs"
+              >
+                <NavLink
+                  to="/create"
+                  onClick={onCloseMobile}
+                  aria-label="Create with AI"
+                >
                   <Wand2 className="size-4 shrink-0" />
                 </NavLink>
               </Button>
@@ -440,7 +483,7 @@ export function StudioSidebar({
           <Button
             asChild
             size="lg"
-            className="w-full gap-2 rounded-xl font-semibold shadow-xs cursor-pointer pointer-coarse:min-h-11"
+            className="gap-2 font-semibold pointer-coarse:min-h-11 w-full cursor-pointer rounded-xl shadow-xs"
           >
             <NavLink to="/create" onClick={onCloseMobile}>
               <Wand2 className="size-4 shrink-0" />
@@ -451,7 +494,10 @@ export function StudioSidebar({
       </div>
 
       {/* Scrollable Navigation Body */}
-      <ScrollArea className="flex-1 min-h-0" contentClassName="p-2.5 pt-3 pb-3 space-y-2">
+      <ScrollArea
+        className="min-h-0 flex-1"
+        contentClassName="p-2.5 pt-3 pb-3 space-y-2"
+      >
         <nav className="space-y-0.5" aria-label="Studio">
           {navGroups.map((group) => {
             const rows = group.items.map((item) => (
@@ -472,7 +518,7 @@ export function StudioSidebar({
               return (
                 <div
                   key={group.id}
-                  className="mt-2 space-y-0.5 border-t border-border/40 pt-2"
+                  className="mt-2 space-y-0.5 pt-2 border-t border-border/40"
                   aria-label={group.title}
                 >
                   {rows}
@@ -486,7 +532,9 @@ export function StudioSidebar({
                 title={group.title}
                 open={expandedGroups[group.id] ?? true}
                 onOpenChange={(open) => setGroupOpen(group.id, open)}
-                collapsedCount={group.showsPendingApprovals ? pendingCount : undefined}
+                collapsedCount={
+                  group.showsPendingApprovals ? pendingCount : undefined
+                }
               >
                 {rows}
               </StudioNavSection>
@@ -495,30 +543,33 @@ export function StudioSidebar({
         </nav>
       </ScrollArea>
 
-      {/* Pinned Footer: Invite Team */}
-      <div className="p-2.5 border-t border-border/40 shrink-0">
+      {/* Pinned Footer: Invite members — same control as the main app's sidebar footer */}
+      <div className="p-2.5 shrink-0 border-t border-border/40">
         {collapsed ? (
           <div className="flex justify-center">
-            <Hint side="right" label="Invite Team">
-              <button
+            <Hint side="right" label="Invite members">
+              <Button
                 type="button"
+                variant="secondary"
+                size="icon"
                 onClick={() => openInvite()}
-                aria-label="Invite Team"
-                className={cn(ICON_ROW, ICON_IDLE)}
+                aria-label="Invite members"
               >
-                <UserPlus className="size-4 shrink-0" />
-              </button>
+                <UserPlus className="size-4" />
+              </Button>
             </Hint>
           </div>
         ) : (
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            size="md"
             onClick={() => openInvite()}
-            className={cn(ROW_BASE, ROW_IDLE)}
+            className="px-2.5 w-full justify-start"
           >
-            <UserPlus className="size-4 shrink-0 text-muted-foreground" />
-            <span className="flex-1 truncate">Invite Team</span>
-          </button>
+            <UserPlus className="size-4 shrink-0" aria-hidden />
+            <span className="truncate">Invite members</span>
+          </Button>
         )}
       </div>
     </>
@@ -529,7 +580,7 @@ export function StudioSidebar({
       {/* Desktop floating card rail */}
       <aside
         className={cn(
-          'group/sidebar hidden md:flex flex-col h-full shrink-0 overflow-hidden rounded-xl border border-border bg-surface-muted text-sidebar-foreground transition-[width] duration-150',
+          'group/sidebar md:flex hidden h-full shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-surface-muted text-sidebar-foreground transition-[width] duration-150',
           collapsedProp ? 'w-[68px]' : 'w-[260px]',
           className,
         )}
@@ -539,12 +590,15 @@ export function StudioSidebar({
       </aside>
 
       {/* Mobile drawer: a sheet gives it focus trapping, Escape and scroll lock */}
-      <Sheet open={mobileOpen} onOpenChange={(open) => !open && onCloseMobile?.()}>
+      <Sheet
+        open={mobileOpen}
+        onOpenChange={(open) => !open && onCloseMobile?.()}
+      >
         <SheetContent
           side="left"
           hideCloseButton
           aria-describedby={undefined}
-          className="w-[260px] max-w-[85vw] gap-0 border-r border-border bg-surface-muted p-0 select-none md:hidden"
+          className="gap-0 p-0 md:hidden w-[260px] max-w-[85vw] border-r border-border bg-surface-muted select-none"
         >
           <SheetTitle className="sr-only">Studio navigation</SheetTitle>
           {renderPanel(false)}

@@ -711,7 +711,7 @@ export function NodeInspector({
                   }
                   className="gap-2 px-3 py-2 text-xs font-normal h-auto w-full justify-start rounded-lg border-primary/30 bg-primary/5 text-left whitespace-normal text-foreground hover:bg-primary/10"
                 >
-                  <Link2 className="size-3.5 shrink-0 text-primary" />
+                  <Link2 className="size-3.5 shrink-0" />
                   <span className="min-w-0 flex-1">
                     Plugged into{' '}
                     <strong>
@@ -725,7 +725,7 @@ export function NodeInspector({
                       Open the full {ownerSlot.module.label} settings
                     </span>
                   </span>
-                  <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
+                  <ChevronRight className="size-3.5 shrink-0" />
                 </Button>
               )}
 

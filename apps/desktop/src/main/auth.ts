@@ -33,6 +33,8 @@ interface StoredEncryptedSession {
 
 let pendingPKCE: PendingPKCE | null = null;
 let currentSession: DesktopAuthSession | null = null;
+/** Bumped on every sign-in/out so a slow disk read can tell it was overtaken. */
+let sessionEpoch = 0;
 let configuredApiUrl = 'http://localhost:3000/api/v1';
 
 export function setApiUrlForAuth(url: string): void {
@@ -85,8 +87,8 @@ export function generatePKCE(): {
  * On Linux with no keyring Electron reports encryption as available but uses a
  * hardcoded password (the `basic_text` backend), which protects nothing.
  */
-function hasRealEncryption(): boolean {
-  if (!safeStorage.isEncryptionAvailable()) return false;
+async function hasRealEncryption(): Promise<boolean> {
+  if (!(await safeStorage.isAsyncEncryptionAvailable())) return false;
   return (
     process.platform !== 'linux' ||
     safeStorage.getSelectedStorageBackend() !== 'basic_text'
@@ -94,10 +96,12 @@ function hasRealEncryption(): boolean {
 }
 
 /** Safely encrypts a secret using Electron's native OS credential store. */
-function encryptSecret(plaintext: string): { encrypted?: string } {
+async function encryptSecret(
+  plaintext: string,
+): Promise<{ encrypted?: string }> {
   try {
-    if (hasRealEncryption()) {
-      const buffer = safeStorage.encryptString(plaintext);
+    if (await hasRealEncryption()) {
+      const buffer = await safeStorage.encryptStringAsync(plaintext);
       return { encrypted: buffer.toString('base64') };
     }
   } catch (err) {
@@ -107,16 +111,21 @@ function encryptSecret(plaintext: string): { encrypted?: string } {
   return {};
 }
 
-/** Safely decrypts a secret using Electron's native OS credential store. */
-function decryptSecret(record: {
+/**
+ * Safely decrypts a secret using Electron's native OS credential store.
+ * `reEncrypt` is set when the OS key rotated and the stored value should be rewritten.
+ */
+async function decryptSecret(record: {
   encrypted?: string;
   plain?: string;
-}): string | null {
+}): Promise<{ value: string | null; reEncrypt?: boolean }> {
   if (record.encrypted) {
     try {
-      if (safeStorage.isEncryptionAvailable()) {
+      if (await safeStorage.isAsyncEncryptionAvailable()) {
         const buffer = Buffer.from(record.encrypted, 'base64');
-        return safeStorage.decryptString(buffer);
+        const { result, shouldReEncrypt } =
+          await safeStorage.decryptStringAsync(buffer);
+        return { value: result, reEncrypt: shouldReEncrypt };
       }
     } catch (err) {
       logger.error(
@@ -126,23 +135,26 @@ function decryptSecret(record: {
       );
     }
   }
-  return record.plain ?? null;
+  return { value: record.plain ?? null };
 }
 
-export function saveSecureSession(session: DesktopAuthSession): void {
-  currentSession = session;
-  const path = sessionFilePath();
+/** Writes are serialised so an older, slower encryption can never land after a newer one. */
+let writeChain: Promise<void> = Promise.resolve();
 
+async function persistSession(session: DesktopAuthSession): Promise<void> {
   try {
     const refreshRecord = session.refreshToken
-      ? encryptSecret(session.refreshToken)
+      ? await encryptSecret(session.refreshToken)
       : {};
     // The access token is short-lived but was previously written to disk in
     // clear text — encrypt it at rest too (DPAPI / Keychain / libsecret) so
     // nothing sensitive sits plainly in `onetab-auth-session.json`.
     const accessRecord = session.accessToken
-      ? encryptSecret(session.accessToken)
+      ? await encryptSecret(session.accessToken)
       : {};
+
+    // Signed out (or replaced) while encrypting: this write is stale.
+    if (currentSession !== session) return;
 
     const payload: StoredEncryptedSession = {
       user: session.user,
@@ -150,16 +162,34 @@ export function saveSecureSession(session: DesktopAuthSession): void {
       encryptedRefreshToken: refreshRecord.encrypted,
     };
 
-    writeFileSync(path, JSON.stringify(payload, null, 2), 'utf8');
+    writeFileSync(sessionFilePath(), JSON.stringify(payload, null, 2), 'utf8');
     logger.info('Auth', 'Secure session persisted successfully');
   } catch (error) {
     logger.error('Auth', 'Failed to persist secure session', error);
   }
 }
 
-export function loadSecureSession(): DesktopAuthSession | null {
-  if (currentSession) return currentSession;
+/** Updates the in-memory session at once; resolves when it is on disk. */
+export function saveSecureSession(session: DesktopAuthSession): Promise<void> {
+  currentSession = session;
+  sessionEpoch += 1;
+  writeChain = writeChain.then(() => persistSession(session));
+  return writeChain;
+}
 
+let loading: Promise<DesktopAuthSession | null> | null = null;
+
+export function loadSecureSession(): Promise<DesktopAuthSession | null> {
+  if (currentSession) return Promise.resolve(currentSession);
+  // Concurrent callers at startup share one read/decrypt.
+  loading ??= readSessionFromDisk().finally(() => {
+    loading = null;
+  });
+  return loading;
+}
+
+async function readSessionFromDisk(): Promise<DesktopAuthSession | null> {
+  const epoch = sessionEpoch;
   const path = sessionFilePath();
   if (!existsSync(path)) return null;
 
@@ -167,37 +197,40 @@ export function loadSecureSession(): DesktopAuthSession | null {
     const raw = readFileSync(path, 'utf8');
     const parsed = JSON.parse(raw) as StoredEncryptedSession;
 
-    const refreshToken = decryptSecret({
+    const refresh = await decryptSecret({
       encrypted: parsed.encryptedRefreshToken,
       plain: parsed.plainRefreshToken,
     });
+    const access = await decryptSecret({
+      encrypted: parsed.encryptedAccessToken,
+      plain: parsed.plainAccessToken,
+    });
 
-    const accessToken =
-      decryptSecret({
-        encrypted: parsed.encryptedAccessToken,
-        plain: parsed.plainAccessToken,
-      }) ??
-      // Migrate a file written before the access token was encrypted.
-      parsed.accessToken ??
-      null;
+    // Signed in or out while this was decrypting: the newer state wins.
+    if (epoch !== sessionEpoch) return currentSession;
 
-    currentSession = {
+    const session: DesktopAuthSession = {
       user: parsed.user,
-      accessToken,
-      refreshToken,
+      // Migrate a file written before the access token was encrypted.
+      accessToken: access.value ?? parsed.accessToken ?? null,
+      refreshToken: refresh.value,
     };
+    currentSession = session;
 
-    // A file from an older build may hold tokens in the clear: rewrite it now.
+    // A file from an older build may hold tokens in the clear, or the OS key
+    // may have rotated: rewrite it now.
     if (
       parsed.plainRefreshToken ||
       parsed.plainAccessToken ||
-      parsed.accessToken
+      parsed.accessToken ||
+      refresh.reEncrypt ||
+      access.reEncrypt
     ) {
-      saveSecureSession(currentSession);
+      void saveSecureSession(session);
     }
 
     logger.info('Auth', 'Secure session loaded from disk');
-    return currentSession;
+    return session;
   } catch (error) {
     logger.warn('Auth', 'Could not read stored session, starting fresh', error);
     return null;
@@ -206,6 +239,7 @@ export function loadSecureSession(): DesktopAuthSession | null {
 
 export function clearSecureSession(): void {
   currentSession = null;
+  sessionEpoch += 1;
   const path = sessionFilePath();
   try {
     if (existsSync(path)) {
@@ -249,7 +283,7 @@ export function refreshSecureSession(): Promise<DesktopAuthSession | null> {
 }
 
 async function doRefreshSecureSession(): Promise<DesktopAuthSession | null> {
-  const stored = loadSecureSession();
+  const stored = await loadSecureSession();
   if (!stored?.refreshToken) return null;
 
   let response: Response;
@@ -301,7 +335,7 @@ async function doRefreshSecureSession(): Promise<DesktopAuthSession | null> {
       refreshToken: rotatedRefreshToken,
     };
 
-    saveSecureSession(session);
+    await saveSecureSession(session);
     logger.info('Auth', 'Desktop session refreshed successfully');
     return session;
   } catch (error) {
@@ -535,7 +569,7 @@ export async function handleAuthCallback(
       refreshToken: data.refreshToken,
     };
 
-    saveSecureSession(session);
+    await saveSecureSession(session);
 
     showMainWindow();
     const window = getMainWindow();

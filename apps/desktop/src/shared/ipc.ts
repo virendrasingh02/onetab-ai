@@ -105,8 +105,6 @@ export interface DesktopStartupState {
   startHidden: boolean;
   /** True when this very process was started by the OS at login. */
   launchedAtLogin: boolean;
-  wasOpenedAsHidden?: boolean;
-  restoreState?: boolean;
   status?: string;
   executableWillLaunchAtLogin?: boolean;
 }
@@ -338,8 +336,9 @@ export type DesktopUpdateStatus =
       /** The installer's page was opened in the system browser (no in-app updater is configured). */
       openedInBrowser?: boolean;
     }
-  | { state: 'downloading'; percent: number }
-  | { state: 'ready'; version: string }
+  /** `mandatory` carries the API's verdict through, so a required update stays blocking. */
+  | { state: 'downloading'; percent: number; mandatory?: boolean }
+  | { state: 'ready'; version: string; mandatory?: boolean }
   | { state: 'not-available' }
   | { state: 'unsupported' }
   | { state: 'error'; message: string };

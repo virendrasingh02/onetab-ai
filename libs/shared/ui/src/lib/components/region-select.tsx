@@ -71,10 +71,7 @@ export function RegionSelect({
               ({currentRegion.code})
             </span>
           </span>
-          <ChevronsUpDown
-            className="size-3.5 shrink-0 text-muted-foreground"
-            aria-hidden
-          />
+          <ChevronsUpDown className="size-3.5 shrink-0" aria-hidden />
         </Button>
       </PopoverTrigger>
 

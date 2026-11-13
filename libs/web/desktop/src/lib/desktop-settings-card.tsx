@@ -77,14 +77,22 @@ function Row({
   disabled?: boolean;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-3">
+    <div className="gap-4 py-3 flex items-start justify-between">
       <div className="min-w-0 space-y-0.5">
-        <Label htmlFor={id} className={`text-xs font-medium ${disabled ? 'text-muted-foreground' : ''}`}>
+        <Label
+          htmlFor={id}
+          className={`text-xs font-medium ${disabled ? 'text-muted-foreground' : ''}`}
+        >
           {title}
         </Label>
         <p className="text-[11px] text-muted-foreground">{description}</p>
       </div>
-      <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} />
+      <Switch
+        id={id}
+        checked={checked}
+        onCheckedChange={onCheckedChange}
+        disabled={disabled}
+      />
     </div>
   );
 }
@@ -111,8 +119,11 @@ export function DesktopSettingsCard() {
     'minimizeToTray',
     appInfo?.platform === 'darwin' || appInfo?.platform === 'win32',
   );
-  const [desktopNotificationsEnabled, setDesktopNotificationsEnabled] = useDesktopPreference(
-    'desktopNotificationsEnabled',
+  const [desktopNotificationsEnabled, setDesktopNotificationsEnabled] =
+    useDesktopPreference('desktopNotificationsEnabled', true);
+  // Mirrors the shell's default: updates download in the background so they only need a restart.
+  const [autoDownloadUpdates, setAutoDownloadUpdates] = useDesktopPreference(
+    'autoDownloadUpdates',
     true,
   );
   const [testNotificationSent, setTestNotificationSent] = useState(false);
@@ -120,11 +131,18 @@ export function DesktopSettingsCard() {
 
   const allFeatures = useAllFeatures();
   const userFacingFeatures = useMemo(
-    () => allFeatures.filter((f) => FEATURE_REGISTRY[f.id]?.uiRelevance === 'user-facing'),
+    () =>
+      allFeatures.filter(
+        (f) => FEATURE_REGISTRY[f.id]?.uiRelevance === 'user-facing',
+      ),
     [allFeatures],
   );
-  const availableFeatures = userFacingFeatures.filter((f) => f.state === 'AVAILABLE');
-  const limitedFeatures = userFacingFeatures.filter((f) => LIMITED_STATES.has(f.state));
+  const availableFeatures = userFacingFeatures.filter(
+    (f) => f.state === 'AVAILABLE',
+  );
+  const limitedFeatures = userFacingFeatures.filter((f) =>
+    LIMITED_STATES.has(f.state),
+  );
   const webOnlyFeatures = userFacingFeatures.filter(
     (f) => f.state === 'WEB_ONLY' || f.state === 'EXTERNAL',
   );
@@ -134,8 +152,11 @@ export function DesktopSettingsCard() {
   const checking = updateStatus.state === 'checking';
   const downloading = updateStatus.state === 'downloading';
   const isStoreManaged =
-    appInfo?.distribution === 'mac-app-store' || appInfo?.distribution === 'microsoft-store';
-  const storeLabel = appInfo?.distribution ? DISTRIBUTION_LABELS[appInfo.distribution] : undefined;
+    appInfo?.distribution === 'mac-app-store' ||
+    appInfo?.distribution === 'microsoft-store';
+  const storeLabel = appInfo?.distribution
+    ? DISTRIBUTION_LABELS[appInfo.distribution]
+    : undefined;
 
   const handleTestNotification = async () => {
     const sent = await notify({
@@ -163,12 +184,15 @@ export function DesktopSettingsCard() {
       {/* 1. APPLICATION & STARTUP */}
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
+          <div className="gap-2 flex items-center">
             <Power className="size-4 text-primary" />
-            <CardTitle className="text-sm">Desktop Application &amp; Startup</CardTitle>
+            <CardTitle className="text-sm">
+              Desktop Application &amp; Startup
+            </CardTitle>
           </div>
           <CardDescription className="text-xs">
-            Manage system-level background execution and automatic launch preferences.
+            Manage system-level background execution and automatic launch
+            preferences.
           </CardDescription>
         </CardHeader>
 
@@ -178,11 +202,15 @@ export function DesktopSettingsCard() {
             title="Launch at login"
             description="Automatically start Onetab AI in the background when you log in to your computer."
             checked={startup?.openAtLogin ?? false}
-            onCheckedChange={(value) => void updateStartup({ openAtLogin: value })}
+            onCheckedChange={(value) =>
+              void updateStartup({ openAtLogin: value })
+            }
             disabled={!capabilities.autoLaunch || !startup?.supported}
           />
           {startup && !startup.supported && startup.reason && (
-            <p className="pb-2 text-[11px] text-muted-foreground">{startup.reason}</p>
+            <p className="pb-2 text-[11px] text-muted-foreground">
+              {startup.reason}
+            </p>
           )}
 
           <Separator />
@@ -192,7 +220,9 @@ export function DesktopSettingsCard() {
             title="Start minimized to the tray"
             description="When launched at login, stay in the background instead of opening a window."
             checked={startup?.startHidden ?? true}
-            onCheckedChange={(value) => void updateStartup({ startHidden: value })}
+            onCheckedChange={(value) =>
+              void updateStartup({ startHidden: value })
+            }
             disabled={!startup?.supported || !startup.openAtLogin}
           />
 
@@ -209,18 +239,27 @@ export function DesktopSettingsCard() {
           {appInfo?.platform === 'win32' && (
             <>
               <Separator />
-              <div className="flex items-center justify-between gap-4 py-2 pt-3">
+              <div className="gap-4 py-2 pt-3 flex items-center justify-between">
                 <div className="min-w-0 space-y-0.5">
-                  <p className="text-xs font-medium">Windows Jump List &amp; Tasks</p>
+                  <p className="text-xs font-medium">
+                    Windows Jump List &amp; Tasks
+                  </p>
                   <p className="text-[11px] text-muted-foreground">
-                    Right-click the taskbar icon to jump to any of your workspaces, or to Search and the AI Assistant.
+                    Right-click the taskbar icon to jump to any of your
+                    workspaces, or to Search and the AI Assistant.
                   </p>
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleClearRecentDocs}
-                  leadingIcon={clearedRecentDocs ? <CheckCircle2 className="size-3.5 text-success" /> : <RotateCcw className="size-3.5" />}
+                  leadingIcon={
+                    clearedRecentDocs ? (
+                      <CheckCircle2 className="size-3.5 text-success" />
+                    ) : (
+                      <RotateCcw className="size-3.5" />
+                    )
+                  }
                 >
                   {clearedRecentDocs ? 'Cleared' : 'Clear Recent Tasks'}
                 </Button>
@@ -233,9 +272,11 @@ export function DesktopSettingsCard() {
       {/* 2. NOTIFICATIONS & INTEGRATION */}
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
+          <div className="gap-2 flex items-center">
             <Bell className="size-4 text-primary" />
-            <CardTitle className="text-sm">Native Desktop Notifications</CardTitle>
+            <CardTitle className="text-sm">
+              Native Desktop Notifications
+            </CardTitle>
           </div>
           <CardDescription className="text-xs">
             Configure OS notification banners and taskbar/dock badges.
@@ -252,11 +293,12 @@ export function DesktopSettingsCard() {
             disabled={!capabilities.notifications}
           />
 
-          <div className="flex items-center justify-between gap-4 pt-2">
+          <div className="gap-4 pt-2 flex items-center justify-between">
             <div className="min-w-0 space-y-0.5">
               <p className="text-xs font-medium">Test Desktop Notifications</p>
               <p className="text-[11px] text-muted-foreground">
-                Trigger a sample native toast to verify OS permissions and action handling.
+                Trigger a sample native toast to verify OS permissions and
+                action handling.
               </p>
             </div>
             <Button
@@ -264,7 +306,13 @@ export function DesktopSettingsCard() {
               size="sm"
               onClick={handleTestNotification}
               disabled={!capabilities.notifications}
-              leadingIcon={testNotificationSent ? <CheckCircle2 className="size-3.5 text-success" /> : <Bell className="size-3.5" />}
+              leadingIcon={
+                testNotificationSent ? (
+                  <CheckCircle2 className="size-3.5 text-success" />
+                ) : (
+                  <Bell className="size-3.5" />
+                )
+              }
             >
               {testNotificationSent ? 'Sent!' : 'Send Test'}
             </Button>
@@ -275,35 +323,45 @@ export function DesktopSettingsCard() {
       {/* 3. DEEP LINKS & PROTOCOLS */}
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
+          <div className="gap-2 flex items-center">
             <Link2 className="size-4 text-primary" />
-            <CardTitle className="text-sm">Custom Protocol &amp; Deep Links</CardTitle>
+            <CardTitle className="text-sm">
+              Custom Protocol &amp; Deep Links
+            </CardTitle>
           </div>
           <CardDescription className="text-xs">
-            External applications, browser handoffs, and notifications route into this client.
+            External applications, browser handoffs, and notifications route
+            into this client.
           </CardDescription>
         </CardHeader>
 
         <CardContent className="pt-0 space-y-3">
-          <div className="flex items-center justify-between gap-4 py-2">
+          <div className="gap-4 py-2 flex items-center justify-between">
             <div className="min-w-0 space-y-0.5">
               <p className="text-xs font-medium">Registered Protocols</p>
               <p className="text-[11px] text-muted-foreground">
                 Active OS scheme handlers for seamless web-to-desktop handoff.
               </p>
             </div>
-            <div className="flex gap-2">
-              <Badge variant="neutral" className="font-mono text-[10px]">onetab://</Badge>
-              <Badge variant="neutral" className="font-mono text-[10px]">mie://</Badge>
+            <div className="gap-2 flex">
+              <Badge variant="neutral" className="font-mono text-[10px]">
+                onetab://
+              </Badge>
+              <Badge variant="neutral" className="font-mono text-[10px]">
+                mie://
+              </Badge>
             </div>
           </div>
 
-          <div className="rounded-lg border border-border/70 bg-surface-muted/30 p-3 text-xs text-muted-foreground space-y-1">
-            <p className="font-medium text-foreground flex items-center gap-1.5">
-              <Shield className="size-3.5 text-primary" /> Secure Single-Instance Dispatching
+          <div className="p-3 text-xs space-y-1 rounded-lg border border-border/70 bg-surface-muted/30 text-muted-foreground">
+            <p className="font-medium gap-1.5 flex items-center text-foreground">
+              <Shield className="size-3.5 text-primary" /> Secure
+              Single-Instance Dispatching
             </p>
             <p className="text-[11px]">
-              Deep links authenticate via PKCE verification and restrict navigation strictly to allowed in-app workspaces, channels, agents, and workflows.
+              Deep links authenticate via PKCE verification and restrict
+              navigation strictly to allowed in-app workspaces, channels,
+              agents, and workflows.
             </p>
           </div>
         </CardContent>
@@ -312,7 +370,7 @@ export function DesktopSettingsCard() {
       {/* 4. APPLICATION UPDATES */}
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
+          <div className="gap-2 flex items-center">
             <ArrowUpCircle className="size-4 text-primary" />
             <CardTitle className="text-sm">Application Updates</CardTitle>
           </div>
@@ -322,21 +380,26 @@ export function DesktopSettingsCard() {
         </CardHeader>
 
         <CardContent className="pt-0 space-y-4">
-          <div className="flex items-center justify-between gap-4 py-2">
+          <div className="gap-4 py-2 flex items-center justify-between">
             <div className="min-w-0 space-y-0.5">
-              <p className="text-xs font-medium flex items-center gap-2">
+              <p className="text-xs font-medium gap-2 flex items-center">
                 <span>Version {appMetadata.version}</span>
                 {appInfo && !appInfo.isPackaged && (
-                  <Badge variant="neutral" className="text-[9px] uppercase">Development</Badge>
+                  <Badge variant="neutral" className="text-[9px] uppercase">
+                    Development
+                  </Badge>
                 )}
                 {storeLabel && (
-                  <Badge variant="neutral" className="text-[9px] uppercase">{storeLabel}</Badge>
+                  <Badge variant="neutral" className="text-[9px] uppercase">
+                    {storeLabel}
+                  </Badge>
                 )}
               </p>
-              <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+              <p className="gap-1.5 flex items-center text-[11px] text-muted-foreground">
                 {updateStatus.state === 'error' ? (
                   <AlertCircle className="size-3 text-destructive" />
-                ) : updateStatus.state === 'ready' || updateStatus.state === 'available' ? (
+                ) : updateStatus.state === 'ready' ||
+                  updateStatus.state === 'available' ? (
                   <ArrowUpCircle className="size-3 text-primary" />
                 ) : (
                   <Info className="size-3 text-muted-foreground" />
@@ -345,13 +408,17 @@ export function DesktopSettingsCard() {
                   {isStoreManaged
                     ? `Updates are managed via ${storeLabel}`
                     : (UPDATE_LABELS[updateStatus.state] ?? 'Up to date')}
-                  {updateStatus.state === 'error' ? ` — ${updateStatus.message}` : ''}
-                  {updateStatus.state === 'downloading' ? ` (${updateStatus.percent}%)` : ''}
+                  {updateStatus.state === 'error'
+                    ? ` — ${updateStatus.message}`
+                    : ''}
+                  {updateStatus.state === 'downloading'
+                    ? ` (${updateStatus.percent}%)`
+                    : ''}
                 </span>
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="gap-2 flex items-center">
               {updateStatus.state === 'ready' ? (
                 <Button
                   variant="primary"
@@ -384,6 +451,19 @@ export function DesktopSettingsCard() {
               ) : null}
             </div>
           </div>
+
+          {!isStoreManaged && (
+            <>
+              <Separator />
+              <Row
+                id="desktop-auto-download-updates"
+                title="Download updates automatically"
+                description="New versions download in the background and install the next time you restart Onetab AI."
+                checked={autoDownloadUpdates}
+                onCheckedChange={setAutoDownloadUpdates}
+              />
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -395,12 +475,13 @@ export function DesktopSettingsCard() {
           all — see FeatureState's Hide vs Disable rule. */}
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
+          <div className="gap-2 flex items-center">
             <Shield className="size-4 text-primary" />
             <CardTitle className="text-sm">Platform &amp; Features</CardTitle>
           </div>
           <CardDescription className="text-xs">
-            What this {storeLabel ?? appInfo?.platform ?? 'desktop'} build can and can&apos;t do natively.
+            What this {storeLabel ?? appInfo?.platform ?? 'desktop'} build can
+            and can&apos;t do natively.
           </CardDescription>
         </CardHeader>
 
@@ -408,7 +489,10 @@ export function DesktopSettingsCard() {
           {availableFeatures.length > 0 && (
             <div className="space-y-1">
               {availableFeatures.map((f) => (
-                <div key={f.id} className="flex items-center gap-2 text-foreground">
+                <div
+                  key={f.id}
+                  className="gap-2 flex items-center text-foreground"
+                >
                   <CheckCircle2 className="size-3.5 shrink-0 text-success-text" />
                   <span>{FEATURE_REGISTRY[f.id]?.name ?? f.id}</span>
                 </div>
@@ -417,12 +501,16 @@ export function DesktopSettingsCard() {
           )}
 
           {limitedFeatures.length > 0 && (
-            <div className="space-y-1 border-t border-border/60 pt-2">
-              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            <div className="space-y-1 pt-2 border-t border-border/60">
+              <p className="font-medium tracking-wide text-[10px] text-muted-foreground uppercase">
                 Limited in this build
               </p>
               {limitedFeatures.map((f) => (
-                <div key={f.id} className="flex items-start gap-2 text-muted-foreground" title={f.reason ?? undefined}>
+                <div
+                  key={f.id}
+                  className="gap-2 flex items-start text-muted-foreground"
+                  title={f.reason ?? undefined}
+                >
                   <AlertTriangle className="size-3.5 shrink-0 text-warning-text" />
                   <span>{FEATURE_REGISTRY[f.id]?.name ?? f.id}</span>
                 </div>
@@ -431,12 +519,15 @@ export function DesktopSettingsCard() {
           )}
 
           {webOnlyFeatures.length > 0 && (
-            <div className="space-y-1 border-t border-border/60 pt-2">
-              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            <div className="space-y-1 pt-2 border-t border-border/60">
+              <p className="font-medium tracking-wide text-[10px] text-muted-foreground uppercase">
                 Web-only from here
               </p>
               {webOnlyFeatures.map((f) => (
-                <div key={f.id} className="flex items-center gap-2 text-muted-foreground">
+                <div
+                  key={f.id}
+                  className="gap-2 flex items-center text-muted-foreground"
+                >
                   <ArrowRight className="size-3.5 shrink-0" />
                   <span>{FEATURE_REGISTRY[f.id]?.name ?? f.id}</span>
                 </div>
@@ -444,7 +535,7 @@ export function DesktopSettingsCard() {
             </div>
           )}
 
-          <div className="border-t border-border/60 pt-2">
+          <div className="pt-2 border-t border-border/60">
             <PlatformDiagnosticsLink />
           </div>
         </CardContent>
@@ -453,9 +544,11 @@ export function DesktopSettingsCard() {
       {/* 6. PUBLISHER & ABOUT INFORMATION */}
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
+          <div className="gap-2 flex items-center">
             <Info className="size-4 text-primary" />
-            <CardTitle className="text-sm">About {appMetadata.productName}</CardTitle>
+            <CardTitle className="text-sm">
+              About {appMetadata.productName}
+            </CardTitle>
           </div>
           <CardDescription className="text-xs">
             Product details, publisher metadata, and legal terms.
@@ -463,23 +556,36 @@ export function DesktopSettingsCard() {
         </CardHeader>
 
         <CardContent className="pt-0 space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div className="sm:grid-cols-2 gap-3 text-xs grid grid-cols-1">
             <div className="space-y-0.5">
-              <span className="text-muted-foreground text-[11px]">Publisher</span>
-              <p className="font-medium text-foreground">{appMetadata.publisher}</p>
-            </div>
-            <div className="space-y-0.5">
-              <span className="text-muted-foreground text-[11px]">Build Identifier</span>
-              <p className="font-mono text-foreground text-[11px]">{appMetadata.build}</p>
-            </div>
-            <div className="space-y-0.5">
-              <span className="text-muted-foreground text-[11px]">Runtime Engine</span>
-              <p className="text-foreground">
-                Electron {appInfo?.electronVersion || '—'} · Chromium {appInfo?.chromeVersion || '—'}
+              <span className="text-[11px] text-muted-foreground">
+                Publisher
+              </span>
+              <p className="font-medium text-foreground">
+                {appMetadata.publisher}
               </p>
             </div>
             <div className="space-y-0.5">
-              <span className="text-muted-foreground text-[11px]">System Architecture</span>
+              <span className="text-[11px] text-muted-foreground">
+                Build Identifier
+              </span>
+              <p className="font-mono text-[11px] text-foreground">
+                {appMetadata.build}
+              </p>
+            </div>
+            <div className="space-y-0.5">
+              <span className="text-[11px] text-muted-foreground">
+                Runtime Engine
+              </span>
+              <p className="text-foreground">
+                Electron {appInfo?.electronVersion || '—'} · Chromium{' '}
+                {appInfo?.chromeVersion || '—'}
+              </p>
+            </div>
+            <div className="space-y-0.5">
+              <span className="text-[11px] text-muted-foreground">
+                System Architecture
+              </span>
               <p className="text-foreground">
                 {appInfo?.platform || 'desktop'} ({appInfo?.arch || 'x64'})
               </p>
@@ -488,34 +594,36 @@ export function DesktopSettingsCard() {
 
           <Separator className="my-2" />
 
-          <div className="flex flex-wrap items-center justify-between gap-4 pt-1 text-xs">
-            <p className="text-[11px] text-muted-foreground">{appMetadata.copyright}</p>
-            <div className="flex items-center gap-3">
+          <div className="gap-4 pt-1 text-xs flex flex-wrap items-center justify-between">
+            <p className="text-[11px] text-muted-foreground">
+              {appMetadata.copyright}
+            </p>
+            <div className="gap-3 flex items-center">
               <button
                 type="button"
                 onClick={() => void openExternal(appMetadata.website)}
-                className="text-primary hover:underline inline-flex items-center gap-1 text-xs"
+                className="gap-1 text-xs inline-flex items-center text-primary hover:underline"
               >
                 Website <ExternalLink className="size-3" />
               </button>
               <button
                 type="button"
                 onClick={() => void openExternal(appMetadata.privacyUrl)}
-                className="text-muted-foreground hover:text-foreground text-xs"
+                className="text-xs text-muted-foreground hover:text-foreground"
               >
                 Privacy
               </button>
               <button
                 type="button"
                 onClick={() => void openExternal(appMetadata.termsUrl)}
-                className="text-muted-foreground hover:text-foreground text-xs"
+                className="text-xs text-muted-foreground hover:text-foreground"
               >
                 Terms
               </button>
               <button
                 type="button"
                 onClick={() => void openExternal(appMetadata.supportUrl)}
-                className="text-muted-foreground hover:text-foreground text-xs"
+                className="text-xs text-muted-foreground hover:text-foreground"
               >
                 Support
               </button>

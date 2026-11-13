@@ -16,11 +16,7 @@ import {
   toast,
 } from '@org/ui';
 import { billingApi, queryKeys } from '@org/api-client';
-import {
-  PLAN_TIERS,
-  type InvoiceItemDto,
-  type PlanTier,
-} from '@org/types';
+import { PLAN_TIERS, type InvoiceItemDto, type PlanTier } from '@org/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -39,7 +35,11 @@ import {
   Tag,
   Zap,
 } from 'lucide-react';
-import { clearReturnTo, readReturnTo, rememberReturnTo } from './billing-return.js';
+import {
+  clearReturnTo,
+  readReturnTo,
+  rememberReturnTo,
+} from './billing-return.js';
 import { usePlanEntitlements } from '../hooks/use-plan-entitlements.js';
 import { useCurrentWorkspace } from '../use-workspaces.js';
 import {
@@ -120,12 +120,16 @@ export function WorkspaceBillingSettings({
   });
 
   const refreshBilling = () =>
-    queryClient.invalidateQueries({ queryKey: queryKeys.billing.all(workspaceId as string) });
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.billing.all(workspaceId as string),
+    });
 
   const cancelMutation = useMutation({
     mutationFn: () => billingApi.cancel(workspaceId as string),
     onSuccess: () => {
-      toast.success('Cancellation scheduled. You keep your plan until the period ends.');
+      toast.success(
+        'Cancellation scheduled. You keep your plan until the period ends.',
+      );
       void refreshBilling();
     },
     onError: (err: Error) => toast.error(err.message),
@@ -171,7 +175,9 @@ export function WorkspaceBillingSettings({
       setSearchParams(next, { replace: true });
     };
     if (outcome === 'cancelled') {
-      void billingApi.cancelCheckout(workspaceId, checkoutId).catch(() => undefined);
+      void billingApi
+        .cancelCheckout(workspaceId, checkoutId)
+        .catch(() => undefined);
       toast.info('Checkout cancelled. You have not been charged.');
       clear();
       return;
@@ -195,7 +201,9 @@ export function WorkspaceBillingSettings({
       }
       if (!stopped && ++tries < 20) setTimeout(tick, 2000);
       else if (!stopped) {
-        toast.info('Still waiting for payment confirmation. This page will update when it arrives.');
+        toast.info(
+          'Still waiting for payment confirmation. This page will update when it arrives.',
+        );
         clear();
       }
     };
@@ -207,10 +215,12 @@ export function WorkspaceBillingSettings({
   }, [workspaceId, searchParams]);
 
   const upgradeTarget: PlanTier = plan === 'free' ? 'pro' : 'max';
-  const isPastDue = subscription?.status === 'PAST_DUE' || subscription?.status === 'UNPAID';
+  const isPastDue =
+    subscription?.status === 'PAST_DUE' || subscription?.status === 'UNPAID';
   const pendingChange =
     subscription?.cancelAtPeriodEnd || subscription?.scheduledPlanTier
-      ? subscription?.scheduledPlanTier && subscription.scheduledPlanTier !== 'free'
+      ? subscription?.scheduledPlanTier &&
+        subscription.scheduledPlanTier !== 'free'
         ? `Moves to ${subscription.scheduledPlanTier.toUpperCase()}`
         : 'Cancels'
       : null;
@@ -242,7 +252,7 @@ export function WorkspaceBillingSettings({
         <a
           href={returnLink.href}
           onClick={clearReturnTo}
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+          className="gap-1.5 text-xs font-medium inline-flex items-center text-primary hover:underline"
         >
           ← {returnLink.label}
         </a>
@@ -264,7 +274,7 @@ export function WorkspaceBillingSettings({
             {isTrialing && (
               <Badge
                 variant="secondary"
-                className="font-semibold text-[10px] border border-brand/20 bg-brand/10 text-brand-text"
+                className="font-semibold border border-brand/20 bg-brand/10 text-[10px] text-brand-text"
               >
                 FREE TRIAL
               </Badge>
@@ -276,8 +286,8 @@ export function WorkspaceBillingSettings({
             )}
           </div>
           <p className="text-xs md:text-sm text-muted-foreground">
-            Manage your subscription tier, micro-agent compute limits, shared AI credits,
-            and billing settings for{' '}
+            Manage your subscription tier, micro-agent compute limits, shared AI
+            credits, and billing settings for{' '}
             <strong className="text-foreground">{currentWorkspaceName}</strong>.
           </p>
         </div>
@@ -291,8 +301,10 @@ export function WorkspaceBillingSettings({
                 : subscription.source === 'PROMOTION'
                   ? 'Coupon plan ends'
                   : 'Renews'}{' '}
-              {new Date(subscription.currentPeriodEnd ?? subscription.renewAt).toLocaleDateString()} (
-              {subscription.billingInterval})
+              {new Date(
+                subscription.currentPeriodEnd ?? subscription.renewAt,
+              ).toLocaleDateString()}{' '}
+              ({subscription.billingInterval})
             </span>
           </div>
         )}
@@ -302,9 +314,9 @@ export function WorkspaceBillingSettings({
       <div className="space-y-3">
         {/* Trial Status Banner */}
         {isTrialing && (
-          <div className="rounded-xl border border-primary/30 bg-primary/10 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/20 text-primary shrink-0">
+          <div className="p-4 sm:flex-row sm:items-center gap-3 flex flex-col items-start justify-between rounded-xl border border-primary/30 bg-primary/10 shadow-xs">
+            <div className="gap-3 flex items-center">
+              <div className="p-2 shrink-0 rounded-lg bg-primary/20 text-primary">
                 <Sparkles className="size-5" />
               </div>
               <div className="space-y-0.5">
@@ -312,7 +324,8 @@ export function WorkspaceBillingSettings({
                   Free trial active ({trialDaysRemaining ?? 0} days remaining)
                 </p>
                 <p className="text-[11px] text-muted-foreground">
-                  You are experiencing the full {planConfig.name} plan. You can cancel or change your plan anytime.
+                  You are experiencing the full {planConfig.name} plan. You can
+                  cancel or change your plan anytime.
                 </p>
               </div>
             </div>
@@ -334,20 +347,26 @@ export function WorkspaceBillingSettings({
         {isPastDue && (
           <div
             role="alert"
-            className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+            className="p-4 sm:flex-row sm:items-center gap-3 flex flex-col items-start justify-between rounded-xl border border-destructive/40 bg-destructive/10"
           >
-            <div className="flex items-center gap-3 text-destructive">
+            <div className="gap-3 flex items-center text-destructive">
               <AlertTriangle className="size-4 shrink-0" />
               <div className="space-y-0.5">
                 <p className="text-xs font-bold">Your last payment failed</p>
                 <p className="text-[11px] opacity-80">
-                  Update your payment method to keep {planConfig.name}. Paid features pause if payment is not
-                  received within the grace period.
+                  Update your payment method to keep {planConfig.name}. Paid
+                  features pause if payment is not received within the grace
+                  period.
                 </p>
               </div>
             </div>
             {canManageBilling && paymentsEnabled && (
-              <Button size="xs" variant="primary" onClick={() => portalMutation.mutate()} className="text-xs shrink-0">
+              <Button
+                size="xs"
+                variant="primary"
+                onClick={() => portalMutation.mutate()}
+                className="text-xs shrink-0"
+              >
                 <CreditCard className="size-3.5 mr-1.5" />
                 Update payment method
               </Button>
@@ -356,7 +375,7 @@ export function WorkspaceBillingSettings({
         )}
 
         {pendingChange && plan !== 'free' && (
-          <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="border-amber-500/40 bg-amber-500/10 p-4 sm:flex-row sm:items-center gap-3 flex flex-col items-start justify-between rounded-xl border">
             <p className="text-xs text-amber-800 dark:text-amber-200">
               <strong>
                 {pendingChange} on{' '}
@@ -383,18 +402,21 @@ export function WorkspaceBillingSettings({
         )}
 
         {!paymentsEnabled && canManageBilling && (
-          <div className="rounded-xl border border-border bg-surface-muted/40 p-3 text-[11px] text-muted-foreground">
-            Online payments are not enabled on this deployment, so paid plans cannot be purchased yet.
+          <div className="p-3 rounded-xl border border-border bg-surface-muted/40 text-[11px] text-muted-foreground">
+            Online payments are not enabled on this deployment, so paid plans
+            cannot be purchased yet.
           </div>
         )}
 
         {subscription?.appliedPromotionCode && (
-          <div className="rounded-xl border border-success/30 bg-success/10 p-4 flex items-center gap-3 text-success-text">
-            <div className="p-2 rounded-lg bg-success/20 text-success-text shrink-0">
+          <div className="p-4 gap-3 flex items-center rounded-xl border border-success/30 bg-success/10 text-success-text">
+            <div className="p-2 shrink-0 rounded-lg bg-success/20 text-success-text">
               <Tag className="size-4" />
             </div>
             <div className="space-y-0.5">
-              <p className="text-xs font-bold">Coupon applied: {subscription.appliedPromotionCode}</p>
+              <p className="text-xs font-bold">
+                Coupon applied: {subscription.appliedPromotionCode}
+              </p>
               {subscription.discountPercent ? (
                 <p className="text-[11px] text-success-text/80">
                   {subscription.discountPercent}% off your first payment.
@@ -406,17 +428,19 @@ export function WorkspaceBillingSettings({
 
         {/* Micro-Agent Limit Warning */}
         {microAgentLimit !== -1 && microAgentsUsed >= microAgentLimit && (
-          <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
-            <div className="flex items-center gap-3 text-amber-800 dark:text-amber-200">
-              <div className="p-2 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0">
+          <div className="border-amber-500/40 bg-amber-500/10 p-4 sm:flex-row sm:items-center gap-3 flex flex-col items-start justify-between rounded-xl border shadow-xs">
+            <div className="gap-3 text-amber-800 dark:text-amber-200 flex items-center">
+              <div className="p-2 bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0 rounded-lg">
                 <AlertTriangle className="size-4" />
               </div>
               <div className="space-y-0.5">
                 <p className="text-xs font-bold">
-                  Micro-Agent Limit Reached ({microAgentsUsed}/{microAgentLimit} Agents Active)
+                  Micro-Agent Limit Reached ({microAgentsUsed}/{microAgentLimit}{' '}
+                  Agents Active)
                 </p>
-                <p className="text-[11px] text-amber-700/80 dark:text-amber-300/80">
-                  Your workspace has deployed all available micro-agents on the {planConfig.name} plan.
+                <p className="text-amber-700/80 dark:text-amber-300/80 text-[11px]">
+                  Your workspace has deployed all available micro-agents on the{' '}
+                  {planConfig.name} plan.
                 </p>
               </div>
             </div>
@@ -432,18 +456,19 @@ export function WorkspaceBillingSettings({
         )}
 
         {/* Low Shared AI Credits Warning */}
-        {creditBalance <= 0.50 && (
-          <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
-            <div className="flex items-center gap-3 text-amber-800 dark:text-amber-200">
-              <div className="p-2 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0">
+        {creditBalance <= 0.5 && (
+          <div className="border-amber-500/40 bg-amber-500/10 p-4 sm:flex-row sm:items-center gap-3 flex flex-col items-start justify-between rounded-xl border shadow-xs">
+            <div className="gap-3 text-amber-800 dark:text-amber-200 flex items-center">
+              <div className="p-2 bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0 rounded-lg">
                 <Coins className="size-4" />
               </div>
               <div className="space-y-0.5">
                 <p className="text-xs font-bold">
                   Low Shared AI Credits (${creditBalance.toFixed(2)} Available)
                 </p>
-                <p className="text-[11px] text-amber-700/80 dark:text-amber-300/80">
-                  Automated agent runs and workflow executions may pause when credit balance reaches $0.
+                <p className="text-amber-700/80 dark:text-amber-300/80 text-[11px]">
+                  Automated agent runs and workflow executions may pause when
+                  credit balance reaches $0.
                 </p>
               </div>
             </div>
@@ -478,7 +503,7 @@ export function WorkspaceBillingSettings({
             onClick={() => setIsTopupModalOpen(true)}
             className="text-xs gap-1.5"
           >
-            <Coins className="size-3.5 text-primary" />
+            <Coins className="size-3.5" />
             Add AI Credits
           </Button>
         </div>
@@ -495,9 +520,13 @@ export function WorkspaceBillingSettings({
                 percentage:
                   microAgentLimit === -1
                     ? 0
-                    : Math.min(100, Math.round((microAgentsUsed / microAgentLimit) * 100)),
+                    : Math.min(
+                        100,
+                        Math.round((microAgentsUsed / microAgentLimit) * 100),
+                      ),
                 isNearLimit:
-                  microAgentLimit !== -1 && microAgentsUsed >= microAgentLimit * 0.8,
+                  microAgentLimit !== -1 &&
+                  microAgentsUsed >= microAgentLimit * 0.8,
                 isLimitReached:
                   microAgentLimit !== -1 && microAgentsUsed >= microAgentLimit,
                 unit: 'agents',
@@ -508,16 +537,21 @@ export function WorkspaceBillingSettings({
           />
 
           {/* Shared AI Credits Meter / Card */}
-          <Card className="border-border bg-card p-4 flex flex-col justify-between space-y-3">
+          <Card className="p-4 space-y-3 flex flex-col justify-between border-border bg-card">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+              <div className="gap-2 flex items-center">
+                <div className="size-8 flex items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
                   <Coins className="size-4" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-foreground">Shared AI Credits</p>
+                  <p className="text-xs font-bold text-foreground">
+                    Shared AI Credits
+                  </p>
                   <p className="text-[10px] text-muted-foreground">
-                    Allocated: ${planConfig.machineLimits.aiCreditsUsd === -1 ? 'Custom' : `${planConfig.machineLimits.aiCreditsUsd}/mo`}
+                    Allocated: $
+                    {planConfig.machineLimits.aiCreditsUsd === -1
+                      ? 'Custom'
+                      : `${planConfig.machineLimits.aiCreditsUsd}/mo`}
                   </p>
                 </div>
               </div>
@@ -536,20 +570,22 @@ export function WorkspaceBillingSettings({
                 <span className="text-xl font-extrabold text-foreground">
                   ${creditBalance.toFixed(2)}
                 </span>
-                <span className="text-[11px] text-muted-foreground">balance remaining</span>
+                <span className="text-[11px] text-muted-foreground">
+                  balance remaining
+                </span>
               </div>
-              <div className="h-2 rounded-full bg-surface-muted overflow-hidden">
+              <div className="h-2 overflow-hidden rounded-full bg-surface-muted">
                 <div
                   className={`h-full rounded-full transition-all ${
-                    creditBalance < 1
-                      ? 'bg-amber-500'
-                      : 'bg-primary'
+                    creditBalance < 1 ? 'bg-amber-500' : 'bg-primary'
                   }`}
                   style={{
                     width: `${Math.min(
                       100,
                       planConfig.machineLimits.aiCreditsUsd > 0
-                        ? (creditBalance / planConfig.machineLimits.aiCreditsUsd) * 100
+                        ? (creditBalance /
+                            planConfig.machineLimits.aiCreditsUsd) *
+                            100
                         : 100,
                     )}%`,
                   }}
@@ -584,7 +620,8 @@ export function WorkspaceBillingSettings({
               Workspace Plans & Upgrades
             </h3>
             <p className="text-xs text-muted-foreground">
-              Flexible monthly and annual subscriptions with transparent micro-agent allocations.
+              Flexible monthly and annual subscriptions with transparent
+              micro-agent allocations.
             </p>
           </div>
 
@@ -598,13 +635,15 @@ export function WorkspaceBillingSettings({
             <Switch checked={isAnnual} onCheckedChange={setIsAnnual} />
             <span
               className={`font-medium gap-1.5 flex items-center ${
-                isAnnual ? 'font-semibold text-foreground' : 'text-muted-foreground'
+                isAnnual
+                  ? 'font-semibold text-foreground'
+                  : 'text-muted-foreground'
               }`}
             >
               Annual Billing
               <Badge
                 variant="primary"
-                className="px-1.5 py-0 font-bold bg-success/15 text-success-text border-success/20 text-[10px]"
+                className="px-1.5 py-0 font-bold border-success/20 bg-success/15 text-[10px] text-success-text"
               >
                 SAVE 20%
               </Badge>
@@ -661,7 +700,7 @@ export function WorkspaceBillingSettings({
 
       {/* 5. Subscription management */}
       {plan !== 'free' && canManageBilling && (
-        <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-border">
+        <div className="gap-2 pt-4 flex flex-wrap items-center border-t border-border">
           {paymentsEnabled && subscription?.provider && (
             <Button
               size="sm"
@@ -696,19 +735,20 @@ export function WorkspaceBillingSettings({
             Invoices & Payment Receipts
           </h3>
           <p className="text-xs text-muted-foreground">
-            Receipts for subscription payments, credit top-ups and coupon activations.
+            Receipts for subscription payments, credit top-ups and coupon
+            activations.
           </p>
         </div>
 
         {invoices.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
+          <p className="p-6 text-xs rounded-xl border border-dashed border-border text-center text-muted-foreground">
             No invoices yet.
           </p>
         ) : (
-          <div className="rounded-xl border border-border overflow-x-auto">
+          <div className="overflow-x-auto rounded-xl border border-border">
             <Table>
               <TableHeader>
-                <TableRow className="bg-surface-muted/50 text-xs">
+                <TableRow className="text-xs bg-surface-muted/50">
                   <TableHead>Invoice</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Description</TableHead>
@@ -722,11 +762,15 @@ export function WorkspaceBillingSettings({
               <TableBody>
                 {invoices.map((inv) => (
                   <TableRow key={inv.id}>
-                    <TableCell className="font-mono text-xs text-foreground">{inv.invoiceNumber}</TableCell>
+                    <TableCell className="text-xs font-mono text-foreground">
+                      {inv.invoiceNumber}
+                    </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {new Date(inv.periodStart).toLocaleDateString()}
                     </TableCell>
-                    <TableCell className="text-xs text-foreground">{inv.description}</TableCell>
+                    <TableCell className="text-xs text-foreground">
+                      {inv.description}
+                    </TableCell>
                     <TableCell className="text-xs font-semibold text-foreground">
                       {new Intl.NumberFormat(undefined, {
                         style: 'currency',
@@ -738,14 +782,14 @@ export function WorkspaceBillingSettings({
                         variant="primary"
                         className={`font-bold text-[10px] ${
                           inv.status === 'PAID'
-                            ? 'bg-success/15 text-success-text border-success/20'
+                            ? 'border-success/20 bg-success/15 text-success-text'
                             : 'bg-amber-500/15 text-amber-600 border-amber-500/20'
                         }`}
                       >
                         {inv.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right text-xs">
+                    <TableCell className="text-xs text-right">
                       {inv.pdfUrl || inv.hostedUrl ? (
                         <a
                           className="text-primary hover:underline"
@@ -772,13 +816,20 @@ export function WorkspaceBillingSettings({
             <Tag className="size-4 text-primary" />
             Coupon history
           </h3>
-          <ul className="divide-y divide-border rounded-xl border border-border text-xs">
+          <ul className="text-xs divide-y divide-border rounded-xl border border-border">
             {redemptions.map((r) => (
-              <li key={r.id} className="flex items-center justify-between px-4 py-2.5">
+              <li
+                key={r.id}
+                className="px-4 py-2.5 flex items-center justify-between"
+              >
                 <span className="font-mono text-foreground">{r.code}</span>
                 <span className="text-muted-foreground">
-                  {r.status === 'APPLIED' ? 'Redeemed' : r.status === 'RESERVED' ? 'Pending' : 'Released'} ·{' '}
-                  {new Date(r.redeemedAt).toLocaleDateString()}
+                  {r.status === 'APPLIED'
+                    ? 'Redeemed'
+                    : r.status === 'RESERVED'
+                      ? 'Pending'
+                      : 'Released'}{' '}
+                  · {new Date(r.redeemedAt).toLocaleDateString()}
                 </span>
               </li>
             ))}

@@ -125,7 +125,7 @@ export function ProfileHeader({
                     onClick={onOpenStatusModal}
                     className="text-xs gap-1.5 border-border bg-surface hover:bg-accent"
                   >
-                    <Smile className="size-3.5 text-primary" />
+                    <Smile className="size-3.5" />
                     <span className="md:inline hidden">
                       {user.statusText ? 'Update Status' : 'Set Status'}
                     </span>

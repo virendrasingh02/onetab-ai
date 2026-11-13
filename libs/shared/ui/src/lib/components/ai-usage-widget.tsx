@@ -25,19 +25,25 @@ export function AIUsageWidget({
   className,
   ...props
 }: AIUsageWidgetProps) {
-  const tokenPercentage = Math.min(100, Math.round((usedTokens / maxTokens) * 100));
-  const creditPercentage = Math.min(100, Math.round((usedCredits / totalCredits) * 100));
+  const tokenPercentage = Math.min(
+    100,
+    Math.round((usedTokens / maxTokens) * 100),
+  );
+  const creditPercentage = Math.min(
+    100,
+    Math.round((usedCredits / totalCredits) * 100),
+  );
 
   return (
     <div
       className={cn(
-        'flex flex-col gap-3 rounded-card border border-border bg-surface p-3.5 shadow-xs text-xs',
+        'gap-3 p-3.5 text-xs flex flex-col rounded-card border border-border bg-surface shadow-xs',
         className,
       )}
       {...props}
     >
-      <div className="flex items-center justify-between border-b border-border pb-2">
-        <div className="flex items-center gap-1.5 font-semibold text-foreground">
+      <div className="pb-2 flex items-center justify-between border-b border-border">
+        <div className="gap-1.5 font-semibold flex items-center text-foreground">
           <Sparkles className="size-3.5 text-primary" />
           <span>AI Usage &amp; Credits</span>
         </div>
@@ -50,8 +56,9 @@ export function AIUsageWidget({
       <div className="space-y-1.5">
         <div className="flex items-center justify-between text-[11px]">
           <span className="text-muted-foreground">Token Quota</span>
-          <span className="font-mono font-medium text-foreground">
-            {usedTokens.toLocaleString()} / {maxTokens.toLocaleString()} ({tokenPercentage}%)
+          <span className="font-medium font-mono text-foreground">
+            {usedTokens.toLocaleString()} / {maxTokens.toLocaleString()} (
+            {tokenPercentage}%)
           </span>
         </div>
         <Progress value={tokenPercentage} className="h-1.5" />
@@ -61,7 +68,7 @@ export function AIUsageWidget({
       <div className="space-y-1.5">
         <div className="flex items-center justify-between text-[11px]">
           <span className="text-muted-foreground">Credits Balance</span>
-          <span className="font-mono font-medium text-foreground">
+          <span className="font-medium font-mono text-foreground">
             ${(totalCredits - usedCredits).toFixed(2)} remaining
           </span>
         </div>
@@ -69,7 +76,7 @@ export function AIUsageWidget({
       </div>
 
       {tokenPercentage >= 85 && (
-        <div className="flex items-center gap-1.5 rounded-sm bg-warning/10 p-2 text-[11px] text-warning-text">
+        <div className="gap-1.5 p-2 flex items-center rounded-sm bg-warning/10 text-[11px] text-warning-text">
           <AlertCircle className="size-3.5 shrink-0" />
           <span>Approaching plan quota limit for this cycle.</span>
         </div>
@@ -81,7 +88,7 @@ export function AIUsageWidget({
           variant="outline"
           onClick={onUpgrade}
           className="mt-1 w-full"
-          leadingIcon={<Zap className="size-3 text-primary" />}
+          leadingIcon={<Zap className="size-3" />}
         >
           Upgrade Capacity
         </Button>

@@ -121,7 +121,10 @@ export function AgentDeploymentTab({ agent }: { agent: AIAgentDetail }) {
           >
             {deployment.status}
           </Badge>
-          <Badge variant="outline" className="font-mono text-2xs text-brand-text">
+          <Badge
+            variant="outline"
+            className="font-mono text-2xs text-brand-text"
+          >
             {deployment.environment}
           </Badge>
           <Badge variant="outline" className="font-mono text-2xs">
@@ -159,7 +162,7 @@ export function AgentDeploymentTab({ agent }: { agent: AIAgentDetail }) {
             title="Choose which published version this deployment serves. To create a new version, use Publish in the header."
             className="gap-1.5 text-xs"
           >
-            <Radio className="size-3.5 text-primary" /> Change live version
+            <Radio className="size-3.5" /> Change live version
           </Button>
         </>
       }

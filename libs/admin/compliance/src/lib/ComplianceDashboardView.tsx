@@ -59,7 +59,7 @@ export function ComplianceDashboardView() {
         icon={<ShieldCheck className="text-success" />}
         accent="green"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="gap-2 flex items-center">
             <Badge
               variant={
                 data.overallStatus === 'PASSED'
@@ -68,7 +68,7 @@ export function ComplianceDashboardView() {
                     ? 'destructive'
                     : 'warning'
               }
-              className="font-mono uppercase text-xs"
+              className="text-xs font-mono uppercase"
             >
               {data.overallScore}% READY · {data.overallStatus}
             </Badge>
@@ -78,7 +78,9 @@ export function ComplianceDashboardView() {
               onClick={() => query.refetch()}
               disabled={query.isFetching}
             >
-              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${query.isFetching ? 'animate-spin' : ''}`} />
+              <RefreshCw
+                className={`w-3.5 h-3.5 mr-1.5 ${query.isFetching ? 'animate-spin' : ''}`}
+              />
               Refresh
             </Button>
           </div>
@@ -86,14 +88,18 @@ export function ComplianceDashboardView() {
       />
 
       {/* Top StatCards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 grid grid-cols-1">
         <StatCard
           label="Overall Compliance Score"
           subtitle="Regulatory Benchmark"
           value={`${data.overallScore}%`}
           badgeText={data.overallStatus === 'PASSED' ? 'PASSED' : 'REVIEW'}
           badgeType={data.overallStatus === 'PASSED' ? 'positive' : 'warning'}
-          secondaryText={data.overallStatus === 'PASSED' ? 'Production Ready' : 'Review Required'}
+          secondaryText={
+            data.overallStatus === 'PASSED'
+              ? 'Production Ready'
+              : 'Review Required'
+          }
           sparklineColor="emerald"
         />
         <StatCard
@@ -126,17 +132,18 @@ export function ComplianceDashboardView() {
       </div>
 
       {/* Store & Distribution Readiness */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      <div className="lg:grid-cols-3 gap-6 mb-6 grid grid-cols-1">
         <Card className="lg:col-span-2">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-base flex items-center gap-2">
+                <CardTitle className="text-base gap-2 flex items-center">
                   <Monitor className="w-4 h-4 text-accent-blue" />
                   Store & Distribution Channel Readiness
                 </CardTitle>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Calculated from live policy rules, pre-submission checklist verification, and store rejection audits.
+                <p className="text-xs mt-0.5 text-muted-foreground">
+                  Calculated from live policy rules, pre-submission checklist
+                  verification, and store rejection audits.
                 </p>
               </div>
               <Button variant="ghost" size="sm" asChild>
@@ -150,16 +157,16 @@ export function ComplianceDashboardView() {
             <div className="space-y-4">
               {/* Microsoft Store */}
               <div>
-                <div className="flex items-center justify-between text-xs mb-1.5">
-                  <span className="font-medium flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
+                <div className="text-xs mb-1.5 flex items-center justify-between">
+                  <span className="font-medium gap-1.5 flex items-center">
+                    <span className="w-2 h-2 bg-blue-500 inline-block rounded-full" />
                     Microsoft Store (Windows)
                   </span>
-                  <span className="font-mono font-medium">
+                  <span className="font-medium font-mono">
                     {data.storeReadiness.microsoftStore}%
                   </span>
                 </div>
-                <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
                   <div
                     className="bg-blue-500 h-full rounded-full transition-all duration-500"
                     style={{ width: `${data.storeReadiness.microsoftStore}%` }}
@@ -169,18 +176,18 @@ export function ComplianceDashboardView() {
 
               {/* Mac App Store */}
               <div>
-                <div className="flex items-center justify-between text-xs mb-1.5">
-                  <span className="font-medium flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-success inline-block" />
+                <div className="text-xs mb-1.5 flex items-center justify-between">
+                  <span className="font-medium gap-1.5 flex items-center">
+                    <span className="w-2 h-2 inline-block rounded-full bg-success" />
                     Mac App Store (macOS MAS)
                   </span>
-                  <span className="font-mono font-medium">
+                  <span className="font-medium font-mono">
                     {data.storeReadiness.macAppStore}%
                   </span>
                 </div>
-                <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
                   <div
-                    className="bg-success h-full rounded-full transition-all duration-500"
+                    className="h-full rounded-full bg-success transition-all duration-500"
                     style={{ width: `${data.storeReadiness.macAppStore}%` }}
                   />
                 </div>
@@ -188,16 +195,16 @@ export function ComplianceDashboardView() {
 
               {/* Windows Direct */}
               <div>
-                <div className="flex items-center justify-between text-xs mb-1.5">
-                  <span className="font-medium flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-violet-500 inline-block" />
+                <div className="text-xs mb-1.5 flex items-center justify-between">
+                  <span className="font-medium gap-1.5 flex items-center">
+                    <span className="w-2 h-2 bg-violet-500 inline-block rounded-full" />
                     Windows Direct (NSIS Installer)
                   </span>
-                  <span className="font-mono font-medium">
+                  <span className="font-medium font-mono">
                     {data.storeReadiness.directWindows}%
                   </span>
                 </div>
-                <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
                   <div
                     className="bg-violet-500 h-full rounded-full transition-all duration-500"
                     style={{ width: `${data.storeReadiness.directWindows}%` }}
@@ -207,16 +214,16 @@ export function ComplianceDashboardView() {
 
               {/* macOS Direct */}
               <div>
-                <div className="flex items-center justify-between text-xs mb-1.5">
-                  <span className="font-medium flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-pink-500 inline-block" />
+                <div className="text-xs mb-1.5 flex items-center justify-between">
+                  <span className="font-medium gap-1.5 flex items-center">
+                    <span className="w-2 h-2 bg-pink-500 inline-block rounded-full" />
                     macOS Direct (Apple Notarized DMG)
                   </span>
-                  <span className="font-mono font-medium">
+                  <span className="font-medium font-mono">
                     {data.storeReadiness.directMac}%
                   </span>
                 </div>
-                <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
                   <div
                     className="bg-pink-500 h-full rounded-full transition-all duration-500"
                     style={{ width: `${data.storeReadiness.directMac}%` }}
@@ -226,16 +233,16 @@ export function ComplianceDashboardView() {
 
               {/* Production Web */}
               <div>
-                <div className="flex items-center justify-between text-xs mb-1.5">
-                  <span className="font-medium flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-cyan-500 inline-block" />
+                <div className="text-xs mb-1.5 flex items-center justify-between">
+                  <span className="font-medium gap-1.5 flex items-center">
+                    <span className="w-2 h-2 bg-cyan-500 inline-block rounded-full" />
                     Production Web App & PWA
                   </span>
-                  <span className="font-mono font-medium">
+                  <span className="font-medium font-mono">
                     {data.storeReadiness.web}%
                   </span>
                 </div>
-                <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
                   <div
                     className="bg-cyan-500 h-full rounded-full transition-all duration-500"
                     style={{ width: `${data.storeReadiness.web}%` }}
@@ -250,7 +257,7 @@ export function ComplianceDashboardView() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
+              <CardTitle className="text-base gap-2 flex items-center">
                 <Clock className="w-4 h-4 text-accent-purple" />
                 Active Versions
               </CardTitle>
@@ -266,11 +273,13 @@ export function ComplianceDashboardView() {
               {data.currentVersions.map((v) => (
                 <div
                   key={v.platform}
-                  className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-card/50 text-xs"
+                  className="p-2.5 text-xs flex items-center justify-between rounded-lg border border-border bg-card/50"
                 >
                   <div>
                     <div className="font-medium">{v.platformName}</div>
-                    <div className="text-muted-foreground font-mono">{v.currentVersion}</div>
+                    <div className="font-mono text-muted-foreground">
+                      {v.currentVersion}
+                    </div>
                   </div>
                   <div className="text-right">
                     <Badge
@@ -285,7 +294,7 @@ export function ComplianceDashboardView() {
                     >
                       {v.status}
                     </Badge>
-                    <div className="text-muted-foreground text-[10px] mt-0.5">
+                    <div className="mt-0.5 text-[10px] text-muted-foreground">
                       {v.readinessScore}% Score
                     </div>
                   </div>
@@ -297,18 +306,19 @@ export function ComplianceDashboardView() {
       </div>
 
       {/* Regional Attention & Upcoming Deadlines */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div className="lg:grid-cols-2 gap-6 mb-6 grid grid-cols-1">
         {/* Countries Requiring Attention */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-base flex items-center gap-2">
+                <CardTitle className="text-base gap-2 flex items-center">
                   <Globe className="w-4 h-4 text-accent-blue" />
                   Countries / Regions Requiring Attention
                 </CardTitle>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Jurisdictions with open store guideline violations or pending regional legal requirements.
+                <p className="text-xs mt-0.5 text-muted-foreground">
+                  Jurisdictions with open store guideline violations or pending
+                  regional legal requirements.
                 </p>
               </div>
               <Button variant="ghost" size="sm" asChild>
@@ -320,32 +330,40 @@ export function ComplianceDashboardView() {
           </CardHeader>
           <CardContent>
             {data.countriesRequiringAttention.length === 0 ? (
-              <div className="text-center py-6 text-xs text-muted-foreground">
-                <CheckCircle2 className="w-8 h-8 text-success mx-auto mb-2 opacity-80" />
-                All regional jurisdictions currently meet compliance requirements.
+              <div className="py-6 text-xs text-center text-muted-foreground">
+                <CheckCircle2 className="w-8 h-8 mb-2 mx-auto text-success opacity-80" />
+                All regional jurisdictions currently meet compliance
+                requirements.
               </div>
             ) : (
               <div className="space-y-2.5">
                 {data.countriesRequiringAttention.map((c) => (
                   <div
                     key={c.code}
-                    className="flex items-center justify-between p-3 rounded-lg border border-border bg-card/60 text-xs"
+                    className="p-3 text-xs flex items-center justify-between rounded-lg border border-border bg-card/60"
                   >
-                    <div className="flex items-center gap-2.5">
-                      <Badge variant="outline" className="font-mono font-bold text-[11px]">
+                    <div className="gap-2.5 flex items-center">
+                      <Badge
+                        variant="outline"
+                        className="font-bold font-mono text-[11px]"
+                      >
                         {c.code}
                       </Badge>
                       <div>
-                        <div className="font-medium text-foreground">{c.name}</div>
+                        <div className="font-medium text-foreground">
+                          {c.name}
+                        </div>
                         <div className="text-[11px] text-muted-foreground">
                           {c.criticalCount > 0 && (
-                            <span className="text-destructive font-medium mr-2">
-                              {c.criticalCount} Critical Issue{c.criticalCount > 1 ? 's' : ''}
+                            <span className="font-medium mr-2 text-destructive">
+                              {c.criticalCount} Critical Issue
+                              {c.criticalCount > 1 ? 's' : ''}
                             </span>
                           )}
                           {c.warningCount > 0 && (
                             <span className="text-warning">
-                              {c.warningCount} Warning{c.warningCount > 1 ? 's' : ''}
+                              {c.warningCount} Warning
+                              {c.warningCount > 1 ? 's' : ''}
                             </span>
                           )}
                         </div>
@@ -368,12 +386,13 @@ export function ComplianceDashboardView() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-base flex items-center gap-2">
+                <CardTitle className="text-base gap-2 flex items-center">
                   <Clock className="w-4 h-4 text-warning" />
                   Upcoming Compliance Deadlines & Audits
                 </CardTitle>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Scheduled regulatory effective dates and platform guideline review cycles.
+                <p className="text-xs mt-0.5 text-muted-foreground">
+                  Scheduled regulatory effective dates and platform guideline
+                  review cycles.
                 </p>
               </div>
               <Button variant="ghost" size="sm" asChild>
@@ -388,18 +407,24 @@ export function ComplianceDashboardView() {
               {data.upcomingDeadlines.map((dl) => (
                 <div
                   key={dl.id}
-                  className="p-3 rounded-lg border border-border bg-card/60 text-xs flex items-start justify-between gap-3"
+                  className="p-3 text-xs gap-3 flex items-start justify-between rounded-lg border border-border bg-card/60"
                 >
                   <div className="space-y-1">
-                    <div className="font-medium text-foreground">{dl.title}</div>
-                    <div className="text-[11px] text-muted-foreground">{dl.target}</div>
-                    <div className="text-[11px] font-mono text-subtle">
+                    <div className="font-medium text-foreground">
+                      {dl.title}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {dl.target}
+                    </div>
+                    <div className="font-mono text-[11px] text-subtle">
                       Due: {new Date(dl.date).toLocaleDateString()}
                     </div>
                   </div>
                   <Badge
-                    variant={dl.severity === 'CRITICAL' ? 'destructive' : 'warning'}
-                    className="text-[10px] uppercase font-mono"
+                    variant={
+                      dl.severity === 'CRITICAL' ? 'destructive' : 'warning'
+                    }
+                    className="font-mono text-[10px] uppercase"
                   >
                     {dl.severity}
                   </Badge>
@@ -411,40 +436,64 @@ export function ComplianceDashboardView() {
       </div>
 
       {/* Quick Navigation Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-        <Button variant="outline" className="h-auto py-3 flex-col gap-1.5" asChild>
+      <div className="md:grid-cols-4 lg:grid-cols-6 gap-3 grid grid-cols-2">
+        <Button
+          variant="outline"
+          className="py-3 gap-1.5 h-auto flex-col"
+          asChild
+        >
           <Link to="/compliance/checklist">
             <CheckCircle2 className="w-5 h-5 text-success-text" />
             <span className="text-xs font-medium">Pre-Submission</span>
           </Link>
         </Button>
-        <Button variant="outline" className="h-auto py-3 flex-col gap-1.5" asChild>
+        <Button
+          variant="outline"
+          className="py-3 gap-1.5 h-auto flex-col"
+          asChild
+        >
           <Link to="/compliance/issues">
-            <ShieldAlert className="w-5 h-5 text-destructive" />
+            <ShieldAlert className="w-5 h-5" />
             <span className="text-xs font-medium">Rejections</span>
           </Link>
         </Button>
-        <Button variant="outline" className="h-auto py-3 flex-col gap-1.5" asChild>
+        <Button
+          variant="outline"
+          className="py-3 gap-1.5 h-auto flex-col"
+          asChild
+        >
           <Link to="/compliance/versions">
-            <Clock className="w-5 h-5 text-indigo-500" />
+            <Clock className="w-5 h-5" />
             <span className="text-xs font-medium">Release Gate</span>
           </Link>
         </Button>
-        <Button variant="outline" className="h-auto py-3 flex-col gap-1.5" asChild>
+        <Button
+          variant="outline"
+          className="py-3 gap-1.5 h-auto flex-col"
+          asChild
+        >
           <Link to="/compliance/requirements">
-            <Scale className="w-5 h-5 text-amber-500" />
+            <Scale className="w-5 h-5" />
             <span className="text-xs font-medium">Requirements</span>
           </Link>
         </Button>
-        <Button variant="outline" className="h-auto py-3 flex-col gap-1.5" asChild>
+        <Button
+          variant="outline"
+          className="py-3 gap-1.5 h-auto flex-col"
+          asChild
+        >
           <Link to="/compliance/legal">
-            <ExternalLink className="w-5 h-5 text-blue-500" />
+            <ExternalLink className="w-5 h-5" />
             <span className="text-xs font-medium">Legal Links</span>
           </Link>
         </Button>
-        <Button variant="outline" className="h-auto py-3 flex-col gap-1.5" asChild>
+        <Button
+          variant="outline"
+          className="py-3 gap-1.5 h-auto flex-col"
+          asChild
+        >
           <Link to="/compliance/audit-logs">
-            <Shield className="w-5 h-5 text-violet-500" />
+            <Shield className="w-5 h-5" />
             <span className="text-xs font-medium">Audit Trail</span>
           </Link>
         </Button>

@@ -66,11 +66,11 @@ export function ProfilePage() {
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-background text-foreground select-none">
       {/* Top Navigation Bar */}
-      <header className="h-12 shrink-0 border-b border-border/70 bg-surface/80 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between z-10">
-        <div className="flex items-center gap-2.5 text-xs">
+      <header className="h-12 backdrop-blur-md px-4 sm:px-6 z-10 flex shrink-0 items-center justify-between border-b border-border/70 bg-surface/80">
+        <div className="gap-2.5 text-xs flex items-center">
           <Link
             to={backUrl}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-medium text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors"
+            className="gap-1.5 px-2.5 py-1 font-medium inline-flex items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
           >
             <ArrowLeft className="size-3.5" />
             <span>Back to Workspace</span>
@@ -78,10 +78,12 @@ export function ProfilePage() {
           <span className="text-muted-foreground/40">/</span>
           <span className="font-semibold text-foreground">User Profile</span>
           <span className="text-muted-foreground/40">/</span>
-          <span className="text-muted-foreground font-mono">@{user.email.split('@')[0]}</span>
+          <span className="font-mono text-muted-foreground">
+            @{user.email.split('@')[0]}
+          </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="gap-2 flex items-center">
           <Button
             type="button"
             variant="outline"
@@ -89,15 +91,15 @@ export function ProfilePage() {
             onClick={() => setEditModalOpen(true)}
             className="text-xs gap-1.5 border-border bg-surface hover:bg-accent"
           >
-            <UserCheck className="size-3.5 text-primary" />
+            <UserCheck className="size-3.5" />
             <span>Edit Profile</span>
           </Button>
         </div>
       </header>
 
       {/* Main Native Scrollable Profile Area */}
-      <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-surface-inset/15 p-4 sm:p-6 md:p-8 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
-        <div className="max-w-6xl mx-auto space-y-8">
+      <main className="min-h-0 p-4 sm:p-6 md:p-8 flex-1 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent] overflow-x-hidden overflow-y-auto bg-surface-inset/15">
+        <div className="max-w-6xl space-y-8 mx-auto">
           {/* Profile Header (Cover, Avatar, Main Meta & Actions) */}
           <ProfileHeader
             user={user}
@@ -111,7 +113,7 @@ export function ProfilePage() {
           />
 
           {/* 2-Column Split: Detailed Info Left, Compact Summary Right */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:grid-cols-3 gap-8 grid grid-cols-1">
             {/* Left 2 Cols: Structured Profile Details */}
             <div className="lg:col-span-2 space-y-6">
               <ProfileDetails user={user} workspaceRole={workspaceRole} />
@@ -120,7 +122,7 @@ export function ProfilePage() {
             {/* Right Col: Compact Profile Summary Card & Workspace Context */}
             <div className="space-y-6">
               <div className="space-y-2">
-                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-1">
+                <h3 className="text-xs font-bold tracking-wider px-1 text-muted-foreground uppercase">
                   Profile Card Preview
                 </h3>
                 <ProfileSummaryCard user={user} workspaceRole={workspaceRole} />
@@ -128,15 +130,21 @@ export function ProfilePage() {
 
               {/* Workspace Badge & Info */}
               {workspace && (
-                <div className="p-4 rounded-2xl border border-border bg-surface space-y-2 text-xs">
-                  <div className="flex items-center gap-2 font-bold text-foreground">
+                <div className="p-4 space-y-2 text-xs rounded-2xl border border-border bg-surface">
+                  <div className="gap-2 font-bold flex items-center text-foreground">
                     <Sparkles className="size-4 text-primary" />
                     <span>Workspace Membership</span>
                   </div>
-                  <p className="text-muted-foreground leading-relaxed">
+                  <p className="leading-relaxed text-muted-foreground">
                     You are viewing your active profile within{' '}
-                    <strong className="text-foreground">{workspace.name}</strong> as an{' '}
-                    <span className="text-brand-text font-semibold">{workspace.role}</span>.
+                    <strong className="text-foreground">
+                      {workspace.name}
+                    </strong>{' '}
+                    as an{' '}
+                    <span className="font-semibold text-brand-text">
+                      {workspace.role}
+                    </span>
+                    .
                   </p>
                 </div>
               )}

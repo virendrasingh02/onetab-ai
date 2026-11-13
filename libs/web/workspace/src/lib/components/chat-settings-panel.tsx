@@ -126,7 +126,7 @@ export function ChatSettingsPanel() {
             onClick={resetChatDefaults}
             className="h-8 text-xs gap-1.5 shrink-0"
           >
-            <RotateCcw className="size-3.5 text-muted-foreground" />
+            <RotateCcw className="size-3.5" />
             <span>Reset Defaults</span>
           </Button>
         </div>

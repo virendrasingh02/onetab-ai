@@ -1,5 +1,8 @@
 import { Button } from '@org/ui';
-import { useBrowserSignIn, type DesktopBrowserAuthIntent } from '@org/web-desktop';
+import {
+  useBrowserSignIn,
+  type DesktopBrowserAuthIntent,
+} from '@org/web-desktop';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -33,7 +36,10 @@ const FAILURE_TITLE: Record<string, string> = {
  * session — and comes back to the app over the `onetab://` callback. The
  * shell deliberately has no password form of its own.
  */
-export function DesktopBrowserSignIn({ intent = 'sign-in', onUseMobile }: DesktopBrowserSignInProps) {
+export function DesktopBrowserSignIn({
+  intent = 'sign-in',
+  onUseMobile,
+}: DesktopBrowserSignInProps) {
   const signIn = useBrowserSignIn();
   // The footer can switch between sign-in and sign-up; "Open browser again"
   // must reopen whichever page was opened last.
@@ -46,7 +52,9 @@ export function DesktopBrowserSignIn({ intent = 'sign-in', onUseMobile }: Deskto
   const waiting = signIn.state === 'opening' || signIn.state === 'waiting';
   const failed = signIn.state in FAILURE_TITLE;
 
-  let title = isSignUp ? 'Create your Onetab AI account' : 'Welcome to Onetab AI';
+  let title = isSignUp
+    ? 'Create your Onetab AI account'
+    : 'Welcome to Onetab AI';
   let subtitle = isSignUp
     ? 'Sign up securely in your browser, then come straight back here.'
     : 'Sign in securely using your browser.';
@@ -54,7 +62,8 @@ export function DesktopBrowserSignIn({ intent = 'sign-in', onUseMobile }: Deskto
 
   if (waiting) {
     title = 'Continue in your browser';
-    subtitle = 'Finish signing in on the page that just opened. This window updates automatically.';
+    subtitle =
+      'Finish signing in on the page that just opened. This window updates automatically.';
     body = (
       <div className="space-y-3">
         <div
@@ -74,7 +83,13 @@ export function DesktopBrowserSignIn({ intent = 'sign-in', onUseMobile }: Deskto
         >
           Open browser again
         </Button>
-        <Button type="button" variant="ghost" size="md" className="w-full" onClick={() => void signIn.cancel()}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="md"
+          className="w-full"
+          onClick={() => void signIn.cancel()}
+        >
           Cancel
         </Button>
       </div>
@@ -98,7 +113,9 @@ export function DesktopBrowserSignIn({ intent = 'sign-in', onUseMobile }: Deskto
             <AlertTriangle aria-hidden className="size-4 mt-px shrink-0" />
             <div>
               <p className="font-semibold">{FAILURE_TITLE[signIn.state]}</p>
-              {signIn.message ? <p className="mt-0.5">{signIn.message}</p> : null}
+              {signIn.message ? (
+                <p className="mt-0.5">{signIn.message}</p>
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -110,7 +127,11 @@ export function DesktopBrowserSignIn({ intent = 'sign-in', onUseMobile }: Deskto
           leadingIcon={<Globe />}
           onClick={() => begin(activeIntent)}
         >
-          {failed ? 'Try again in browser' : isSignUp ? 'Sign up in browser' : 'Continue in Browser'}
+          {failed
+            ? 'Try again in browser'
+            : isSignUp
+              ? 'Sign up in browser'
+              : 'Continue in Browser'}
         </Button>
 
         {onUseMobile ? (
@@ -119,14 +140,14 @@ export function DesktopBrowserSignIn({ intent = 'sign-in', onUseMobile }: Deskto
             variant="outline"
             size="lg"
             className="w-full"
-            leadingIcon={<Smartphone className="text-muted-foreground" />}
+            leadingIcon={<Smartphone className="" />}
             onClick={onUseMobile}
           >
             Sign in with your phone
           </Button>
         ) : null}
 
-        <p className="gap-1.5 pt-1 text-[11px] flex items-center justify-center text-muted-foreground">
+        <p className="gap-1.5 pt-1 flex items-center justify-center text-[11px] text-muted-foreground">
           <ShieldCheck aria-hidden className="size-3.5" />
           Your password is never entered in this app.
         </p>
