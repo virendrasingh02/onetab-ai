@@ -12,6 +12,11 @@ import {
   DialogContent,
   DialogDescription,
   DialogTitle,
+  Field,
+  fieldBoxClass,
+  fieldBoxFocusWithinClass,
+  fieldBoxInputClass,
+  fieldBoxInvalidClass,
   Popover,
   PopoverAnchor,
   PopoverContent,
@@ -183,6 +188,34 @@ export function InviteMembersDialog({
     existingMembers.includes(e),
   ).length;
   const sendCount = totalCount - existingCount;
+
+  // One message line under the email box, resolved by <Field>: error first.
+  const emailError = tooMany ? (
+    <span>You can invite up to {MAX_INVITES} people at a time.</span>
+  ) : invalidEmails.length > 0 ? (
+    <span>
+      {invalidEmails.length === 1
+        ? '1 address looks invalid. '
+        : `${invalidEmails.length} addresses look invalid. `}
+      Click to fix, or{' '}
+      <button
+        type="button"
+        onClick={() =>
+          setEmails((prev) => prev.filter((e) => EMAIL_RE.test(e)))
+        }
+        className="cursor-pointer underline underline-offset-2"
+      >
+        remove {invalidEmails.length === 1 ? 'it' : 'them'}
+      </button>
+      .
+    </span>
+  ) : undefined;
+  const emailHint =
+    existingCount > 0
+      ? existingCount === 1
+        ? `This person is already in ${workspaceName}, so no invite was sent.`
+        : `These people are already in ${workspaceName}, so no invites were sent.`
+      : 'Separate with commas or spaces, or paste a list.';
   const canSend =
     sendCount > 0 &&
     invalidEmails.length === 0 &&
@@ -372,22 +405,32 @@ export function InviteMembersDialog({
         </div>
 
         <div className="px-6 space-y-5">
-          <div className="space-y-1.5">
-            <label
-              htmlFor="invite-emails"
-              className="text-sm font-medium text-foreground"
-            >
-              Email addresses
-            </label>
-
+          <Field
+            label="Email addresses"
+            htmlFor="invite-emails"
+            error={emailError}
+            hint={emailHint}
+            labelAside={
+              totalCount > 0 ? (
+                <span
+                  className={cn(
+                    'shrink-0 text-meta tabular-nums',
+                    tooMany ? 'text-destructive' : 'text-muted-foreground',
+                  )}
+                >
+                  {totalCount} / {MAX_INVITES}
+                </span>
+              ) : null
+            }
+          >
             <div
+              id="invite-emails-box"
               onClick={() => emailInputRef.current?.focus()}
               className={cn(
-                'p-2 gap-1.5 min-h-24 max-h-44 flex w-full cursor-text flex-wrap content-start items-start overflow-y-auto',
-                'rounded-input border border-input theme-fixed bg-field transition-[border-color,box-shadow] duration-(--duration-fast)',
-                'focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/25',
-                (invalidEmails.length > 0 || tooMany) &&
-                  'border-destructive focus-within:border-destructive focus-within:ring-destructive/20',
+                'px-2 py-1.5 gap-1.5 min-h-20 max-h-44 flex w-full cursor-text flex-wrap content-start items-start overflow-y-auto',
+                fieldBoxClass,
+                fieldBoxFocusWithinClass,
+                (invalidEmails.length > 0 || tooMany) && fieldBoxInvalidClass,
               )}
             >
               {emails.map((email) => {
@@ -397,7 +440,7 @@ export function InviteMembersDialog({
                   <span
                     key={email}
                     className={cn(
-                      'h-7 px-1 gap-1 text-xs font-medium flex max-w-full items-center rounded-md border select-none',
+                      'h-6 px-1 gap-1 text-xs font-medium flex max-w-full items-center rounded-md border select-none',
                       bad
                         ? 'border-destructive/50 bg-destructive/10 text-destructive'
                         : existing
@@ -426,7 +469,7 @@ export function InviteMembersDialog({
                       ) : (
                         <span
                           aria-hidden
-                          className="size-5 font-semibold grid shrink-0 place-items-center rounded-full bg-accent text-[10px] text-muted-foreground uppercase"
+                          className="size-4 font-semibold grid shrink-0 place-items-center rounded-full bg-accent text-3xs text-muted-foreground uppercase"
                         >
                           {email.charAt(0)}
                         </span>
@@ -460,7 +503,7 @@ export function InviteMembersDialog({
                 inputMode="email"
                 autoComplete="off"
                 aria-invalid={invalidEmails.length > 0 || tooMany}
-                aria-describedby="invite-emails-help"
+                aria-describedby="invite-emails-field-msg"
                 value={emailInput}
                 onChange={(e) => setEmailInput(e.target.value)}
                 onPaste={(e) => {
@@ -477,65 +520,16 @@ export function InviteMembersDialog({
                 placeholder={
                   emails.length === 0 ? 'name@company.com' : 'Add more...'
                 }
-                className="h-7 px-1 text-sm min-w-45 flex-1 border-none bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
+                className={cn('h-6 px-1 min-w-45', fieldBoxInputClass)}
                 autoFocus
               />
             </div>
-
-            <div
-              id="invite-emails-help"
-              aria-live="polite"
-              className="gap-3 text-xs flex items-start justify-between"
-            >
-              {tooMany ? (
-                <p className="text-destructive">
-                  You can invite up to {MAX_INVITES} people at a time.
-                </p>
-              ) : invalidEmails.length > 0 ? (
-                <p className="text-destructive">
-                  {invalidEmails.length === 1
-                    ? '1 address looks invalid. '
-                    : `${invalidEmails.length} addresses look invalid. `}
-                  Click to fix, or{' '}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setEmails((prev) => prev.filter((e) => EMAIL_RE.test(e)))
-                    }
-                    className="font-medium cursor-pointer underline underline-offset-2"
-                  >
-                    remove {invalidEmails.length === 1 ? 'it' : 'them'}
-                  </button>
-                  .
-                </p>
-              ) : existingCount > 0 ? (
-                <p className="text-muted-foreground">
-                  {existingCount === 1
-                    ? `This person is already in ${workspaceName}, so no invite was sent.`
-                    : `These people are already in ${workspaceName}, so no invites were sent.`}
-                </p>
-              ) : (
-                <p className="text-muted-foreground">
-                  Separate with commas or spaces, or paste a list.
-                </p>
-              )}
-              {totalCount > 0 && (
-                <span
-                  className={cn(
-                    'shrink-0 tabular-nums',
-                    tooMany ? 'text-destructive' : 'text-muted-foreground',
-                  )}
-                >
-                  {totalCount} / {MAX_INVITES}
-                </span>
-              )}
-            </div>
-          </div>
+          </Field>
 
           <div className="gap-4 flex items-center justify-between">
             <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">Invite as</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs font-semibold text-foreground">Invite as</p>
+              <p className="text-meta text-muted-foreground">
                 {ROLE_HINTS[role]}
               </p>
             </div>
@@ -548,146 +542,155 @@ export function InviteMembersDialog({
             />
           </div>
 
-          <div className="space-y-1.5">
-            <label
-              htmlFor="invite-channel"
-              className="text-sm font-medium text-foreground"
-            >
-              Add to a channel{' '}
-              <span className="font-normal text-muted-foreground">
-                (
-                {role === WorkspaceRole.GUEST
-                  ? 'recommended for guests'
-                  : 'optional'}
-                )
-              </span>
-            </label>
-
-            {/* Portaled via <Popover> so the list is never clipped by the dialog. */}
-            <Popover
-              open={showChannelDropdown}
-              onOpenChange={setShowChannelDropdown}
-              modal={false}
-            >
-              <PopoverAnchor asChild>
-                <div
-                  onClick={() => channelSearchRef.current?.focus()}
-                  className="min-h-9 px-2 py-1 gap-1.5 flex w-full cursor-text flex-wrap items-center rounded-input border border-input theme-fixed bg-field transition-[border-color,box-shadow] duration-(--duration-fast) focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/25"
-                >
-                  {selected ? (
-                    <span className="h-7 pl-2 pr-1 gap-1 text-xs font-medium flex items-center rounded-md border border-border bg-surface-inset text-foreground select-none">
-                      <ChannelGlyph
-                        channel={selected}
-                        className="size-3 text-muted-foreground"
-                      />
-                      <span className="max-w-50 truncate">{selected.name}</span>
-                      <button
-                        type="button"
-                        aria-label={`Remove ${selected.name}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedChannels([]);
-                        }}
-                        className="p-0.5 rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground"
-                      >
-                        <X aria-hidden className="size-3" />
-                      </button>
-                    </span>
-                  ) : (
-                    <Search
-                      aria-hidden
-                      className="ml-0.5 size-3.5 shrink-0 text-muted-foreground"
-                    />
-                  )}
-
-                  <input
-                    id="invite-channel"
-                    ref={channelSearchRef}
-                    type="text"
-                    autoComplete="off"
-                    value={channelSearch}
-                    onChange={(e) => {
-                      setChannelSearch(e.target.value);
-                      setHighlight(0);
-                      setShowChannelDropdown(true);
-                    }}
-                    onFocus={() => setShowChannelDropdown(true)}
-                    onKeyDown={handleChannelKeyDown}
-                    placeholder={
-                      selected ? 'Change channel...' : 'Search channels'
-                    }
-                    className="h-7 text-sm min-w-35 flex-1 border-none bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
-                  />
-                </div>
-              </PopoverAnchor>
-
-              <PopoverContent
-                align="start"
-                sideOffset={6}
-                onOpenAutoFocus={(e) => e.preventDefault()}
-                onCloseAutoFocus={(e) => e.preventDefault()}
-                className="max-h-56 p-1 space-y-0.5 w-(--radix-popover-trigger-width) overflow-y-auto"
+          <Field
+            htmlFor="invite-channel"
+            optional={role !== WorkspaceRole.GUEST}
+            label={
+              role === WorkspaceRole.GUEST ? (
+                <>
+                  Add to a channel
+                  <span className="font-normal text-subtle">
+                    (recommended for guests)
+                  </span>
+                </>
+              ) : (
+                'Add to a channel'
+              )
+            }
+          >
+            <div id="invite-channel-group" className="gap-2 grid">
+              {/* Portaled via <Popover> so the list is never clipped by the dialog. */}
+              <Popover
+                open={showChannelDropdown}
+                onOpenChange={setShowChannelDropdown}
+                modal={false}
               >
-                {channelsQuery.isLoading ? (
-                  <p className="py-3 text-xs text-center text-muted-foreground">
-                    Loading channels...
-                  </p>
-                ) : filteredChannels.length === 0 ? (
-                  <p className="py-3 text-xs text-center text-muted-foreground">
-                    No matching channels
-                  </p>
-                ) : (
-                  filteredChannels.map((ch, i) => (
+                <PopoverAnchor asChild>
+                  <div
+                    onClick={() => channelSearchRef.current?.focus()}
+                    className={cn(
+                      'min-h-8 px-2.5 py-0.5 gap-1.5 flex w-full cursor-text flex-wrap items-center',
+                      fieldBoxClass,
+                      fieldBoxFocusWithinClass,
+                    )}
+                  >
+                    {selected ? (
+                      <span className="h-6 pl-2 pr-1 gap-1 text-xs font-medium flex items-center rounded-md border border-border bg-surface-inset text-foreground select-none">
+                        <ChannelGlyph
+                          channel={selected}
+                          className="size-3 text-muted-foreground"
+                        />
+                        <span className="max-w-50 truncate">
+                          {selected.name}
+                        </span>
+                        <button
+                          type="button"
+                          aria-label={`Remove ${selected.name}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedChannels([]);
+                          }}
+                          className="p-0.5 rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+                        >
+                          <X aria-hidden className="size-3" />
+                        </button>
+                      </span>
+                    ) : (
+                      <Search
+                        aria-hidden
+                        className="size-3.5 shrink-0 text-subtle"
+                      />
+                    )}
+
+                    <input
+                      id="invite-channel"
+                      ref={channelSearchRef}
+                      type="text"
+                      autoComplete="off"
+                      value={channelSearch}
+                      onChange={(e) => {
+                        setChannelSearch(e.target.value);
+                        setHighlight(0);
+                        setShowChannelDropdown(true);
+                      }}
+                      onFocus={() => setShowChannelDropdown(true)}
+                      onKeyDown={handleChannelKeyDown}
+                      placeholder={
+                        selected ? 'Change channel...' : 'Search channels'
+                      }
+                      className={cn('h-6 min-w-35', fieldBoxInputClass)}
+                    />
+                  </div>
+                </PopoverAnchor>
+
+                <PopoverContent
+                  align="start"
+                  sideOffset={6}
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                  onCloseAutoFocus={(e) => e.preventDefault()}
+                  className="max-h-56 p-1 space-y-0.5 w-(--radix-popover-trigger-width) overflow-y-auto"
+                >
+                  {channelsQuery.isLoading ? (
+                    <p className="py-3 text-xs text-center text-muted-foreground">
+                      Loading channels...
+                    </p>
+                  ) : filteredChannels.length === 0 ? (
+                    <p className="py-3 text-xs text-center text-muted-foreground">
+                      No matching channels
+                    </p>
+                  ) : (
+                    filteredChannels.map((ch, i) => (
+                      <button
+                        key={ch.id}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onMouseEnter={() => setHighlight(i)}
+                        onClick={() => pickChannel(ch)}
+                        className={cn(
+                          'px-2.5 py-1.5 gap-2 text-xs flex w-full cursor-pointer items-center rounded-lg text-left text-foreground transition-colors',
+                          i === highlight ? 'bg-accent' : 'hover:bg-accent',
+                        )}
+                      >
+                        <ChannelGlyph
+                          channel={ch}
+                          className="size-3.5 shrink-0 text-muted-foreground"
+                        />
+                        <span className="font-medium truncate">{ch.name}</span>
+                        {ch.id === selected?.id && (
+                          <Check
+                            aria-hidden
+                            className="size-3.5 ml-auto shrink-0"
+                          />
+                        )}
+                      </button>
+                    ))
+                  )}
+                </PopoverContent>
+              </Popover>
+
+              {!selected && suggestedChannels.length > 0 && (
+                <div className="gap-1.5 flex flex-wrap items-center">
+                  <span className="mr-0.5 text-meta text-muted-foreground">
+                    Suggested
+                  </span>
+                  {suggestedChannels.map((ch) => (
                     <button
                       key={ch.id}
                       type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onMouseEnter={() => setHighlight(i)}
-                      onClick={() => pickChannel(ch)}
-                      className={cn(
-                        'px-2.5 py-1.5 gap-2 text-xs flex w-full cursor-pointer items-center rounded-lg text-left text-foreground transition-colors',
-                        i === highlight ? 'bg-accent' : 'hover:bg-accent',
-                      )}
+                      onClick={() => setSelectedChannels([ch])}
+                      className="h-6 px-2 gap-1 text-xs font-medium max-w-40 flex cursor-pointer items-center rounded-md border border-border bg-surface text-foreground transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/55 focus-visible:outline-none"
                     >
                       <ChannelGlyph
                         channel={ch}
-                        className="size-3.5 shrink-0 text-muted-foreground"
+                        className="size-3 shrink-0 text-muted-foreground"
                       />
-                      <span className="font-medium truncate">{ch.name}</span>
-                      {ch.id === selected?.id && (
-                        <Check
-                          aria-hidden
-                          className="size-3.5 ml-auto shrink-0"
-                        />
-                      )}
+                      <span className="truncate">{ch.name}</span>
                     </button>
-                  ))
-                )}
-              </PopoverContent>
-            </Popover>
-
-            {!selected && suggestedChannels.length > 0 && (
-              <div className="gap-1.5 flex flex-wrap items-center">
-                <span className="mr-0.5 text-xs text-muted-foreground">
-                  Suggested
-                </span>
-                {suggestedChannels.map((ch) => (
-                  <button
-                    key={ch.id}
-                    type="button"
-                    onClick={() => setSelectedChannels([ch])}
-                    className="h-6 px-2 gap-1 text-xs font-medium max-w-40 flex cursor-pointer items-center rounded-md border border-border bg-surface text-foreground transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/55 focus-visible:outline-none"
-                  >
-                    <ChannelGlyph
-                      channel={ch}
-                      className="size-3 shrink-0 text-muted-foreground"
-                    />
-                    <span className="truncate">{ch.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Field>
         </div>
 
         <div className="px-6 pt-5 pb-5 gap-2 flex items-center justify-end">

@@ -41,7 +41,10 @@ import {
 
 const STATUS_BADGES: Record<
   string,
-  { variant: 'info' | 'success' | 'warning' | 'destructive' | 'neutral'; label: string }
+  {
+    variant: 'info' | 'success' | 'warning' | 'destructive' | 'neutral';
+    label: string;
+  }
 > = {
   PENDING: { variant: 'info', label: 'Pending' },
   ACCEPTED: { variant: 'success', label: 'Accepted' },
@@ -61,7 +64,9 @@ export interface InvitationsPageProps {
   embedded?: boolean;
 }
 
-export function InvitationsPage({ embedded = false }: InvitationsPageProps = {}) {
+export function InvitationsPage({
+  embedded = false,
+}: InvitationsPageProps = {}) {
   const { workspace, workspaceId } = useCurrentWorkspace();
   const { can } = useWorkspacePermission();
   const canManage = can(WorkspacePermission.MANAGE_MEMBERS);
@@ -80,7 +85,9 @@ export function InvitationsPage({ embedded = false }: InvitationsPageProps = {})
    * id. The plaintext token is never stored server-side (only its hash), so
    * this map is the only place it lives after issue time.
    */
-  const [sessionTokens, setSessionTokens] = useState<Record<string, string>>({});
+  const [sessionTokens, setSessionTokens] = useState<Record<string, string>>(
+    {},
+  );
 
   /*
    * Embedded in workspace settings, "Invite People" opens the one app-wide
@@ -180,40 +187,41 @@ export function InvitationsPage({ embedded = false }: InvitationsPageProps = {})
     <div className={embedded ? undefined : 'min-h-0 flex flex-1 flex-col'}>
       {/* Header — the settings surface renders its own, so skip it there. */}
       {!embedded && (
-      <div className="border-b border-border bg-background">
-        <div className="gap-3 px-4 sm:px-6 py-1.5 min-h-12 flex flex-wrap items-center justify-between">
-          <div className="min-w-0 gap-2 flex items-center">
-            <div className="flex size-8 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
-              <Mail className="size-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-sm font-semibold tracking-tight text-foreground">
-                  Invitations & Access
-                </h1>
-                <Badge variant="neutral" className="text-[11px] px-1.5 py-0">
-                  {allInvitations.length} total
-                </Badge>
+        <div className="border-b border-border bg-background">
+          <div className="gap-3 px-4 sm:px-6 py-1.5 min-h-12 flex flex-wrap items-center justify-between">
+            <div className="min-w-0 gap-2 flex items-center">
+              <div className="size-8 flex items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
+                <Mail className="size-4" />
               </div>
-              <p className="text-xs text-muted-foreground">
-                Manage invitations and shareable access links for {workspace?.name ?? 'this workspace'}.
-              </p>
+              <div>
+                <div className="gap-2 flex items-center">
+                  <h1 className="text-sm font-semibold tracking-tight text-foreground">
+                    Invitations & Access
+                  </h1>
+                  <Badge variant="neutral" className="px-1.5 py-0 text-meta">
+                    {allInvitations.length} total
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Manage invitations and shareable access links for{' '}
+                  {workspace?.name ?? 'this workspace'}.
+                </p>
+              </div>
             </div>
-          </div>
 
-          {canManage && (
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={openInvite}
-              className="text-xs font-semibold h-8"
-              leadingIcon={<MailPlus className="size-3.5" />}
-            >
-              Invite People
-            </Button>
-          )}
+            {canManage && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={openInvite}
+                className="text-xs font-semibold h-8"
+                leadingIcon={<MailPlus className="size-3.5" />}
+              >
+                Invite People
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
       )}
 
       {/* Main Body */}
@@ -221,56 +229,64 @@ export function InvitationsPage({ embedded = false }: InvitationsPageProps = {})
         className={
           embedded
             ? undefined
-            : 'min-h-0 p-4 sm:p-6 flex-1 overflow-y-auto space-y-5'
+            : 'min-h-0 p-4 sm:p-6 space-y-5 flex-1 overflow-y-auto'
         }
       >
-        <div className={embedded ? 'space-y-5' : 'max-w-5xl mx-auto space-y-5'}>
+        <div className={embedded ? 'space-y-5' : 'max-w-5xl space-y-5 mx-auto'}>
           {/* Feedback Toast */}
           {feedbackToast && (
-            <div className="flex items-center gap-2 rounded-xl border border-success/30 bg-success/10 p-3 text-xs text-success-text shadow-xs">
+            <div className="gap-2 p-3 text-xs flex items-center rounded-xl border border-success/30 bg-success/10 text-success-text shadow-xs">
               <CheckCircle2 className="size-4 shrink-0" />
               <span>{feedbackToast}</span>
             </div>
           )}
 
           {/* Quick Metrics */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="rounded-xl border border-border bg-surface p-3 space-y-1 shadow-2xs">
-              <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
+          <div className="sm:grid-cols-4 gap-3 grid grid-cols-2">
+            <div className="p-3 space-y-1 shadow-2xs rounded-xl border border-border bg-surface">
+              <span className="font-medium gap-1.5 flex items-center text-meta text-muted-foreground">
                 <Mail className="size-3.5 text-primary" />
                 Pending Invites
               </span>
-              <p className="text-xl font-bold text-foreground">{pendingCount}</p>
+              <p className="text-xl font-bold text-foreground">
+                {pendingCount}
+              </p>
             </div>
 
-            <div className="rounded-xl border border-border bg-surface p-3 space-y-1 shadow-2xs">
-              <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
+            <div className="p-3 space-y-1 shadow-2xs rounded-xl border border-border bg-surface">
+              <span className="font-medium gap-1.5 flex items-center text-meta text-muted-foreground">
                 <CheckCircle2 className="size-3.5 text-success" />
                 Accepted
               </span>
-              <p className="text-xl font-bold text-foreground">{acceptedCount}</p>
+              <p className="text-xl font-bold text-foreground">
+                {acceptedCount}
+              </p>
             </div>
 
-            <div className="rounded-xl border border-border bg-surface p-3 space-y-1 shadow-2xs">
-              <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
+            <div className="p-3 space-y-1 shadow-2xs rounded-xl border border-border bg-surface">
+              <span className="font-medium gap-1.5 flex items-center text-meta text-muted-foreground">
                 <Link2 className="size-3.5 text-accent-indigo" />
                 Active Links
               </span>
-              <p className="text-xl font-bold text-foreground">{activeLinksCount}</p>
+              <p className="text-xl font-bold text-foreground">
+                {activeLinksCount}
+              </p>
             </div>
 
-            <div className="rounded-xl border border-border bg-surface p-3 space-y-1 shadow-2xs">
-              <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
+            <div className="p-3 space-y-1 shadow-2xs rounded-xl border border-border bg-surface">
+              <span className="font-medium gap-1.5 flex items-center text-meta text-muted-foreground">
                 <Users className="size-3.5 text-accent-amber" />
                 Total Dispatched
               </span>
-              <p className="text-xl font-bold text-foreground">{allInvitations.length}</p>
+              <p className="text-xl font-bold text-foreground">
+                {allInvitations.length}
+              </p>
             </div>
           </div>
 
           {/* Filters Bar */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
-            <div className="flex items-center gap-2 flex-1 max-w-md">
+          <div className="sm:flex-row sm:items-center gap-3 pt-2 flex flex-col justify-between">
+            <div className="gap-2 max-w-md flex flex-1 items-center">
               <SearchInput
                 value={searchQuery}
                 onValueChange={setSearchQuery}
@@ -279,7 +295,7 @@ export function InvitationsPage({ embedded = false }: InvitationsPageProps = {})
               />
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="gap-2 flex items-center">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="h-8 text-xs w-[130px] bg-surface">
                   <SelectValue placeholder="All Statuses" />
@@ -330,7 +346,7 @@ export function InvitationsPage({ embedded = false }: InvitationsPageProps = {})
               }
             />
           ) : (
-            <div className="rounded-xl border border-border bg-surface divide-y divide-border/60 overflow-hidden shadow-2xs">
+            <div className="shadow-2xs divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-surface">
               {allInvitations.map((invitation) => {
                 const statusBadge =
                   STATUS_BADGES[invitation.status] ?? STATUS_BADGES.PENDING;
@@ -339,39 +355,53 @@ export function InvitationsPage({ embedded = false }: InvitationsPageProps = {})
                 return (
                   <div
                     key={invitation.id}
-                    className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-accent/20 transition-colors"
+                    className="p-4 sm:flex-row sm:items-center gap-3 flex flex-col justify-between transition-colors hover:bg-accent/20"
                   >
-                    <div className="flex items-center gap-3.5 min-w-0">
-                      <div className="size-9 rounded-full bg-accent flex items-center justify-center text-primary shrink-0">
+                    <div className="gap-3.5 min-w-0 flex items-center">
+                      <div className="size-9 flex shrink-0 items-center justify-center rounded-full bg-accent text-primary">
                         <Mail className="size-4" />
                       </div>
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-xs text-foreground truncate">
+                        <div className="gap-2 flex items-center">
+                          <span className="font-semibold text-xs truncate text-foreground">
                             {invitation.email ?? 'Shareable Link Invitation'}
                           </span>
-                          <Badge variant={statusBadge.variant} className="text-[10px] px-1.5 py-0 capitalize">
+                          <Badge
+                            variant={statusBadge.variant}
+                            className="px-1.5 py-0 text-2xs capitalize"
+                          >
                             {statusBadge.label}
                           </Badge>
-                          <Badge variant="neutral" className="text-[10px] px-1.5 py-0 uppercase">
+                          <Badge
+                            variant="neutral"
+                            className="px-1.5 py-0 text-2xs uppercase"
+                          >
                             {invitation.role.toLowerCase()}
                           </Badge>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground mt-0.5">
+                        <div className="gap-x-2 gap-y-0.5 mt-0.5 flex flex-wrap items-center text-meta text-muted-foreground">
                           {invitation.channel && (
-                            <span className="flex items-center gap-1 text-foreground font-medium">
+                            <span className="gap-1 font-medium flex items-center text-foreground">
                               <Hash className="size-3 text-muted-foreground" />
                               {invitation.channel.name}
                             </span>
                           )}
-                          <span>Invited by {invitation.invitedBy.displayName ?? invitation.invitedBy.name}</span>
+                          <span>
+                            Invited by{' '}
+                            {invitation.invitedBy.displayName ??
+                              invitation.invitedBy.name}
+                          </span>
                           <span>·</span>
-                          <span>Sent {formatRelative(invitation.createdAt)}</span>
+                          <span>
+                            Sent {formatRelative(invitation.createdAt)}
+                          </span>
                           {invitation.expiresAt && (
                             <>
                               <span>·</span>
-                              <span>Expires {formatRelative(invitation.expiresAt)}</span>
+                              <span>
+                                Expires {formatRelative(invitation.expiresAt)}
+                              </span>
                             </>
                           )}
                         </div>
@@ -379,7 +409,7 @@ export function InvitationsPage({ embedded = false }: InvitationsPageProps = {})
                     </div>
 
                     {canManage && (
-                      <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                      <div className="gap-2 sm:self-auto flex shrink-0 items-center self-end">
                         {isPending && (
                           <>
                             <Button
@@ -428,7 +458,7 @@ export function InvitationsPage({ embedded = false }: InvitationsPageProps = {})
                                 });
                               }}
                               loading={revoke.isPending}
-                              className="text-xs h-7 text-destructive hover:bg-destructive/10 px-2"
+                              className="text-xs h-7 px-2 text-destructive hover:bg-destructive/10"
                             >
                               <Trash2 className="size-3 mr-1" />
                               Revoke
