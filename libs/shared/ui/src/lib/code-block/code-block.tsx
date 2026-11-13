@@ -13,7 +13,10 @@ import { CodeBlockDiff } from './code-block-diff.js';
 import { CodeBlockEditor } from './code-block-editor.js';
 import { CodeBlockExecution } from './code-block-execution.js';
 import { CodeBlockHeader } from './code-block-header.js';
-import { CodeBlockPreview, isLanguagePreviewable } from './code-block-preview.js';
+import {
+  CodeBlockPreview,
+  isLanguagePreviewable,
+} from './code-block-preview.js';
 import {
   detectLanguage,
   getLanguageName,
@@ -73,7 +76,9 @@ export function CodeBlock({
 
   // Internal state
   const [currentCode, setCurrentCode] = useState(rawCode);
-  const [isEditing, setIsEditing] = useState(variant === 'editor' && editable && !readOnly);
+  const [isEditing, setIsEditing] = useState(
+    variant === 'editor' && editable && !readOnly,
+  );
   const [isDirty, setIsDirty] = useState(false);
   const [isWordWrap, setIsWordWrap] = useState(false);
   const showLineNumbers =
@@ -94,7 +99,7 @@ export function CodeBlock({
     return (
       <code
         className={cn(
-          'rounded bg-surface-inset px-1.5 py-0.5 font-mono text-[0.875em] text-info-text border border-border/40 select-all',
+          'rounded px-1.5 py-0.5 border border-border/40 bg-surface-inset font-mono text-[0.875em] text-info-text select-all',
           className,
         )}
       >
@@ -158,7 +163,9 @@ export function CodeBlock({
       onCancel={isEditing ? handleCancel : undefined}
       onToggleWrap={() => setIsWordWrap(!isWordWrap)}
       onToggleExpand={() => setIsModalOpen(true)}
-      onTogglePreview={canPreview ? () => setInternalPreview(!internalPreview) : undefined}
+      onTogglePreview={
+        canPreview ? () => setInternalPreview(!internalPreview) : undefined
+      }
       onExecute={onExecute ? () => onExecute(rawCode) : undefined}
       onCopySuccess={() => onCopy?.(rawCode)}
       onDownloadSuccess={(fn) => onDownload?.(rawCode, fn)}
@@ -169,9 +176,9 @@ export function CodeBlock({
     <>
       <div
         className={cn(
-          'group/code my-2 w-full rounded-lg border border-border/80 bg-surface shadow-xs transition-colors overflow-hidden',
+          'group/code my-2 w-full overflow-hidden rounded-lg border border-border/80 bg-surface shadow-xs transition-colors',
           isTerminal && 'bg-zinc-950 text-zinc-100 border-zinc-800',
-          variant === 'compact' && 'my-1 rounded-md text-[11px]',
+          variant === 'compact' && 'my-1 rounded-md text-meta',
           className,
         )}
       >
@@ -214,10 +221,7 @@ export function CodeBlock({
             showLineNumbers={showLineNumbers}
           />
         ) : isPreview ? (
-          <CodeBlockPreview
-            code={rawCode}
-            language={resolvedLanguage}
-          />
+          <CodeBlockPreview code={rawCode} language={resolvedLanguage} />
         ) : (
           <CodeBlockContent
             code={rawCode}
@@ -245,10 +249,14 @@ export function CodeBlock({
 
       {/* Expanded Modal / Dialog */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden sm:rounded-xl">
+        <DialogContent className="max-w-4xl p-0 sm:rounded-xl flex max-h-[90vh] flex-col overflow-hidden">
           <DialogHeader className="px-4 py-3 border-b border-border bg-surface-raised">
-            <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
-              <span>{filename || title || `${getLanguageName(resolvedLanguage)} Code`}</span>
+            <DialogTitle className="gap-2 text-sm font-semibold flex items-center">
+              <span>
+                {filename ||
+                  title ||
+                  `${getLanguageName(resolvedLanguage)} Code`}
+              </span>
               <span className="text-xs font-normal text-muted-foreground">
                 ({lineCount} lines)
               </span>
@@ -258,7 +266,7 @@ export function CodeBlock({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 overflow-auto bg-surface-inset max-h-[calc(90vh-100px)]">
+          <div className="max-h-[calc(90vh-100px)] flex-1 overflow-auto bg-surface-inset">
             <CodeBlockContent
               code={isEditing ? currentCode : rawCode}
               language={resolvedLanguage}

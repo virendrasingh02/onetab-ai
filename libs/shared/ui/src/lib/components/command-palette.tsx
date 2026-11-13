@@ -279,7 +279,7 @@ export function CommandPalette({
                 return (
                   <div key={item.id}>
                     {showHeading ? (
-                      <p className="px-3 pt-2 pb-1 font-medium tracking-wide text-[10px] text-subtle uppercase">
+                      <p className="px-3 pt-2 pb-1 font-medium tracking-wide text-2xs text-subtle uppercase">
                         {item.category}
                       </p>
                     ) : null}
@@ -320,7 +320,7 @@ export function CommandPalette({
           )}
         </ScrollArea>
 
-        <div className="px-4 py-2 flex items-center justify-between border-t border-border bg-surface-muted text-[11px] text-subtle">
+        <div className="px-4 py-2 flex items-center justify-between border-t border-border bg-surface-muted text-meta text-subtle">
           <div className="gap-3 flex items-center">
             <span className="gap-1 flex items-center">
               <Kbd size="xs" variant="default">

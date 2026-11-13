@@ -73,14 +73,27 @@ const STATE_META: Record<
   ConnectionState,
   {
     label: string;
-    variant: 'success' | 'neutral' | 'info' | 'warning' | 'destructive' | 'outline';
+    variant:
+      'success' | 'neutral' | 'info' | 'warning' | 'destructive' | 'outline';
     dot: string;
   }
 > = {
   connected: { label: 'Connected', variant: 'success', dot: 'bg-success' },
-  disconnected: { label: 'Not connected', variant: 'neutral', dot: 'bg-muted-foreground' },
-  connecting: { label: 'Connecting…', variant: 'info', dot: 'bg-info animate-pulse' },
-  reconnecting: { label: 'Reconnecting…', variant: 'info', dot: 'bg-info animate-pulse' },
+  disconnected: {
+    label: 'Not connected',
+    variant: 'neutral',
+    dot: 'bg-muted-foreground',
+  },
+  connecting: {
+    label: 'Connecting…',
+    variant: 'info',
+    dot: 'bg-info animate-pulse',
+  },
+  reconnecting: {
+    label: 'Reconnecting…',
+    variant: 'info',
+    dot: 'bg-info animate-pulse',
+  },
   expired: { label: 'Expired', variant: 'warning', dot: 'bg-warning' },
   error: { label: 'Error', variant: 'destructive', dot: 'bg-destructive' },
   disabled: { label: 'Unavailable', variant: 'outline', dot: 'bg-subtle' },
@@ -190,7 +203,7 @@ export function ConnectionCard({
     <article
       aria-labelledby={titleId}
       className={cn(
-        'group p-5 gap-3 flex min-h-44 flex-col rounded-2xl border border-border bg-surface-inset shadow-xs transition-colors',
+        'group p-5 gap-3 min-h-44 flex flex-col rounded-2xl border border-border bg-surface-inset shadow-xs transition-colors',
         state === 'disabled' ? 'opacity-60' : 'hover:border-border-strong',
         needsReconnect(state) && 'border-warning/40',
         className,
@@ -202,36 +215,54 @@ export function ConnectionCard({
             {icon}
           </div>
           <div className="min-w-0">
-            <h3 id={titleId} className="text-sm font-semibold truncate text-foreground">
+            <h3
+              id={titleId}
+              className="text-sm font-semibold truncate text-foreground"
+            >
               {name}
             </h3>
             {awaitingSetup ? (
               <Badge variant="warning" className="mt-1 rounded-full">
-                <span aria-hidden className="size-1.5 rounded-full bg-warning" />
+                <span
+                  aria-hidden
+                  className="size-1.5 rounded-full bg-warning"
+                />
                 {statusLabel ?? 'Needs setup'}
               </Badge>
             ) : (
-              <ConnectionStatusBadge state={state} label={statusLabel} className="mt-1" />
+              <ConnectionStatusBadge
+                state={state}
+                label={statusLabel}
+                className="mt-1"
+              />
             )}
           </div>
         </div>
-        {linked && actions ? <div className="gap-0.5 flex shrink-0 items-center">{actions}</div> : null}
+        {linked && actions ? (
+          <div className="gap-0.5 flex shrink-0 items-center">{actions}</div>
+        ) : null}
       </div>
 
       {description ? (
-        <p className="text-xs leading-relaxed line-clamp-2 text-muted-foreground">{description}</p>
+        <p className="text-xs leading-relaxed line-clamp-2 text-muted-foreground">
+          {description}
+        </p>
       ) : null}
 
       {linked ? (
-        <dl className="gap-x-3 gap-y-1 text-[11px] grid grid-cols-[auto_1fr] text-muted-foreground">
+        <dl className="gap-x-3 gap-y-1 grid grid-cols-[auto_1fr] text-meta text-muted-foreground">
           {account ? (
             <>
               <dt>Account</dt>
-              <dd className="truncate font-medium text-foreground">{account}</dd>
+              <dd className="font-medium truncate text-foreground">
+                {account}
+              </dd>
             </>
           ) : null}
           <dt>Last sync</dt>
-          <dd className="text-foreground">{lastSyncAt ? formatRelative(lastSyncAt) : 'Never'}</dd>
+          <dd className="text-foreground">
+            {lastSyncAt ? formatRelative(lastSyncAt) : 'Never'}
+          </dd>
           {permissions && permissions.length > 0 ? (
             <>
               <dt>Permissions</dt>
@@ -242,7 +273,8 @@ export function ConnectionCard({
                       type="button"
                       className="rounded-sm text-foreground underline decoration-dotted underline-offset-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                     >
-                      {permissions.length} scope{permissions.length === 1 ? '' : 's'}
+                      {permissions.length} scope
+                      {permissions.length === 1 ? '' : 's'}
                     </button>
                   </TooltipTrigger>
                   <TooltipContent className="max-w-72 break-words">
@@ -258,7 +290,7 @@ export function ConnectionCard({
       {needsReconnect(state) ? (
         <p
           role="alert"
-          className="gap-1.5 text-[11px] flex items-start rounded-md border border-warning/30 bg-warning/10 px-2 py-1.5 text-warning-text"
+          className="gap-1.5 px-2 py-1.5 flex items-start rounded-md border border-warning/30 bg-warning/10 text-meta text-warning-text"
         >
           <AlertTriangle aria-hidden className="size-3.5 mt-px shrink-0" />
           <span>
@@ -270,12 +302,20 @@ export function ConnectionCard({
         </p>
       ) : null}
 
-      <div className="mt-auto gap-2 pt-1 flex flex-wrap items-center">
+      <div className="gap-2 pt-1 mt-auto flex flex-wrap items-center">
         {state === 'disabled' ? (
-          <span className="text-xs font-medium text-muted-foreground">Not yet available</span>
+          <span className="text-xs font-medium text-muted-foreground">
+            Not yet available
+          </span>
         ) : awaitingSetup ? (
           onSetup ? (
-            <Button type="button" size="sm" variant="outline" onClick={onSetup} leadingIcon={<KeyRound />}>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={onSetup}
+              leadingIcon={<KeyRound />}
+            >
               Add credentials
             </Button>
           ) : (
@@ -284,7 +324,13 @@ export function ConnectionCard({
             </span>
           )
         ) : pending ? (
-          <Button type="button" size="sm" variant="outline" disabled leadingIcon={<Loader2 className="animate-spin" />}>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled
+            leadingIcon={<Loader2 className="animate-spin" />}
+          >
             {STATE_META[state].label}
           </Button>
         ) : needsReconnect(state) ? (
@@ -304,16 +350,28 @@ export function ConnectionCard({
           <Tooltip>
             <TooltipTrigger asChild>
               {/* A disabled button fires no pointer events; the span carries the tooltip. */}
-              <span tabIndex={0} className="rounded-btn focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+              <span
+                tabIndex={0}
+                className="rounded-btn focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >
                 {connectButton}
               </span>
             </TooltipTrigger>
-            <TooltipContent>{cannotConnectReason ?? 'You do not have permission to connect apps.'}</TooltipContent>
+            <TooltipContent>
+              {cannotConnectReason ??
+                'You do not have permission to connect apps.'}
+            </TooltipContent>
           </Tooltip>
         )}
 
         {linked && onSettings ? (
-          <Button type="button" size="sm" variant="ghost" onClick={onSettings} leadingIcon={<Settings2 />}>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={onSettings}
+            leadingIcon={<Settings2 />}
+          >
             Settings
           </Button>
         ) : null}
@@ -363,7 +421,14 @@ export function ConnectionList({
 }: ConnectionListProps) {
   if (isLoading) {
     return (
-      <div role="status" aria-label="Loading connections" className={cn('gap-4 md:grid-cols-2 lg:grid-cols-3 grid grid-cols-1', className)}>
+      <div
+        role="status"
+        aria-label="Loading connections"
+        className={cn(
+          'gap-4 md:grid-cols-2 lg:grid-cols-3 grid grid-cols-1',
+          className,
+        )}
+      >
         {Array.from({ length: 6 }, (_, i) => (
           <Skeleton key={i} className="h-44 rounded-2xl" />
         ))}
@@ -375,7 +440,9 @@ export function ConnectionList({
     return (
       <ErrorState
         title="Connections failed to load"
-        description={error instanceof Error ? error.message : 'Please try again.'}
+        description={
+          error instanceof Error ? error.message : 'Please try again.'
+        }
         onRetry={onRetry}
       />
     );
@@ -393,7 +460,12 @@ export function ConnectionList({
   }
 
   return (
-    <div className={cn('gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-3 grid grid-cols-1', className)}>
+    <div
+      className={cn(
+        'gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-3 grid grid-cols-1',
+        className,
+      )}
+    >
       {children}
     </div>
   );

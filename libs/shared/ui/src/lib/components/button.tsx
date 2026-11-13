@@ -13,42 +13,43 @@ const buttonVariants = cva(
     'text-xs font-medium rounded-btn',
     'transition-all duration-(--duration-fast) ease-standard',
     'outline-none focus-visible:ring-2 focus-visible:ring-ring/55',
-    'disabled:pointer-events-none disabled:opacity-50 select-none cursor-pointer',
+    'cursor-pointer select-none disabled:pointer-events-none disabled:opacity-50',
     "[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
   ],
   {
     variants: {
       variant: {
         primary:
-          'shadow-xs bg-foreground text-background hover:bg-foreground/85 active:scale-[0.98]',
+          'bg-foreground text-background shadow-xs hover:bg-foreground/85 active:scale-[0.98]',
         default:
-          'shadow-xs bg-foreground text-background hover:bg-foreground/85 active:scale-[0.98]',
+          'bg-foreground text-background shadow-xs hover:bg-foreground/85 active:scale-[0.98]',
         // White, bordered — the companion to `primary` (see the channel drawer).
         secondary:
-          'shadow-xs border border-border bg-surface text-foreground hover:bg-accent hover:border-border-strong active:scale-[0.98]',
+          'border border-border bg-surface text-foreground shadow-xs hover:border-border-strong hover:bg-accent active:scale-[0.98]',
         outline:
-          'shadow-xs border border-border bg-surface text-foreground hover:bg-accent hover:border-border-strong',
+          'border border-border bg-surface text-foreground shadow-xs hover:border-border-strong hover:bg-accent',
         ghost: 'text-muted-foreground hover:bg-accent hover:text-foreground',
         subtle:
           'bg-surface-raised text-muted-foreground hover:bg-selected hover:text-foreground',
         destructive:
-          'shadow-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 active:scale-[0.98]',
+          'bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90 active:scale-[0.98]',
         success:
-          'shadow-xs bg-success text-success-foreground hover:bg-success/90 active:scale-[0.98]',
+          'bg-success text-success-foreground shadow-xs hover:bg-success/90 active:scale-[0.98]',
         warning:
-          'shadow-xs bg-warning text-warning-foreground hover:bg-warning/90 active:scale-[0.98]',
-        link: 'text-primary underline-offset-4 hover:underline p-0 h-auto font-normal',
+          'bg-warning text-warning-foreground shadow-xs hover:bg-warning/90 active:scale-[0.98]',
+        link: 'p-0 font-normal h-auto text-primary underline-offset-4 hover:underline',
         sidebar:
           'text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-sidebar-ring/50',
       },
       size: {
-        xs: 'h-6 px-2 text-[11px] rounded-sm gap-1.5 [&_svg:not([class*=\'size-\'])]:size-3.5',
+        xs: "h-6 px-2 gap-1.5 [&_svg:not([class*='size-'])]:size-3.5 rounded-sm text-meta",
         sm: 'h-7 px-2.5 text-xs',
         md: 'h-8 px-3 text-xs',
         lg: 'h-9 px-4 text-sm',
         xl: 'h-10 px-5 text-sm font-semibold',
         icon: 'size-8 p-0',
-        'icon-xs': 'size-6 p-0 rounded-sm [&_svg:not([class*=\'size-\'])]:size-3.5',
+        'icon-xs':
+          "size-6 p-0 [&_svg:not([class*='size-'])]:size-3.5 rounded-sm",
         'icon-sm': 'size-7 p-0',
         'icon-lg': 'size-9 p-0',
       },
@@ -154,7 +155,7 @@ export function ButtonGroup({
       className={cn(
         'inline-flex items-center',
         attached
-          ? '[&>*:not(:first-child)]:rounded-l-none [&>*:not(:last-child)]:rounded-r-none [&>*:not(:first-child)]:-ml-[1px]'
+          ? '[&>*:not(:first-child)]:-ml-[1px] [&>*:not(:first-child)]:rounded-l-none [&>*:not(:last-child)]:rounded-r-none'
           : 'gap-1.5',
         className,
       )}
@@ -166,4 +167,3 @@ export function ButtonGroup({
 }
 
 export { buttonVariants };
-

@@ -11,19 +11,21 @@ import {
   Search,
   X,
 } from 'lucide-react';
-import {
-  Fragment,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react';
+import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import { Badge } from './badge.js';
 import { Button } from './button.js';
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './dropdown-menu.js';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './dropdown-menu.js';
 import { EmptyState } from './empty-state.js';
 import { Pagination } from './pagination.js';
 import { Skeleton } from './skeleton.js';
-
 
 export type SortDirection = 'asc' | 'desc' | null;
 
@@ -113,7 +115,10 @@ export function DataGrid<T extends Record<string, any>>({
   );
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(initialPageSize);
-  const [editingCell, setEditingCell] = useState<{ rowId: string; columnId: string } | null>(null);
+  const [editingCell, setEditingCell] = useState<{
+    rowId: string;
+    columnId: string;
+  } | null>(null);
   const [editValue, setEditValue] = useState<string>('');
 
   // 1. Filtering by search query
@@ -148,7 +153,9 @@ export function DataGrid<T extends Record<string, any>>({
 
       const strA = String(aVal).toLowerCase();
       const strB = String(bVal).toLowerCase();
-      return sortDirection === 'asc' ? strA.localeCompare(strB) : strB.localeCompare(strA);
+      return sortDirection === 'asc'
+        ? strA.localeCompare(strB)
+        : strB.localeCompare(strA);
     });
   }, [filteredData, sortColumn, sortDirection, columns]);
 
@@ -162,9 +169,11 @@ export function DataGrid<T extends Record<string, any>>({
   // Row selection helpers
   const allCurrentPageIds = paginatedData.map((row, idx) => getRowId(row, idx));
   const isAllCurrentSelected =
-    allCurrentPageIds.length > 0 && allCurrentPageIds.every((id) => selectedIds.has(id));
+    allCurrentPageIds.length > 0 &&
+    allCurrentPageIds.every((id) => selectedIds.has(id));
   const isSomeCurrentSelected =
-    allCurrentPageIds.some((id) => selectedIds.has(id)) && !isAllCurrentSelected;
+    allCurrentPageIds.some((id) => selectedIds.has(id)) &&
+    !isAllCurrentSelected;
 
   const toggleSelectAll = () => {
     const next = new Set(selectedIds);
@@ -217,35 +226,50 @@ export function DataGrid<T extends Record<string, any>>({
         })
         .join(','),
     );
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headerRow, ...rows].join('\n');
+    const csvContent =
+      'data:text/csv;charset=utf-8,' + [headerRow, ...rows].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `${exportFilename}-${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute(
+      'download',
+      `${exportFilename}-${new Date().toISOString().slice(0, 10)}.csv`,
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  const selectedRows = data.filter((row, idx) => selectedIds.has(getRowId(row, idx)));
+  const selectedRows = data.filter((row, idx) =>
+    selectedIds.has(getRowId(row, idx)),
+  );
 
   const activeColumns = columns.filter((c) => visibleColumnIds.has(c.id));
 
   return (
-    <div className={cn('flex flex-col gap-3 rounded-card border border-border bg-surface shadow-xs p-4', className)}>
+    <div
+      className={cn(
+        'gap-3 p-4 flex flex-col rounded-card border border-border bg-surface shadow-xs',
+        className,
+      )}
+    >
       {/* Header Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          {title && <div className="text-sm font-semibold text-foreground tracking-tight">{title}</div>}
-          <Badge variant="secondary" className="font-mono text-[11px]">
+      <div className="gap-3 flex flex-wrap items-center justify-between">
+        <div className="gap-3 flex items-center">
+          {title && (
+            <div className="text-sm font-semibold tracking-tight text-foreground">
+              {title}
+            </div>
+          )}
+          <Badge variant="secondary" className="font-mono text-meta">
             {filteredData.length} records
           </Badge>
         </div>
 
-        <div className="flex flex-1 flex-wrap items-center justify-end gap-2 sm:flex-none">
+        <div className="gap-2 sm:flex-none flex flex-1 flex-wrap items-center justify-end">
           {enableSearch && (
-            <div className="relative min-w-40 flex-1 sm:w-64 sm:flex-none">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-subtle" />
+            <div className="min-w-40 sm:w-64 sm:flex-none relative flex-1">
+              <Search className="left-2.5 size-3.5 absolute top-1/2 -translate-y-1/2 text-subtle" />
               <input
                 type="text"
                 value={searchQuery}
@@ -254,13 +278,13 @@ export function DataGrid<T extends Record<string, any>>({
                   setCurrentPage(1);
                 }}
                 placeholder={searchPlaceholder}
-                className="h-8 w-full rounded-input border border-input theme-fixed bg-field pl-8 pr-3 text-xs text-foreground placeholder:text-subtle outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
+                className="h-8 theme-fixed pl-8 pr-3 text-xs w-full rounded-input border border-input bg-field text-foreground outline-none placeholder:text-subtle focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-subtle hover:text-foreground"
+                  className="right-2 absolute top-1/2 -translate-y-1/2 text-subtle hover:text-foreground"
                 >
                   <X className="size-3" />
                 </button>
@@ -328,7 +352,11 @@ export function DataGrid<T extends Record<string, any>>({
           {enableColumnVisibility && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" leadingIcon={<Eye className="size-3.5" />}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  leadingIcon={<Eye className="size-3.5" />}
+                >
                   Columns
                 </Button>
               </DropdownMenuTrigger>
@@ -367,7 +395,9 @@ export function DataGrid<T extends Record<string, any>>({
               aria-label="Refresh data"
               title="Refresh"
             >
-              <RefreshCw className={cn('size-3.5', loading && 'animate-spin')} />
+              <RefreshCw
+                className={cn('size-3.5', loading && 'animate-spin')}
+              />
             </Button>
           )}
 
@@ -377,15 +407,15 @@ export function DataGrid<T extends Record<string, any>>({
 
       {/* Floating Bulk Actions Bar when rows are selected */}
       {selectedIds.size > 0 && (
-        <div className="flex items-center justify-between gap-3 rounded-md bg-selected px-3 py-2 border border-primary/20">
-          <div className="flex items-center gap-2 text-xs font-medium text-primary-text">
-            <span className="flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[11px] font-bold">
+        <div className="gap-3 px-3 py-2 flex items-center justify-between rounded-md border border-primary/20 bg-selected">
+          <div className="gap-2 text-xs font-medium flex items-center text-primary-text">
+            <span className="size-5 font-bold flex items-center justify-center rounded-full bg-primary text-meta text-primary-foreground">
               {selectedIds.size}
             </span>
             <span>selected</span>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="gap-1.5 flex items-center">
             {bulkActions.map((action) => (
               <Button
                 key={action.id}
@@ -410,20 +440,20 @@ export function DataGrid<T extends Record<string, any>>({
 
       {/* Render surface — a stacked card per row on phones, the table above. */}
       {showCards ? (
-        <ul className="flex flex-col gap-2">
+        <ul className="gap-2 flex flex-col">
           {loading ? (
             Array.from({ length: Math.min(pageSize, 6) }).map((_, i) => (
               <li
                 key={`skel-card-${i}`}
-                className="rounded-md border border-border bg-surface p-3"
+                className="p-3 rounded-md border border-border bg-surface"
               >
                 <Skeleton className="h-4 w-32" />
-                <Skeleton className="mt-2 h-4 w-full max-w-50" />
-                <Skeleton className="mt-2 h-4 w-full max-w-40" />
+                <Skeleton className="mt-2 h-4 max-w-50 w-full" />
+                <Skeleton className="mt-2 h-4 max-w-40 w-full" />
               </li>
             ))
           ) : paginatedData.length === 0 ? (
-            <li className="rounded-md border border-border bg-surface py-10">
+            <li className="py-10 rounded-md border border-border bg-surface">
               <EmptyState
                 title={emptyTitle}
                 description={emptyDescription}
@@ -432,31 +462,28 @@ export function DataGrid<T extends Record<string, any>>({
             </li>
           ) : (
             paginatedData.map((row, rIdx) => {
-              const rowId = getRowId(
-                row,
-                (currentPage - 1) * pageSize + rIdx,
-              );
+              const rowId = getRowId(row, (currentPage - 1) * pageSize + rIdx);
               const isSelected = selectedIds.has(rowId);
               return (
                 <li key={rowId}>
                   <div
                     className={cn(
-                      'flex flex-col gap-2 rounded-md border border-border bg-surface p-3',
+                      'gap-2 p-3 flex flex-col rounded-md border border-border bg-surface',
                       isSelected && 'bg-selected/40 ring-1 ring-primary/30',
                     )}
                   >
                     {enableSelection && (
-                      <label className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+                      <label className="gap-2 font-medium flex items-center text-meta text-muted-foreground">
                         <input
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleSelectRow(rowId)}
-                          className="size-4 rounded border-border accent-brand cursor-pointer"
+                          className="size-4 rounded cursor-pointer border-border accent-brand"
                         />
                         <span>{isSelected ? 'Selected' : 'Select'}</span>
                       </label>
                     )}
-                    <dl className="grid grid-cols-[minmax(0,7.5rem)_1fr] gap-x-3 gap-y-1.5 text-xs">
+                    <dl className="gap-x-3 gap-y-1.5 text-xs grid grid-cols-[minmax(0,7.5rem)_1fr]">
                       {activeColumns.map((col) => {
                         const rawValue = col.accessorKey
                           ? row[col.accessorKey]
@@ -484,173 +511,197 @@ export function DataGrid<T extends Record<string, any>>({
           )}
         </ul>
       ) : (
-      <div className="relative overflow-x-auto rounded-md border border-border">
-        <table className="w-full text-left text-xs border-collapse">
-          {/* Table Header */}
-          <thead className="bg-surface-raised border-b border-border text-[11px] font-medium uppercase tracking-wider text-muted-foreground select-none">
-            <tr>
-              {enableSelection && (
-                <th className="w-10 px-3 py-2.5 text-center">
-                  <input
-                    type="checkbox"
-                    checked={isAllCurrentSelected}
-                    ref={(el) => {
-                      if (el) el.indeterminate = isSomeCurrentSelected;
-                    }}
-                    onChange={toggleSelectAll}
-                    className="size-3.5 rounded border-border accent-brand cursor-pointer"
-                  />
-                </th>
-              )}
-              {activeColumns.map((col) => {
-                const isSorted = sortColumn === col.id;
-                return (
-                  <th
-                    key={col.id}
-                    style={{ width: col.width }}
-                    className={cn(
-                      'px-3 py-2.5 font-semibold text-foreground/80',
-                      col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left',
-                      col.sortable && 'cursor-pointer hover:bg-accent/70 hover:text-foreground transition-colors',
-                    )}
-                    onClick={() => col.sortable && handleSort(col.id)}
-                  >
-                    <div
-                      className={cn(
-                        'flex items-center gap-1.5',
-                        col.align === 'right' ? 'justify-end' : col.align === 'center' ? 'justify-center' : 'justify-start',
-                      )}
-                    >
-                      <span>{col.header}</span>
-                      {col.sortable && (
-                        <span className="text-subtle">
-                          {isSorted ? (
-                            sortDirection === 'asc' ? (
-                              <ArrowUp className="size-3 text-primary" />
-                            ) : (
-                              <ArrowDown className="size-3 text-primary" />
-                            )
-                          ) : (
-                            <ArrowUpDown className="size-3 opacity-40 hover:opacity-100" />
-                          )}
-                        </span>
-                      )}
-                    </div>
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-
-          {/* Table Body */}
-          <tbody className="divide-y divide-border bg-surface">
-            {loading ? (
-              Array.from({ length: pageSize }).map((_, rIdx) => (
-                <tr key={`skel-${rIdx}`}>
-                  {enableSelection && (
-                    <td className="px-3 py-3 text-center">
-                      <Skeleton className="size-3.5 mx-auto" />
-                    </td>
-                  )}
-                  {activeColumns.map((col) => (
-                    <td key={col.id} className="px-3 py-3">
-                      <Skeleton className="h-4 w-full max-w-[140px]" />
-                    </td>
-                  ))}
-                </tr>
-              ))
-            ) : paginatedData.length === 0 ? (
+        <div className="relative overflow-x-auto rounded-md border border-border">
+          <table className="text-xs w-full border-collapse text-left">
+            {/* Table Header */}
+            <thead className="font-medium tracking-wider border-b border-border bg-surface-raised text-meta text-muted-foreground uppercase select-none">
               <tr>
-                <td colSpan={activeColumns.length + (enableSelection ? 1 : 0)} className="py-12">
-                  <EmptyState
-                    title={emptyTitle}
-                    description={emptyDescription}
-                    size="sm"
-                  />
-                </td>
+                {enableSelection && (
+                  <th className="w-10 px-3 py-2.5 text-center">
+                    <input
+                      type="checkbox"
+                      checked={isAllCurrentSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = isSomeCurrentSelected;
+                      }}
+                      onChange={toggleSelectAll}
+                      className="size-3.5 rounded cursor-pointer border-border accent-brand"
+                    />
+                  </th>
+                )}
+                {activeColumns.map((col) => {
+                  const isSorted = sortColumn === col.id;
+                  return (
+                    <th
+                      key={col.id}
+                      style={{ width: col.width }}
+                      className={cn(
+                        'px-3 py-2.5 font-semibold text-foreground/80',
+                        col.align === 'right'
+                          ? 'text-right'
+                          : col.align === 'center'
+                            ? 'text-center'
+                            : 'text-left',
+                        col.sortable &&
+                          'cursor-pointer transition-colors hover:bg-accent/70 hover:text-foreground',
+                      )}
+                      onClick={() => col.sortable && handleSort(col.id)}
+                    >
+                      <div
+                        className={cn(
+                          'gap-1.5 flex items-center',
+                          col.align === 'right'
+                            ? 'justify-end'
+                            : col.align === 'center'
+                              ? 'justify-center'
+                              : 'justify-start',
+                        )}
+                      >
+                        <span>{col.header}</span>
+                        {col.sortable && (
+                          <span className="text-subtle">
+                            {isSorted ? (
+                              sortDirection === 'asc' ? (
+                                <ArrowUp className="size-3 text-primary" />
+                              ) : (
+                                <ArrowDown className="size-3 text-primary" />
+                              )
+                            ) : (
+                              <ArrowUpDown className="size-3 opacity-40 hover:opacity-100" />
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                  );
+                })}
               </tr>
-            ) : (
-              paginatedData.map((row, rIdx) => {
-                const rowId = getRowId(row, (currentPage - 1) * pageSize + rIdx);
-                const isSelected = selectedIds.has(rowId);
+            </thead>
 
-                return (
-                  <tr
-                    key={rowId}
-                    className={cn(
-                      'transition-colors duration-75 hover:bg-accent/40',
-                      isSelected && 'bg-selected/40 hover:bg-selected/60',
-                    )}
-                  >
+            {/* Table Body */}
+            <tbody className="divide-y divide-border bg-surface">
+              {loading ? (
+                Array.from({ length: pageSize }).map((_, rIdx) => (
+                  <tr key={`skel-${rIdx}`}>
                     {enableSelection && (
-                      <td className="w-10 px-3 py-2.5 text-center">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleSelectRow(rowId)}
-                          className="size-3.5 rounded border-border accent-brand cursor-pointer"
-                        />
+                      <td className="px-3 py-3 text-center">
+                        <Skeleton className="size-3.5 mx-auto" />
                       </td>
                     )}
+                    {activeColumns.map((col) => (
+                      <td key={col.id} className="px-3 py-3">
+                        <Skeleton className="h-4 w-full max-w-[140px]" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : paginatedData.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={activeColumns.length + (enableSelection ? 1 : 0)}
+                    className="py-12"
+                  >
+                    <EmptyState
+                      title={emptyTitle}
+                      description={emptyDescription}
+                      size="sm"
+                    />
+                  </td>
+                </tr>
+              ) : (
+                paginatedData.map((row, rIdx) => {
+                  const rowId = getRowId(
+                    row,
+                    (currentPage - 1) * pageSize + rIdx,
+                  );
+                  const isSelected = selectedIds.has(rowId);
 
-                    {activeColumns.map((col) => {
-                      const isEditing =
-                        editingCell?.rowId === rowId && editingCell?.columnId === col.id;
-                      const rawValue = col.accessorKey ? row[col.accessorKey] : row[col.id];
+                  return (
+                    <tr
+                      key={rowId}
+                      className={cn(
+                        'transition-colors duration-75 hover:bg-accent/40',
+                        isSelected && 'bg-selected/40 hover:bg-selected/60',
+                      )}
+                    >
+                      {enableSelection && (
+                        <td className="w-10 px-3 py-2.5 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelectRow(rowId)}
+                            className="size-3.5 rounded cursor-pointer border-border accent-brand"
+                          />
+                        </td>
+                      )}
 
-                      return (
-                        <td
-                          key={col.id}
-                          style={{ width: col.width }}
-                          className={cn(
-                            'px-3 py-2.5 text-foreground/90 align-middle',
-                            col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left',
-                            col.editable && 'cursor-cell hover:bg-accent/60',
-                          )}
-                          onDoubleClick={() => {
-                            if (col.editable) {
-                              setEditingCell({ rowId, columnId: col.id });
-                              setEditValue(String(rawValue ?? ''));
-                            }
-                          }}
-                        >
-                          {isEditing ? (
-                            <div className="flex items-center gap-1">
-                              <input
-                                autoFocus
-                                type="text"
-                                value={editValue}
-                                onChange={(e) => setEditValue(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
+                      {activeColumns.map((col) => {
+                        const isEditing =
+                          editingCell?.rowId === rowId &&
+                          editingCell?.columnId === col.id;
+                        const rawValue = col.accessorKey
+                          ? row[col.accessorKey]
+                          : row[col.id];
+
+                        return (
+                          <td
+                            key={col.id}
+                            style={{ width: col.width }}
+                            className={cn(
+                              'px-3 py-2.5 align-middle text-foreground/90',
+                              col.align === 'right'
+                                ? 'text-right'
+                                : col.align === 'center'
+                                  ? 'text-center'
+                                  : 'text-left',
+                              col.editable && 'cursor-cell hover:bg-accent/60',
+                            )}
+                            onDoubleClick={() => {
+                              if (col.editable) {
+                                setEditingCell({ rowId, columnId: col.id });
+                                setEditValue(String(rawValue ?? ''));
+                              }
+                            }}
+                          >
+                            {isEditing ? (
+                              <div className="gap-1 flex items-center">
+                                <input
+                                  autoFocus
+                                  type="text"
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      col.onCellEdit?.(row, editValue);
+                                      setEditingCell(null);
+                                    } else if (e.key === 'Escape') {
+                                      setEditingCell(null);
+                                    }
+                                  }}
+                                  onBlur={() => {
                                     col.onCellEdit?.(row, editValue);
                                     setEditingCell(null);
-                                  } else if (e.key === 'Escape') {
-                                    setEditingCell(null);
-                                  }
-                                }}
-                                onBlur={() => {
-                                  col.onCellEdit?.(row, editValue);
-                                  setEditingCell(null);
-                                }}
-                                className="h-6 w-full rounded-sm border border-primary bg-surface px-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring"
-                              />
-                            </div>
-                          ) : col.cell ? (
-                            col.cell(row, rIdx)
-                          ) : (
-                            <span className="truncate">{String(rawValue ?? '—')}</span>
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+                                  }}
+                                  className="h-6 px-1.5 text-xs w-full rounded-sm border border-primary bg-surface text-foreground outline-none focus:ring-1 focus:ring-ring"
+                                />
+                              </div>
+                            ) : col.cell ? (
+                              col.cell(row, rIdx)
+                            ) : (
+                              <span className="truncate">
+                                {String(rawValue ?? '—')}
+                              </span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {/* Pagination Footer */}

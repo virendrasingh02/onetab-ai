@@ -81,27 +81,40 @@ ${code}
 
   if (!canPreview) {
     return (
-      <div className={cn('p-6 flex flex-col items-center justify-center text-center bg-surface-raised/40 border border-border/70 rounded-b-lg text-muted-foreground gap-2', className)}>
+      <div
+        className={cn(
+          'p-6 gap-2 flex flex-col items-center justify-center rounded-b-lg border border-border/70 bg-surface-raised/40 text-center text-muted-foreground',
+          className,
+        )}
+      >
         <AlertCircle className="size-6 text-muted-foreground/60" />
-        <div className="text-xs font-medium text-foreground">Preview unavailable for {normalized}</div>
-        <p className="text-[11px] max-w-sm text-muted-foreground/80">
-          Safe sandboxed visual previews are supported for HTML, SVG, and CSS snippets.
+        <div className="text-xs font-medium text-foreground">
+          Preview unavailable for {normalized}
+        </div>
+        <p className="max-w-sm text-meta text-muted-foreground/80">
+          Safe sandboxed visual previews are supported for HTML, SVG, and CSS
+          snippets.
         </p>
       </div>
     );
   }
 
   return (
-    <div className={cn('flex flex-col border border-border/80 rounded-b-lg overflow-hidden bg-background', className)}>
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/60 bg-surface-raised/50 text-[11px] text-muted-foreground select-none">
-        <span className="flex items-center gap-1.5 font-medium text-foreground">
+    <div
+      className={cn(
+        'flex flex-col overflow-hidden rounded-b-lg border border-border/80 bg-background',
+        className,
+      )}
+    >
+      <div className="px-3 py-1.5 flex items-center justify-between border-b border-border/60 bg-surface-raised/50 text-meta text-muted-foreground select-none">
+        <span className="gap-1.5 font-medium flex items-center text-foreground">
           <Eye className="size-3 text-accent-cyan" />
           <span>Sandboxed Preview</span>
         </span>
         <button
           type="button"
           onClick={() => setReloadKey((k) => k + 1)}
-          className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] hover:bg-surface text-muted-foreground hover:text-foreground transition-colors"
+          className="gap-1 px-1.5 py-0.5 rounded flex items-center text-meta text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
           title="Reload preview"
         >
           <RefreshCw className="size-3" />
@@ -114,7 +127,7 @@ ${code}
         title="Code Preview"
         srcDoc={previewSrcDoc}
         sandbox="allow-scripts allow-forms"
-        className="w-full h-64 border-none bg-white rounded-b-lg"
+        className="h-64 bg-white w-full rounded-b-lg border-none"
       />
     </div>
   );

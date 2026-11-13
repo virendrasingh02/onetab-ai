@@ -79,7 +79,8 @@ export function CodeBlockEditor({
         const before = code.substring(0, start);
         const lineStart = before.lastIndexOf('\n') + 1;
         if (code.substring(lineStart, lineStart + 2) === '  ') {
-          const newCode = code.substring(0, lineStart) + code.substring(lineStart + 2);
+          const newCode =
+            code.substring(0, lineStart) + code.substring(lineStart + 2);
           setCode(newCode);
           onEdit?.(newCode);
           setTimeout(() => {
@@ -129,14 +130,19 @@ export function CodeBlockEditor({
   const gutterWidth = Math.max(String(startLineNumber + lineCount).length, 2);
 
   return (
-    <div className={cn('relative flex flex-col font-mono text-xs border border-border/80 rounded-b-lg bg-surface-inset', className)}>
-      <div className="relative flex flex-1 overflow-hidden min-h-[160px]">
+    <div
+      className={cn(
+        'text-xs relative flex flex-col rounded-b-lg border border-border/80 bg-surface-inset font-mono',
+        className,
+      )}
+    >
+      <div className="relative flex min-h-[160px] flex-1 overflow-hidden">
         {/* Line Numbers Gutter */}
         {showLineNumbers && (
           <div
             ref={gutterRef}
             aria-hidden="true"
-            className="select-none py-3 px-3 text-right bg-surface-raised/40 border-r border-border/50 text-muted-foreground/40 overflow-hidden leading-5"
+            className="py-3 px-3 leading-5 overflow-hidden border-r border-border/50 bg-surface-raised/40 text-right text-muted-foreground/40 select-none"
             style={{ width: `${gutterWidth + 3}ch` }}
           >
             {lines.map((_, i) => (
@@ -156,19 +162,19 @@ export function CodeBlockEditor({
           autoCapitalize="off"
           autoComplete="off"
           autoCorrect="off"
-          className="flex-1 w-full p-3 bg-transparent text-foreground resize-y leading-5 font-mono text-xs focus:outline-hidden whitespace-pre overflow-auto scrollbar-subtle"
+          className="p-3 leading-5 text-xs scrollbar-subtle w-full flex-1 resize-y overflow-auto bg-transparent font-mono whitespace-pre text-foreground focus:outline-hidden"
           rows={Math.max(lineCount, 6)}
           aria-label={`Editing ${language} code`}
         />
       </div>
 
       {/* Editor Footer Status Bar */}
-      <div className="flex items-center justify-between px-3 py-1.5 border-t border-border/50 bg-surface-raised/60 text-[11px] text-muted-foreground select-none">
-        <div className="flex items-center gap-2">
+      <div className="px-3 py-1.5 flex items-center justify-between border-t border-border/50 bg-surface-raised/60 text-meta text-muted-foreground select-none">
+        <div className="gap-2 flex items-center">
           <span>{lineCount} lines</span>
           {isDirty ? (
-            <span className="text-amber-500 font-medium flex items-center gap-1">
-              <span className="size-1.5 rounded-full bg-amber-500 inline-block" />
+            <span className="font-medium gap-1 flex items-center text-warning-text">
+              <span className="size-1.5 inline-block rounded-full bg-warning" />
               Unsaved changes
             </span>
           ) : (
@@ -176,13 +182,13 @@ export function CodeBlockEditor({
           )}
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="gap-1.5 flex items-center">
           <Button
             variant="ghost"
             size="sm"
             onClick={handleReset}
             disabled={!isDirty}
-            className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground gap-1"
+            className="h-6 px-2 gap-1 text-meta text-muted-foreground hover:text-foreground"
           >
             <RotateCcw className="size-3" />
             <span>Reset</span>
@@ -192,7 +198,7 @@ export function CodeBlockEditor({
             variant="ghost"
             size="sm"
             onClick={handleCancelAttempt}
-            className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground gap-1"
+            className="h-6 px-2 gap-1 text-meta text-muted-foreground hover:text-foreground"
           >
             <X className="size-3" />
             <span>Cancel</span>
@@ -203,7 +209,7 @@ export function CodeBlockEditor({
             size="sm"
             onClick={() => onSave?.(code)}
             disabled={!isDirty}
-            className="h-6 px-2.5 text-[11px] gap-1"
+            className="h-6 px-2.5 gap-1 text-meta"
           >
             <Save className="size-3" />
             <span>Save</span>
@@ -215,12 +221,13 @@ export function CodeBlockEditor({
       <Dialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-warning">
+            <DialogTitle className="gap-2 flex items-center text-warning">
               <AlertCircle className="size-4" />
               Discard unsaved changes?
             </DialogTitle>
             <DialogDescription>
-              You have unsaved changes in this code block. Leaving editing mode will permanently discard them.
+              You have unsaved changes in this code block. Leaving editing mode
+              will permanently discard them.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
@@ -230,10 +237,7 @@ export function CodeBlockEditor({
             >
               Keep Editing
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleConfirmDiscard}
-            >
+            <Button variant="destructive" onClick={handleConfirmDiscard}>
               Discard Changes
             </Button>
           </DialogFooter>

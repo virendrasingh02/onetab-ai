@@ -65,11 +65,15 @@ export const AIModelIdentity = memo(function AIModelIdentity({
   if (meta.capabilities?.reasoning) activeCaps.push('Reasoning');
   if (meta.capabilities?.vision) activeCaps.push('Vision');
   if (meta.capabilities?.toolCalling) activeCaps.push('Tools');
-  if (meta.capabilities?.coding && !meta.capabilities?.reasoning) activeCaps.push('Code');
+  if (meta.capabilities?.coding && !meta.capabilities?.reasoning)
+    activeCaps.push('Code');
 
   if (layout === 'stacked') {
     return (
-      <div className={cn('flex items-start gap-2.5 min-w-0 text-left', className)} {...props}>
+      <div
+        className={cn('gap-2.5 min-w-0 flex items-start text-left', className)}
+        {...props}
+      >
         <div className="mt-0.5 shrink-0">
           <AIModelIcon
             modelId={meta.canonicalId}
@@ -79,17 +83,30 @@ export const AIModelIdentity = memo(function AIModelIdentity({
           />
         </div>
         <div className="min-w-0 flex-1">
-          <div className={cn('truncate font-semibold text-foreground leading-tight', textClass, nameClassName)}>
+          <div
+            className={cn(
+              'font-semibold leading-tight truncate text-foreground',
+              textClass,
+              nameClassName,
+            )}
+          >
             {meta.displayName}
           </div>
-          <div className={cn('flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground mt-0.5', metaClassName)}>
-            <span>{meta.providerName}</span>
-            {showContext && meta.contextWindow && meta.contextWindow !== 'N/A' && (
-              <>
-                <span className="opacity-40">·</span>
-                <span>{meta.contextWindow}</span>
-              </>
+          <div
+            className={cn(
+              'gap-1.5 mt-0.5 flex flex-wrap items-center text-meta text-muted-foreground',
+              metaClassName,
             )}
+          >
+            <span>{meta.providerName}</span>
+            {showContext &&
+              meta.contextWindow &&
+              meta.contextWindow !== 'N/A' && (
+                <>
+                  <span className="opacity-40">·</span>
+                  <span>{meta.contextWindow}</span>
+                </>
+              )}
             {showCapabilities && activeCaps.length > 0 && (
               <>
                 <span className="opacity-40">·</span>
@@ -109,28 +126,45 @@ export const AIModelIdentity = memo(function AIModelIdentity({
   }
 
   return (
-    <div className={cn('inline-flex items-center gap-1.5 min-w-0 text-left align-middle', className)} {...props}>
+    <div
+      className={cn(
+        'gap-1.5 min-w-0 inline-flex items-center text-left align-middle',
+        className,
+      )}
+      {...props}
+    >
       <AIModelIcon
         modelId={meta.canonicalId}
         provider={meta.providerId}
         variant={variant}
         size={iconDimension}
       />
-      <span className={cn('truncate font-medium text-foreground', textClass, nameClassName)}>
+      <span
+        className={cn(
+          'font-medium truncate text-foreground',
+          textClass,
+          nameClassName,
+        )}
+      >
         {meta.displayName}
       </span>
       {showProvider && (
-        <span className={cn('truncate text-[11px] text-muted-foreground', metaClassName)}>
+        <span
+          className={cn(
+            'truncate text-meta text-muted-foreground',
+            metaClassName,
+          )}
+        >
           ({meta.providerName})
         </span>
       )}
       {showContext && meta.contextWindow && meta.contextWindow !== 'N/A' && (
-        <span className="shrink-0 text-[10px] font-mono px-1 py-0.5 rounded bg-surface-raised text-muted-foreground border border-border/40">
+        <span className="px-1 py-0.5 rounded shrink-0 border border-border/40 bg-surface-raised font-mono text-2xs text-muted-foreground">
           {meta.contextWindow}
         </span>
       )}
       {showCapabilities && activeCaps.length > 0 && (
-        <span className="truncate text-[11px] text-muted-foreground hidden sm:inline-block">
+        <span className="sm:inline-block hidden truncate text-meta text-muted-foreground">
           · {activeCaps.slice(0, 2).join(' · ')}
         </span>
       )}

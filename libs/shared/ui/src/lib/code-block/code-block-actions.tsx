@@ -6,7 +6,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../components/dropdown-menu.js';
-import { Tooltip, TooltipContent, TooltipTrigger } from '../components/tooltip.js';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '../components/tooltip.js';
 import { cn } from '@org/utils';
 import {
   Check,
@@ -25,7 +29,11 @@ import {
   X,
 } from 'lucide-react';
 import { useState } from 'react';
-import { copyToClipboard, downloadAsFile, sanitizeFilename } from './code-block.utils.js';
+import {
+  copyToClipboard,
+  downloadAsFile,
+  sanitizeFilename,
+} from './code-block.utils.js';
 
 export interface CodeBlockActionsProps {
   code: string;
@@ -114,7 +122,9 @@ export function CodeBlockActions({
   };
 
   return (
-    <div className={cn('flex items-center gap-1 text-muted-foreground', className)}>
+    <div
+      className={cn('gap-1 flex items-center text-muted-foreground', className)}
+    >
       {/* Editing Mode Controls */}
       {isEditing ? (
         <>
@@ -159,7 +169,7 @@ export function CodeBlockActions({
                   variant="default"
                   size="sm"
                   onClick={onSave}
-                  className="h-6 px-2 text-[11px] gap-1 rounded-sm"
+                  className="h-6 px-2 gap-1 rounded-sm text-meta"
                   aria-label="Save code"
                 >
                   <Save className="size-3" />
@@ -181,10 +191,15 @@ export function CodeBlockActions({
                   size="sm"
                   onClick={onExecute}
                   disabled={isExecuting}
-                  className="h-6 px-2 text-[11px] gap-1 border-primary/30 text-primary hover:bg-primary/10 rounded-sm"
+                  className="h-6 px-2 gap-1 rounded-sm border-primary/30 text-meta text-primary hover:bg-primary/10"
                   aria-label="Run code"
                 >
-                  <Play className={cn('size-3 fill-current', isExecuting && 'animate-spin')} />
+                  <Play
+                    className={cn(
+                      'size-3 fill-current',
+                      isExecuting && 'animate-spin',
+                    )}
+                  />
                   <span>{isExecuting ? 'Running...' : 'Run'}</span>
                 </Button>
               </TooltipTrigger>
@@ -206,7 +221,9 @@ export function CodeBlockActions({
                   <Eye className="size-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{isPreview ? 'Show Code' : 'Show Preview'}</TooltipContent>
+              <TooltipContent>
+                {isPreview ? 'Show Code' : 'Show Preview'}
+              </TooltipContent>
             </Tooltip>
           ) : null}
 
@@ -244,15 +261,21 @@ export function CodeBlockActions({
                   )}
                   aria-label={copied ? 'Copied code' : 'Copy code to clipboard'}
                 >
-                  {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                  {copied ? (
+                    <Check className="size-3.5" />
+                  ) : (
+                    <Copy className="size-3.5" />
+                  )}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{copied ? 'Copied!' : 'Copy code'}</TooltipContent>
+              <TooltipContent>
+                {copied ? 'Copied!' : 'Copy code'}
+              </TooltipContent>
             </Tooltip>
           ) : null}
 
           {/* Desktop visible actions */}
-          <div className="hidden sm:flex items-center gap-1">
+          <div className="sm:flex gap-1 hidden items-center">
             {/* Word wrap toggle */}
             {showWrap && onToggleWrap ? (
               <Tooltip>
@@ -262,12 +285,16 @@ export function CodeBlockActions({
                     size="icon"
                     onClick={onToggleWrap}
                     className="size-6 text-muted-foreground hover:text-foreground"
-                    aria-label={isWordWrap ? 'Disable word wrap' : 'Enable word wrap'}
+                    aria-label={
+                      isWordWrap ? 'Disable word wrap' : 'Enable word wrap'
+                    }
                   >
                     <WrapText className="size-3.5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{isWordWrap ? 'Disable word wrap' : 'Wrap lines'}</TooltipContent>
+                <TooltipContent>
+                  {isWordWrap ? 'Disable word wrap' : 'Wrap lines'}
+                </TooltipContent>
               </Tooltip>
             ) : null}
 
@@ -280,7 +307,11 @@ export function CodeBlockActions({
                     size="icon"
                     onClick={onToggleLineNumbers}
                     className="size-6 text-muted-foreground hover:text-foreground"
-                    aria-label={showLineNumbers ? 'Hide line numbers' : 'Show line numbers'}
+                    aria-label={
+                      showLineNumbers
+                        ? 'Hide line numbers'
+                        : 'Show line numbers'
+                    }
                   >
                     <Hash className="size-3.5" />
                   </Button>
@@ -327,7 +358,9 @@ export function CodeBlockActions({
                     )}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{isExpanded ? 'Collapse view' : 'Expand full view'}</TooltipContent>
+                <TooltipContent>
+                  {isExpanded ? 'Collapse view' : 'Expand full view'}
+                </TooltipContent>
               </Tooltip>
             ) : null}
           </div>
@@ -356,7 +389,9 @@ export function CodeBlockActions({
                 {onToggleLineNumbers ? (
                   <DropdownMenuItem onClick={onToggleLineNumbers}>
                     <Hash className="size-3.5 mr-2" />
-                    <span>{showLineNumbers ? 'Hide lines' : 'Show line numbers'}</span>
+                    <span>
+                      {showLineNumbers ? 'Hide lines' : 'Show line numbers'}
+                    </span>
                   </DropdownMenuItem>
                 ) : null}
 

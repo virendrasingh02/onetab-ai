@@ -1,5 +1,15 @@
 import { cn } from '@org/utils';
-import { AlertTriangle, Check, CheckCircle2, ChevronDown, Copy, PencilLine, Plug, RefreshCw, X } from 'lucide-react';
+import {
+  AlertTriangle,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  Copy,
+  PencilLine,
+  Plug,
+  RefreshCw,
+  X,
+} from 'lucide-react';
 import { useState, type ComponentType, type ReactNode } from 'react';
 import { Badge } from './badge.js';
 import { Button } from './button.js';
@@ -36,11 +46,11 @@ export function AIEntityProfilePanel({
         className,
       )}
     >
-      <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-border px-3">
-        <h2 className="min-w-0 truncate text-base font-semibold leading-tight tracking-tight text-foreground">
+      <header className="h-12 gap-2 px-3 flex shrink-0 items-center justify-between border-b border-border">
+        <h2 className="min-w-0 text-base font-semibold leading-tight tracking-tight truncate text-foreground">
           {title}
         </h2>
-        <div className="flex items-center gap-0.5">
+        <div className="gap-0.5 flex items-center">
           {menu}
           {onClose && (
             <Button
@@ -106,7 +116,10 @@ export function AIEntityProfileHero({
       <div className="px-5">
         <div className="-mt-9 mb-3 flex items-end justify-between">
           {avatar}
-          <Badge variant={isActive ? 'success' : 'neutral'} className="mb-1 gap-1.5 text-[10px]">
+          <Badge
+            variant={isActive ? 'success' : 'neutral'}
+            className="mb-1 gap-1.5 text-2xs"
+          >
             <span
               className={cn(
                 'size-1.5 rounded-full',
@@ -117,11 +130,13 @@ export function AIEntityProfileHero({
           </Badge>
         </div>
 
-        <div className="flex min-w-0 items-center gap-2">
-          <h3 className="truncate text-lg font-semibold tracking-tight">{name}</h3>
+        <div className="min-w-0 gap-2 flex items-center">
+          <h3 className="text-lg font-semibold tracking-tight truncate">
+            {name}
+          </h3>
           <Badge
             variant="primary"
-            className="shrink-0 px-1.5 py-0 text-[9px] font-bold uppercase tracking-wider"
+            className="px-1.5 py-0 font-bold tracking-wider shrink-0 text-3xs uppercase"
           >
             {kind}
           </Badge>
@@ -131,18 +146,24 @@ export function AIEntityProfileHero({
             <button
               type="button"
               onClick={copy}
-              className="mt-0.5 inline-flex items-center gap-1 font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
+              className="mt-0.5 gap-1 text-xs inline-flex items-center font-mono text-muted-foreground transition-colors hover:text-foreground"
               title="Copy handle"
             >
               {handle}
               {copied && <Check className="size-3 text-success" />}
             </button>
           ) : (
-            <p className="mt-0.5 font-mono text-xs text-muted-foreground">{handle}</p>
+            <p className="mt-0.5 text-xs font-mono text-muted-foreground">
+              {handle}
+            </p>
           ))}
-        {subtitle && <p className="mt-1 text-xs font-medium text-brand-text">{subtitle}</p>}
+        {subtitle && (
+          <p className="mt-1 text-xs font-medium text-brand-text">{subtitle}</p>
+        )}
 
-        {actions && <div className="mt-4 flex items-center gap-2">{actions}</div>}
+        {actions && (
+          <div className="mt-4 gap-2 flex items-center">{actions}</div>
+        )}
       </div>
     </div>
   );
@@ -151,7 +172,7 @@ export function AIEntityProfileHero({
 /** Key/value rows under the hero. */
 export function AIEntityProfileFacts({ children }: { children: ReactNode }) {
   return (
-    <dl className="mx-5 my-5 divide-y divide-border/60 rounded-xl border border-border bg-surface-inset/40 px-3.5 text-xs">
+    <dl className="mx-5 my-5 px-3.5 text-xs divide-y divide-border/60 rounded-xl border border-border bg-surface-inset/40">
       {children}
     </dl>
   );
@@ -167,12 +188,12 @@ export function AIEntityProfileFact({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-10 items-center justify-between gap-3 py-2">
-      <dt className="flex shrink-0 items-center gap-2 text-muted-foreground">
+    <div className="min-h-10 gap-3 py-2 flex items-center justify-between">
+      <dt className="gap-2 flex shrink-0 items-center text-muted-foreground">
         <Icon className="size-3.5" />
         {label}
       </dt>
-      <dd className="flex min-w-0 justify-end text-right font-medium text-foreground">
+      <dd className="min-w-0 font-medium flex justify-end text-right text-foreground">
         {children}
       </dd>
     </div>
@@ -191,14 +212,16 @@ export function AIEntityProfileSection({
   children: ReactNode;
 }) {
   return (
-    <section className="mx-5 border-t border-border/60 py-4 last:pb-6">
-      <div className="mb-2.5 flex items-center justify-between gap-2">
-        <h4 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+    <section className="mx-5 py-4 last:pb-6 border-t border-border/60">
+      <div className="mb-2.5 gap-2 flex items-center justify-between">
+        <h4 className="gap-1.5 font-semibold tracking-wider flex items-center text-meta text-muted-foreground uppercase">
           <Icon className="size-3.5 text-brand-text" />
           {title}
         </h4>
         {count !== undefined && (
-          <span className="font-mono text-[10px] text-muted-foreground">{count}</span>
+          <span className="font-mono text-2xs text-muted-foreground">
+            {count}
+          </span>
         )}
       </div>
       {children}
@@ -209,7 +232,7 @@ export function AIEntityProfileSection({
 /** Dashed placeholder for an empty section. */
 export function AIEntityProfileEmpty({ children }: { children: ReactNode }) {
   return (
-    <p className="rounded-lg border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
+    <p className="p-3 text-xs rounded-lg border border-dashed border-border text-center text-muted-foreground">
       {children}
     </p>
   );
@@ -226,8 +249,8 @@ export function AIEntityProfileQuote({
   return (
     <p
       className={cn(
-        'whitespace-pre-wrap rounded-lg border border-border/70 bg-surface-inset/60 p-2.5 text-xs leading-relaxed text-muted-foreground',
-        mono && 'font-mono text-[11px]',
+        'p-2.5 text-xs leading-relaxed rounded-lg border border-border/70 bg-surface-inset/60 whitespace-pre-wrap text-muted-foreground',
+        mono && 'font-mono text-meta',
       )}
     >
       {children}
@@ -257,49 +280,59 @@ export function AIEntityProfileRunList({
 
   if (loading) {
     return (
-      <div className="flex justify-center py-4">
+      <div className="py-4 flex justify-center">
         <Spinner className="size-4" />
       </div>
     );
   }
-  if (runs.length === 0) return <AIEntityProfileEmpty>{emptyText}</AIEntityProfileEmpty>;
+  if (runs.length === 0)
+    return <AIEntityProfileEmpty>{emptyText}</AIEntityProfileEmpty>;
 
   return (
     <div className="space-y-1.5">
       {runs.map((run) => {
         const expanded = expandedId === run.id;
         return (
-          <div key={run.id} className="overflow-hidden rounded-lg border border-border bg-surface text-xs">
+          <div
+            key={run.id}
+            className="text-xs overflow-hidden rounded-lg border border-border bg-surface"
+          >
             <button
               type="button"
               aria-expanded={expanded}
-              className="flex w-full items-center justify-between gap-2 p-2.5 text-left transition-colors hover:bg-muted/40"
+              className="gap-2 p-2.5 flex w-full items-center justify-between text-left transition-colors hover:bg-muted/40"
               onClick={() => setExpandedId(expanded ? null : run.id)}
             >
-              <span className="flex min-w-0 items-center gap-2">
+              <span className="min-w-0 gap-2 flex items-center">
                 <span
                   className={cn(
                     'size-2 shrink-0 rounded-full',
                     run.failed ? 'bg-destructive' : 'bg-success',
                   )}
                 />
-                <span className="truncate font-medium">{run.title}</span>
+                <span className="font-medium truncate">{run.title}</span>
               </span>
-              <span className="flex shrink-0 items-center gap-1 text-[10px] text-muted-foreground">
+              <span className="gap-1 flex shrink-0 items-center text-2xs text-muted-foreground">
                 {run.at &&
-                  new Date(run.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  new Date(run.at).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
                 <ChevronDown
-                  className={cn('size-3 transition-transform', !expanded && '-rotate-90')}
+                  className={cn(
+                    'size-3 transition-transform',
+                    !expanded && '-rotate-90',
+                  )}
                 />
               </span>
             </button>
             {expanded && (
-              <div className="space-y-1.5 border-t border-border bg-muted/20 p-2.5 text-[11px]">
-                <p className="whitespace-pre-wrap leading-relaxed text-foreground">
+              <div className="space-y-1.5 p-2.5 border-t border-border bg-muted/20 text-meta">
+                <p className="leading-relaxed whitespace-pre-wrap text-foreground">
                   {run.output || 'Completed without textual output.'}
                 </p>
                 {!!run.tokens && (
-                  <div className="flex justify-between border-t border-border/40 pt-1 font-mono text-[10px] text-muted-foreground">
+                  <div className="pt-1 flex justify-between border-t border-border/40 font-mono text-2xs text-muted-foreground">
                     <span>Tokens</span>
                     <span>{run.tokens}</span>
                   </div>
@@ -328,12 +361,19 @@ export function AIEntityProfileNotice({
   return (
     <div
       role="status"
-      className="mx-5 mb-5 flex items-start gap-2.5 rounded-xl border border-warning/30 bg-warning/8 p-3 text-xs"
+      className="mx-5 mb-5 gap-2.5 p-3 text-xs flex items-start rounded-xl border border-warning/30 bg-warning/8"
     >
-      <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning" aria-hidden />
+      <AlertTriangle
+        className="mt-0.5 size-3.5 shrink-0 text-warning"
+        aria-hidden
+      />
       <div className="min-w-0 flex-1">
         <p className="font-semibold text-foreground">{title}</p>
-        {children && <p className="mt-0.5 leading-relaxed text-muted-foreground">{children}</p>}
+        {children && (
+          <p className="mt-0.5 leading-relaxed text-muted-foreground">
+            {children}
+          </p>
+        )}
       </div>
       {action}
     </div>
@@ -349,25 +389,39 @@ export interface AIEntityProfileCapability {
 }
 
 /** What the entity can do, in plain words — a tick when ready, a warning when blocked. */
-export function AIEntityProfileCapabilityList({ items }: { items: AIEntityProfileCapability[] }) {
+export function AIEntityProfileCapabilityList({
+  items,
+}: {
+  items: AIEntityProfileCapability[];
+}) {
   return (
     <ul className="space-y-2">
       {items.map((item) => (
-        <li key={item.id} className="flex items-start gap-2 text-xs">
+        <li key={item.id} className="gap-2 text-xs flex items-start">
           {item.blockedBy ? (
-            <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning" aria-label="Not available yet" />
+            <AlertTriangle
+              className="mt-0.5 size-3.5 shrink-0 text-warning"
+              aria-label="Not available yet"
+            />
           ) : (
-            <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-success" aria-label="Available" />
+            <CheckCircle2
+              className="mt-0.5 size-3.5 shrink-0 text-success"
+              aria-label="Available"
+            />
           )}
           <div className="min-w-0 flex-1">
-            <p className="flex flex-wrap items-center gap-x-1.5 font-medium text-foreground">
+            <p className="gap-x-1.5 font-medium flex flex-wrap items-center text-foreground">
               {item.label}
               {item.blockedBy && (
-                <span className="text-[10px] font-normal text-warning-text">· {item.blockedBy}</span>
+                <span className="font-normal text-2xs text-warning-text">
+                  · {item.blockedBy}
+                </span>
               )}
             </p>
             {item.description && (
-              <p className="text-[11px] leading-relaxed text-muted-foreground">{item.description}</p>
+              <p className="leading-relaxed text-meta text-muted-foreground">
+                {item.description}
+              </p>
             )}
           </div>
         </li>
@@ -378,7 +432,8 @@ export function AIEntityProfileCapabilityList({ items }: { items: AIEntityProfil
 
 /* ------------------------------------------------------------------ tools -- */
 
-export type AIEntityProfileToolGroupStatus = 'builtin' | 'connected' | 'not_connected' | 'reconnect' | 'unknown';
+export type AIEntityProfileToolGroupStatus =
+  'builtin' | 'connected' | 'not_connected' | 'reconnect' | 'unknown';
 
 export interface AIEntityProfileToolGroup {
   /** `builtin` or the provider key. */
@@ -409,33 +464,44 @@ const TOOL_GROUP_STATUS: Record<
  * Tools grouped by the app they act in, each app with its connection state
  * and a Connect button when the viewer still has to link it.
  */
-export function AIEntityProfileToolGroups({ groups }: { groups: AIEntityProfileToolGroup[] }) {
+export function AIEntityProfileToolGroups({
+  groups,
+}: {
+  groups: AIEntityProfileToolGroup[];
+}) {
   return (
     <div className="space-y-2">
       {groups.map((group) => {
         const status = TOOL_GROUP_STATUS[group.status];
-        const blocked = group.status === 'not_connected' || group.status === 'reconnect';
+        const blocked =
+          group.status === 'not_connected' || group.status === 'reconnect';
         return (
           <div
             key={group.id}
             className={cn(
-              'rounded-lg border bg-surface p-2.5 text-xs',
+              'p-2.5 text-xs rounded-lg border bg-surface',
               blocked ? 'border-warning/40' : 'border-border',
             )}
           >
-            <div className="flex items-center gap-2">
-              <span className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-md bg-surface-inset text-muted-foreground">
+            <div className="gap-2 flex items-center">
+              <span className="size-6 flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-surface-inset text-muted-foreground">
                 {group.logo ?? <Plug className="size-3.5" />}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-foreground">{group.name}</p>
+                <p className="font-medium truncate text-foreground">
+                  {group.name}
+                </p>
                 {blocked ? (
-                  <p className="truncate text-[10px] font-medium text-warning-text">
+                  <p className="font-medium truncate text-2xs text-warning-text">
                     {status.label}
                     {group.note ? ` · ${group.note}` : ''}
                   </p>
                 ) : (
-                  group.note && <p className="truncate text-[10px] text-muted-foreground">{group.note}</p>
+                  group.note && (
+                    <p className="truncate text-2xs text-muted-foreground">
+                      {group.note}
+                    </p>
+                  )
                 )}
               </div>
               {blocked && group.onConnect ? (
@@ -456,21 +522,25 @@ export function AIEntityProfileToolGroups({ groups }: { groups: AIEntityProfileT
                   {group.status === 'reconnect' ? 'Reconnect' : 'Connect'}
                 </Button>
               ) : (
-                <Badge variant={status.variant} className="shrink-0 text-[10px]">
+                <Badge variant={status.variant} className="shrink-0 text-2xs">
                   {status.label}
                 </Badge>
               )}
             </div>
             {group.tools.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
+              <div className="mt-2 gap-1.5 flex flex-wrap">
                 {group.tools.map((tool) => (
                   <Badge
                     key={tool.key}
                     variant="neutral"
-                    className={cn('gap-1 text-[11px]', blocked && 'opacity-60')}
-                    title={tool.access === 'write' ? 'Can make changes' : 'Read only'}
+                    className={cn('gap-1 text-meta', blocked && 'opacity-60')}
+                    title={
+                      tool.access === 'write' ? 'Can make changes' : 'Read only'
+                    }
                   >
-                    {tool.access === 'write' && <PencilLine className="size-2.5" aria-hidden />}
+                    {tool.access === 'write' && (
+                      <PencilLine className="size-2.5" aria-hidden />
+                    )}
                     {tool.label}
                   </Badge>
                 ))}
@@ -506,7 +576,9 @@ export function AIEntityProfilePrompt({
   const [copied, setCopied] = useState(false);
   const text = instructions?.trim() ?? '';
   const long = text.length > 280 || text.split('\n').length > 6;
-  const shown = fields.filter((f) => (Array.isArray(f.value) ? f.value.length > 0 : f.value.trim()));
+  const shown = fields.filter((f) =>
+    Array.isArray(f.value) ? f.value.length > 0 : f.value.trim(),
+  );
 
   const copy = () => {
     void navigator.clipboard?.writeText(text);
@@ -520,14 +592,17 @@ export function AIEntityProfilePrompt({
         <dl className="space-y-2 text-xs">
           {shown.map((field) => (
             <div key={field.label}>
-              <dt className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <dt className="font-semibold tracking-wider text-2xs text-muted-foreground uppercase">
                 {field.label}
               </dt>
               {Array.isArray(field.value) ? (
                 <dd>
                   <ul className="mt-0.5 space-y-0.5">
                     {field.value.map((v, i) => (
-                      <li key={i} className="flex items-start gap-1.5 text-foreground/90">
+                      <li
+                        key={i}
+                        className="gap-1.5 flex items-start text-foreground/90"
+                      >
                         <span className="mt-1.5 size-1 shrink-0 rounded-full bg-muted-foreground/60" />
                         <span>{v}</span>
                       </li>
@@ -535,7 +610,9 @@ export function AIEntityProfilePrompt({
                   </ul>
                 </dd>
               ) : (
-                <dd className="mt-0.5 whitespace-pre-wrap text-foreground/90">{field.value}</dd>
+                <dd className="mt-0.5 whitespace-pre-wrap text-foreground/90">
+                  {field.value}
+                </dd>
               )}
             </div>
           ))}
@@ -544,8 +621,8 @@ export function AIEntityProfilePrompt({
 
       {text ? (
         <div className="overflow-hidden rounded-lg border border-border/70 bg-surface-inset/60">
-          <div className="flex items-center justify-between gap-2 border-b border-border/60 py-1 pl-2.5 pr-1">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <div className="gap-2 py-1 pl-2.5 pr-1 flex items-center justify-between border-b border-border/60">
+            <span className="font-semibold tracking-wider text-2xs text-muted-foreground uppercase">
               Instructions
             </span>
             <Button
@@ -556,12 +633,16 @@ export function AIEntityProfilePrompt({
               aria-label="Copy prompt"
               className="size-5"
             >
-              {copied ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
+              {copied ? (
+                <Check className="size-3 text-success" />
+              ) : (
+                <Copy className="size-3" />
+              )}
             </Button>
           </div>
           <p
             className={cn(
-              'whitespace-pre-wrap p-2.5 font-mono text-[11px] leading-relaxed text-muted-foreground',
+              'p-2.5 leading-relaxed font-mono text-meta whitespace-pre-wrap text-muted-foreground',
               long && !expanded && 'line-clamp-6',
             )}
           >
@@ -572,16 +653,23 @@ export function AIEntityProfilePrompt({
               type="button"
               onClick={() => setExpanded((v) => !v)}
               aria-expanded={expanded}
-              className="flex w-full items-center justify-center gap-1 border-t border-border/60 py-1 text-[11px] font-medium text-brand-text hover:bg-muted/40"
+              className="gap-1 py-1 font-medium flex w-full items-center justify-center border-t border-border/60 text-meta text-brand-text hover:bg-muted/40"
             >
               {expanded ? 'Show less' : 'Show full prompt'}
-              <ChevronDown className={cn('size-3 transition-transform', expanded && 'rotate-180')} />
+              <ChevronDown
+                className={cn(
+                  'size-3 transition-transform',
+                  expanded && 'rotate-180',
+                )}
+              />
             </button>
           )}
         </div>
       ) : (
         shown.length === 0 && (
-          <AIEntityProfileEmpty>No prompt yet — it follows only its name and role.</AIEntityProfileEmpty>
+          <AIEntityProfileEmpty>
+            No prompt yet — it follows only its name and role.
+          </AIEntityProfileEmpty>
         )
       )}
     </div>

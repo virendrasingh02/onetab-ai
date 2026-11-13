@@ -1,5 +1,9 @@
 import { Button } from '../components/button.js';
-import { Tooltip, TooltipContent, TooltipTrigger } from '../components/tooltip.js';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '../components/tooltip.js';
 import { cn } from '@org/utils';
 import { Check, Columns, Copy, Download, Rows } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -54,31 +58,36 @@ export function CodeBlockDiff({
   const { lines, addedCount, removedCount } = diffResult;
 
   return (
-    <div className={cn('flex flex-col font-mono text-xs border border-border/80 rounded-b-lg overflow-hidden bg-surface-inset', className)}>
+    <div
+      className={cn(
+        'text-xs flex flex-col overflow-hidden rounded-b-lg border border-border/80 bg-surface-inset font-mono',
+        className,
+      )}
+    >
       {/* Diff Toolbar */}
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/60 bg-surface-raised/60 text-[11px] select-none">
+      <div className="px-3 py-1.5 flex items-center justify-between border-b border-border/60 bg-surface-raised/60 text-meta select-none">
         {/* Change Stats */}
-        <div className="flex items-center gap-2">
+        <div className="gap-2 flex items-center">
           <span className="font-sans text-muted-foreground">Changes:</span>
-          <span className="px-1.5 py-0.5 rounded bg-success/10 text-success-text font-semibold">
+          <span className="px-1.5 py-0.5 rounded font-semibold bg-success/10 text-success-text">
             +{addedCount}
           </span>
-          <span className="px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold">
+          <span className="px-1.5 py-0.5 rounded font-semibold bg-destructive/10 text-destructive-text">
             -{removedCount}
           </span>
         </div>
 
         {/* View mode toggle and copy/download updated code */}
-        <div className="flex items-center gap-1">
+        <div className="gap-1 flex items-center">
           {/* Mode Switch (Unified vs Split) - only visible on md+ screens */}
-          <div className="hidden md:flex items-center bg-surface border border-border rounded-md p-0.5 mr-1">
+          <div className="md:flex p-0.5 mr-1 hidden items-center rounded-md border border-border bg-surface">
             <button
               type="button"
               onClick={() => setMode('unified')}
               className={cn(
-                'flex items-center gap-1 px-2 py-0.5 rounded text-[11px] transition-colors',
+                'gap-1 px-2 py-0.5 rounded flex items-center text-meta transition-colors',
                 mode === 'unified'
-                  ? 'bg-surface-raised font-medium text-foreground shadow-xs'
+                  ? 'font-medium bg-surface-raised text-foreground shadow-xs'
                   : 'text-muted-foreground hover:text-foreground',
               )}
             >
@@ -89,9 +98,9 @@ export function CodeBlockDiff({
               type="button"
               onClick={() => setMode('split')}
               className={cn(
-                'flex items-center gap-1 px-2 py-0.5 rounded text-[11px] transition-colors',
+                'gap-1 px-2 py-0.5 rounded flex items-center text-meta transition-colors',
                 mode === 'split'
-                  ? 'bg-surface-raised font-medium text-foreground shadow-xs'
+                  ? 'font-medium bg-surface-raised text-foreground shadow-xs'
                   : 'text-muted-foreground hover:text-foreground',
               )}
             >
@@ -109,10 +118,16 @@ export function CodeBlockDiff({
                 className="size-6 text-muted-foreground hover:text-foreground"
                 aria-label="Copy modified code"
               >
-                {copied ? <Check className="size-3 text-success-text" /> : <Copy className="size-3" />}
+                {copied ? (
+                  <Check className="size-3 text-success-text" />
+                ) : (
+                  <Copy className="size-3" />
+                )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{copied ? 'Copied updated code!' : 'Copy updated code'}</TooltipContent>
+            <TooltipContent>
+              {copied ? 'Copied updated code!' : 'Copy updated code'}
+            </TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -135,8 +150,8 @@ export function CodeBlockDiff({
       {/* Diff Content View */}
       {mode === 'unified' ? (
         // Unified Diff View
-        <div className="overflow-x-auto py-2 leading-5 scrollbar-subtle">
-          <table className="w-full border-collapse font-mono text-xs">
+        <div className="py-2 leading-5 scrollbar-subtle overflow-x-auto">
+          <table className="text-xs w-full border-collapse font-mono">
             <tbody>
               {lines.map((line, idx) => {
                 const isAdded = line.type === 'added';
@@ -147,8 +162,9 @@ export function CodeBlockDiff({
                     key={`diff-${idx}`}
                     className={cn(
                       'transition-colors',
-                      isAdded && 'bg-success/10 text-success-text font-medium',
-                      isRemoved && 'bg-rose-500/10 text-rose-700 dark:text-rose-300 font-medium',
+                      isAdded && 'font-medium bg-success/10 text-success-text',
+                      isRemoved &&
+                        'font-medium bg-destructive/10 text-destructive-text',
                       !isAdded && !isRemoved && 'text-foreground/90',
                     )}
                   >
@@ -156,7 +172,7 @@ export function CodeBlockDiff({
                     {showLineNumbers && (
                       <td
                         aria-hidden="true"
-                        className="select-none text-right pr-2 pl-3 text-muted-foreground/40 text-[11px] align-top w-[3ch]"
+                        className="pr-2 pl-3 w-[3ch] text-right align-top text-meta text-muted-foreground/40 select-none"
                       >
                         {line.oldLineNumber ?? ''}
                       </td>
@@ -166,7 +182,7 @@ export function CodeBlockDiff({
                     {showLineNumbers && (
                       <td
                         aria-hidden="true"
-                        className="select-none text-right pr-3 text-muted-foreground/40 text-[11px] align-top w-[3ch] border-r border-border/40"
+                        className="pr-3 w-[3ch] border-r border-border/40 text-right align-top text-meta text-muted-foreground/40 select-none"
                       >
                         {line.newLineNumber ?? ''}
                       </td>
@@ -175,13 +191,13 @@ export function CodeBlockDiff({
                     {/* Diff Marker (+ / -) */}
                     <td
                       aria-hidden="true"
-                      className="select-none px-2 text-center font-bold text-[12px] align-top w-[2ch]"
+                      className="px-2 font-bold text-xs w-[2ch] text-center align-top select-none"
                     >
                       {isAdded ? '+' : isRemoved ? '-' : ' '}
                     </td>
 
                     {/* Code Content */}
-                    <td className="pr-4 whitespace-pre align-top w-full">
+                    <td className="pr-4 w-full align-top whitespace-pre">
                       {line.content || '\n'}
                     </td>
                   </tr>
@@ -192,11 +208,11 @@ export function CodeBlockDiff({
         </div>
       ) : (
         // Split (Side-by-Side) Diff View
-        <div className="overflow-x-auto py-2 leading-5 scrollbar-subtle">
-          <div className="grid grid-cols-2 divide-x divide-border/60 min-w-[600px]">
+        <div className="py-2 leading-5 scrollbar-subtle overflow-x-auto">
+          <div className="grid min-w-[600px] grid-cols-2 divide-x divide-border/60">
             {/* Left side: Original */}
             <div>
-              <div className="px-3 py-1 bg-surface-raised/40 border-b border-border/40 text-[11px] text-muted-foreground font-sans font-medium">
+              <div className="px-3 py-1 font-medium border-b border-border/40 bg-surface-raised/40 font-sans text-meta text-muted-foreground">
                 Original
               </div>
               <div className="py-1">
@@ -206,17 +222,20 @@ export function CodeBlockDiff({
                     <div
                       key={`orig-${i}`}
                       className={cn(
-                        'flex items-center px-2 py-0.5 text-xs',
-                        l.type === 'removed' && 'bg-rose-500/10 text-rose-700 dark:text-rose-300 font-medium',
+                        'px-2 py-0.5 text-xs flex items-center',
+                        l.type === 'removed' &&
+                          'font-medium bg-destructive/10 text-destructive-text',
                       )}
                     >
-                      <span className="w-8 text-right pr-2 text-muted-foreground/40 text-[11px] select-none">
+                      <span className="w-8 pr-2 text-right text-meta text-muted-foreground/40 select-none">
                         {l.oldLineNumber}
                       </span>
-                      <span className="w-4 select-none text-center font-bold">
+                      <span className="w-4 font-bold text-center select-none">
                         {l.type === 'removed' ? '-' : ' '}
                       </span>
-                      <span className="whitespace-pre overflow-hidden text-ellipsis">{l.content}</span>
+                      <span className="overflow-hidden text-ellipsis whitespace-pre">
+                        {l.content}
+                      </span>
                     </div>
                   ))}
               </div>
@@ -224,7 +243,7 @@ export function CodeBlockDiff({
 
             {/* Right side: Modified */}
             <div>
-              <div className="px-3 py-1 bg-surface-raised/40 border-b border-border/40 text-[11px] text-muted-foreground font-sans font-medium">
+              <div className="px-3 py-1 font-medium border-b border-border/40 bg-surface-raised/40 font-sans text-meta text-muted-foreground">
                 Modified
               </div>
               <div className="py-1">
@@ -234,17 +253,20 @@ export function CodeBlockDiff({
                     <div
                       key={`mod-${i}`}
                       className={cn(
-                        'flex items-center px-2 py-0.5 text-xs',
-                        l.type === 'added' && 'bg-success/10 text-success-text font-medium',
+                        'px-2 py-0.5 text-xs flex items-center',
+                        l.type === 'added' &&
+                          'font-medium bg-success/10 text-success-text',
                       )}
                     >
-                      <span className="w-8 text-right pr-2 text-muted-foreground/40 text-[11px] select-none">
+                      <span className="w-8 pr-2 text-right text-meta text-muted-foreground/40 select-none">
                         {l.newLineNumber}
                       </span>
-                      <span className="w-4 select-none text-center font-bold">
+                      <span className="w-4 font-bold text-center select-none">
                         {l.type === 'added' ? '+' : ' '}
                       </span>
-                      <span className="whitespace-pre overflow-hidden text-ellipsis">{l.content}</span>
+                      <span className="overflow-hidden text-ellipsis whitespace-pre">
+                        {l.content}
+                      </span>
                     </div>
                   ))}
               </div>

@@ -13,7 +13,13 @@ import {
 import type { ComponentProps, ReactNode } from 'react';
 import { Badge } from './badge.js';
 import { Button } from './button.js';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './dropdown-menu.js';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './dropdown-menu.js';
 import { AIModelBadge } from '../ai/AIModelBadge.js';
 
 export type AgentStatus = 'online' | 'idle' | 'running' | 'offline' | 'error';
@@ -61,12 +67,36 @@ export function AIAgentCard({
   className,
   ...props
 }: AIAgentCardProps) {
-  const statusConfig: Record<AgentStatus, { label: string; dotClass: string; badgeClass: string }> = {
-    online: { label: 'Available', dotClass: 'bg-success animate-pulse', badgeClass: 'text-success-text bg-success/10 border-success/20' },
-    running: { label: 'Running', dotClass: 'bg-brand animate-ping', badgeClass: 'text-brand-text bg-brand/15 border-brand/30' },
-    idle: { label: 'Idle', dotClass: 'bg-warning', badgeClass: 'text-warning-text bg-warning/10 border-warning/20' },
-    offline: { label: 'Offline', dotClass: 'bg-muted-foreground', badgeClass: 'text-muted-foreground bg-muted border-border' },
-    error: { label: 'Error', dotClass: 'bg-destructive', badgeClass: 'text-destructive-text bg-destructive/10 border-destructive/20' },
+  const statusConfig: Record<
+    AgentStatus,
+    { label: string; dotClass: string; badgeClass: string }
+  > = {
+    online: {
+      label: 'Available',
+      dotClass: 'bg-success animate-pulse',
+      badgeClass: 'text-success-text bg-success/10 border-success/20',
+    },
+    running: {
+      label: 'Running',
+      dotClass: 'bg-brand animate-ping',
+      badgeClass: 'text-brand-text bg-brand/15 border-brand/30',
+    },
+    idle: {
+      label: 'Idle',
+      dotClass: 'bg-warning',
+      badgeClass: 'text-warning-text bg-warning/10 border-warning/20',
+    },
+    offline: {
+      label: 'Offline',
+      dotClass: 'bg-muted-foreground',
+      badgeClass: 'text-muted-foreground bg-muted border-border',
+    },
+    error: {
+      label: 'Error',
+      dotClass: 'bg-destructive',
+      badgeClass:
+        'text-destructive-text bg-destructive/10 border-destructive/20',
+    },
   };
 
   const currentStatus = statusConfig[status];
@@ -76,31 +106,49 @@ export function AIAgentCard({
     return (
       <div
         className={cn(
-          'flex items-center justify-between gap-3 rounded-btn border border-border bg-surface p-2.5 text-xs shadow-xs hover:border-border-strong transition-all',
+          'gap-3 p-2.5 text-xs flex items-center justify-between rounded-btn border border-border bg-surface shadow-xs transition-all hover:border-border-strong',
           className,
         )}
         {...props}
       >
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="relative flex size-7 shrink-0 items-center justify-center rounded-md bg-brand/10 text-brand-text border border-brand/20">
+        <div className="gap-2.5 min-w-0 flex items-center">
+          <div className="size-7 relative flex shrink-0 items-center justify-center rounded-md border border-brand/20 bg-brand/10 text-brand-text">
             {avatarUrl ? (
-              <img src={avatarUrl} alt={name} className="size-full rounded-md object-cover" />
+              <img
+                src={avatarUrl}
+                alt={name}
+                className="size-full rounded-md object-cover"
+              />
             ) : (
               icon || <Bot className="size-4" />
             )}
-            <span className={cn('absolute -bottom-0.5 -right-0.5 size-2 rounded-full ring-2 ring-surface', currentStatus.dotClass)} />
+            <span
+              className={cn(
+                '-bottom-0.5 -right-0.5 size-2 absolute rounded-full ring-2 ring-surface',
+                currentStatus.dotClass,
+              )}
+            />
           </div>
           <div className="truncate">
-            <div className="font-semibold text-foreground truncate">{name}</div>
+            <div className="font-semibold truncate text-foreground">{name}</div>
             <div className="mt-0.5">
-              <AIModelBadge modelId={model} provider={provider} variant="compact" />
+              <AIModelBadge
+                modelId={model}
+                provider={provider}
+                variant="compact"
+              />
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="gap-1 flex shrink-0 items-center">
           {onChat && (
-            <Button size="xs" variant="outline" onClick={onChat} leadingIcon={<MessageSquare className="size-3" />}>
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={onChat}
+              leadingIcon={<MessageSquare className="size-3" />}
+            >
               Chat
             </Button>
           )}
@@ -114,50 +162,84 @@ export function AIAgentCard({
     return (
       <div
         className={cn(
-          'flex flex-wrap items-center justify-between gap-4 rounded-card border border-border bg-surface p-3.5 text-xs shadow-xs hover:border-border-strong transition-all',
+          'gap-4 p-3.5 text-xs flex flex-wrap items-center justify-between rounded-card border border-border bg-surface shadow-xs transition-all hover:border-border-strong',
           className,
         )}
         {...props}
       >
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="relative flex size-10 shrink-0 items-center justify-center rounded-lg bg-surface-raised border border-border text-foreground">
+        <div className="gap-3 min-w-0 flex flex-1 items-center">
+          <div className="size-10 relative flex shrink-0 items-center justify-center rounded-lg border border-border bg-surface-raised text-foreground">
             {avatarUrl ? (
-              <img src={avatarUrl} alt={name} className="size-full rounded-lg object-cover" />
+              <img
+                src={avatarUrl}
+                alt={name}
+                className="size-full rounded-lg object-cover"
+              />
             ) : (
               icon || <Bot className="size-5 text-brand-text" />
             )}
-            <span className={cn('absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-surface', currentStatus.dotClass)} />
+            <span
+              className={cn(
+                '-bottom-0.5 -right-0.5 size-2.5 absolute rounded-full ring-2 ring-surface',
+                currentStatus.dotClass,
+              )}
+            />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-foreground truncate">{name}</h3>
-              <AIModelBadge modelId={model} provider={provider} variant="subtle" />
-              <span className={cn('rounded-full border px-1.5 py-0.2 text-[10px] font-medium', currentStatus.badgeClass)}>
+            <div className="gap-2 flex items-center">
+              <h3 className="font-semibold truncate text-foreground">{name}</h3>
+              <AIModelBadge
+                modelId={model}
+                provider={provider}
+                variant="subtle"
+              />
+              <span
+                className={cn(
+                  'px-1.5 py-0.2 font-medium rounded-full border text-2xs',
+                  currentStatus.badgeClass,
+                )}
+              >
                 {currentStatus.label}
               </span>
             </div>
-            <p className="text-[11px] text-muted-foreground truncate mt-0.5">{description}</p>
+            <p className="mt-0.5 truncate text-meta text-muted-foreground">
+              {description}
+            </p>
           </div>
         </div>
 
         {/* Tools & Capabilities */}
-        <div className="hidden md:flex items-center gap-1.5">
+        <div className="md:flex gap-1.5 hidden items-center">
           {tools.slice(0, 3).map((tool) => (
-            <Badge key={tool} variant="outline" className="text-[10px] font-mono bg-surface-raised">
+            <Badge
+              key={tool}
+              variant="outline"
+              className="bg-surface-raised font-mono text-2xs"
+            >
               {tool}
             </Badge>
           ))}
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-2">
+        <div className="gap-2 flex items-center">
           {onRun && (
-            <Button size="xs" variant="primary" onClick={onRun} leadingIcon={<Play className="size-3" />}>
+            <Button
+              size="xs"
+              variant="primary"
+              onClick={onRun}
+              leadingIcon={<Play className="size-3" />}
+            >
               Run
             </Button>
           )}
           {onChat && (
-            <Button size="xs" variant="outline" onClick={onChat} leadingIcon={<MessageSquare className="size-3" />}>
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={onChat}
+              leadingIcon={<MessageSquare className="size-3" />}
+            >
               Chat
             </Button>
           )}
@@ -170,35 +252,51 @@ export function AIAgentCard({
   return (
     <div
       className={cn(
-        'group relative flex flex-col justify-between rounded-card border border-border bg-surface p-4 text-xs shadow-xs transition-all duration-(--duration-fast)',
+        'group p-4 text-xs relative flex flex-col justify-between rounded-card border border-border bg-surface shadow-xs transition-all duration-(--duration-fast)',
         'hover:border-border-strong hover:shadow-sm',
-        variant === 'featured' && 'border-brand/40 bg-gradient-to-b from-brand/5 to-transparent',
+        variant === 'featured' &&
+          'border-brand/40 bg-gradient-to-b from-brand/5 to-transparent',
         className,
       )}
       {...props}
     >
       <div>
         {/* Top bar: Avatar, Name, Status & Menu */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="relative flex size-10 shrink-0 items-center justify-center rounded-lg bg-surface-raised border border-border text-foreground">
+        <div className="gap-3 flex items-start justify-between">
+          <div className="gap-3 flex items-center">
+            <div className="size-10 relative flex shrink-0 items-center justify-center rounded-lg border border-border bg-surface-raised text-foreground">
               {avatarUrl ? (
-                <img src={avatarUrl} alt={name} className="size-full rounded-lg object-cover" />
+                <img
+                  src={avatarUrl}
+                  alt={name}
+                  className="size-full rounded-lg object-cover"
+                />
               ) : (
                 icon || <Bot className="size-5 text-brand-text" />
               )}
-              <span className={cn('absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-surface', currentStatus.dotClass)} />
+              <span
+                className={cn(
+                  '-bottom-0.5 -right-0.5 size-2.5 absolute rounded-full ring-2 ring-surface',
+                  currentStatus.dotClass,
+                )}
+              />
             </div>
 
             <div>
-              <div className="flex items-center gap-1.5">
-                <h3 className="font-semibold text-foreground tracking-tight">{name}</h3>
+              <div className="gap-1.5 flex items-center">
+                <h3 className="font-semibold tracking-tight text-foreground">
+                  {name}
+                </h3>
                 {variant === 'featured' && (
-                  <Sparkles className="size-3.5 text-brand-text shrink-0" />
+                  <Sparkles className="size-3.5 shrink-0 text-brand-text" />
                 )}
               </div>
               <div className="mt-1">
-                <AIModelBadge modelId={model} provider={provider} variant="subtle" />
+                <AIModelBadge
+                  modelId={model}
+                  provider={provider}
+                  variant="subtle"
+                />
               </div>
             </div>
           </div>
@@ -232,17 +330,17 @@ export function AIAgentCard({
         </div>
 
         {/* Description */}
-        <p className="mt-3 text-muted-foreground line-clamp-2 leading-relaxed text-[11px]">
+        <p className="mt-3 leading-relaxed line-clamp-2 text-meta text-muted-foreground">
           {description}
         </p>
 
         {/* Tools and Capabilities Tags */}
         {(tools.length > 0 || capabilities.length > 0) && (
-          <div className="mt-3 flex flex-wrap gap-1">
+          <div className="mt-3 gap-1 flex flex-wrap">
             {tools.map((t) => (
               <span
                 key={t}
-                className="rounded-xs bg-surface-raised px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground border border-border/60"
+                className="px-1.5 py-0.5 rounded-xs border border-border/60 bg-surface-raised font-mono text-2xs text-muted-foreground"
               >
                 {t}
               </span>
@@ -250,7 +348,7 @@ export function AIAgentCard({
             {capabilities.map((c) => (
               <span
                 key={c}
-                className="rounded-xs bg-accent px-1.5 py-0.5 font-medium text-[10px] text-accent-foreground"
+                className="px-1.5 py-0.5 font-medium rounded-xs bg-accent text-2xs text-accent-foreground"
               >
                 {c}
               </span>
@@ -260,29 +358,42 @@ export function AIAgentCard({
       </div>
 
       {/* Footer: Stats & Primary Actions */}
-      <div className="mt-4 pt-3 border-t border-border flex items-center justify-between gap-2">
-        <div className="flex items-center gap-3 text-[11px] text-subtle font-mono">
+      <div className="mt-4 pt-3 gap-2 flex items-center justify-between border-t border-border">
+        <div className="gap-3 flex items-center font-mono text-meta text-subtle">
           {runsCount !== undefined && (
             <span title="Total executions">
               {runsCount.toLocaleString()} runs
             </span>
           )}
           {avgLatency && (
-            <span title="Average response latency" className="flex items-center gap-0.5">
+            <span
+              title="Average response latency"
+              className="gap-0.5 flex items-center"
+            >
               <Activity className="size-3 text-brand-text" />
               {avgLatency}
             </span>
           )}
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="gap-1.5 flex items-center">
           {onChat && (
-            <Button size="xs" variant="outline" onClick={onChat} leadingIcon={<MessageSquare className="size-3" />}>
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={onChat}
+              leadingIcon={<MessageSquare className="size-3" />}
+            >
               Chat
             </Button>
           )}
           {onRun && (
-            <Button size="xs" variant="primary" onClick={onRun} leadingIcon={<Play className="size-3" />}>
+            <Button
+              size="xs"
+              variant="primary"
+              onClick={onRun}
+              leadingIcon={<Play className="size-3" />}
+            >
               Run
             </Button>
           )}

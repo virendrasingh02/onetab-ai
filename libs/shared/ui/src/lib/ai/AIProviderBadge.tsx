@@ -4,11 +4,13 @@ import { AIProviderIcon } from './AIProviderIcon.js';
 import type { AIIconVariant } from './model-icon-map.js';
 import { normalizeProvider } from './model-normalizer.js';
 
-export type AIProviderBadgeVariant = 'subtle' | 'compact' | 'outline' | 'filled';
+export type AIProviderBadgeVariant =
+  'subtle' | 'compact' | 'outline' | 'filled';
 
 const VARIANT_STYLES: Record<AIProviderBadgeVariant, string> = {
   subtle: 'bg-surface-raised border border-border/80 text-foreground',
-  compact: 'bg-surface-inset border border-border/60 text-foreground text-[10px] py-0 px-1.5 h-5 gap-1',
+  compact:
+    'bg-surface-inset border border-border/60 text-foreground text-2xs py-0 px-1.5 h-5 gap-1',
   outline: 'border border-border text-foreground bg-transparent',
   filled: 'bg-brand/10 border border-brand/20 text-brand-text font-medium',
 };
@@ -40,9 +42,9 @@ export const AIProviderBadge = memo(function AIProviderBadge({
   return (
     <span
       className={cn(
-        'inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium leading-none select-none transition-colors',
+        'gap-1.5 px-2 py-0.5 text-xs font-medium inline-flex shrink-0 items-center rounded-md leading-none transition-colors select-none',
         VARIANT_STYLES[variant] || VARIANT_STYLES.subtle,
-        className
+        className,
       )}
       {...props}
     >

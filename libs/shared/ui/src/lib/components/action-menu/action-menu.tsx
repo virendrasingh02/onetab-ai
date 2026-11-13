@@ -67,7 +67,7 @@ function ActionRowContent({
     <>
       <span
         aria-hidden
-        className="flex size-4 shrink-0 items-center justify-center [&_svg]:size-4"
+        className="size-4 [&_svg]:size-4 flex shrink-0 items-center justify-center"
       >
         {pending ? (
           <Loader2 className="animate-spin" />
@@ -80,21 +80,21 @@ function ActionRowContent({
       <span className="min-w-0 flex flex-1 flex-col text-left">
         <span className="truncate">{action.label}</span>
         {action.description ? (
-          <span className="mt-0.5 whitespace-normal text-[11px] font-normal leading-normal text-muted-foreground">
+          <span className="mt-0.5 font-normal leading-normal text-meta whitespace-normal text-muted-foreground">
             {action.description}
           </span>
         ) : null}
       </span>
       {action.hint ? (
-        <span className="ml-auto pl-2 text-[10px] font-normal text-muted-foreground tabular-nums">
+        <span className="pl-2 font-normal ml-auto text-2xs text-muted-foreground tabular-nums">
           {action.hint}
         </span>
       ) : null}
       {action.checked && Icon ? (
-        <Check aria-hidden className="ml-auto size-3.5 text-foreground" />
+        <Check aria-hidden className="size-3.5 ml-auto text-foreground" />
       ) : null}
       {showShortcut && action.shortcut && !action.children ? (
-        <span className="ml-auto inline-flex items-center pl-3">
+        <span className="pl-3 ml-auto inline-flex items-center">
           <KbdShortcut keys={action.shortcut} size="xs" variant="muted" />
         </span>
       ) : null}
@@ -156,10 +156,15 @@ function MenuActionItems({
                     title={action.disabled ? action.disabledReason : undefined}
                     className="gap-2"
                   >
-                    <span aria-hidden className="flex size-4 shrink-0 items-center justify-center">
+                    <span
+                      aria-hidden
+                      className="size-4 flex shrink-0 items-center justify-center"
+                    >
                       {Icon ? <Icon /> : null}
                     </span>
-                    <span className="flex-1 truncate text-left">{action.label}</span>
+                    <span className="flex-1 truncate text-left">
+                      {action.label}
+                    </span>
                   </SubTrigger>
                   <SubContent className="min-w-48">
                     <MenuActionItems
@@ -210,17 +215,25 @@ function menuKeyFor(shortcut: EntityAction['shortcut']): string | null {
  * letters are real, not decoration. Handled before Radix's type-ahead so "e"
  * never merely moves focus to the first item starting with E.
  */
-function useMenuShortcutHandler(actions: ActionList, onRun: (a: EntityAction) => void) {
+function useMenuShortcutHandler(
+  actions: ActionList,
+  onRun: (a: EntityAction) => void,
+) {
   return useCallback(
     (event: ReactKeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       const pressed =
-        event.key === 'Delete' || event.key === 'Backspace' ? 'delete' : event.key.toLowerCase();
+        event.key === 'Delete' || event.key === 'Backspace'
+          ? 'delete'
+          : event.key.toLowerCase();
       const match = resolveActionSections(actions)
         .flatMap((s) => s.items)
         // Submenu entries count too, so a shortcut can sit on a nested item.
         .flatMap((a) => (a.children ? a.children : [a]))
-        .find((a) => !a.disabled && !a.children && menuKeyFor(a.shortcut) === pressed);
+        .find(
+          (a) =>
+            !a.disabled && !a.children && menuKeyFor(a.shortcut) === pressed,
+        );
       if (!match) return;
       event.preventDefault();
       onRun(match);
@@ -246,7 +259,13 @@ export interface ActionSheetProps {
  * sheet with thumb-sized rows. Submenus drill in (with a back row) rather than
  * fly out, since there is nowhere on a phone for a flyout to go.
  */
-export function ActionSheet({ open, onOpenChange, actions, title, scope }: ActionSheetProps) {
+export function ActionSheet({
+  open,
+  onOpenChange,
+  actions,
+  title,
+  scope,
+}: ActionSheetProps) {
   const [trail, setTrail] = useState<EntityAction[]>([]);
   const pending = usePendingActions((s) => s.pending);
 
@@ -254,7 +273,8 @@ export function ActionSheet({ open, onOpenChange, actions, title, scope }: Actio
     if (!open) setTrail([]);
   }, [open]);
 
-  const current = trail.length > 0 ? (trail[trail.length - 1].children ?? []) : actions;
+  const current =
+    trail.length > 0 ? (trail[trail.length - 1].children ?? []) : actions;
   const sections = useMemo(() => resolveActionSections(current), [current]);
 
   const run = (action: EntityAction) => {
@@ -275,13 +295,17 @@ export function ActionSheet({ open, onOpenChange, actions, title, scope }: Actio
       showCloseButton={false}
       className="p-3 pt-6"
     >
-      <div role="menu" aria-label={typeof title === 'string' ? title : 'Actions'} className="flex flex-col">
+      <div
+        role="menu"
+        aria-label={typeof title === 'string' ? title : 'Actions'}
+        className="flex flex-col"
+      >
         {trail.length > 0 ? (
           <button
             type="button"
             role="menuitem"
             onClick={() => setTrail((t) => t.slice(0, -1))}
-            className="flex min-h-11 items-center gap-3 rounded-btn px-3 text-sm text-muted-foreground active:bg-accent"
+            className="min-h-11 gap-3 px-3 text-sm flex items-center rounded-btn text-muted-foreground active:bg-accent"
           >
             <ChevronLeft className="size-4" aria-hidden />
             Back
@@ -289,7 +313,9 @@ export function ActionSheet({ open, onOpenChange, actions, title, scope }: Actio
         ) : null}
         {sections.map((section, index) => (
           <Fragment key={section.key}>
-            {index > 0 ? <div role="separator" className="-mx-3 my-1 h-px bg-border" /> : null}
+            {index > 0 ? (
+              <div role="separator" className="-mx-3 my-1 h-px bg-border" />
+            ) : null}
             {section.items.map((action) => {
               const isPending = Boolean(pending[actionKey(scope, action.id)]);
               const inert = action.disabled || isPending;
@@ -303,15 +329,21 @@ export function ActionSheet({ open, onOpenChange, actions, title, scope }: Actio
                   aria-busy={isPending || undefined}
                   onClick={() => run(action)}
                   className={cn(
-                    'flex min-h-11 w-full items-center gap-3 rounded-btn px-3 text-left text-sm font-medium outline-none',
-                    'active:bg-accent focus-visible:bg-accent disabled:opacity-40',
+                    'min-h-11 gap-3 px-3 text-sm font-medium flex w-full items-center rounded-btn text-left outline-none',
+                    'focus-visible:bg-accent active:bg-accent disabled:opacity-40',
                     '[&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted-foreground',
                     action.destructive &&
-                      'text-destructive [&_svg]:text-destructive active:bg-destructive/10',
+                      'text-destructive active:bg-destructive/10 [&_svg]:text-destructive',
                   )}
                 >
-                  <ActionRowContent action={action} pending={isPending} showShortcut={false} />
-                  {action.children ? <ChevronRight className="ml-auto" aria-hidden /> : null}
+                  <ActionRowContent
+                    action={action}
+                    pending={isPending}
+                    showShortcut={false}
+                  />
+                  {action.children ? (
+                    <ChevronRight className="ml-auto" aria-hidden />
+                  ) : null}
                   {action.disabled && action.disabledReason ? (
                     <span className="sr-only">{action.disabledReason}</span>
                   ) : null}
@@ -336,11 +368,16 @@ const LONG_PRESS_TOLERANCE = 10;
 function wantsNativeMenu(event: ReactMouseEvent, host: Element): boolean {
   const target = event.target instanceof Element ? event.target : null;
   if (!target) return false;
-  if (target.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]')) {
+  if (
+    target.closest(
+      'input, textarea, select, [contenteditable=""], [contenteditable="true"]',
+    )
+  ) {
     return true;
   }
   if (target.closest('[data-native-context-menu]')) return true;
-  const selection = typeof window !== 'undefined' ? window.getSelection() : null;
+  const selection =
+    typeof window !== 'undefined' ? window.getSelection() : null;
   if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
     const range = selection.getRangeAt(0);
     if (host.contains(range.commonAncestorContainer)) return true;
@@ -407,9 +444,12 @@ export function EntityContextMenu({
     touchAt: number;
   }>({ timer: null, x: 0, y: 0, fired: false, touchAt: 0 });
 
-  useEffect(() => () => {
-    if (press.current.timer) clearTimeout(press.current.timer);
-  }, []);
+  useEffect(
+    () => () => {
+      if (press.current.timer) clearTimeout(press.current.timer);
+    },
+    [],
+  );
 
   const setOpenMode = useCallback(
     (next: 'menu' | 'sheet' | null) => {
@@ -522,11 +562,18 @@ export function EntityContextMenu({
               event.preventDefault();
               const active = document.activeElement;
               if (!active || active === document.body) {
-                (hostRef.current as HTMLElement | null)?.focus?.({ preventScroll: true });
+                (hostRef.current as HTMLElement | null)?.focus?.({
+                  preventScroll: true,
+                });
               }
             }}
           >
-            <MenuActionItems actions={resolved} kind="context" scope={scope} onRun={run} />
+            <MenuActionItems
+              actions={resolved}
+              kind="context"
+              scope={scope}
+              onRun={run}
+            />
           </ContextMenuContent>
         </ContextMenu>
       ) : null}
@@ -625,7 +672,12 @@ export function ActionDropdownMenu({
         onKeyDown={onKeyDown}
       >
         {header}
-        <MenuActionItems actions={resolved} kind="dropdown" scope={scope} onRun={run} />
+        <MenuActionItems
+          actions={resolved}
+          kind="dropdown"
+          scope={scope}
+          onRun={run}
+        />
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -683,7 +735,12 @@ export function ActionContextMenu({
       }}
     >
       <ContextMenuContent className="w-60" onKeyDown={onKeyDown}>
-        <MenuActionItems actions={resolved} kind="context" scope={scope} onRun={run} />
+        <MenuActionItems
+          actions={resolved}
+          kind="context"
+          scope={scope}
+          onRun={run}
+        />
       </ContextMenuContent>
     </ContextMenu>
   );
