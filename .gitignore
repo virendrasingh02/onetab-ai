@@ -77,3 +77,4 @@ apps/desktop/resources/app-update.yml
 vitest.config.*.timestamp*
 # Runtime log written by older builds of the shell; logs now live in Electron's logs folder
 apps/desktop/desktop.log
+.vitest

@@ -11,8 +11,8 @@ describe('WidgetStudioService', () => {
   beforeEach(() => {
     mockPrisma = {
       widgetDefinition: {
-        findMany: vi.fn(),
-        count: vi.fn(),
+        findMany: vi.fn().mockResolvedValue([]),
+        count: vi.fn().mockResolvedValue(0),
         findFirst: vi.fn(),
         findUnique: vi.fn(),
         create: vi.fn(),
@@ -20,16 +20,16 @@ describe('WidgetStudioService', () => {
       },
       widgetVersion: {
         create: vi.fn(),
-        findMany: vi.fn(),
+        findMany: vi.fn().mockResolvedValue([]),
         findFirst: vi.fn(),
         findUnique: vi.fn(),
       },
       widgetExecution: {
         create: vi.fn(),
-        findMany: vi.fn(),
+        findMany: vi.fn().mockResolvedValue([]),
       },
       widgetInstance: {
-        findMany: vi.fn(),
+        findMany: vi.fn().mockResolvedValue([]),
         create: vi.fn(),
         update: vi.fn(),
       },
@@ -69,7 +69,11 @@ describe('WidgetStudioService', () => {
         description: 'Real-time conversion metric',
         appearance: { size: 'standard' as const },
         dataSource: { type: 'static_sample' as const },
-        permissions: { canView: 'workspace' as const, canEdit: 'workspace' as const, canExecute: 'workspace' as const },
+        permissions: {
+          canView: 'workspace' as const,
+          canEdit: 'workspace' as const,
+          canExecute: 'workspace' as const,
+        },
       };
 
       mockPrisma.widgetDefinition.findFirst.mockResolvedValueOnce(null);
@@ -98,7 +102,10 @@ describe('WidgetStudioService', () => {
 
       expect(result.id).toBe('wgt_123');
       expect(result.version).toBe(1);
-      expect(mockEvents.emit).toHaveBeenCalledWith('widget.created', expect.objectContaining({ widgetId: 'wgt_123' }));
+      expect(mockEvents.emit).toHaveBeenCalledWith(
+        'widget.created',
+        expect.objectContaining({ widgetId: 'wgt_123' }),
+      );
     });
   });
 
@@ -130,7 +137,9 @@ describe('WidgetStudioService', () => {
 
     it('throws NotFoundException when widget is missing', async () => {
       mockPrisma.widgetDefinition.findFirst.mockResolvedValueOnce(null);
-      await expect(service.get('ws_1', 'missing', 'usr_1')).rejects.toThrow(NotFoundException);
+      await expect(service.get('ws_1', 'missing', 'usr_1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -163,7 +172,12 @@ describe('WidgetStudioService', () => {
       };
       mockPrisma.widgetDefinition.update.mockResolvedValueOnce(updated);
 
-      const res = await service.publish('ws_1', 'wgt_1', 'usr_1', 'Ready for production');
+      const res = await service.publish(
+        'ws_1',
+        'wgt_1',
+        'usr_1',
+        'Ready for production',
+      );
 
       expect(mockPrisma.widgetVersion.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -171,10 +185,13 @@ describe('WidgetStudioService', () => {
             widgetDefinitionId: 'wgt_1',
             versionNumber: 2,
           }),
-        })
+        }),
       );
       expect(res.version).toBe(2);
-      expect(mockEvents.emit).toHaveBeenCalledWith('widget.published', expect.objectContaining({ widgetId: 'wgt_1', version: 2 }));
+      expect(mockEvents.emit).toHaveBeenCalledWith(
+        'widget.published',
+        expect.objectContaining({ widgetId: 'wgt_1', version: 2 }),
+      );
     });
   });
 
@@ -227,7 +244,7 @@ describe('WidgetStudioService', () => {
       expect(res.version).toBe(1);
       expect(mockEvents.emit).toHaveBeenCalledWith(
         'widget.version_rollback',
-        expect.objectContaining({ widgetId: 'wgt_1', targetVersion: 1 })
+        expect.objectContaining({ widgetId: 'wgt_1', targetVersion: 1 }),
       );
     });
   });
@@ -258,7 +275,9 @@ describe('WidgetStudioService', () => {
       mockPrisma.widgetDefinition.findFirst.mockResolvedValueOnce(widget);
 
       await expect(
-        service.execute('ws_1', 'wgt_ssrf', 'usr_1', { executionType: 'DATA_FETCH' })
+        service.execute('ws_1', 'wgt_ssrf', 'usr_1', {
+          executionType: 'DATA_FETCH',
+        }),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -287,7 +306,9 @@ describe('WidgetStudioService', () => {
       mockPrisma.widgetDefinition.findFirst.mockResolvedValueOnce(widget);
 
       await expect(
-        service.execute('ws_1', 'wgt_aws_meta', 'usr_1', { executionType: 'DATA_FETCH' })
+        service.execute('ws_1', 'wgt_aws_meta', 'usr_1', {
+          executionType: 'DATA_FETCH',
+        }),
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -308,7 +329,13 @@ describe('WidgetStudioService', () => {
         dataSource: { type: 'static_sample' },
         sampleData: { submitted: true },
         eventConfig: {
-          actions: [{ id: 'submit_action', triggerEvent: 'on_submit', targetType: 'workflow_trigger' }],
+          actions: [
+            {
+              id: 'submit_action',
+              triggerEvent: 'on_submit',
+              targetType: 'workflow_trigger',
+            },
+          ],
         },
         permissions: { canExecute: 'workspace' },
         tags: [],
@@ -332,7 +359,10 @@ describe('WidgetStudioService', () => {
 
       expect(res.status).toBe('SUCCESS');
       expect(mockPrisma.widgetExecution.create).toHaveBeenCalled();
-      expect(mockEvents.emit).toHaveBeenCalledWith('widget.execution.completed', expect.anything());
+      expect(mockEvents.emit).toHaveBeenCalledWith(
+        'widget.execution.completed',
+        expect.anything(),
+      );
     });
   });
 });

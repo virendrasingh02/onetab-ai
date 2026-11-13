@@ -18,7 +18,9 @@
       "{workspaceRoot}/prisma/schema.prisma",
       "{workspaceRoot}/.github/workflows/ci.yml",
       "{workspaceRoot}/scripts/vite-production.mts",
-      { "env": "GENERATE_SOURCEMAP" }
+      {
+        "env": "GENERATE_SOURCEMAP"
+      }
     ]
   },
   "plugins": [
@@ -140,5 +142,8 @@
     "start:full": {
       "cache": false
     }
+  },
+  "affected": {
+    "legacy": true
   }
 }

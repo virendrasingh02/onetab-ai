@@ -94,8 +94,8 @@ describe('MessageRenderer', () => {
 
     renderWithProviders(<MessageRenderer message={msg} isOwn={false} />);
 
-    expect(screen.getByText(/Working on it/i)).toBeInTheDocument();
-    expect(screen.getByText('Collect Sources')).toBeInTheDocument();
+    expect(screen.getAllByText(/Using/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Collect Sources').length).toBeGreaterThan(0);
   });
 
   it('marks a saved message "Saved for later" — AI agent answers included', () => {

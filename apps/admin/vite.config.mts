@@ -8,6 +8,7 @@ import {
   precompressAndGuardPlugin,
   productionBuild,
 } from '../../scripts/vite-production.mts';
+import { nxReadySignal } from '@nx/vite/plugins/nx-ready-signal.plugin';
 
 /**
  * Proxies `/api/*` server-side to the locally running Nest API, so the browser
@@ -147,6 +148,7 @@ export default defineConfig(() => ({
     tailwindcss(),
     workspaceLiveSourcePlugin(),
     precompressAndGuardPlugin(),
+    nxReadySignal(),
   ],
   optimizeDeps: {
     // use-sync-external-store/shim/with-selector.js is CJS-only and needs

@@ -49,7 +49,7 @@ export function CreateTaskDialog({
   open,
   onOpenChange,
   projectName,
-  lists,
+  lists: _lists,
   members,
   defaultStatus = TaskStatus.TODO,
   onCreate,

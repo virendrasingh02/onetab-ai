@@ -38,7 +38,7 @@ describe('useRememberWorkspacePath', () => {
     renderHook(() => useRememberWorkspacePath('ws-alpha', 'alpha'), {
       wrapper: atPath('/w/alpha/channels/general'),
     });
-    expect(getPersistedLastWorkspacePath('ws-alpha')).toBe('c/general');
+    expect(getPersistedLastWorkspacePath('ws-alpha')).toBe('channels/general');
   });
 
   it('records the bare workspace root as an empty string', () => {

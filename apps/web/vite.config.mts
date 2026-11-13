@@ -11,6 +11,7 @@ import {
   precompressAndGuardPlugin,
   productionBuild,
 } from '../../scripts/vite-production.mts';
+import { nxReadySignal } from '@nx/vite/plugins/nx-ready-signal.plugin';
 
 /**
  * Proxies `/api/*` server-side to the locally running Nest API, so the browser
@@ -257,6 +258,7 @@ export default defineConfig(() => ({
      */
     wasm(),
     precompressAndGuardPlugin(),
+    nxReadySignal(),
   ],
   optimizeDeps: {
     // Pre-bundling react and matrix-js-sdk ensures single React instance across packages.
