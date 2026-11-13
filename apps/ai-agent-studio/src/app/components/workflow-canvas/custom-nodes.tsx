@@ -35,7 +35,6 @@ import {
   Copy,
   Download,
   Cpu,
-  Database,
   Eye,
   Flame,
   Folder,
@@ -935,6 +934,7 @@ export function EditableNodeHeader({
   description,
   defaultTitle,
   defaultDescription,
+  kind,
   icon: Icon,
   iconBg = 'bg-primary/15 text-primary',
   customIcon,
@@ -949,6 +949,8 @@ export function EditableNodeHeader({
   description?: string;
   defaultTitle: string;
   defaultDescription: string;
+  /** What the step is ("Trigger", "Agent"); a renamed step falls back to its type name. */
+  kind?: string;
   icon?: React.ComponentType<{ className?: string }>;
   iconBg?: string;
   customIcon?: React.ReactNode;
@@ -964,6 +966,8 @@ export function EditableNodeHeader({
   }) => void;
 }) {
   const displayTitle = title || defaultTitle;
+  // A renamed step still says what it is, in a small line above its name.
+  const eyebrow = kind ?? defaultTitle;
   // Descriptions stay off the card unless the step opts in (inspector toggle).
   const showDescription = useNodesData(id)?.data?.['showDescription'] === true;
   const displayDescription = showDescription
@@ -1006,6 +1010,11 @@ export function EditableNodeHeader({
       )}
 
       <div className="min-w-0 flex-1">
+        {eyebrow.toLowerCase() !== displayTitle.toLowerCase() && (
+          <div className="mb-1 font-semibold tracking-wider truncate text-2xs leading-none text-muted-foreground uppercase select-none">
+            {eyebrow}
+          </div>
+        )}
         <div className="gap-1.5 flex items-center">
           <span
             className="text-sm font-semibold truncate text-foreground select-none"
@@ -1357,7 +1366,15 @@ export const StartNode = memo(({ id, type, data, selected }: NodeProps) => {
       }
     : null;
 
-  const defaultTitle = meta ? `${meta.name} Trigger` : 'Start Entry';
+  const defaultTitle = meta ? `${meta.name} Trigger` : 'Start';
+  // Agents saved before the rename still carry the old default name.
+  const savedTitle = nodeData.title || nodeData.label;
+  // Only the manual start can be tried by hand; the others wait for their event.
+  const canTest =
+    !isConnectorTrigger &&
+    !String(type).toUpperCase().startsWith('TRIGGER_') &&
+    !nodeData.locked &&
+    Boolean(nodeData.onTest);
   const defaultDesc = isConnectorTrigger
     ? (app.trigger?.label ??
       (app.provider ? 'Pick an event' : 'Pick an app and event'))
@@ -1374,6 +1391,8 @@ export const StartNode = memo(({ id, type, data, selected }: NodeProps) => {
       header={{
         defaultTitle,
         defaultDescription: defaultDesc,
+        title: savedTitle === 'Start Entry' ? defaultTitle : undefined,
+        kind: 'Trigger',
         icon: Play,
         iconBg: 'bg-success/15 text-success',
         customIcon:
@@ -1399,6 +1418,21 @@ export const StartNode = memo(({ id, type, data, selected }: NodeProps) => {
         <p className="mt-2 text-xs leading-snug text-muted-foreground">
           {startBlurb(String(type), cfg)}
         </p>
+      )}
+      {!nodeData.run?.output && canTest && (
+        <Button
+          type="button"
+          variant="outline"
+          size="xs"
+          className="nodrag mt-2.5 h-7 gap-1.5 text-xs w-full"
+          onClick={(e) => {
+            e.stopPropagation();
+            nodeData.onTest?.(id);
+          }}
+        >
+          <Play className="size-3" />
+          Send a test message
+        </Button>
       )}
       {nodeData.run?.output && (
         <div className="nodrag nowheel mt-3 max-h-28 px-2.5 py-2 text-xs leading-relaxed overflow-auto rounded-lg bg-surface-raised [overflow-wrap:anywhere] whitespace-pre-wrap text-foreground">
@@ -1618,6 +1652,7 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
       header={{
         defaultTitle: 'AI Agent',
         defaultDescription: 'AI-powered workflow agent',
+        kind: isCoordinator ? 'Team lead' : 'Agent',
         icon: isCoordinator || subAgents.length > 0 ? Network : Bot,
         iconBg: 'bg-primary/15 text-primary',
         badge: roleBadge ? (
@@ -1652,10 +1687,10 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
       <div className="mt-3 space-y-3">
         {/* Model */}
         <AgentSection
+          label="Model"
           summary={moduleOf('llm')}
           onOpen={open}
           addButton={addFor('llm')}
-          hideLabel
         >
           <button
             type="button"
@@ -1664,7 +1699,10 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
               e.stopPropagation();
               open('llm');
             }}
-            className="nodrag gap-2 px-2.5 py-2 text-xs font-medium flex w-full items-center rounded-lg bg-surface-raised text-left text-foreground transition-colors hover:bg-surface-raised/70 focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none motion-reduce:transition-none"
+            className={cn(
+              AGENT_FIELD,
+              'h-8 gap-2 font-medium flex items-center text-foreground',
+            )}
             aria-label={`Model: ${modelName ?? 'none'}. Open LLM settings`}
           >
             {modelId ? (
@@ -1700,7 +1738,7 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
               e.stopPropagation();
               open('prompt');
             }}
-            className="nodrag px-2.5 py-1.5 text-xs leading-snug block w-full rounded-lg border border-border text-left transition-colors hover:border-border-strong focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none motion-reduce:transition-none"
+            className={cn(AGENT_FIELD, 'py-1.5 leading-snug block')}
             aria-label="Open Prompt settings"
           >
             {promptPreview ? (
@@ -1720,7 +1758,8 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
 
         {/* Knowledge */}
         <AgentSection
-          label="Knowledge Bases"
+          label="Knowledge"
+          count={(slots.embedding ?? []).length}
           summary={moduleOf('knowledge')}
           onOpen={open}
           addButton={addFor('embedding')}
@@ -1736,8 +1775,7 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
             />
           ) : (
             <OutlineAction
-              icon={<Database className="size-3.5" />}
-              label="Add Knowledge Bases"
+              label="Add knowledge"
               onClick={() => open('knowledge', { section: 'sources' })}
               disabled={!nodeData.onOpenModule}
             />
@@ -1747,6 +1785,7 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
         {/* Tools */}
         <AgentSection
           label="Tools"
+          count={toolCount}
           summary={moduleOf('tools')}
           onOpen={open}
           addButton={addFor('tools')}
@@ -1759,18 +1798,18 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
                 e.stopPropagation();
                 open('tools');
               }}
-              className="nodrag h-8 min-w-0 gap-1.5 flex w-full items-center rounded-md text-left focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none"
+              className="nodrag min-h-8 min-w-0 gap-1 flex w-full items-center rounded-md text-left focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none"
               aria-label={`${toolCount} tool${toolCount === 1 ? '' : 's'}. Open Tools settings`}
             >
               <AppLogoStack apps={toolApps} />
               {builtinTools.slice(0, toolApps.length ? 1 : 2).map((t) => (
                 <span
                   key={t}
-                  title={t.replace(/_/g, ' ')}
-                  className="h-6 gap-1 px-1.5 inline-flex max-w-[110px] items-center truncate rounded-full border border-border bg-surface-raised text-2xs leading-none text-foreground"
+                  title={toolLabel(t)}
+                  className={cn(AGENT_CHIP, 'max-w-[110px]')}
                 >
-                  <Wrench className="size-2.5 shrink-0 text-muted-foreground" />
-                  <span className="truncate">{t.replace(/_/g, ' ')}</span>
+                  <Wrench className="size-3 shrink-0 text-muted-foreground" />
+                  <span className="truncate">{toolLabel(t)}</span>
                 </span>
               ))}
               {hiddenToolCount > 0 && (
@@ -1781,8 +1820,7 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
             </button>
           ) : (
             <OutlineAction
-              icon={<Wrench className="size-3.5" />}
-              label="Add Tools"
+              label="Add tools"
               onClick={() => open('tools', { section: 'builtin' })}
               disabled={!nodeData.onOpenModule}
             />
@@ -1792,6 +1830,7 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
         {/* Sub-agents */}
         <AgentSection
           label="Sub-agents"
+          count={subAgents.length}
           summary={moduleOf('subAgents')}
           onOpen={open}
           addButton={addFor('agents')}
@@ -1807,7 +1846,6 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
             />
           ) : (
             <OutlineAction
-              icon={<Network className="size-3.5" />}
               label={
                 isCoordinator
                   ? 'Add the agents this team uses'
@@ -1845,23 +1883,38 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
 const QUICK_ADD_REVEAL =
   'opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 group-[.selected]:opacity-100 [.react-flow__node.selected_&]:opacity-100 motion-reduce:transition-none';
 
+/** The one look for a value you click to edit on the agent card (model, instructions). */
+const AGENT_FIELD =
+  'nodrag px-2.5 text-xs w-full rounded-lg border border-border bg-surface-raised/60 text-left transition-colors hover:border-border-strong hover:bg-surface-raised focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none motion-reduce:transition-none';
+
+/** The one chip for anything plugged into the agent (tools, knowledge, sub-agents). */
+const AGENT_CHIP =
+  'h-6 gap-1 px-2 inline-flex min-w-0 items-center rounded-full border border-border bg-surface-raised text-2xs leading-none text-foreground';
+
+/** `search_docs` → "Search docs". */
+const toolLabel = (name: string) => {
+  const words = name.replace(/_/g, ' ').trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+};
+
 /** A labelled block on the agent card; its warning icon jumps to the problem in the drawer. */
 function AgentSection({
   label,
+  count,
   summary,
   onOpen,
   addButton,
-  hideLabel,
   children,
 }: {
-  label?: string;
+  label: string;
+  /** How many things are plugged in, shown beside the label. */
+  count?: number;
   summary?: ModuleSummary;
   onOpen: (
     id: AgentModuleId,
     target?: { section?: string; field?: string },
   ) => void;
   addButton?: React.ReactNode;
-  hideLabel?: boolean;
   children: React.ReactNode;
 }) {
   const issue = summary ? firstIssue(summary) : undefined;
@@ -1885,21 +1938,17 @@ function AgentSection({
         <AlertTriangle className="size-3" />
       </button>
     ) : null;
-  if (hideLabel) {
-    return (
-      <div className="gap-1.5 flex items-center">
-        <div className="min-w-0 flex-1">{children}</div>
-        {warning}
-        {addButton && <span className={QUICK_ADD_REVEAL}>{addButton}</span>}
-      </div>
-    );
-  }
   return (
     <section aria-label={label}>
-      <div className="mb-1 gap-1.5 flex items-center">
+      <div className="mb-1 h-5 gap-1.5 flex items-center">
         <span className="text-xs font-medium text-muted-foreground">
           {label}
         </span>
+        {!!count && (
+          <span className="text-2xs text-muted-foreground/80 tabular-nums">
+            {count}
+          </span>
+        )}
         <span className="gap-1 ml-auto flex items-center">
           {warning}
           {addButton && <span className={QUICK_ADD_REVEAL}>{addButton}</span>}
@@ -1910,14 +1959,12 @@ function AgentSection({
   );
 }
 
-/** Full-width outline button for an empty section ("Add Knowledge Bases"). */
+/** The quiet dashed row an empty section shows ("Add knowledge"); filled sections show chips instead. */
 function OutlineAction({
-  icon,
   label,
   onClick,
   disabled,
 }: {
-  icon: React.ReactNode;
   label: string;
   onClick: () => void;
   disabled?: boolean;
@@ -1930,9 +1977,9 @@ function OutlineAction({
         e.stopPropagation();
         onClick();
       }}
-      className="nodrag h-8 gap-1.5 text-xs font-medium shadow-2xs flex w-full items-center justify-center rounded-lg border border-border bg-surface text-foreground transition-colors hover:border-border-strong hover:bg-surface-raised focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none disabled:opacity-60 motion-reduce:transition-none"
+      className="nodrag h-8 gap-1.5 px-2.5 text-xs flex w-full items-center rounded-lg border border-dashed border-border text-left text-muted-foreground transition-colors hover:border-border-strong hover:bg-surface-raised/60 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-60 motion-reduce:transition-none"
     >
-      {icon}
+      <Plus className="size-3.5 shrink-0" />
       {label}
     </button>
   );
@@ -1954,13 +2001,10 @@ function ChipRow({
         e.stopPropagation();
         onClick();
       }}
-      className="nodrag gap-1 flex w-full flex-wrap items-center rounded-md text-left focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none"
+      className="nodrag min-h-8 gap-1 flex w-full flex-wrap items-center rounded-md text-left focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none"
     >
       {shown.map((item) => (
-        <span
-          key={item.key}
-          className="gap-1 px-1.5 py-0.5 inline-flex max-w-[130px] items-center rounded-full border border-border bg-surface-raised text-2xs text-foreground"
-        >
+        <span key={item.key} className={cn(AGENT_CHIP, 'max-w-[130px]')}>
           {item.icon}
           <span className="truncate">{item.label}</span>
         </span>
@@ -2856,6 +2900,8 @@ export const EndNode = memo(({ id, data, selected }: NodeProps) => {
         iconBg: 'bg-success/15 text-success',
       }}
     >
+      {/* View and file actions only once there is an answer to act on */}
+      {text && (
       <div
         className="nodrag nopan mt-3 gap-1 flex items-center"
         onClick={(e) => e.stopPropagation()}
@@ -2912,15 +2958,19 @@ export const EndNode = memo(({ id, data, selected }: NodeProps) => {
           </CardIconButton>
         </span>
       </div>
+      )}
       <div
         tabIndex={0}
         aria-label="Output"
         aria-live="polite"
         className={cn(
-          'nodrag nowheel mt-2 max-h-56 min-h-16 px-3 py-2 overflow-auto rounded-lg border',
+          'nodrag nowheel max-h-56 min-h-16 px-3 py-2 overflow-auto rounded-lg border',
+          text ? 'mt-2' : 'mt-3',
           run?.error
             ? 'border-destructive/30 bg-destructive/5'
-            : 'border-border bg-surface',
+            : text
+              ? 'border-border bg-surface'
+              : 'border-dashed border-border bg-transparent',
         )}
       >
         {!text ? (
@@ -2931,7 +2981,7 @@ export const EndNode = memo(({ id, data, selected }: NodeProps) => {
             <p className="text-xs">
               {running
                 ? 'Waiting for the agent…'
-                : 'Run a test to see the final answer here.'}
+                : 'The agent’s answer shows up here after a test.'}
             </p>
             {!running && nodeData.onTest && (
               <Button

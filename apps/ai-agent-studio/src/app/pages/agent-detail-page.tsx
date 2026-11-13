@@ -1128,8 +1128,9 @@ function WorkflowCanvasInner({
           title={
             isLocked
               ? 'Unlock the canvas to add steps'
-              : 'Add Node to Workflow (Ctrl+K)'
+              : 'Add a step'
           }
+          aria-label="Add a step"
           className={cn(
             'size-8.5 flex shrink-0 cursor-pointer items-center justify-center rounded-full transition-all duration-200',
             'disabled:pointer-events-none disabled:opacity-40',
@@ -1161,7 +1162,7 @@ function WorkflowCanvasInner({
           className="gap-1.5 text-xs font-semibold h-8 px-2.5 cursor-pointer rounded-xl text-foreground hover:text-primary"
         >
           <Wand2 className="size-3.5 text-primary" />
-          <span>Auto Layout</span>
+          <span>Auto layout</span>
         </Button>
 
         <div className="h-4 mx-0.5 w-px bg-border" />
@@ -1184,7 +1185,7 @@ function WorkflowCanvasInner({
               variant="ghost"
               size="icon"
               onClick={onOpenCommandPalette}
-              title="Command Palette & Search (Ctrl+K)"
+              title="Search and commands (Ctrl+K)"
               aria-label="Command palette and search"
               className="rounded-xl"
             >
@@ -1208,7 +1209,7 @@ function WorkflowCanvasInner({
       <div
         role="group"
         aria-label="Canvas controls"
-        className="bottom-5 left-5 h-9 gap-1 p-1 absolute z-20 flex items-center rounded-[14px] border border-border bg-surface shadow-sm select-none"
+        className="bottom-5 left-5 gap-1 p-1.5 absolute z-20 flex items-center rounded-xl border border-border bg-surface shadow-lg select-none"
       >
         {/* SECTION 1: Mode Switch (Select / Pan) */}
         <div

@@ -25,8 +25,9 @@ describe('Output card', () => {
     renderNode(EndNode, { onTest });
     fireEvent.click(screen.getByRole('button', { name: /Run a test/ }));
     expect(onTest).toHaveBeenCalledWith('n1');
-    expect((screen.getByRole('button', { name: 'Copy output' }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole('button', { name: 'Clear output' }) as HTMLButtonElement).disabled).toBe(true);
+    // Nothing to copy or clear yet, so those controls stay out of the way.
+    expect(screen.queryByRole('button', { name: 'Copy output' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Clear output' })).toBeNull();
   });
 
   it('running: waits, no "Run a test"', () => {

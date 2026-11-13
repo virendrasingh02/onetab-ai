@@ -328,9 +328,9 @@ export function AgentsListPage() {
         {
           id: 'start-1',
           type: 'START',
-          position: { x: 80, y: 200 },
+          position: { x: 80, y: 280 },
           data: {
-            label: 'Start Entry',
+            label: 'Start',
             subtitle: 'User prompt',
             config: { triggerType: 'MANUAL' },
           },
@@ -338,7 +338,7 @@ export function AgentsListPage() {
         {
           id: 'agent-1',
           type: 'AGENT',
-          position: { x: 380, y: 190 },
+          position: { x: 500, y: 120 },
           data: {
             label: newName,
             subtitle: newRole,
@@ -353,7 +353,7 @@ export function AgentsListPage() {
         {
           id: 'end-1',
           type: 'END',
-          position: { x: 680, y: 200 },
+          position: { x: 920, y: 245 },
           data: { label: 'Complete', subtitle: 'Final Output' },
         },
       ],
