@@ -1409,6 +1409,10 @@ function NewDirectMessage({
   // Spelled out under the field so the outcome is never a surprise.
   const outcome = (() => {
     if (isBusy) return 'Starting the conversation…';
+    if (selectedChannel && channelRoom.error)
+      return `#${selectedChannel.name} could not be connected to chat.`;
+    if (hasRecipients && !client)
+      return 'Chat is offline right now — you can send once it reconnects.';
     if (channelConnecting) return `Connecting to #${selectedChannel?.name}…`;
     if (selectedChannel)
       return `Your message is posted to #${selectedChannel.name}.`;

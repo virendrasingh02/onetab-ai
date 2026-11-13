@@ -100,7 +100,17 @@ export function NewMessageRecipients({
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fieldRef = useRef<HTMLDivElement>(null);
   const listId = useId();
+
+  // The list is portaled, so to Radix the field itself is "outside" it:
+  // focusing or clicking the field would open the list and then dismiss it
+  // in the same event. Interactions that start in the field never dismiss.
+  const ignoreIfInField = (event: { target: EventTarget | null; preventDefault: () => void }) => {
+    if (event.target instanceof Node && fieldRef.current?.contains(event.target)) {
+      event.preventDefault();
+    }
+  };
 
   // One shape for both modes: the chosen channel ids, in pick order.
   const channelIds = useMemo(
@@ -225,6 +235,18 @@ export function NewMessageRecipients({
     (row) => row.type === 'channel' && row.channel.kind === 'group',
   );
   const hasSelection = channelIds.length > 0 || selectedPeopleIds.length > 0;
+  // In single mode a channel and people are exclusive targets: say so before
+  // a pick silently swaps one chip for another.
+  const singleChannel = !multiple ? (selectedChannels[0] ?? null) : null;
+  const replaces = (row: Row) =>
+    !multiple &&
+    ((row.type === 'channel' && (channelIds.length > 0 || selectedPeopleIds.length > 0)) ||
+      (row.type === 'person' && channelIds.length > 0));
+  const inputPlaceholder = singleChannel
+    ? 'Switch to another channel or person…'
+    : hasSelection
+      ? 'Add another…'
+      : (placeholder ?? '#a-channel, @somebody, or a name');
   const firstPersonIndex = rows.findIndex((row) => row.type === 'person');
   // Keep the panel up while typing so "no matches" can show; otherwise only
   // when there is something to pick.
@@ -234,11 +256,15 @@ export function NewMessageRecipients({
     <Popover open={panelOpen} onOpenChange={setOpen} modal={false}>
       <PopoverAnchor asChild>
         <div
+          ref={fieldRef}
           className={cn(
             'gap-1.5 px-2.5 py-2 min-h-11 flex flex-wrap items-center rounded-lg border border-input theme-fixed bg-field text-sm transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring',
             className,
           )}
-          onClick={() => inputRef.current?.focus()}
+          onClick={() => {
+            inputRef.current?.focus();
+            setOpen(true);
+          }}
         >
           {label ? (
             <span className="font-medium pl-0.5 text-muted-foreground select-none">
@@ -251,9 +277,10 @@ export function NewMessageRecipients({
               key={channel.id}
               icon={<ChannelGlyph channel={channel} className="size-3" />}
               label={channel.name}
-              onRemove={() =>
-                setChannelIds(channelIds.filter((id) => id !== channel.id))
-              }
+              onRemove={() => {
+                setChannelIds(channelIds.filter((id) => id !== channel.id));
+                inputRef.current?.focus();
+              }}
             />
           ))}
 
@@ -269,11 +296,12 @@ export function NewMessageRecipients({
                 />
               }
               label={person.name}
-              onRemove={() =>
+              onRemove={() => {
                 onChangePeople(
                   selectedPeopleIds.filter((id) => id !== person.id),
-                )
-              }
+                );
+                inputRef.current?.focus();
+              }}
             />
           ))}
 
@@ -293,11 +321,7 @@ export function NewMessageRecipients({
             aria-expanded={panelOpen}
             aria-controls={listId}
             aria-autocomplete="list"
-            placeholder={
-              hasSelection
-                ? 'Add another…'
-                : (placeholder ?? '#a-channel, @somebody, or a name')
-            }
+            placeholder={inputPlaceholder}
             className="min-w-40 flex-1 bg-transparent py-0.5 outline-none placeholder:text-muted-foreground"
           />
         </div>
@@ -309,8 +333,18 @@ export function NewMessageRecipients({
         sideOffset={6}
         onOpenAutoFocus={(event) => event.preventDefault()}
         onCloseAutoFocus={(event) => event.preventDefault()}
-        className="w-(--radix-popover-trigger-width) max-h-72 p-1"
+        onFocusOutside={ignoreIfInField}
+        onInteractOutside={ignoreIfInField}
+        className="w-(--radix-popover-trigger-width) max-h-72 p-1 overflow-y-auto"
       >
+        {!multiple && hasSelection ? (
+          <p className="mx-1 mt-1 mb-1.5 px-2 py-1.5 rounded-md bg-muted/60 text-[11px] text-muted-foreground">
+            {singleChannel
+              ? `A new message goes to one place — picking another channel or a person replaces #${singleChannel.name}.`
+              : 'Add more people for a group message — picking a channel replaces them.'}
+          </p>
+        ) : null}
+
         {showChannelGroup ? (
           <p className="px-2 pt-1.5 pb-1 font-semibold tracking-wide text-[11px] text-muted-foreground uppercase">
             {hasGroupRows ? 'Channels & groups' : 'Channels'}
@@ -420,7 +454,7 @@ export function NewMessageRecipients({
 
                 {isActive ? (
                   <kbd className="px-1.5 py-0.5 font-sans text-[10px] rounded border border-border bg-background text-muted-foreground">
-                    Enter
+                    {replaces(row) ? 'Enter to switch' : 'Enter'}
                   </kbd>
                 ) : null}
               </button>
