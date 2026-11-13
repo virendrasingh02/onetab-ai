@@ -531,6 +531,8 @@ export const sidebarPreferencesSchema = z
     /** Sections (default) or the newest-first activity list. */
     layoutMode: z.enum(['sections', 'activity']).optional(),
     activityFilter: z.enum(['all', 'unreads', 'dms', 'channels']).optional(),
+    /** Desktop app rail: icons with labels, or icons only. */
+    railDisplay: z.enum(['icons-text', 'icons']).optional(),
     /** workspaceId → { mode, direction }. */
     channelSort: z.record(z.string(), z.unknown()).optional(),
     /** workspaceId → SidebarSectionDef[]. */

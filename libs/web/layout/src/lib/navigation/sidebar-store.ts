@@ -78,6 +78,9 @@ export function toSidebarActivityConfig(
  */
 export type SidebarLayoutMode = 'sections' | 'activity';
 
+/** What the desktop app rail shows under each icon. */
+export type AppRailDisplay = 'icons-text' | 'icons';
+
 /** The filter chips above the activity list. */
 export type ActivityListFilter = 'all' | 'unreads' | 'dms' | 'channels';
 
@@ -186,6 +189,8 @@ export interface SidebarState {
   layoutMode: SidebarLayoutMode;
   /** The activity list's selected filter chip. */
   activityFilter: ActivityListFilter;
+  /** App rail: icons with labels (default) or icons only. */
+  railDisplay: AppRailDisplay;
 
   /* --- Smart sidebar & channel sorting (brief §1.1 / §1.2) -------------
    * All three maps are keyed by workspaceId so a user's organisation of one
@@ -252,6 +257,7 @@ export interface SidebarState {
   resetActivityIndicators: () => void;
   setLayoutMode: (mode: SidebarLayoutMode) => void;
   setActivityFilter: (filter: ActivityListFilter) => void;
+  setRailDisplay: (display: AppRailDisplay) => void;
   resetToDefaultOrder: () => void;
   resetAllVisibility: () => void;
   resetAllPreferences: () => void;
@@ -373,6 +379,7 @@ export const useSidebarStore = create<SidebarState>()(
       activityIndicators: { ...DEFAULT_ACTIVITY_INDICATORS },
       layoutMode: 'sections',
       activityFilter: 'all',
+      railDisplay: 'icons-text',
       channelSort: {},
       sectionDefs: {},
       channelMeta: {},
@@ -649,6 +656,8 @@ export const useSidebarStore = create<SidebarState>()(
 
       setActivityFilter: (filter) => set(() => ({ activityFilter: filter })),
 
+      setRailDisplay: (display) => set(() => ({ railDisplay: display })),
+
       // --- Smart sidebar & channel sorting --------------------------------
 
       setChannelSort: (workspaceId, mode, direction) =>
@@ -850,6 +859,7 @@ export const useSidebarStore = create<SidebarState>()(
           activityIndicators: { ...DEFAULT_ACTIVITY_INDICATORS },
           layoutMode: 'sections',
           activityFilter: 'all',
+          railDisplay: 'icons-text',
           channelSort: {},
           sectionDefs: {},
           channelMeta: {},
@@ -868,6 +878,7 @@ export const useSidebarStore = create<SidebarState>()(
         activityIndicators: state.activityIndicators,
         layoutMode: state.layoutMode,
         activityFilter: state.activityFilter,
+        railDisplay: state.railDisplay,
         channelSort: state.channelSort,
         sectionDefs: state.sectionDefs,
         channelMeta: state.channelMeta,

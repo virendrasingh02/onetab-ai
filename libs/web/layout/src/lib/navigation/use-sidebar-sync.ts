@@ -15,6 +15,7 @@ type PersistedSidebar = Pick<
   | 'activityIndicators'
   | 'layoutMode'
   | 'activityFilter'
+  | 'railDisplay'
   | 'channelSort'
   | 'sectionDefs'
   | 'channelMeta'
@@ -32,6 +33,7 @@ function snapshot(state: SidebarState): PersistedSidebar {
     activityIndicators: state.activityIndicators,
     layoutMode: state.layoutMode,
     activityFilter: state.activityFilter,
+    railDisplay: state.railDisplay,
     channelSort: state.channelSort,
     sectionDefs: state.sectionDefs,
     channelMeta: state.channelMeta,

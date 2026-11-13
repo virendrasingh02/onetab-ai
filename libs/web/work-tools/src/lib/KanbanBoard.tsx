@@ -178,9 +178,9 @@ export function KanbanBoard({
   );
 
   return (
-    <div className="group/board min-h-128 px-4 sm:px-6 py-4 flex h-full flex-col overflow-hidden text-foreground">
+    <div className="group/board min-h-128 pt-4 flex h-full flex-col overflow-hidden text-foreground">
       {/* Board Filter Controls & AI Overlay */}
-      <div className="mb-2 space-y-2 relative shrink-0">
+      <div className="mb-2 px-4 sm:px-6 space-y-2 relative shrink-0 empty:mb-0">
         {/* AI Filter Input Prompt Overlay Bar */}
         {showAIFilterInput && (
           <div className="gap-2 p-2 text-xs animate-in fade-in flex items-center rounded-xl border border-accent-violet/40 bg-accent-violet-soft">
@@ -320,7 +320,7 @@ export function KanbanBoard({
 
       {/* Kanban Columns Drag Scroller */}
       {isLoading ? (
-        <div className="gap-4 sm:gap-5 pb-6 flex flex-1 items-start overflow-hidden">
+        <div className="gap-4 sm:gap-5 px-4 sm:px-6 pb-4 flex flex-1 items-start overflow-hidden">
           {[0, 1, 2, 3].map((column) => (
             <div
               key={column}
@@ -335,7 +335,7 @@ export function KanbanBoard({
           ref={scrollerRef}
           onPointerDown={pan.onPointerDown}
           // Blank space pans the board; `data-panning` is set while it does.
-          className="scrollbar-subtle gap-4 sm:gap-5 pb-6 min-h-0 relative flex flex-1 cursor-grab items-stretch overflow-x-auto data-panning:cursor-grabbing data-panning:select-none"
+          className="scrollbar-subtle gap-4 sm:gap-5 px-4 sm:px-6 pb-4 scroll-px-4 sm:scroll-px-6 min-h-0 relative flex flex-1 cursor-grab items-stretch overflow-x-auto data-panning:cursor-grabbing data-panning:select-none"
         >
           {board.lists.map((list, index) => (
             <KanbanListColumn
