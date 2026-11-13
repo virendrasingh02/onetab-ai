@@ -252,7 +252,6 @@ const CATEGORIES: { id: NodeCategory; label: string }[] = [
   { id: 'knowledge', label: 'Knowledge' },
   { id: 'tools', label: 'Tools' },
   { id: 'logic', label: 'Logic' },
-  { id: 'triggers', label: 'Triggers' },
   { id: 'transform', label: 'Data' },
   { id: 'human', label: 'Human' },
   { id: 'output', label: 'Output' },
@@ -352,8 +351,17 @@ function QuickAddMenu({
   const navigate = useNavigate();
   // Every connected app's actions and events, from the live connector manifests
   const connectorNodes = useConnectorCatalogNodes();
+  // This menu only ever adds a step *after* another one, and a trigger can't
+  // follow a step: triggers are added from the main "Add a step" catalog.
   const rootSource = useMemo(
-    () => items ?? [...CATALOG_NODES, ...connectorNodes],
+    () =>
+      items ??
+      [...CATALOG_NODES, ...connectorNodes].filter(
+        (n) =>
+          n.category !== 'triggers' &&
+          n.type !== 'START' &&
+          !n.type.includes('TRIGGER'),
+      ),
     [items, connectorNodes],
   );
   const appEntries = useMemo(
@@ -551,7 +559,7 @@ function QuickAddMenu({
               ? 'Search apps…'
               : view.level === 'actions'
                 ? `Search ${view.app} actions…`
-                : 'Search nodes…'
+                : 'Search steps…'
           }
           className="pl-8 pr-7 py-1.5 text-xs w-full rounded-md border border-border bg-surface text-foreground transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-1 focus:ring-ring focus:outline-hidden"
         />
@@ -1095,10 +1103,13 @@ export function NodeActionToolbar({
   data,
   addHandleId,
   canAddNext = true,
+  canPreview = true,
 }: {
   id: string;
   data: WorkflowNodePayload;
   selected?: boolean;
+  /** False for cards that never run (notes, groups). */
+  canPreview?: boolean;
   /** Source handle the toolbar "+" connects from (e.g. `true` on If/Else). */
   addHandleId?: string;
   /** False for nodes without an output handle (End, notes, groups). */
@@ -1120,7 +1131,7 @@ export function NodeActionToolbar({
   const name = data?.label || 'node';
 
   const showAdd = canAddNext && !locked && Boolean(data?.onConnectNext);
-  const showPreview = Boolean(data?.onTest);
+  const showPreview = canPreview && Boolean(data?.onTest);
   const showEdit = Boolean(data?.onEdit);
   const showDuplicate = !locked && Boolean(data?.onDuplicate);
   const showDelete = !locked && Boolean(data?.onDelete);
@@ -3229,6 +3240,7 @@ export const StickyNoteNode = memo(({ id, data, selected }: NodeProps) => {
         data={nodeData}
         selected={selected}
         canAddNext={false}
+        canPreview={false}
       />
       <div
         className={cn(
@@ -3314,6 +3326,7 @@ export const GroupNode = memo(({ id, data, selected }: NodeProps) => {
         data={nodeData}
         selected={selected}
         canAddNext={false}
+        canPreview={false}
       />
       <div className="gap-2 text-sm font-semibold mb-2 flex items-center text-muted-foreground">
         <Folder className="size-4 text-primary" />

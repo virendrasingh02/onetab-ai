@@ -199,6 +199,7 @@ import {
 import {
   agentIssues,
   attachmentPosition,
+  freeSpot,
   getSlot,
   isAttachmentEdge,
   isSlotHost,
@@ -783,6 +784,8 @@ function WorkflowCanvasInner({
 
   // Bottom Node Catalog Modal State
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+  // Where the next catalog pick lands when it was opened from "Add a step here…"
+  const catalogDropRef = useRef<{ x: number; y: number } | null>(null);
   // Agent outline (teams, attachments, setup issues); opens on its own once the flow has agents
   const agentCount = useMemo(
     () => nodes.filter((n) => isSlotHost(n.type)).length,
@@ -1527,15 +1530,30 @@ function WorkflowCanvasInner({
       {/* Node Catalog Grid Modal */}
       <NodeCatalogModal
         isOpen={isCatalogOpen}
-        onClose={() => setIsCatalogOpen(false)}
+        onClose={() => {
+          setIsCatalogOpen(false);
+          catalogDropRef.current = null;
+        }}
         onSelectNode={(item) => {
-          // Drop the new node in the middle of the visible canvas (not the window — the
-          // header and side panels offset it)
+          // Where the right-click asked for it, else the middle of the visible canvas
+          // (not the window — the header and side panels offset it)
           const rect = canvasRef.current?.getBoundingClientRect();
-          const position = reactFlowInstance.screenToFlowPosition({
-            x: rect ? rect.left + rect.width / 2 - 120 : window.innerWidth / 2,
-            y: rect ? rect.top + rect.height / 2 - 40 : window.innerHeight / 2,
-          });
+          const at = catalogDropRef.current;
+          catalogDropRef.current = null;
+          const position = freeSpot(
+            nodes,
+            reactFlowInstance.screenToFlowPosition(
+              at ?? {
+                x: rect
+                  ? rect.left + rect.width / 2 - 120
+                  : window.innerWidth / 2,
+                y: rect
+                  ? rect.top + rect.height / 2 - 40
+                  : window.innerHeight / 2,
+              },
+            ),
+            direction === 'vertical' ? 'right' : 'down',
+          );
 
           const newNode: Node = {
             id: `${item.type.toLowerCase()}-${Date.now().toString(36)}`,
@@ -1733,18 +1751,18 @@ function WorkflowCanvasInner({
           reactFlowInstance.fitView({ padding: 0.2, duration: 300 })
         }
         onAddNode={(pos) => {
-          const flowPos = reactFlowInstance.screenToFlowPosition(pos);
-          onAddNode({
-            id: `agent-${Date.now().toString(36)}`,
-            type: 'AGENT',
-            position: flowPos,
-            data: {
-              label: 'AI Agent',
-              subtitle: 'Autonomous Reasoning',
-              config: {},
-            },
-          });
+          // Let them pick the step; it lands where they right-clicked
+          catalogDropRef.current = pos;
+          setIsCatalogOpen(true);
         }}
+        onAddNote={(pos) =>
+          onAddNode({
+            id: `sticky_note-${Date.now().toString(36)}`,
+            type: 'STICKY_NOTE',
+            position: reactFlowInstance.screenToFlowPosition(pos),
+            data: { label: 'Sticky Note', config: { note: '', color: 'yellow' } },
+          })
+        }
         onDuplicateNode={(node) => onDuplicateNode(node)}
         onCopyNode={onCopyNode}
         onCutNode={onCutNode}
@@ -3186,7 +3204,10 @@ export function AgentDetailPage() {
   const onNodeClick = useCallback(
     async (_: React.MouseEvent, node: Node) => {
       if (node.id !== selectedNodeId && !(await confirmLeaveModule())) return;
-      setSelectedNode(node);
+      // A note or group is edited in place: a click selects it without opening
+      // the settings panel over the canvas (its Edit button still opens it).
+      const inPlace = node.type === 'STICKY_NOTE' || node.type === 'GROUP';
+      setSelectedNode(inPlace ? null : node);
       setSelectedEdgeId(null);
     },
     [setSelectedNode, selectedNodeId, confirmLeaveModule],
@@ -3256,8 +3277,8 @@ export function AgentDetailPage() {
       setIsDirty(true);
       toast(
         nodeIds.length === 1
-          ? 'Node deleted'
-          : `${nodeIds.length} nodes deleted`,
+          ? 'Step deleted'
+          : `${nodeIds.length} steps deleted`,
         {
           action: undoAction,
         },
@@ -3290,11 +3311,13 @@ export function AgentDetailPage() {
         ...nds.map((n) => ({ ...n, selected: false })),
         withSelected,
       ]);
-      setSelectedNode(withSelected);
+      // Notes and groups are edited right on the canvas: no settings panel over them
+      if (node.type !== 'STICKY_NOTE' && node.type !== 'GROUP')
+        setSelectedNode(withSelected);
       setIsDirty(true);
       focusNode(node);
       if (!options?.silent)
-        toast.success(`Added "${node.data?.label || 'Node'}"`);
+        toast.success(`Added "${node.data?.label || 'Step'}"`);
     },
     [focusNode, setSelectedNode, isCanvasLocked, canManage],
   );
@@ -3339,6 +3362,14 @@ export function AgentDetailPage() {
         yPos += 90;
       } else if (handleId === 'true') {
         yPos -= 50;
+      }
+      // Never on top of a card that is already there (an agent's Output, say)
+      if (!slot) {
+        ({ x: xPos, y: yPos } = freeSpot(
+          nodes,
+          { x: xPos, y: yPos },
+          workflowDirection === 'vertical' ? 'right' : 'down',
+        ));
       }
 
       const newNode: Node = {
@@ -3754,10 +3785,12 @@ export function AgentDetailPage() {
       const newNode: Node = {
         id: `${node.type?.toLowerCase() || 'node'}-${Date.now().toString(36)}`,
         type: node.type,
-        position: {
-          x: node.position.x + 50,
-          y: node.position.y + 50,
-        },
+        // Beside the original, clear of every other card
+        position: freeSpot(
+          nodes,
+          { x: node.position.x + 50, y: node.position.y + 50 },
+          workflowDirection === 'vertical' ? 'right' : 'down',
+        ),
         data: {
           ...node.data,
           label: `${node.data?.label || 'Node'} (Copy)`,
@@ -3766,7 +3799,7 @@ export function AgentDetailPage() {
       handleAddNode(newNode, { silent: true });
       toast.success(`Duplicated "${node.data?.label || 'Node'}"`);
     },
-    [handleAddNode],
+    [handleAddNode, nodes, workflowDirection],
   );
 
   const handleDeleteEdge = useCallback(
@@ -3993,10 +4026,16 @@ export function AgentDetailPage() {
       }
 
       // Default addition (e.g. from Command Palette)
-      const position = {
+      // Middle of what is on screen, in canvas coordinates, clear of other cards
+      const center = {
         x: window.innerWidth / 2 - 120,
         y: window.innerHeight / 2 - 40,
       };
+      const position = freeSpot(
+        nodes,
+        reactFlowRef.current?.screenToFlowPosition(center) ?? center,
+        workflowDirection === 'vertical' ? 'right' : 'down',
+      );
       const newNode: Node = {
         id: `${item.type.toLowerCase()}-${Date.now().toString(36)}`,
         type: item.type,
@@ -4010,7 +4049,14 @@ export function AgentDetailPage() {
       };
       handleAddNode(newNode);
     },
-    [edgeSplitContext, dropContext, handleAddNode, setSelectedNode],
+    [
+      edgeSplitContext,
+      dropContext,
+      handleAddNode,
+      setSelectedNode,
+      nodes,
+      workflowDirection,
+    ],
   );
 
   const handleCopySelected = useCallback(

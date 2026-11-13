@@ -87,8 +87,8 @@ export function CanvasCommandPalette({
       {
         id: 'cmd-layout-lr',
         category: 'Layout',
-        label: 'Auto Layout Workflow (Horizontal LR)',
-        subtitle: 'Tidy graph nodes from left to right',
+        label: 'Auto layout (horizontal)',
+        subtitle: 'Tidy the steps from left to right',
         icon: Wand2,
         shortcut: 'Shift+L',
         action: () => onAutoLayout('LR'),
@@ -96,16 +96,16 @@ export function CanvasCommandPalette({
       {
         id: 'cmd-layout-tb',
         category: 'Layout',
-        label: 'Auto Layout Workflow (Vertical TB)',
-        subtitle: 'Tidy graph nodes from top to bottom',
+        label: 'Auto layout (vertical)',
+        subtitle: 'Tidy the steps from top to bottom',
         icon: Wand2,
         action: () => onAutoLayout('TB'),
       },
       {
         id: 'cmd-fit-view',
         category: 'View',
-        label: 'Fit View to Screen',
-        subtitle: 'Frame entire graph in canvas view',
+        label: 'Zoom to fit',
+        subtitle: 'Show every step on screen',
         icon: Maximize2,
         shortcut: 'Shift+1',
         action: onFitView,
@@ -113,24 +113,24 @@ export function CanvasCommandPalette({
       {
         id: 'cmd-test-run',
         category: 'Execution',
-        label: 'Run Test Execution',
-        subtitle: 'Execute workflow simulation with live trace',
+        label: 'Run a test',
+        subtitle: 'Try the agent and watch each step',
         icon: Play,
         action: onTestRun,
       },
       {
         id: 'cmd-validate',
         category: 'Quality',
-        label: 'Validate Workflow Graph',
-        subtitle: 'Inspect structure for cycles, orphaned nodes, and missing credentials',
+        label: 'Check for problems',
+        subtitle: 'Find loops, unconnected steps and missing connections',
         icon: ShieldCheck,
         action: onValidate,
       },
       {
         id: 'cmd-save',
         category: 'Workflow',
-        label: 'Save Workflow Changes',
-        subtitle: 'Persist canvas graph to backend server',
+        label: 'Save changes',
+        subtitle: 'Save this canvas now',
         icon: Save,
         shortcut: 'Ctrl+S',
         action: onSave,
@@ -138,8 +138,8 @@ export function CanvasCommandPalette({
       {
         id: 'cmd-publish',
         category: 'Workflow',
-        label: 'Publish Live Version',
-        subtitle: 'Create immutable release version',
+        label: 'Publish',
+        subtitle: 'Release this version to the people who use the agent',
         icon: CheckCircle2,
         shortcut: 'Ctrl+Shift+P',
         action: onPublish,
@@ -147,8 +147,8 @@ export function CanvasCommandPalette({
       {
         id: 'cmd-undo',
         category: 'Edit',
-        label: 'Undo Previous Edit',
-        subtitle: 'Revert graph action',
+        label: 'Undo',
+        subtitle: 'Take back the last change',
         icon: Undo2,
         shortcut: 'Ctrl+Z',
         action: onUndo,
@@ -156,8 +156,8 @@ export function CanvasCommandPalette({
       {
         id: 'cmd-redo',
         category: 'Edit',
-        label: 'Redo Next Edit',
-        subtitle: 'Re-apply reverted action',
+        label: 'Redo',
+        subtitle: 'Bring back the change you undid',
         icon: Redo2,
         shortcut: 'Ctrl+Y',
         action: onRedo,
@@ -165,8 +165,8 @@ export function CanvasCommandPalette({
       {
         id: 'cmd-lock',
         category: 'Canvas',
-        label: isLocked ? 'Unlock Canvas' : 'Lock Canvas (Prevent Changes)',
-        subtitle: isLocked ? 'Enable dragging and editing' : 'Freeze nodes in place',
+        label: isLocked ? 'Unlock canvas' : 'Lock canvas',
+        subtitle: isLocked ? 'Allow moving and editing again' : 'Stop accidental changes',
         icon: isLocked ? Unlock : Lock,
         action: onToggleLock,
       },
@@ -175,7 +175,7 @@ export function CanvasCommandPalette({
             {
               id: 'cmd-presentation',
               category: 'View',
-              label: 'Toggle Presentation Mode',
+              label: 'Presentation mode',
               subtitle: 'Hide all panels for a clean full-screen presentation',
               icon: Eye,
               action: onTogglePresentation,
@@ -185,8 +185,8 @@ export function CanvasCommandPalette({
       {
         id: 'cmd-export',
         category: 'File',
-        label: 'Export Workflow as JSON',
-        subtitle: 'Download graph definition and node configurations',
+        label: 'Export as JSON',
+        subtitle: 'Download the steps and their settings',
         icon: Download,
         action: onExportJson,
       },
@@ -288,7 +288,7 @@ export function CanvasCommandPalette({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-xl overflow-hidden p-0 gap-0 rounded-xl border-border bg-surface/98 backdrop-blur-xl shadow-2xl">
-        <DialogTitle className="sr-only">Workflow Command Palette</DialogTitle>
+        <DialogTitle className="sr-only">Search and commands</DialogTitle>
 
         {/* Input Bar */}
         <div className="flex items-center gap-3 border-b border-border/80 px-4 py-3">
@@ -302,7 +302,7 @@ export function CanvasCommandPalette({
               setSelectedIndex(0);
             }}
             onKeyDown={handleKeyDown}
-            placeholder="Type a command, search nodes, or add new steps…"
+            placeholder="Search steps and commands, or add a step…"
             className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/60 outline-none"
           />
           <kbd className="rounded-md border border-border/60 bg-surface-raised px-1.5 py-0.5 text-2xs font-mono text-muted-foreground">
@@ -316,7 +316,7 @@ export function CanvasCommandPalette({
           {matchingNodes.length > 0 && (
             <div>
               <div className="px-2.5 py-1 text-2xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Nodes on Canvas
+                Steps on this canvas
               </div>
               {matchingNodes.map((n, i) => {
                 const globalIndex = i;
@@ -353,7 +353,7 @@ export function CanvasCommandPalette({
           {filteredCommands.length > 0 && (
             <div>
               <div className="px-2.5 py-1 text-2xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Commands & Actions
+                Commands
               </div>
               {filteredCommands.map((c, i) => {
                 const globalIndex = matchingNodes.length + i;
@@ -397,7 +397,7 @@ export function CanvasCommandPalette({
           {matchingCatalog.length > 0 && (
             <div>
               <div className="px-2.5 py-1 text-2xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Add Node to Canvas
+                Add a step
               </div>
               {matchingCatalog.map((cat, i) => {
                 const globalIndex = matchingNodes.length + filteredCommands.length + i;

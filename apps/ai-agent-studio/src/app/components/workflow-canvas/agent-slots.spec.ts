@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   agentHierarchy,
   agentIssues,
+  freeSpot,
   handleOrder,
   isAttachmentEdge,
   isValidSlotConnection,
@@ -15,6 +16,23 @@ import {
 
 const node = (id: string, type: string): Node => ({ id, type, position: { x: 0, y: 0 }, data: { label: id } });
 const nodes = [node('agent', 'AGENT'), node('p1', 'PROMPT_TEMPLATE'), node('p2', 'PROMPT_TEMPLATE'), node('llm', 'AI_CHAT_MODEL'), node('http', 'HTTP_REQUEST'), node('kb', 'KB_SEARCH')];
+
+describe('freeSpot', () => {
+  const card = (id: string, x: number, y: number): Node => ({ ...node(id, 'END'), position: { x, y }, measured: { width: 300, height: 200 } });
+
+  it('keeps a clear spot as it is', () => {
+    expect(freeSpot([card('a', 0, 0)], { x: 600, y: 0 })).toEqual({ x: 600, y: 0 });
+  });
+
+  it('slides below whatever is in the way, card after card', () => {
+    const spot = freeSpot([card('a', 0, 0), card('b', 0, 232)], { x: 40, y: 40 });
+    expect(spot).toEqual({ x: 40, y: 464 });
+  });
+
+  it('slides right in a top-to-bottom flow', () => {
+    expect(freeSpot([card('a', 0, 0)], { x: 40, y: 40 }, 'right')).toEqual({ x: 332, y: 40 });
+  });
+});
 
 describe('agent slots', () => {
   it('only lets compatible nodes into a slot', () => {

@@ -204,6 +204,26 @@ export function attachmentPosition(agent: Node, nodes: Node[], edges: Edge[]): {
   return { x, y };
 }
 
+/**
+ * The nearest clear spot for a new step at or past `at`, so nothing is ever
+ * added on top of another card. Slides down in a left-to-right flow and right
+ * in a top-to-bottom one, which keeps the new card off the flow's own line.
+ */
+export function freeSpot(
+  nodes: Node[],
+  at: { x: number; y: number },
+  slide: 'down' | 'right' = 'down',
+): { x: number; y: number } {
+  let { x, y } = at;
+  for (let guard = 0; guard < nodes.length; guard++) {
+    const blocker = nodes.find((n) => !n.hidden && overlaps(n, x, y));
+    if (!blocker) break;
+    if (slide === 'down') y = blocker.position.y + (blocker.measured?.height ?? 120) + GAP;
+    else x = blocker.position.x + (blocker.measured?.width ?? 240) + GAP;
+  }
+  return { x, y };
+}
+
 const GAP = 32;
 /** Footprint reserved for a newly attached node before it has been measured. */
 const NEW_NODE = { width: 260, height: 220 };

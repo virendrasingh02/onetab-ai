@@ -464,7 +464,11 @@ export function NodeInspector({
               aria-label="Node panel"
               className="px-4"
             >
-              {(['settings', 'wiring', 'analytics'] as const).map((id) => (
+              {/* Notes and groups never run or connect: settings only */}
+              {(nodeType === 'STICKY_NOTE' || nodeType === 'GROUP'
+                ? (['settings'] as const)
+                : (['settings', 'wiring', 'analytics'] as const)
+              ).map((id) => (
                 <TabsTrigger key={id} value={id} className="capitalize">
                   {id}
                 </TabsTrigger>

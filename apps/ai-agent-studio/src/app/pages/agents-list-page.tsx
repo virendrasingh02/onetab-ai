@@ -328,7 +328,7 @@ export function AgentsListPage() {
         {
           id: 'start-1',
           type: 'START',
-          position: { x: 80, y: 280 },
+          position: { x: 80, y: 268 },
           data: {
             label: 'Start',
             subtitle: 'User prompt',
@@ -353,7 +353,7 @@ export function AgentsListPage() {
         {
           id: 'end-1',
           type: 'END',
-          position: { x: 920, y: 245 },
+          position: { x: 920, y: 233 },
           data: { label: 'Complete', subtitle: 'Final Output' },
         },
       ],
