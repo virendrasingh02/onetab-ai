@@ -105,7 +105,7 @@ export function CardSubIssues({
                   className="min-w-0 gap-2 text-sm flex flex-1 items-center text-left disabled:cursor-default"
                 >
                   {sub.identifier ? (
-                    <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                    <span className="shrink-0 font-mono text-meta text-muted-foreground">
                       {sub.identifier}
                     </span>
                   ) : null}

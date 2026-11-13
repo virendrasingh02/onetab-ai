@@ -481,7 +481,7 @@ export function MeetingDetailSheet({
                           className="group p-2.5 rounded-lg border border-border"
                         >
                           <div className="gap-2 flex items-center justify-between">
-                            <span className="gap-1.5 flex items-center text-[11px] text-muted-foreground">
+                            <span className="gap-1.5 flex items-center text-meta text-muted-foreground">
                               <UserAvatar
                                 name={
                                   note.author.displayName ?? note.author.name
@@ -564,7 +564,7 @@ export function MeetingDetailSheet({
                         >
                           <div className="min-w-0">
                             <p className="text-sm">{d.text}</p>
-                            <p className="mt-0.5 text-[11px] text-muted-foreground">
+                            <p className="mt-0.5 text-meta text-muted-foreground">
                               {d.author.displayName ?? d.author.name} ·{' '}
                               {formatDateTime(d.createdAt)}
                             </p>
@@ -649,7 +649,7 @@ export function MeetingDetailSheet({
                             )}
                           >
                             {task.identifier ? (
-                              <span className="mr-1.5 text-[11px] text-muted-foreground">
+                              <span className="mr-1.5 text-meta text-muted-foreground">
                                 {task.identifier}
                               </span>
                             ) : null}

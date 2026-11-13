@@ -145,7 +145,7 @@ export function ProjectUpdatesView({
                           up.author?.name ||
                           'Team Member'}
                       </span>
-                      <span className="text-[11px] text-muted-foreground">
+                      <span className="text-meta text-muted-foreground">
                         {new Date(up.createdAt).toLocaleDateString(undefined, {
                           month: 'short',
                           day: 'numeric',
@@ -161,7 +161,7 @@ export function ProjectUpdatesView({
 
                 <span
                   className={cn(
-                    'font-semibold px-2.5 py-0.5 rounded-full border text-[10px]',
+                    'font-semibold px-2.5 py-0.5 rounded-full border text-2xs',
                     up.status === ProjectHealth.HEALTHY &&
                       'border-accent-green/30 bg-accent-green-soft text-accent-green',
                     up.status === ProjectHealth.AT_RISK &&

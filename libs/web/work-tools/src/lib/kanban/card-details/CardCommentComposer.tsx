@@ -304,7 +304,7 @@ export function CardCommentComposer({
         </div>
 
         <div className="gap-2 flex items-center">
-          <span className="sm:inline hidden text-[11px] text-muted-foreground/80">
+          <span className="sm:inline hidden text-meta text-muted-foreground/80">
             Shift+Enter for a new line
           </span>
           <Button

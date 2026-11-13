@@ -77,7 +77,9 @@ export function ImportBoardDialog({
 }: ImportBoardDialogProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [sourceChoice, setSourceChoice] = useState<ImportSourceId | 'auto'>('auto');
+  const [sourceChoice, setSourceChoice] = useState<ImportSourceId | 'auto'>(
+    'auto',
+  );
   const [text, setText] = useState('');
   const [fileName, setFileName] = useState('');
   const [pasting, setPasting] = useState(false);
@@ -122,7 +124,8 @@ export function ImportBoardDialog({
    * re-runs on every mapping tweak rather than being cached in state — which
    * keeps the preview honest without an effect to keep in sync.
    */
-  const parsed = useMemo((): { file: ParsedFile } | { error: string } | null => {
+  const parsed = useMemo(():
+    { file: ParsedFile } | { error: string } | null => {
     if (!text.trim()) return null;
     try {
       const source =
@@ -162,20 +165,17 @@ export function ImportBoardDialog({
 
   const effectiveName = nameTouched ? name : (file?.board.title ?? '');
 
-  const acceptText = useCallback(
-    (value: string, sourceFileName: string) => {
-      setText(value);
-      setFileName(sourceFileName);
-      setReadError(null);
-      // A freshly loaded file gets a freshly guessed mapping; keeping the old
-      // one would silently apply one file's columns to another's headers.
-      setMapping(null);
-      setGroupBy('');
-      setNameTouched(false);
-      setName('');
-    },
-    [],
-  );
+  const acceptText = useCallback((value: string, sourceFileName: string) => {
+    setText(value);
+    setFileName(sourceFileName);
+    setReadError(null);
+    // A freshly loaded file gets a freshly guessed mapping; keeping the old
+    // one would silently apply one file's columns to another's headers.
+    setMapping(null);
+    setGroupBy('');
+    setNameTouched(false);
+    setName('');
+  }, []);
 
   const readFile = useCallback(
     async (selected: File) => {
@@ -215,14 +215,17 @@ export function ImportBoardDialog({
     IMPORT_SOURCES.find((entry) => entry.id === file?.source)?.name ?? '';
 
   return (
-    <Dialog open={open} onOpenChange={(next) => (next ? onOpenChange(true) : close())}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => (next ? onOpenChange(true) : close())}
+    >
       <DialogContent className="sm:max-w-2xl text-xs">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
+          <DialogTitle className="gap-2 text-sm font-semibold flex items-center">
             <Import className="size-4 text-primary" />
             Import a board
           </DialogTitle>
-          <DialogDescription className="text-[11px] text-muted-foreground">
+          <DialogDescription className="text-meta text-muted-foreground">
             Bring a project across from Trello, Linear, Asana, Jira, GitHub, or
             any CSV. Everything is read in your browser — nothing is uploaded.
           </DialogDescription>
@@ -239,7 +242,7 @@ export function ImportBoardDialog({
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDrop}
               className={cn(
-                'flex flex-col items-center justify-center gap-2 rounded-card border border-dashed p-6 text-center transition-colors',
+                'gap-2 p-6 flex flex-col items-center justify-center rounded-card border border-dashed text-center transition-colors',
                 dragOver
                   ? 'border-primary bg-accent-violet-soft'
                   : 'border-border bg-surface/40',
@@ -249,10 +252,10 @@ export function ImportBoardDialog({
               <p className="text-xs font-medium text-foreground">
                 Drop an export here
               </p>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-meta text-muted-foreground">
                 .json from Trello or GitHub · .csv from Linear, Asana, or Jira
               </p>
-              <div className="flex items-center gap-2 pt-1">
+              <div className="gap-2 pt-1 flex items-center">
                 <Button
                   size="sm"
                   variant="outline"
@@ -293,7 +296,7 @@ export function ImportBoardDialog({
                   value={pasteDraft}
                   onChange={(event) => setPasteDraft(event.target.value)}
                   placeholder="Paste CSV rows or JSON here..."
-                  className={cn(inputClass, 'resize-none font-mono text-[11px]')}
+                  className={cn(inputClass, 'resize-none font-mono text-meta')}
                 />
                 <Button
                   size="sm"
@@ -307,21 +310,21 @@ export function ImportBoardDialog({
             )}
 
             {readError && (
-              <p className="flex items-center gap-1.5 text-[11px] text-destructive">
+              <p className="gap-1.5 flex items-center text-meta text-destructive">
                 <AlertTriangle className="size-3.5" />
                 {readError}
               </p>
             )}
 
             {/* How to get an export out of each product */}
-            <div className="space-y-1.5 rounded-card border border-border bg-surface/40 p-3">
-              <p className="text-[11px] font-medium text-foreground">
+            <div className="space-y-1.5 p-3 rounded-card border border-border bg-surface/40">
+              <p className="font-medium text-meta text-foreground">
                 Where to find your export
               </p>
               <dl className="space-y-1">
                 {IMPORT_SOURCES.map((entry) => (
-                  <div key={entry.id} className="flex gap-2 text-[11px]">
-                    <dt className="w-24 shrink-0 font-medium text-muted-foreground">
+                  <div key={entry.id} className="gap-2 flex text-meta">
+                    <dt className="w-24 font-medium shrink-0 text-muted-foreground">
                       {entry.name}
                     </dt>
                     <dd className="min-w-0 flex-1 text-subtle">{entry.help}</dd>
@@ -334,9 +337,12 @@ export function ImportBoardDialog({
           /* ------------------------------------------- step 2: the preview */
           // Padded like `DialogBody`, so the rows line up with step 1 and the
           // scrollbar still hugs the dialog's edge.
-          <ScrollArea className="max-h-[60vh]" contentClassName="space-y-3 px-5 py-2">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-2">
+          <ScrollArea
+            className="max-h-[60vh]"
+            contentClassName="space-y-3 px-5 py-2"
+          >
+            <div className="gap-2 flex items-center justify-between">
+              <div className="min-w-0 gap-2 flex items-center">
                 <Button
                   size="sm"
                   variant="ghost"
@@ -350,7 +356,7 @@ export function ImportBoardDialog({
                   <ArrowLeft className="size-3.5" />
                   Back
                 </Button>
-                <span className="truncate text-[11px] text-muted-foreground">
+                <span className="truncate text-meta text-muted-foreground">
                   {fileName}
                 </span>
               </div>
@@ -358,9 +364,11 @@ export function ImportBoardDialog({
               <AppSelect
                 size="sm"
                 value={sourceChoice}
-                onValueChange={(v) => setSourceChoice(v as ImportSourceId | 'auto')}
+                onValueChange={(v) =>
+                  setSourceChoice(v as ImportSourceId | 'auto')
+                }
                 aria-label="Read this file as"
-                className="w-auto min-w-48"
+                className="min-w-48 w-auto"
                 options={[
                   {
                     value: 'auto',
@@ -375,8 +383,8 @@ export function ImportBoardDialog({
             </div>
 
             {parsed && 'error' in parsed ? (
-              <p className="flex items-start gap-1.5 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-[11px] text-destructive">
-                <AlertTriangle className="mt-px size-3.5 shrink-0" />
+              <p className="gap-1.5 p-2 flex items-start rounded-md border border-destructive/40 bg-destructive/10 text-meta text-destructive">
+                <AlertTriangle className="size-3.5 mt-px shrink-0" />
                 {parsed.error}
               </p>
             ) : null}
@@ -384,7 +392,7 @@ export function ImportBoardDialog({
             {file && preview && (
               <>
                 {/* Summary */}
-                <div className="grid grid-cols-3 gap-2">
+                <div className="gap-2 grid grid-cols-3">
                   <Summary
                     icon={<Columns3 className="size-3.5" />}
                     value={preview.board.lists.length}
@@ -408,7 +416,9 @@ export function ImportBoardDialog({
                     table={file.table}
                     sourceId={file.source}
                     sourceName={sourceName}
-                    mapping={mapping ?? file.mapping ?? guessMapping(file.table)}
+                    mapping={
+                      mapping ?? file.mapping ?? guessMapping(file.table)
+                    }
                     onMappingChange={setMapping}
                     groupBy={groupBy}
                     onGroupByChange={setGroupBy}
@@ -417,20 +427,20 @@ export function ImportBoardDialog({
 
                 {/* Board preview */}
                 <div className="space-y-1.5">
-                  <p className="text-[11px] font-medium text-foreground">
+                  <p className="font-medium text-meta text-foreground">
                     Preview
                   </p>
-                  <div className="flex gap-2 overflow-x-auto pb-1">
+                  <div className="gap-2 pb-1 flex overflow-x-auto">
                     {preview.board.lists.map((list) => (
                       <div
                         key={list.id}
-                        className="w-40 shrink-0 rounded-md border border-border bg-surface p-2"
+                        className="w-40 p-2 shrink-0 rounded-md border border-border bg-surface"
                       >
-                        <div className="flex items-center justify-between gap-1">
-                          <p className="truncate text-[11px] font-medium text-foreground">
+                        <div className="gap-1 flex items-center justify-between">
+                          <p className="font-medium truncate text-meta text-foreground">
                             {list.title}
                           </p>
-                          <span className="text-[10px] tabular-nums text-muted-foreground">
+                          <span className="text-2xs text-muted-foreground tabular-nums">
                             {list.cards.length}
                           </span>
                         </div>
@@ -438,13 +448,13 @@ export function ImportBoardDialog({
                           {list.cards.slice(0, 3).map((card) => (
                             <li
                               key={card.id}
-                              className="truncate rounded bg-surface-inset px-1.5 py-1 text-[10px] text-muted-foreground"
+                              className="rounded px-1.5 py-1 truncate bg-surface-inset text-2xs text-muted-foreground"
                             >
                               {card.title}
                             </li>
                           ))}
                           {list.cards.length > 3 && (
-                            <li className="px-1.5 text-[10px] text-subtle">
+                            <li className="px-1.5 text-2xs text-subtle">
                               +{list.cards.length - 3} more
                             </li>
                           )}
@@ -456,13 +466,13 @@ export function ImportBoardDialog({
 
                 {/* Labels become task labels and join the workspace catalogue. */}
                 {preview.board.labels.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1.5">
+                  <div className="gap-1.5 flex flex-wrap items-center">
                     <Tag className="size-3.5 text-muted-foreground" />
                     {preview.board.labels.slice(0, 8).map((label) => (
                       <span
                         key={label.id}
                         className={cn(
-                          'rounded-full px-2 py-1 text-[10px] font-semibold leading-none',
+                          'px-2 py-1 font-semibold rounded-full text-2xs leading-none',
                           accentClasses[label.color].soft,
                         )}
                       >
@@ -470,7 +480,7 @@ export function ImportBoardDialog({
                       </span>
                     ))}
                     {preview.board.labels.length > 8 && (
-                      <span className="text-[10px] text-subtle">
+                      <span className="text-2xs text-subtle">
                         +{preview.board.labels.length - 8}
                       </span>
                     )}
@@ -478,13 +488,13 @@ export function ImportBoardDialog({
                 )}
 
                 {preview.warnings.length > 0 && (
-                  <ul className="space-y-1 rounded-md border border-accent-amber/40 bg-accent-amber-soft p-2">
+                  <ul className="space-y-1 p-2 rounded-md border border-accent-amber/40 bg-accent-amber-soft">
                     {preview.warnings.map((warning) => (
                       <li
                         key={warning}
-                        className="flex items-start gap-1.5 text-[11px] text-foreground"
+                        className="gap-1.5 flex items-start text-meta text-foreground"
                       >
-                        <AlertTriangle className="mt-px size-3 shrink-0 text-accent-amber" />
+                        <AlertTriangle className="size-3 mt-px shrink-0 text-accent-amber" />
                         {warning}
                       </li>
                     ))}
@@ -492,9 +502,9 @@ export function ImportBoardDialog({
                 )}
 
                 {/* Destination */}
-                <div className="space-y-2.5 rounded-card border border-border bg-surface/40 p-3">
+                <div className="space-y-2.5 p-3 rounded-card border border-border bg-surface/40">
                   {currentProjectName && (
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="gap-3 flex flex-wrap items-center">
                       <RadioOption
                         checked={mode === 'new'}
                         onSelect={() => setMode('new')}
@@ -511,7 +521,7 @@ export function ImportBoardDialog({
                   {mode === 'new' && (
                     <div className="space-y-2">
                       <label className="space-y-1 block">
-                        <span className="text-[11px] font-medium text-muted-foreground">
+                        <span className="font-medium text-meta text-muted-foreground">
                           Project name
                         </span>
                         <input
@@ -526,10 +536,10 @@ export function ImportBoardDialog({
                       </label>
 
                       <div className="space-y-1">
-                        <span className="text-[11px] font-medium text-muted-foreground">
+                        <span className="font-medium text-meta text-muted-foreground">
                           Colour
                         </span>
-                        <div className="flex items-center gap-1.5">
+                        <div className="gap-1.5 flex items-center">
                           {PROJECT_COLORS.map((option) => (
                             <button
                               key={option.hex}
@@ -542,7 +552,7 @@ export function ImportBoardDialog({
                               className={cn(
                                 'size-5 rounded-full transition-transform',
                                 color === option.hex
-                                  ? 'ring-2 ring-ring ring-offset-2 ring-offset-background scale-110'
+                                  ? 'scale-110 ring-2 ring-ring ring-offset-2 ring-offset-background'
                                   : 'hover:scale-105',
                               )}
                             />
@@ -552,14 +562,16 @@ export function ImportBoardDialog({
                     </div>
                   )}
 
-                  <label className="flex items-center gap-2">
+                  <label className="gap-2 flex items-center">
                     <input
                       type="checkbox"
                       checked={includeArchived}
-                      onChange={(event) => setIncludeArchived(event.target.checked)}
+                      onChange={(event) =>
+                        setIncludeArchived(event.target.checked)
+                      }
                       className="size-3.5 accent-primary"
                     />
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-meta text-muted-foreground">
                       Include archived, closed, and cancelled items
                     </span>
                   </label>
@@ -616,9 +628,9 @@ function ColumnMapping({
   return (
     <details
       open={sourceId === 'csv'}
-      className="rounded-card border border-border bg-surface/40 p-3"
+      className="p-3 rounded-card border border-border bg-surface/40"
     >
-      <summary className="cursor-pointer text-[11px] font-medium text-foreground">
+      <summary className="font-medium cursor-pointer text-meta text-foreground">
         Column mapping
         <span className="ml-1.5 font-normal text-subtle">
           {sourceId === 'csv'
@@ -627,12 +639,14 @@ function ColumnMapping({
         </span>
       </summary>
 
-      <div className="grid grid-cols-2 gap-2 pt-2.5 sm:grid-cols-3">
+      <div className="gap-2 pt-2.5 sm:grid-cols-3 grid grid-cols-2">
         {CSV_FIELDS.map((field) => (
           <label key={field.key} className="space-y-1">
-            <span className="text-[11px] font-medium text-muted-foreground">
+            <span className="font-medium text-meta text-muted-foreground">
               {field.label}
-              {field.required ? <span className="text-destructive"> *</span> : null}
+              {field.required ? (
+                <span className="text-destructive"> *</span>
+              ) : null}
             </span>
             <AppSelect
               size="sm"
@@ -641,15 +655,18 @@ function ColumnMapping({
               aria-label={field.label}
               options={[
                 { value: '', label: '— none —' },
-                ...table.headers.map((header) => ({ value: header, label: header })),
+                ...table.headers.map((header) => ({
+                  value: header,
+                  label: header,
+                })),
               ]}
             />
           </label>
         ))}
       </div>
 
-      <label className="mt-2.5 block space-y-1">
-        <span className="text-[11px] font-medium text-muted-foreground">
+      <label className="mt-2.5 space-y-1 block">
+        <span className="font-medium text-meta text-muted-foreground">
           Group cards into columns by
         </span>
         <AppSelect
@@ -658,7 +675,10 @@ function ColumnMapping({
           onValueChange={onGroupByChange}
           options={[
             { value: '', label: `Default for ${sourceName || 'this source'}` },
-            ...table.headers.map((header) => ({ value: header, label: header })),
+            ...table.headers.map((header) => ({
+              value: header,
+              label: header,
+            })),
           ]}
         />
       </label>
@@ -676,16 +696,15 @@ function Summary({
   label: string;
 }) {
   return (
-    <div className="flex items-center gap-2 rounded-md border border-border bg-surface p-2">
+    <div className="gap-2 p-2 flex items-center rounded-md border border-border bg-surface">
       <span className="text-muted-foreground">{icon}</span>
-      <span className="text-sm font-semibold tabular-nums text-foreground">
+      <span className="text-sm font-semibold text-foreground tabular-nums">
         {value}
       </span>
-      <span className="text-[11px] text-muted-foreground">{label}</span>
+      <span className="text-meta text-muted-foreground">{label}</span>
     </div>
   );
 }
-
 
 function RadioOption({
   checked,
@@ -697,14 +716,14 @@ function RadioOption({
   label: string;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-1.5">
+    <label className="gap-1.5 flex cursor-pointer items-center">
       <input
         type="radio"
         checked={checked}
         onChange={onSelect}
         className="size-3.5 accent-primary"
       />
-      <span className="text-[11px] text-foreground">{label}</span>
+      <span className="text-meta text-foreground">{label}</span>
     </label>
   );
 }

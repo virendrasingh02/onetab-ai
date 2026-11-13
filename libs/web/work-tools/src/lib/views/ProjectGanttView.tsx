@@ -127,7 +127,7 @@ export function ProjectGanttView({
                 className="h-10 px-3 group flex cursor-pointer items-center justify-between transition-colors hover:bg-muted/50"
               >
                 <div className="gap-2 pr-2 flex items-center truncate">
-                  <span className="font-bold shrink-0 font-mono text-[10px] text-brand-text/80">
+                  <span className="font-bold shrink-0 font-mono text-2xs text-brand-text/80">
                     {task.identifier || 'TASK'}
                   </span>
                   <span className="font-medium truncate text-foreground transition-colors group-hover:text-primary">
@@ -157,12 +157,12 @@ export function ProjectGanttView({
                   <div
                     key={dayIso}
                     className={cn(
-                      'flex min-w-[36px] flex-1 flex-col items-center justify-center border-r border-border/30 text-[10px]',
+                      'flex min-w-[36px] flex-1 flex-col items-center justify-center border-r border-border/30 text-2xs',
                       isWeekend && 'bg-muted/20 text-muted-foreground/60',
                       isToday && 'font-bold bg-primary/10 text-primary',
                     )}
                   >
-                    <span className="text-[9px] uppercase">
+                    <span className="text-3xs uppercase">
                       {day.toLocaleDateString(undefined, { weekday: 'narrow' })}
                     </span>
                     <span>{day.getDate()}</span>
@@ -232,7 +232,7 @@ export function ProjectGanttView({
                       }}
                       onClick={() => onSelectTask(task)}
                       className={cn(
-                        'h-6 px-2 gap-1.5 font-medium absolute flex cursor-pointer items-center rounded-md text-[11px] shadow-xs transition-all duration-150',
+                        'h-6 px-2 gap-1.5 font-medium absolute flex cursor-pointer items-center rounded-md text-meta shadow-xs transition-all duration-150',
                         isDone
                           ? 'text-accent-green-foreground border border-accent-green bg-accent-green/80'
                           : 'border border-primary bg-primary/85 text-primary-foreground hover:brightness-110',

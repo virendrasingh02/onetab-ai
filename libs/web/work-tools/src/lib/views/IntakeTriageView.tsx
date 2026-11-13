@@ -211,14 +211,14 @@ export function IntakeTriageView({
               <CardContent className="p-4 sm:flex-row sm:items-center gap-4 flex flex-col justify-between">
                 <div className="flex-1">
                   <div className="gap-2 mb-1.5 flex flex-wrap items-center">
-                    <span className="gap-1 font-medium px-2 py-0.5 rounded inline-flex items-center border border-border/50 bg-muted/80 text-[11px]">
+                    <span className="gap-1 font-medium px-2 py-0.5 rounded inline-flex items-center border border-border/50 bg-muted/80 text-meta">
                       {renderSourceIcon(item.source)}
                       <span className="capitalize">
                         {item.source.toLowerCase()}
                       </span>
                     </span>
 
-                    <span className="gap-1 inline-flex items-center text-[11px]">
+                    <span className="gap-1 inline-flex items-center text-meta">
                       <PriorityIcon
                         priority={item.priority as TaskPriority}
                         className="size-3.5"
@@ -230,7 +230,7 @@ export function IntakeTriageView({
 
                     <span
                       className={cn(
-                        'font-bold px-2 py-0.5 rounded-full border text-[10px] uppercase',
+                        'font-bold px-2 py-0.5 rounded-full border text-2xs uppercase',
                         item.status === IntakeStatus.PENDING &&
                           'border-accent-amber/30 bg-accent-amber-soft text-accent-amber',
                         item.status === IntakeStatus.CONVERTED &&
@@ -248,7 +248,7 @@ export function IntakeTriageView({
                       </span>
                     )}
 
-                    <span className="text-[11px] text-muted-foreground/60">
+                    <span className="text-meta text-muted-foreground/60">
                       {new Date(item.createdAt).toLocaleDateString()}
                     </span>
                   </div>
