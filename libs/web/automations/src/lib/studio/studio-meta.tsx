@@ -104,17 +104,26 @@ export function toolIcon(app: string | undefined): LucideIcon {
   return (app && APP_META[app]?.icon) || Wrench;
 }
 
-const STATE: Record<StudioAgentState, { label: string; variant: BadgeProps['variant'] }> = {
+const STATE: Record<
+  StudioAgentState,
+  { label: string; variant: BadgeProps['variant'] }
+> = {
   draft: { label: 'Draft', variant: 'neutral' },
   active: { label: 'On', variant: 'success' },
   paused: { label: 'Paused', variant: 'warning' },
   archived: { label: 'Archived', variant: 'neutral' },
 };
 
-export function AgentStateBadge({ state, className }: { state: StudioAgentState; className?: string }) {
+export function AgentStateBadge({
+  state,
+  className,
+}: {
+  state: StudioAgentState;
+  className?: string;
+}) {
   const s = STATE[state];
   return (
-    <Badge variant={s.variant} className={className ?? 'text-[10px]'}>
+    <Badge variant={s.variant} className={className ?? 'text-2xs'}>
       {s.label}
     </Badge>
   );
@@ -129,11 +138,21 @@ export function formatUpcoming(iso: string | null | undefined): string | null {
   if (minutes < 1) return 'any moment';
   if (minutes < 60) return `in ${minutes} min`;
   const sameDay = at.toDateString() === now.toDateString();
-  const tomorrow = new Date(now.getTime() + 86_400_000).toDateString() === at.toDateString();
-  const time = at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const tomorrow =
+    new Date(now.getTime() + 86_400_000).toDateString() === at.toDateString();
+  const time = at.toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
   if (sameDay) return `today at ${time}`;
   if (tomorrow) return `tomorrow at ${time}`;
-  return at.toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  return at.toLocaleString([], {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }
 
 /** Morning, afternoon or evening, for the Home greeting. */

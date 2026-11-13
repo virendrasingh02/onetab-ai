@@ -130,7 +130,7 @@ export function AutomationCenterLayout() {
                   <span>Start from Blank Canvas</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleSelectTab('templates')}>
-                  <Layers className="h-4 w-4 mr-2 text-indigo-500" />
+                  <Layers className="h-4 w-4 mr-2 text-accent-indigo" />
                   <span>Use Ready-Made Template</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
@@ -148,7 +148,7 @@ export function AutomationCenterLayout() {
                     )
                   }
                 >
-                  <Plug className="h-4 w-4 mr-2 text-amber-500" />
+                  <Plug className="h-4 w-4 mr-2 text-warning-text" />
                   <span>Inbound Webhook Automation</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>

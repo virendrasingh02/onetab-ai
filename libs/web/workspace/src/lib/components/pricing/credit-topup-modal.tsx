@@ -37,7 +37,9 @@ export function CreditTopupModal({
   const [error, setError] = useState<string | null>(null);
   const idempotencyKey = useRef(crypto.randomUUID());
 
-  const amountToCharge = isCustom ? parseFloat(customAmount) || 0 : selectedAmount;
+  const amountToCharge = isCustom
+    ? parseFloat(customAmount) || 0
+    : selectedAmount;
 
   const topupMutation = useMutation({
     mutationFn: (amountUsd: number) => {
@@ -56,11 +58,14 @@ export function CreditTopupModal({
         window.location.assign(session.redirectUrl);
         return;
       }
-      queryClient.invalidateQueries({ queryKey: queryKeys.billing.all(workspaceId as string) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.billing.all(workspaceId as string),
+      });
       toast.info('Top-up started. Credits appear once payment is confirmed.');
       onOpenChange(false);
     },
-    onError: (err: Error) => setError(err.message || 'Could not start the top-up.'),
+    onError: (err: Error) =>
+      setError(err.message || 'Could not start the top-up.'),
   });
 
   const handleTopup = () => {
@@ -75,9 +80,9 @@ export function CreditTopupModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm p-0 overflow-hidden">
-        <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-5 border-b border-border">
+        <div className="p-5 border-b border-border bg-gradient-to-r from-primary/10 via-primary/5 to-transparent">
           <DialogHeader>
-            <div className="flex items-center gap-1.5 text-primary text-xs font-bold uppercase tracking-wider mb-1">
+            <div className="gap-1.5 text-xs font-bold tracking-wider mb-1 flex items-center text-primary uppercase">
               <Coins className="size-4" />
               AI Credits Balance
             </div>
@@ -86,7 +91,9 @@ export function CreditTopupModal({
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
               Current balance:{' '}
-              <strong className="text-foreground">${currentBalance.toFixed(2)}</strong>
+              <strong className="text-foreground">
+                ${currentBalance.toFixed(2)}
+              </strong>
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -96,7 +103,7 @@ export function CreditTopupModal({
             <label className="text-xs font-semibold text-foreground">
               Select Top-Up Amount
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="gap-2 grid grid-cols-3">
               {PRESET_AMOUNTS.map((amt) => (
                 <Button
                   key={amt}
@@ -143,15 +150,15 @@ export function CreditTopupModal({
             </div>
           )}
 
-          <div className="rounded-lg bg-surface-muted/40 border border-border/60 p-3 text-[11px] text-muted-foreground space-y-1">
+          <div className="p-3 space-y-1 rounded-lg border border-border/60 bg-surface-muted/40 text-meta text-muted-foreground">
             <p>
-              • You will be sent to our payment provider; credits are added after payment is confirmed.
+              • You will be sent to our payment provider; credits are added
+              after payment is confirmed.
             </p>
+            <p>• Credits never expire as long as your workspace is active.</p>
             <p>
-              • Credits never expire as long as your workspace is active.
-            </p>
-            <p>
-              • Drawn down automatically across micro-agent model calls and tool executions.
+              • Drawn down automatically across micro-agent model calls and tool
+              executions.
             </p>
           </div>
         </div>
@@ -162,7 +169,7 @@ export function CreditTopupModal({
           </p>
         )}
 
-        <DialogFooter className="p-4 border-t border-border bg-surface-muted/30 flex justify-end gap-2">
+        <DialogFooter className="p-4 gap-2 flex justify-end border-t border-border bg-surface-muted/30">
           <Button
             type="button"
             variant="outline"

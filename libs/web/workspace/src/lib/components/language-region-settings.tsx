@@ -57,7 +57,11 @@ const HALF_HOURS = Array.from({ length: 48 }, (_, i) => {
 
 const AUTO = 'auto';
 
-function clockLabel(hhmm: string, timeFormat: TimeFormatPreference | null | undefined, locale: string) {
+function clockLabel(
+  hhmm: string,
+  timeFormat: TimeFormatPreference | null | undefined,
+  locale: string,
+) {
   const [h, m] = hhmm.split(':').map(Number);
   const date = new Date(2000, 0, 1, h, m);
   return new Intl.DateTimeFormat(locale, {
@@ -79,7 +83,8 @@ function clockLabel(hhmm: string, timeFormat: TimeFormatPreference | null | unde
 export function LanguageRegionSettings() {
   const user = useCurrentUser();
   const setUser = useAuthStore((s) => s.setUser);
-  const { t, locale, setLocale, formatters, isRtl, language } = useTranslation();
+  const { t, locale, setLocale, formatters, isRtl, language } =
+    useTranslation();
   const systemTimezone = getSystemTimezone();
 
   const save = useMutation({
@@ -95,9 +100,13 @@ export function LanguageRegionSettings() {
   const pending = (save.isPending ? save.variables : undefined) ?? {};
   const timezone = pending.timezone ?? user.timezone ?? systemTimezone;
   const timeFormat =
-    pending.timeFormat !== undefined ? pending.timeFormat : (user.timeFormat ?? null);
+    pending.timeFormat !== undefined
+      ? pending.timeFormat
+      : (user.timeFormat ?? null);
   const dateFormat =
-    pending.dateFormat !== undefined ? pending.dateFormat : (user.dateFormat ?? null);
+    pending.dateFormat !== undefined
+      ? pending.dateFormat
+      : (user.dateFormat ?? null);
   const schedule = resolveWorkingSchedule({
     workingHoursStart: pending.workingHoursStart ?? user.workingHoursStart,
     workingHoursEnd: pending.workingHoursEnd ?? user.workingHoursEnd,
@@ -163,7 +172,7 @@ export function LanguageRegionSettings() {
         <SettingsCard>
           <div className="sm:grid-cols-2 gap-4 grid grid-cols-1">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium flex items-center gap-1.5 text-foreground">
+              <label className="text-xs font-medium gap-1.5 flex items-center text-foreground">
                 <MapPin className="size-3.5 text-muted-foreground" />
                 Region
               </label>
@@ -175,7 +184,7 @@ export function LanguageRegionSettings() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium flex items-center gap-1.5 text-foreground">
+              <label className="text-xs font-medium gap-1.5 flex items-center text-foreground">
                 <Globe className="size-3.5 text-muted-foreground" />
                 Timezone
               </label>
@@ -190,13 +199,13 @@ export function LanguageRegionSettings() {
             <div className="gap-3 min-w-0 flex items-center">
               <span className="text-3xl leading-none">{region.flag}</span>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-foreground truncate">
+                <p className="text-sm font-semibold truncate text-foreground">
                   {region.name}{' '}
-                  <span className="font-mono text-[11px] font-normal text-muted-foreground">
+                  <span className="font-normal font-mono text-meta text-muted-foreground">
                     {describeTimezone(timezone)}
                   </span>
                 </p>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-meta text-muted-foreground">
                   {timezone === systemTimezone
                     ? 'Matches this device'
                     : `This device is on ${describeTimezone(systemTimezone)}`}
@@ -233,7 +242,9 @@ export function LanguageRegionSettings() {
             <Select
               value={timeFormat ?? AUTO}
               onValueChange={(v) =>
-                save.mutate({ timeFormat: v === AUTO ? null : (v as TimeFormatPreference) })
+                save.mutate({
+                  timeFormat: v === AUTO ? null : (v as TimeFormatPreference),
+                })
               }
             >
               <SelectTrigger className="w-44 h-8 text-xs">
@@ -260,7 +271,9 @@ export function LanguageRegionSettings() {
             <Select
               value={dateFormat ?? AUTO}
               onValueChange={(v) =>
-                save.mutate({ dateFormat: v === AUTO ? null : (v as DateFormatPreference) })
+                save.mutate({
+                  dateFormat: v === AUTO ? null : (v as DateFormatPreference),
+                })
               }
             >
               <SelectTrigger className="w-44 h-8 text-xs">
@@ -289,8 +302,11 @@ export function LanguageRegionSettings() {
         title="Working hours"
         description="Teammates see these on your profile card, in your timezone."
         action={
-          <SettingsBadge tone={status.status === 'working' ? 'success' : 'neutral'}>
-            {status.icon} {status.status === 'working' ? 'Working now' : status.label}
+          <SettingsBadge
+            tone={status.status === 'working' ? 'success' : 'neutral'}
+          >
+            {status.icon}{' '}
+            {status.status === 'working' ? 'Working now' : status.label}
           </SettingsBadge>
         }
       >
@@ -300,7 +316,10 @@ export function LanguageRegionSettings() {
               value={schedule.start}
               onValueChange={(v) => save.mutate({ workingHoursStart: v })}
             >
-              <SelectTrigger className="w-32 h-9 text-xs" aria-label="Start time">
+              <SelectTrigger
+                className="w-32 h-9 text-xs"
+                aria-label="Start time"
+              >
                 <SelectValue>{clock(schedule.start)}</SelectValue>
               </SelectTrigger>
               <SelectContent className="max-h-72">
@@ -328,13 +347,19 @@ export function LanguageRegionSettings() {
               </SelectContent>
             </Select>
             {schedule.start > schedule.end && (
-              <span className="text-[11px] text-muted-foreground">Ends the next day</span>
+              <span className="text-meta text-muted-foreground">
+                Ends the next day
+              </span>
             )}
           </div>
 
           <div className="space-y-2">
             <p className="text-xs font-medium text-foreground">Working days</p>
-            <div className="gap-1.5 flex flex-wrap" role="group" aria-label="Working days">
+            <div
+              className="gap-1.5 flex flex-wrap"
+              role="group"
+              aria-label="Working days"
+            >
               {WEEKDAYS.map(({ day, short }) => {
                 const on = schedule.days.includes(day);
                 return (
@@ -385,24 +410,36 @@ export function LanguageRegionSettings() {
         <SettingsCard>
           <dl className="sm:grid-cols-2 lg:grid-cols-3 gap-3 grid grid-cols-1">
             {[
-              ['Full date', formatters.formatDate(new Date(), { dateStyle: 'full' })],
+              [
+                'Full date',
+                formatters.formatDate(new Date(), { dateStyle: 'full' }),
+              ],
               ['Date & time', formatters.formatDateTime(new Date())],
-              ['Relative', formatters.formatRelative(new Date(Date.now() - 3_600_000))],
+              [
+                'Relative',
+                formatters.formatRelative(new Date(Date.now() - 3_600_000)),
+              ],
               ['Number', formatters.formatNumber(1234567.89)],
               ['Currency', formatters.formatCurrency(129.99, region.currency)],
               ['Percent', formatters.formatPercent(0.854)],
             ].map(([label, value]) => (
-              <div key={label} className="p-3 space-y-1 rounded-lg border border-border bg-surface-inset">
-                <dt className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+              <div
+                key={label}
+                className="p-3 space-y-1 rounded-lg border border-border bg-surface-inset"
+              >
+                <dt className="font-semibold tracking-wider text-2xs text-muted-foreground uppercase">
                   {label}
                 </dt>
-                <dd className="text-xs font-mono font-medium text-foreground">{value}</dd>
+                <dd className="text-xs font-medium font-mono text-foreground">
+                  {value}
+                </dd>
               </div>
             ))}
           </dl>
           {isRtl && (
             <p className="p-3 text-xs rounded-lg border border-warning/30 bg-warning/10 text-warning-text">
-              This language is written right-to-left, so the whole interface is mirrored.
+              This language is written right-to-left, so the whole interface is
+              mirrored.
             </p>
           )}
         </SettingsCard>

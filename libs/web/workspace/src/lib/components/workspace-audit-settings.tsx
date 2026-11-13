@@ -23,19 +23,34 @@ export interface WorkspaceAuditSettingsProps {
   workspaceRole?: WorkspaceRole;
 }
 
-const ACTION_LABELS: Record<string, { label: string; variant: 'primary' | 'info' | 'warning' | 'destructive' | 'neutral' }> = {
+const ACTION_LABELS: Record<
+  string,
+  {
+    label: string;
+    variant: 'primary' | 'info' | 'warning' | 'destructive' | 'neutral';
+  }
+> = {
   'member.invited': { label: 'Invited Member', variant: 'primary' },
   'invitation.accepted': { label: 'Invitation Accepted', variant: 'info' },
   'invitation.resent': { label: 'Invitation Resent', variant: 'neutral' },
-  'invitation.role_changed': { label: 'Invite Role Changed', variant: 'warning' },
+  'invitation.role_changed': {
+    label: 'Invite Role Changed',
+    variant: 'warning',
+  },
   'invitation.revoked': { label: 'Invitation Revoked', variant: 'destructive' },
   'member.role_changed': { label: 'Member Role Changed', variant: 'warning' },
   'member.suspended': { label: 'Member Suspended', variant: 'destructive' },
   'member.reactivated': { label: 'Member Reactivated', variant: 'info' },
   'member.removed': { label: 'Member Removed', variant: 'destructive' },
-  'ownership.transferred': { label: 'Ownership Transferred', variant: 'warning' },
+  'ownership.transferred': {
+    label: 'Ownership Transferred',
+    variant: 'warning',
+  },
   'policy.updated': { label: 'Policies Updated', variant: 'info' },
-  'workspace.settings_changed': { label: 'Settings Changed', variant: 'neutral' },
+  'workspace.settings_changed': {
+    label: 'Settings Changed',
+    variant: 'neutral',
+  },
   'workspace.archived': { label: 'Workspace Archived', variant: 'destructive' },
   'workspace.restored': { label: 'Workspace Restored', variant: 'info' },
 };
@@ -82,8 +97,8 @@ export function WorkspaceAuditSettings({
         description="Immutable record of administrative, role change, membership, and security actions within this workspace."
       />
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex-1 max-w-sm">
+      <div className="sm:flex-row sm:items-center gap-3 flex flex-col justify-between">
+        <div className="max-w-sm flex-1">
           <SearchInput
             value={searchQuery}
             onValueChange={setSearchQuery}
@@ -93,7 +108,7 @@ export function WorkspaceAuditSettings({
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="gap-2 flex items-center">
           <Filter className="size-3.5 text-muted-foreground" />
           <Select value={actionFilter} onValueChange={setActionFilter}>
             <SelectTrigger className="h-8 text-xs w-[180px] bg-surface">
@@ -102,14 +117,22 @@ export function WorkspaceAuditSettings({
             <SelectContent>
               <SelectItem value="ALL">All Actions</SelectItem>
               <SelectItem value="member.invited">Member Invited</SelectItem>
-              <SelectItem value="invitation.accepted">Invite Accepted</SelectItem>
+              <SelectItem value="invitation.accepted">
+                Invite Accepted
+              </SelectItem>
               <SelectItem value="member.role_changed">Role Changed</SelectItem>
               <SelectItem value="member.suspended">Member Suspended</SelectItem>
-              <SelectItem value="member.reactivated">Member Reactivated</SelectItem>
+              <SelectItem value="member.reactivated">
+                Member Reactivated
+              </SelectItem>
               <SelectItem value="member.removed">Member Removed</SelectItem>
-              <SelectItem value="ownership.transferred">Ownership Transferred</SelectItem>
+              <SelectItem value="ownership.transferred">
+                Ownership Transferred
+              </SelectItem>
               <SelectItem value="policy.updated">Policy Updated</SelectItem>
-              <SelectItem value="workspace.settings_changed">Settings Changed</SelectItem>
+              <SelectItem value="workspace.settings_changed">
+                Settings Changed
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -128,20 +151,19 @@ export function WorkspaceAuditSettings({
           }
         />
       ) : (
-        <div className="rounded-xl border border-border bg-surface divide-y divide-border/60 overflow-hidden shadow-2xs">
+        <div className="shadow-2xs divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-surface">
           {filteredLogs.map((log) => {
-            const actionConfig =
-              ACTION_LABELS[log.action] ?? {
-                label: log.action.replace(/[._]/g, ' '),
-                variant: 'neutral' as const,
-              };
+            const actionConfig = ACTION_LABELS[log.action] ?? {
+              label: log.action.replace(/[._]/g, ' '),
+              variant: 'neutral' as const,
+            };
 
             return (
               <div
                 key={log.id}
-                className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-accent/25 transition-colors"
+                className="p-4 sm:flex-row sm:items-center gap-3 flex flex-col justify-between transition-colors hover:bg-accent/25"
               >
-                <div className="flex items-center gap-3.5 min-w-0">
+                <div className="gap-3.5 min-w-0 flex items-center">
                   {log.actor ? (
                     <UserAvatar
                       name={log.actor.displayName ?? log.actor.name}
@@ -150,39 +172,41 @@ export function WorkspaceAuditSettings({
                       className="size-8"
                     />
                   ) : (
-                    <div className="size-8 rounded-full bg-accent flex items-center justify-center text-muted-foreground shrink-0">
+                    <div className="size-8 flex shrink-0 items-center justify-center rounded-full bg-accent text-muted-foreground">
                       <ShieldCheck className="size-4 text-primary" />
                     </div>
                   )}
 
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-xs text-foreground truncate">
+                    <div className="gap-2 flex flex-wrap items-center">
+                      <span className="font-semibold text-xs truncate text-foreground">
                         {log.actor?.displayName ?? log.actor?.name ?? 'System'}
                       </span>
                       <Badge
                         variant={actionConfig.variant}
-                        className="text-[10px] px-1.5 py-0 font-medium capitalize"
+                        className="px-1.5 py-0 font-medium text-2xs capitalize"
                       >
                         {actionConfig.label}
                       </Badge>
                       {log.targetType ? (
-                        <span className="text-[11px] text-muted-foreground">
+                        <span className="text-meta text-muted-foreground">
                           on {log.targetType.toLowerCase()}
-                          {log.targetId ? ` (${log.targetId.slice(0, 8)}…)` : ''}
+                          {log.targetId
+                            ? ` (${log.targetId.slice(0, 8)}…)`
+                            : ''}
                         </span>
                       ) : null}
                     </div>
 
                     {log.metadata && Object.keys(log.metadata).length > 0 ? (
-                      <p className="text-[11px] text-muted-foreground/80 mt-0.5 font-mono truncate max-w-lg">
+                      <p className="mt-0.5 max-w-lg truncate font-mono text-meta text-muted-foreground/80">
                         {JSON.stringify(log.metadata)}
                       </p>
                     ) : null}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 text-[11px] text-muted-foreground self-end sm:self-auto shrink-0">
+                <div className="gap-2 sm:self-auto flex shrink-0 items-center self-end text-meta text-muted-foreground">
                   <span>{formatRelative(log.createdAt)}</span>
                 </div>
               </div>

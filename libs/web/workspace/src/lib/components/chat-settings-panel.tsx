@@ -179,14 +179,11 @@ export function ChatSettingsPanel() {
                     <span className="text-sm font-semibold text-foreground">
                       Comfy
                     </span>
-                    <Badge
-                      variant="neutral"
-                      className="py-0 px-1.5 text-[10px]"
-                    >
+                    <Badge variant="neutral" className="py-0 px-1.5 text-2xs">
                       Default
                     </Badge>
                   </div>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  <p className="mt-0.5 text-meta text-muted-foreground">
                     Generous spacing with full 40px avatars and relaxed padding.
                   </p>
                 </div>
@@ -244,7 +241,7 @@ export function ChatSettingsPanel() {
                   <span className="text-sm font-semibold text-foreground">
                     Compact
                   </span>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  <p className="mt-0.5 text-meta text-muted-foreground">
                     Tight 32px avatars and minimal padding to see more messages.
                   </p>
                 </div>
@@ -331,13 +328,13 @@ export function ChatSettingsPanel() {
                         {option.value === 'full' ? (
                           <Badge
                             variant="neutral"
-                            className="py-0 px-1.5 text-[10px]"
+                            className="py-0 px-1.5 text-2xs"
                           >
                             Default
                           </Badge>
                         ) : null}
                       </div>
-                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      <p className="mt-0.5 text-meta text-muted-foreground">
                         {option.description}
                       </p>
                     </div>
@@ -410,11 +407,11 @@ export function ChatSettingsPanel() {
                   <span className="text-sm font-semibold text-foreground">
                     Last Read Message
                   </span>
-                  <Badge variant="neutral" className="py-0 px-1.5 text-[10px]">
+                  <Badge variant="neutral" className="py-0 px-1.5 text-2xs">
                     Recommended
                   </Badge>
                 </div>
-                <p className="mt-1 text-[11px] text-muted-foreground">
+                <p className="mt-1 text-meta text-muted-foreground">
                   Resumes right where you left off at the red new messages line.
                 </p>
               </div>
@@ -456,7 +453,7 @@ export function ChatSettingsPanel() {
                 <span className="text-sm font-semibold text-foreground">
                   Newest Message
                 </span>
-                <p className="mt-1 text-[11px] text-muted-foreground">
+                <p className="mt-1 text-meta text-muted-foreground">
                   Always lands at the very bottom of the conversation.
                 </p>
               </div>
@@ -644,7 +641,7 @@ export function ChatSettingsPanel() {
                     <CheckCircle2 className="size-3.5 shrink-0 text-primary" />
                   )}
                 </div>
-                <p className="leading-relaxed text-[11px] text-muted-foreground">
+                <p className="leading-relaxed text-meta text-muted-foreground">
                   {opt.description}
                 </p>
               </div>

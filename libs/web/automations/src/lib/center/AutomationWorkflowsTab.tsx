@@ -25,7 +25,10 @@ import {
   type EntityAction,
 } from '@org/ui';
 import { cn, formatRelative } from '@org/utils';
-import { useCurrentWorkspace, useWorkspacePermission } from '@org/web-workspace';
+import {
+  useCurrentWorkspace,
+  useWorkspacePermission,
+} from '@org/web-workspace';
 import {
   MoreHorizontal,
   Play,
@@ -37,7 +40,10 @@ import {
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWorkflowMutations, useWorkflows } from '../use-automations.js';
-import { buildWorkflowActions, downloadWorkflowConfig } from '../workflow-actions.js';
+import {
+  buildWorkflowActions,
+  downloadWorkflowConfig,
+} from '../workflow-actions.js';
 import { describeTrigger } from '../WorkflowListView.js';
 import { automationPath, type AutomationCenterTab } from './types.js';
 
@@ -54,7 +60,9 @@ export function AutomationWorkflowsTab({
 
   const [search, setSearch] = useState('');
   const [triggerFilter, setTriggerFilter] = useState<string>('ALL');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'PAUSED'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'PAUSED'>(
+    'ALL',
+  );
   const [importOpen, setImportOpen] = useState(false);
   const [importJson, setImportJson] = useState('');
 
@@ -71,7 +79,8 @@ export function AutomationWorkflowsTab({
         const matchesDesc = w.description?.toLowerCase().includes(q) ?? false;
         if (!matchesName && !matchesDesc) return false;
       }
-      if (triggerFilter !== 'ALL' && w.triggerType !== triggerFilter) return false;
+      if (triggerFilter !== 'ALL' && w.triggerType !== triggerFilter)
+        return false;
       if (statusFilter === 'ACTIVE' && !w.isActive) return false;
       if (statusFilter === 'PAUSED' && w.isActive) return false;
       return true;
@@ -82,7 +91,11 @@ export function AutomationWorkflowsTab({
     if (onOpenBuilder) {
       onOpenBuilder(id);
     } else {
-      navigate(id ? `/w/${slug}/automations/builder/${id}` : `/w/${slug}/automations/builder/new`);
+      navigate(
+        id
+          ? `/w/${slug}/automations/builder/${id}`
+          : `/w/${slug}/automations/builder/new`,
+      );
     }
   };
 
@@ -102,7 +115,10 @@ export function AutomationWorkflowsTab({
                 label: 'Open run',
                 onClick: () => {
                   if (onNavigateTab) onNavigateTab('runs');
-                  else navigate(`${automationPath(slug, 'runs')}?run=${result.runId}`);
+                  else
+                    navigate(
+                      `${automationPath(slug, 'runs')}?run=${result.runId}`,
+                    );
                 },
               },
             },
@@ -128,19 +144,27 @@ export function AutomationWorkflowsTab({
         name: parsed.name,
         description: parsed.description,
         triggerType: parsed.triggerType || 'MANUAL',
-        nodesJson: typeof parsed.nodes === 'string' ? parsed.nodes : JSON.stringify(parsed.nodes),
-        edgesJson: typeof parsed.edges === 'string' ? parsed.edges : JSON.stringify(parsed.edges),
+        nodesJson:
+          typeof parsed.nodes === 'string'
+            ? parsed.nodes
+            : JSON.stringify(parsed.nodes),
+        edgesJson:
+          typeof parsed.edges === 'string'
+            ? parsed.edges
+            : JSON.stringify(parsed.edges),
         isActive: false,
       });
 
       toast.success(`Imported workflow “${parsed.name}”`, {
-        description: 'Starts in paused state. You can review steps and activate.',
+        description:
+          'Starts in paused state. You can review steps and activate.',
       });
       setImportOpen(false);
       setImportJson('');
     } catch (err) {
       toast.error('Import failed', {
-        description: err instanceof Error ? err.message : 'Invalid JSON file structure',
+        description:
+          err instanceof Error ? err.message : 'Invalid JSON file structure',
       });
     }
   };
@@ -162,10 +186,10 @@ export function AutomationWorkflowsTab({
   return (
     <div className="space-y-4">
       {/* Search and Filters Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-1 flex-wrap items-center gap-2 min-w-[280px]">
-          <div className="relative flex-1 min-w-[200px] max-w-sm">
-            <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+      <div className="gap-3 flex flex-wrap items-center justify-between">
+        <div className="gap-2 flex min-w-[280px] flex-1 flex-wrap items-center">
+          <div className="max-w-sm relative min-w-[200px] flex-1">
+            <Search className="left-2.5 top-2.5 size-4 absolute text-muted-foreground" />
             <Input
               placeholder="Search automations by name or description…"
               value={search}
@@ -187,7 +211,10 @@ export function AutomationWorkflowsTab({
             </SelectContent>
           </Select>
 
-          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+          <Select
+            value={statusFilter}
+            onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}
+          >
             <SelectTrigger className="h-8 w-28 text-xs">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
@@ -199,8 +226,12 @@ export function AutomationWorkflowsTab({
           </Select>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+        <div className="gap-2 flex items-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setImportOpen(true)}
+          >
             <Upload className="mr-1.5 size-3.5" />
             Import JSON
           </Button>
@@ -217,7 +248,11 @@ export function AutomationWorkflowsTab({
       {filtered.length === 0 ? (
         <EmptyState
           icon={<Workflow className="size-8" />}
-          title={search || triggerFilter !== 'ALL' || statusFilter !== 'ALL' ? 'No matching automations found' : 'No automations created yet'}
+          title={
+            search || triggerFilter !== 'ALL' || statusFilter !== 'ALL'
+              ? 'No matching automations found'
+              : 'No automations created yet'
+          }
           description={
             search || triggerFilter !== 'ALL' || statusFilter !== 'ALL'
               ? 'Try adjusting your search criteria or filters.'
@@ -232,7 +267,7 @@ export function AutomationWorkflowsTab({
           }
         />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="gap-3 sm:grid-cols-2 xl:grid-cols-3 grid">
           {filtered.map((wf) => {
             const triggerInfo = describeTrigger(wf.triggerType);
             const TriggerIcon = triggerInfo.icon;
@@ -243,10 +278,14 @@ export function AutomationWorkflowsTab({
               path: `/w/${slug}/automations/builder/${wf.id}`,
               onOpen: () => openEditor(wf.id),
               onRun: can('create') ? () => runNow(wf) : undefined,
-              onSetActive: (isActive) => update.mutateAsync({ workflowId: wf.id, input: { isActive } }),
+              onSetActive: (isActive) =>
+                update.mutateAsync({ workflowId: wf.id, input: { isActive } }),
               onViewHistory: () => {
                 if (onNavigateTab) onNavigateTab('history');
-                else navigate(`${automationPath(slug, 'history')}?entity=${wf.id}`);
+                else
+                  navigate(
+                    `${automationPath(slug, 'history')}?entity=${wf.id}`,
+                  );
               },
               onDuplicate: can('create')
                 ? async () => {
@@ -270,41 +309,54 @@ export function AutomationWorkflowsTab({
               <Card
                 key={wf.id}
                 className={cn(
-                  'flex flex-col justify-between rounded-xl border p-4 transition-all hover:border-border-hover hover:shadow-sm',
-                  wf.isActive ? 'border-border/80 bg-surface' : 'border-border/40 bg-surface-muted/30 opacity-80',
+                  'p-4 hover:border-border-hover flex flex-col justify-between rounded-xl border transition-all hover:shadow-sm',
+                  wf.isActive
+                    ? 'border-border/80 bg-surface'
+                    : 'border-border/40 bg-surface-muted/30 opacity-80',
                 )}
               >
                 <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-border/80 bg-surface-muted text-primary">
+                  <div className="gap-2 flex items-start justify-between">
+                    <div className="gap-2 min-w-0 flex items-center">
+                      <div className="size-7 flex shrink-0 items-center justify-center rounded-lg border border-border/80 bg-surface-muted text-primary">
                         <TriggerIcon className="size-4" />
                       </div>
                       <div className="min-w-0">
                         <h4
                           onClick={() => openEditor(wf.id)}
-                          className="cursor-pointer truncate text-sm font-semibold text-foreground hover:text-primary transition-colors"
+                          className="text-sm font-semibold cursor-pointer truncate text-foreground transition-colors hover:text-primary"
                         >
                           {wf.name}
                         </h4>
-                        <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                        <span className="gap-1 flex items-center text-meta text-muted-foreground">
                           {triggerInfo.label}
                         </span>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="gap-1.5 flex shrink-0 items-center">
                       <Switch
                         checked={wf.isActive}
                         onCheckedChange={(checked) =>
-                          update.mutate({ workflowId: wf.id, input: { isActive: checked } })
+                          update.mutate({
+                            workflowId: wf.id,
+                            input: { isActive: checked },
+                          })
                         }
-                        title={wf.isActive ? 'Active - click to pause' : 'Paused - click to activate'}
+                        title={
+                          wf.isActive
+                            ? 'Active - click to pause'
+                            : 'Paused - click to activate'
+                        }
                       />
                       <ActionDropdownMenu
                         actions={actions}
                         trigger={
-                          <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${wf.name}`}>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`Actions for ${wf.name}`}
+                          >
                             <MoreHorizontal className="size-4" />
                           </Button>
                         }
@@ -313,15 +365,17 @@ export function AutomationWorkflowsTab({
                   </div>
 
                   {wf.description && (
-                    <p className="mt-2.5 line-clamp-2 text-xs text-muted-foreground">
+                    <p className="mt-2.5 text-xs line-clamp-2 text-muted-foreground">
                       {wf.description}
                     </p>
                   )}
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>{runsCount} runs · updated {formatRelative(wf.updatedAt)}</span>
-                  <div className="flex items-center gap-1">
+                <div className="mt-4 pt-3 flex items-center justify-between border-t border-border/60 text-meta text-muted-foreground">
+                  <span>
+                    {runsCount} runs · updated {formatRelative(wf.updatedAt)}
+                  </span>
+                  <div className="gap-1 flex items-center">
                     {can('create') && (
                       <Button
                         size="sm"
@@ -356,7 +410,8 @@ export function AutomationWorkflowsTab({
           <DialogHeader>
             <DialogTitle>Import Workflow Configuration</DialogTitle>
             <DialogDescription>
-              Paste the exported JSON definition of an automation workflow to recreate it in this workspace.
+              Paste the exported JSON definition of an automation workflow to
+              recreate it in this workspace.
             </DialogDescription>
           </DialogHeader>
 
@@ -375,7 +430,10 @@ export function AutomationWorkflowsTab({
             <Button variant="outline" onClick={() => setImportOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleImport} disabled={!importJson.trim() || create.isPending}>
+            <Button
+              onClick={handleImport}
+              disabled={!importJson.trim() || create.isPending}
+            >
               Import Automation
             </Button>
           </DialogFooter>

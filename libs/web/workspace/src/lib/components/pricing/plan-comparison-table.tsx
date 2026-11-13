@@ -1,8 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import {
-  Badge,
-  Button,
-} from '@org/ui';
+import { Badge, Button } from '@org/ui';
 import {
   PLANS_CONFIG,
   PLAN_TIERS,
@@ -35,7 +32,13 @@ export function PlanComparisonTable({
   const groupedFeatures = useMemo(() => {
     const categoriesMap = new Map<
       string,
-      Map<string, { label: string; planValues: Record<PlanTier, PlanFeatureItem | undefined> }>
+      Map<
+        string,
+        {
+          label: string;
+          planValues: Record<PlanTier, PlanFeatureItem | undefined>;
+        }
+      >
     >();
 
     for (const tier of PLAN_TIERS) {
@@ -68,23 +71,24 @@ export function PlanComparisonTable({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="sm:flex-row sm:items-center gap-4 flex flex-col justify-between">
         <div>
           <h3 className="text-xl font-bold tracking-tight text-foreground">
             Compare Plan Features & Entitlements
           </h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            Complete technical breakdown of compute limits, micro agents, security, and enterprise support.
+          <p className="text-sm mt-1 text-muted-foreground">
+            Complete technical breakdown of compute limits, micro agents,
+            security, and enterprise support.
           </p>
         </div>
       </div>
 
       <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-xs">
-        <table className="w-full text-left border-collapse text-xs md:text-sm">
+        <table className="text-xs md:text-sm w-full border-collapse text-left">
           {/* Header Row */}
           <thead>
             <tr className="border-b border-border bg-surface-muted/60">
-              <th className="p-4 md:p-5 font-semibold text-foreground min-w-[240px] sticky left-0 bg-surface-muted/95 backdrop-blur-xs z-10">
+              <th className="p-4 md:p-5 font-semibold left-0 backdrop-blur-xs sticky z-10 min-w-[240px] bg-surface-muted/95 text-foreground">
                 Capability / Feature
               </th>
               {PLAN_TIERS.map((tier) => {
@@ -93,19 +97,19 @@ export function PlanComparisonTable({
                 return (
                   <th
                     key={tier}
-                    className={`p-4 md:p-5 text-center min-w-[170px] ${
+                    className={`p-4 md:p-5 min-w-[170px] text-center ${
                       plan.isPopular ? 'bg-primary/5' : ''
                     }`}
                   >
-                    <div className="flex flex-col items-center gap-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-foreground text-sm md:text-base">
+                    <div className="gap-1 flex flex-col items-center">
+                      <div className="gap-1.5 flex items-center">
+                        <span className="font-bold text-sm md:text-base text-foreground">
                           {plan.name}
                         </span>
                         {plan.isPopular && (
                           <Badge
                             variant="primary"
-                            className="text-[9px] px-1.5 py-0 uppercase"
+                            className="px-1.5 py-0 text-3xs uppercase"
                           >
                             Popular
                           </Badge>
@@ -113,7 +117,7 @@ export function PlanComparisonTable({
                         {isCurrent && (
                           <Badge
                             variant="secondary"
-                            className="text-[9px] px-1.5 py-0 uppercase"
+                            className="px-1.5 py-0 text-3xs uppercase"
                           >
                             Current
                           </Badge>
@@ -136,7 +140,7 @@ export function PlanComparisonTable({
                           size="xs"
                           disabled={isCurrent}
                           onClick={() => onSelectPlan(tier)}
-                          className="mt-2 w-full max-w-[130px] text-[11px] font-medium"
+                          className="mt-2 font-medium w-full max-w-[130px] text-meta"
                         >
                           {isCurrent ? 'Current' : 'Select'}
                         </Button>
@@ -158,16 +162,16 @@ export function PlanComparisonTable({
                   {/* Category Header Row */}
                   <tr
                     onClick={() => toggleCategory(category)}
-                    className="border-b border-border/80 bg-surface-muted/40 hover:bg-surface-muted/80 cursor-pointer transition-colors"
+                    className="cursor-pointer border-b border-border/80 bg-surface-muted/40 transition-colors hover:bg-surface-muted/80"
                   >
                     <td
                       colSpan={5}
-                      className="p-3 md:p-3.5 font-bold text-foreground text-xs uppercase tracking-wider"
+                      className="p-3 md:p-3.5 font-bold text-xs tracking-wider text-foreground uppercase"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-2">
+                        <span className="gap-2 flex items-center">
                           {category}
-                          <span className="text-[10px] lowercase font-normal text-muted-foreground">
+                          <span className="font-normal text-2xs text-muted-foreground lowercase">
                             ({items.length} items)
                           </span>
                         </span>
@@ -185,10 +189,10 @@ export function PlanComparisonTable({
                     items.map(({ label, planValues }) => (
                       <tr
                         key={label}
-                        className="border-b border-border/40 hover:bg-surface-muted/20 transition-colors"
+                        className="border-b border-border/40 transition-colors hover:bg-surface-muted/20"
                       >
                         {/* Feature Name Column (Sticky) */}
-                        <td className="p-3.5 md:p-4 text-foreground font-medium sticky left-0 bg-card/95 backdrop-blur-xs z-10">
+                        <td className="p-3.5 md:p-4 font-medium left-0 backdrop-blur-xs sticky z-10 bg-card/95 text-foreground">
                           {label}
                         </td>
 
@@ -206,16 +210,16 @@ export function PlanComparisonTable({
                             >
                               {item ? (
                                 item.valueText ? (
-                                  <span className="font-semibold text-foreground text-xs">
+                                  <span className="font-semibold text-xs text-foreground">
                                     {item.valueText}
                                   </span>
                                 ) : item.included ? (
-                                  <Check className="size-4 mx-auto text-success-text shrink-0" />
+                                  <Check className="size-4 mx-auto shrink-0 text-success-text" />
                                 ) : (
-                                  <Minus className="size-4 mx-auto text-muted-foreground/50 shrink-0" />
+                                  <Minus className="size-4 mx-auto shrink-0 text-muted-foreground/50" />
                                 )
                               ) : (
-                                <Minus className="size-4 mx-auto text-muted-foreground/50 shrink-0" />
+                                <Minus className="size-4 mx-auto shrink-0 text-muted-foreground/50" />
                               )}
                             </td>
                           );

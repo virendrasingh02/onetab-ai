@@ -34,12 +34,16 @@ export interface EnterpriseCustomLLMSettingsProps {
   workspaceId: string;
 }
 
-export function EnterpriseCustomLLMSettings({ workspaceId }: EnterpriseCustomLLMSettingsProps) {
+export function EnterpriseCustomLLMSettings({
+  workspaceId,
+}: EnterpriseCustomLLMSettingsProps) {
   const queryClient = useQueryClient();
   const { hasFeature } = usePlanEntitlements(workspaceId);
   const isEnterprise = hasFeature('custom_llm');
 
-  const [provider, setProvider] = useState<'custom' | 'azure_openai' | 'vllm' | 'ollama_remote' | 'openai_compatible'>('custom');
+  const [provider, setProvider] = useState<
+    'custom' | 'azure_openai' | 'vllm' | 'ollama_remote' | 'openai_compatible'
+  >('custom');
   const [endpointUrl, setEndpointUrl] = useState('');
   const [modelIdentifier, setModelIdentifier] = useState('');
   const [apiKey, setApiKey] = useState('');
@@ -92,8 +96,12 @@ export function EnterpriseCustomLLMSettings({ workspaceId }: EnterpriseCustomLLM
         isEnabled,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.billing.customLLM(workspaceId) });
-      toast.success('Custom LLM Configuration Saved: Enterprise model settings and credentials updated.');
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.billing.customLLM(workspaceId),
+      });
+      toast.success(
+        'Custom LLM Configuration Saved: Enterprise model settings and credentials updated.',
+      );
     },
     onError: (err: any) => {
       toast.error(err.message || 'Failed to Save Configuration');
@@ -102,7 +110,9 @@ export function EnterpriseCustomLLMSettings({ workspaceId }: EnterpriseCustomLLM
 
   const handleTestConnection = async () => {
     if (!endpointUrl || !modelIdentifier) {
-      toast.error('Missing Required Fields: Please enter both an Endpoint URL and a Model Identifier.');
+      toast.error(
+        'Missing Required Fields: Please enter both an Endpoint URL and a Model Identifier.',
+      );
       return;
     }
 
@@ -118,7 +128,9 @@ export function EnterpriseCustomLLMSettings({ workspaceId }: EnterpriseCustomLLM
       });
       setTestResult(res);
       if (res.success) {
-        toast.success(`Connection Successful: Endpoint verified in ${res.latencyMs}ms.`);
+        toast.success(
+          `Connection Successful: Endpoint verified in ${res.latencyMs}ms.`,
+        );
       } else {
         toast.error(res.error || res.message || 'Connection test failed');
       }
@@ -142,22 +154,32 @@ export function EnterpriseCustomLLMSettings({ workspaceId }: EnterpriseCustomLLM
           badge={<PlanBadge plan="enterprise" size="sm" variant="gradient" />}
           description="Connect private self-hosted models, vLLM clusters, Azure OpenAI, or custom private VPC inference endpoints."
         />
-        <Card className="rounded-xl border-amber-500/20 bg-gradient-to-br from-amber-500/5 via-card to-card">
+        <Card className="rounded-xl border-warning/20 bg-gradient-to-br from-warning/5 via-card to-card">
           <CardContent className="pt-5 space-y-4">
-            <div className="rounded-xl border border-border bg-surface-muted/50 p-4 text-xs space-y-2">
-              <p className="font-medium text-foreground">Custom LLM Capabilities Include:</p>
+            <div className="p-4 text-xs space-y-2 rounded-xl border border-border bg-surface-muted/50">
+              <p className="font-medium text-foreground">
+                Custom LLM Capabilities Include:
+              </p>
               <ul className="space-y-1.5 text-muted-foreground">
-                <li className="flex items-center gap-2">
-                  <Check className="size-3.5 text-amber-500" />
-                  <span>Zero-retention private inference through your own endpoints</span>
+                <li className="gap-2 flex items-center">
+                  <Check className="size-3.5 text-warning-text" />
+                  <span>
+                    Zero-retention private inference through your own endpoints
+                  </span>
                 </li>
-                <li className="flex items-center gap-2">
-                  <Check className="size-3.5 text-amber-500" />
-                  <span>Support for custom fine-tuned weights, vLLM, Ollama, and Azure OpenAI</span>
+                <li className="gap-2 flex items-center">
+                  <Check className="size-3.5 text-warning-text" />
+                  <span>
+                    Support for custom fine-tuned weights, vLLM, Ollama, and
+                    Azure OpenAI
+                  </span>
                 </li>
-                <li className="flex items-center gap-2">
-                  <Check className="size-3.5 text-amber-500" />
-                  <span>Encrypted credential storage with server-side proxy isolation</span>
+                <li className="gap-2 flex items-center">
+                  <Check className="size-3.5 text-warning-text" />
+                  <span>
+                    Encrypted credential storage with server-side proxy
+                    isolation
+                  </span>
                 </li>
               </ul>
             </div>
@@ -188,26 +210,41 @@ export function EnterpriseCustomLLMSettings({ workspaceId }: EnterpriseCustomLLM
       />
 
       <SettingsCard>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="md:grid-cols-2 gap-4 grid grid-cols-1">
           {/* Provider Type */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">Provider Protocol</label>
-            <Select value={provider} onValueChange={(val: any) => setProvider(val)}>
+            <label className="text-xs font-semibold text-foreground">
+              Provider Protocol
+            </label>
+            <Select
+              value={provider}
+              onValueChange={(val: any) => setProvider(val)}
+            >
               <SelectTrigger className="text-xs h-9">
                 <SelectValue placeholder="Select provider" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="custom" className="text-xs">OpenAI Compatible (Generic / vLLM / LocalAI)</SelectItem>
-                <SelectItem value="vllm" className="text-xs">vLLM Inference Server</SelectItem>
-                <SelectItem value="azure_openai" className="text-xs">Azure OpenAI Service</SelectItem>
-                <SelectItem value="ollama_remote" className="text-xs">Ollama Remote Host</SelectItem>
+                <SelectItem value="custom" className="text-xs">
+                  OpenAI Compatible (Generic / vLLM / LocalAI)
+                </SelectItem>
+                <SelectItem value="vllm" className="text-xs">
+                  vLLM Inference Server
+                </SelectItem>
+                <SelectItem value="azure_openai" className="text-xs">
+                  Azure OpenAI Service
+                </SelectItem>
+                <SelectItem value="ollama_remote" className="text-xs">
+                  Ollama Remote Host
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
-  
+
           {/* Endpoint URL */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">Inference Endpoint Base URL</label>
+            <label className="text-xs font-semibold text-foreground">
+              Inference Endpoint Base URL
+            </label>
             <Input
               value={endpointUrl}
               onChange={(e) => setEndpointUrl(e.target.value)}
@@ -215,10 +252,12 @@ export function EnterpriseCustomLLMSettings({ workspaceId }: EnterpriseCustomLLM
               className="text-xs h-9"
             />
           </div>
-  
+
           {/* Model Identifier */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">Model Identifier</label>
+            <label className="text-xs font-semibold text-foreground">
+              Model Identifier
+            </label>
             <Input
               value={modelIdentifier}
               onChange={(e) => setModelIdentifier(e.target.value)}
@@ -226,62 +265,79 @@ export function EnterpriseCustomLLMSettings({ workspaceId }: EnterpriseCustomLLM
               className="text-xs h-9"
             />
           </div>
-  
+
           {/* API Key */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-foreground">
-              API Secret / Bearer Token {config?.hasApiKey ? '(Key configured)' : ''}
+              API Secret / Bearer Token{' '}
+              {config?.hasApiKey ? '(Key configured)' : ''}
             </label>
             <div className="relative">
               <Input
                 type={showApiKey ? 'text' : 'password'}
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder={config?.maskedApiKey || 'Enter API Key if required'}
+                placeholder={
+                  config?.maskedApiKey || 'Enter API Key if required'
+                }
                 className="text-xs h-9 pr-8"
               />
               <button
                 type="button"
                 onClick={() => setShowApiKey(!showApiKey)}
-                className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
+                className="right-2.5 top-2.5 absolute text-muted-foreground hover:text-foreground"
               >
-                {showApiKey ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                {showApiKey ? (
+                  <EyeOff className="size-3.5" />
+                ) : (
+                  <Eye className="size-3.5" />
+                )}
               </button>
             </div>
           </div>
-  
+
           {/* Temperature */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">Default Temperature ({temperature})</label>
+            <label className="text-xs font-semibold text-foreground">
+              Default Temperature ({temperature})
+            </label>
             <Input
               type="number"
               step="0.1"
               min="0"
               max="2"
               value={temperature}
-              onChange={(e) => setTemperature(parseFloat(e.target.value) || 0.7)}
+              onChange={(e) =>
+                setTemperature(parseFloat(e.target.value) || 0.7)
+              }
               className="text-xs h-9"
             />
           </div>
-  
+
           {/* Max Tokens */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">Max Generation Tokens</label>
+            <label className="text-xs font-semibold text-foreground">
+              Max Generation Tokens
+            </label>
             <Input
               type="number"
               step="512"
               min="256"
               max="131072"
               value={maxTokens}
-              onChange={(e) => setMaxTokens(parseInt(e.target.value, 10) || 4096)}
+              onChange={(e) =>
+                setMaxTokens(parseInt(e.target.value, 10) || 4096)
+              }
               className="text-xs h-9"
             />
           </div>
         </div>
-  
+
         {/* System Prompt Override */}
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-foreground">Organization System Prompt / Guardrail (Optional)</label>
+          <label className="text-xs font-semibold text-foreground">
+            Organization System Prompt / Guardrail (Optional)
+          </label>
           <Input
             value={systemPrompt}
             onChange={(e) => setSystemPrompt(e.target.value)}
@@ -289,28 +345,31 @@ export function EnterpriseCustomLLMSettings({ workspaceId }: EnterpriseCustomLLM
             className="text-xs h-9"
           />
         </div>
-  
+
         {/* Toggles */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-border bg-surface-muted/30">
+        <div className="sm:flex-row sm:items-center gap-4 p-4 flex flex-col items-start justify-between rounded-xl border border-border bg-surface-muted/30">
           <div className="space-y-0.5">
-            <div className="text-xs font-semibold text-foreground">Enable Custom LLM Routing</div>
-            <p className="text-[11px] text-muted-foreground">
-              When enabled, workspace requests will prioritize this custom endpoint.
+            <div className="text-xs font-semibold text-foreground">
+              Enable Custom LLM Routing
+            </div>
+            <p className="text-meta text-muted-foreground">
+              When enabled, workspace requests will prioritize this custom
+              endpoint.
             </p>
           </div>
           <Switch checked={isEnabled} onCheckedChange={setIsEnabled} />
         </div>
-  
+
         {/* Connection Test Box */}
         {testResult ? (
           <div
-            className={`p-3.5 rounded-xl border text-xs flex items-center justify-between ${
+            className={`p-3.5 text-xs flex items-center justify-between rounded-xl border ${
               testResult.success
                 ? 'border-success/30 bg-success/10 text-success-text'
                 : 'border-destructive/30 bg-destructive/10 text-destructive'
             }`}
           >
-            <div className="flex items-center gap-2">
+            <div className="gap-2 flex items-center">
               {testResult.success ? (
                 <CheckCircle2 className="size-4 shrink-0 text-success-text" />
               ) : (
@@ -319,15 +378,15 @@ export function EnterpriseCustomLLMSettings({ workspaceId }: EnterpriseCustomLLM
               <span>{testResult.message}</span>
             </div>
             {testResult.latencyMs > 0 ? (
-              <Badge variant="neutral" className="text-[10px]">
+              <Badge variant="neutral" className="text-2xs">
                 {testResult.latencyMs}ms
               </Badge>
             ) : null}
           </div>
         ) : null}
-  
+
         {/* Action Footer */}
-        <div className="flex items-center justify-between gap-3 pt-2 border-t border-border">
+        <div className="gap-3 pt-2 flex items-center justify-between border-t border-border">
           <Button
             variant="outline"
             size="sm"
@@ -347,7 +406,7 @@ export function EnterpriseCustomLLMSettings({ workspaceId }: EnterpriseCustomLLM
               </>
             )}
           </Button>
-  
+
           <Button
             variant="primary"
             size="sm"
