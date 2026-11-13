@@ -187,7 +187,7 @@ export function KanbanRefPicker({
                   </span>
                   <span className="gap-2 flex shrink-0 items-center text-muted-foreground/80">
                     {item.sublabel && (
-                      <span className="tracking-wide text-[10px] uppercase">
+                      <span className="tracking-wide text-2xs uppercase">
                         {item.sublabel}
                       </span>
                     )}

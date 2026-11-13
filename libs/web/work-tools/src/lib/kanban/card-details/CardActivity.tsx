@@ -78,7 +78,7 @@ function CommentEntry({
           <span className="text-xs font-semibold truncate text-foreground">
             {author}
           </span>
-          <span className="shrink-0 text-[11px] text-muted-foreground">
+          <span className="shrink-0 text-meta text-muted-foreground">
             {formatRelative(comment.createdAt)}
             {edited ? ' · edited' : ''}
           </span>
@@ -224,7 +224,7 @@ export function CardActivity({
                 aria-pressed={filter === option.id}
                 onClick={() => setFilter(option.id)}
                 className={cn(
-                  'px-2 py-0.5 font-medium rounded-[calc(var(--radius-btn)-2px)] text-[11px] transition-colors',
+                  'px-2 py-0.5 font-medium rounded-[calc(var(--radius-btn)-2px)] text-meta transition-colors',
                   filter === option.id
                     ? 'shadow-2xs bg-card text-foreground'
                     : 'text-muted-foreground hover:text-foreground',

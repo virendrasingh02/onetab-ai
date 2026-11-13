@@ -1,7 +1,4 @@
-import {
-  UniversalCardRenderer,
-  useCardRegistryStore,
-} from '@org/chat-ui';
+import { UniversalCardRenderer, useCardRegistryStore } from '@org/chat-ui';
 import type {
   CardActionDefinition,
   CardComponentNode,
@@ -34,7 +31,10 @@ import { SchemaEditor } from './SchemaEditor.js';
 import { type ActionLogEntry, TestConsoleDrawer } from './TestConsoleDrawer.js';
 
 // Tree Helper functions for immutable AST manipulation
-function findNodeById(root: CardComponentNode, id: string): CardComponentNode | null {
+function findNodeById(
+  root: CardComponentNode,
+  id: string,
+): CardComponentNode | null {
   if (root.id === id) return root;
   if (root.children) {
     for (const child of root.children) {
@@ -60,7 +60,10 @@ function updateNodeById(
   };
 }
 
-function deleteNodeById(root: CardComponentNode, id: string): CardComponentNode {
+function deleteNodeById(
+  root: CardComponentNode,
+  id: string,
+): CardComponentNode {
   if (!root.children) return root;
   return {
     ...root,
@@ -77,7 +80,11 @@ function insertNodeIntoTarget(
 ): CardComponentNode {
   if (root.id === targetId) {
     // If target is container/row/column/grid, append to children
-    if (['container', 'row', 'column', 'stack', 'grid', 'button_group'].includes(root.type)) {
+    if (
+      ['container', 'row', 'column', 'stack', 'grid', 'button_group'].includes(
+        root.type,
+      )
+    ) {
       return {
         ...root,
         children: [...(root.children || []), newNode],
@@ -87,11 +94,16 @@ function insertNodeIntoTarget(
   if (!root.children) return root;
   return {
     ...root,
-    children: root.children.map((c) => insertNodeIntoTarget(c, targetId, newNode)),
+    children: root.children.map((c) =>
+      insertNodeIntoTarget(c, targetId, newNode),
+    ),
   };
 }
 
-function duplicateNodeInTree(root: CardComponentNode, targetId: string): CardComponentNode {
+function duplicateNodeInTree(
+  root: CardComponentNode,
+  targetId: string,
+): CardComponentNode {
   if (!root.children) return root;
   const newChildren: CardComponentNode[] = [];
   for (const child of root.children) {
@@ -108,7 +120,10 @@ function duplicateNodeInTree(root: CardComponentNode, targetId: string): CardCom
 }
 
 export function CardBuilderView() {
-  const { workspaceSlug, cardId } = useParams<{ workspaceSlug?: string; cardId?: string }>();
+  const { workspaceSlug, cardId } = useParams<{
+    workspaceSlug?: string;
+    cardId?: string;
+  }>();
   const navigate = useNavigate();
 
   const store = useCardRegistryStore();
@@ -133,9 +148,25 @@ export function CardBuilderView() {
       usageCount: 0,
       schema: {
         fields: {
-          title: { name: 'title', label: 'Title', type: 'string', required: true, defaultValue: 'Card Title' },
-          subtitle: { name: 'subtitle', label: 'Subtitle', type: 'string', defaultValue: 'Card subtitle text' },
-          status: { name: 'status', label: 'Status', type: 'string', defaultValue: 'Active' },
+          title: {
+            name: 'title',
+            label: 'Title',
+            type: 'string',
+            required: true,
+            defaultValue: 'Card Title',
+          },
+          subtitle: {
+            name: 'subtitle',
+            label: 'Subtitle',
+            type: 'string',
+            defaultValue: 'Card subtitle text',
+          },
+          status: {
+            name: 'status',
+            label: 'Status',
+            type: 'string',
+            defaultValue: 'Active',
+          },
         },
       },
       sampleData: {
@@ -146,38 +177,77 @@ export function CardBuilderView() {
       rootComponent: {
         id: 'root',
         type: 'container',
-        style: { padding: '16px', borderRadius: '16px', background: 'surface', border: '1px solid border' },
+        style: {
+          padding: '16px',
+          borderRadius: '16px',
+          background: 'surface',
+          border: '1px solid border',
+        },
         children: [
           {
             id: 'hdr-row',
             type: 'row',
-            style: { justifyContent: 'between', alignItems: 'center', margin: '0 0 10px 0' },
+            style: {
+              justifyContent: 'between',
+              alignItems: 'center',
+              margin: '0 0 10px 0',
+            },
             children: [
-              { id: 'h-title', type: 'heading', props: { text: '{{title}}', level: 3 } },
-              { id: 'h-badge', type: 'badge', props: { text: '{{status}}', variant: 'primary' } },
+              {
+                id: 'h-title',
+                type: 'heading',
+                props: { text: '{{title}}', level: 3 },
+              },
+              {
+                id: 'h-badge',
+                type: 'badge',
+                props: { text: '{{status}}', variant: 'primary' },
+              },
             ],
           },
-          { id: 'h-sub', type: 'text', props: { text: '{{subtitle}}', size: 'sm', variant: 'muted' }, style: { margin: '0 0 12px 0' } },
+          {
+            id: 'h-sub',
+            type: 'text',
+            props: { text: '{{subtitle}}', size: 'sm', variant: 'muted' },
+            style: { margin: '0 0 12px 0' },
+          },
           {
             id: 'actions-row',
             type: 'button_group',
             style: { justifyContent: 'end', gap: '8px' },
             children: [
-              { id: 'btn-view', type: 'button', props: { label: 'View Details', variant: 'primary', icon: 'Sparkles' } },
+              {
+                id: 'btn-view',
+                type: 'button',
+                props: {
+                  label: 'View Details',
+                  variant: 'primary',
+                  icon: 'Sparkles',
+                },
+              },
             ],
           },
         ],
       },
       actions: [
-        { id: 'view_details', type: 'open_url', label: 'View Details', url: 'https://onetab.ai' },
+        {
+          id: 'view_details',
+          type: 'open_url',
+          label: 'View Details',
+          url: 'https://onetab.ai',
+        },
       ],
     };
   });
 
   const [selectedNodeId, setSelectedNodeId] = useState<string>('root');
   const [leftTab, setLeftTab] = useState<'palette' | 'tree'>('palette');
-  const [rightTab, setRightTab] = useState<'props' | 'schema' | 'sample' | 'actions' | 'json'>('props');
-  const [breakpoint, setBreakpoint] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
+  const [rightTab, setRightTab] = useState<
+    'props' | 'schema' | 'sample' | 'actions' | 'json'
+  >('props');
+  const [breakpoint, setBreakpoint] = useState<'desktop' | 'tablet' | 'mobile'>(
+    'desktop',
+  );
   const [isTestMode, setIsTestMode] = useState(false);
   const [actionLogs, setActionLogs] = useState<ActionLogEntry[]>([]);
 
@@ -190,51 +260,79 @@ export function CardBuilderView() {
   const handleAddComponent = (newNode: CardComponentNode) => {
     // If selected node is a container-like node, add inside it; otherwise add to root
     const targetId =
-      selectedNode && ['container', 'row', 'column', 'stack', 'grid', 'button_group'].includes(selectedNode.type)
+      selectedNode &&
+      ['container', 'row', 'column', 'stack', 'grid', 'button_group'].includes(
+        selectedNode.type,
+      )
         ? selectedNode.id
         : 'root';
 
     setCard((prev) => ({
       ...prev,
-      rootComponent: insertNodeIntoTarget(prev.rootComponent, targetId, newNode),
+      rootComponent: insertNodeIntoTarget(
+        prev.rootComponent,
+        targetId,
+        newNode,
+      ),
     }));
 
     setSelectedNodeId(newNode.id);
     toast.success(`Added ${newNode.type} component`);
   };
 
-  const handleUpdateNodeProps = (nodeId: string, props: Record<string, unknown>) => {
+  const handleUpdateNodeProps = (
+    nodeId: string,
+    props: Record<string, unknown>,
+  ) => {
     setCard((prev) => ({
       ...prev,
-      rootComponent: updateNodeById(prev.rootComponent, nodeId, (n) => ({ ...n, props })),
+      rootComponent: updateNodeById(prev.rootComponent, nodeId, (n) => ({
+        ...n,
+        props,
+      })),
     }));
   };
 
   const handleUpdateNodeStyle = (nodeId: string, style: CardComponentStyle) => {
     setCard((prev) => ({
       ...prev,
-      rootComponent: updateNodeById(prev.rootComponent, nodeId, (n) => ({ ...n, style })),
+      rootComponent: updateNodeById(prev.rootComponent, nodeId, (n) => ({
+        ...n,
+        style,
+      })),
     }));
   };
 
-  const handleUpdateNodeVisibility = (nodeId: string, visibleWhen?: CardVisibilityCondition) => {
+  const handleUpdateNodeVisibility = (
+    nodeId: string,
+    visibleWhen?: CardVisibilityCondition,
+  ) => {
     setCard((prev) => ({
       ...prev,
-      rootComponent: updateNodeById(prev.rootComponent, nodeId, (n) => ({ ...n, visibleWhen })),
+      rootComponent: updateNodeById(prev.rootComponent, nodeId, (n) => ({
+        ...n,
+        visibleWhen,
+      })),
     }));
   };
 
   const handleUpdateNodeAction = (nodeId: string, actionId?: string) => {
     setCard((prev) => ({
       ...prev,
-      rootComponent: updateNodeById(prev.rootComponent, nodeId, (n) => ({ ...n, actionId })),
+      rootComponent: updateNodeById(prev.rootComponent, nodeId, (n) => ({
+        ...n,
+        actionId,
+      })),
     }));
   };
 
   const handleToggleLockNode = (nodeId: string) => {
     setCard((prev) => ({
       ...prev,
-      rootComponent: updateNodeById(prev.rootComponent, nodeId, (n) => ({ ...n, locked: !n.locked })),
+      rootComponent: updateNodeById(prev.rootComponent, nodeId, (n) => ({
+        ...n,
+        locked: !n.locked,
+      })),
     }));
   };
 
@@ -259,7 +357,10 @@ export function CardBuilderView() {
   };
 
   // Test Mode Action Execution Listener
-  const handleTestAction = async (action: CardActionDefinition, currentData: Record<string, unknown>) => {
+  const handleTestAction = async (
+    action: CardActionDefinition,
+    currentData: Record<string, unknown>,
+  ) => {
     const entry: ActionLogEntry = {
       id: `log-${Date.now()}`,
       timestamp: Date.now(),
@@ -267,7 +368,9 @@ export function CardBuilderView() {
       actionType: action.type,
       payload: currentData,
       success: true,
-      message: action.requiresConfirmation ? 'Action confirmed by user' : undefined,
+      message: action.requiresConfirmation
+        ? 'Action confirmed by user'
+        : undefined,
     };
     setActionLogs((prev) => [entry, ...prev]);
   };
@@ -279,24 +382,33 @@ export function CardBuilderView() {
   };
 
   const handlePublish = () => {
-    const published = store.publishVersion(card.cardId) || { ...card, status: 'published' as const };
+    const published = store.publishVersion(card.cardId) || {
+      ...card,
+      status: 'published' as const,
+    };
     setCard(published);
     toast.success(`Published "${published.name}" (v${published.version})`);
   };
 
   // Breakpoint width mapping
   const canvasWidth =
-    breakpoint === 'mobile' ? 'max-w-[360px]' : breakpoint === 'tablet' ? 'max-w-[500px]' : 'max-w-[640px]';
+    breakpoint === 'mobile'
+      ? 'max-w-[360px]'
+      : breakpoint === 'tablet'
+        ? 'max-w-[500px]'
+        : 'max-w-[640px]';
 
   return (
-    <div className="flex flex-col h-full w-full bg-background text-foreground overflow-hidden">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-background text-foreground">
       {/* --- TOP BAR --- */}
-      <header className="h-13 border-b border-border/80 bg-surface px-4 flex items-center justify-between shrink-0 z-20">
-        <div className="flex items-center gap-3">
+      <header className="h-13 px-4 z-20 flex shrink-0 items-center justify-between border-b border-border/80 bg-surface">
+        <div className="gap-3 flex items-center">
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => navigate(workspaceSlug ? `/w/${workspaceSlug}/cards` : '/cards')}
+            onClick={() =>
+              navigate(workspaceSlug ? `/w/${workspaceSlug}/cards` : '/cards')
+            }
             className="h-8 px-2 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="size-4" />
@@ -306,27 +418,32 @@ export function CardBuilderView() {
           <div className="h-4 w-px bg-border/60" />
 
           {/* Inline Editable Card Title */}
-          <div className="flex items-center gap-2">
+          <div className="gap-2 flex items-center">
             <Input
               value={card.name}
-              onChange={(e) => setCard((prev) => ({ ...prev, name: e.target.value }))}
-              className="h-8 text-xs font-bold w-48 sm:w-64 bg-transparent border-transparent hover:border-border focus:border-ring px-2"
+              onChange={(e) =>
+                setCard((prev) => ({ ...prev, name: e.target.value }))
+              }
+              className="h-8 text-xs font-bold w-48 sm:w-64 px-2 border-transparent bg-transparent hover:border-border focus:border-ring"
             />
-            <Badge variant="outline" className="text-[10px] font-mono py-0 h-5">
-              v{card.version} · <span className="capitalize">{card.status}</span>
+            <Badge variant="outline" className="py-0 h-5 font-mono text-2xs">
+              v{card.version} ·{' '}
+              <span className="capitalize">{card.status}</span>
             </Badge>
           </div>
         </div>
 
         {/* Center: Breakpoints & Theme Controls */}
-        <div className="hidden md:flex items-center gap-1 bg-surface-raised p-1 rounded-lg border border-border/60">
+        <div className="md:flex gap-1 p-1 hidden items-center rounded-lg border border-border/60 bg-surface-raised">
           <button
             type="button"
             onClick={() => setBreakpoint('desktop')}
             title="Desktop Breakpoint"
             className={cn(
               'p-1.5 rounded transition-colors',
-              breakpoint === 'desktop' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+              breakpoint === 'desktop'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground',
             )}
           >
             <Laptop className="size-3.5" />
@@ -337,7 +454,9 @@ export function CardBuilderView() {
             title="Tablet Breakpoint"
             className={cn(
               'p-1.5 rounded transition-colors',
-              breakpoint === 'tablet' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+              breakpoint === 'tablet'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground',
             )}
           >
             <Tablet className="size-3.5" />
@@ -348,7 +467,9 @@ export function CardBuilderView() {
             title="Mobile Breakpoint"
             className={cn(
               'p-1.5 rounded transition-colors',
-              breakpoint === 'mobile' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+              breakpoint === 'mobile'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground',
             )}
           >
             <Smartphone className="size-3.5" />
@@ -356,7 +477,7 @@ export function CardBuilderView() {
         </div>
 
         {/* Right Actions */}
-        <div className="flex items-center gap-2">
+        <div className="gap-2 flex items-center">
           <Button
             size="sm"
             variant={isTestMode ? 'primary' : 'outline'}
@@ -367,12 +488,21 @@ export function CardBuilderView() {
             <span>{isTestMode ? 'Exit Test' : 'Test Card'}</span>
           </Button>
 
-          <Button size="sm" variant="outline" onClick={handleSaveDraft} className="h-8 text-xs gap-1.5">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleSaveDraft}
+            className="h-8 text-xs gap-1.5"
+          >
             <Save className="size-3.5" />
             <span>Save Draft</span>
           </Button>
 
-          <Button size="sm" onClick={handlePublish} className="h-8 text-xs gap-1.5">
+          <Button
+            size="sm"
+            onClick={handlePublish}
+            className="h-8 text-xs gap-1.5"
+          >
             <CheckCircle2 className="size-3.5" />
             <span>Publish v{card.version + 1}</span>
           </Button>
@@ -382,14 +512,16 @@ export function CardBuilderView() {
       {/* --- MAIN 3-COLUMN WORKSPACE --- */}
       <div className="flex flex-1 overflow-hidden">
         {/* LEFT PANEL: Component Catalog or Component Tree */}
-        <div className="w-64 border-r border-border/60 bg-surface flex flex-col shrink-0">
-          <div className="flex border-b border-border/60 bg-surface-raised p-1 gap-1">
+        <div className="w-64 flex shrink-0 flex-col border-r border-border/60 bg-surface">
+          <div className="p-1 gap-1 flex border-b border-border/60 bg-surface-raised">
             <button
               type="button"
               onClick={() => setLeftTab('palette')}
               className={cn(
-                'flex-1 py-1 text-xs font-semibold rounded flex items-center justify-center gap-1 transition-colors',
-                leftTab === 'palette' ? 'bg-surface text-foreground shadow-2xs' : 'text-muted-foreground hover:text-foreground',
+                'py-1 text-xs font-semibold rounded gap-1 flex flex-1 items-center justify-center transition-colors',
+                leftTab === 'palette'
+                  ? 'shadow-2xs bg-surface text-foreground'
+                  : 'text-muted-foreground hover:text-foreground',
               )}
             >
               <LayoutGrid className="size-3" />
@@ -399,8 +531,10 @@ export function CardBuilderView() {
               type="button"
               onClick={() => setLeftTab('tree')}
               className={cn(
-                'flex-1 py-1 text-xs font-semibold rounded flex items-center justify-center gap-1 transition-colors',
-                leftTab === 'tree' ? 'bg-surface text-foreground shadow-2xs' : 'text-muted-foreground hover:text-foreground',
+                'py-1 text-xs font-semibold rounded gap-1 flex flex-1 items-center justify-center transition-colors',
+                leftTab === 'tree'
+                  ? 'shadow-2xs bg-surface text-foreground'
+                  : 'text-muted-foreground hover:text-foreground',
               )}
             >
               <FolderTree className="size-3" />
@@ -425,23 +559,31 @@ export function CardBuilderView() {
         </div>
 
         {/* CENTER: LIVE CANVAS */}
-        <div className="flex-1 bg-surface-inset flex flex-col overflow-hidden relative">
-          <div className="flex-1 p-6 overflow-y-auto flex flex-col items-center justify-center">
+        <div className="relative flex flex-1 flex-col overflow-hidden bg-surface-inset">
+          <div className="p-6 flex flex-1 flex-col items-center justify-center overflow-y-auto">
             {/* Canvas Frame Container */}
-            <div className={cn('w-full transition-all duration-300', canvasWidth)}>
-              <div className="mb-2 flex items-center justify-between text-[11px] text-muted-foreground">
-                <span className="font-semibold uppercase tracking-wider">
-                  {breakpoint} Preview ({breakpoint === 'mobile' ? '360px' : breakpoint === 'tablet' ? '500px' : '640px'})
+            <div
+              className={cn('w-full transition-all duration-300', canvasWidth)}
+            >
+              <div className="mb-2 flex items-center justify-between text-meta text-muted-foreground">
+                <span className="font-semibold tracking-wider uppercase">
+                  {breakpoint} Preview (
+                  {breakpoint === 'mobile'
+                    ? '360px'
+                    : breakpoint === 'tablet'
+                      ? '500px'
+                      : '640px'}
+                  )
                 </span>
                 {isTestMode && (
-                  <Badge variant="primary" className="text-[9px] py-0">
+                  <Badge variant="primary" className="py-0 text-3xs">
                     Test Mode Active
                   </Badge>
                 )}
               </div>
 
               {/* Render Universal Card */}
-              <div className="border border-border/80 rounded-2xl bg-surface/80 backdrop-blur-sm shadow-md p-1">
+              <div className="backdrop-blur-sm p-1 rounded-2xl border border-border/80 bg-surface/80 shadow-md">
                 <UniversalCardRenderer
                   cardDefinition={card}
                   data={card.sampleData}
@@ -460,19 +602,24 @@ export function CardBuilderView() {
 
           {/* Test Console Drawer (Visible when Test Mode is Active) */}
           {isTestMode && (
-            <TestConsoleDrawer logs={actionLogs} onClearLogs={() => setActionLogs([])} />
+            <TestConsoleDrawer
+              logs={actionLogs}
+              onClearLogs={() => setActionLogs([])}
+            />
           )}
         </div>
 
         {/* RIGHT PANEL: Inspector (Props, Schema, Sample Data, Actions, JSON) */}
-        <div className="w-80 border-l border-border/60 bg-surface flex flex-col shrink-0">
-          <div className="flex border-b border-border/60 bg-surface-raised p-1 gap-1 overflow-x-auto">
+        <div className="w-80 flex shrink-0 flex-col border-l border-border/60 bg-surface">
+          <div className="p-1 gap-1 flex overflow-x-auto border-b border-border/60 bg-surface-raised">
             <button
               type="button"
               onClick={() => setRightTab('props')}
               className={cn(
-                'px-2 py-1 text-xs font-semibold rounded transition-colors shrink-0',
-                rightTab === 'props' ? 'bg-surface text-foreground shadow-2xs' : 'text-muted-foreground hover:text-foreground',
+                'px-2 py-1 text-xs font-semibold rounded shrink-0 transition-colors',
+                rightTab === 'props'
+                  ? 'shadow-2xs bg-surface text-foreground'
+                  : 'text-muted-foreground hover:text-foreground',
               )}
             >
               Props
@@ -481,8 +628,10 @@ export function CardBuilderView() {
               type="button"
               onClick={() => setRightTab('schema')}
               className={cn(
-                'px-2 py-1 text-xs font-semibold rounded transition-colors shrink-0',
-                rightTab === 'schema' ? 'bg-surface text-foreground shadow-2xs' : 'text-muted-foreground hover:text-foreground',
+                'px-2 py-1 text-xs font-semibold rounded shrink-0 transition-colors',
+                rightTab === 'schema'
+                  ? 'shadow-2xs bg-surface text-foreground'
+                  : 'text-muted-foreground hover:text-foreground',
               )}
             >
               Schema
@@ -491,8 +640,10 @@ export function CardBuilderView() {
               type="button"
               onClick={() => setRightTab('sample')}
               className={cn(
-                'px-2 py-1 text-xs font-semibold rounded transition-colors shrink-0',
-                rightTab === 'sample' ? 'bg-surface text-foreground shadow-2xs' : 'text-muted-foreground hover:text-foreground',
+                'px-2 py-1 text-xs font-semibold rounded shrink-0 transition-colors',
+                rightTab === 'sample'
+                  ? 'shadow-2xs bg-surface text-foreground'
+                  : 'text-muted-foreground hover:text-foreground',
               )}
             >
               Data
@@ -501,8 +652,10 @@ export function CardBuilderView() {
               type="button"
               onClick={() => setRightTab('actions')}
               className={cn(
-                'px-2 py-1 text-xs font-semibold rounded transition-colors shrink-0',
-                rightTab === 'actions' ? 'bg-surface text-foreground shadow-2xs' : 'text-muted-foreground hover:text-foreground',
+                'px-2 py-1 text-xs font-semibold rounded shrink-0 transition-colors',
+                rightTab === 'actions'
+                  ? 'shadow-2xs bg-surface text-foreground'
+                  : 'text-muted-foreground hover:text-foreground',
               )}
             >
               Actions
@@ -511,8 +664,10 @@ export function CardBuilderView() {
               type="button"
               onClick={() => setRightTab('json')}
               className={cn(
-                'px-2 py-1 text-xs font-semibold rounded transition-colors shrink-0',
-                rightTab === 'json' ? 'bg-surface text-foreground shadow-2xs' : 'text-muted-foreground hover:text-foreground',
+                'px-2 py-1 text-xs font-semibold rounded shrink-0 transition-colors',
+                rightTab === 'json'
+                  ? 'shadow-2xs bg-surface text-foreground'
+                  : 'text-muted-foreground hover:text-foreground',
               )}
             >
               JSON
@@ -536,21 +691,27 @@ export function CardBuilderView() {
             {rightTab === 'schema' && (
               <SchemaEditor
                 schema={card.schema}
-                onChange={(newSchema) => setCard((prev) => ({ ...prev, schema: newSchema }))}
+                onChange={(newSchema) =>
+                  setCard((prev) => ({ ...prev, schema: newSchema }))
+                }
               />
             )}
 
             {rightTab === 'sample' && (
               <SampleDataEditor
                 sampleData={card.sampleData || {}}
-                onChange={(newData) => setCard((prev) => ({ ...prev, sampleData: newData }))}
+                onChange={(newData) =>
+                  setCard((prev) => ({ ...prev, sampleData: newData }))
+                }
               />
             )}
 
             {rightTab === 'actions' && (
               <ActionsEditor
                 actions={card.actions || []}
-                onChange={(newActions) => setCard((prev) => ({ ...prev, actions: newActions }))}
+                onChange={(newActions) =>
+                  setCard((prev) => ({ ...prev, actions: newActions }))
+                }
               />
             )}
 

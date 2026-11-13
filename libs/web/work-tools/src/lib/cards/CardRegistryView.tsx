@@ -1,7 +1,4 @@
-import {
-  UniversalCardRenderer,
-  useCardRegistryStore,
-} from '@org/chat-ui';
+import { UniversalCardRenderer, useCardRegistryStore } from '@org/chat-ui';
 import type { CardDefinition } from '@org/types';
 import {
   Button,
@@ -69,11 +66,17 @@ export function CardRegistryView() {
     return allCards.filter((card) => {
       const matchesSearch =
         card.name.toLowerCase().includes(search.toLowerCase()) ||
-        (card.description && card.description.toLowerCase().includes(search.toLowerCase())) ||
-        (card.tags && card.tags.some((t) => t.toLowerCase().includes(search.toLowerCase())));
+        (card.description &&
+          card.description.toLowerCase().includes(search.toLowerCase())) ||
+        (card.tags &&
+          card.tags.some((t) =>
+            t.toLowerCase().includes(search.toLowerCase()),
+          ));
 
-      const matchesCat = categoryFilter === 'all' || card.category === categoryFilter;
-      const matchesStatus = statusFilter === 'all' || card.status === statusFilter;
+      const matchesCat =
+        categoryFilter === 'all' || card.category === categoryFilter;
+      const matchesStatus =
+        statusFilter === 'all' || card.status === statusFilter;
 
       return matchesSearch && matchesCat && matchesStatus;
     });
@@ -143,25 +146,26 @@ export function CardRegistryView() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-background text-foreground overflow-y-auto">
+    <div className="flex h-full flex-col overflow-y-auto bg-background text-foreground">
       {/* Header Bar */}
-      <div className="border-b border-border/80 bg-surface px-6 py-5 shrink-0">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="px-6 py-5 shrink-0 border-b border-border/80 bg-surface">
+        <div className="max-w-7xl sm:flex-row sm:items-center gap-4 mx-auto flex flex-col justify-between">
           <div>
-            <div className="flex items-center gap-2">
-              <div className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+            <div className="gap-2 flex items-center">
+              <div className="size-8 flex items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
                 <LayoutGrid className="size-4" />
               </div>
               <h1 className="text-xl font-bold tracking-tight text-foreground">
                 Universal Card Registry
               </h1>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Platform-level custom card definitions rendered across Matrix Chat, AI Agent Responses, Workflows, Dashboards, and Inboxes.
+            <p className="text-xs mt-1 text-muted-foreground">
+              Platform-level custom card definitions rendered across Matrix
+              Chat, AI Agent Responses, Workflows, Dashboards, and Inboxes.
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="gap-2 flex items-center">
             <Button
               size="sm"
               variant="outline"
@@ -185,11 +189,11 @@ export function CardRegistryView() {
       </div>
 
       {/* Main Content Area */}
-      <div className="max-w-7xl mx-auto w-full p-6 space-y-6 flex-1">
+      <div className="max-w-7xl p-6 space-y-6 mx-auto w-full flex-1">
         {/* Filters & Search Row */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-surface p-3 rounded-2xl border border-border/70 shadow-xs">
-          <div className="relative flex-1 w-full">
-            <Search className="size-3.5 absolute left-3 top-3 text-muted-foreground" />
+        <div className="sm:flex-row gap-3 p-3 flex flex-col items-center justify-between rounded-2xl border border-border/70 bg-surface shadow-xs">
+          <div className="relative w-full flex-1">
+            <Search className="size-3.5 left-3 top-3 absolute text-muted-foreground" />
             <Input
               placeholder="Search cards by name, description, tags…"
               value={search}
@@ -198,7 +202,7 @@ export function CardRegistryView() {
             />
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="gap-2 sm:w-auto flex w-full items-center">
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="w-40 text-xs h-9">
                 <SelectValue placeholder="Category" />
@@ -229,25 +233,27 @@ export function CardRegistryView() {
         </div>
 
         {/* Card Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="md:grid-cols-2 lg:grid-cols-3 gap-4 grid grid-cols-1">
           {filteredCards.map((card) => (
             <div
               key={card.cardId}
-              className="p-5 rounded-2xl border border-border/80 bg-surface hover:border-primary/50 transition-all duration-200 shadow-xs hover:shadow-md flex flex-col justify-between gap-4 group"
+              className="p-5 gap-4 group flex flex-col justify-between rounded-2xl border border-border/80 bg-surface shadow-xs transition-all duration-200 hover:border-primary/50 hover:shadow-md"
             >
               {/* Card Top */}
               <div className="space-y-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-3">
-                    <div className="size-10 rounded-xl bg-surface-raised border border-border/70 flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform">
+                <div className="gap-2 flex items-start justify-between">
+                  <div className="gap-3 flex items-center">
+                    <div className="size-10 shadow-2xs flex items-center justify-center rounded-xl border border-border/70 bg-surface-raised transition-transform group-hover:scale-105">
                       {getCardIcon(card.icon)}
                     </div>
                     <div>
-                      <h3 className="font-bold text-sm text-foreground tracking-tight">
+                      <h3 className="font-bold text-sm tracking-tight text-foreground">
                         {card.name}
                       </h3>
-                      <div className="flex items-center gap-1.5 mt-0.5 font-mono text-[10px] text-muted-foreground">
-                        <span className="uppercase font-semibold text-brand-text">{card.category}</span>
+                      <div className="gap-1.5 mt-0.5 flex items-center font-mono text-2xs text-muted-foreground">
+                        <span className="font-semibold text-brand-text uppercase">
+                          {card.category}
+                        </span>
                         <span>·</span>
                         <span>v{card.version}</span>
                       </div>
@@ -256,12 +262,18 @@ export function CardRegistryView() {
 
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                      >
                         <MoreHorizontal className="size-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-44 text-xs">
-                      <DropdownMenuItem onClick={() => handleEditCard(card.cardId)}>
+                      <DropdownMenuItem
+                        onClick={() => handleEditCard(card.cardId)}
+                      >
                         <Edit className="size-3.5 mr-2" />
                         Edit in Builder
                       </DropdownMenuItem>
@@ -269,11 +281,15 @@ export function CardRegistryView() {
                         <Eye className="size-3.5 mr-2" />
                         Preview Card
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDuplicate(card.cardId)}>
+                      <DropdownMenuItem
+                        onClick={() => handleDuplicate(card.cardId)}
+                      >
                         <Copy className="size-3.5 mr-2" />
                         Duplicate
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleExport(card.cardId)}>
+                      <DropdownMenuItem
+                        onClick={() => handleExport(card.cardId)}
+                      >
                         <Download className="size-3.5 mr-2" />
                         Export JSON
                       </DropdownMenuItem>
@@ -301,16 +317,16 @@ export function CardRegistryView() {
                   </DropdownMenu>
                 </div>
 
-                <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                <p className="text-xs leading-relaxed line-clamp-2 text-muted-foreground">
                   {card.description || 'No description provided.'}
                 </p>
 
                 {/* Supported Surfaces Badges */}
-                <div className="flex items-center gap-1 flex-wrap pt-1">
+                <div className="gap-1 pt-1 flex flex-wrap items-center">
                   {card.supportedSurfaces?.map((s) => (
                     <span
                       key={s}
-                      className="px-1.5 py-0.5 rounded bg-surface-raised border border-border/60 text-[9px] font-mono text-muted-foreground uppercase"
+                      className="px-1.5 py-0.5 rounded border border-border/60 bg-surface-raised font-mono text-3xs text-muted-foreground uppercase"
                     >
                       {s}
                     </span>
@@ -319,12 +335,16 @@ export function CardRegistryView() {
               </div>
 
               {/* Card Footer */}
-              <div className="pt-3 border-t border-border/60 flex items-center justify-between text-xs">
-                <span className="text-[11px] text-muted-foreground">
-                  Used <strong className="font-semibold text-foreground">{card.usageCount || 0}</strong> times
+              <div className="pt-3 text-xs flex items-center justify-between border-t border-border/60">
+                <span className="text-meta text-muted-foreground">
+                  Used{' '}
+                  <strong className="font-semibold text-foreground">
+                    {card.usageCount || 0}
+                  </strong>{' '}
+                  times
                 </span>
 
-                <div className="flex items-center gap-1.5">
+                <div className="gap-1.5 flex items-center">
                   <Button
                     size="sm"
                     variant="ghost"
@@ -352,23 +372,34 @@ export function CardRegistryView() {
       {/* --- PREVIEW MODAL --- */}
       {previewCard && (
         <Dialog open={!!previewCard} onOpenChange={() => setPreviewCard(null)}>
-          <DialogContent className="max-w-xl bg-surface border-border text-foreground">
+          <DialogContent className="max-w-xl border-border bg-surface text-foreground">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-sm font-bold">
+              <DialogTitle className="gap-2 text-sm font-bold flex items-center">
                 <Eye className="size-4 text-primary" />
-                <span>Card Preview: {previewCard.name} (v{previewCard.version})</span>
+                <span>
+                  Card Preview: {previewCard.name} (v{previewCard.version})
+                </span>
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
-                Live interactive rendering of card template with mock sample data.
+                Live interactive rendering of card template with mock sample
+                data.
               </DialogDescription>
             </DialogHeader>
 
             <DialogBody className="flex justify-center">
-              <UniversalCardRenderer cardDefinition={previewCard} data={previewCard.sampleData} />
+              <UniversalCardRenderer
+                cardDefinition={previewCard}
+                data={previewCard.sampleData}
+              />
             </DialogBody>
 
             <DialogFooter>
-              <Button size="sm" variant="outline" onClick={() => setPreviewCard(null)} className="text-xs">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setPreviewCard(null)}
+                className="text-xs"
+              >
                 Close
               </Button>
               <Button
@@ -391,9 +422,9 @@ export function CardRegistryView() {
       {/* --- IMPORT MODAL --- */}
       {importOpen && (
         <Dialog open={importOpen} onOpenChange={setImportOpen}>
-          <DialogContent className="max-w-lg bg-surface border-border text-foreground">
+          <DialogContent className="max-w-lg border-border bg-surface text-foreground">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-sm font-bold">
+              <DialogTitle className="gap-2 text-sm font-bold flex items-center">
                 <Upload className="size-4 text-primary" />
                 <span>Import Card JSON</span>
               </DialogTitle>
@@ -414,10 +445,19 @@ export function CardRegistryView() {
             </DialogBody>
 
             <DialogFooter>
-              <Button size="sm" variant="outline" onClick={() => setImportOpen(false)} className="text-xs">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setImportOpen(false)}
+                className="text-xs"
+              >
                 Cancel
               </Button>
-              <Button size="sm" onClick={handleImportSubmit} className="text-xs">
+              <Button
+                size="sm"
+                onClick={handleImportSubmit}
+                className="text-xs"
+              >
                 Import Card
               </Button>
             </DialogFooter>

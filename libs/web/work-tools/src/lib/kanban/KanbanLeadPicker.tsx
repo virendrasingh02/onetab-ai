@@ -123,7 +123,7 @@ export function KanbanLeadPicker({
           statusEmoji={assignedMembers[0].statusEmoji}
           statusText={assignedMembers[0].statusText}
           size="xs"
-          className="size-5 font-bold text-[9px] ring-1 ring-surface"
+          className="size-5 font-bold text-3xs ring-1 ring-surface"
         />
       ) : (
         <div className="size-5 flex items-center justify-center rounded-full border border-dashed border-muted-foreground/50 bg-muted/20">
@@ -186,7 +186,7 @@ export function KanbanLeadPicker({
               {activeIds.length === 0 && (
                 <Check className="size-3.5 shrink-0 stroke-[2.5] text-foreground" />
               )}
-              <span className="font-mono text-[11px] text-muted-foreground/70 tabular-nums">
+              <span className="font-mono text-meta text-muted-foreground/70 tabular-nums">
                 0
               </span>
             </div>
@@ -226,7 +226,7 @@ export function KanbanLeadPicker({
                         statusEmoji={member.statusEmoji}
                         statusText={member.statusText}
                         size="sm"
-                        className="size-7 font-bold shrink-0 rounded-full text-[10px]"
+                        className="size-7 font-bold shrink-0 rounded-full text-2xs"
                       />
                       <div className="min-w-0 flex-1">
                         <span className="text-xs font-semibold leading-tight block truncate text-foreground">
@@ -249,7 +249,7 @@ export function KanbanLeadPicker({
         {onInvite && (
           <>
             <DropdownMenuSeparator className="my-1.5" />
-            <div className="px-2.5 py-1 font-medium text-[11px] text-muted-foreground">
+            <div className="px-2.5 py-1 font-medium text-meta text-muted-foreground">
               New user
             </div>
 

@@ -221,7 +221,7 @@ export function LinearFilterMenu({
 
                 <div className="gap-1 flex items-center">
                   {cat.activeCount > 0 && (
-                    <span className="px-1.5 py-0.2 font-semibold rounded-full bg-brand/20 text-[10px] text-brand-text">
+                    <span className="px-1.5 py-0.2 font-semibold rounded-full bg-brand/20 text-2xs text-brand-text">
                       {cat.activeCount}
                     </span>
                   )}
@@ -239,7 +239,7 @@ export function LinearFilterMenu({
                         onClick={() => toggleStatus(status)}
                         className="px-2 py-1 text-xs flex w-full items-center justify-between rounded-md text-left hover:bg-accent hover:text-foreground"
                       >
-                        <span className="gap-2 flex items-center min-w-0">
+                        <span className="gap-2 min-w-0 flex items-center">
                           <StatusIcon status={status} showTooltip={false} />
                           <span className="truncate">{name}</span>
                         </span>

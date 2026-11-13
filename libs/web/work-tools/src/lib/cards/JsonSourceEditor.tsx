@@ -21,7 +21,9 @@ export function JsonSourceEditor({ card, onChange }: JsonSourceEditorProps) {
     try {
       const parsed = JSON.parse(jsonText);
       if (!parsed.cardId || !parsed.name || !parsed.rootComponent) {
-        setError('Invalid card schema: missing required properties (cardId, name, rootComponent).');
+        setError(
+          'Invalid card schema: missing required properties (cardId, name, rootComponent).',
+        );
         return;
       }
       setError(null);
@@ -38,14 +40,23 @@ export function JsonSourceEditor({ card, onChange }: JsonSourceEditorProps) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-surface border-l border-border/60 p-4 space-y-3">
+    <div className="p-4 space-y-3 flex h-full flex-col border-l border-border/60 bg-surface">
       <div className="flex items-center justify-between">
         <div>
-          <span className="text-xs font-bold text-foreground block">JSON Source Schema</span>
-          <span className="text-[10px] text-muted-foreground">Direct AST &amp; schema editing with validation</span>
+          <span className="text-xs font-bold block text-foreground">
+            JSON Source Schema
+          </span>
+          <span className="text-2xs text-muted-foreground">
+            Direct AST &amp; schema editing with validation
+          </span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <Button size="sm" variant="outline" onClick={handleCopy} className="text-xs h-7 gap-1">
+        <div className="gap-1.5 flex items-center">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleCopy}
+            className="text-xs h-7 gap-1"
+          >
             <Copy className="size-3" />
             Copy
           </Button>
@@ -57,7 +68,7 @@ export function JsonSourceEditor({ card, onChange }: JsonSourceEditorProps) {
       </div>
 
       {error && (
-        <div className="p-2.5 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive-text text-xs font-mono">
+        <div className="p-2.5 text-xs rounded-lg border border-destructive/30 bg-destructive/10 font-mono text-destructive-text">
           ⚠ {error}
         </div>
       )}

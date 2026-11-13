@@ -343,7 +343,7 @@ export function FileManagerView() {
         title="All Files"
         hasTabs
         meta={
-          <Badge variant="neutral" className="px-1.5 py-0 h-4.5 text-[11px]">
+          <Badge variant="neutral" className="px-1.5 py-0 h-4.5 text-meta">
             {allRows.length} files
           </Badge>
         }
@@ -619,7 +619,7 @@ export function FileManagerView() {
                   bounded Matrix set. */}
               <div ref={sentinelRef} className="h-8" aria-hidden />
               {uploads.isFetchingNextPage ? (
-                <p className="text-center text-[11px] text-muted-foreground">
+                <p className="text-center text-meta text-muted-foreground">
                   Loading more…
                 </p>
               ) : uploads.hasNextPage ? (

@@ -214,7 +214,7 @@ export function KanbanStatusPicker({
                     <Check className="size-3.5 shrink-0 stroke-[2.5] text-foreground" />
                   )}
                   {digit <= 9 && (
-                    <span className="font-mono text-[11px] text-muted-foreground/70 tabular-nums">
+                    <span className="font-mono text-meta text-muted-foreground/70 tabular-nums">
                       {digit}
                     </span>
                   )}
@@ -237,7 +237,7 @@ export function KanbanStatusPicker({
               <span className="truncate">Create “{query.slice(0, 40)}”</span>
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="w-52 p-1.5 rounded-xl">
-              <p className="px-2 pt-0.5 pb-1.5 text-[11px] text-muted-foreground">
+              <p className="px-2 pt-0.5 pb-1.5 text-meta text-muted-foreground">
                 Works like…
               </p>
               {TASK_STATUS_ORDER.map((category) => (

@@ -1,5 +1,13 @@
 import { Badge, Button, CodeBlock } from '@org/ui';
-import { CheckCircle2, ChevronDown, ChevronUp, Clock, Terminal, Trash2, XCircle } from 'lucide-react';
+import {
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Terminal,
+  Trash2,
+  XCircle,
+} from 'lucide-react';
 import { useState } from 'react';
 
 export interface ActionLogEntry {
@@ -17,7 +25,10 @@ export interface TestConsoleDrawerProps {
   onClearLogs: () => void;
 }
 
-export function TestConsoleDrawer({ logs, onClearLogs }: TestConsoleDrawerProps) {
+export function TestConsoleDrawer({
+  logs,
+  onClearLogs,
+}: TestConsoleDrawerProps) {
   const [isExpanded, setIsExpanded] = useState(true);
 
   return (
@@ -25,17 +36,19 @@ export function TestConsoleDrawer({ logs, onClearLogs }: TestConsoleDrawerProps)
       {/* Console Header */}
       <div
         onClick={() => setIsExpanded(!isExpanded)}
-        className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-accent/40 select-none border-b border-border/40"
+        className="px-4 py-2 flex cursor-pointer items-center justify-between border-b border-border/40 select-none hover:bg-accent/40"
       >
-        <div className="flex items-center gap-2">
+        <div className="gap-2 flex items-center">
           <Terminal className="size-3.5 text-primary" />
-          <span className="text-xs font-bold text-foreground">Interactive Test Console</span>
-          <Badge variant="outline" className="text-[10px] py-0 font-mono">
+          <span className="text-xs font-bold text-foreground">
+            Interactive Test Console
+          </span>
+          <Badge variant="outline" className="py-0 font-mono text-2xs">
             {logs.length} Events
           </Badge>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="gap-2 flex items-center">
           {logs.length > 0 && (
             <Button
               size="sm"
@@ -44,49 +57,67 @@ export function TestConsoleDrawer({ logs, onClearLogs }: TestConsoleDrawerProps)
                 e.stopPropagation();
                 onClearLogs();
               }}
-              className="h-6 text-[11px] text-muted-foreground hover:text-foreground"
+              className="h-6 text-meta text-muted-foreground hover:text-foreground"
             >
               <Trash2 className="size-3 mr-1" />
               Clear
             </Button>
           )}
-          <button type="button" className="text-muted-foreground hover:text-foreground p-1">
-            {isExpanded ? <ChevronDown className="size-3.5" /> : <ChevronUp className="size-3.5" />}
+          <button
+            type="button"
+            className="p-1 text-muted-foreground hover:text-foreground"
+          >
+            {isExpanded ? (
+              <ChevronDown className="size-3.5" />
+            ) : (
+              <ChevronUp className="size-3.5" />
+            )}
           </button>
         </div>
       </div>
 
       {/* Console Body */}
       {isExpanded && (
-        <div className="p-3 max-h-48 overflow-y-auto space-y-2 font-mono text-[11px]">
+        <div className="p-3 max-h-48 space-y-2 overflow-y-auto font-mono text-meta">
           {logs.length === 0 ? (
-            <div className="text-muted-foreground text-center py-4 italic text-xs">
-              No actions executed yet. Click buttons or submit forms in the interactive preview canvas above to test triggers.
+            <div className="py-4 text-xs text-center text-muted-foreground italic">
+              No actions executed yet. Click buttons or submit forms in the
+              interactive preview canvas above to test triggers.
             </div>
           ) : (
             logs.map((log) => (
               <div
                 key={log.id}
-                className="p-2 rounded-lg border border-border/60 bg-surface flex items-start justify-between gap-2 shadow-2xs"
+                className="p-2 gap-2 shadow-2xs flex items-start justify-between rounded-lg border border-border/60 bg-surface"
               >
-                <div className="flex items-start gap-2">
+                <div className="gap-2 flex items-start">
                   {log.success ? (
-                    <CheckCircle2 className="size-3.5 text-success mt-0.5 shrink-0" />
+                    <CheckCircle2 className="size-3.5 mt-0.5 shrink-0 text-success" />
                   ) : (
-                    <XCircle className="size-3.5 text-destructive-text mt-0.5 shrink-0" />
+                    <XCircle className="size-3.5 mt-0.5 shrink-0 text-destructive-text" />
                   )}
                   <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-foreground">{log.actionId}</span>
-                      <span className="text-[10px] text-muted-foreground uppercase bg-surface-raised px-1 py-0.2 rounded border border-border/60">
+                    <div className="gap-2 flex items-center">
+                      <span className="font-bold text-foreground">
+                        {log.actionId}
+                      </span>
+                      <span className="px-1 py-0.2 rounded border border-border/60 bg-surface-raised text-2xs text-muted-foreground uppercase">
                         {log.actionType}
                       </span>
                     </div>
-                    {log.message && <p className="text-muted-foreground text-[10px]">{log.message}</p>}
+                    {log.message && (
+                      <p className="text-2xs text-muted-foreground">
+                        {log.message}
+                      </p>
+                    )}
                     {log.payload && (
                       <div className="mt-1">
                         <CodeBlock
-                          code={typeof log.payload === 'string' ? log.payload : JSON.stringify(log.payload, null, 2)}
+                          code={
+                            typeof log.payload === 'string'
+                              ? log.payload
+                              : JSON.stringify(log.payload, null, 2)
+                          }
                           language="json"
                           variant="compact"
                           maxHeight="120px"
@@ -96,7 +127,7 @@ export function TestConsoleDrawer({ logs, onClearLogs }: TestConsoleDrawerProps)
                   </div>
                 </div>
 
-                <div className="text-[10px] text-muted-foreground flex items-center gap-1 shrink-0">
+                <div className="gap-1 flex shrink-0 items-center text-2xs text-muted-foreground">
                   <Clock className="size-3" />
                   <span>{new Date(log.timestamp).toLocaleTimeString()}</span>
                 </div>

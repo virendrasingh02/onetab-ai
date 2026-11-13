@@ -216,23 +216,17 @@ export function ScheduleView() {
                                   : 'Conversation'}
                               </h3>
                               {msg.status === 'PENDING' ? (
-                                <Badge
-                                  variant="primary"
-                                  className="text-[10px]"
-                                >
+                                <Badge variant="primary" className="text-2xs">
                                   Scheduled
                                 </Badge>
                               ) : msg.status === 'SENT' ? (
-                                <Badge
-                                  variant="success"
-                                  className="text-[10px]"
-                                >
+                                <Badge variant="success" className="text-2xs">
                                   Sent
                                 </Badge>
                               ) : (
                                 <Badge
                                   variant="destructive"
-                                  className="text-[10px]"
+                                  className="text-2xs"
                                 >
                                   Failed
                                 </Badge>
@@ -243,7 +237,7 @@ export function ScheduleView() {
                               {msg.body}
                             </p>
 
-                            <div className="mt-2 gap-3 flex flex-wrap items-center text-[11px] text-muted-foreground">
+                            <div className="mt-2 gap-3 flex flex-wrap items-center text-meta text-muted-foreground">
                               <span className="gap-1 font-medium flex items-center">
                                 <Clock className="size-3" aria-hidden />
                                 <span>
@@ -387,7 +381,7 @@ export function ScheduleView() {
                                     {event.description}
                                   </p>
                                 ) : null}
-                                <div className="mt-1 gap-3 flex flex-wrap items-center font-mono text-[11px] text-subtle">
+                                <div className="mt-1 gap-3 flex flex-wrap items-center font-mono text-meta text-subtle">
                                   <span className="gap-1 flex items-center">
                                     <Clock className="size-3" aria-hidden />
                                     {event.isAllDay

@@ -21,7 +21,8 @@ export interface ActionsEditorProps {
 export function ActionsEditor({ actions = [], onChange }: ActionsEditorProps) {
   const [newActionId, setNewActionId] = useState('');
   const [newActionLabel, setNewActionLabel] = useState('');
-  const [newActionType, setNewActionType] = useState<CardActionType>('open_url');
+  const [newActionType, setNewActionType] =
+    useState<CardActionType>('open_url');
 
   const handleAddAction = () => {
     const id = newActionId.trim().replace(/\s+/g, '_');
@@ -43,23 +44,33 @@ export function ActionsEditor({ actions = [], onChange }: ActionsEditorProps) {
     onChange(actions.filter((a) => a.id !== actionId));
   };
 
-  const handleUpdateAction = (actionId: string, updates: Partial<CardActionDefinition>) => {
-    onChange(actions.map((a) => (a.id === actionId ? { ...a, ...updates } : a)));
+  const handleUpdateAction = (
+    actionId: string,
+    updates: Partial<CardActionDefinition>,
+  ) => {
+    onChange(
+      actions.map((a) => (a.id === actionId ? { ...a, ...updates } : a)),
+    );
   };
 
   return (
-    <div className="flex flex-col h-full bg-surface border-l border-border/60 overflow-y-auto p-4 space-y-4">
+    <div className="p-4 space-y-4 flex h-full flex-col overflow-y-auto border-l border-border/60 bg-surface">
       <div>
-        <span className="text-xs font-bold text-foreground block">Card Action Registry</span>
-        <p className="text-[11px] text-muted-foreground">
-          Define interactive actions with confirmation dialogs, permissions guards, and API callbacks.
+        <span className="text-xs font-bold block text-foreground">
+          Card Action Registry
+        </span>
+        <p className="text-meta text-muted-foreground">
+          Define interactive actions with confirmation dialogs, permissions
+          guards, and API callbacks.
         </p>
       </div>
 
       {/* Add Action Form */}
-      <div className="p-3 rounded-xl border border-border/70 bg-surface-raised space-y-2">
-        <span className="text-xs font-bold text-foreground block">+ Add Card Action</span>
-        <div className="grid grid-cols-2 gap-2">
+      <div className="p-3 space-y-2 rounded-xl border border-border/70 bg-surface-raised">
+        <span className="text-xs font-bold block text-foreground">
+          + Add Card Action
+        </span>
+        <div className="gap-2 grid grid-cols-2">
           <Input
             placeholder="Action ID (e.g. open_crm)"
             value={newActionId}
@@ -73,8 +84,11 @@ export function ActionsEditor({ actions = [], onChange }: ActionsEditorProps) {
             className="text-xs h-8"
           />
         </div>
-        <div className="flex items-center gap-2">
-          <Select value={newActionType} onValueChange={(val: any) => setNewActionType(val)}>
+        <div className="gap-2 flex items-center">
+          <Select
+            value={newActionType}
+            onValueChange={(val: any) => setNewActionType(val)}
+          >
             <SelectTrigger className="text-xs h-8 flex-1">
               <SelectValue />
             </SelectTrigger>
@@ -90,7 +104,11 @@ export function ActionsEditor({ actions = [], onChange }: ActionsEditorProps) {
               <SelectItem value="copy_value">Copy Value</SelectItem>
             </SelectContent>
           </Select>
-          <Button size="sm" onClick={handleAddAction} className="text-xs h-8 gap-1">
+          <Button
+            size="sm"
+            onClick={handleAddAction}
+            className="text-xs h-8 gap-1"
+          >
             <Plus className="size-3.5" />
             Add
           </Button>
@@ -100,38 +118,47 @@ export function ActionsEditor({ actions = [], onChange }: ActionsEditorProps) {
       {/* Action Items List */}
       <div className="space-y-3">
         {actions.map((act) => (
-          <div key={act.id} className="p-3 rounded-xl border border-border/60 bg-surface-raised space-y-2">
+          <div
+            key={act.id}
+            className="p-3 space-y-2 rounded-xl border border-border/60 bg-surface-raised"
+          >
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-foreground">
+              <div className="gap-1.5 text-xs font-bold flex items-center font-mono text-foreground">
                 <Zap className="size-3 text-primary" />
                 <span>{act.id}</span>
-                <span className="text-[10px] text-muted-foreground uppercase bg-surface px-1.5 py-0.5 rounded border border-border/60">
+                <span className="px-1.5 py-0.5 rounded border border-border/60 bg-surface text-2xs text-muted-foreground uppercase">
                   {act.type}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => handleRemoveAction(act.id)}
-                className="text-destructive-text hover:text-destructive p-1 rounded"
+                className="p-1 rounded text-destructive-text hover:text-destructive"
               >
                 <Trash2 className="size-3.5" />
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="gap-2 grid grid-cols-2">
               <div>
-                <Label className="text-[10px] text-muted-foreground">Label</Label>
+                <Label className="text-2xs text-muted-foreground">Label</Label>
                 <Input
                   value={act.label}
-                  onChange={(e) => handleUpdateAction(act.id, { label: e.target.value })}
+                  onChange={(e) =>
+                    handleUpdateAction(act.id, { label: e.target.value })
+                  }
                   className="text-xs h-7"
                 />
               </div>
               <div>
-                <Label className="text-[10px] text-muted-foreground">Button Variant</Label>
+                <Label className="text-2xs text-muted-foreground">
+                  Button Variant
+                </Label>
                 <Select
                   value={act.variant || 'primary'}
-                  onValueChange={(val: any) => handleUpdateAction(act.id, { variant: val })}
+                  onValueChange={(val: any) =>
+                    handleUpdateAction(act.id, { variant: val })
+                  }
                 >
                   <SelectTrigger className="text-xs h-7">
                     <SelectValue />
@@ -149,23 +176,34 @@ export function ActionsEditor({ actions = [], onChange }: ActionsEditorProps) {
 
             {act.type === 'open_url' && (
               <div>
-                <Label className="text-[10px] text-muted-foreground">Target URL Template</Label>
+                <Label className="text-2xs text-muted-foreground">
+                  Target URL Template
+                </Label>
                 <Input
                   value={act.url || ''}
-                  onChange={(e) => handleUpdateAction(act.id, { url: e.target.value })}
+                  onChange={(e) =>
+                    handleUpdateAction(act.id, { url: e.target.value })
+                  }
                   placeholder="https://… or {{url}}"
                   className="text-xs h-7 font-mono"
                 />
               </div>
             )}
 
-            <div className="flex items-center gap-2 pt-1">
+            <div className="gap-2 pt-1 flex items-center">
               <Checkbox
                 id={`conf-${act.id}`}
                 checked={act.requiresConfirmation}
-                onCheckedChange={(c) => handleUpdateAction(act.id, { requiresConfirmation: Boolean(c) })}
+                onCheckedChange={(c) =>
+                  handleUpdateAction(act.id, {
+                    requiresConfirmation: Boolean(c),
+                  })
+                }
               />
-              <label htmlFor={`conf-${act.id}`} className="text-xs text-foreground cursor-pointer select-none">
+              <label
+                htmlFor={`conf-${act.id}`}
+                className="text-xs cursor-pointer text-foreground select-none"
+              >
                 Require Confirmation Dialog
               </label>
             </div>

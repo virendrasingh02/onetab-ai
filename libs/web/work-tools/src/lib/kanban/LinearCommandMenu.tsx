@@ -1,10 +1,4 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  Kbd,
-  KbdShortcut,
-} from '@org/ui';
+import { Dialog, DialogContent, DialogTitle, Kbd, KbdShortcut } from '@org/ui';
 import {
   FolderKanban,
   GitBranch,
@@ -25,7 +19,9 @@ export interface LinearCommandMenuProps {
   lists: KanbanList[];
   onOpenCard?: (cardId: string) => void;
   onQuickAddTask?: (listId?: string) => void;
-  onViewModeChange?: (mode: 'board' | 'list' | 'timeline' | 'dashboard' | 'projects') => void;
+  onViewModeChange?: (
+    mode: 'board' | 'list' | 'timeline' | 'dashboard' | 'projects',
+  ) => void;
   onOpenFilter?: () => void;
   onOpenNewProject?: () => void;
 }
@@ -54,10 +50,11 @@ export function LinearCommandMenu({
 
   const ticketOf = (card: KanbanCard) => card.ticketId ?? card.identifier ?? '';
 
-  const matchedCards = allCards.filter(({ card }) =>
-    card.title.toLowerCase().includes(needle) ||
-    ticketOf(card).toLowerCase().includes(needle) ||
-    card.description?.toLowerCase().includes(needle),
+  const matchedCards = allCards.filter(
+    ({ card }) =>
+      card.title.toLowerCase().includes(needle) ||
+      ticketOf(card).toLowerCase().includes(needle) ||
+      card.description?.toLowerCase().includes(needle),
   );
 
   const handleCopyBranch = (ticketId: string, title: string) => {
@@ -74,31 +71,31 @@ export function LinearCommandMenu({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="p-0 max-w-2xl overflow-hidden rounded-2xl border border-border bg-popover/95 backdrop-blur-xl shadow-2xl">
+      <DialogContent className="p-0 max-w-2xl backdrop-blur-xl shadow-2xl overflow-hidden rounded-2xl border border-border bg-popover/95">
         <DialogTitle className="sr-only">Command Palette</DialogTitle>
 
         {/* Top Search Input */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-border/60 bg-surface/40">
-          <Search className="size-4 text-muted-foreground shrink-0" />
+        <div className="gap-3 px-4 py-3 flex items-center border-b border-border/60 bg-surface/40">
+          <Search className="size-4 shrink-0 text-muted-foreground" />
           <input
             autoFocus
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Type a command or search issues, projects..."
-            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/70 outline-none"
+            className="text-sm flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground/70"
           />
-          <Kbd size="xs" variant="muted" className="hidden sm:inline-flex">
+          <Kbd size="xs" variant="muted" className="sm:inline-flex hidden">
             ESC
           </Kbd>
         </div>
 
         {/* Scrollable Command Items List */}
-        <div className="max-h-[60vh] overflow-y-auto p-2 space-y-3">
+        <div className="p-2 space-y-3 max-h-[60vh] overflow-y-auto">
           {/* Matched Issues */}
           {matchedCards.length > 0 && (
             <div className="space-y-0.5">
-              <div className="px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">
+              <div className="px-2.5 py-1 font-bold tracking-wider text-meta text-muted-foreground uppercase">
                 Issues ({matchedCards.length})
               </div>
               {matchedCards.slice(0, 8).map(({ card, list }) => {
@@ -110,33 +107,38 @@ export function LinearCommandMenu({
                       onOpenCard?.(card.id);
                       onClose();
                     }}
-                    className="flex items-center justify-between p-2 rounded-xl text-xs hover:bg-accent/60 cursor-pointer transition-colors group"
+                    className="p-2 text-xs group flex cursor-pointer items-center justify-between rounded-xl transition-colors hover:bg-accent/60"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div className="gap-2.5 min-w-0 flex flex-1 items-center">
                       <StatusIcon status={list.id} className="size-3.5" />
-                      <span className="font-mono text-[11px] font-semibold text-muted-foreground shrink-0">
+                      <span className="font-semibold shrink-0 font-mono text-meta text-muted-foreground">
                         {ticketId}
                       </span>
-                      <span className="font-semibold text-foreground truncate">
+                      <span className="font-semibold truncate text-foreground">
                         {card.title}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="gap-2 flex shrink-0 items-center">
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleCopyBranch(ticketId || card.id.slice(0, 8), card.title);
+                          handleCopyBranch(
+                            ticketId || card.id.slice(0, 8),
+                            card.title,
+                          );
                         }}
-                        className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-[10.5px] text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted"
+                        className="gap-1 p-1 rounded flex items-center text-meta text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-muted hover:text-foreground"
                         title="Copy Git branch command"
                       >
                         <GitBranch className="size-3" />
-                        <span>{copiedText === ticketId ? 'Copied!' : 'Branch'}</span>
+                        <span>
+                          {copiedText === ticketId ? 'Copied!' : 'Branch'}
+                        </span>
                       </button>
 
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-2xs text-muted-foreground">
                         {list.title}
                       </span>
                     </div>
@@ -148,7 +150,7 @@ export function LinearCommandMenu({
 
           {/* Quick Actions */}
           <div className="space-y-0.5">
-            <div className="px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">
+            <div className="px-2.5 py-1 font-bold tracking-wider text-meta text-muted-foreground uppercase">
               Actions
             </div>
 
@@ -158,11 +160,13 @@ export function LinearCommandMenu({
                 onQuickAddTask?.();
                 onClose();
               }}
-              className="w-full flex items-center justify-between p-2 rounded-xl text-xs hover:bg-accent/60 cursor-pointer transition-colors text-left"
+              className="p-2 text-xs flex w-full cursor-pointer items-center justify-between rounded-xl text-left transition-colors hover:bg-accent/60"
             >
-              <div className="flex items-center gap-2.5">
+              <div className="gap-2.5 flex items-center">
                 <Plus className="size-4 text-primary" />
-                <span className="font-medium text-foreground">Create new issue</span>
+                <span className="font-medium text-foreground">
+                  Create new issue
+                </span>
               </div>
               <KbdShortcut keys={['C']} size="xs" variant="muted" />
             </button>
@@ -173,11 +177,13 @@ export function LinearCommandMenu({
                 onOpenFilter?.();
                 onClose();
               }}
-              className="w-full flex items-center justify-between p-2 rounded-xl text-xs hover:bg-accent/60 cursor-pointer transition-colors text-left"
+              className="p-2 text-xs flex w-full cursor-pointer items-center justify-between rounded-xl text-left transition-colors hover:bg-accent/60"
             >
-              <div className="flex items-center gap-2.5">
+              <div className="gap-2.5 flex items-center">
                 <Search className="size-4 text-primary" />
-                <span className="font-medium text-foreground">Filter issues & tasks</span>
+                <span className="font-medium text-foreground">
+                  Filter issues & tasks
+                </span>
               </div>
               <KbdShortcut keys={['F']} size="xs" variant="muted" />
             </button>
@@ -188,9 +194,9 @@ export function LinearCommandMenu({
                 onOpenNewProject?.();
                 onClose();
               }}
-              className="w-full flex items-center justify-between p-2 rounded-xl text-xs hover:bg-accent/60 cursor-pointer transition-colors text-left"
+              className="p-2 text-xs flex w-full cursor-pointer items-center justify-between rounded-xl text-left transition-colors hover:bg-accent/60"
             >
-              <div className="flex items-center gap-2.5">
+              <div className="gap-2.5 flex items-center">
                 <FolderKanban className="size-4 text-primary" />
                 <span className="font-medium text-foreground">New project</span>
               </div>
@@ -199,7 +205,7 @@ export function LinearCommandMenu({
 
           {/* Switch Views */}
           <div className="space-y-0.5">
-            <div className="px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">
+            <div className="px-2.5 py-1 font-bold tracking-wider text-meta text-muted-foreground uppercase">
               Switch View
             </div>
 
@@ -209,11 +215,13 @@ export function LinearCommandMenu({
                 onViewModeChange?.('board');
                 onClose();
               }}
-              className="w-full flex items-center justify-between p-2 rounded-xl text-xs hover:bg-accent/60 cursor-pointer transition-colors text-left"
+              className="p-2 text-xs flex w-full cursor-pointer items-center justify-between rounded-xl text-left transition-colors hover:bg-accent/60"
             >
-              <div className="flex items-center gap-2.5">
+              <div className="gap-2.5 flex items-center">
                 <Kanban className="size-4 text-muted-foreground" />
-                <span className="font-medium text-foreground">Kanban Board</span>
+                <span className="font-medium text-foreground">
+                  Kanban Board
+                </span>
               </div>
             </button>
 
@@ -223,11 +231,13 @@ export function LinearCommandMenu({
                 onViewModeChange?.('list');
                 onClose();
               }}
-              className="w-full flex items-center justify-between p-2 rounded-xl text-xs hover:bg-accent/60 cursor-pointer transition-colors text-left"
+              className="p-2 text-xs flex w-full cursor-pointer items-center justify-between rounded-xl text-left transition-colors hover:bg-accent/60"
             >
-              <div className="flex items-center gap-2.5">
+              <div className="gap-2.5 flex items-center">
                 <List className="size-4 text-muted-foreground" />
-                <span className="font-medium text-foreground">Task List View</span>
+                <span className="font-medium text-foreground">
+                  Task List View
+                </span>
               </div>
             </button>
 
@@ -237,11 +247,13 @@ export function LinearCommandMenu({
                 onViewModeChange?.('timeline');
                 onClose();
               }}
-              className="w-full flex items-center justify-between p-2 rounded-xl text-xs hover:bg-accent/60 cursor-pointer transition-colors text-left"
+              className="p-2 text-xs flex w-full cursor-pointer items-center justify-between rounded-xl text-left transition-colors hover:bg-accent/60"
             >
-              <div className="flex items-center gap-2.5">
+              <div className="gap-2.5 flex items-center">
                 <Timeline className="size-4 text-muted-foreground" />
-                <span className="font-medium text-foreground">Timeline Roadmap</span>
+                <span className="font-medium text-foreground">
+                  Timeline Roadmap
+                </span>
               </div>
             </button>
 
@@ -251,24 +263,32 @@ export function LinearCommandMenu({
                 onViewModeChange?.('dashboard');
                 onClose();
               }}
-              className="w-full flex items-center justify-between p-2 rounded-xl text-xs hover:bg-accent/60 cursor-pointer transition-colors text-left"
+              className="p-2 text-xs flex w-full cursor-pointer items-center justify-between rounded-xl text-left transition-colors hover:bg-accent/60"
             >
-              <div className="flex items-center gap-2.5">
+              <div className="gap-2.5 flex items-center">
                 <LayoutDashboard className="size-4 text-muted-foreground" />
-                <span className="font-medium text-foreground">Project Insights Dashboard</span>
+                <span className="font-medium text-foreground">
+                  Project Insights Dashboard
+                </span>
               </div>
             </button>
           </div>
         </div>
 
         {/* Footer Hint */}
-        <div className="px-4 py-2 bg-muted/40 border-t border-border/50 flex items-center justify-between text-[11px] text-muted-foreground">
-          <div className="flex items-center gap-2">
+        <div className="px-4 py-2 flex items-center justify-between border-t border-border/50 bg-muted/40 text-meta text-muted-foreground">
+          <div className="gap-2 flex items-center">
             <span>Navigation:</span>
-            <Kbd size="xs" variant="default">↑</Kbd>
-            <Kbd size="xs" variant="default">↓</Kbd>
+            <Kbd size="xs" variant="default">
+              ↑
+            </Kbd>
+            <Kbd size="xs" variant="default">
+              ↓
+            </Kbd>
             <span>Select:</span>
-            <Kbd size="xs" variant="default">↵</Kbd>
+            <Kbd size="xs" variant="default">
+              ↵
+            </Kbd>
           </div>
           <span>Linear Command Palette</span>
         </div>

@@ -128,7 +128,7 @@ export function KanbanTaskLinkPicker({
                   className="size-3.5 shrink-0"
                 />
                 {task.identifier && (
-                  <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                  <span className="shrink-0 font-mono text-2xs text-muted-foreground">
                     {task.identifier}
                   </span>
                 )}

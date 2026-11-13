@@ -286,7 +286,7 @@ export function ProjectTimelineView({
                     i === todayIndex && 'bg-primary/10 text-primary',
                   )}
                 >
-                  <span className="text-[10px] text-muted-foreground uppercase">
+                  <span className="text-2xs text-muted-foreground uppercase">
                     {day.toLocaleDateString(undefined, { weekday: 'narrow' })}
                   </span>
                   <span
@@ -409,7 +409,7 @@ export function ProjectTimelineView({
                         onClick={() => onSelectCard(card, list.id)}
                         title={`${card.title} · ${dates}`}
                         className={cn(
-                          'mx-0.5 h-6 px-2 gap-1 min-w-0 font-medium z-10 flex items-center self-center border text-[11px] shadow-xs transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                          'mx-0.5 h-6 px-2 gap-1 min-w-0 font-medium z-10 flex items-center self-center border text-meta shadow-xs transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
                           phase === 'cancelled' && 'line-through',
                           clippedStart
                             ? 'rounded-l-none border-l-0'

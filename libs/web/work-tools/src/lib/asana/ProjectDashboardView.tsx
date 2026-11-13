@@ -349,7 +349,7 @@ export function ProjectDashboardView({
                   {due ? (
                     <span
                       className={cn(
-                        'rounded px-1.5 font-medium shrink-0 border py-px text-[11px]',
+                        'rounded px-1.5 font-medium shrink-0 border py-px text-meta',
                         DUE_TONE_CLASSES[due.tone],
                       )}
                     >
@@ -424,7 +424,7 @@ export function ProjectDashboardView({
                     <span className="font-medium">{meta.label}</span>
                   </div>
                   <div className="gap-3 flex items-center">
-                    <Badge variant={meta.variant} className="text-[10px]">
+                    <Badge variant={meta.variant} className="text-2xs">
                       {count} tasks
                     </Badge>
                     <span className="w-10 text-right text-muted-foreground">

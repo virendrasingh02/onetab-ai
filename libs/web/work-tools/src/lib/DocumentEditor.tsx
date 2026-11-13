@@ -431,7 +431,7 @@ export function DocumentEditor() {
                   align="start"
                   className="w-64 max-h-80 overflow-y-auto"
                 >
-                  <DropdownMenuLabel className="text-[11px]">
+                  <DropdownMenuLabel className="text-meta">
                     Jump to document
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
@@ -456,7 +456,7 @@ export function DocumentEditor() {
                       {d.id === currentDoc?.id && (
                         <Badge
                           variant="primary"
-                          className="px-1 py-0 h-4 text-[9px]"
+                          className="px-1 py-0 h-4 text-3xs"
                         >
                           active
                         </Badge>
@@ -469,14 +469,14 @@ export function DocumentEditor() {
             {saveFailed ? (
               <Badge
                 variant="destructive"
-                className="gap-1 px-1.5 py-0 h-4.5 text-[11px]"
+                className="gap-1 px-1.5 py-0 h-4.5 text-meta"
               >
                 Not saved
               </Badge>
             ) : isSaving ? (
               <Badge
                 variant="neutral"
-                className="gap-1 px-1.5 py-0 h-4.5 text-[11px]"
+                className="gap-1 px-1.5 py-0 h-4.5 text-meta"
               >
                 <Loader2 className="size-3 animate-spin" />
                 Saving…
@@ -484,7 +484,7 @@ export function DocumentEditor() {
             ) : savedAt !== null ? (
               <Badge
                 variant="primary"
-                className="gap-1 px-1.5 py-0 h-4.5 text-[11px]"
+                className="gap-1 px-1.5 py-0 h-4.5 text-meta"
               >
                 <CheckCircle className="size-3" />
                 Saved

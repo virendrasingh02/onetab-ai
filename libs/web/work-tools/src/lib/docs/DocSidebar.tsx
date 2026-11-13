@@ -203,7 +203,7 @@ export function DocSidebar({
                     <p className="text-xs font-bold text-foreground group-hover:text-accent-blue">
                       Product Requirements Document (PRD)
                     </p>
-                    <p className="mt-0.5 line-clamp-1 text-[11px] text-subtle">
+                    <p className="mt-0.5 line-clamp-1 text-meta text-subtle">
                       Problem statement, user stories, checklist & feature
                       matrix grid.
                     </p>
@@ -230,7 +230,7 @@ export function DocSidebar({
                     <p className="text-xs font-bold text-foreground group-hover:text-accent-green">
                       Sprint Sync & Planning Notes
                     </p>
-                    <p className="mt-0.5 line-clamp-1 text-[11px] text-subtle">
+                    <p className="mt-0.5 line-clamp-1 text-meta text-subtle">
                       Agenda bullet points, attendee list, and interactive task
                       checkboxes.
                     </p>
@@ -269,7 +269,7 @@ export function DocSidebar({
             type="button"
             onClick={() => setSelectedCategoryFilter('All')}
             className={cn(
-              'px-2 py-0.5 font-medium cursor-pointer rounded-md text-[10px] whitespace-nowrap transition-colors',
+              'px-2 py-0.5 font-medium cursor-pointer rounded-md text-2xs whitespace-nowrap transition-colors',
               selectedCategoryFilter === 'All'
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-surface-raised text-muted-foreground hover:bg-accent',
@@ -285,7 +285,7 @@ export function DocSidebar({
                 type="button"
                 onClick={() => setSelectedCategoryFilter(cat)}
                 className={cn(
-                  'px-2 py-0.5 font-medium cursor-pointer rounded-md text-[10px] whitespace-nowrap transition-colors',
+                  'px-2 py-0.5 font-medium cursor-pointer rounded-md text-2xs whitespace-nowrap transition-colors',
                   selectedCategoryFilter === cat
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-surface-raised text-muted-foreground hover:bg-accent',
@@ -302,7 +302,7 @@ export function DocSidebar({
           selectedCategoryFilter === 'All' &&
           !searchQuery && (
             <div className="space-y-1 pt-1 pb-2 border-b border-border/50">
-              <p className="font-semibold tracking-wider gap-1 px-1 flex items-center text-[10px] text-accent-amber uppercase">
+              <p className="font-semibold tracking-wider gap-1 px-1 flex items-center text-2xs text-accent-amber uppercase">
                 <Star className="size-3 fill-accent-amber" />
                 Favorites
               </p>
@@ -329,7 +329,7 @@ export function DocSidebar({
                           />
                           <span className="truncate">{docItem.title}</span>
                         </div>
-                        <span className="shrink-0 text-[10px] text-subtle">
+                        <span className="shrink-0 text-2xs text-subtle">
                           {docItem.updatedAt}
                         </span>
                       </button>
@@ -444,12 +444,12 @@ export function DocSidebar({
                 {!isCollapsed && (
                   <ul className="space-y-1 pl-1">
                     {rootDocs.length === 0 ? (
-                      <li className="py-1 pl-6 text-[11px] text-subtle italic">
+                      <li className="py-1 pl-6 text-meta text-subtle italic">
                         <p>No pages inside</p>
                         <button
                           type="button"
                           onClick={() => onCreateDoc(company.id)}
-                          className="mt-1 gap-1 font-medium px-1.5 py-0.5 rounded flex cursor-pointer items-center text-[11px] text-subtle transition-colors hover:bg-accent/40 hover:text-foreground"
+                          className="mt-1 gap-1 font-medium px-1.5 py-0.5 rounded flex cursor-pointer items-center text-meta text-subtle transition-colors hover:bg-accent/40 hover:text-foreground"
                         >
                           <Plus className="size-3 text-accent-blue" />
                           Add new
@@ -757,7 +757,7 @@ function DocTreeNodeItem({
               style={{ paddingLeft: `${(level + 1) * 12 + 20}px` }}
               className="py-1"
             >
-              <p className="text-[11px] text-subtle italic">No pages inside</p>
+              <p className="text-meta text-subtle italic">No pages inside</p>
               <button
                 type="button"
                 onClick={() =>
@@ -769,7 +769,7 @@ function DocTreeNodeItem({
                     doc.id,
                   )
                 }
-                className="mt-0.5 gap-1 font-medium px-1.5 py-0.5 rounded flex cursor-pointer items-center text-[11px] text-subtle transition-colors hover:bg-accent/40 hover:text-foreground"
+                className="mt-0.5 gap-1 font-medium px-1.5 py-0.5 rounded flex cursor-pointer items-center text-meta text-subtle transition-colors hover:bg-accent/40 hover:text-foreground"
               >
                 <Plus className="size-3 text-accent-blue" />
                 Add new
@@ -813,7 +813,7 @@ function DocTreeNodeItem({
                       doc.id,
                     )
                   }
-                  className="gap-1 font-medium px-1.5 py-0.5 rounded flex cursor-pointer items-center text-[11px] text-subtle transition-colors hover:bg-accent/40 hover:text-foreground"
+                  className="gap-1 font-medium px-1.5 py-0.5 rounded flex cursor-pointer items-center text-meta text-subtle transition-colors hover:bg-accent/40 hover:text-foreground"
                 >
                   <Plus className="size-3 text-accent-blue" />
                   Add new

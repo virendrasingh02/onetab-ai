@@ -345,7 +345,7 @@ export function NotionBlockEditor({
                           <p className="text-xs font-semibold text-foreground">
                             {item.label}
                           </p>
-                          <p className="line-clamp-1 text-[11px] text-subtle">
+                          <p className="line-clamp-1 text-meta text-subtle">
                             {item.description}
                           </p>
                         </div>
@@ -593,7 +593,7 @@ export function NotionBlockEditor({
                         newRows.push(Array(colCount).fill('New Value'));
                         handleBlockChange(block.id, { rows: newRows });
                       }}
-                      className="h-6 gap-1 text-[11px]"
+                      className="h-6 gap-1 text-meta"
                     >
                       <Plus className="size-3" />
                       <span>Add Row</span>
@@ -663,7 +663,7 @@ export function NotionBlockEditor({
                     </span>
                     <Badge
                       variant="outline"
-                      className="border-accent-violet/30 text-[10px] text-accent-violet"
+                      className="border-accent-violet/30 text-2xs text-accent-violet"
                     >
                       GPT-4o Ready
                     </Badge>
@@ -683,7 +683,7 @@ export function NotionBlockEditor({
                       size="sm"
                       onClick={() => handleAiAction(block.id, 'summarize')}
                       disabled={aiBusyId !== null}
-                      className="h-6 text-[10px] text-accent-violet hover:bg-accent-violet-soft"
+                      className="h-6 text-2xs text-accent-violet hover:bg-accent-violet-soft"
                     >
                       Summarize Doc
                     </Button>
@@ -692,7 +692,7 @@ export function NotionBlockEditor({
                       size="sm"
                       onClick={() => handleAiAction(block.id, 'expand')}
                       disabled={aiBusyId !== null}
-                      className="h-6 text-[10px] text-accent-violet hover:bg-accent-violet-soft"
+                      className="h-6 text-2xs text-accent-violet hover:bg-accent-violet-soft"
                     >
                       Expand Content
                     </Button>
@@ -701,7 +701,7 @@ export function NotionBlockEditor({
                       size="sm"
                       onClick={() => handleAiAction(block.id, 'formal')}
                       disabled={aiBusyId !== null}
-                      className="h-6 text-[10px] text-accent-violet hover:bg-accent-violet-soft"
+                      className="h-6 text-2xs text-accent-violet hover:bg-accent-violet-soft"
                     >
                       Make Professional
                     </Button>
@@ -710,7 +710,7 @@ export function NotionBlockEditor({
                       size="sm"
                       onClick={() => handleAiAction(block.id, 'action_items')}
                       disabled={aiBusyId !== null}
-                      className="h-6 text-[10px] text-accent-violet hover:bg-accent-violet-soft"
+                      className="h-6 text-2xs text-accent-violet hover:bg-accent-violet-soft"
                     >
                       Extract Action Items
                     </Button>

@@ -95,10 +95,10 @@ const DUE_TONE_STYLES: Record<string, string> = {
 
 /**
  * Base badge pill adhering to DESIGN.md §3 (rounded-sm for tags/chips)
- * and §6.2 (soft appearance, text-[11px], theme-fixed).
+ * and §6.2 (soft appearance, text-meta, theme-fixed).
  */
 const PILL_BASE =
-  'theme-fixed h-5.5 px-1.5 py-0.5 inline-flex items-center gap-1 rounded-sm border text-[11px] font-medium tracking-tight whitespace-nowrap transition-colors select-none [&_svg]:pointer-events-none';
+  'theme-fixed h-5.5 px-1.5 py-0.5 inline-flex items-center gap-1 rounded-sm border text-meta font-medium tracking-tight whitespace-nowrap transition-colors select-none [&_svg]:pointer-events-none';
 
 export function KanbanCardTile({
   card,
@@ -381,7 +381,7 @@ export function KanbanCardTile({
                 )}
                 title={`Estimate: ${card.estimate} points`}
               >
-                <span className="font-bold font-mono text-[11px] leading-none text-muted-foreground">
+                <span className="font-bold font-mono text-meta leading-none text-muted-foreground">
                   Δ
                 </span>
                 <span>{card.estimate}</span>
@@ -527,7 +527,7 @@ export function KanbanCardTile({
                         statusEmoji={assignedMembers[0].statusEmoji}
                         statusText={assignedMembers[0].statusText}
                         size="xs"
-                        className="size-5 font-bold text-[9px] ring-1 ring-border"
+                        className="size-5 font-bold text-3xs ring-1 ring-border"
                       />
                     </button>
                   ) : (

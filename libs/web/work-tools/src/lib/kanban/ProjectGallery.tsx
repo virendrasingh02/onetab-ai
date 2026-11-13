@@ -158,7 +158,7 @@ export function ProjectGallery({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuLabel className="text-[11px]">
+              <DropdownMenuLabel className="text-meta">
                 Filter by status
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
@@ -351,7 +351,7 @@ export function ProjectGallery({
                         <Badge variant="neutral">
                           {STATUS_LABELS[project.status]}
                         </Badge>
-                        <span className="text-[11px] text-muted-foreground tabular-nums">
+                        <span className="text-meta text-muted-foreground tabular-nums">
                           {done}/{total} done
                         </span>
                       </div>
@@ -363,7 +363,7 @@ export function ProjectGallery({
                         label={`${project.name} is ${percent}% complete`}
                       />
 
-                      <div className="flex items-center justify-between text-[11px] text-subtle">
+                      <div className="flex items-center justify-between text-meta text-subtle">
                         <span>
                           {project.milestones.length} milestone
                           {project.milestones.length === 1 ? '' : 's'}

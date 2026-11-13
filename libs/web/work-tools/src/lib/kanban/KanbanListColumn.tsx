@@ -365,7 +365,7 @@ export function KanbanListColumn({
                 <>
                   <CircleDashed className="size-4 opacity-50" />
                   <span className="text-xs font-medium">No tasks</span>
-                  <span className="text-[11px] text-muted-foreground/80">
+                  <span className="text-meta text-muted-foreground/80">
                     Drag a task here or add one
                   </span>
                 </>
@@ -447,7 +447,7 @@ export function KanbanListColumn({
           />
 
           {hiddenCount > 0 && visibleCards.length > 0 ? (
-            <li className="pt-1 pb-1 text-center text-[11px] text-muted-foreground">
+            <li className="pt-1 pb-1 text-center text-meta text-muted-foreground">
               {hiddenCount} hidden by filters
             </li>
           ) : null}
