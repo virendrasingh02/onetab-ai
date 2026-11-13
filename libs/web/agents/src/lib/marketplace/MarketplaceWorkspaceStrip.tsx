@@ -5,7 +5,6 @@ import { AiEntityAvatar, Button, Card, Skeleton } from '@org/ui';
 import { studioWorkspacePath } from '@org/platform';
 import { cn, formatRelative } from '@org/utils';
 import {
-  ArrowRight,
   Bot,
   ExternalLink,
   LayoutGrid,
@@ -14,13 +13,21 @@ import {
   Workflow,
 } from 'lucide-react';
 import { MARKETPLACE_GRID_CLASS, SectionTabs } from './marketplace-ui';
+import {
+  ItemCard,
+  ItemList,
+  ItemRow,
+  LayoutToggle,
+  StatusDot,
+  type MarketplaceLayout,
+} from './marketplace-items';
 import type { WorkspaceCoworker } from './use-workspace-catalog';
 
 type ItemKind = 'agent' | 'coworker' | 'automation';
 type KindFilter = 'all' | ItemKind;
 
-/** How many of the newest items Discover shows before "View all". */
-const MAX_ITEMS = 8;
+/** Items per "Show more" page. */
+const PAGE_SIZE = 24;
 
 const KIND_LABEL: Record<ItemKind, string> = {
   agent: 'AI agent',
@@ -60,15 +67,18 @@ interface MarketplaceWorkspaceStripProps {
   searchQuery: string;
   /** Opens the AI Agent Studio (optionally at a path inside its workspace area). */
   onOpenStudio: (path?: string) => void;
-  /** Goes to the full list for one kind (agents tab, coworkers tab, Automation Center). */
-  onViewAll: (kind: ItemKind) => void;
+  layout: MarketplaceLayout;
+  onLayoutChange: (next: MarketplaceLayout) => void;
 }
 
-function ItemTile({ item }: { item: WorkspaceItem }) {
+function ItemTile({ item, size }: { item: WorkspaceItem; size: 'md' | 'lg' }) {
   if (item.kind === 'automation') {
     return (
       <div
-        className="size-10 flex shrink-0 items-center justify-center rounded-xl border border-border bg-surface-raised text-accent-amber"
+        className={cn(
+          'flex shrink-0 items-center justify-center rounded-xl border border-border bg-surface-raised text-accent-amber',
+          size === 'lg' ? 'size-10' : 'size-9',
+        )}
         aria-hidden
       >
         <Workflow className="size-5" />
@@ -80,105 +90,61 @@ function ItemTile({ item }: { item: WorkspaceItem }) {
       name={item.name}
       kind={item.kind}
       avatarUrl={item.avatarUrl}
-      size="lg"
+      size={size}
     />
   );
 }
 
-function WorkspaceItemCard({
+function WorkspaceItemView({
   item,
+  layout,
   onOpen,
   onStudio,
 }: {
   item: WorkspaceItem;
+  layout: MarketplaceLayout;
   onOpen: () => void;
   onStudio?: () => void;
 }) {
-  const descId = useId();
-  const status = item.isActive ? 'Active' : 'Paused';
-
-  return (
-    // The name is the card's one link-like control; it stretches over the
-    // card so the whole surface is clickable without nesting buttons.
-    <Card className="group gap-0 p-4 relative h-full transition-colors hover:border-border-strong hover:bg-surface-raised/40">
-      <div className="gap-3 flex items-start">
-        <ItemTile item={item} />
-        <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-semibold text-foreground">
-            <button
-              type="button"
-              onClick={onOpen}
-              aria-describedby={descId}
-              className="after:inset-0 block max-w-full truncate text-left outline-none after:absolute after:rounded-[inherit] focus-visible:after:ring-2 focus-visible:after:ring-ring/50"
-              title={item.name}
-            >
-              {item.name}
-            </button>
-          </h3>
-          <p className="mt-0.5 gap-1.5 text-xs min-w-0 flex items-center text-muted-foreground">
-            <span className="shrink-0">{KIND_LABEL[item.kind]}</span>
-            <span aria-hidden>·</span>
-            <span
-              className={cn(
-                'gap-1 inline-flex shrink-0 items-center',
-                item.isActive ? 'text-success-text' : 'text-muted-foreground',
-              )}
-            >
-              <span
-                className={cn(
-                  'size-1.5 rounded-full',
-                  item.isActive ? 'bg-success' : 'bg-muted-foreground/60',
-                )}
-                aria-hidden
-              />
-              {status}
-            </span>
-          </p>
-        </div>
-      </div>
-
-      <p
-        id={descId}
-        className="mt-3 min-h-10 text-xs leading-relaxed line-clamp-2 text-muted-foreground"
+  const isList = layout === 'list';
+  const slots = {
+    icon: <ItemTile item={item} size={isList ? 'md' : 'lg'} />,
+    name: item.name,
+    subtitle: item.subtitle
+      ? `${KIND_LABEL[item.kind]} · ${item.subtitle}`
+      : KIND_LABEL[item.kind],
+    corner: <StatusDot active={item.isActive} />,
+    description: item.description,
+    meta: item.addedAt ? (
+      <time
+        dateTime={item.addedAt}
+        className="truncate"
+        title={new Date(item.addedAt).toLocaleString()}
       >
-        {item.subtitle ? `${item.subtitle} — ` : ''}
-        {item.description}
-      </p>
-
-      <div className="min-h-3 flex-1" aria-hidden />
-      <div className="gap-2 pt-3 flex items-center justify-between border-t border-border/60">
-        {item.addedAt ? (
-          <time
-            dateTime={item.addedAt}
-            className="text-xs truncate text-muted-foreground"
-            title={new Date(item.addedAt).toLocaleString()}
-          >
-            Added {formatRelative(item.addedAt)}
-          </time>
-        ) : (
-          <span />
-        )}
-        {onStudio && (
-          <Button
-            variant="ghost"
-            size="xs"
-            onClick={onStudio}
-            className="relative z-10"
-            aria-label={`Open ${item.name} in AI Agent Studio`}
-          >
-            <ExternalLink aria-hidden />
-            Studio
-          </Button>
-        )}
-      </div>
-    </Card>
-  );
+        Added {formatRelative(item.addedAt)}
+      </time>
+    ) : null,
+    actions: onStudio ? (
+      <Button
+        variant="ghost"
+        size="xs"
+        onClick={onStudio}
+        aria-label={`Open ${item.name} in AI Agent Studio`}
+        title="Open in AI Agent Studio"
+      >
+        <ExternalLink aria-hidden />
+        Studio
+      </Button>
+    ) : undefined,
+    onOpen,
+  };
+  return isList ? <ItemRow {...slots} /> : <ItemCard {...slots} />;
 }
 
 /**
- * "Your workspace" on Discover: every agent, coworker and automation added to
- * this workspace, newest first, so something built in the Studio shows up here
- * as soon as it exists. Each list refreshes on its own (realtime for
+ * The "Yours" tab: every agent, coworker and automation added to this
+ * workspace, newest first, so something built in the Studio shows up here as
+ * soon as it exists. Each list refreshes on its own (realtime for
  * coworkers, window focus for agents and automations).
  */
 export const MarketplaceWorkspaceStrip: React.FC<
@@ -191,11 +157,13 @@ export const MarketplaceWorkspaceStrip: React.FC<
   workspaceSlug,
   searchQuery,
   onOpenStudio,
-  onViewAll,
+  layout,
+  onLayoutChange,
 }) => {
   const navigate = useNavigate();
   const headingId = useId();
   const [filter, setFilter] = useState<KindFilter>('all');
+  const [pageCount, setPageCount] = useState(1);
 
   const items = useMemo<WorkspaceItem[]>(() => {
     const all: WorkspaceItem[] = [
@@ -263,10 +231,9 @@ export const MarketplaceWorkspaceStrip: React.FC<
     [matching],
   );
 
-  const visible = (
-    filter === 'all' ? matching : matching.filter((i) => i.kind === filter)
-  ).slice(0, MAX_ITEMS);
-  const total = counts[filter];
+  const filtered =
+    filter === 'all' ? matching : matching.filter((i) => i.kind === filter);
+  const visible = filtered.slice(0, pageCount * PAGE_SIZE);
 
   const openItem = (item: WorkspaceItem) => {
     if (item.kind === 'agent')
@@ -310,56 +277,61 @@ export const MarketplaceWorkspaceStrip: React.FC<
     );
   }
 
-  return (
-    <section aria-labelledby={headingId} className="space-y-3">
-      <div className="gap-2 flex flex-wrap items-end justify-between">
-        <div>
-          <h2 id={headingId} className="text-sm font-semibold text-foreground">
-            Your workspace
-          </h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Agents, coworkers and automations added here, newest first.
-          </p>
-        </div>
-        {filter !== 'all' && total > MAX_ITEMS ? (
-          <Button variant="ghost" size="sm" onClick={() => onViewAll(filter)}>
-            View all {total}
-            <ArrowRight aria-hidden />
-          </Button>
-        ) : null}
-      </div>
+  const studioFor = (item: WorkspaceItem) =>
+    item.kind === 'automation'
+      ? undefined
+      : () =>
+          onOpenStudio(studioWorkspacePath(workspaceSlug, 'agents', item.id));
 
-      <SectionTabs
-        aria-label="Filter your workspace by type"
-        value={filter}
-        onValueChange={setFilter}
-        items={[
-          {
-            value: 'all' as const,
-            label: 'All',
-            icon: <LayoutGrid className="size-3.5" aria-hidden />,
-            count: counts.all,
-          },
-          {
-            value: 'agent' as const,
-            label: 'Agents',
-            icon: <Bot className="size-3.5" aria-hidden />,
-            count: counts.agent,
-          },
-          {
-            value: 'coworker' as const,
-            label: 'Coworkers',
-            icon: <UserRound className="size-3.5" aria-hidden />,
-            count: counts.coworker,
-          },
-          {
-            value: 'automation' as const,
-            label: 'Automations',
-            icon: <Workflow className="size-3.5" aria-hidden />,
-            count: counts.automation,
-          },
-        ]}
-      />
+  return (
+    <section aria-labelledby={headingId} className="space-y-4">
+      <h2 id={headingId} className="sr-only">
+        Your workspace
+      </h2>
+
+      <div className="gap-x-3 gap-y-2 flex flex-wrap items-center justify-between">
+        <SectionTabs
+          aria-label="Filter your workspace by type"
+          value={filter}
+          onValueChange={(next) => {
+            setFilter(next);
+            setPageCount(1);
+          }}
+          items={[
+            {
+              value: 'all' as const,
+              label: 'All',
+              icon: <LayoutGrid className="size-3.5" aria-hidden />,
+              count: counts.all,
+            },
+            {
+              value: 'agent' as const,
+              label: 'Agents',
+              icon: <Bot className="size-3.5" aria-hidden />,
+              count: counts.agent,
+            },
+            {
+              value: 'coworker' as const,
+              label: 'Coworkers',
+              icon: <UserRound className="size-3.5" aria-hidden />,
+              count: counts.coworker,
+            },
+            {
+              value: 'automation' as const,
+              label: 'Automations',
+              icon: <Workflow className="size-3.5" aria-hidden />,
+              count: counts.automation,
+            },
+          ]}
+        />
+        <div className="gap-2 flex items-center">
+          <Button variant="outline" size="sm" onClick={() => onOpenStudio()}>
+            <Sparkles aria-hidden />
+            Build new
+          </Button>
+          <LayoutToggle value={layout} onValueChange={onLayoutChange} />
+        </div>
+      </div>
 
       {isLoading && items.length === 0 ? (
         <div
@@ -368,44 +340,58 @@ export const MarketplaceWorkspaceStrip: React.FC<
           aria-label="Loading your workspace"
         >
           {Array.from({ length: 4 }, (_, i) => (
-            <Skeleton key={i} className="h-40 rounded-xl" />
+            <Skeleton key={i} className="h-40 rounded-2xl" />
           ))}
         </div>
       ) : visible.length === 0 ? (
         <p
-          className="py-6 text-sm text-center text-muted-foreground"
+          className="py-10 text-sm text-center text-muted-foreground"
           role="status"
         >
           {searchQuery
             ? `Nothing in your workspace matches “${searchQuery}”.`
             : `No ${filter === 'all' ? 'items' : `${KIND_LABEL[filter as ItemKind].toLowerCase()}s`} yet.`}
         </p>
-      ) : (
+      ) : layout === 'grid' ? (
         <ul className={MARKETPLACE_GRID_CLASS} aria-labelledby={headingId}>
           {visible.map((item) => (
             <li key={item.key} className="min-w-0">
-              <WorkspaceItemCard
+              <WorkspaceItemView
                 item={item}
+                layout="grid"
                 onOpen={() => openItem(item)}
-                onStudio={
-                  item.kind === 'automation'
-                    ? undefined
-                    : () =>
-                        onOpenStudio(
-                          studioWorkspacePath(workspaceSlug, 'agents', item.id),
-                        )
-                }
+                onStudio={studioFor(item)}
               />
             </li>
           ))}
         </ul>
+      ) : (
+        <ItemList aria-labelledby={headingId}>
+          {visible.map((item) => (
+            <WorkspaceItemView
+              key={item.key}
+              item={item}
+              layout="list"
+              onOpen={() => openItem(item)}
+              onStudio={studioFor(item)}
+            />
+          ))}
+        </ItemList>
       )}
 
-      {filter === 'all' && matching.length > MAX_ITEMS && (
-        <p className="text-xs text-muted-foreground" role="note">
-          Showing the {MAX_ITEMS} newest of {matching.length}. Pick a type above
-          to see more.
-        </p>
+      {filtered.length > visible.length && (
+        <div className="gap-3 flex items-center justify-center">
+          <span className="text-xs text-muted-foreground">
+            Showing {visible.length} of {filtered.length}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPageCount((n) => n + 1)}
+          >
+            Show more
+          </Button>
+        </div>
       )}
     </section>
   );

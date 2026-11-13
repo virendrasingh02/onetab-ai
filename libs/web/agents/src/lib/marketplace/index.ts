@@ -20,3 +20,4 @@ export * from './MarketplaceWorkspaceView';
 export * from './MarketplaceWorkspaceAgentsView';
 export * from './MarketplaceWorkspaceStrip';
 export * from './use-workspace-catalog';
+export * from './marketplace-items';

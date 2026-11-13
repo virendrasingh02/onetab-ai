@@ -1,56 +1,75 @@
 import React, { useState, useMemo } from 'react';
 import type { MarketplaceListing, MarketplaceKind } from '@org/types';
-import {
-  AppSelect,
-  Badge,
-  Button,
-  EmptyState,
-  Toggle,
-  ToggleGroup,
-  ToggleGroupItem,
-} from '@org/ui';
+import { AppSelect, Button, EmptyState, Toggle } from '@org/ui';
+import { RotateCcw, ShieldCheck } from 'lucide-react';
 import { MarketplaceCard } from './MarketplaceCard';
+import { MarketplaceGrid } from './marketplace-ui';
 import {
-  EntityIcon,
-  ListingActionButton,
-  ListingOwnerLine,
-  MarketplaceGrid,
-  SectionTabs,
-  VerifiedBadge,
-  listingActionState,
-} from './marketplace-ui';
-import { LayoutGrid, List as ListIcon, RotateCcw, ShieldCheck } from 'lucide-react';
+  ItemList,
+  LayoutToggle,
+  type MarketplaceLayout,
+} from './marketplace-items';
 
 type PricingFilter = 'all' | 'free' | 'paid';
 type SortBy = 'recommended' | 'popular' | 'rating' | 'alphabetical';
 
 const PRICING_OPTIONS = [
-  { value: 'all', label: 'All pricing' },
-  { value: 'free', label: 'Free only' },
-  { value: 'paid', label: 'Paid only' },
+  { value: 'all', label: 'Any price' },
+  { value: 'free', label: 'Free' },
+  { value: 'paid', label: 'Paid' },
 ];
 
 const SORT_OPTIONS = [
   { value: 'recommended', label: 'Recommended' },
   { value: 'popular', label: 'Most popular' },
   { value: 'rating', label: 'Highest rated' },
-  { value: 'alphabetical', label: 'Alphabetical' },
+  { value: 'alphabetical', label: 'A–Z' },
 ];
+
+const NOUN: Record<string, string> = {
+  AGENT: 'agents',
+  INTEGRATION: 'apps',
+  ALL: 'results',
+};
 
 interface MarketplaceCatalogViewProps {
   listings: MarketplaceListing[];
-  kind: MarketplaceKind; // 'APP' | 'AGENT' | 'ALL'
+  /** Which listings to show; `ALL` keeps every kind. */
+  kind: MarketplaceKind | 'ALL';
   searchQuery: string;
+  layout: MarketplaceLayout;
+  onLayoutChange: (next: MarketplaceLayout) => void;
+  /** Left side of the toolbar (the Discover type filter). */
+  toolbarStart?: React.ReactNode;
   onSelectListing: (listing: MarketplaceListing) => void;
   onInstall: (listing: MarketplaceListing) => void;
   onRequestAccess: (listing: MarketplaceListing) => void;
   onConfigure: (listing: MarketplaceListing) => void;
 }
 
+export function matchesListingSearch(
+  item: MarketplaceListing,
+  query: string,
+): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return (
+    [item.name, item.description, item.tagline, item.category].some((t) =>
+      (t || '').toLowerCase().includes(q),
+    ) ||
+    Boolean(item.tags?.some((t) => t.toLowerCase().includes(q))) ||
+    Boolean(item.capabilities?.some((c) => c.toLowerCase().includes(q))) ||
+    Boolean(item.commands?.some((c) => c.command.toLowerCase().includes(q)))
+  );
+}
+
 export const MarketplaceCatalogView: React.FC<MarketplaceCatalogViewProps> = ({
   listings,
   kind,
   searchQuery,
+  layout,
+  onLayoutChange,
+  toolbarStart,
   onSelectListing,
   onInstall,
   onRequestAccess,
@@ -60,85 +79,65 @@ export const MarketplaceCatalogView: React.FC<MarketplaceCatalogViewProps> = ({
   const [pricingFilter, setPricingFilter] = useState<PricingFilter>('all');
   const [verifiedOnly, setVerifiedOnly] = useState<boolean>(false);
   const [sortBy, setSortBy] = useState<SortBy>('recommended');
-  const [isCompactList, setIsCompactList] = useState<boolean>(false);
+
+  const ofKind = useMemo(
+    () =>
+      kind === 'ALL' ? listings : listings.filter((item) => item.kind === kind),
+    [listings, kind],
+  );
 
   // Distinct categories among the listings this view actually shows
-  const categories = useMemo(() => {
+  const categoryOptions = useMemo(() => {
     const set = new Set<string>();
-    listings.forEach((item) => {
-      if ((kind === 'INTEGRATION' || kind === 'AGENT') && item.kind !== kind) return;
-      if (item.category) set.add(item.category);
-    });
-    return Array.from(set).sort();
-  }, [listings, kind]);
+    ofKind.forEach((item) => item.category && set.add(item.category));
+    return [
+      { value: 'all', label: 'All categories' },
+      ...Array.from(set)
+        .sort()
+        .map((cat) => ({ value: cat, label: cat })),
+    ];
+  }, [ofKind]);
 
-  // Filter items
-  const filtered = useMemo(() => {
-    return listings.filter((item) => {
-      // Kind filter
-      if (kind === 'INTEGRATION' && item.kind !== 'INTEGRATION') return false;
-      if (kind === 'AGENT' && item.kind !== 'AGENT') return false;
+  // A category that no longer exists under the new kind falls back to "all".
+  const category = categoryOptions.some((o) => o.value === selectedCategory)
+    ? selectedCategory
+    : 'all';
 
-      // Category filter
-      if (selectedCategory !== 'all' && item.category !== selectedCategory) {
-        return false;
-      }
-
-      // Pricing filter
-      if (pricingFilter === 'free' && item.pricingModel !== 'FREE') return false;
-      if (pricingFilter === 'paid' && item.pricingModel === 'FREE') return false;
-
-      // Verified filter
-      if (verifiedOnly && item.badge !== 'OFFICIAL' && item.badge !== 'VERIFIED') {
-        return false;
-      }
-
-      // Search query filter
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchesName = item.name.toLowerCase().includes(q);
-        const matchesDesc = (item.description || '').toLowerCase().includes(q);
-        const matchesTagline = (item.tagline || '').toLowerCase().includes(q);
-        const matchesCategory = (item.category || '').toLowerCase().includes(q);
-        const matchesTags = item.tags?.some((t) => t.toLowerCase().includes(q));
-        const matchesCaps = item.capabilities?.some((c) => c.toLowerCase().includes(q));
-        const matchesCmds = item.commands?.some((cmd) => cmd.command.toLowerCase().includes(q));
-
-        if (
-          !matchesName &&
-          !matchesDesc &&
-          !matchesTagline &&
-          !matchesCategory &&
-          !matchesTags &&
-          !matchesCaps &&
-          !matchesCmds
-        ) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [listings, kind, selectedCategory, pricingFilter, verifiedOnly, searchQuery]);
-
-  // Sort items
   const sorted = useMemo(() => {
-    const list = [...filtered];
+    const list = ofKind.filter((item) => {
+      if (category !== 'all' && item.category !== category) return false;
+      if (pricingFilter === 'free' && item.pricingModel !== 'FREE')
+        return false;
+      if (pricingFilter === 'paid' && item.pricingModel === 'FREE')
+        return false;
+      if (
+        verifiedOnly &&
+        item.badge !== 'OFFICIAL' &&
+        item.badge !== 'VERIFIED'
+      )
+        return false;
+      return matchesListingSearch(item, searchQuery);
+    });
     if (sortBy === 'popular') {
-      list.sort((a, b) => (b.installationCount || 0) - (a.installationCount || 0));
+      list.sort(
+        (a, b) =>
+          (b.installCount ?? b.installationCount ?? 0) -
+          (a.installCount ?? a.installationCount ?? 0),
+      );
     } else if (sortBy === 'rating') {
-      list.sort((a, b) => (b.ratingAverage || 0) - (a.ratingAverage || 0));
+      list.sort(
+        (a, b) =>
+          (b.rating || b.ratingAverage || 0) -
+          (a.rating || a.ratingAverage || 0),
+      );
     } else if (sortBy === 'alphabetical') {
       list.sort((a, b) => a.name.localeCompare(b.name));
     }
     return list;
-  }, [filtered, sortBy]);
+  }, [ofKind, category, pricingFilter, verifiedOnly, searchQuery, sortBy]);
 
   const hasActiveFilters =
-    selectedCategory !== 'all' ||
-    pricingFilter !== 'all' ||
-    verifiedOnly ||
-    Boolean(searchQuery);
+    category !== 'all' || pricingFilter !== 'all' || verifiedOnly;
 
   const resetFilters = () => {
     setSelectedCategory('all');
@@ -146,38 +145,23 @@ export const MarketplaceCatalogView: React.FC<MarketplaceCatalogViewProps> = ({
     setVerifiedOnly(false);
   };
 
+  const renderItem = (item: MarketplaceListing) => (
+    <MarketplaceCard
+      key={item.id || item.slug}
+      listing={item}
+      layout={layout}
+      onSelect={onSelectListing}
+      onInstall={onInstall}
+      onRequestAccess={onRequestAccess}
+      onConfigure={onConfigure}
+    />
+  );
+
   return (
-    <div className="space-y-4 py-3">
-      {/* Category chips: one scrollable row */}
-      <div className="-mx-1 px-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <SectionTabs
-          aria-label="Filter by category"
-          value={selectedCategory}
-          onValueChange={setSelectedCategory}
-          items={[
-            { value: 'all', label: 'All categories' },
-            ...categories.map((cat) => ({ value: cat, label: cat })),
-          ]}
-          className="w-max flex-nowrap whitespace-nowrap"
-        />
-      </div>
-
-      {/* Results + controls: count on the left, filters on the right */}
-      <div className="gap-x-3 gap-y-2 pt-1 border-t border-border/50 flex flex-wrap items-center justify-between">
-        <div className="gap-2 text-xs flex items-center text-muted-foreground">
-          <span>
-            Showing{' '}
-            <span className="font-semibold text-foreground">{sorted.length}</span>{' '}
-            {kind === 'AGENT' ? 'agents' : kind === 'INTEGRATION' ? 'apps' : 'items'}
-          </span>
-          {hasActiveFilters && (
-            <Button variant="ghost" size="xs" onClick={resetFilters}>
-              <RotateCcw aria-hidden />
-              Reset
-            </Button>
-          )}
-        </div>
-
+    <div className="space-y-4">
+      {/* One toolbar: what to show on the left, how to show it on the right. */}
+      <div className="gap-x-3 gap-y-2 flex flex-wrap items-center justify-between">
+        <div className="min-w-0 gap-2 flex items-center">{toolbarStart}</div>
         <div className="gap-2 flex flex-wrap items-center">
           <Toggle
             variant="outline"
@@ -188,16 +172,24 @@ export const MarketplaceCatalogView: React.FC<MarketplaceCatalogViewProps> = ({
             <ShieldCheck className="mr-1.5" aria-hidden />
             Verified
           </Toggle>
-
+          {categoryOptions.length > 2 && (
+            <AppSelect
+              aria-label="Filter by category"
+              size="sm"
+              className="w-40"
+              value={category}
+              onValueChange={setSelectedCategory}
+              options={categoryOptions}
+            />
+          )}
           <AppSelect
             aria-label="Filter by pricing"
             size="sm"
-            className="w-32"
+            className="w-28"
             value={pricingFilter}
             onValueChange={(next) => setPricingFilter(next as PricingFilter)}
             options={PRICING_OPTIONS}
           />
-
           <AppSelect
             aria-label="Sort listings"
             size="sm"
@@ -206,31 +198,39 @@ export const MarketplaceCatalogView: React.FC<MarketplaceCatalogViewProps> = ({
             onValueChange={(next) => setSortBy(next as SortBy)}
             options={SORT_OPTIONS}
           />
-
-          <ToggleGroup
-            type="single"
-            size="sm"
-            aria-label="Layout"
-            value={isCompactList ? 'list' : 'grid'}
-            onValueChange={(next) => {
-              if (next) setIsCompactList(next === 'list');
-            }}
-          >
-            <ToggleGroupItem value="grid" aria-label="Grid view" title="Grid view">
-              <LayoutGrid aria-hidden />
-            </ToggleGroupItem>
-            <ToggleGroupItem value="list" aria-label="List view" title="List view">
-              <ListIcon aria-hidden />
-            </ToggleGroupItem>
-          </ToggleGroup>
+          <LayoutToggle value={layout} onValueChange={onLayoutChange} />
         </div>
       </div>
 
-      {/* Items Rendering: Grid or Compact List */}
+      {(hasActiveFilters || searchQuery.trim()) && sorted.length > 0 && (
+        <div
+          className="gap-2 text-xs flex items-center text-muted-foreground"
+          role="status"
+        >
+          <span>
+            <span className="font-semibold text-foreground">
+              {sorted.length}
+            </span>{' '}
+            {NOUN[kind] ?? 'results'}
+            {searchQuery.trim() ? ` matching “${searchQuery.trim()}”` : ''}
+          </span>
+          {hasActiveFilters && (
+            <Button variant="ghost" size="xs" onClick={resetFilters}>
+              <RotateCcw aria-hidden />
+              Reset filters
+            </Button>
+          )}
+        </div>
+      )}
+
       {sorted.length === 0 ? (
         <EmptyState
-          title="No integrations or agents found"
-          description="Try adjusting your filters or search keywords to find what you need."
+          title={`No ${NOUN[kind] ?? 'results'} found`}
+          description={
+            searchQuery.trim()
+              ? `Nothing matches “${searchQuery.trim()}”. Try other keywords or clear the filters.`
+              : 'Try adjusting the filters to see more.'
+          }
           action={
             hasActiveFilters ? (
               <Button variant="outline" size="sm" onClick={resetFilters}>
@@ -239,67 +239,10 @@ export const MarketplaceCatalogView: React.FC<MarketplaceCatalogViewProps> = ({
             ) : undefined
           }
         />
-      ) : !isCompactList ? (
-        <MarketplaceGrid>
-          {sorted.map((item) => (
-            <MarketplaceCard
-              key={item.id || item.slug}
-              listing={item}
-              onSelect={onSelectListing}
-              onInstall={onInstall}
-              onRequestAccess={onRequestAccess}
-              onConfigure={onConfigure}
-            />
-          ))}
-        </MarketplaceGrid>
+      ) : layout === 'grid' ? (
+        <MarketplaceGrid>{sorted.map(renderItem)}</MarketplaceGrid>
       ) : (
-        /* Compact list view */
-        <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/60 bg-card">
-          {sorted.map((item) => (
-            <div
-              key={item.id || item.slug}
-              onClick={() => onSelectListing(item)}
-              className="gap-4 p-3 flex cursor-pointer items-center justify-between transition-colors hover:bg-surface-raised/60"
-            >
-              <div className="min-w-0 gap-3 flex items-center">
-                <EntityIcon
-                  iconUrl={item.iconUrl}
-                  kind={item.kind}
-                  className="size-9"
-                />
-                <div className="min-w-0">
-                  <div className="gap-2 flex items-center">
-                    <span className="text-sm font-semibold truncate text-foreground">
-                      {item.name}
-                    </span>
-                    <VerifiedBadge badge={item.badge} />
-                    <Badge variant="neutral">{item.category}</Badge>
-                  </div>
-                  <p className="max-w-md text-xs truncate text-muted-foreground">
-                    {item.tagline || item.description}
-                  </p>
-                </div>
-              </div>
-
-              <div
-                className="gap-3 flex shrink-0 items-center"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <ListingOwnerLine listing={item} className="hidden md:flex max-w-48" />
-                <span className="text-xs text-muted-foreground">
-                  {item.pricingModel === 'FREE' ? 'Free' : 'Subscription'}
-                </span>
-                <ListingActionButton
-                  {...listingActionState(item)}
-                  installedLabel="Configure"
-                  onInstall={() => onInstall(item)}
-                  onRequestAccess={() => onRequestAccess(item)}
-                  onConfigure={() => onConfigure(item)}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
+        <ItemList>{sorted.map(renderItem)}</ItemList>
       )}
     </div>
   );

@@ -1,238 +1,204 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { MarketplaceListing } from '@org/types';
+import { Button, Card, Skeleton } from '@org/ui';
+import { Bot, Code2, LayoutGrid, Plug } from 'lucide-react';
 import {
-  Badge,
-  Button,
-  Card,
-  PageSection,
-  Skeleton,
-  SkeletonList,
-} from '@org/ui';
-import { MarketplaceCard } from './MarketplaceCard';
-import { EntityIcon, MarketplaceGrid } from './marketplace-ui';
-import { ArrowRight, Code2, Plug, Sparkles, Users } from 'lucide-react';
+  MarketplaceCatalogView,
+  matchesListingSearch,
+} from './MarketplaceCatalogView';
+import { MARKETPLACE_GRID_CLASS, SectionTabs } from './marketplace-ui';
+import type { MarketplaceLayout } from './marketplace-items';
+
+/** The Discover tab's type filter, mirrored in the URL as `?kind=`. */
+export type DiscoverKind = 'all' | 'agents' | 'apps';
+
+const KIND_TO_LISTING = {
+  all: 'ALL',
+  agents: 'AGENT',
+  apps: 'INTEGRATION',
+} as const;
 
 interface MarketplaceDiscoverViewProps {
   listings: MarketplaceListing[];
   isLoading: boolean;
+  kind: DiscoverKind;
+  onKindChange: (kind: DiscoverKind) => void;
+  searchQuery: string;
+  layout: MarketplaceLayout;
+  onLayoutChange: (next: MarketplaceLayout) => void;
+  /**
+   * The live connectors (Gmail, GitHub, Jira…), shown first under "Apps".
+   * Supplied by the app because they live in `@org/web-integrations`.
+   */
+  renderIntegrations?: (props: { searchQuery: string }) => React.ReactNode;
   onSelectListing: (listing: MarketplaceListing) => void;
   onInstall: (listing: MarketplaceListing) => void;
   onRequestAccess: (listing: MarketplaceListing) => void;
   onConfigure: (listing: MarketplaceListing) => void;
-  onViewAllApps: () => void;
-  onViewAllAgents: () => void;
-  /** Where "Open builder" goes — the developer portal. Defaults to the agents list. */
+  /** "Build your own" — the developer portal. */
   onOpenBuilder?: () => void;
-  /** The workspace's own agents, coworkers and automations, shown first. */
-  workspaceSection?: React.ReactNode;
 }
 
+/**
+ * Everything you can add from the Marketplace, in one filterable list: a type
+ * filter (all / agents / apps), the catalog filters, and grid or list layout.
+ */
 export const MarketplaceDiscoverView: React.FC<
   MarketplaceDiscoverViewProps
 > = ({
   listings,
   isLoading,
+  kind,
+  onKindChange,
+  searchQuery,
+  layout,
+  onLayoutChange,
+  renderIntegrations,
   onSelectListing,
   onInstall,
   onRequestAccess,
   onConfigure,
-  onViewAllApps,
-  onViewAllAgents,
-  onOpenBuilder = onViewAllAgents,
-  workspaceSection,
+  onOpenBuilder,
 }) => {
+  const counts = useMemo(() => {
+    const matching = listings.filter((l) =>
+      matchesListingSearch(l, searchQuery),
+    );
+    return {
+      all: matching.length,
+      agents: matching.filter((l) => l.kind === 'AGENT').length,
+      apps: matching.filter((l) => l.kind === 'INTEGRATION').length,
+    };
+  }, [listings, searchQuery]);
+
+  const kindTabs = (
+    <SectionTabs
+      aria-label="Filter the Marketplace by type"
+      value={kind}
+      onValueChange={onKindChange}
+      items={[
+        {
+          value: 'all' as const,
+          label: 'All',
+          icon: <LayoutGrid className="size-3.5" aria-hidden />,
+          count: counts.all,
+        },
+        {
+          value: 'agents' as const,
+          label: 'AI agents',
+          icon: <Bot className="size-3.5" aria-hidden />,
+          count: counts.agents,
+        },
+        {
+          value: 'apps' as const,
+          label: 'Apps',
+          icon: <Plug className="size-3.5" aria-hidden />,
+          // With live connectors the listing count would undersell the tab.
+          count: renderIntegrations ? undefined : counts.apps,
+        },
+      ]}
+    />
+  );
+
+  const catalogProps = {
+    listings,
+    searchQuery,
+    layout,
+    onLayoutChange,
+    onSelectListing,
+    onInstall,
+    onRequestAccess,
+    onConfigure,
+  };
+
   if (isLoading) {
     return (
-      <div className="space-y-10 py-4">
-        {workspaceSection}
-        <div
-          className="space-y-6"
-          aria-busy="true"
-          aria-label="Loading the Marketplace"
-        >
-          <Skeleton className="h-44 rounded-2xl" />
-          <SkeletonList rows={6} />
+      <div
+        className="space-y-4"
+        aria-busy="true"
+        aria-label="Loading the Marketplace"
+      >
+        {kindTabs}
+        <div className={MARKETPLACE_GRID_CLASS}>
+          {Array.from({ length: 8 }, (_, i) => (
+            <Skeleton key={i} className="h-44 rounded-2xl" />
+          ))}
         </div>
       </div>
     );
   }
 
-  const agents = listings.filter((item) => item.kind === 'AGENT');
-  const apps = listings.filter((item) => item.kind === 'INTEGRATION');
-  // Listings a member of this workspace built in Studio (owner comes from the API).
-  const teamBuilt = listings.filter((item) => item.owner?.relation === 'BUILT');
-
-  const renderCard = (listing: MarketplaceListing) => (
-    <MarketplaceCard
-      key={listing.id || listing.slug}
-      listing={listing}
-      onSelect={onSelectListing}
-      onInstall={onInstall}
-      onRequestAccess={onRequestAccess}
-      onConfigure={onConfigure}
-    />
-  );
-
-  // Featured spotlight items (e.g. GitHub or Code Reviewer)
-  const spotlightAgent =
-    agents.find((a) => a.slug === 'code-reviewer') || agents[0];
-  const spotlightApp = apps.find((a) => a.slug === 'github') || apps[0];
-
-  return (
-    <div className="space-y-10 py-4">
-      {workspaceSection}
-
-      {/* Hero Spotlight Banner */}
-      {spotlightAgent && spotlightApp && apps.length > 0 && (
-        <Card className="p-6 md:p-8 relative overflow-hidden">
-          <div className="right-0 top-0 -mt-10 -mr-10 size-64 blur-3xl pointer-events-none absolute rounded-full bg-primary/5" />
-          <div className="gap-6 md:flex-row md:items-center relative z-10 flex flex-col justify-between">
-            <div className="max-w-xl space-y-3">
-              <Badge variant="primary">
-                <Sparkles aria-hidden />
-                Featured workflow
-              </Badge>
-              <h2 className="text-xl md:text-2xl font-semibold tracking-tight text-foreground">
-                Autonomous Dev Team: Code Reviewer & GitHub
-              </h2>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                Connect your repositories with GitHub alerts and have the AI
-                Code Reviewer automatically inspect every pull request for
-                performance, type safety, and test coverage before you merge.
-              </p>
-              <div className="gap-2 pt-2 flex items-center">
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => onSelectListing(spotlightAgent)}
-                >
-                  Explore Code Reviewer
-                  <ArrowRight aria-hidden />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onSelectListing(spotlightApp)}
-                >
-                  View GitHub app
-                </Button>
-              </div>
-            </div>
-
-            {/* Visual paired icons */}
-            <div className="-space-x-4 md:self-auto flex items-center self-center">
-              <EntityIcon
-                iconUrl={spotlightApp.iconUrl}
-                kind={spotlightApp.kind}
-                className="size-14 shadow-md"
-              />
-              <EntityIcon
-                iconUrl={spotlightAgent.iconUrl}
-                kind={spotlightAgent.kind}
-                className="size-14 shadow-lg ring-4 ring-card"
-              />
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Built by members of this workspace */}
-      {teamBuilt.length > 0 && (
-        <PageSection
-          variant="plain"
-          aria-label="Built by your team"
-          title={
-            <span className="gap-2 flex items-center">
-              <Users className="size-4 text-muted-foreground" aria-hidden />
-              Built by your team
-            </span>
-          }
-        >
-          <MarketplaceGrid>
-            {teamBuilt.slice(0, 6).map(renderCard)}
-          </MarketplaceGrid>
-        </PageSection>
-      )}
-
-      {/* Agents */}
-      <PageSection
-        variant="plain"
-        title="Autonomous AI agents"
-        description="Ready-made agents from the Marketplace — install one to add it to your workspace."
-        aria-label="Autonomous AI agents"
-        actions={
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onViewAllAgents}
-            aria-label={`View all ${agents.length} Marketplace agents`}
-          >
-            View all agents ({agents.length})
-            <ArrowRight aria-hidden />
-          </Button>
-        }
-      >
-        <MarketplaceGrid>{agents.slice(0, 8).map(renderCard)}</MarketplaceGrid>
-      </PageSection>
-
-      {/* Apps */}
-      <PageSection
-        variant="plain"
-        title="Essential apps & integrations"
-        aria-label="Essential apps and integrations"
-        actions={
-          <Button variant="ghost" size="sm" onClick={onViewAllApps}>
-            {apps.length > 0 ? `View all apps (${apps.length})` : 'Browse apps'}
-            <ArrowRight aria-hidden />
-          </Button>
-        }
-      >
-        {apps.length > 0 ? (
-          <MarketplaceGrid>{apps.slice(0, 6).map(renderCard)}</MarketplaceGrid>
-        ) : (
-          /* Live connectors (Gmail, GitHub, Jira…) replace placeholder app listings. */
-          <Card className="gap-4 p-5 sm:flex-row sm:items-center flex flex-col justify-between">
-            <div className="gap-4 flex items-center">
-              <div className="size-11 flex shrink-0 items-center justify-center rounded-xl border border-border bg-surface-raised text-accent-amber">
-                <Plug className="size-5" aria-hidden />
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">
-                  Connect your tools
-                </h3>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Sign in to Gmail, GitHub, Jira and more once — agents, search
-                  and chat can then work with them.
-                </p>
-              </div>
-            </div>
-            <Button variant="outline" size="sm" onClick={onViewAllApps}>
-              Connect apps
-            </Button>
-          </Card>
-        )}
-      </PageSection>
-
-      {/* Build or publish */}
-      <Card className="gap-4 p-5 md:flex-row md:items-center flex flex-col justify-between border-dashed bg-surface-raised/30">
-        <div className="gap-4 flex items-center">
-          <div className="size-11 flex shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/10 text-primary-text">
-            <Code2 className="size-5" aria-hidden />
-          </div>
+  // Apps: live connectors first, then any extra apps from the Marketplace.
+  if (kind === 'apps' && renderIntegrations) {
+    return (
+      <div className="space-y-6">
+        {kindTabs}
+        <section aria-labelledby="mkt-connect-heading" className="space-y-3">
           <div>
-            <h3 className="text-sm font-semibold text-foreground">
-              Build your own agent or custom integration
-            </h3>
+            <h2
+              id="mkt-connect-heading"
+              className="text-sm font-semibold text-foreground"
+            >
+              Connect your tools
+            </h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Connect private enterprise tools, prompt internal models, or
-              configure custom webhooks for your team.
+              Sign in once and agents, search and chat can work with them.
             </p>
           </div>
-        </div>
-        <Button variant="outline" size="sm" onClick={onOpenBuilder}>
-          Open builder
-        </Button>
-      </Card>
+          {renderIntegrations({ searchQuery })}
+        </section>
+        {listings.some((l) => l.kind === 'INTEGRATION') && (
+          <section
+            aria-labelledby="mkt-more-apps-heading"
+            className="space-y-3 pt-6 border-t border-border/60"
+          >
+            <MarketplaceCatalogView
+              {...catalogProps}
+              kind="INTEGRATION"
+              toolbarStart={
+                <h2
+                  id="mkt-more-apps-heading"
+                  className="text-sm font-semibold text-foreground"
+                >
+                  More apps from the Marketplace
+                </h2>
+              }
+            />
+          </section>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <MarketplaceCatalogView
+        {...catalogProps}
+        kind={KIND_TO_LISTING[kind]}
+        toolbarStart={kindTabs}
+      />
+
+      {onOpenBuilder && kind !== 'apps' && (
+        <Card className="gap-4 p-5 md:flex-row md:items-center flex flex-col justify-between border-dashed bg-surface-raised/30">
+          <div className="gap-4 flex items-center">
+            <div className="size-10 flex shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/10 text-primary-text">
+              <Code2 className="size-5" aria-hidden />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">
+                Build your own agent or integration
+              </h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Connect private tools, prompt internal models, or publish a
+                custom listing for your team.
+              </p>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" onClick={onOpenBuilder}>
+            Open builder
+          </Button>
+        </Card>
+      )}
     </div>
   );
 };

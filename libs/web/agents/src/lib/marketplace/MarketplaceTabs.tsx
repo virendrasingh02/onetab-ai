@@ -1,25 +1,29 @@
 import React from 'react';
 import { PageTabBar, Tabs, TabsTrigger } from '@org/ui';
-import { Boxes, Bot, CheckCircle2, Compass, UserCheck } from 'lucide-react';
+import { Compass, LayoutDashboard } from 'lucide-react';
 
-export type MarketplaceActiveTab =
-  'discover' | 'apps' | 'agents' | 'installed' | 'workspace' | 'developer';
+/**
+ * Two tabs: what this workspace already has ("Yours") and what it can add
+ * ("Discover"). `developer` is the publish portal, reached from Discover's
+ * "Build your own" card rather than the tab strip.
+ */
+export type MarketplaceActiveTab = 'yours' | 'discover' | 'developer';
 
 interface MarketplaceTabsProps {
   activeTab: MarketplaceActiveTab;
   onTabChange: (tab: MarketplaceActiveTab) => void;
-  installedCount?: number;
-  workspaceCount?: number;
-  agentsCount?: number;
+  /** Agents, coworkers and automations in this workspace. */
+  yoursCount?: number;
+  /** Marketplace listings available to add. */
+  discoverCount?: number;
 }
 
 /** The edge-to-edge underline tab strip under the header, as on the other top-level views. */
 export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({
   activeTab,
   onTabChange,
-  installedCount,
-  workspaceCount,
-  agentsCount,
+  yoursCount,
+  discoverCount,
 }) => {
   const tabs: {
     id: MarketplaceActiveTab;
@@ -27,26 +31,18 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({
     icon: React.ComponentType<{ className?: string }>;
     count?: number;
   }[] = [
-    { id: 'discover', label: 'Discover', icon: Compass },
-    { id: 'apps', label: 'Apps & Integrations', icon: Boxes },
-    { id: 'agents', label: 'AI Agents', icon: Bot, count: agentsCount },
+    { id: 'yours', label: 'Yours', icon: LayoutDashboard, count: yoursCount },
     {
-      id: 'installed',
-      label: 'Installed',
-      icon: CheckCircle2,
-      count: installedCount,
-    },
-    {
-      id: 'workspace',
-      label: 'Coworkers',
-      icon: UserCheck,
-      count: workspaceCount,
+      id: 'discover',
+      label: 'Discover',
+      icon: Compass,
+      count: discoverCount,
     },
   ];
 
   return (
     <Tabs
-      value={activeTab}
+      value={activeTab === 'developer' ? 'discover' : activeTab}
       onValueChange={(next) => onTabChange(next as MarketplaceActiveTab)}
     >
       <PageTabBar>

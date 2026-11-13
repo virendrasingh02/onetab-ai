@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, type ReactNode } from 'react';
+import { useState, useMemo, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { integrationsApi, queryKeys } from '@org/api-client';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -28,11 +28,10 @@ import {
   MarketplaceTabs,
   type MarketplaceActiveTab,
   MarketplaceDiscoverView,
-  MarketplaceCatalogView,
+  type DiscoverKind,
   MarketplaceInstalledView,
-  MarketplaceWorkspaceView,
-  MarketplaceWorkspaceAgentsView,
   MarketplaceWorkspaceStrip,
+  useMarketplaceLayout,
   openStudioTab,
   useWorkspaceCoworkers,
   useWorkspaceAutomations,
@@ -98,35 +97,46 @@ export function AgentMarketplaceView({
   const canManage = can(WorkspacePermission.MANAGE_SETTINGS);
   const currentUser = useCurrentUser();
 
-  // Read URL query params
+  // Read URL query params. Two tabs remain: "yours" and "discover". The old
+  // tabs still resolve, so sidebar links and bookmarks keep working:
+  // installed / workspace / my-* -> Yours; agents / apps / integrations ->
+  // Discover filtered to that type.
   const rawTab = searchParams.get('tab');
-  // `my-agents` / `my-apps` were folded into the combined workspace view;
-  // the Integration Hub was folded into "Apps & Integrations".
-  const urlTab =
-    (rawTab === 'my-agents' || rawTab === 'my-apps'
-      ? 'workspace'
-      : rawTab === 'integrations'
+  const rawKind = searchParams.get('kind');
+  const activeTab: MarketplaceActiveTab =
+    rawTab === 'discover' ||
+    rawTab === 'agents' ||
+    rawTab === 'apps' ||
+    rawTab === 'integrations'
+      ? 'discover'
+      : rawTab === 'developer'
+        ? 'developer'
+        : 'yours';
+  const discoverKind: DiscoverKind =
+    rawTab === 'agents'
+      ? 'agents'
+      : rawTab === 'apps' || rawTab === 'integrations'
         ? 'apps'
-        : (rawTab as MarketplaceActiveTab | null)) || 'discover';
+        : rawKind === 'agents' || rawKind === 'apps'
+          ? rawKind
+          : 'all';
   const urlApp = searchParams.get('app');
   const urlAgent = searchParams.get('agent');
   const urlQuery = searchParams.get('q') || '';
 
-  const [activeTab, setActiveTab] = useState<MarketplaceActiveTab>(urlTab);
   const [searchQuery, setSearchQuery] = useState(urlQuery);
+  const [layout, setLayout] = useMarketplaceLayout();
 
-  // Sync tab state with URL
-  useEffect(() => {
-    if (urlTab && urlTab !== activeTab) {
-      setActiveTab(urlTab);
-    }
-  }, [urlTab]);
-
-  const handleTabChange = (nextTab: MarketplaceActiveTab) => {
-    setActiveTab(nextTab);
+  const handleTabChange = (
+    nextTab: MarketplaceActiveTab,
+    kind?: DiscoverKind,
+  ) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set('tab', nextTab);
+      if (nextTab === 'discover' && kind && kind !== 'all')
+        next.set('kind', kind);
+      else next.delete('kind');
       next.delete('app');
       next.delete('agent');
       return next;
@@ -200,12 +210,6 @@ export function AgentMarketplaceView({
       ),
     [allListings, connectorIds],
   );
-  // With the live connectors above it, the marketplace-apps list only shows
-  // when there's something in it.
-  const showMarketplaceApps =
-    !renderIntegrations ||
-    browseQuery.isLoading ||
-    listings.some((l) => l.kind === 'INTEGRATION');
   const installations = installationsQuery.data || [];
   const approvals = approvalsQuery.data || [];
   const workspaceCoworkers = useWorkspaceCoworkers(activeWorkspaceId);
@@ -350,15 +354,18 @@ export function AgentMarketplaceView({
             searchQuery={searchQuery}
             onSearchChange={handleSearchChange}
             pendingApprovalsCount={pendingApprovalsCount}
-            onOpenApprovals={() => handleTabChange('installed')}
+            onOpenApprovals={() => handleTabChange('yours')}
             onOpenStudio={() => handleOpenStudio()}
           />
           <MarketplaceTabs
             activeTab={activeTab}
             onTabChange={handleTabChange}
-            installedCount={installations.length}
-            workspaceCount={workspaceCoworkers.coworkers.length}
-            agentsCount={workspaceAgentList.length}
+            yoursCount={
+              workspaceAgentList.length +
+              workspaceCoworkers.coworkers.length +
+              (workspaceAutomations.data?.length ?? 0)
+            }
+            discoverCount={listings.length}
           />
         </>
       )}
@@ -412,75 +419,12 @@ export function AgentMarketplaceView({
                 <MarketplaceDiscoverView
                   listings={listings}
                   isLoading={browseQuery.isLoading}
-                  onSelectListing={handleSelectListing}
-                  onInstall={(l) => setInstallModalListing(l)}
-                  onRequestAccess={handleRequestAccess}
-                  onConfigure={(l) => {
-                    const inst = installations.find(
-                      (i) => i.listingSlug === l.slug,
-                    );
-                    if (inst) setConfigModalItem(inst);
-                  }}
-                  onViewAllApps={() => handleTabChange('apps')}
-                  onViewAllAgents={() => handleTabChange('agents')}
-                  workspaceSection={
-                    <MarketplaceWorkspaceStrip
-                      agents={workspaceAgentList}
-                      coworkers={workspaceCoworkers.coworkers}
-                      automations={workspaceAutomations.data ?? []}
-                      isLoading={
-                        workspaceAgents.isLoading ||
-                        workspaceCoworkers.isLoading ||
-                        workspaceAutomations.isLoading
-                      }
-                      workspaceSlug={activeWorkspaceSlug}
-                      searchQuery={searchQuery}
-                      onOpenStudio={handleOpenStudio}
-                      onViewAll={(kind) =>
-                        kind === 'agent'
-                          ? handleTabChange('agents')
-                          : kind === 'coworker'
-                            ? handleTabChange('workspace')
-                            : navigate(`/w/${activeWorkspaceSlug}/automations`)
-                      }
-                    />
-                  }
-                />
-              )}
-
-              {activeTab === 'apps' && renderIntegrations && (
-                <section
-                  aria-labelledby="mkt-connect-heading"
-                  className="space-y-1"
-                >
-                  <h2
-                    id="mkt-connect-heading"
-                    className="text-sm font-semibold text-foreground"
-                  >
-                    Connect your tools
-                  </h2>
-                  <p className="text-xs text-muted-foreground">
-                    Sign in once and agents, search and chat can work with them.
-                  </p>
-                  <div className="pt-3">
-                    {renderIntegrations({ searchQuery })}
-                  </div>
-                </section>
-              )}
-
-              {activeTab === 'apps' &&
-                renderIntegrations &&
-                showMarketplaceApps && (
-                  <h2 className="pt-4 text-sm font-semibold border-t border-border/60 text-foreground">
-                    More apps from the Marketplace
-                  </h2>
-                )}
-
-              {activeTab === 'apps' && showMarketplaceApps && (
-                <MarketplaceCatalogView
-                  listings={listings}
-                  kind="INTEGRATION"
+                  kind={discoverKind}
+                  onKindChange={(kind) => handleTabChange('discover', kind)}
                   searchQuery={searchQuery}
+                  layout={layout}
+                  onLayoutChange={setLayout}
+                  renderIntegrations={renderIntegrations}
                   onSelectListing={handleSelectListing}
                   onInstall={(l) => setInstallModalListing(l)}
                   onRequestAccess={handleRequestAccess}
@@ -490,73 +434,44 @@ export function AgentMarketplaceView({
                     );
                     if (inst) setConfigModalItem(inst);
                   }}
+                  onOpenBuilder={() => handleTabChange('developer')}
                 />
               )}
 
-              {activeTab === 'agents' && (
-                <section
-                  aria-labelledby="mkt-ws-agents-heading"
-                  className="space-y-1"
-                >
-                  <h2
-                    id="mkt-ws-agents-heading"
-                    className="text-sm font-semibold text-foreground"
-                  >
-                    In this workspace
-                  </h2>
-                  <p className="text-xs text-muted-foreground">
-                    Every agent your team has installed or built in the AI Agent
-                    Studio, as listed in the sidebar.
-                  </p>
-                  <div className="pt-3">
-                    <MarketplaceWorkspaceAgentsView
-                      agents={workspaceAgentList}
-                      isLoading={workspaceAgents.isLoading}
-                      isError={workspaceAgents.isError}
-                      onRetry={() => void workspaceAgents.refetch()}
-                      workspaceSlug={activeWorkspaceSlug}
-                      searchQuery={searchQuery}
-                      onOpenStudio={handleOpenStudio}
-                    />
-                  </div>
-                </section>
-              )}
+              {activeTab === 'yours' && (
+                <div className="space-y-10">
+                  <MarketplaceWorkspaceStrip
+                    agents={workspaceAgentList}
+                    coworkers={workspaceCoworkers.coworkers}
+                    automations={workspaceAutomations.data ?? []}
+                    isLoading={
+                      workspaceAgents.isLoading ||
+                      workspaceCoworkers.isLoading ||
+                      workspaceAutomations.isLoading
+                    }
+                    workspaceSlug={activeWorkspaceSlug}
+                    searchQuery={searchQuery}
+                    onOpenStudio={handleOpenStudio}
+                    layout={layout}
+                    onLayoutChange={setLayout}
+                  />
 
-              {activeTab === 'agents' && (
-                <h2 className="pt-4 text-sm font-semibold border-t border-border/60 text-foreground">
-                  More agents from the Marketplace
-                </h2>
-              )}
-
-              {activeTab === 'agents' && (
-                <MarketplaceCatalogView
-                  listings={listings}
-                  kind="AGENT"
-                  searchQuery={searchQuery}
-                  onSelectListing={handleSelectListing}
-                  onInstall={(l) => setInstallModalListing(l)}
-                  onRequestAccess={handleRequestAccess}
-                  onConfigure={(l) => {
-                    const inst = installations.find(
-                      (i) => i.listingSlug === l.slug,
-                    );
-                    if (inst) setConfigModalItem(inst);
-                  }}
-                />
-              )}
-
-              {activeTab === 'installed' && (
-                <div className="space-y-8 py-3">
+                  {/* What came from the Marketplace: install lifecycle, requests and apps. */}
                   <section
-                    aria-labelledby="installed-agents-heading"
-                    className="space-y-3"
+                    aria-labelledby="installed-heading"
+                    className="space-y-6 pt-8 border-t border-border/60"
                   >
-                    <h2
-                      id="installed-agents-heading"
-                      className="text-sm font-semibold text-foreground"
-                    >
-                      AI agents
-                    </h2>
+                    <div>
+                      <h2
+                        id="installed-heading"
+                        className="text-sm font-semibold text-foreground"
+                      >
+                        Installed from the Marketplace
+                      </h2>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Install status, access requests and app settings.
+                      </p>
+                    </div>
                     <AgentInstallsSection
                       workspace={{
                         id: activeWorkspaceId,
@@ -566,24 +481,13 @@ export function AgentMarketplaceView({
                       canManage={canManage}
                       onOpenChat={(agentId) => handleOpenChat(agentId)}
                       onRetry={(inst) => setInstallModalListing(inst.listing)}
-                      onBrowse={() => handleTabChange('discover')}
+                      onBrowse={() => handleTabChange('discover', 'agents')}
                     />
-                  </section>
 
-                  {canManage && (
-                    <AgentAdminPanel workspaceId={activeWorkspaceId} />
-                  )}
+                    {canManage && (
+                      <AgentAdminPanel workspaceId={activeWorkspaceId} />
+                    )}
 
-                  <section
-                    aria-labelledby="installed-apps-heading"
-                    className="space-y-1"
-                  >
-                    <h2
-                      id="installed-apps-heading"
-                      className="text-sm font-semibold text-foreground"
-                    >
-                      Apps &amp; integrations
-                    </h2>
                     <MarketplaceInstalledView
                       installations={installations.filter(
                         (i) => i.kind !== 'AGENT',
@@ -605,22 +509,10 @@ export function AgentMarketplaceView({
                           rejectionReason: reason,
                         })
                       }
-                      onBrowseMore={() => handleTabChange('discover')}
+                      onBrowseMore={() => handleTabChange('discover', 'apps')}
                     />
                   </section>
                 </div>
-              )}
-
-              {activeTab === 'workspace' && (
-                <MarketplaceWorkspaceView
-                  coworkers={workspaceCoworkers.coworkers}
-                  isLoading={workspaceCoworkers.isLoading}
-                  isError={workspaceCoworkers.isError}
-                  onRetry={workspaceCoworkers.refetch}
-                  workspaceSlug={activeWorkspaceSlug}
-                  searchQuery={searchQuery}
-                  onOpenStudio={handleOpenStudio}
-                />
               )}
 
               {activeTab === 'developer' && (

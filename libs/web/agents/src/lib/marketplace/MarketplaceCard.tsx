@@ -1,8 +1,7 @@
-import React, { useId } from 'react';
+import React from 'react';
 import type { MarketplaceListing } from '@org/types';
-import { Badge, Card } from '@org/ui';
-import { cn } from '@org/utils';
-import { Download, Star } from 'lucide-react';
+import { Badge } from '@org/ui';
+import { Star } from 'lucide-react';
 import {
   EntityIcon,
   KindBadge,
@@ -12,6 +11,7 @@ import {
   VerifiedBadge,
   listingActionState,
 } from './marketplace-ui';
+import { ItemCard, ItemRow, type MarketplaceLayout } from './marketplace-items';
 
 const MAX_CAPABILITIES = 2;
 
@@ -21,7 +21,45 @@ interface MarketplaceCardProps {
   onInstall?: (listing: MarketplaceListing) => void;
   onRequestAccess?: (listing: MarketplaceListing) => void;
   onConfigure?: (listing: MarketplaceListing) => void;
+  /** Grid card (default) or a list row — the row must sit in an `ItemList`. */
+  layout?: MarketplaceLayout;
   className?: string;
+}
+
+/** "Customer Support · Free · ★ 4.6 · 1.2k installs" — the listing's one meta line. */
+function ListingSubtitle({ listing }: { listing: MarketplaceListing }) {
+  const installs = listing.installCount ?? listing.installationCount ?? 0;
+  const rating = listing.rating || listing.ratingAverage || 0;
+  const parts: React.ReactNode[] = [];
+  if (listing.category) parts.push(listing.category);
+  parts.push(listing.pricingModel === 'FREE' ? 'Free' : 'Paid');
+  if (listing.ratingCount) {
+    parts.push(
+      <span
+        key="rating"
+        className="gap-0.5 inline-flex items-center"
+        title={`${listing.ratingCount} reviews`}
+      >
+        <Star className="size-3 fill-current text-accent-amber" aria-hidden />
+        {rating.toFixed(1)}
+      </span>,
+    );
+  }
+  if (installs > 0) {
+    parts.push(
+      `${installs.toLocaleString()} install${installs === 1 ? '' : 's'}`,
+    );
+  }
+  return (
+    <>
+      {parts.map((part, i) => (
+        <React.Fragment key={i}>
+          {i > 0 ? <span aria-hidden> · </span> : null}
+          {part}
+        </React.Fragment>
+      ))}
+    </>
+  );
 }
 
 export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
@@ -30,124 +68,69 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
   onInstall,
   onRequestAccess,
   onConfigure,
+  layout = 'grid',
   className,
 }) => {
   const capabilities = listing.capabilities ?? [];
-  const installs = listing.installCount ?? listing.installationCount ?? 0;
-  const rating = listing.rating || listing.ratingAverage || 0;
-  const descriptionId = useId();
+  const isList = layout === 'list';
 
-  return (
-    // The name is a real button stretched over the card, so the whole card
-    // opens the listing without nesting the footer's action inside a control.
-    <Card
-      className={cn(
-        'group gap-0 p-4 relative h-full cursor-pointer text-left transition-colors',
-        'hover:border-border-strong hover:bg-surface-raised/40',
-        className,
-      )}
-    >
-      <div className="gap-3 flex items-start">
-        <EntityIcon
-          iconUrl={listing.iconUrl}
-          kind={listing.kind}
-          className="size-11"
-        />
-        <div className="min-w-0 flex-1">
-          <div className="min-w-0 gap-1.5 flex items-center">
-            <h3 className="min-w-0 text-sm font-semibold text-foreground">
-              <button
-                type="button"
-                onClick={() => onSelect(listing)}
-                aria-describedby={descriptionId}
-                title={listing.name}
-                className="after:inset-0 block max-w-full truncate text-left outline-none after:absolute after:rounded-[inherit] focus-visible:after:ring-2 focus-visible:after:ring-ring/50"
-              >
-                {listing.name}
-              </button>
-            </h3>
-            <VerifiedBadge badge={listing.badge} />
-          </div>
-          <p className="mt-0.5 text-xs truncate text-muted-foreground">
-            {listing.category}
-            {listing.version ? ` · v${listing.version}` : ''}
-          </p>
-        </div>
-      </div>
-
-      <p
-        id={descriptionId}
-        className="mt-3 min-h-10 text-xs leading-relaxed line-clamp-2 text-muted-foreground"
-      >
-        {listing.tagline || listing.description}
-      </p>
-
-      {/* One line of chips, so every card in a row keeps the same rhythm. */}
-      <div className="mt-3 gap-1.5 min-w-0 flex flex-nowrap items-center overflow-hidden">
-        <KindBadge kind={listing.kind} />
-        <OriginBadge listing={listing} />
-        {capabilities.slice(0, MAX_CAPABILITIES).map((cap) => (
-          <Badge
-            key={cap}
-            variant="neutral"
-            className="min-w-0 shrink"
-            title={cap}
-          >
-            <span className="truncate">{cap}</span>
-          </Badge>
-        ))}
-        {capabilities.length > MAX_CAPABILITIES && (
-          <Badge
-            variant="neutral"
-            className="shrink-0"
-            title={capabilities.slice(MAX_CAPABILITIES).join(', ')}
-          >
-            +{capabilities.length - MAX_CAPABILITIES}
-          </Badge>
-        )}
-      </div>
-
-      <div className="mt-3 gap-3 text-xs flex items-center text-muted-foreground">
-        <span className="font-medium text-foreground">
-          {listing.pricingModel === 'FREE' ? 'Free' : 'Subscription'}
-        </span>
-        <span
-          className="gap-1 flex items-center"
-          title={`${installs} installs`}
+  // Cards lead their chip row with the kind (keeping the title full width);
+  // list rows give it a column of its own instead.
+  const chips = (
+    <>
+      <KindBadge kind={listing.kind} />
+      <OriginBadge listing={listing} />
+      {capabilities.slice(0, MAX_CAPABILITIES).map((cap) => (
+        <Badge
+          key={cap}
+          variant="neutral"
+          className="min-w-0 shrink"
+          title={cap}
         >
-          <Download className="size-3" aria-hidden />
-          {installs.toLocaleString()}
-        </span>
-        {listing.ratingCount ? (
-          <span
-            className="gap-1 flex items-center"
-            title={`${listing.ratingCount} reviews`}
-          >
-            <Star
-              className="size-3 fill-current text-accent-amber"
-              aria-hidden
-            />
-            {rating.toFixed(1)}
-            <span>({listing.ratingCount})</span>
-          </span>
-        ) : null}
-      </div>
-
-      {/* Pushes the footer to the bottom so footers line up across a row. */}
-      <div className="min-h-4 flex-1" aria-hidden />
-      <div className="gap-3 pt-3 flex items-center justify-between border-t border-border/60">
-        <ListingOwnerLine listing={listing} />
-        <div className="relative z-10 shrink-0">
-          <ListingActionButton
-            {...listingActionState(listing)}
-            onInstall={() => onInstall?.(listing)}
-            onRequestAccess={
-              onRequestAccess ? () => onRequestAccess(listing) : undefined
-            }
-            onConfigure={() => onConfigure?.(listing)}
-          />
-        </div>
-      </div>
-    </Card>
+          <span className="truncate">{cap}</span>
+        </Badge>
+      ))}
+      {capabilities.length > MAX_CAPABILITIES && (
+        <Badge
+          variant="neutral"
+          className="shrink-0"
+          title={capabilities.slice(MAX_CAPABILITIES).join(', ')}
+        >
+          +{capabilities.length - MAX_CAPABILITIES}
+        </Badge>
+      )}
+    </>
   );
+
+  const slots = {
+    icon: (
+      <EntityIcon
+        iconUrl={listing.iconUrl}
+        kind={listing.kind}
+        className={isList ? 'size-9' : 'size-10'}
+      />
+    ),
+    name: listing.name,
+    nameAdornment: <VerifiedBadge badge={listing.badge} />,
+    subtitle: <ListingSubtitle listing={listing} />,
+    corner: isList ? <KindBadge kind={listing.kind} /> : undefined,
+    description: listing.tagline || listing.description || '',
+    chips,
+    meta: <ListingOwnerLine listing={listing} />,
+    actions: (
+      <ListingActionButton
+        {...listingActionState(listing)}
+        installedLabel={isList ? 'Configure' : 'Installed'}
+        onInstall={() => onInstall?.(listing)}
+        onRequestAccess={
+          onRequestAccess ? () => onRequestAccess(listing) : undefined
+        }
+        onConfigure={() => onConfigure?.(listing)}
+      />
+    ),
+    onOpen: () => onSelect(listing),
+    className,
+  };
+
+  return isList ? <ItemRow {...slots} /> : <ItemCard {...slots} />;
 };
