@@ -8,7 +8,12 @@ import { extendTailwindMerge } from 'tailwind-merge';
  * the size as a "conflicting" colour.
  */
 const twMerge = extendTailwindMerge({
-  extend: { theme: { text: ['message', '2xs'] } },
+  extend: {
+    theme: {
+      text: ['message', 'meta', '2xs', '3xs', 'body-sm', 'body-lg', 'stat'],
+      radius: ['3xl', 'card', 'btn', 'input', 'popup', 'dialog'],
+    },
+  },
 });
 
 /**

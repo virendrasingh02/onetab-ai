@@ -63,7 +63,35 @@ export const radiusScale = {
   lg: '10px',
   xl: '12px',
   '2xl': '16px',
+  '3xl': '20px',
   full: '9999px',
+} as const;
+
+/**
+ * Radii named after what they wrap (`rounded-card`, `rounded-btn`, …). They
+ * are aliases of the scale above and follow the Radius preset; as
+ * `var(--radius-*)` references for inline styles.
+ */
+export const radiusTokens = {
+  card: 'var(--radius-card)',
+  btn: 'var(--radius-btn)',
+  input: 'var(--radius-input)',
+  popup: 'var(--radius-popup)',
+  dialog: 'var(--radius-dialog)',
+} as const;
+
+/**
+ * Font-size utilities the theme adds on top of Tailwind's stock ramp. Use the
+ * class names in JSX — never `text-[Npx]`.
+ */
+export const fontSizeTokens = {
+  '3xs': '9px',
+  '2xs': '10px',
+  meta: '11px',
+  'body-sm': '13px',
+  'body-lg': '15px',
+  message: '15px',
+  stat: '28px',
 } as const;
 
 /** Spacing scale matching the design spec (4px to 128px) */
@@ -88,20 +116,77 @@ export const spacingScale = {
 
 /** Typography hierarchy */
 export const typography = {
-  fontSans: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-  fontMono: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+  fontSans:
+    "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+  fontMono:
+    "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
   sizes: {
-    display: { fontSize: '32px', lineHeight: '38px', letterSpacing: '-0.03em', fontWeight: '700' },
-    h1: { fontSize: '24px', lineHeight: '30px', letterSpacing: '-0.025em', fontWeight: '600' },
-    h2: { fontSize: '20px', lineHeight: '26px', letterSpacing: '-0.02em', fontWeight: '600' },
-    h3: { fontSize: '16px', lineHeight: '22px', letterSpacing: '-0.015em', fontWeight: '600' },
-    h4: { fontSize: '14px', lineHeight: '20px', letterSpacing: '-0.01em', fontWeight: '600' },
-    bodyLarge: { fontSize: '15px', lineHeight: '22px', letterSpacing: '-0.01em', fontWeight: '400' },
-    body: { fontSize: '14px', lineHeight: '20px', letterSpacing: '-0.011em', fontWeight: '400' },
-    bodySmall: { fontSize: '13px', lineHeight: '18px', letterSpacing: '-0.005em', fontWeight: '400' },
-    caption: { fontSize: '12px', lineHeight: '16px', letterSpacing: '0em', fontWeight: '400' },
-    label: { fontSize: '12px', lineHeight: '16px', letterSpacing: '0.01em', fontWeight: '500' },
-    code: { fontSize: '13px', lineHeight: '18px', letterSpacing: '0em', fontWeight: '400' },
+    display: {
+      fontSize: '32px',
+      lineHeight: '38px',
+      letterSpacing: '-0.03em',
+      fontWeight: '700',
+    },
+    h1: {
+      fontSize: '24px',
+      lineHeight: '30px',
+      letterSpacing: '-0.025em',
+      fontWeight: '600',
+    },
+    h2: {
+      fontSize: '20px',
+      lineHeight: '26px',
+      letterSpacing: '-0.02em',
+      fontWeight: '600',
+    },
+    h3: {
+      fontSize: '16px',
+      lineHeight: '22px',
+      letterSpacing: '-0.015em',
+      fontWeight: '600',
+    },
+    h4: {
+      fontSize: '14px',
+      lineHeight: '20px',
+      letterSpacing: '-0.01em',
+      fontWeight: '600',
+    },
+    bodyLarge: {
+      fontSize: '15px',
+      lineHeight: '22px',
+      letterSpacing: '-0.01em',
+      fontWeight: '400',
+    },
+    body: {
+      fontSize: '14px',
+      lineHeight: '20px',
+      letterSpacing: '-0.011em',
+      fontWeight: '400',
+    },
+    bodySmall: {
+      fontSize: '13px',
+      lineHeight: '18px',
+      letterSpacing: '-0.005em',
+      fontWeight: '400',
+    },
+    caption: {
+      fontSize: '12px',
+      lineHeight: '16px',
+      letterSpacing: '0em',
+      fontWeight: '400',
+    },
+    label: {
+      fontSize: '12px',
+      lineHeight: '16px',
+      letterSpacing: '0.01em',
+      fontWeight: '500',
+    },
+    code: {
+      fontSize: '13px',
+      lineHeight: '18px',
+      letterSpacing: '0em',
+      fontWeight: '400',
+    },
   },
 } as const;
 
@@ -127,7 +212,10 @@ export type Accent = (typeof ACCENTS)[number];
 
 /** `var(--accent-*)` references for JS consumers (canvas, chart libraries). */
 export const accentTokens = Object.fromEntries(
-  ACCENTS.map((name) => [name, name === 'mint' ? 'var(--primary)' : `var(--accent-${name})`]),
+  ACCENTS.map((name) => [
+    name,
+    name === 'mint' ? 'var(--primary)' : `var(--accent-${name})`,
+  ]),
 ) as Record<Accent, string>;
 
 /** Stable accent for an arbitrary key, so a label keeps its colour. */
@@ -264,7 +352,10 @@ export function avatarColorIndex(seed: string, color?: number | null): number {
 }
 
 /** The swatch {@link avatarColorIndex} resolves to. */
-export function avatarSwatch(seed: string, color?: number | null): AvatarSwatch {
+export function avatarSwatch(
+  seed: string,
+  color?: number | null,
+): AvatarSwatch {
   return AVATAR_PALETTE[avatarColorIndex(seed, color)];
 }
 
