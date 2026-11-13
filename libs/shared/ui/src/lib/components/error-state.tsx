@@ -74,7 +74,7 @@ export function ErrorState({
           <summary className="text-xs cursor-pointer text-muted-foreground hover:text-foreground">
             Technical details
           </summary>
-          <pre className="scrollbar-subtle mt-2 max-h-40 p-3 overflow-auto rounded-md bg-muted text-left font-mono text-[11px] whitespace-pre-wrap text-muted-foreground">
+          <pre className="scrollbar-subtle mt-2 max-h-40 p-3 overflow-auto rounded-md bg-muted text-left font-mono text-meta whitespace-pre-wrap text-muted-foreground">
             {detail}
           </pre>
         </details>

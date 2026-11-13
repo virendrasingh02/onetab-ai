@@ -18,7 +18,7 @@ export function Menubar({
     <MenubarPrimitive.Root
       data-slot="menubar"
       className={cn(
-        'flex h-9 items-center space-x-1 rounded-card border border-border bg-surface p-1 shadow-xs',
+        'h-9 space-x-1 p-1 flex items-center rounded-card border border-border bg-surface shadow-xs',
         className,
       )}
       {...props}
@@ -34,7 +34,7 @@ export function MenubarTrigger({
     <MenubarPrimitive.Trigger
       data-slot="menubar-trigger"
       className={cn(
-        'flex cursor-pointer select-none items-center rounded-btn px-3 py-1 text-xs font-medium outline-none',
+        'px-3 py-1 text-xs font-medium flex cursor-pointer items-center rounded-btn outline-none select-none',
         'focus:bg-accent focus:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground',
         className,
       )}
@@ -55,14 +55,14 @@ export function MenubarSubTrigger({
     <MenubarPrimitive.SubTrigger
       data-slot="menubar-sub-trigger"
       className={cn(
-        'flex cursor-pointer select-none items-center rounded-btn px-2 py-1.5 text-xs outline-none focus:bg-accent focus:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground',
+        'px-2 py-1.5 text-xs flex cursor-pointer items-center rounded-btn outline-none select-none focus:bg-accent focus:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground',
         inset && 'pl-8',
         className,
       )}
       {...props}
     >
       {children}
-      <ChevronRight className="ml-auto size-4" />
+      <ChevronRight className="size-4 ml-auto" />
     </MenubarPrimitive.SubTrigger>
   );
 }
@@ -77,7 +77,7 @@ export function MenubarSubContent({
       data-slot="menubar-sub-content"
       collisionPadding={collisionPadding}
       className={cn(
-        'z-50 min-w-[8rem] max-h-(--radix-menubar-content-available-height) overflow-y-auto overflow-x-hidden overscroll-contain scrollbar-subtle rounded-popup border border-border bg-popover p-1 text-popover-foreground shadow-elevated',
+        'scrollbar-subtle p-1 z-50 max-h-(--radix-menubar-content-available-height) min-w-[8rem] overflow-x-hidden overflow-y-auto overscroll-contain rounded-popup border border-border bg-popover text-popover-foreground shadow-elevated',
         className,
       )}
       {...props}
@@ -102,7 +102,7 @@ export function MenubarContent({
         sideOffset={sideOffset}
         collisionPadding={collisionPadding}
         className={cn(
-          'z-50 min-w-[12rem] max-h-(--radix-menubar-content-available-height) overflow-y-auto overflow-x-hidden overscroll-contain scrollbar-subtle rounded-popup border border-border bg-popover p-1 text-popover-foreground shadow-elevated',
+          'scrollbar-subtle p-1 z-50 max-h-(--radix-menubar-content-available-height) min-w-[12rem] overflow-x-hidden overflow-y-auto overscroll-contain rounded-popup border border-border bg-popover text-popover-foreground shadow-elevated',
           className,
         )}
         {...props}
@@ -122,7 +122,7 @@ export function MenubarItem({
     <MenubarPrimitive.Item
       data-slot="menubar-item"
       className={cn(
-        'relative flex cursor-pointer select-none items-center rounded-btn px-2 py-1.5 text-xs outline-none focus:bg-accent focus:text-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+        'px-2 py-1.5 text-xs relative flex cursor-pointer items-center rounded-btn outline-none select-none focus:bg-accent focus:text-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
         inset && 'pl-8',
         className,
       )}
@@ -141,13 +141,13 @@ export function MenubarCheckboxItem({
     <MenubarPrimitive.CheckboxItem
       data-slot="menubar-checkbox-item"
       className={cn(
-        'relative flex cursor-pointer select-none items-center rounded-btn py-1.5 pl-8 pr-2 text-xs outline-none focus:bg-accent focus:text-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+        'py-1.5 pl-8 pr-2 text-xs relative flex cursor-pointer items-center rounded-btn outline-none select-none focus:bg-accent focus:text-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
         className,
       )}
       checked={checked}
       {...props}
     >
-      <span className="absolute left-2 flex size-3.5 items-center justify-center">
+      <span className="left-2 size-3.5 absolute flex items-center justify-center">
         <MenubarPrimitive.ItemIndicator>
           <Check className="size-4" />
         </MenubarPrimitive.ItemIndicator>
@@ -166,12 +166,12 @@ export function MenubarRadioItem({
     <MenubarPrimitive.RadioItem
       data-slot="menubar-radio-item"
       className={cn(
-        'relative flex cursor-pointer select-none items-center rounded-btn py-1.5 pl-8 pr-2 text-xs outline-none focus:bg-accent focus:text-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+        'py-1.5 pl-8 pr-2 text-xs relative flex cursor-pointer items-center rounded-btn outline-none select-none focus:bg-accent focus:text-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
         className,
       )}
       {...props}
     >
-      <span className="absolute left-2 flex size-3.5 items-center justify-center">
+      <span className="left-2 size-3.5 absolute flex items-center justify-center">
         <MenubarPrimitive.ItemIndicator>
           <Circle className="size-2 fill-current" />
         </MenubarPrimitive.ItemIndicator>
@@ -240,7 +240,7 @@ export function MenubarShortcut({
     <span
       data-slot="menubar-shortcut"
       className={cn(
-        'ml-auto text-[10px] tracking-widest font-mono text-muted-foreground inline-flex items-center gap-1',
+        'tracking-widest gap-1 ml-auto inline-flex items-center font-mono text-2xs text-muted-foreground',
         className,
       )}
       {...props}

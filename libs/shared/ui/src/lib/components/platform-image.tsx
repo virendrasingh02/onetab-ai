@@ -9,11 +9,7 @@ import React, {
 } from 'react';
 
 export type PlatformImageVariant =
-  | 'thumbnail'
-  | 'small'
-  | 'medium'
-  | 'large'
-  | 'original';
+  'thumbnail' | 'small' | 'medium' | 'large' | 'original';
 
 export interface MediaAssetSource {
   contentUrl?: string | null;
@@ -22,8 +18,10 @@ export interface MediaAssetSource {
   variants?: Record<string, string> | null;
 }
 
-export interface PlatformImageProps
-  extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'src' | 'loading' | 'decoding'> {
+export interface PlatformImageProps extends Omit<
+  ImgHTMLAttributes<HTMLImageElement>,
+  'src' | 'loading' | 'decoding'
+> {
   src: string | MediaAssetSource | null | undefined;
   alt: string;
   variant?: PlatformImageVariant;
@@ -92,10 +90,12 @@ export function PlatformImage({
 
   // Build responsive srcSet if variants are available
   const srcSet = useMemo<string | undefined>(() => {
-    if (!responsive || typeof src === 'string' || !src?.variants) return undefined;
+    if (!responsive || typeof src === 'string' || !src?.variants)
+      return undefined;
 
     const entries: string[] = [];
-    if (src.variants['thumbnail']) entries.push(`${src.variants['thumbnail']} 320w`);
+    if (src.variants['thumbnail'])
+      entries.push(`${src.variants['thumbnail']} 320w`);
     if (src.variants['small']) entries.push(`${src.variants['small']} 480w`);
     if (src.variants['medium']) entries.push(`${src.variants['medium']} 1024w`);
     if (src.variants['large']) entries.push(`${src.variants['large']} 1920w`);
@@ -127,7 +127,7 @@ export function PlatformImage({
     return (
       <div
         className={cn(
-          'flex items-center justify-center rounded-lg bg-surface-muted border border-border/60 text-muted-foreground p-3 select-none',
+          'p-3 flex items-center justify-center rounded-lg border border-border/60 bg-surface-muted text-muted-foreground select-none',
           className,
         )}
         style={{ aspectRatio, ...style }}
@@ -135,9 +135,9 @@ export function PlatformImage({
         aria-label={alt}
       >
         {fallback || (
-          <div className="flex flex-col items-center gap-1.5 text-center">
+          <div className="gap-1.5 flex flex-col items-center text-center">
             <ImageOff className="size-5 text-muted-foreground/60" />
-            <span className="text-[11px] font-medium text-muted-foreground/80">
+            <span className="font-medium text-meta text-muted-foreground/80">
               Image unavailable
             </span>
           </div>
@@ -148,18 +148,21 @@ export function PlatformImage({
 
   return (
     <div
-      className={cn('relative overflow-hidden rounded-lg inline-block', className)}
+      className={cn(
+        'relative inline-block overflow-hidden rounded-lg',
+        className,
+      )}
       style={{ aspectRatio, ...style }}
     >
       {/* Skeleton loading shimmer */}
       {!isLoaded && (
-        <div className="absolute inset-0 bg-surface-muted animate-pulse flex items-center justify-center">
+        <div className="inset-0 animate-pulse absolute flex items-center justify-center bg-surface-muted">
           {blurDataUrl ? (
             <img
               src={blurDataUrl}
               alt=""
               aria-hidden="true"
-              className="size-full object-cover filter blur-lg scale-110"
+              className="blur-lg size-full scale-110 object-cover filter"
             />
           ) : (
             <Loader2 className="size-4 animate-spin text-muted-foreground/40" />
@@ -170,7 +173,11 @@ export function PlatformImage({
       <img
         src={resolvedSrc}
         srcSet={srcSet}
-        sizes={srcSet ? '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw' : undefined}
+        sizes={
+          srcSet
+            ? '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw'
+            : undefined
+        }
         alt={alt}
         loading={loading}
         decoding={decoding}

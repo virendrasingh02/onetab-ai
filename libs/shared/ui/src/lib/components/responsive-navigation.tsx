@@ -7,9 +7,7 @@ import {
   type ElementRef,
   type ReactNode,
 } from 'react';
-import {
-  DropdownMenuItem,
-} from './dropdown-menu.js';
+import { DropdownMenuItem } from './dropdown-menu.js';
 import { ResponsiveOverflow } from './responsive-overflow.js';
 
 export interface NavItem {
@@ -25,8 +23,10 @@ export interface NavItem {
   onClick?: () => void;
 }
 
-export interface ResponsiveNavigationProps
-  extends Omit<ComponentPropsWithoutRef<'nav'>, 'onSelect'> {
+export interface ResponsiveNavigationProps extends Omit<
+  ComponentPropsWithoutRef<'nav'>,
+  'onSelect'
+> {
   items: NavItem[];
   gap?: number;
   overflowLabel?: ReactNode;
@@ -72,16 +72,16 @@ export const ResponsiveNavigation = forwardRef<
             }}
             aria-current={item.active ? 'page' : undefined}
             className={cn(
-              'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors cursor-pointer select-none shrink-0',
-              'text-muted-foreground hover:text-foreground hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring/40 outline-none',
+              'gap-1.5 px-3 py-1.5 text-xs font-medium inline-flex shrink-0 cursor-pointer items-center rounded-md transition-colors select-none',
+              'text-muted-foreground outline-none hover:bg-accent/60 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40',
               item.active &&
-                'bg-accent/70 text-foreground font-semibold shadow-2xs',
+                'font-semibold shadow-2xs bg-accent/70 text-foreground',
             )}
           >
             {item.icon && <span className="size-4 shrink-0">{item.icon}</span>}
             <span className="truncate">{item.label}</span>
             {item.count !== undefined && (
-              <span className="text-[10px] text-muted-foreground rounded-full px-1.5 py-0.5 bg-muted/40 font-semibold">
+              <span className="px-1.5 py-0.5 font-semibold rounded-full bg-muted/40 text-2xs text-muted-foreground">
                 {item.count}
               </span>
             )}
@@ -104,11 +104,11 @@ export const ResponsiveNavigation = forwardRef<
               close();
             }}
             className={cn(
-              'flex items-center justify-between gap-2.5 px-3 py-2 text-xs font-medium cursor-pointer',
-              item.active && 'bg-accent/70 text-foreground font-semibold',
+              'gap-2.5 px-3 py-2 text-xs font-medium flex cursor-pointer items-center justify-between',
+              item.active && 'font-semibold bg-accent/70 text-foreground',
             )}
           >
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="gap-2 min-w-0 flex items-center">
               {item.icon && (
                 <span className="size-4 shrink-0 text-muted-foreground">
                   {item.icon}
@@ -116,12 +116,14 @@ export const ResponsiveNavigation = forwardRef<
               )}
               <span className="truncate">{item.label}</span>
               {item.count !== undefined && (
-                <span className="text-[10px] text-muted-foreground rounded-full px-1.5 py-0.5 bg-muted/40 font-semibold">
+                <span className="px-1.5 py-0.5 font-semibold rounded-full bg-muted/40 text-2xs text-muted-foreground">
                   {item.count}
                 </span>
               )}
             </div>
-            {item.active && <Check className="size-3.5 shrink-0 text-primary" />}
+            {item.active && (
+              <Check className="size-3.5 shrink-0 text-primary" />
+            )}
           </DropdownMenuItem>
         );
       },
@@ -137,15 +139,15 @@ export const ResponsiveNavigation = forwardRef<
             aria-expanded={isOpen}
             aria-label={`${overflowLabel} navigation (${overflowItems.length} more)`}
             className={cn(
-              'inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md transition-colors cursor-pointer select-none shrink-0 outline-none',
-              'text-muted-foreground hover:text-foreground hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring/40',
+              'gap-1.5 px-2.5 py-1.5 text-xs font-medium inline-flex shrink-0 cursor-pointer items-center rounded-md transition-colors outline-none select-none',
+              'text-muted-foreground hover:bg-accent/60 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40',
               isChildActive &&
-                'bg-accent/70 text-foreground font-semibold shadow-2xs',
+                'font-semibold shadow-2xs bg-accent/70 text-foreground',
             )}
           >
             {overflowIcon || <MoreHorizontal className="size-4 shrink-0" />}
             <span>{overflowLabel}</span>
-            <span className="text-[10px] text-muted-foreground rounded-full px-1.5 py-0.5 bg-muted/40 font-semibold">
+            <span className="px-1.5 py-0.5 font-semibold rounded-full bg-muted/40 text-2xs text-muted-foreground">
               {overflowItems.length}
             </span>
             <ChevronDown
@@ -164,7 +166,7 @@ export const ResponsiveNavigation = forwardRef<
       <nav
         ref={ref}
         aria-label="Responsive navigation"
-        className={cn('flex items-center min-w-0 max-w-full', className)}
+        className={cn('min-w-0 flex max-w-full items-center', className)}
         {...props}
       >
         <ResponsiveOverflow

@@ -117,7 +117,7 @@ export function LocalTime({
             {hintName ? `${hintName} · ` : ''}
             {formatDateInZone(now, zone)}, {time}
           </span>
-          <span className="block text-[11px] opacity-80">
+          <span className="block text-meta opacity-80">
             {zone.replace(/_/g, ' ')} · {formatZoneOffset(zone, now)}
             {difference ? ` · ${difference}` : ''}
           </span>

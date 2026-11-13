@@ -33,7 +33,9 @@ export function Tooltip({
   ...props
 }: TooltipProps) {
   return (
-    <TooltipPrimitive.Provider disableHoverableContent={disableHoverableContent}>
+    <TooltipPrimitive.Provider
+      disableHoverableContent={disableHoverableContent}
+    >
       <TooltipPrimitive.Root
         disableHoverableContent={disableHoverableContent}
         {...props}
@@ -69,7 +71,7 @@ export function TooltipContent({
         collisionPadding={collisionPadding}
         className={cn(
           'z-(--z-tooltip) origin-(--radix-tooltip-content-transform-origin)',
-          'max-w-72 px-2 py-1 font-normal w-fit rounded-popup border border-border bg-popover text-[11px] text-popover-foreground shadow-elevated',
+          'max-w-72 px-2 py-1 font-normal w-fit rounded-popup border border-border bg-popover text-meta text-popover-foreground shadow-elevated',
           className,
         )}
         {...props}

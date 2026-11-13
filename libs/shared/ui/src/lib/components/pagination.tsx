@@ -1,6 +1,12 @@
 import { cn } from '@org/utils';
 import { AppSelect } from './app-select.js';
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MoreHorizontal } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  MoreHorizontal,
+} from 'lucide-react';
 import type { ComponentProps } from 'react';
 import { Button } from './button.js';
 
@@ -45,7 +51,10 @@ export function Pagination({
     return pages;
   };
 
-  const startItem = totalItems !== undefined && pageSize !== undefined ? (page - 1) * pageSize + 1 : undefined;
+  const startItem =
+    totalItems !== undefined && pageSize !== undefined
+      ? (page - 1) * pageSize + 1
+      : undefined;
   const endItem =
     totalItems !== undefined && pageSize !== undefined
       ? Math.min(page * pageSize, totalItems)
@@ -55,11 +64,14 @@ export function Pagination({
     <nav
       role="navigation"
       aria-label="pagination"
-      className={cn('flex flex-wrap items-center justify-between gap-4 py-2 text-xs', className)}
+      className={cn(
+        'gap-4 py-2 text-xs flex flex-wrap items-center justify-between',
+        className,
+      )}
       {...props}
     >
       {/* Item info */}
-      <div className="flex items-center gap-3 text-muted-foreground">
+      <div className="gap-3 flex items-center text-muted-foreground">
         {showItemCount && totalItems !== undefined && (
           <span>
             Showing <strong className="text-foreground">{startItem}</strong> to{' '}
@@ -68,22 +80,25 @@ export function Pagination({
           </span>
         )}
         {onPageSizeChange && pageSize !== undefined && (
-          <div className="flex items-center gap-1.5 ml-2">
-            <span className="text-[11px] text-subtle">Rows per page:</span>
+          <div className="gap-1.5 ml-2 flex items-center">
+            <span className="text-meta text-subtle">Rows per page:</span>
             <AppSelect
               size="sm"
               className="w-20"
               value={String(pageSize)}
               onValueChange={(v) => onPageSizeChange(Number(v))}
               aria-label="Rows per page"
-              options={pageSizeOptions.map((opt) => ({ value: String(opt), label: String(opt) }))}
+              options={pageSizeOptions.map((opt) => ({
+                value: String(opt),
+                label: String(opt),
+              }))}
             />
           </div>
         )}
       </div>
 
       {/* Page controls */}
-      <div className="flex items-center gap-1">
+      <div className="gap-1 flex items-center">
         <Button
           variant="outline"
           size="icon-xs"
@@ -104,10 +119,13 @@ export function Pagination({
           <ChevronLeft className="size-3.5" />
         </Button>
 
-        <div className="flex items-center gap-1 mx-1">
+        <div className="gap-1 mx-1 flex items-center">
           {getPageNumbers().map((p, idx) =>
             p === 'ellipsis' ? (
-              <span key={`ellipsis-${idx}`} className="flex size-6 items-center justify-center text-subtle">
+              <span
+                key={`ellipsis-${idx}`}
+                className="size-6 flex items-center justify-center text-subtle"
+              >
                 <MoreHorizontal className="size-3.5" />
               </span>
             ) : (

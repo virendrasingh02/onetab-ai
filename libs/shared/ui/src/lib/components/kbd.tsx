@@ -139,7 +139,10 @@ const KEY_MAP_DEFAULT: Record<string, string> = {
 /**
  * Normalizes and formats a key name based on platform.
  */
-export function formatKey(key: string, platform: Platform = getPlatform()): string {
+export function formatKey(
+  key: string,
+  platform: Platform = getPlatform(),
+): string {
   const trimmed = key.trim();
   if (!trimmed) return '';
 
@@ -178,7 +181,13 @@ export function parseShortcutString(
     const tokens = trimmed.split(/\s+/);
     return tokens.map((token) => {
       const lower = token.toLowerCase();
-      if (lower === 'then' || lower === 'or' || lower === 'to' || token === '/' || token === '+') {
+      if (
+        lower === 'then' ||
+        lower === 'or' ||
+        lower === 'to' ||
+        token === '/' ||
+        token === '+'
+      ) {
         return { type: 'separator', value: token };
       }
       return { type: 'key', value: token };
@@ -187,7 +196,10 @@ export function parseShortcutString(
 
   // Standard plus-separated shortcuts (e.g. "Ctrl+Shift+P" or "mod+k")
   if (trimmed.includes('+')) {
-    const parts = trimmed.split('+').map((p) => p.trim()).filter(Boolean);
+    const parts = trimmed
+      .split('+')
+      .map((p) => p.trim())
+      .filter(Boolean);
     const result: Array<{ type: 'key' | 'separator'; value: string }> = [];
     parts.forEach((part, i) => {
       if (i > 0) {
@@ -207,7 +219,7 @@ export function parseShortcutString(
 /* -------------------------------------------------------------------------- */
 
 export const kbdVariants = cva(
-  'inline-flex items-center justify-center font-medium font-sans select-none tracking-tight rounded-[4px] leading-none transition-colors duration-(--duration-fast) ease-standard',
+  'font-medium tracking-tight inline-flex items-center justify-center rounded-xs font-sans leading-none transition-colors duration-(--duration-fast) ease-standard select-none',
   {
     variants: {
       variant: {
@@ -215,21 +227,18 @@ export const kbdVariants = cva(
           'border border-border bg-surface-raised text-subtle shadow-[0_1px_0_0_rgba(0,0,0,0.04)] dark:text-muted-foreground',
         outline:
           'border border-border bg-transparent text-subtle dark:text-muted-foreground',
-        muted:
-          'border border-border/50 bg-muted/60 text-muted-foreground',
-        ghost:
-          'border-transparent bg-transparent text-muted-foreground',
-        elevated:
-          'border border-border bg-surface text-foreground shadow-xs',
+        muted: 'border border-border/50 bg-muted/60 text-muted-foreground',
+        ghost: 'border-transparent bg-transparent text-muted-foreground',
+        elevated: 'border border-border bg-surface text-foreground shadow-xs',
       },
       size: {
-        xs: 'h-4 min-w-4 px-1 text-[9px]',
-        sm: 'h-[18px] min-w-[18px] px-1.5 text-[10px]',
-        md: 'h-5 min-w-5 px-1.5 text-[11px]',
+        xs: 'h-4 min-w-4 px-1 text-3xs',
+        sm: 'px-1.5 h-[18px] min-w-[18px] text-2xs',
+        md: 'h-5 min-w-5 px-1.5 text-meta',
         lg: 'h-6 min-w-6 px-2 text-xs',
       },
       disabled: {
-        true: 'opacity-50 pointer-events-none cursor-not-allowed',
+        true: 'pointer-events-none cursor-not-allowed opacity-50',
         false: '',
       },
     },
@@ -245,8 +254,7 @@ export type KbdSize = 'xs' | 'sm' | 'md' | 'lg';
 export type KbdVariant = 'default' | 'outline' | 'muted' | 'ghost' | 'elevated';
 
 export interface KbdProps
-  extends ComponentPropsWithoutRef<'kbd'>,
-    VariantProps<typeof kbdVariants> {
+  extends ComponentPropsWithoutRef<'kbd'>, VariantProps<typeof kbdVariants> {
   children?: ReactNode;
   /** Optional accessible description / tooltip hint */
   tooltip?: ReactNode;
@@ -254,16 +262,7 @@ export interface KbdProps
 
 export const Kbd = forwardRef<ElementRef<'kbd'>, KbdProps>(
   (
-    {
-      className,
-      variant,
-      size,
-      disabled,
-      children,
-      title,
-      tooltip,
-      ...props
-    },
+    { className, variant, size, disabled, children, title, tooltip, ...props },
     ref,
   ) => {
     return (
@@ -302,14 +301,14 @@ export const KbdGroup = forwardRef<ElementRef<'span'>, KbdGroupProps>(
       <span
         ref={ref}
         data-slot="kbd-group"
-        className={cn('inline-flex items-center gap-1', className)}
+        className={cn('gap-1 inline-flex items-center', className)}
         {...props}
       >
         {separator && Array.isArray(children)
           ? children.map((child, i) => (
-              <span key={i} className="inline-flex items-center gap-1">
+              <span key={i} className="gap-1 inline-flex items-center">
                 {i > 0 && (
-                  <span className="font-normal text-[10px] text-muted-foreground/70 select-none px-0.5">
+                  <span className="font-normal px-0.5 text-2xs text-muted-foreground/70 select-none">
                     {separator}
                   </span>
                 )}
@@ -363,7 +362,9 @@ export const KbdShortcut = forwardRef<ElementRef<'span'>, KbdShortcutProps>(
     const platform = usePlatform();
 
     const tokens = useMemo(() => {
-      const source = shortcut ?? (Array.isArray(keys) ? keys : typeof keys === 'string' ? keys : '');
+      const source =
+        shortcut ??
+        (Array.isArray(keys) ? keys : typeof keys === 'string' ? keys : '');
       if (Array.isArray(source)) {
         return source.map((key) => ({
           type: 'key' as const,
@@ -374,7 +375,8 @@ export const KbdShortcut = forwardRef<ElementRef<'span'>, KbdShortcutProps>(
         const parsed = parseShortcutString(source);
         return parsed.map((item) => ({
           type: item.type,
-          value: item.type === 'key' ? formatKey(item.value, platform) : item.value,
+          value:
+            item.type === 'key' ? formatKey(item.value, platform) : item.value,
         }));
       }
       return [];
@@ -393,8 +395,8 @@ export const KbdShortcut = forwardRef<ElementRef<'span'>, KbdShortcutProps>(
         data-slot="kbd-shortcut"
         aria-keyshortcuts={accessibleLabel}
         className={cn(
-          'inline-flex items-center gap-1',
-          responsive && 'hidden sm:inline-flex',
+          'gap-1 inline-flex items-center',
+          responsive && 'sm:inline-flex hidden',
           className,
         )}
         {...props}
@@ -404,7 +406,7 @@ export const KbdShortcut = forwardRef<ElementRef<'span'>, KbdShortcutProps>(
             return (
               <span
                 key={index}
-                className="font-normal text-[10px] text-muted-foreground/70 select-none px-0.5"
+                className="font-normal px-0.5 text-2xs text-muted-foreground/70 select-none"
                 aria-hidden
               >
                 {separator ?? token.value}
@@ -480,7 +482,8 @@ export function useKeyboardShortcut(
   useEffect(() => {
     if (!enabled) return;
 
-    const eventTarget = target ?? (typeof window !== 'undefined' ? window : null);
+    const eventTarget =
+      target ?? (typeof window !== 'undefined' ? window : null);
     if (!eventTarget) return;
 
     const keysArray = Array.isArray(shortcut)
@@ -490,11 +493,27 @@ export function useKeyboardShortcut(
           .split('+')
           .map((k) => k.trim());
 
-    const hasMod = keysArray.some((k) => ['mod', 'cmd', 'ctrl', 'meta'].includes(k.toLowerCase()));
+    const hasMod = keysArray.some((k) =>
+      ['mod', 'cmd', 'ctrl', 'meta'].includes(k.toLowerCase()),
+    );
     const hasShift = keysArray.some((k) => k.toLowerCase() === 'shift');
-    const hasAlt = keysArray.some((k) => ['alt', 'opt', 'option'].includes(k.toLowerCase()));
+    const hasAlt = keysArray.some((k) =>
+      ['alt', 'opt', 'option'].includes(k.toLowerCase()),
+    );
     const primaryKey = keysArray
-      .filter((k) => !['mod', 'cmd', 'ctrl', 'meta', 'shift', 'alt', 'opt', 'option'].includes(k.toLowerCase()))
+      .filter(
+        (k) =>
+          ![
+            'mod',
+            'cmd',
+            'ctrl',
+            'meta',
+            'shift',
+            'alt',
+            'opt',
+            'option',
+          ].includes(k.toLowerCase()),
+      )
       .pop()
       ?.toLowerCase();
 
@@ -511,19 +530,28 @@ export function useKeyboardShortcut(
         }
       }
 
-      const modMatched = hasMod ? e.metaKey || e.ctrlKey : !e.metaKey && !e.ctrlKey;
+      const modMatched = hasMod
+        ? e.metaKey || e.ctrlKey
+        : !e.metaKey && !e.ctrlKey;
       const shiftMatched = hasShift ? e.shiftKey : true;
       const altMatched = hasAlt ? e.altKey : !e.altKey;
 
       const keyMatched = (() => {
         if (!primaryKey) return true;
         const eventKey = e.key.toLowerCase();
-        if (primaryKey === 'escape' || primaryKey === 'esc') return eventKey === 'escape';
-        if (primaryKey === 'enter' || primaryKey === 'return') return eventKey === 'enter';
-        if (primaryKey === 'space') return eventKey === ' ' || eventKey === 'spacebar' || eventKey === 'space';
+        if (primaryKey === 'escape' || primaryKey === 'esc')
+          return eventKey === 'escape';
+        if (primaryKey === 'enter' || primaryKey === 'return')
+          return eventKey === 'enter';
+        if (primaryKey === 'space')
+          return (
+            eventKey === ' ' || eventKey === 'spacebar' || eventKey === 'space'
+          );
         if (primaryKey === 'backspace') return eventKey === 'backspace';
-        if (primaryKey === 'delete' || primaryKey === 'del') return eventKey === 'delete';
-        if (primaryKey === '?') return e.key === '?' || (e.shiftKey && e.key === '/');
+        if (primaryKey === 'delete' || primaryKey === 'del')
+          return eventKey === 'delete';
+        if (primaryKey === '?')
+          return e.key === '?' || (e.shiftKey && e.key === '/');
         return eventKey === primaryKey;
       })();
 

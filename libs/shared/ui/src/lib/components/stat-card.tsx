@@ -18,13 +18,7 @@ export interface TrendBadgeProps extends ComponentProps<'span'> {
 }
 
 export type StatSparklineColor =
-  | 'rose'
-  | 'emerald'
-  | 'amber'
-  | 'cyan'
-  | 'blue'
-  | 'purple'
-  | 'auto';
+  'rose' | 'emerald' | 'amber' | 'cyan' | 'blue' | 'purple' | 'auto';
 
 const DEFAULT_CURVES: Record<string, number[]> = {
   rose: [18, 26, 20, 36, 22, 14, 28, 12, 24, 16],
@@ -36,21 +30,18 @@ const DEFAULT_CURVES: Record<string, number[]> = {
 };
 
 const COLOR_CLASSES: Record<string, string> = {
-  rose: 'stroke-rose-500',
+  rose: 'stroke-destructive',
   emerald: 'stroke-success',
-  amber: 'stroke-amber-400',
-  cyan: 'stroke-cyan-400',
-  blue: 'stroke-blue-400',
-  purple: 'stroke-purple-400',
+  amber: 'stroke-warning',
+  cyan: 'stroke-accent-cyan',
+  blue: 'stroke-accent-blue',
+  purple: 'stroke-accent-violet',
 };
 
 const BADGE_STYLES = {
-  positive:
-    'border-success/25 bg-success/15 text-success-text',
-  negative:
-    'border-rose-500/25 bg-rose-500/15 text-rose-400 dark:text-rose-400',
-  warning:
-    'border-amber-500/25 bg-amber-500/15 text-amber-400 dark:text-amber-400',
+  positive: 'border-success/25 bg-success/15 text-success-text',
+  negative: 'border-destructive/25 bg-destructive/15 text-destructive-text',
+  warning: 'border-warning/25 bg-warning/15 text-warning-text',
   neutral: 'border-border/80 bg-muted/60 text-muted-foreground',
 };
 
@@ -99,14 +90,14 @@ export function StatSparkline({
   const points =
     data && data.length > 1
       ? data
-      : DEFAULT_CURVES[resolvedColor] ?? DEFAULT_CURVES.emerald;
+      : (DEFAULT_CURVES[resolvedColor] ?? DEFAULT_CURVES.emerald);
   const path = generateSmoothPath(points, 100, 36);
   const strokeClass = COLOR_CLASSES[resolvedColor] ?? COLOR_CLASSES.emerald;
 
   return (
     <svg
       viewBox="0 0 100 36"
-      className={cn('w-24 sm:w-28 h-9 overflow-visible shrink-0', className)}
+      className={cn('w-24 sm:w-28 h-9 shrink-0 overflow-visible', className)}
       fill="none"
       aria-hidden="true"
     >
@@ -140,12 +131,12 @@ export function TrendBadge({
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold tracking-tight shrink-0',
+        'px-2 py-0.5 font-semibold tracking-tight inline-flex shrink-0 items-center rounded-full border text-meta',
         isGood
           ? BADGE_STYLES.positive
           : isBad
-          ? BADGE_STYLES.negative
-          : BADGE_STYLES.neutral,
+            ? BADGE_STYLES.negative
+            : BADGE_STYLES.neutral,
         className,
       )}
       {...props}
@@ -209,10 +200,15 @@ export function StatCard({
       : value;
 
   // Determine trend status if trend object provided
-  const isGood = trend ? trend.direction === positiveDirection : badgeType === 'positive';
-  const isBad = trend ? trend.direction !== 'flat' && !isGood : badgeType === 'negative';
+  const isGood = trend
+    ? trend.direction === positiveDirection
+    : badgeType === 'positive';
+  const isBad = trend
+    ? trend.direction !== 'flat' && !isGood
+    : badgeType === 'negative';
 
-  const computedBadgeType = badgeType ?? (isBad ? 'negative' : isGood ? 'positive' : 'neutral');
+  const computedBadgeType =
+    badgeType ?? (isBad ? 'negative' : isGood ? 'positive' : 'neutral');
 
   // Determine sparkline color
   let resolvedColor: StatSparklineColor = sparklineColor ?? 'auto';
@@ -233,7 +229,13 @@ export function StatCard({
     secondaryText ??
     hint ??
     trendText ??
-    (trend ? (trend.direction === 'up' ? 'Trending up' : trend.direction === 'down' ? 'Down' : 'Stable') : undefined);
+    (trend
+      ? trend.direction === 'up'
+        ? 'Trending up'
+        : trend.direction === 'down'
+          ? 'Down'
+          : 'Stable'
+      : undefined);
 
   return (
     <div
@@ -246,38 +248,38 @@ export function StatCard({
       {...props}
     >
       {/* Top Header: Label + Subtitle on left, optional icon on right */}
-      <div className="flex items-start justify-between gap-2">
+      <div className="gap-2 flex items-start justify-between">
         <div className="min-w-0">
-          <span className="text-sm font-semibold text-foreground tracking-tight block leading-snug">
+          <span className="text-sm font-semibold tracking-tight leading-snug block text-foreground">
             {label}
           </span>
           {displaySubtitle ? (
-            <span className="mt-0.5 text-xs text-muted-foreground/80 tracking-tight block">
+            <span className="mt-0.5 text-xs tracking-tight block text-muted-foreground/80">
               {displaySubtitle}
             </span>
           ) : null}
         </div>
         {Icon ? (
-          <span className="size-7 rounded-lg border border-border/60 bg-background/50 flex items-center justify-center text-muted-foreground shrink-0">
+          <span className="size-7 flex shrink-0 items-center justify-center rounded-lg border border-border/60 bg-background/50 text-muted-foreground">
             <Icon className="size-3.5" />
           </span>
         ) : null}
       </div>
 
       {/* Bottom Row: Metric value + Badge/Detail on left, Sparkline on right */}
-      <div className="mt-5 flex items-end justify-between gap-3">
+      <div className="mt-5 gap-3 flex items-end justify-between">
         <div className="min-w-0">
-          <div className="text-2xl sm:text-[28px] font-bold tracking-tight text-foreground tabular-nums">
+          <div className="text-2xl sm:text-stat font-bold tracking-tight text-foreground tabular-nums">
             {display}
           </div>
 
-          <div className="mt-2 flex items-center gap-2 flex-wrap">
+          <div className="mt-2 gap-2 flex flex-wrap items-center">
             {trend ? (
               <TrendBadge trend={trend} positiveDirection={positiveDirection} />
             ) : badgeText ? (
               <span
                 className={cn(
-                  'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold tracking-tight shrink-0',
+                  'px-2 py-0.5 font-semibold tracking-tight inline-flex shrink-0 items-center rounded-full border text-meta',
                   BADGE_STYLES[computedBadgeType],
                 )}
               >
@@ -286,7 +288,7 @@ export function StatCard({
             ) : null}
 
             {displayDetail ? (
-              <span className="text-xs text-muted-foreground/80 truncate">
+              <span className="text-xs truncate text-muted-foreground/80">
                 {displayDetail}
               </span>
             ) : null}
@@ -295,11 +297,8 @@ export function StatCard({
 
         {/* Sparkline Wave */}
         {showSparkline ? (
-          <div className="shrink-0 pb-1">
-            <StatSparkline
-              data={sparklineData}
-              color={resolvedColor}
-            />
+          <div className="pb-1 shrink-0">
+            <StatSparkline data={sparklineData} color={resolvedColor} />
           </div>
         ) : null}
       </div>

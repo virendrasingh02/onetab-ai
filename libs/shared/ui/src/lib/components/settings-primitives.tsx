@@ -75,7 +75,7 @@ export function SettingsGroup({
               </h3>
             ) : null}
             {description ? (
-              <p className="mt-1 text-[11px] text-muted-foreground">
+              <p className="mt-1 text-meta text-muted-foreground">
                 {description}
               </p>
             ) : null}
@@ -151,7 +151,7 @@ export function SettingsBadge({
   ...props
 }: SettingsBadgeProps) {
   const classes = cn(
-    'px-2 py-0.5 font-medium leading-4 rounded-full border text-[10px] transition-colors',
+    'px-2 py-0.5 font-medium leading-4 rounded-full border text-2xs transition-colors',
     BADGE_TONES[tone],
     onClick && 'cursor-pointer hover:brightness-95 disabled:opacity-60',
     className,
@@ -223,7 +223,7 @@ export function SettingsRow({
             <p
               className={cn(
                 'mt-0.5 text-muted-foreground',
-                nested ? 'text-[11px]' : 'text-xs',
+                nested ? 'text-meta' : 'text-xs',
               )}
             >
               {description}

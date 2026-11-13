@@ -67,7 +67,7 @@ export function RegionSelect({
           <span className="min-w-0 gap-2 flex items-center">
             <span className="text-base leading-none">{currentRegion.flag}</span>
             <span className="truncate">{currentRegion.name}</span>
-            <span className="font-mono text-[10px] text-muted-foreground">
+            <span className="font-mono text-2xs text-muted-foreground">
               ({currentRegion.code})
             </span>
           </span>
@@ -110,7 +110,7 @@ export function RegionSelect({
                       {region.flag}
                     </span>
                     <span className="truncate">{region.name}</span>
-                    <span className="font-mono text-[10px] text-muted-foreground">
+                    <span className="font-mono text-2xs text-muted-foreground">
                       {region.code}
                     </span>
                   </span>

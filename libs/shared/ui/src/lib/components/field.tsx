@@ -10,8 +10,10 @@ import {
 } from 'react';
 import { Label } from './primitives.js';
 
-export interface FieldProps
-  extends Omit<ComponentProps<'div'>, 'children' | 'prefix'> {
+export interface FieldProps extends Omit<
+  ComponentProps<'div'>,
+  'children' | 'prefix'
+> {
   /** Field label. Omit for a bare control with only a hint/error line. */
   label?: ReactNode;
   /** Adds a red `*` after the label. */
@@ -67,7 +69,8 @@ export function Field({
           'aria-required': required
             ? true
             : (children.props as Record<string, unknown>)['aria-required'],
-          required: required || (children.props as Record<string, unknown>).required,
+          required:
+            required || (children.props as Record<string, unknown>).required,
           'aria-describedby':
             [
               (children.props as Record<string, unknown>)['aria-describedby'],
@@ -79,9 +82,9 @@ export function Field({
       : children;
 
   return (
-    <div className={cn('grid gap-1.5', className)} {...props}>
+    <div className={cn('gap-1.5 grid', className)} {...props}>
       {label != null || labelAside != null ? (
-        <div className="flex items-center justify-between gap-2">
+        <div className="gap-2 flex items-center justify-between">
           {label != null ? (
             <Label
               htmlFor={controlId}
@@ -119,7 +122,7 @@ export function Field({
           id={messageId}
           role={error ? 'alert' : undefined}
           className={cn(
-            'flex items-center gap-1 text-[11px] leading-snug',
+            'gap-1 leading-snug flex items-center text-meta',
             error
               ? 'font-medium text-destructive'
               : success

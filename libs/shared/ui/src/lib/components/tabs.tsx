@@ -42,9 +42,19 @@ export const useTabsContext = () => useContext(TabsContext);
 
 export type TabsProps = ComponentPropsWithoutRef<typeof TabsPrimitive.Root>;
 
-export const Tabs = forwardRef<ElementRef<typeof TabsPrimitive.Root>, TabsProps>(
+export const Tabs = forwardRef<
+  ElementRef<typeof TabsPrimitive.Root>,
+  TabsProps
+>(
   (
-    { className, value: valueProp, defaultValue, onValueChange, children, ...props },
+    {
+      className,
+      value: valueProp,
+      defaultValue,
+      onValueChange,
+      children,
+      ...props
+    },
     ref,
   ) => {
     /*
@@ -82,7 +92,7 @@ export const Tabs = forwardRef<ElementRef<typeof TabsPrimitive.Root>, TabsProps>
           value={value ?? ''}
           onValueChange={handleValueChange}
           data-slot="tabs"
-          className={cn('flex flex-col gap-2', className)}
+          className={cn('gap-2 flex flex-col', className)}
           {...props}
         >
           {children}
@@ -98,14 +108,19 @@ Tabs.displayName = 'Tabs';
 /* Tabs List                                                                  */
 /* -------------------------------------------------------------------------- */
 
-export interface TabsListProps extends ComponentPropsWithoutRef<typeof TabsPrimitive.List> {
+export interface TabsListProps extends ComponentPropsWithoutRef<
+  typeof TabsPrimitive.List
+> {
   variant?: TabsVariant;
   size?: TabsSize;
   layoutId?: string;
   scrollable?: boolean;
 }
 
-export const TabsList = forwardRef<ElementRef<typeof TabsPrimitive.List>, TabsListProps>(
+export const TabsList = forwardRef<
+  ElementRef<typeof TabsPrimitive.List>,
+  TabsListProps
+>(
   (
     {
       className,
@@ -137,7 +152,7 @@ export const TabsList = forwardRef<ElementRef<typeof TabsPrimitive.List>, TabsLi
           className={cn(
             'flex items-center text-muted-foreground select-none',
             scrollable &&
-              'max-w-full overflow-x-auto scrollbar-none overscroll-x-contain flex-nowrap',
+              'max-w-full scrollbar-none flex-nowrap overflow-x-auto overscroll-x-contain',
             // Variant container styling. `pill` / `c-tabs-7` are a plain
             // transparent row of chips — the page section that hosts the tabs
             // owns the `border-b` rule beneath them (channel-page,
@@ -145,13 +160,19 @@ export const TabsList = forwardRef<ElementRef<typeof TabsPrimitive.List>, TabsLi
             // would only fight it.
             (variant === 'pill' || variant === 'c-tabs-7') && 'gap-1',
             variant === 'segmented' &&
-              'inline-flex w-fit rounded-lg bg-surface-inset p-1 border border-border',
+              'p-1 inline-flex w-fit rounded-lg border border-border bg-surface-inset',
             variant === 'underline' &&
-              'gap-6 flex w-full border-b border-border/60 pb-px bg-transparent',
+              'gap-6 flex w-full border-b border-border/60 bg-transparent pb-px',
             // Sizing container adjustments
-            size === 'sm' && (variant === 'pill' || variant === 'c-tabs-7') && 'h-8',
-            size === 'md' && (variant === 'pill' || variant === 'c-tabs-7') && 'h-9',
-            size === 'lg' && (variant === 'pill' || variant === 'c-tabs-7') && 'h-10',
+            size === 'sm' &&
+              (variant === 'pill' || variant === 'c-tabs-7') &&
+              'h-8',
+            size === 'md' &&
+              (variant === 'pill' || variant === 'c-tabs-7') &&
+              'h-9',
+            size === 'lg' &&
+              (variant === 'pill' || variant === 'c-tabs-7') &&
+              'h-10',
             className,
           )}
           {...props}
@@ -169,8 +190,9 @@ TabsList.displayName = 'TabsList';
 /* Tabs Trigger                                                               */
 /* -------------------------------------------------------------------------- */
 
-export interface TabsTriggerProps
-  extends ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger> {
+export interface TabsTriggerProps extends ComponentPropsWithoutRef<
+  typeof TabsPrimitive.Trigger
+> {
   variant?: TabsVariant;
   size?: TabsSize;
   icon?: ReactNode;
@@ -228,10 +250,10 @@ TabsTrigger.displayName = 'TabsTrigger';
  */
 export function tabsTriggerClassName(variant: TabsVariant, size: TabsSize) {
   return cn(
-    'group relative inline-flex items-center justify-center whitespace-nowrap font-medium outline-none cursor-pointer',
+    'group font-medium relative inline-flex cursor-pointer items-center justify-center whitespace-nowrap outline-none',
     'transition-colors duration-(--duration-fast) ease-standard',
     'focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none',
-    'disabled:pointer-events-none disabled:opacity-40 disabled:cursor-not-allowed',
+    'disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40',
     "[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
 
     // Size padding
@@ -246,7 +268,7 @@ export function tabsTriggerClassName(variant: TabsVariant, size: TabsSize) {
     (variant === 'pill' || variant === 'c-tabs-7') && [
       'rounded-md border border-transparent text-muted-foreground',
       'hover:text-foreground',
-      'data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:font-semibold',
+      'data-[state=active]:font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground',
       'data-[state=active]:border-border/60 data-[state=active]:shadow-xs',
       'dark:data-[state=active]:bg-surface-raised',
     ],
@@ -263,7 +285,7 @@ export function tabsTriggerClassName(variant: TabsVariant, size: TabsSize) {
     variant === 'underline' && [
       'rounded-t-sm border-b-2 border-transparent text-muted-foreground',
       'hover:text-foreground',
-      'data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:font-semibold',
+      'data-[state=active]:font-semibold data-[state=active]:border-primary data-[state=active]:text-foreground',
       size === 'sm' && 'pb-2 gap-1.5',
       size === 'md' && 'pb-2.5 gap-2',
       size === 'lg' && 'pb-3 gap-2.5',
@@ -284,14 +306,14 @@ export function TabsTriggerContent({
   children?: ReactNode;
 }) {
   return (
-    <span className="inline-flex items-center gap-1.5 min-w-0">
+    <span className="gap-1.5 min-w-0 inline-flex items-center">
       {icon && (
-        <span className="shrink-0 text-muted-foreground transition-colors group-hover:text-foreground group-data-[state=active]:text-foreground inline-flex items-center justify-center">
+        <span className="inline-flex shrink-0 items-center justify-center text-muted-foreground transition-colors group-hover:text-foreground group-data-[state=active]:text-foreground">
           {icon}
         </span>
       )}
 
-      <span className="inline-flex items-center gap-1.5 truncate [&_svg]:shrink-0 [&_svg]:inline-block">
+      <span className="gap-1.5 inline-flex items-center truncate [&_svg]:inline-block [&_svg]:shrink-0">
         {children}
       </span>
 
@@ -299,7 +321,7 @@ export function TabsTriggerContent({
         <span
           data-slot="tabs-count"
           className={cn(
-            'inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-tight transition-colors',
+            'px-1.5 py-0.5 font-semibold leading-tight inline-flex items-center justify-center rounded-full text-2xs transition-colors',
             'bg-muted-foreground/15 text-muted-foreground',
             'group-hover:bg-muted-foreground/25 group-hover:text-foreground',
             'group-data-[state=active]:bg-brand/15 group-data-[state=active]:text-brand-text',
@@ -309,7 +331,9 @@ export function TabsTriggerContent({
         </span>
       )}
 
-      {badge && <span className="inline-flex items-center shrink-0">{badge}</span>}
+      {badge && (
+        <span className="inline-flex shrink-0 items-center">{badge}</span>
+      )}
     </span>
   );
 }
@@ -318,8 +342,9 @@ export function TabsTriggerContent({
 /* Tabs Content                                                               */
 /* -------------------------------------------------------------------------- */
 
-export type TabsContentProps =
-  ComponentPropsWithoutRef<typeof TabsPrimitive.Content>;
+export type TabsContentProps = ComponentPropsWithoutRef<
+  typeof TabsPrimitive.Content
+>;
 
 export const TabsContent = forwardRef<
   ElementRef<typeof TabsPrimitive.Content>,
@@ -330,7 +355,7 @@ export const TabsContent = forwardRef<
       ref={ref}
       data-slot="tabs-content"
       className={cn(
-        'flex-1 outline-none mt-2 focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none rounded-md',
+        'mt-2 flex-1 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none',
         'data-[state=inactive]:hidden',
         'data-[state=active]:animate-in data-[state=active]:fade-in-50 duration-150',
         className,

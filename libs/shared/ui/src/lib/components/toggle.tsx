@@ -3,16 +3,19 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import type { ComponentProps } from 'react';
 
 export const toggleVariants = cva(
-  'inline-flex items-center justify-center rounded-btn text-xs font-medium transition-colors duration-(--duration-fast) outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 select-none cursor-pointer',
+  'text-xs font-medium inline-flex cursor-pointer items-center justify-center rounded-btn transition-colors duration-(--duration-fast) outline-none select-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
       variant: {
-        default: 'bg-transparent text-muted-foreground hover:bg-accent hover:text-foreground data-[state=on]:bg-surface-raised data-[state=on]:text-foreground data-[state=on]:shadow-xs',
-        outline: 'border border-border bg-transparent hover:bg-accent hover:text-foreground data-[state=on]:border-brand data-[state=on]:bg-brand/10 data-[state=on]:text-brand-text',
-        subtle: 'bg-surface-raised text-muted-foreground hover:bg-selected data-[state=on]:bg-brand data-[state=on]:text-brand-foreground',
+        default:
+          'bg-transparent text-muted-foreground hover:bg-accent hover:text-foreground data-[state=on]:bg-surface-raised data-[state=on]:text-foreground data-[state=on]:shadow-xs',
+        outline:
+          'border border-border bg-transparent hover:bg-accent hover:text-foreground data-[state=on]:border-brand data-[state=on]:bg-brand/10 data-[state=on]:text-brand-text',
+        subtle:
+          'bg-surface-raised text-muted-foreground hover:bg-selected data-[state=on]:bg-brand data-[state=on]:text-brand-foreground',
       },
       size: {
-        xs: 'h-6 px-2 text-[11px] [&_svg]:size-3.5',
+        xs: 'h-6 px-2 [&_svg]:size-3.5 text-meta',
         sm: 'h-7 px-2.5 text-xs [&_svg]:size-4',
         md: 'h-8 px-3 text-xs [&_svg]:size-4',
         lg: 'h-9 px-4 text-sm [&_svg]:size-4.5',
@@ -26,7 +29,8 @@ export const toggleVariants = cva(
 );
 
 export interface ToggleProps
-  extends Omit<ComponentProps<'button'>, 'onChange'>,
+  extends
+    Omit<ComponentProps<'button'>, 'onChange'>,
     VariantProps<typeof toggleVariants> {
   pressed?: boolean;
   defaultPressed?: boolean;

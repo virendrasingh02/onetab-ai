@@ -38,8 +38,9 @@ export interface ResponsiveOverflowItem {
   [key: string]: unknown;
 }
 
-export interface ResponsiveOverflowProps<T = ResponsiveOverflowItem>
-  extends Omit<ComponentPropsWithoutRef<'div'>, 'children'> {
+export interface ResponsiveOverflowProps<
+  T = ResponsiveOverflowItem,
+> extends Omit<ComponentPropsWithoutRef<'div'>, 'children'> {
   items?: T[];
   /** Renders an item in the visible row. */
   renderItem?: (item: T, index: number) => ReactNode;
@@ -126,7 +127,8 @@ export function computeOverflowLayout({
 }: OverflowLayoutInput): OverflowLayout {
   const total = itemWidths.length;
   const all = itemWidths.map((_, idx) => idx);
-  const cap = maxVisibleItems === undefined ? total : Math.max(0, maxVisibleItems);
+  const cap =
+    maxVisibleItems === undefined ? total : Math.max(0, maxVisibleItems);
 
   let count: number;
   if (containerWidth <= 0) {
@@ -191,9 +193,7 @@ function contentBoxWidth(el: HTMLElement): number {
 }
 
 function sameWidths(a: number[], b: number[]): boolean {
-  return (
-    a.length === b.length && a.every((w, i) => Math.abs(w - b[i]) < 0.01)
-  );
+  return a.length === b.length && a.every((w, i) => Math.abs(w - b[i]) < 0.01);
 }
 
 /**
@@ -259,7 +259,9 @@ export function ResponsiveOverflow<T = ResponsiveOverflowItem>({
 
     const moreNode = moreMeasureRef.current?.firstElementChild;
     const nextMore = moreNode ? moreNode.getBoundingClientRect().width : 0;
-    setMoreWidth((prev) => (Math.abs(prev - nextMore) < 0.01 ? prev : nextMore));
+    setMoreWidth((prev) =>
+      Math.abs(prev - nextMore) < 0.01 ? prev : nextMore,
+    );
 
     const nextContainer = contentBoxWidth(root);
     setContainerWidth((prev) =>
@@ -331,7 +333,10 @@ export function ResponsiveOverflow<T = ResponsiveOverflowItem>({
       itemWidths:
         itemWidths.length === totalItemCount
           ? itemWidths
-          : Array.from({ length: totalItemCount }, (_, i) => itemWidths[i] ?? 0),
+          : Array.from(
+              { length: totalItemCount },
+              (_, i) => itemWidths[i] ?? 0,
+            ),
       moreWidth,
       gap,
       minVisibleItems,
@@ -349,7 +354,9 @@ export function ResponsiveOverflow<T = ResponsiveOverflowItem>({
   }, [overflowCount, visibleCount, onOverflowChange]);
 
   const itemKey = (item: T, idx: number) =>
-    getItemId?.(item, idx) ?? (item as ResponsiveOverflowItem)?.id ?? String(idx);
+    getItemId?.(item, idx) ??
+    (item as ResponsiveOverflowItem)?.id ??
+    String(idx);
 
   const defaultRenderItem = (item: T, index: number) => {
     const row = item as ResponsiveOverflowItem;
@@ -360,17 +367,17 @@ export function ResponsiveOverflow<T = ResponsiveOverflowItem>({
         onClick={row.onClick}
         aria-current={isIndexActive(index) ? 'true' : undefined}
         className={cn(
-          'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-1.5 text-xs font-medium rounded-md transition-colors cursor-pointer',
-          'text-muted-foreground hover:text-foreground hover:bg-accent/60',
+          'gap-1.5 px-3 py-1.5 text-xs font-medium inline-flex shrink-0 cursor-pointer items-center rounded-md whitespace-nowrap transition-colors',
+          'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
           'outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
           isIndexActive(index) &&
-            'bg-background text-foreground font-semibold shadow-xs border border-border/60',
+            'font-semibold border border-border/60 bg-background text-foreground shadow-xs',
         )}
       >
         {row.icon && <span className="size-4 shrink-0">{row.icon}</span>}
         {row.label && <span>{row.label}</span>}
         {row.count !== undefined && (
-          <span className="text-[10px] text-muted-foreground rounded-full px-1.5 py-0.5 bg-muted/40 font-semibold">
+          <span className="px-1.5 py-0.5 font-semibold rounded-full bg-muted/40 text-2xs text-muted-foreground">
             {row.count}
           </span>
         )}
@@ -393,17 +400,19 @@ export function ResponsiveOverflow<T = ResponsiveOverflowItem>({
           close();
         }}
         className={cn(
-          'flex items-center justify-between gap-2.5 px-3 py-2 text-xs font-medium cursor-pointer',
-          active && 'bg-accent/60 text-foreground font-semibold',
+          'gap-2.5 px-3 py-2 text-xs font-medium flex cursor-pointer items-center justify-between',
+          active && 'font-semibold bg-accent/60 text-foreground',
         )}
       >
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="gap-2 min-w-0 flex items-center">
           {row.icon && (
-            <span className="size-4 shrink-0 text-muted-foreground">{row.icon}</span>
+            <span className="size-4 shrink-0 text-muted-foreground">
+              {row.icon}
+            </span>
           )}
           <span className="truncate">{row.label}</span>
           {row.count !== undefined && (
-            <span className="text-[10px] text-muted-foreground rounded-full px-1.5 py-0.5 bg-muted/40 font-semibold">
+            <span className="px-1.5 py-0.5 font-semibold rounded-full bg-muted/40 text-2xs text-muted-foreground">
               {row.count}
             </span>
           )}
@@ -421,16 +430,16 @@ export function ResponsiveOverflow<T = ResponsiveOverflowItem>({
       aria-expanded={open}
       aria-label={`${typeof overflowLabel === 'string' ? overflowLabel : 'More'} items (${count} more)`}
       className={cn(
-        'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2.5 py-1.5 text-xs font-medium rounded-md transition-colors cursor-pointer select-none outline-none',
-        'text-muted-foreground hover:text-foreground hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring/40',
+        'gap-1.5 px-2.5 py-1.5 text-xs font-medium inline-flex shrink-0 cursor-pointer items-center rounded-md whitespace-nowrap transition-colors outline-none select-none',
+        'text-muted-foreground hover:bg-accent/60 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40',
         active &&
-          'bg-background text-foreground font-semibold shadow-xs border border-border/60 dark:bg-surface-raised',
+          'font-semibold border border-border/60 bg-background text-foreground shadow-xs dark:bg-surface-raised',
         triggerClassName,
       )}
     >
       {overflowIcon || <MoreHorizontal className="size-4 shrink-0" />}
       <span>{overflowLabel}</span>
-      <span className="text-[10px] text-muted-foreground rounded-full px-1.5 py-0.5 bg-muted/40 font-semibold">
+      <span className="px-1.5 py-0.5 font-semibold rounded-full bg-muted/40 text-2xs text-muted-foreground">
         {count}
       </span>
       <ChevronDown
@@ -473,12 +482,12 @@ export function ResponsiveOverflow<T = ResponsiveOverflowItem>({
     <Component
       ref={rootRef}
       data-slot="responsive-overflow"
-      className={cn('relative min-w-0 max-w-full', className)}
+      className={cn('min-w-0 relative max-w-full', className)}
       {...props}
     >
       <div
         data-slot="responsive-overflow-row"
-        className={cn('flex min-w-0 flex-nowrap items-center', rowClassName)}
+        className={cn('min-w-0 flex flex-nowrap items-center', rowClassName)}
         style={{ gap: `${gap}px` }}
       >
         {visibleIndices.map(renderVisible)}
@@ -487,8 +496,16 @@ export function ResponsiveOverflow<T = ResponsiveOverflowItem>({
           <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
             <DropdownMenuTrigger asChild>
               {renderOverflowTrigger
-                ? renderOverflowTrigger(overflowEntries, isChildActiveInOverflow, isOpen)
-                : defaultTrigger(overflowCount, isChildActiveInOverflow, isOpen)}
+                ? renderOverflowTrigger(
+                    overflowEntries,
+                    isChildActiveInOverflow,
+                    isOpen,
+                  )
+                : defaultTrigger(
+                    overflowCount,
+                    isChildActiveInOverflow,
+                    isOpen,
+                  )}
             </DropdownMenuTrigger>
             <DropdownMenuContent
               side={overflowMenuSide}
@@ -525,19 +542,24 @@ export function ResponsiveOverflow<T = ResponsiveOverflowItem>({
                           setIsOpen(false);
                         }}
                         className={cn(
-                          'flex items-center justify-between gap-2.5 px-3 py-2 text-xs font-medium cursor-pointer',
-                          active && 'bg-accent/60 text-foreground font-semibold',
+                          'gap-2.5 px-3 py-2 text-xs font-medium flex cursor-pointer items-center justify-between',
+                          active &&
+                            'font-semibold bg-accent/60 text-foreground',
                         )}
                       >
-                        <div className="flex items-center gap-2 min-w-0">
+                        <div className="gap-2 min-w-0 flex items-center">
                           {child.props.icon && (
                             <span className="size-4 shrink-0 text-muted-foreground">
                               {child.props.icon}
                             </span>
                           )}
-                          <span className="truncate">{child.props.children}</span>
+                          <span className="truncate">
+                            {child.props.children}
+                          </span>
                         </div>
-                        {active && <Check className="size-3.5 shrink-0 text-primary" />}
+                        {active && (
+                          <Check className="size-3.5 shrink-0 text-primary" />
+                        )}
                       </DropdownMenuItem>
                     );
                   })}

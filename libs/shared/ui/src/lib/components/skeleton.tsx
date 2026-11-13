@@ -20,8 +20,8 @@ export function Skeleton({ className, ...props }: ComponentProps<'div'>) {
 }
 
 const AVATAR_SIZES = {
-  xs: 'size-5 text-[10px]',
-  sm: 'size-6 text-[11px]',
+  xs: 'size-5 text-2xs',
+  sm: 'size-6 text-meta',
   md: 'size-8 text-xs',
   lg: 'size-10 text-sm',
   xl: 'size-16 text-xl',
@@ -81,12 +81,7 @@ export function SkeletonText({
     <Skeleton
       data-slot="skeleton-text"
       style={{ width, ...style }}
-      className={cn(
-        'rounded',
-        TEXT_SIZES[size],
-        !width && 'w-full',
-        className,
-      )}
+      className={cn('rounded', TEXT_SIZES[size], !width && 'w-full', className)}
       {...props}
     />
   );
@@ -122,19 +117,15 @@ export function SkeletonRow({
       {leading === 'avatar' ? (
         <SkeletonAvatar size={avatarSize} shape={avatarShape} />
       ) : leading === 'icon' ? (
-        <Skeleton className="size-4 shrink-0 rounded" />
+        <Skeleton className="size-4 rounded shrink-0" />
       ) : leading !== 'none' ? (
         leading
       ) : null}
 
       <div className="min-w-0 gap-1 flex flex-1 flex-col justify-center">
         <SkeletonText size="sm" className="w-[65%]" />
-        {lines >= 2 ? (
-          <SkeletonText size="xs" className="w-[40%]" />
-        ) : null}
-        {lines >= 3 ? (
-          <SkeletonText size="xs" className="w-[80%]" />
-        ) : null}
+        {lines >= 2 ? <SkeletonText size="xs" className="w-[40%]" /> : null}
+        {lines >= 3 ? <SkeletonText size="xs" className="w-[80%]" /> : null}
       </div>
 
       {trailing === 'badge' ? (
@@ -173,15 +164,25 @@ export function SkeletonList({
       {Array.from({ length: rows }, (_, index) => {
         // Natural staggered width variation
         const widths = ['w-[38%]', 'w-[48%]', 'w-[32%]', 'w-[56%]', 'w-[42%]'];
-        const subWidths = ['w-[62%]', 'w-[75%]', 'w-[50%]', 'w-[68%]', 'w-[58%]'];
+        const subWidths = [
+          'w-[62%]',
+          'w-[75%]',
+          'w-[50%]',
+          'w-[68%]',
+          'w-[58%]',
+        ];
         return (
           <div key={index} className="gap-3 flex items-center">
             {withAvatar ? (
               <Skeleton className="size-8 shrink-0 rounded-full" />
             ) : null}
             <div className="min-w-0 gap-1.5 flex flex-1 flex-col">
-              <Skeleton className={cn('h-3.5', widths[index % widths.length])} />
-              <Skeleton className={cn('h-3', subWidths[index % subWidths.length])} />
+              <Skeleton
+                className={cn('h-3.5', widths[index % widths.length])}
+              />
+              <Skeleton
+                className={cn('h-3', subWidths[index % subWidths.length])}
+              />
             </div>
           </div>
         );
@@ -208,7 +209,11 @@ export function WorkspaceMenuSkeleton({
       {...props}
     >
       <div className="gap-2 px-2 py-1 flex flex-1 items-center rounded-lg">
-        <SkeletonAvatar size="sm" shape="rounded" className="shadow-2xs rounded-sm" />
+        <SkeletonAvatar
+          size="sm"
+          shape="rounded"
+          className="shadow-2xs rounded-sm"
+        />
         <div className="min-w-0 leading-tight flex flex-1 flex-col justify-center">
           <div className="gap-1.5 flex items-center">
             <Skeleton className="h-4 w-28 rounded" />
@@ -241,10 +246,12 @@ export function ChannelNavSkeleton({
       {Array.from({ length: rows }, (_, i) => (
         <div
           key={i}
-          className="gap-2.5 pl-2.5 pr-2 py-1.5 flex items-center rounded-xl min-h-[32px]"
+          className="gap-2.5 pl-2.5 pr-2 py-1.5 flex min-h-[32px] items-center rounded-xl"
         >
-          <Skeleton className="size-4 shrink-0 rounded" />
-          <Skeleton className={cn('h-3.5 rounded', titleWidths[i % titleWidths.length])} />
+          <Skeleton className="size-4 rounded shrink-0" />
+          <Skeleton
+            className={cn('h-3.5 rounded', titleWidths[i % titleWidths.length])}
+          />
         </div>
       ))}
     </div>
@@ -272,10 +279,16 @@ export function DirectMessagesNavSkeleton({
       {Array.from({ length: rows }, (_, i) => (
         <div
           key={i}
-          className="gap-2.5 pl-2.5 pr-2 py-1.5 flex items-center rounded-xl min-h-[32px]"
+          className="gap-2.5 pl-2.5 pr-2 py-1.5 flex min-h-[32px] items-center rounded-xl"
         >
-          <SkeletonAvatar size="xs" shape="circle" className="size-4 text-[8px]" />
-          <Skeleton className={cn('h-3.5 rounded', titleWidths[i % titleWidths.length])} />
+          <SkeletonAvatar
+            size="xs"
+            shape="circle"
+            className="size-4 text-3xs"
+          />
+          <Skeleton
+            className={cn('h-3.5 rounded', titleWidths[i % titleWidths.length])}
+          />
         </div>
       ))}
     </div>
@@ -304,10 +317,17 @@ export function ResourceNavSkeleton({
       {Array.from({ length: rows }, (_, i) => (
         <div
           key={i}
-          className="gap-2.5 pl-2.5 pr-2 py-1.5 flex items-center rounded-xl min-h-[32px]"
+          className="gap-2.5 pl-2.5 pr-2 py-1.5 flex min-h-[32px] items-center rounded-xl"
         >
-          <Skeleton className={cn('size-4 shrink-0', shape === 'circle' ? 'rounded-full' : 'rounded')} />
-          <Skeleton className={cn('h-3.5 rounded', titleWidths[i % titleWidths.length])} />
+          <Skeleton
+            className={cn(
+              'size-4 shrink-0',
+              shape === 'circle' ? 'rounded-full' : 'rounded',
+            )}
+          />
+          <Skeleton
+            className={cn('h-3.5 rounded', titleWidths[i % titleWidths.length])}
+          />
         </div>
       ))}
     </div>
@@ -368,7 +388,7 @@ export function ChatHeaderSkeleton({
 
       {/* Tabs strip */}
       {hasTabs ? (
-        <div className="px-3 sm:px-6 h-9 flex items-center gap-4 border-t border-border/40">
+        <div className="px-3 sm:px-6 h-9 gap-4 flex items-center border-t border-border/40">
           <Skeleton className="h-4 w-12 rounded" />
           <Skeleton className="h-4 w-20 rounded" />
           <Skeleton className="h-4 w-12 rounded" />
@@ -393,7 +413,10 @@ export function ChatConversationSkeleton({
       role="status"
       aria-busy="true"
       aria-live="polite"
-      className={cn('min-h-0 flex flex-1 flex-col overflow-hidden bg-background text-foreground', className)}
+      className={cn(
+        'min-h-0 flex flex-1 flex-col overflow-hidden bg-background text-foreground',
+        className,
+      )}
       {...props}
     >
       <ChatHeaderSkeleton
@@ -403,50 +426,50 @@ export function ChatConversationSkeleton({
       />
 
       {/* Message Feed Skeleton */}
-      <div className="min-h-0 p-4 sm:p-6 flex flex-1 flex-col justify-end space-y-6 overflow-hidden">
+      <div className="min-h-0 p-4 sm:p-6 space-y-6 flex flex-1 flex-col justify-end overflow-hidden">
         <div className="space-y-4">
           {/* Incoming message */}
           <div className="gap-3 flex items-start">
             <Skeleton className="size-8 shrink-0 rounded-full" />
-            <div className="space-y-1.5 flex-1 max-w-md">
+            <div className="space-y-1.5 max-w-md flex-1">
               <div className="gap-2 flex items-center">
                 <Skeleton className="h-3.5 w-24 rounded" />
                 <Skeleton className="h-3 w-12 rounded" />
               </div>
-              <Skeleton className="h-4 w-full rounded" />
-              <Skeleton className="h-4 w-3/4 rounded" />
+              <Skeleton className="h-4 rounded w-full" />
+              <Skeleton className="h-4 rounded w-3/4" />
             </div>
           </div>
 
           {/* Outgoing message */}
-          <div className="gap-3 flex items-start flex-row-reverse">
+          <div className="gap-3 flex flex-row-reverse items-start">
             <Skeleton className="size-8 shrink-0 rounded-full" />
-            <div className="space-y-1.5 flex-1 max-w-md items-end flex flex-col">
+            <div className="space-y-1.5 max-w-md flex flex-1 flex-col items-end">
               <div className="gap-2 flex items-center">
                 <Skeleton className="h-3 w-12 rounded" />
                 <Skeleton className="h-3.5 w-20 rounded" />
               </div>
-              <Skeleton className="h-4 w-full rounded" />
-              <Skeleton className="h-4 w-1/2 rounded" />
+              <Skeleton className="h-4 rounded w-full" />
+              <Skeleton className="h-4 rounded w-1/2" />
             </div>
           </div>
 
           {/* Incoming message */}
           <div className="gap-3 flex items-start">
             <Skeleton className="size-8 shrink-0 rounded-full" />
-            <div className="space-y-1.5 flex-1 max-w-sm">
+            <div className="space-y-1.5 max-w-sm flex-1">
               <div className="gap-2 flex items-center">
                 <Skeleton className="h-3.5 w-28 rounded" />
                 <Skeleton className="h-3 w-14 rounded" />
               </div>
-              <Skeleton className="h-4 w-4/5 rounded" />
+              <Skeleton className="h-4 rounded w-4/5" />
             </div>
           </div>
         </div>
 
         {/* Composer Placeholder */}
         <div className="pt-2">
-          <div className="h-12 w-full rounded-xl border border-border/60 bg-muted/20 px-3 flex items-center justify-between">
+          <div className="h-12 px-3 flex w-full items-center justify-between rounded-xl border border-border/60 bg-muted/20">
             <Skeleton className="h-3.5 w-48 rounded" />
             <div className="gap-1.5 flex items-center">
               <Skeleton className="size-6 rounded-md" />
@@ -458,4 +481,3 @@ export function ChatConversationSkeleton({
     </div>
   );
 }
-

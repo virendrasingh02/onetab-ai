@@ -597,7 +597,7 @@ export function IconPickerPopover({
               <span className="font-medium text-secondary-foreground">
                 Choose an image
               </span>
-              <span className="text-[10px] text-subtle">
+              <span className="text-2xs text-subtle">
                 {isPending ? 'Uploading…' : 'PNG, JPG, SVG up to 5MB'}
               </span>
               <input
@@ -609,7 +609,7 @@ export function IconPickerPopover({
               />
             </label>
             {uploadError ? (
-              <p className="text-[11px] text-destructive">{uploadError}</p>
+              <p className="text-meta text-destructive">{uploadError}</p>
             ) : null}
 
             <form onSubmit={handleUrlSubmit} className="gap-1 flex">

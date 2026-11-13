@@ -91,7 +91,7 @@ export function LanguageSelect({
               {compact ? currentLang.nativeName : currentLang.name}
             </span>
             {!compact && currentLang.nativeName !== currentLang.name && (
-              <span className="truncate text-[11px] text-muted-foreground">
+              <span className="truncate text-meta text-muted-foreground">
                 ({currentLang.nativeName})
               </span>
             )}
@@ -153,10 +153,10 @@ export function LanguageSelect({
                         <span className="font-medium truncate">
                           {lang.nativeName}
                         </span>
-                        <span className="truncate text-[11px] text-muted-foreground">
+                        <span className="truncate text-meta text-muted-foreground">
                           {lang.name}
                           {lang.isRtl && (
-                            <span className="ml-1.5 px-1 py-0.2 rounded tracking-wider bg-muted font-mono text-[9px] uppercase">
+                            <span className="ml-1.5 px-1 py-0.2 rounded tracking-wider bg-muted font-mono text-3xs uppercase">
                               RTL
                             </span>
                           )}

@@ -7,8 +7,8 @@ import { IconRenderer } from './icon-picker-popover.js';
  * the font size for the two to come out the same size.
  */
 const GLYPH_SIZES = {
-  xs: { box: 'size-3.5 text-[11px]', icon: 'size-3.5', dot: 'size-2' },
-  sm: { box: 'size-4 text-[13px]', icon: 'size-4', dot: 'size-2.5' },
+  xs: { box: 'size-3.5 text-meta', icon: 'size-3.5', dot: 'size-2' },
+  sm: { box: 'size-4 text-body-sm', icon: 'size-4', dot: 'size-2.5' },
   md: { box: 'size-5 text-base', icon: 'size-5', dot: 'size-3' },
   lg: { box: 'size-7 text-xl', icon: 'size-6', dot: 'size-4' },
 } as const;

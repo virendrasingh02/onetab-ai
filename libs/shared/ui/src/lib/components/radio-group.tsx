@@ -13,8 +13,8 @@ export function RadioGroup({
     <RadioGroupPrimitive.Root
       orientation={orientation}
       className={cn(
-        'grid gap-2',
-        orientation === 'horizontal' && 'grid-flow-col auto-cols-max',
+        'gap-2 grid',
+        orientation === 'horizontal' && 'auto-cols-max grid-flow-col',
         className,
       )}
       {...props}
@@ -22,8 +22,10 @@ export function RadioGroup({
   );
 }
 
-export interface RadioGroupItemProps
-  extends Omit<ComponentProps<typeof RadioGroupPrimitive.Item>, 'children'> {
+export interface RadioGroupItemProps extends Omit<
+  ComponentProps<typeof RadioGroupPrimitive.Item>,
+  'children'
+> {
   value: string;
   label?: ReactNode;
   description?: ReactNode;
@@ -64,9 +66,11 @@ export function RadioGroupItem({
           htmlFor={id}
           className="gap-0.5 text-xs grid cursor-pointer leading-none select-none"
         >
-          {label && <span className="font-medium text-foreground">{label}</span>}
+          {label && (
+            <span className="font-medium text-foreground">{label}</span>
+          )}
           {description && (
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-meta text-muted-foreground">
               {description}
             </span>
           )}
@@ -76,8 +80,10 @@ export function RadioGroupItem({
   );
 }
 
-export interface RadioCardItemProps
-  extends Omit<ComponentProps<typeof RadioGroupPrimitive.Item>, 'children'> {
+export interface RadioCardItemProps extends Omit<
+  ComponentProps<typeof RadioGroupPrimitive.Item>,
+  'children'
+> {
   value: string;
   heading: ReactNode;
   description?: ReactNode;
@@ -113,7 +119,7 @@ export function RadioCardItem({
           {heading}
         </span>
         {description && (
-          <span className="mt-0.5 text-[11px] block text-muted-foreground">
+          <span className="mt-0.5 block text-meta text-muted-foreground">
             {description}
           </span>
         )}

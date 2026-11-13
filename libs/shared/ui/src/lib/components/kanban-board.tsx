@@ -1,17 +1,9 @@
 import { cn } from '@org/utils';
 import { announceToScreenReader } from '../utils/a11y.js';
-import {
-  Calendar,
-  CheckCircle2,
-  Plus,
-  Tag,
-} from 'lucide-react';
-import {
-  useState,
-} from 'react';
+import { Calendar, CheckCircle2, Plus, Tag } from 'lucide-react';
+import { useState } from 'react';
 import { Badge } from './badge.js';
 import { Button } from './button.js';
-
 
 export interface KanbanCardItem {
   id: string;
@@ -39,7 +31,12 @@ export interface KanbanColumn {
 
 export interface KanbanBoardProps {
   columns: KanbanColumn[];
-  onCardMove?: (cardId: string, sourceColId: string, destColId: string, destIndex: number) => void;
+  onCardMove?: (
+    cardId: string,
+    sourceColId: string,
+    destColId: string,
+    destIndex: number,
+  ) => void;
   onAddCard?: (columnId: string) => void;
   onCardClick?: (card: KanbanCardItem) => void;
   className?: string;
@@ -62,12 +59,13 @@ export function KanbanBoard({
     urgent: 'bg-destructive/15 text-destructive-text border-destructive/30',
   };
 
-  const handleDragStart = (cardId: string, colId: string) => (e: React.DragEvent) => {
-    setDraggedCardId(cardId);
-    setDragSourceColId(colId);
-    e.dataTransfer.setData('text/plain', cardId);
-    e.dataTransfer.effectAllowed = 'move';
-  };
+  const handleDragStart =
+    (cardId: string, colId: string) => (e: React.DragEvent) => {
+      setDraggedCardId(cardId);
+      setDragSourceColId(colId);
+      e.dataTransfer.setData('text/plain', cardId);
+      e.dataTransfer.effectAllowed = 'move';
+    };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -90,34 +88,38 @@ export function KanbanBoard({
     setDragSourceColId(null);
   };
 
-  const handleCardKeyDown = (card: KanbanCardItem, colIndex: number) => (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      if (!e.altKey && !e.metaKey) {
+  const handleCardKeyDown =
+    (card: KanbanCardItem, colIndex: number) => (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        if (!e.altKey && !e.metaKey) {
+          e.preventDefault();
+          onCardClick?.(card);
+        }
+      } else if (e.altKey && e.key === 'ArrowRight') {
         e.preventDefault();
-        onCardClick?.(card);
+        const nextCol = columns[colIndex + 1];
+        if (nextCol && onCardMove) {
+          onCardMove(card.id, columns[colIndex].id, nextCol.id, 0);
+          announceToScreenReader(`Moved ${card.title} to ${nextCol.title}`);
+        }
+      } else if (e.altKey && e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const prevCol = columns[colIndex - 1];
+        if (prevCol && onCardMove) {
+          onCardMove(card.id, columns[colIndex].id, prevCol.id, 0);
+          announceToScreenReader(`Moved ${card.title} to ${prevCol.title}`);
+        }
       }
-    } else if (e.altKey && e.key === 'ArrowRight') {
-      e.preventDefault();
-      const nextCol = columns[colIndex + 1];
-      if (nextCol && onCardMove) {
-        onCardMove(card.id, columns[colIndex].id, nextCol.id, 0);
-        announceToScreenReader(`Moved ${card.title} to ${nextCol.title}`);
-      }
-    } else if (e.altKey && e.key === 'ArrowLeft') {
-      e.preventDefault();
-      const prevCol = columns[colIndex - 1];
-      if (prevCol && onCardMove) {
-        onCardMove(card.id, columns[colIndex].id, prevCol.id, 0);
-        announceToScreenReader(`Moved ${card.title} to ${prevCol.title}`);
-      }
-    }
-  };
+    };
 
   return (
     <div
       role="region"
       aria-label="Kanban board"
-      className={cn('flex gap-4 overflow-x-auto pb-4 scrollbar-subtle', className)}
+      className={cn(
+        'gap-4 pb-4 scrollbar-subtle flex overflow-x-auto',
+        className,
+      )}
     >
       {columns.map((column, colIdx) => (
         <section
@@ -125,11 +127,11 @@ export function KanbanBoard({
           aria-label={`${column.title} column, ${column.cards.length} tasks`}
           onDragOver={handleDragOver}
           onDrop={handleDrop(column.id)}
-          className="flex flex-col w-72 shrink-0 rounded-card bg-surface-raised/60 border border-border p-3 max-h-[80vh]"
+          className="w-72 p-3 flex max-h-[80vh] shrink-0 flex-col rounded-card border border-border bg-surface-raised/60"
         >
           {/* Column Header */}
-          <div className="flex items-center justify-between pb-3 border-b border-border/80">
-            <div className="flex items-center gap-2">
+          <div className="pb-3 flex items-center justify-between border-b border-border/80">
+            <div className="gap-2 flex items-center">
               {column.accentColor && (
                 <div
                   className="size-2 rounded-full"
@@ -137,15 +139,18 @@ export function KanbanBoard({
                   aria-hidden="true"
                 />
               )}
-              <h3 className="text-xs font-semibold text-foreground tracking-tight">
+              <h3 className="text-xs font-semibold tracking-tight text-foreground">
                 {column.title}
               </h3>
-              <Badge variant="secondary" className="h-4.5 px-1.5 text-[10px] font-mono">
+              <Badge
+                variant="secondary"
+                className="h-4.5 px-1.5 font-mono text-2xs"
+              >
                 {column.cards.length}
               </Badge>
             </div>
 
-            <div className="flex items-center gap-0.5">
+            <div className="gap-0.5 flex items-center">
               {onAddCard && (
                 <Button
                   variant="ghost"
@@ -164,7 +169,7 @@ export function KanbanBoard({
             <div
               role="list"
               aria-label={`${column.title} tasks`}
-              className="flex flex-col gap-2.5 overflow-y-auto pt-3 flex-1 scrollbar-subtle"
+              className="gap-2.5 pt-3 scrollbar-subtle flex flex-1 flex-col overflow-y-auto"
             >
               {column.cards.map((card) => {
                 const isDragging = draggedCardId === card.id;
@@ -180,20 +185,20 @@ export function KanbanBoard({
                       onDragStart={handleDragStart(card.id, column.id)}
                       onClick={() => onCardClick?.(card)}
                       className={cn(
-                        'group relative flex flex-col gap-2 rounded-btn border border-border bg-surface p-3 text-xs shadow-xs cursor-grab active:cursor-grabbing outline-none',
+                        'group gap-2 p-3 text-xs relative flex cursor-grab flex-col rounded-btn border border-border bg-surface shadow-xs outline-none active:cursor-grabbing',
                         'transition-all duration-(--duration-fast) hover:border-border-strong hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring',
-                        isDragging && 'opacity-40 border-dashed border-primary',
+                        isDragging && 'border-dashed border-primary opacity-40',
                       )}
                     >
                       {/* Card Title & Priority */}
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="font-medium text-foreground leading-snug line-clamp-2">
+                      <div className="gap-2 flex items-start justify-between">
+                        <span className="font-medium leading-snug line-clamp-2 text-foreground">
                           {card.title}
                         </span>
                         {card.priority && (
                           <span
                             className={cn(
-                              'shrink-0 rounded-xs border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider',
+                              'px-1.5 py-0.5 font-semibold tracking-wider shrink-0 rounded-xs border text-2xs uppercase',
                               priorityColors[card.priority],
                             )}
                           >
@@ -204,18 +209,18 @@ export function KanbanBoard({
 
                       {/* Description snippet */}
                       {card.description && (
-                        <p className="text-[11px] text-muted-foreground line-clamp-2">
+                        <p className="line-clamp-2 text-meta text-muted-foreground">
                           {card.description}
                         </p>
                       )}
 
                       {/* Tags */}
                       {card.tags && card.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
+                        <div className="gap-1 flex flex-wrap">
                           {card.tags.map((tag) => (
                             <span
                               key={tag}
-                              className="inline-flex items-center gap-1 rounded-xs bg-accent/70 px-1.5 py-0.5 text-[10px] text-muted-foreground font-mono"
+                              className="gap-1 px-1.5 py-0.5 inline-flex items-center rounded-xs bg-accent/70 font-mono text-2xs text-muted-foreground"
                             >
                               <Tag className="size-2.5" />
                               {tag}
@@ -225,33 +230,36 @@ export function KanbanBoard({
                       )}
 
                       {/* Footer: Due date, Subtasks, Assignee */}
-                      <div className="flex items-center justify-between pt-1 text-[11px] text-subtle">
-                        <div className="flex items-center gap-2">
+                      <div className="pt-1 flex items-center justify-between text-meta text-subtle">
+                        <div className="gap-2 flex items-center">
                           {card.dueDate && (
-                            <span className="flex items-center gap-1">
+                            <span className="gap-1 flex items-center">
                               <Calendar className="size-3" />
                               {card.dueDate}
                             </span>
                           )}
-                          {card.subtasksTotal !== undefined && card.subtasksTotal > 0 && (
-                            <span className="flex items-center gap-1">
-                              <CheckCircle2 className="size-3" />
-                              {card.subtasksCompleted ?? 0}/{card.subtasksTotal}
-                            </span>
-                          )}
+                          {card.subtasksTotal !== undefined &&
+                            card.subtasksTotal > 0 && (
+                              <span className="gap-1 flex items-center">
+                                <CheckCircle2 className="size-3" />
+                                {card.subtasksCompleted ?? 0}/
+                                {card.subtasksTotal}
+                              </span>
+                            )}
                         </div>
 
                         {card.assignee && (
-                          <div className="flex items-center gap-1 font-medium text-foreground">
+                          <div className="gap-1 font-medium flex items-center text-foreground">
                             {card.assignee.avatarUrl ? (
                               <img
                                 src={card.assignee.avatarUrl}
                                 alt={card.assignee.name}
-                                className="size-5 rounded-full object-cover border border-border"
+                                className="size-5 rounded-full border border-border object-cover"
                               />
                             ) : (
-                              <div className="flex size-5 items-center justify-center rounded-full bg-brand/10 text-[9px] font-bold text-brand-text">
-                                {card.assignee.initials ?? card.assignee.name.slice(0, 2).toUpperCase()}
+                              <div className="size-5 font-bold flex items-center justify-center rounded-full bg-brand/10 text-3xs text-brand-text">
+                                {card.assignee.initials ??
+                                  card.assignee.name.slice(0, 2).toUpperCase()}
                               </div>
                             )}
                           </div>
@@ -263,8 +271,8 @@ export function KanbanBoard({
               })}
             </div>
           ) : (
-            <div className="flex flex-col gap-2.5 overflow-y-auto pt-3 flex-1 scrollbar-subtle">
-              <div className="flex h-24 items-center justify-center rounded-btn border border-dashed border-border text-[11px] text-subtle select-none">
+            <div className="gap-2.5 pt-3 scrollbar-subtle flex flex-1 flex-col overflow-y-auto">
+              <div className="h-24 flex items-center justify-center rounded-btn border border-dashed border-border text-meta text-subtle select-none">
                 Drop items here
               </div>
             </div>

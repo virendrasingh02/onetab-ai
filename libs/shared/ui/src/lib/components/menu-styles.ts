@@ -49,7 +49,7 @@ export const menuIndicator =
 
 /** Section heading above a group of items. */
 export const menuLabelClasses =
-  'px-2 py-1 font-semibold tracking-wider text-[10px] text-subtle uppercase';
+  'px-2 py-1 font-semibold tracking-wider text-2xs text-subtle uppercase';
 
 /** Hairline rule between groups. */
 export const menuSeparatorClasses = '-mx-1 my-1 h-px bg-border';
