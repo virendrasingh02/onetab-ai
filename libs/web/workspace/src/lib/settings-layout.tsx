@@ -704,7 +704,7 @@ export function SettingsLayout({
             {/* Left Dedicated Settings Sidebar */}
             <aside className="w-64 sm:w-72 flex h-full shrink-0 flex-col border-r border-border bg-card select-none">
               {/* Search Input */}
-              <div className="p-3">
+              <div className="p-3 sticky top-0 z-10 shrink-0 bg-card">
                 <div className="relative">
                   <Input
                     type="text"
@@ -714,7 +714,7 @@ export function SettingsLayout({
                     leadingIcon={
                       <Search className="size-3.5 text-muted-foreground" />
                     }
-                    className="h-8 text-sm pr-7 rounded-lg border-border bg-surface-inset placeholder:text-muted-foreground"
+                    className="h-8 text-sm pr-7 rounded-lg border-border bg-card shadow-none placeholder:text-muted-foreground"
                   />
                   {searchQuery && (
                     <button
