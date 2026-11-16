@@ -20,6 +20,7 @@ import {
   AIProviderIcon,
   AIModelIcon,
   AIModelBadge,
+  Field,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import type {
@@ -595,71 +596,69 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
 
               {/* API Key Input */}
               {selectedProvider.requiresApiKey && (
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">
-                    {selectedProvider.maskedKey
+                <Field
+                  label={
+                    selectedProvider.maskedKey
                       ? 'Update API Key'
-                      : 'Enter API Key'}
-                  </label>
-                  <div className="relative">
-                    <Input
-                      type={showApiKey ? 'text' : 'password'}
-                      placeholder={
-                        selectedProvider.maskedKey
-                          ? 'Leave blank to keep existing key'
-                          : 'Paste your API key'
-                      }
-                      value={apiKeyInput}
-                      onChange={(e) => setApiKeyInput(e.target.value)}
-                      className="h-9 text-xs pr-9 font-mono"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowApiKey(!showApiKey)}
-                      className="right-2.5 absolute top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                      {showApiKey ? (
-                        <EyeOff className="size-3.5" />
-                      ) : (
-                        <Eye className="size-3.5" />
-                      )}
-                    </button>
-                  </div>
-                  <p className="text-meta text-muted-foreground">
-                    For security, newly entered keys are only visible while
-                    typing and cannot be read once saved.
-                  </p>
-                </div>
+                      : 'Enter API Key'
+                  }
+                  hint="For security, newly entered keys are only visible while typing and cannot be read once saved."
+                >
+                  <Input
+                    type={showApiKey ? 'text' : 'password'}
+                    placeholder={
+                      selectedProvider.maskedKey
+                        ? 'Leave blank to keep existing key'
+                        : 'Paste your API key'
+                    }
+                    value={apiKeyInput}
+                    onChange={(e) => setApiKeyInput(e.target.value)}
+                    className="font-mono"
+                    trailingSlot={
+                      <button
+                        type="button"
+                        onClick={() => setShowApiKey(!showApiKey)}
+                        aria-label={
+                          showApiKey ? 'Hide API key' : 'Show API key'
+                        }
+                        className="flex items-center text-subtle transition-colors hover:text-foreground"
+                      >
+                        {showApiKey ? (
+                          <EyeOff className="size-3.5" />
+                        ) : (
+                          <Eye className="size-3.5" />
+                        )}
+                      </button>
+                    }
+                  />
+                </Field>
               )}
 
               {/* Base URL Input */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">
-                  Base URL (Optional)
-                </label>
+              <Field
+                label="Base URL"
+                optional
+                hint="Custom endpoint URL or proxy for enterprise NIM / self-hosted gateway."
+              >
                 <Input
                   type="url"
                   placeholder={selectedProvider.baseUrl || 'https://...'}
                   value={baseUrlInput}
                   onChange={(e) => setBaseUrlInput(e.target.value)}
-                  className="h-9 text-xs font-mono"
+                  className="font-mono"
                 />
-                <p className="text-meta text-muted-foreground">
-                  Custom endpoint URL or proxy for enterprise NIM / self-hosted
-                  gateway.
-                </p>
-              </div>
+              </Field>
 
               {/* Default Model Select */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">
-                  Default Model
-                </label>
+              <Field label="Default Model" htmlFor="ai-provider-default-model">
                 <Select
                   value={defaultModelInput}
                   onValueChange={setDefaultModelInput}
                 >
-                  <SelectTrigger className="h-9 text-xs">
+                  <SelectTrigger
+                    id="ai-provider-default-model"
+                    className="w-full"
+                  >
                     <SelectValue placeholder="Select default model" />
                   </SelectTrigger>
                   <SelectContent>
@@ -681,7 +680,7 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </Field>
 
               {/* Enable / Disable Switch */}
               <div className="p-3 flex items-center justify-between rounded-xl border border-border bg-surface-inset">

@@ -39,6 +39,7 @@ import {
   TabsTrigger,
   Textarea,
   toast,
+  Field,
 } from '@org/ui';
 import { enterpriseIdentityApi, queryKeys } from '@org/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -527,15 +528,12 @@ export function EnterpriseIdentitySettingsPanel({
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="md:grid-cols-2 gap-3 text-xs grid grid-cols-1">
-                <div className="space-y-1">
-                  <label className="font-medium text-meta text-muted-foreground">
-                    SP Entity ID / Audience URI
-                  </label>
+                <Field label="SP Entity ID / Audience URI">
                   <div className="gap-1.5 flex items-center">
                     <Input
                       readOnly
                       value={spEntityId}
-                      className="text-xs h-8 bg-surface-muted/50 font-mono"
+                      className="bg-surface-muted/50 font-mono"
                     />
                     <Button
                       variant="outline"
@@ -548,17 +546,14 @@ export function EnterpriseIdentitySettingsPanel({
                       <Copy className="size-3.5" />
                     </Button>
                   </div>
-                </div>
+                </Field>
 
-                <div className="space-y-1">
-                  <label className="font-medium text-meta text-muted-foreground">
-                    SAML ACS (Assertion Consumer Service) URL
-                  </label>
+                <Field label="SAML ACS (Assertion Consumer Service) URL">
                   <div className="gap-1.5 flex items-center">
                     <Input
                       readOnly
                       value={acsUrl}
-                      className="text-xs h-8 bg-surface-muted/50 font-mono"
+                      className="bg-surface-muted/50 font-mono"
                     />
                     <Button
                       variant="outline"
@@ -569,17 +564,14 @@ export function EnterpriseIdentitySettingsPanel({
                       <Copy className="size-3.5" />
                     </Button>
                   </div>
-                </div>
+                </Field>
 
-                <div className="space-y-1">
-                  <label className="font-medium text-meta text-muted-foreground">
-                    OIDC Redirect / Callback URI
-                  </label>
+                <Field label="OIDC Redirect / Callback URI">
                   <div className="gap-1.5 flex items-center">
                     <Input
                       readOnly
                       value={oidcRedirectUri}
-                      className="text-xs h-8 bg-surface-muted/50 font-mono"
+                      className="bg-surface-muted/50 font-mono"
                     />
                     <Button
                       variant="outline"
@@ -592,17 +584,14 @@ export function EnterpriseIdentitySettingsPanel({
                       <Copy className="size-3.5" />
                     </Button>
                   </div>
-                </div>
+                </Field>
 
-                <div className="space-y-1">
-                  <label className="font-medium text-meta text-muted-foreground">
-                    SAML SP Metadata XML
-                  </label>
+                <Field label="SAML SP Metadata XML">
                   <div className="gap-1.5 flex items-center">
                     <Input
                       readOnly
                       value={spEntityId}
-                      className="text-xs h-8 bg-surface-muted/50 font-mono"
+                      className="bg-surface-muted/50 font-mono"
                     />
                     <Button
                       variant="outline"
@@ -613,7 +602,7 @@ export function EnterpriseIdentitySettingsPanel({
                       <ExternalLink className="size-3.5" />
                     </Button>
                   </div>
-                </div>
+                </Field>
               </div>
             </CardContent>
           </Card>
@@ -666,53 +655,43 @@ export function EnterpriseIdentitySettingsPanel({
               {providerType === 'SAML' ? (
                 <>
                   <div className="md:grid-cols-2 gap-4 grid grid-cols-1">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-foreground">
-                        IdP Entity ID (Issuer)
-                      </label>
+                    <Field
+                      label="IdP Entity ID (Issuer)"
+                      hint="The unique URI identifying your Identity Provider."
+                    >
                       <Input
                         value={idpEntityId}
                         onChange={(e) => setIdpEntityId(e.target.value)}
                         placeholder="https://sts.windows.net/xxxx/ or https://okta.com/xxx"
-                        className="text-xs h-9 font-mono"
+                        className="font-mono"
                       />
-                      <p className="text-meta text-muted-foreground">
-                        The unique URI identifying your Identity Provider.
-                      </p>
-                    </div>
+                    </Field>
 
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-foreground">
-                        IdP Single Sign-On URL (SSO Endpoint)
-                      </label>
+                    <Field
+                      label="IdP Single Sign-On URL (SSO Endpoint)"
+                      hint="Where Mie AI redirects users to sign in with your IdP."
+                    >
                       <Input
                         value={ssoUrl}
                         onChange={(e) => setSsoUrl(e.target.value)}
                         placeholder="https://login.microsoftonline.com/.../saml2 or https://dev.okta.com/app/.../sso/saml"
-                        className="text-xs h-9 font-mono"
+                        className="font-mono"
                       />
-                      <p className="text-meta text-muted-foreground">
-                        Where Mie AI redirects users to sign in with your IdP.
-                      </p>
-                    </div>
+                    </Field>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-foreground">
-                      X.509 Public Certificate (PEM format)
-                    </label>
+                  <Field
+                    label="X.509 Public Certificate (PEM format)"
+                    hint="Public certificate used to cryptographically verify SAML response signatures and integrity."
+                  >
                     <Textarea
                       value={certificate}
                       onChange={(e) => setCertificate(e.target.value)}
                       placeholder="-----BEGIN CERTIFICATE-----&#10;MIID...&#10;-----END CERTIFICATE-----"
                       rows={4}
-                      className="text-xs font-mono"
+                      className="font-mono"
                     />
-                    <p className="text-meta text-muted-foreground">
-                      Public certificate used to cryptographically verify SAML
-                      response signatures and integrity.
-                    </p>
-                  </div>
+                  </Field>
 
                   <div className="sm:grid-cols-2 gap-4 pt-2 grid grid-cols-1">
                     <div className="p-3 flex items-center justify-between rounded-lg border border-border bg-surface-muted/30">
@@ -751,79 +730,76 @@ export function EnterpriseIdentitySettingsPanel({
               ) : (
                 <>
                   <div className="md:grid-cols-2 gap-4 grid grid-cols-1">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-foreground">
-                        OpenID Connect Issuer URL
-                      </label>
+                    <Field
+                      label="OpenID Connect Issuer URL"
+                      hint={
+                        <>
+                          Must support OIDC Discovery at{' '}
+                          <code>/.well-known/openid-configuration</code>.
+                        </>
+                      }
+                    >
                       <Input
                         value={oidcIssuer}
                         onChange={(e) => setOidcIssuer(e.target.value)}
                         placeholder="https://login.microsoftonline.com/{tenant}/v2.0 or https://{domain}.okta.com"
-                        className="text-xs h-9 font-mono"
+                        className="font-mono"
                       />
-                      <p className="text-meta text-muted-foreground">
-                        Must support OIDC Discovery at{' '}
-                        <code>/.well-known/openid-configuration</code>.
-                      </p>
-                    </div>
+                    </Field>
 
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-foreground">
-                        Client ID
-                      </label>
+                    <Field label="Client ID">
                       <Input
                         value={oidcClientId}
                         onChange={(e) => setOidcClientId(e.target.value)}
                         placeholder="OAuth 2.0 / OIDC Client ID"
-                        className="text-xs h-9 font-mono"
+                        className="font-mono"
                       />
-                    </div>
+                    </Field>
                   </div>
 
                   <div className="md:grid-cols-2 gap-4 grid grid-cols-1">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-foreground">
-                        Client Secret
-                      </label>
-                      <div className="relative">
-                        <Input
-                          type={showOidcSecret ? 'text' : 'password'}
-                          value={oidcClientSecret}
-                          onChange={(e) => setOidcClientSecret(e.target.value)}
-                          placeholder="••••••••••••••••"
-                          className="text-xs h-9 pr-9 font-mono"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowOidcSecret(!showOidcSecret)}
-                          className="right-2.5 top-2.5 absolute text-muted-foreground hover:text-foreground"
-                        >
-                          {showOidcSecret ? (
-                            <EyeOff className="size-4" />
-                          ) : (
-                            <Eye className="size-4" />
-                          )}
-                        </button>
-                      </div>
-                      <p className="text-meta text-muted-foreground">
-                        Encrypted with AES-256-GCM. Leave blank if unchanged.
-                      </p>
-                    </div>
+                    <Field
+                      label="Client Secret"
+                      hint="Encrypted with AES-256-GCM. Leave blank if unchanged."
+                    >
+                      <Input
+                        type={showOidcSecret ? 'text' : 'password'}
+                        value={oidcClientSecret}
+                        onChange={(e) => setOidcClientSecret(e.target.value)}
+                        placeholder="••••••••••••••••"
+                        className="font-mono"
+                        trailingSlot={
+                          <button
+                            type="button"
+                            onClick={() => setShowOidcSecret(!showOidcSecret)}
+                            aria-label={
+                              showOidcSecret
+                                ? 'Hide client secret'
+                                : 'Show client secret'
+                            }
+                            className="flex items-center text-subtle transition-colors hover:text-foreground"
+                          >
+                            {showOidcSecret ? (
+                              <EyeOff className="size-3.5" />
+                            ) : (
+                              <Eye className="size-3.5" />
+                            )}
+                          </button>
+                        }
+                      />
+                    </Field>
 
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-foreground">
-                        OIDC Scopes
-                      </label>
+                    <Field
+                      label="OIDC Scopes"
+                      hint="Space-separated scopes required for identity and claims."
+                    >
                       <Input
                         value={oidcScopes}
                         onChange={(e) => setOidcScopes(e.target.value)}
                         placeholder="openid profile email groups"
-                        className="text-xs h-9 font-mono"
+                        className="font-mono"
                       />
-                      <p className="text-meta text-muted-foreground">
-                        Space-separated scopes required for identity and claims.
-                      </p>
-                    </div>
+                    </Field>
                   </div>
                 </>
               )}
@@ -922,7 +898,7 @@ export function EnterpriseIdentitySettingsPanel({
                   value={newDomainInput}
                   onChange={(e) => setNewDomainInput(e.target.value)}
                   placeholder="e.g. acme-corp.com"
-                  className="text-xs h-9 max-w-sm"
+                  className="max-w-sm"
                 />
                 <Button
                   variant="primary"
@@ -1049,15 +1025,15 @@ export function EnterpriseIdentitySettingsPanel({
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="md:grid-cols-2 gap-4 text-xs grid grid-cols-1">
-                <div className="space-y-1.5">
-                  <label className="font-semibold text-foreground">
-                    SCIM 2.0 Base URL (Tenant URL)
-                  </label>
+                <Field
+                  label="SCIM 2.0 Base URL (Tenant URL)"
+                  hint="Paste this into your IdP's SCIM / Provisioning Tenant URL field."
+                >
                   <div className="gap-1.5 flex items-center">
                     <Input
                       readOnly
                       value={scimBaseUrl}
-                      className="text-xs h-9 bg-surface-muted/50 font-mono"
+                      className="bg-surface-muted/50 font-mono"
                     />
                     <Button
                       variant="outline"
@@ -1065,21 +1041,17 @@ export function EnterpriseIdentitySettingsPanel({
                       onClick={() =>
                         copyToClipboard(scimBaseUrl, 'SCIM Base URL')
                       }
-                      className="h-9 px-3"
+                      className="h-8 px-2.5"
                     >
                       <Copy className="size-3.5" />
                     </Button>
                   </div>
-                  <p className="text-meta text-muted-foreground">
-                    Paste this into your IdP's SCIM / Provisioning Tenant URL
-                    field.
-                  </p>
-                </div>
+                </Field>
 
-                <div className="space-y-1.5">
-                  <label className="font-semibold text-foreground">
-                    SCIM Bearer Token
-                  </label>
+                <Field
+                  label="SCIM Bearer Token"
+                  hint="Tokens are hashed with SHA-256 at rest. Generating a new token revokes the previous token immediately."
+                >
                   <div className="gap-1.5 flex items-center">
                     <Input
                       readOnly
@@ -1088,24 +1060,20 @@ export function EnterpriseIdentitySettingsPanel({
                           ? `${config.scimTokenPrefix}••••••••••••••••••••••••••••`
                           : 'No active token'
                       }
-                      className="text-xs h-9 bg-surface-muted/50 font-mono"
+                      className="bg-surface-muted/50 font-mono"
                     />
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => rotateScimTokenMutation.mutate()}
                       disabled={rotateScimTokenMutation.isPending}
-                      className="h-9 px-3 text-xs shrink-0"
+                      className="h-8 px-3 shrink-0"
                     >
                       <RefreshCw className="size-3.5 mr-1.5" />
                       Rotate Token
                     </Button>
                   </div>
-                  <p className="text-meta text-muted-foreground">
-                    Tokens are hashed with SHA-256 at rest. Generating a new
-                    token revokes the previous token immediately.
-                  </p>
-                </div>
+                </Field>
               </div>
 
               {/* Sync Status Box */}
@@ -1510,26 +1478,19 @@ export function EnterpriseIdentitySettingsPanel({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-foreground">
-                IdP Security Group Name
-              </label>
+            <Field label="IdP Security Group Name">
               <Input
                 value={newMappingGroupName}
                 onChange={(e) => setNewMappingGroupName(e.target.value)}
                 placeholder="e.g. Mie-Engineers or Azure-Admins"
-                className="text-xs h-9"
               />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-foreground">
-                Workspace Role
-              </label>
+            </Field>
+            <Field label="Workspace Role" htmlFor="scim-mapping-role">
               <Select
                 value={newMappingRole}
                 onValueChange={(val: any) => setNewMappingRole(val)}
               >
-                <SelectTrigger className="text-xs h-9">
+                <SelectTrigger id="scim-mapping-role" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1544,7 +1505,7 @@ export function EnterpriseIdentitySettingsPanel({
                   </SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </Field>
           </div>
           <DialogFooter>
             <Button

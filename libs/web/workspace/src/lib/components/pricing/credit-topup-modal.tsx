@@ -9,6 +9,7 @@ import {
   DialogTitle,
   Input,
   toast,
+  Field,
 } from '@org/ui';
 import { billingApi, queryKeys } from '@org/api-client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -134,10 +135,7 @@ export function CreditTopupModal({
           </div>
 
           {isCustom && (
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground">
-                Custom Amount ($ USD)
-              </label>
+            <Field label="Custom Amount ($ USD)">
               <Input
                 type="number"
                 min="5"
@@ -145,9 +143,8 @@ export function CreditTopupModal({
                 placeholder="25"
                 value={customAmount}
                 onChange={(e) => setCustomAmount(e.target.value)}
-                className="text-xs h-9"
               />
-            </div>
+            </Field>
           )}
 
           <div className="p-3 space-y-1 rounded-lg border border-border/60 bg-surface-muted/40 text-meta text-muted-foreground">

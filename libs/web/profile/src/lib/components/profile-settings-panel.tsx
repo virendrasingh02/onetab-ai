@@ -364,7 +364,6 @@ export function ProfileSettingsPanel() {
                         );
                       }}
                       placeholder="e.g. Virendra"
-                      className="h-9 text-xs"
                     />
                   </Field>
 
@@ -380,7 +379,6 @@ export function ProfileSettingsPanel() {
                         );
                       }}
                       placeholder="e.g. Singh"
-                      className="h-9 text-xs"
                     />
                   </Field>
 
@@ -389,15 +387,12 @@ export function ProfileSettingsPanel() {
                     name="displayName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-semibold">
-                          Display Name
-                        </FormLabel>
+                        <FormLabel>Display Name</FormLabel>
                         <FormControl>
                           <Input
                             {...field}
                             value={field.value ?? ''}
                             placeholder="e.g. Virendra S."
-                            className="h-9 text-xs"
                           />
                         </FormControl>
                         <FormMessage />
@@ -425,7 +420,7 @@ export function ProfileSettingsPanel() {
                     <Input
                       value={user.email}
                       disabled
-                      className="h-9 text-xs cursor-not-allowed border-border bg-surface-muted font-mono text-muted-foreground"
+                      className="cursor-not-allowed border-border bg-surface-muted font-mono text-muted-foreground"
                     />
                   </Field>
 
@@ -450,7 +445,7 @@ export function ProfileSettingsPanel() {
                     name="jobTitle"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-semibold gap-1.5 flex items-center">
+                        <FormLabel className="gap-1.5 flex items-center">
                           <Briefcase className="size-3 text-muted-foreground" />
                           <span>Job Title / Role</span>
                         </FormLabel>
@@ -459,7 +454,6 @@ export function ProfileSettingsPanel() {
                             {...field}
                             value={field.value ?? ''}
                             placeholder="e.g. Principal Software Engineer"
-                            className="h-9 text-xs"
                           />
                         </FormControl>
                         <FormMessage />
@@ -472,7 +466,7 @@ export function ProfileSettingsPanel() {
                     name="location"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-semibold gap-1.5 flex items-center">
+                        <FormLabel className="gap-1.5 flex items-center">
                           <MapPin className="size-3 text-muted-foreground" />
                           <span>Location</span>
                         </FormLabel>
@@ -481,7 +475,6 @@ export function ProfileSettingsPanel() {
                             {...field}
                             value={field.value ?? ''}
                             placeholder="e.g. San Francisco, CA or Remote"
-                            className="h-9 text-xs"
                           />
                         </FormControl>
                         <FormMessage />
@@ -497,9 +490,7 @@ export function ProfileSettingsPanel() {
                   render={({ field }) => (
                     <FormItem>
                       <div className="flex items-center justify-between">
-                        <FormLabel className="text-xs font-semibold">
-                          About / Bio
-                        </FormLabel>
+                        <FormLabel>About / Bio</FormLabel>
                         <span className="font-mono text-2xs text-muted-foreground">
                           {(field.value || '').length}/280
                         </span>
@@ -511,7 +502,7 @@ export function ProfileSettingsPanel() {
                           rows={3}
                           maxLength={280}
                           placeholder="Tell teammates about your role, projects, and interests..."
-                          className="text-xs resize-none"
+                          className="resize-none"
                         />
                       </FormControl>
                       <FormMessage />
@@ -526,7 +517,7 @@ export function ProfileSettingsPanel() {
                     name="website"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-semibold gap-1.5 flex items-center">
+                        <FormLabel className="gap-1.5 flex items-center">
                           <Globe className="size-3 text-muted-foreground" />
                           <span>Personal Website</span>
                         </FormLabel>
@@ -535,7 +526,7 @@ export function ProfileSettingsPanel() {
                             {...field}
                             value={field.value ?? ''}
                             placeholder="https://yourwebsite.com"
-                            className="h-9 text-xs font-mono"
+                            className="font-mono"
                           />
                         </FormControl>
                         <FormMessage />
@@ -548,7 +539,7 @@ export function ProfileSettingsPanel() {
                     name="github"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-semibold gap-1.5 flex items-center">
+                        <FormLabel className="gap-1.5 flex items-center">
                           <LinkIcon className="size-3 text-muted-foreground" />
                           <span>GitHub Username</span>
                         </FormLabel>
@@ -557,7 +548,7 @@ export function ProfileSettingsPanel() {
                             {...field}
                             value={field.value ?? ''}
                             placeholder="e.g. octocat"
-                            className="h-9 text-xs font-mono"
+                            className="font-mono"
                           />
                         </FormControl>
                         <FormMessage />

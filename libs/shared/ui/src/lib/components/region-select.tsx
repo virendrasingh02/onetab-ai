@@ -2,7 +2,7 @@ import { WORLD_REGIONS, cn, type RegionInfo } from '@org/utils';
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from './button.js';
-import { Input } from './input.js';
+import { fieldBoxClass, Input } from './input.js';
 import { Popover, PopoverContent, PopoverTrigger } from './popover.js';
 import { ScrollArea } from './scroll-area.js';
 
@@ -60,7 +60,8 @@ export function RegionSelect({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            'h-9 px-3 text-xs font-normal w-full justify-between',
+            'h-8 px-3 text-xs font-normal w-full justify-between shadow-none hover:border-field-border hover:bg-field',
+            fieldBoxClass,
             className,
           )}
         >

@@ -8,6 +8,7 @@ import {
   Input,
   PlanBadge,
   SettingsCard,
+  SettingsRow,
   SettingsSectionHeader,
   Select,
   SelectContent,
@@ -16,6 +17,7 @@ import {
   SelectValue,
   Switch,
   toast,
+  Field,
 } from '@org/ui';
 import { billingApi, queryKeys } from '@org/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -212,15 +214,12 @@ export function EnterpriseCustomLLMSettings({
       <SettingsCard>
         <div className="md:grid-cols-2 gap-4 grid grid-cols-1">
           {/* Provider Type */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">
-              Provider Protocol
-            </label>
+          <Field label="Provider Protocol" htmlFor="custom-llm-provider">
             <Select
               value={provider}
               onValueChange={(val: any) => setProvider(val)}
             >
-              <SelectTrigger className="text-xs h-9">
+              <SelectTrigger id="custom-llm-provider" className="w-full">
                 <SelectValue placeholder="Select provider" />
               </SelectTrigger>
               <SelectContent>
@@ -238,69 +237,61 @@ export function EnterpriseCustomLLMSettings({
                 </SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </Field>
 
           {/* Endpoint URL */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">
-              Inference Endpoint Base URL
-            </label>
+          <Field label="Inference Endpoint Base URL">
             <Input
               value={endpointUrl}
               onChange={(e) => setEndpointUrl(e.target.value)}
               placeholder="https://vllm.internal.yourorg.com/v1"
-              className="text-xs h-9"
             />
-          </div>
+          </Field>
 
           {/* Model Identifier */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">
-              Model Identifier
-            </label>
+          <Field label="Model Identifier">
             <Input
               value={modelIdentifier}
               onChange={(e) => setModelIdentifier(e.target.value)}
               placeholder="e.g. meta-llama/Llama-3.3-70B-Instruct"
-              className="text-xs h-9"
             />
-          </div>
+          </Field>
 
           {/* API Key */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">
-              API Secret / Bearer Token{' '}
-              {config?.hasApiKey ? '(Key configured)' : ''}
-            </label>
-            <div className="relative">
-              <Input
-                type={showApiKey ? 'text' : 'password'}
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder={
-                  config?.maskedApiKey || 'Enter API Key if required'
-                }
-                className="text-xs h-9 pr-8"
-              />
-              <button
-                type="button"
-                onClick={() => setShowApiKey(!showApiKey)}
-                className="right-2.5 top-2.5 absolute text-muted-foreground hover:text-foreground"
-              >
-                {showApiKey ? (
-                  <EyeOff className="size-3.5" />
-                ) : (
-                  <Eye className="size-3.5" />
-                )}
-              </button>
-            </div>
-          </div>
+          <Field
+            label="API Secret / Bearer Token"
+            labelAside={
+              config?.hasApiKey ? (
+                <span className="text-meta text-success-text">
+                  Key configured
+                </span>
+              ) : null
+            }
+          >
+            <Input
+              type={showApiKey ? 'text' : 'password'}
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder={config?.maskedApiKey || 'Enter API Key if required'}
+              trailingSlot={
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  aria-label={showApiKey ? 'Hide API key' : 'Show API key'}
+                  className="flex items-center text-subtle transition-colors hover:text-foreground"
+                >
+                  {showApiKey ? (
+                    <EyeOff className="size-3.5" />
+                  ) : (
+                    <Eye className="size-3.5" />
+                  )}
+                </button>
+              }
+            />
+          </Field>
 
           {/* Temperature */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">
-              Default Temperature ({temperature})
-            </label>
+          <Field label={<>Default Temperature ({temperature})</>}>
             <Input
               type="number"
               step="0.1"
@@ -310,15 +301,11 @@ export function EnterpriseCustomLLMSettings({
               onChange={(e) =>
                 setTemperature(parseFloat(e.target.value) || 0.7)
               }
-              className="text-xs h-9"
             />
-          </div>
+          </Field>
 
           {/* Max Tokens */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">
-              Max Generation Tokens
-            </label>
+          <Field label="Max Generation Tokens">
             <Input
               type="number"
               step="512"
@@ -328,37 +315,32 @@ export function EnterpriseCustomLLMSettings({
               onChange={(e) =>
                 setMaxTokens(parseInt(e.target.value, 10) || 4096)
               }
-              className="text-xs h-9"
             />
-          </div>
+          </Field>
         </div>
 
         {/* System Prompt Override */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-foreground">
-            Organization System Prompt / Guardrail (Optional)
-          </label>
+        <Field label="Organization System Prompt / Guardrail" optional>
           <Input
             value={systemPrompt}
             onChange={(e) => setSystemPrompt(e.target.value)}
             placeholder="You are an enterprise AI assistant tuned for internal enterprise documentation and operations."
-            className="text-xs h-9"
           />
-        </div>
+        </Field>
 
         {/* Toggles */}
-        <div className="sm:flex-row sm:items-center gap-4 p-4 flex flex-col items-start justify-between rounded-xl border border-border bg-surface-muted/30">
-          <div className="space-y-0.5">
-            <div className="text-xs font-semibold text-foreground">
-              Enable Custom LLM Routing
-            </div>
-            <p className="text-meta text-muted-foreground">
-              When enabled, workspace requests will prioritize this custom
-              endpoint.
-            </p>
-          </div>
-          <Switch checked={isEnabled} onCheckedChange={setIsEnabled} />
-        </div>
+        <SettingsCard divided className="shadow-none">
+          <SettingsRow
+            title="Enable Custom LLM Routing"
+            description="When enabled, workspace requests will prioritize this custom endpoint."
+          >
+            <Switch
+              checked={isEnabled}
+              onCheckedChange={setIsEnabled}
+              aria-label="Enable Custom LLM Routing"
+            />
+          </SettingsRow>
+        </SettingsCard>
 
         {/* Connection Test Box */}
         {testResult ? (

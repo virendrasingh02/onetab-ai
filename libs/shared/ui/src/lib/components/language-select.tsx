@@ -8,7 +8,7 @@ import { cn } from '@org/utils';
 import { Check, ChevronsUpDown, Globe, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from './button.js';
-import { Input } from './input.js';
+import { fieldBoxClass, Input } from './input.js';
 import { Popover, PopoverContent, PopoverTrigger } from './popover.js';
 import { ScrollArea } from './scroll-area.js';
 
@@ -77,7 +77,10 @@ export function LanguageSelect({
           className={cn(
             compact
               ? 'h-8 px-2.5 text-xs font-normal gap-1.5'
-              : 'h-9 px-3 text-xs font-normal w-full justify-between',
+              : cn(
+                  'h-8 px-3 text-xs font-normal w-full justify-between shadow-none hover:border-field-border hover:bg-field',
+                  fieldBoxClass,
+                ),
             className,
           )}
         >

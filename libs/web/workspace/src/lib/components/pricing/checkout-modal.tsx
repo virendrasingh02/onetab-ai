@@ -269,7 +269,7 @@ export function CheckoutModal({
                     }
                   }}
                   aria-invalid={!!couponError}
-                  className="text-xs h-9 font-mono uppercase"
+                  className="font-mono uppercase"
                 />
                 <Button
                   type="button"
@@ -277,7 +277,7 @@ export function CheckoutModal({
                   size="sm"
                   disabled={isApplying || !promoInput.trim()}
                   onClick={() => void applyCoupon()}
-                  className="text-xs h-9 shrink-0"
+                  className="h-8 shrink-0"
                 >
                   {isApplying ? (
                     <Loader2 className="size-3.5 animate-spin" />

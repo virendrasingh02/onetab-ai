@@ -61,6 +61,7 @@ import {
   SettingsRow,
   SettingsJumpNav,
   SettingsSectionHeader,
+  Field,
 } from '@org/ui';
 import { cn, getSystemTimezone, initials, slugify } from '@org/utils';
 import {
@@ -939,7 +940,7 @@ export function WorkspaceSettingsPage({
                 }
               >
                 <Select value={homeView} onValueChange={setHomeView}>
-                  <SelectTrigger className="w-52 h-8 text-xs border-border bg-surface">
+                  <SelectTrigger className="w-52">
                     <SelectValue placeholder="Select view" />
                   </SelectTrigger>
                   <SelectContent>
@@ -969,7 +970,7 @@ export function WorkspaceSettingsPage({
                   value={displayNamePref}
                   onValueChange={setDisplayNamePref}
                 >
-                  <SelectTrigger className="w-36 h-8 text-xs border-border bg-surface">
+                  <SelectTrigger className="w-36">
                     <SelectValue placeholder="Username" />
                   </SelectTrigger>
                   <SelectContent>
@@ -991,7 +992,7 @@ export function WorkspaceSettingsPage({
                 description={<>Used for date pickers and schedule views</>}
               >
                 <Select value={firstDay} onValueChange={setFirstDay}>
-                  <SelectTrigger className="w-36 h-8 text-xs border-border bg-surface">
+                  <SelectTrigger className="w-36">
                     <SelectValue placeholder="Monday" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1034,7 +1035,7 @@ export function WorkspaceSettingsPage({
                 }
               >
                 <Select value={sendShortcut} onValueChange={setSendShortcut}>
-                  <SelectTrigger className="w-36 h-8 text-xs border-border bg-surface">
+                  <SelectTrigger className="w-36">
                     <SelectValue placeholder="Ctrl+Enter" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1101,7 +1102,7 @@ export function WorkspaceSettingsPage({
                 description={<>Adjust the size of text across the app</>}
               >
                 <Select value={fontSize} onValueChange={setFontSize}>
-                  <SelectTrigger className="w-32 h-8 text-xs border-border bg-surface">
+                  <SelectTrigger className="w-32">
                     <SelectValue placeholder="Default" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1300,15 +1301,9 @@ export function WorkspaceSettingsPage({
                         name="name"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-xs font-medium">
-                              Full name
-                            </FormLabel>
+                            <FormLabel>Full name</FormLabel>
                             <FormControl>
-                              <Input
-                                {...field}
-                                value={field.value ?? ''}
-                                className="h-9 text-xs"
-                              />
+                              <Input {...field} value={field.value ?? ''} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -1320,15 +1315,12 @@ export function WorkspaceSettingsPage({
                         name="displayName"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-xs font-medium">
-                              Display name
-                            </FormLabel>
+                            <FormLabel>Display name</FormLabel>
                             <FormControl>
                               <Input
                                 {...field}
                                 value={field.value ?? ''}
                                 placeholder="Optional"
-                                className="h-9 text-xs"
                               />
                             </FormControl>
                             <FormMessage />
@@ -1341,16 +1333,13 @@ export function WorkspaceSettingsPage({
                         name="bio"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-xs font-medium">
-                              Bio
-                            </FormLabel>
+                            <FormLabel>Bio</FormLabel>
                             <FormControl>
                               <Textarea
                                 {...field}
                                 value={field.value ?? ''}
                                 rows={3}
                                 placeholder="What you work on..."
-                                className="text-xs"
                               />
                             </FormControl>
                             <FormMessage />
@@ -1363,16 +1352,14 @@ export function WorkspaceSettingsPage({
                         name="avatarUrl"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-xs font-medium">
-                              Avatar Image
-                            </FormLabel>
+                            <FormLabel>Avatar Image</FormLabel>
                             <div className="gap-3 flex items-center">
                               <FormControl>
                                 <Input
                                   {...field}
                                   value={field.value ?? ''}
                                   placeholder="Image URL (https://...) or upload an image"
-                                  className="h-9 text-xs flex-1 font-mono"
+                                  className="flex-1 font-mono"
                                 />
                               </FormControl>
                               <label className="gap-1.5 px-3 py-2 text-xs font-medium inline-flex shrink-0 cursor-pointer items-center rounded-md border border-border transition-colors hover:bg-accent">
@@ -1407,7 +1394,7 @@ export function WorkspaceSettingsPage({
                                   type="button"
                                   variant="ghost"
                                   size="sm"
-                                  className="h-9 text-xs px-2.5 text-destructive hover:text-destructive"
+                                  className="h-8 px-2.5 text-destructive hover:text-destructive"
                                   onClick={() =>
                                     profileForm.setValue('avatarUrl', '', {
                                       shouldDirty: true,
@@ -1518,7 +1505,8 @@ export function WorkspaceSettingsPage({
             title={<>Knowledge & Context Graph</>}
             description={
               <>
-                Manage workspace-wide knowledge graph indexing, deterministic code parsing, context engine settings, and privacy controls.
+                Manage workspace-wide knowledge graph indexing, deterministic
+                code parsing, context engine settings, and privacy controls.
               </>
             }
           />
@@ -1532,7 +1520,8 @@ export function WorkspaceSettingsPage({
                 title={<>Enable Platform Knowledge Graph</>}
                 description={
                   <>
-                    Build an interconnected property graph across code, docs, and tasks for intelligent, token-budgeted AI agent context.
+                    Build an interconnected property graph across code, docs,
+                    and tasks for intelligent, token-budgeted AI agent context.
                   </>
                 }
               >
@@ -1540,7 +1529,11 @@ export function WorkspaceSettingsPage({
                   checked={kgEnabled}
                   onCheckedChange={(val) => {
                     setKgEnabled(val);
-                    toast.success(val ? 'Knowledge Graph enabled for workspace' : 'Knowledge Graph disabled');
+                    toast.success(
+                      val
+                        ? 'Knowledge Graph enabled for workspace'
+                        : 'Knowledge Graph disabled',
+                    );
                   }}
                 />
               </SettingsRow>
@@ -1549,7 +1542,8 @@ export function WorkspaceSettingsPage({
                 title={<>Local Deterministic Code Parser</>}
                 description={
                   <>
-                    Extract AST components, functions, hooks, endpoints, and database models locally at ₹0 third-party cost.
+                    Extract AST components, functions, hooks, endpoints, and
+                    database models locally at ₹0 third-party cost.
                   </>
                 }
               >
@@ -1564,7 +1558,8 @@ export function WorkspaceSettingsPage({
                 title={<>Secret & Credential Scrubbing</>}
                 description={
                   <>
-                    Automatically strip API keys, database connection strings, and .env files before storing in the graph.
+                    Automatically strip API keys, database connection strings,
+                    and .env files before storing in the graph.
                   </>
                 }
               >
@@ -1584,7 +1579,12 @@ export function WorkspaceSettingsPage({
             <SettingsCard divided>
               <SettingsRow
                 title={<>Index Notion-Style Documents</>}
-                description={<>Extract headings, topics, and cross-references into graph nodes.</>}
+                description={
+                  <>
+                    Extract headings, topics, and cross-references into graph
+                    nodes.
+                  </>
+                }
               >
                 <Switch
                   checked={kgDocsIndexing}
@@ -1595,7 +1595,12 @@ export function WorkspaceSettingsPage({
 
               <SettingsRow
                 title={<>Index Kanban Tasks & Projects</>}
-                description={<>Track task blockers, dependencies, and assignees in the graph.</>}
+                description={
+                  <>
+                    Track task blockers, dependencies, and assignees in the
+                    graph.
+                  </>
+                }
               >
                 <Switch
                   checked={kgTasksIndexing}
@@ -1606,10 +1611,14 @@ export function WorkspaceSettingsPage({
 
               <SettingsRow
                 title={<>Graph Entity Retention</>}
-                description={<>Duration to retain stale nodes and historical relationships.</>}
+                description={
+                  <>
+                    Duration to retain stale nodes and historical relationships.
+                  </>
+                }
               >
                 <Select value={kgRetention} onValueChange={setKgRetention}>
-                  <SelectTrigger className="w-32 h-8 text-xs border-border bg-surface">
+                  <SelectTrigger className="w-32">
                     <SelectValue placeholder="Forever" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1628,11 +1637,14 @@ export function WorkspaceSettingsPage({
             </SettingsCard>
           </div>
 
-          <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-surface shadow-xs">
+          <div className="p-4 flex items-center justify-between rounded-xl border border-border bg-surface shadow-xs">
             <div>
-              <h4 className="text-sm font-semibold text-foreground">Interactive Knowledge Explorer</h4>
+              <h4 className="text-sm font-semibold text-foreground">
+                Interactive Knowledge Explorer
+              </h4>
               <p className="text-xs text-muted-foreground">
-                View topological node/edge visualization and simulate the Context Engine in AI Agent Studio.
+                View topological node/edge visualization and simulate the
+                Context Engine in AI Agent Studio.
               </p>
             </div>
             <Button
@@ -1937,7 +1949,7 @@ export function WorkspaceSettingsPage({
                 value={maxConcurrentRuns}
                 onValueChange={setMaxConcurrentRuns}
               >
-                <SelectTrigger className="w-36 h-8 text-xs border-border bg-surface">
+                <SelectTrigger className="w-36">
                   <SelectValue placeholder="5 runs" />
                 </SelectTrigger>
                 <SelectContent>
@@ -2000,7 +2012,7 @@ export function WorkspaceSettingsPage({
                   saveDefaultChannelMutation.mutate(val === 'none' ? null : val)
                 }
               >
-                <SelectTrigger className="w-48 h-8 text-xs border-border bg-surface">
+                <SelectTrigger className="w-48">
                   <SelectValue placeholder="None" />
                 </SelectTrigger>
                 <SelectContent>
@@ -2111,7 +2123,7 @@ export function WorkspaceSettingsPage({
                 value={codeSyntaxTheme}
                 onValueChange={setCodeSyntaxTheme}
               >
-                <SelectTrigger className="w-40 h-8 text-xs border-border bg-surface">
+                <SelectTrigger className="w-40">
                   <SelectValue placeholder="Github Dark" />
                 </SelectTrigger>
                 <SelectContent>
@@ -2182,7 +2194,7 @@ export function WorkspaceSettingsPage({
               }
             >
               <Select value={fileRetention} onValueChange={setFileRetention}>
-                <SelectTrigger className="w-32 h-8 text-xs border-border bg-surface">
+                <SelectTrigger className="w-32">
                   <SelectValue placeholder="Forever" />
                 </SelectTrigger>
                 <SelectContent>
@@ -2253,7 +2265,7 @@ export function WorkspaceSettingsPage({
                 value={meetingProvider}
                 onValueChange={setMeetingProvider}
               >
-                <SelectTrigger className="w-44 h-8 text-xs border-border bg-surface">
+                <SelectTrigger className="w-44">
                   <SelectValue placeholder="Onetab Meet" />
                 </SelectTrigger>
                 <SelectContent>
@@ -2483,69 +2495,65 @@ export function WorkspaceSettingsPage({
 
                 {/* Workspace Logo Upload */}
                 <div>
-                  <label className="text-xs font-medium mb-2 block text-foreground">
-                    Workspace Logo{' '}
-                    <span className="font-normal text-muted-foreground">
-                      (Optional)
-                    </span>
-                  </label>
-                  <div className="gap-4 p-4 max-w-xl flex items-center rounded-xl border border-border bg-background">
-                    <button
-                      type="button"
-                      disabled={!isAdmin}
-                      onClick={() => logoInputRef.current?.click()}
-                      className="h-16 w-16 relative flex shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border-strong bg-surface-raised transition-transform hover:scale-105 disabled:opacity-60 disabled:hover:scale-100"
-                      aria-label="Upload workspace logo"
-                    >
-                      {currentAvatarUrl ? (
-                        <img
-                          src={currentAvatarUrl}
-                          alt="Workspace logo preview"
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <ImagePlus className="h-6 w-6 text-muted-foreground" />
-                      )}
-                    </button>
+                  <Field label="Workspace Logo" optional>
+                    <div className="gap-4 p-4 max-w-xl flex items-center rounded-xl border border-border bg-background">
+                      <button
+                        type="button"
+                        disabled={!isAdmin}
+                        onClick={() => logoInputRef.current?.click()}
+                        className="h-16 w-16 relative flex shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border-strong bg-surface-raised transition-transform hover:scale-105 disabled:opacity-60 disabled:hover:scale-100"
+                        aria-label="Upload workspace logo"
+                      >
+                        {currentAvatarUrl ? (
+                          <img
+                            src={currentAvatarUrl}
+                            alt="Workspace logo preview"
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <ImagePlus className="h-6 w-6 text-muted-foreground" />
+                        )}
+                      </button>
 
-                    <div className="min-w-0 flex-1">
-                      {isAdmin && (
-                        <div className="gap-2 flex flex-wrap items-center">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => logoInputRef.current?.click()}
-                            className="h-8 text-xs border-border-strong bg-surface-raised text-foreground hover:bg-selected"
-                          >
-                            <ImagePlus className="h-3.5 w-3.5 mr-1.5" />
-                            {currentAvatarUrl ? 'Replace' : 'Upload image'}
-                          </Button>
-                          {currentAvatarUrl && (
+                      <div className="min-w-0 flex-1">
+                        {isAdmin && (
+                          <div className="gap-2 flex flex-wrap items-center">
                             <Button
                               type="button"
                               size="sm"
-                              variant="ghost"
-                              onClick={handleRemoveLogo}
-                              className="h-8 text-xs text-muted-foreground hover:text-destructive"
+                              variant="outline"
+                              onClick={() => logoInputRef.current?.click()}
+                              className="h-8 text-xs border-border-strong bg-surface-raised text-foreground hover:bg-selected"
                             >
-                              <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Remove
+                              <ImagePlus className="h-3.5 w-3.5 mr-1.5" />
+                              {currentAvatarUrl ? 'Replace' : 'Upload image'}
                             </Button>
-                          )}
-                        </div>
-                      )}
-                      <p className="text-xs mt-1.5 truncate text-muted-foreground">
-                        {logoFile
-                          ? logoFile.name
-                          : 'PNG, JPEG, WebP or GIF · 256×256 px · up to 2 MB'}
-                      </p>
-                      {logoError && (
-                        <p className="text-xs mt-1 text-destructive">
-                          {logoError}
+                            {currentAvatarUrl && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={handleRemoveLogo}
+                                className="h-8 text-xs text-muted-foreground hover:text-destructive"
+                              >
+                                <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Remove
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                        <p className="text-xs mt-1.5 truncate text-muted-foreground">
+                          {logoFile
+                            ? logoFile.name
+                            : 'PNG, JPEG, WebP or GIF · 256×256 px · up to 2 MB'}
                         </p>
-                      )}
+                        {logoError && (
+                          <p className="text-xs mt-1 text-destructive">
+                            {logoError}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  </Field>
 
                   <input
                     ref={logoInputRef}
@@ -2565,16 +2573,13 @@ export function WorkspaceSettingsPage({
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-medium">
-                          Workspace Name
-                        </FormLabel>
+                        <FormLabel>Workspace Name</FormLabel>
                         <FormControl>
                           <Input
                             {...field}
                             value={field.value ?? ''}
                             placeholder="e.g. Acme Corp, Design System Team"
                             disabled={!isAdmin}
-                            className="h-9 text-xs"
                             onChange={(event) => {
                               field.onChange(event);
                               if (slugTouched) return;
@@ -2603,9 +2608,7 @@ export function WorkspaceSettingsPage({
                     name="slug"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-medium">
-                          Workspace URL
-                        </FormLabel>
+                        <FormLabel>Workspace URL</FormLabel>
                         <FormControl>
                           <Input
                             {...field}
@@ -2623,7 +2626,7 @@ export function WorkspaceSettingsPage({
                             autoComplete="off"
                             maxLength={40}
                             disabled={!isAdmin}
-                            className="h-9 text-xs font-mono"
+                            className="font-mono"
                           />
                         </FormControl>
                         <FormMessage />
@@ -2677,9 +2680,7 @@ export function WorkspaceSettingsPage({
                     name="supportEmail"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-medium">
-                          Support / Contact Email
-                        </FormLabel>
+                        <FormLabel>Support / Contact Email</FormLabel>
                         <FormControl>
                           <Input
                             {...field}
@@ -2687,7 +2688,6 @@ export function WorkspaceSettingsPage({
                             type="email"
                             placeholder="e.g. support@yourcompany.com"
                             disabled={!isAdmin}
-                            className="h-9 text-xs"
                           />
                         </FormControl>
                         <FormDescription className="text-meta">
@@ -2704,9 +2704,7 @@ export function WorkspaceSettingsPage({
                     name="description"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-medium">
-                          Description
-                        </FormLabel>
+                        <FormLabel>Description</FormLabel>
                         <FormControl>
                           <Textarea
                             {...field}
@@ -2714,7 +2712,6 @@ export function WorkspaceSettingsPage({
                             rows={3}
                             placeholder="e.g. All projects, teams, and collaboration for our organization"
                             disabled={!isAdmin}
-                            className="text-xs"
                           />
                         </FormControl>
                         <FormMessage />
@@ -2742,16 +2739,14 @@ export function WorkspaceSettingsPage({
                     name="defaultLandingView"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-medium">
-                          Default Landing View
-                        </FormLabel>
+                        <FormLabel>Default Landing View</FormLabel>
                         <Select
                           value={field.value ?? 'home'}
                           onValueChange={field.onChange}
                           disabled={!isAdmin}
                         >
                           <FormControl>
-                            <SelectTrigger className="h-9 text-xs">
+                            <SelectTrigger>
                               <SelectValue placeholder="Select default view" />
                             </SelectTrigger>
                           </FormControl>
@@ -2790,7 +2785,7 @@ export function WorkspaceSettingsPage({
                       render={({ field }) => (
                         <FormItem className="p-4 flex items-center justify-between rounded-xl border border-border bg-background">
                           <div className="space-y-0.5 pr-4">
-                            <FormLabel className="text-xs font-medium cursor-pointer">
+                            <FormLabel className="cursor-pointer">
                               External Public Sharing
                             </FormLabel>
                             <FormDescription className="text-meta">
@@ -2815,7 +2810,7 @@ export function WorkspaceSettingsPage({
                       render={({ field }) => (
                         <FormItem className="p-4 flex items-center justify-between rounded-xl border border-border bg-background">
                           <div className="space-y-0.5 pr-4">
-                            <FormLabel className="text-xs font-medium cursor-pointer">
+                            <FormLabel className="cursor-pointer">
                               AI Project Recaps & Activity Digest
                             </FormLabel>
                             <FormDescription className="text-meta">
@@ -3708,15 +3703,12 @@ export function WorkspaceSettingsPage({
                   name="currentPassword"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs font-medium">
-                        Current password
-                      </FormLabel>
+                      <FormLabel>Current password</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
                           type="password"
                           autoComplete="current-password"
-                          className="h-9 text-xs"
                         />
                       </FormControl>
                       <FormMessage />
@@ -3729,15 +3721,12 @@ export function WorkspaceSettingsPage({
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs font-medium">
-                        New password
-                      </FormLabel>
+                      <FormLabel>New password</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
                           type="password"
                           autoComplete="new-password"
-                          className="h-9 text-xs"
                         />
                       </FormControl>
                       <FormMessage />
@@ -3750,15 +3739,12 @@ export function WorkspaceSettingsPage({
                   name="confirmPassword"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs font-medium">
-                        Confirm new password
-                      </FormLabel>
+                      <FormLabel>Confirm new password</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
                           type="password"
                           autoComplete="new-password"
-                          className="h-9 text-xs"
                         />
                       </FormControl>
                       <FormMessage />
@@ -3877,10 +3863,7 @@ export function WorkspaceSettingsPage({
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-medium block text-foreground">
-                  6-Digit Verification Code
-                </label>
+              <Field label="6-Digit Verification Code">
                 <Input
                   value={totpCodeInput}
                   onChange={(e) =>
@@ -3890,9 +3873,11 @@ export function WorkspaceSettingsPage({
                   }
                   placeholder="000000"
                   maxLength={6}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
                   className="h-10 text-base tracking-widest text-center font-mono"
                 />
-              </div>
+              </Field>
 
               <DialogFooter className="pt-2">
                 <Button
@@ -3935,18 +3920,14 @@ export function WorkspaceSettingsPage({
           </DialogHeader>
 
           <DialogBody className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium block text-foreground">
-                Current Password
-              </label>
+            <Field label="Current Password">
               <Input
                 type="password"
                 value={disableTotpPassword}
                 onChange={(e) => setDisableTotpPassword(e.target.value)}
                 placeholder="Enter password"
-                className="h-9 text-xs"
               />
-            </div>
+            </Field>
 
             <DialogFooter className="pt-2">
               <Button
@@ -4038,17 +4019,13 @@ export function WorkspaceSettingsPage({
           </DialogHeader>
 
           <DialogBody className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium block text-foreground">
-                Device / Key Name
-              </label>
+            <Field label="Device / Key Name">
               <Input
                 value={passkeyDeviceName}
                 onChange={(e) => setPasskeyDeviceName(e.target.value)}
                 placeholder="e.g. MacBook Pro Touch ID, YubiKey 5"
-                className="h-9 text-xs"
               />
-            </div>
+            </Field>
 
             <DialogFooter className="pt-2">
               <Button

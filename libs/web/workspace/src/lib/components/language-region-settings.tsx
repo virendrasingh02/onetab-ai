@@ -23,6 +23,7 @@ import {
   SettingsSectionHeader,
   TimezoneSelect,
   toast,
+  Field,
 } from '@org/ui';
 import {
   cn,
@@ -171,28 +172,32 @@ export function LanguageRegionSettings() {
       >
         <SettingsCard>
           <div className="sm:grid-cols-2 gap-4 grid grid-cols-1">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium gap-1.5 flex items-center text-foreground">
-                <MapPin className="size-3.5 text-muted-foreground" />
-                Region
-              </label>
+            <Field
+              label={
+                <>
+                  <MapPin className="size-3.5 text-muted-foreground" /> Region
+                </>
+              }
+            >
               <RegionSelect
                 value={region.code}
                 onChange={(next: RegionInfo) =>
                   save.mutate({ timezone: next.defaultTimezone })
                 }
               />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium gap-1.5 flex items-center text-foreground">
-                <Globe className="size-3.5 text-muted-foreground" />
-                Timezone
-              </label>
+            </Field>
+            <Field
+              label={
+                <>
+                  <Globe className="size-3.5 text-muted-foreground" /> Timezone
+                </>
+              }
+            >
               <TimezoneSelect
                 value={timezone}
                 onChange={(next) => save.mutate({ timezone: next })}
               />
-            </div>
+            </Field>
           </div>
 
           <div className="p-4 gap-4 flex flex-wrap items-center justify-between rounded-xl border border-border bg-surface-inset">
@@ -247,7 +252,7 @@ export function LanguageRegionSettings() {
                 })
               }
             >
-              <SelectTrigger className="w-44 h-8 text-xs">
+              <SelectTrigger className="w-44">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -276,7 +281,7 @@ export function LanguageRegionSettings() {
                 })
               }
             >
-              <SelectTrigger className="w-44 h-8 text-xs">
+              <SelectTrigger className="w-44">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -316,10 +321,7 @@ export function LanguageRegionSettings() {
               value={schedule.start}
               onValueChange={(v) => save.mutate({ workingHoursStart: v })}
             >
-              <SelectTrigger
-                className="w-32 h-9 text-xs"
-                aria-label="Start time"
-              >
+              <SelectTrigger className="w-32" aria-label="Start time">
                 <SelectValue>{clock(schedule.start)}</SelectValue>
               </SelectTrigger>
               <SelectContent className="max-h-72">
@@ -335,7 +337,7 @@ export function LanguageRegionSettings() {
               value={schedule.end}
               onValueChange={(v) => save.mutate({ workingHoursEnd: v })}
             >
-              <SelectTrigger className="w-32 h-9 text-xs" aria-label="End time">
+              <SelectTrigger className="w-32" aria-label="End time">
                 <SelectValue>{clock(schedule.end)}</SelectValue>
               </SelectTrigger>
               <SelectContent className="max-h-72">
