@@ -38,7 +38,10 @@ export function DesktopTitleBar() {
       style={DRAG}
       onDoubleClick={toggleMaximize}
       className={cn(
-        'flex h-8 shrink-0 select-none items-center gap-2 border-b border-border bg-sidebar px-2',
+        // Same row as `AppHeader` / `SettingsHeader` (height, padding, no
+        // divider, page background) so the chrome doesn't jump or grow a line
+        // when moving between login/loading screens and the workspace.
+        'flex h-11 shrink-0 select-none items-center gap-2 bg-background px-2.5 sm:gap-3 sm:px-4',
         forcedDark && 'dark',
       )}
     >
@@ -48,7 +51,10 @@ export function DesktopTitleBar() {
           strip grabbable across its full width without labelling it. */}
       <div className="min-w-0 flex-1" aria-hidden />
 
-      <DesktopWindowControls className="-mr-2" />
+      <DesktopWindowControls
+        className="-mr-2.5 ml-1 sm:-mr-4"
+        buttonClassName="h-11"
+      />
     </div>
   );
 }

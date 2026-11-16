@@ -429,7 +429,7 @@ export function DocumentEditor() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="start"
-                  className="w-64 max-h-80 overflow-y-auto"
+                  className="w-64"
                 >
                   <DropdownMenuLabel className="text-meta">
                     Jump to document

@@ -16,6 +16,7 @@ import {
   menuItemClasses,
   menuSearchClasses,
   menuSearchInputClasses,
+  menuListClasses,
   menuSurfaceBase,
 } from './menu-styles.js';
 import { Popover, PopoverContent, PopoverTrigger } from './popover.js';
@@ -123,7 +124,7 @@ export function TimezoneSelect({
           </button>
         ) : null}
 
-        <ScrollArea className="max-h-64">
+        <ScrollArea className={menuListClasses}>
           {matches.length === 0 ? (
             <p className="p-4 text-xs text-center text-muted-foreground">
               No timezone matches “{query}”.

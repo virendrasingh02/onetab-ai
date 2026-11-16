@@ -21,6 +21,7 @@ import {
   menuLabelClasses,
   menuSearchClasses,
   menuSearchInputClasses,
+  menuListClasses,
   menuSurfaceBase,
 } from './menu-styles.js';
 
@@ -538,7 +539,7 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
                 id={listboxId}
                 role="listbox"
                 aria-label="Options"
-                className="max-h-60 scrollbar-subtle overflow-y-auto overscroll-contain"
+                className={menuListClasses}
               >
                 {loading ? (
                   <div className="gap-2 py-6 text-xs flex items-center justify-center text-muted-foreground">

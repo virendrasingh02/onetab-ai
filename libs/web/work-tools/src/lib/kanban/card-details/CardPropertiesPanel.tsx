@@ -365,7 +365,7 @@ export function CardPropertiesPanel({
             <KanbanLeadPicker
               align="start"
               currentMemberId={detail?.reporterId}
-              noneLabel="No reporter"
+              noneLabel="None"
               members={members}
               onSelectMember={onReporterChange}
               trigger={

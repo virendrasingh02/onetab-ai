@@ -615,7 +615,7 @@ function ConnectorsSection({ coworker: c, connectable, workspaceId }: { coworker
                     Add app
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="max-h-80 w-72 overflow-y-auto">
+                <DropdownMenuContent align="end" className="w-72">
                   <DropdownMenuLabel className="text-xs text-muted-foreground">Connected apps</DropdownMenuLabel>
                   {addable.length === 0 ? (
                     <p className="px-2 py-1.5 text-xs text-muted-foreground">Every connected app is already on {c.name}.</p>

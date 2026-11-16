@@ -384,7 +384,7 @@ export function LanguageRegionSettings() {
                   <SelectTrigger className="w-32" aria-label="Start time">
                     <SelectValue>{clock(schedule.start)}</SelectValue>
                   </SelectTrigger>
-                  <SelectContent className="max-h-72">
+                  <SelectContent>
                     {HALF_HOURS.map((hhmm) => (
                       <SelectItem key={hhmm} value={hhmm}>
                         {clock(hhmm)}
@@ -400,7 +400,7 @@ export function LanguageRegionSettings() {
                   <SelectTrigger className="w-32" aria-label="End time">
                     <SelectValue>{clock(schedule.end)}</SelectValue>
                   </SelectTrigger>
-                  <SelectContent className="max-h-72">
+                  <SelectContent>
                     {HALF_HOURS.map((hhmm) => (
                       <SelectItem key={hhmm} value={hhmm}>
                         {clock(hhmm)}

@@ -8,6 +8,7 @@ import {
   menuItemClasses,
   menuSearchClasses,
   menuSearchInputClasses,
+  menuListClasses,
   menuSurfaceBase,
 } from './menu-styles.js';
 import { Popover, PopoverContent, PopoverTrigger } from './popover.js';
@@ -98,7 +99,7 @@ export function RegionSelect({
           />
         </div>
 
-        <ScrollArea className="max-h-60">
+        <ScrollArea className={menuListClasses}>
           <div>
             {matches.map((region) => {
               const isSelected = region.code === currentRegion.code;

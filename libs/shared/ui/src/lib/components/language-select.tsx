@@ -14,6 +14,7 @@ import {
   menuItemClasses,
   menuSearchClasses,
   menuSearchInputClasses,
+  menuListClasses,
   menuSurfaceBase,
 } from './menu-styles.js';
 import { Popover, PopoverContent, PopoverTrigger } from './popover.js';
@@ -129,7 +130,7 @@ export function LanguageSelect({
           />
         </div>
 
-        <ScrollArea className="max-h-64 overflow-y-auto">
+        <ScrollArea className={menuListClasses}>
           {matches.length === 0 ? (
             <div className="px-3 py-4 text-xs text-center text-muted-foreground">
               No languages found

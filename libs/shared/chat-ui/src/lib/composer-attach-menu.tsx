@@ -198,7 +198,7 @@ export function ComposerAttachMenu({
                         {group.length}
                       </span>
                     </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="w-64 max-h-72 overflow-y-auto">
+                    <DropdownMenuSubContent className="w-64">
                       <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
                         Mention in message
                       </DropdownMenuLabel>

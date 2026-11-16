@@ -988,7 +988,7 @@ export function AsanaProjectManager() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="start"
-                  className="w-56 max-h-72 overflow-y-auto"
+                  className="w-56"
                 >
                   <DropdownMenuLabel className="text-meta">
                     Switch Project

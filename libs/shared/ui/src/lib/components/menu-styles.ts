@@ -30,15 +30,15 @@ export const menuSurfaceBase = [
 ];
 
 /**
- * One row is 32px of 13px regular-weight text — every dropdown, select,
+ * One row is 28px of 13px regular-weight text — every dropdown, select,
  * combobox and context menu in the app uses this exact row, so a status picker,
  * a "⋯" menu and a settings select read as the same object. Leading icons are
  * 16px and muted; the selected value is marked by a trailing check.
  */
 export const menuItemClasses = [
-  'group relative flex min-h-8 cursor-pointer select-none items-center gap-2 rounded-menu-item px-2.5 py-1.5 text-body-sm font-normal text-foreground outline-none',
+  'group relative flex min-h-7 cursor-pointer select-none items-center gap-2 rounded-menu-item px-2.5 py-1 text-body-sm font-normal text-foreground outline-none',
   // Roomier rows under a coarse pointer so a menu item is a comfortable tap.
-  'pointer-coarse:min-h-10',
+  'pointer-coarse:min-h-9',
   'transition-colors duration-(--duration-fast) ease-standard',
   'focus:bg-accent focus:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground',
   'data-[disabled]:pointer-events-none data-[disabled]:opacity-40',
@@ -59,7 +59,7 @@ export const menuCheckClasses = 'size-4 text-foreground';
 
 /** Section heading above a group of items — sentence case, quiet. */
 export const menuLabelClasses =
-  'px-2.5 pt-2 pb-1 text-xs font-medium text-muted-foreground';
+  'px-2.5 pt-1.5 pb-0.5 text-xs font-medium text-muted-foreground';
 
 /** Hairline rule between groups. */
 export const menuSeparatorClasses = '-mx-1 my-1 h-px bg-border';
@@ -69,10 +69,18 @@ export const menuSeparatorClasses = '-mx-1 my-1 h-px bg-border';
  * hairline underneath, bleeding to the surface edges.
  */
 export const menuSearchClasses =
-  '-mx-1 -mt-1 mb-1 flex h-10 items-center gap-2 border-b border-border px-3.5';
+  '-mx-1 -mt-1 mb-1 flex h-9 items-center gap-2 border-b border-border px-3.5';
 export const menuSearchInputClasses =
   'w-full min-w-0 bg-transparent text-body-sm text-foreground outline-none placeholder:text-subtle';
 
 /** Layered onto {@link menuItemClasses} for a destructive action. */
 export const menuDestructiveClasses =
   'text-destructive focus:bg-destructive/10 focus:text-destructive data-[highlighted]:bg-destructive/10 data-[highlighted]:text-destructive [&_svg]:text-destructive focus:[&_svg]:text-destructive';
+
+/**
+ * Option list under a {@link menuSearchClasses} row, for pickers over long
+ * datasets (timezones, regions, languages, combobox options). Only these
+ * scroll; ordinary menus grow to fit their rows.
+ */
+export const menuListClasses =
+  'max-h-64 overflow-y-auto overscroll-contain scrollbar-subtle';

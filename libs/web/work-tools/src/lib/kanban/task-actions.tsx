@@ -15,13 +15,11 @@ import {
   CalendarClock,
   CalendarX2,
   CopyPlus,
-  CornerUpRight,
   FileText,
   Flag,
   Link2,
   Pencil,
   Trash2,
-  UserCheck,
   Users,
 } from 'lucide-react';
 import { useCallback } from 'react';
@@ -33,8 +31,8 @@ import type { BoardMember, KanbanCard, KanbanList, Priority } from './types.js';
 import { useConvertTaskToDocument } from '../use-work-tools.js';
 
 /**
- * One task's actions — open, assign, status, priority, due date, move,
- * duplicate, save, copy link, convert to doc, delete — shared by the board
+ * One task's actions — open, assignees, status (which is the column, so it
+ * also moves the card), priority, due date, duplicate, save, copy link, convert to doc, delete — shared by the board
  * card, the list row and the timeline row, through their "⋯" menu, right-click
  * and the Menu key. A task offers the same things whichever view it is in.
  */
@@ -121,35 +119,32 @@ export function buildTaskActions({
       run: onOpen,
     },
     {
-      id: 'assign-me',
-      group: 'assign',
-      label: 'Assign to me',
-      icon: UserCheck,
-      shortcut: 'I',
-      hidden: !currentUserId || !onAssigneesChange,
-      disabled: currentUserId ? card.memberIds.includes(currentUserId) : true,
-      disabledReason: 'Already assigned to you',
-      run: () =>
-        currentUserId &&
-        onAssigneesChange?.([...new Set([currentUserId, ...card.memberIds])]),
-    },
-    {
       id: 'assign',
       group: 'assign',
       label: 'Assignees',
       icon: Users,
       hidden: !onAssigneesChange || members.length === 0,
-      children: members.map((member): EntityAction => ({
-        id: `assign-${member.id}`,
-        label: member.displayName ?? member.name,
-        checked: card.memberIds.includes(member.id),
-        run: () =>
-          onAssigneesChange?.(
-            card.memberIds.includes(member.id)
-              ? card.memberIds.filter((id) => id !== member.id)
-              : [...card.memberIds, member.id],
-          ),
-      })),
+      // One place to assign: you're listed first, so "assign to me" is the
+      // top row here rather than a second menu item doing the same thing.
+      children: [...members]
+        .sort(
+          (a, b) =>
+            Number(b.id === currentUserId) - Number(a.id === currentUserId),
+        )
+        .map((member): EntityAction => ({
+          id: `assign-${member.id}`,
+          label:
+            member.id === currentUserId
+              ? `${member.displayName ?? member.name} (you)`
+              : (member.displayName ?? member.name),
+          checked: card.memberIds.includes(member.id),
+          run: () =>
+            onAssigneesChange?.(
+              card.memberIds.includes(member.id)
+                ? card.memberIds.filter((id) => id !== member.id)
+                : [...card.memberIds, member.id],
+            ),
+        })),
     },
     {
       id: 'status',
@@ -200,19 +195,6 @@ export function buildTaskActions({
           run: () => onUpdate?.({ dueDate: null }),
         },
       ],
-    },
-    {
-      id: 'move',
-      group: 'fields',
-      label: 'Move to column',
-      icon: CornerUpRight,
-      children: lists
-        .filter((list) => list.id !== listId)
-        .map((list): EntityAction => ({
-          id: `move-${list.id}`,
-          label: list.title,
-          run: () => onMoveToList(list.id),
-        })),
     },
     {
       id: 'duplicate',

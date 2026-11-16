@@ -597,7 +597,7 @@ export function CallModal() {
                 <Settings className="size-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="center" side="top" className="w-64 max-h-72 overflow-y-auto">
+            <DropdownMenuContent align="center" side="top" className="w-64">
               {audioInputDevices.length > 0 && (
                 <>
                   <DropdownMenuLabel className="text-meta text-muted-foreground flex items-center gap-1.5">

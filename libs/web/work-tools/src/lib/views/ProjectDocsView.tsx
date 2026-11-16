@@ -146,7 +146,7 @@ function LinkDocMenu({
       <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="w-64 max-h-72 overflow-y-auto"
+        className="w-64"
       >
         <DropdownMenuLabel className="text-meta">
           Link document to {project.name}

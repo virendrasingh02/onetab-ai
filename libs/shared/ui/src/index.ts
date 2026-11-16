@@ -214,6 +214,7 @@ export {
   menuSearchClasses,
   menuSearchInputClasses,
   menuSeparatorClasses,
+  menuListClasses,
   menuSurfaceBase,
 } from './lib/components/menu-styles.js';
 

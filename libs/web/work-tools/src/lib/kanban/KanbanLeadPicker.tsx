@@ -40,7 +40,7 @@ export function KanbanLeadPicker({
   trigger,
   align = 'end',
   multiple = false,
-  noneLabel = 'No lead',
+  noneLabel = 'None',
 }: KanbanLeadPickerProps) {
   const searchField = useMenuSearchField();
   const [open, setOpen] = useState(false);
@@ -178,8 +178,10 @@ export function KanbanLeadPicker({
                 : 'text-foreground/85 hover:bg-accent/60',
             )}
           >
-            <div className="gap-2.5 min-w-0 flex items-center">
-              <UnassignedLeadIcon className="size-4" />
+            <div className="gap-2 min-w-0 flex items-center">
+              <span className="size-5 flex shrink-0 items-center justify-center text-muted-foreground">
+                <UnassignedLeadIcon className="size-4" />
+              </span>
               <span className="truncate">{noneLabel}</span>
             </div>
 
@@ -215,7 +217,7 @@ export function KanbanLeadPicker({
                       'flex items-center justify-between duration-150',
                     )}
                   >
-                    <div className="gap-3 min-w-0 flex flex-1 items-center">
+                    <div className="gap-2 min-w-0 flex flex-1 items-center">
                       <UserAvatar
                         name={member.displayName ?? member.name}
                         seed={member.id}
@@ -223,18 +225,16 @@ export function KanbanLeadPicker({
                         presence={member.presence}
                         statusEmoji={member.statusEmoji}
                         statusText={member.statusText}
-                        size="sm"
-                        className="size-7 font-bold shrink-0 rounded-full text-2xs"
+                        size="xs"
+                        className="size-5 font-semibold shrink-0 rounded-full text-3xs"
                       />
-                      <div className="min-w-0 flex-1">
-                        <span className="text-xs font-semibold leading-tight block truncate text-foreground">
-                          {member.displayName ?? member.name}
-                        </span>
-                      </div>
+                      <span className="min-w-0 flex-1 truncate">
+                        {member.displayName ?? member.name}
+                      </span>
                     </div>
 
                     {isSelected && (
-                      <Check className="size-4 ml-2 shrink-0 stroke-[2.5] text-foreground" />
+                      <Check className="size-3.5 ml-2 shrink-0 stroke-[2.5] text-foreground" />
                     )}
                   </DropdownMenuItem>
                 );
