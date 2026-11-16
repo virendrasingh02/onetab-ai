@@ -1,4 +1,3 @@
-import type { WorkItemType } from '@org/types';
 import {
   Button,
   DropdownMenu,
@@ -9,24 +8,19 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  Hint,
   toast,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
-  AlertOctagon,
-  BookOpen,
-  Bug,
   Check,
-  CheckSquare,
-  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Copy,
   CopyPlus,
   Expand,
   FileText,
   Hash,
-  Inbox,
-  LifeBuoy,
-  Lightbulb,
   Link2,
   ListChecks,
   ListTree,
@@ -39,7 +33,6 @@ import {
   Sparkles,
   Star,
   Trash2,
-  TrendingUp,
   X,
   type LucideIcon,
 } from 'lucide-react';
@@ -47,23 +40,9 @@ import {
   useKanbanCardViewStore,
   type KanbanCardViewMode,
 } from '../kanban-card-view-store.js';
-import { CubeProjectIcon } from '../kanban-icons.js';
+import { useEffect, useState } from 'react';
+import { CubeProjectIcon, StatusIcon } from '../kanban-icons.js';
 import type { CardAiTask } from './card-ai.js';
-
-const TYPE_OPTIONS: Array<{
-  type: WorkItemType;
-  label: string;
-  icon: LucideIcon;
-}> = [
-  { type: 'TASK', label: 'Task', icon: CheckSquare },
-  { type: 'BUG', label: 'Bug', icon: Bug },
-  { type: 'FEATURE', label: 'Feature', icon: Lightbulb },
-  { type: 'IMPROVEMENT', label: 'Improvement', icon: TrendingUp },
-  { type: 'STORY', label: 'Story', icon: BookOpen },
-  { type: 'REQUEST', label: 'Request', icon: Inbox },
-  { type: 'SUPPORT', label: 'Support', icon: LifeBuoy },
-  { type: 'INCIDENT', label: 'Incident', icon: AlertOctagon },
-];
 
 const VIEW_OPTIONS: Array<{
   mode: KanbanCardViewMode;
@@ -149,11 +128,103 @@ async function copyToClipboard(text: string, confirmation: string) {
   }
 }
 
+/** The ticket id as a chip: one click copies it, and says so in place. */
+function TicketId({ identifier }: { identifier: string }) {
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const timer = window.setTimeout(() => setCopied(false), 1500);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
+
+  return (
+    <Hint label={copied ? 'Copied' : 'Copy ticket ID'}>
+      <button
+        type="button"
+        onClick={() => {
+          navigator.clipboard
+            .writeText(identifier)
+            .then(() => setCopied(true))
+            .catch(() => toast.error('Could not reach the clipboard'));
+        }}
+        aria-label={`Ticket ${identifier}. Copy ID`}
+        className={cn(
+          'group/id h-6 gap-1 pr-1.5 pl-2 font-semibold tracking-wide inline-flex shrink-0 items-center rounded-md border font-mono text-meta',
+          'transition-colors duration-(--duration-fast) outline-none focus-visible:ring-1 focus-visible:ring-ring',
+          copied
+            ? 'border-success/40 bg-success/10 text-success-text'
+            : 'border-border bg-muted/60 text-foreground hover:border-border-strong hover:bg-muted',
+        )}
+      >
+        {identifier}
+        {copied ? (
+          <Check className="size-3" aria-hidden />
+        ) : (
+          <Copy
+            className="size-3 text-muted-foreground opacity-50 group-hover/id:opacity-100"
+            aria-hidden
+          />
+        )}
+      </button>
+    </Hint>
+  );
+}
+
+export interface CardSiblings {
+  /** 1-based place of this card in its column. */
+  position: number;
+  total: number;
+  onPrevious?: () => void;
+  onNext?: () => void;
+}
+
+/** Steps through the cards of the same column without leaving the card. */
+function CardStepper({ siblings }: { siblings: CardSiblings }) {
+  const stepClass =
+    'size-6 grid place-items-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent/60 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-35';
+  return (
+    <div
+      role="group"
+      aria-label="Cards in this column"
+      className="gap-0.5 flex shrink-0 items-center"
+    >
+      <Hint label="Previous card">
+        <button
+          type="button"
+          disabled={!siblings.onPrevious}
+          onClick={siblings.onPrevious}
+          aria-label="Previous card in this column"
+          className={stepClass}
+        >
+          <ChevronLeft className="size-4" aria-hidden />
+        </button>
+      </Hint>
+      <span className="min-w-9 text-center text-meta text-muted-foreground tabular-nums">
+        {siblings.position} / {siblings.total}
+      </span>
+      <Hint label="Next card">
+        <button
+          type="button"
+          disabled={!siblings.onNext}
+          onClick={siblings.onNext}
+          aria-label="Next card in this column"
+          className={stepClass}
+        >
+          <ChevronRight className="size-4" aria-hidden />
+        </button>
+      </Hint>
+    </div>
+  );
+}
+
 export interface CardHeaderProps {
   projectName: string;
   /** The human-readable ticket id, e.g. `WEB-42`. */
   identifier: string;
-  type: string | undefined;
+  /** The board column the card sits in. */
+  statusId: string;
+  statusTitle: string;
+  siblings: CardSiblings;
   /** The Studio agent that filed this task, when one did. */
   agent: { name: string; onOpen?: () => void } | undefined;
   link: string;
@@ -173,7 +244,6 @@ export interface CardHeaderProps {
   onToggleSaved: () => void;
   /** Opens "Share in chat" for this task. */
   onShare: () => void;
-  onTypeChange: (type: WorkItemType) => void;
   onRunAi: (task: CardAiTask) => void;
   onConvertToDoc: () => void;
   onDuplicate: () => void;
@@ -184,7 +254,9 @@ export interface CardHeaderProps {
 export function CardHeader({
   projectName,
   identifier,
-  type,
+  statusId,
+  statusTitle,
+  siblings,
   agent,
   link,
   compact,
@@ -197,17 +269,12 @@ export function CardHeader({
   isSaved,
   onToggleSaved,
   onShare,
-  onTypeChange,
   onRunAi,
   onConvertToDoc,
   onDuplicate,
   onDelete,
   onClose,
 }: CardHeaderProps) {
-  const current =
-    TYPE_OPTIONS.find((option) => option.type === type) ?? TYPE_OPTIONS[0];
-  const TypeIcon = current.icon;
-
   return (
     <header
       className={cn(
@@ -227,49 +294,25 @@ export function CardHeader({
             </span>
           </>
         )}
-        <button
-          type="button"
-          onClick={() =>
-            void copyToClipboard(identifier, `Copied ${identifier}`)
-          }
-          title="Copy ticket ID"
-          className="min-w-0 px-1 py-0.5 font-semibold truncate rounded-md font-mono text-foreground transition-colors outline-none hover:bg-accent/60 focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          {identifier}
-        </button>
+        <TicketId identifier={identifier} />
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              disabled={!canEdit}
-              aria-label={`Type: ${current.label}. Change type`}
-              className="h-6 gap-1 px-1.5 font-medium inline-flex shrink-0 items-center rounded-md text-muted-foreground transition-colors outline-none focus-visible:ring-1 focus-visible:ring-ring enabled:hover:bg-accent/60 enabled:hover:text-foreground"
-            >
-              <TypeIcon className="size-3.5" aria-hidden />
-              {compact ? null : <span>{current.label}</span>}
-              {canEdit ? (
-                <ChevronDown className="size-3 opacity-60" aria-hidden />
-              ) : null}
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-44">
-            {TYPE_OPTIONS.map((option) => (
-              <DropdownMenuItem
-                key={option.type}
-                onSelect={() => {
-                  if (option.type !== current.type) onTypeChange(option.type);
-                }}
-              >
-                <option.icon className="mr-2 size-3.5" aria-hidden />
-                <span className="flex-1">{option.label}</span>
-                {option.type === current.type ? (
-                  <Check className="size-3.5" aria-hidden />
-                ) : null}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <span className="mx-1 h-4 w-px shrink-0 bg-border/80" aria-hidden />
+
+        <span
+          className="min-w-0 gap-1.5 font-medium inline-flex items-center text-foreground"
+          title={`In ${statusTitle}`}
+        >
+          <StatusIcon
+            status={statusId}
+            className="size-3.5 shrink-0"
+            showTooltip={false}
+          />
+          <span className={cn('truncate', compact ? 'max-w-20' : 'max-w-36')}>
+            {statusTitle}
+          </span>
+        </span>
+
+        {siblings.total > 1 ? <CardStepper siblings={siblings} /> : null}
 
         {agent ? (
           <button

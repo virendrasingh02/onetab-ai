@@ -139,6 +139,7 @@ export function CardDetailsDialog({
       card={found.card}
       listId={found.list.id}
       listTitle={found.list.title}
+      siblingIds={found.list.cards.map((entry) => entry.id)}
       dispatch={dispatch}
       onOpenCard={onOpenCard}
       onClose={onClose}
@@ -257,6 +258,8 @@ interface CardDetailsBodyProps {
   card: KanbanCard;
   listId: KanbanList['id'];
   listTitle: string;
+  /** The column's cards in board order, for stepping to the next one. */
+  siblingIds: string[];
   dispatch: (action: BoardAction) => void;
   onOpenCard: (cardId: string) => void;
   onClose: () => void;
@@ -273,6 +276,7 @@ function CardDetailsBody({
   card,
   listId,
   listTitle,
+  siblingIds,
   dispatch,
   onOpenCard,
   onClose,
@@ -506,6 +510,37 @@ function CardDetailsBody({
 
   const [isShareOpen, setIsShareOpen] = useState(false);
 
+  const position = siblingIds.indexOf(card.id);
+  const previousId = position > 0 ? siblingIds[position - 1] : undefined;
+  const nextId = position >= 0 ? siblingIds[position + 1] : undefined;
+  const siblings = {
+    position: position + 1,
+    total: siblingIds.length,
+    onPrevious: previousId ? () => onOpenCard(previousId) : undefined,
+    onNext: nextId ? () => onOpenCard(nextId) : undefined,
+  };
+
+  /*
+   * A person opens in the right rail. The card closes first: as a dialog it
+   * would cover the rail, and in panel mode it is the rail.
+   */
+  const openProfile = useRightPanelStore((s) => s.openProfile);
+  const openPerson = useCallback(
+    (person: { id: string; name: string; avatarUrl?: string | null }) => {
+      const member = board.members.find((entry) => entry.id === person.id);
+      onClose();
+      openProfile({
+        userId: person.id,
+        name: member?.displayName ?? member?.name ?? person.name,
+        avatarUrl: member?.avatarUrl ?? person.avatarUrl ?? undefined,
+        email: member?.email ?? undefined,
+        statusEmoji: member?.statusEmoji,
+        statusText: member?.statusText,
+      });
+    },
+    [board.members, onClose, openProfile],
+  );
+
   const properties = (
     <CardPropertiesPanel
       card={card}
@@ -526,6 +561,7 @@ function CardDetailsBody({
         })
       }
       onPriorityChange={(priority: Priority) => updateCard({ priority })}
+      onTypeChange={(type: WorkItemType) => updateTask({ type })}
       onAssigneesChange={(memberIds) => updateCard({ memberIds })}
       onStartDateChange={(startDate) => updateCard({ startDate })}
       onDueDateChange={(dueDate) => updateCard({ dueDate })}
@@ -557,7 +593,9 @@ function CardDetailsBody({
       <CardHeader
         projectName={board.title}
         identifier={identifier}
-        type={detail?.type ?? card.type}
+        statusId={listId}
+        statusTitle={listTitle}
+        siblings={siblings}
         agent={
           agent
             ? {
@@ -580,7 +618,6 @@ function CardDetailsBody({
         aiBusy={ai.isPending}
         isSaved={isSaved('task', card.id)}
         onToggleSaved={toggleStarred}
-        onTypeChange={(type: WorkItemType) => updateTask({ type })}
         onRunAi={runAi}
         onConvertToDoc={() => {
           convertToDoc(card).catch(() =>
@@ -775,6 +812,7 @@ function CardDetailsBody({
                 currentUserId={currentUser?.id}
                 canComment={canCreate}
                 canModerate={canDelete}
+                onOpenPerson={openPerson}
                 savingComment={commentMutations.update.isPending}
                 onEditComment={(commentId, content, onSaved) =>
                   commentMutations.update.mutate(

@@ -3,7 +3,7 @@ import type { TaskComment, WorkItemActivity } from '@org/types';
 import { Button, confirm, Skeleton, Textarea, UserAvatar } from '@org/ui';
 import { cn, formatRelative } from '@org/utils';
 import { MessageSquare, Pencil, Search, Trash2, X } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import type { BoardMember } from '../types.js';
 import {
   buildTimeline,
@@ -17,6 +17,40 @@ const FILTERS: Array<{ id: ActivityFilter; label: string }> = [
   { id: 'history', label: 'History' },
 ];
 
+export interface ActivityPerson {
+  id: string;
+  name: string;
+  avatarUrl?: string | null;
+}
+
+/** A person's name (or avatar) that opens their profile in the right rail. */
+function PersonLink({
+  person,
+  onOpen,
+  className,
+  children,
+}: {
+  person: ActivityPerson | undefined;
+  onOpen: (person: ActivityPerson) => void;
+  className?: string;
+  children: ReactNode;
+}) {
+  if (!person) return <span className={className}>{children}</span>;
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(person)}
+      title={`View ${person.name}'s profile`}
+      className={cn(
+        'rounded-sm text-left outline-none hover:underline focus-visible:ring-1 focus-visible:ring-ring',
+        className,
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
 /** Older entries wait behind a button, so a long-lived task opens quickly. */
 const RECENT_ENTRIES = 50;
 
@@ -28,9 +62,13 @@ function CommentEntry({
   saving,
   onSave,
   onDelete,
+  onOpenPerson,
+  onMentionClick,
 }: {
   comment: TaskComment;
   mentionNames: string[];
+  onOpenPerson: (person: ActivityPerson) => void;
+  onMentionClick: (mention: string) => void;
   canEdit: boolean;
   canDelete: boolean;
   saving: boolean;
@@ -39,6 +77,11 @@ function CommentEntry({
 }) {
   const [draft, setDraft] = useState<string | null>(null);
   const author = comment.author.displayName ?? comment.author.name;
+  const authorPerson: ActivityPerson = {
+    id: comment.author.id,
+    name: author,
+    avatarUrl: comment.author.avatarUrl,
+  };
   const edited =
     new Date(comment.updatedAt).getTime() -
       new Date(comment.createdAt).getTime() >
@@ -67,17 +110,27 @@ function CommentEntry({
 
   return (
     <div className="group gap-2.5 flex">
-      <UserAvatar
-        name={author}
-        seed={comment.author.id}
-        src={comment.author.avatarUrl ?? undefined}
-        size="sm"
-      />
+      <PersonLink
+        person={authorPerson}
+        onOpen={onOpenPerson}
+        className="h-fit shrink-0 rounded-full hover:no-underline"
+      >
+        <UserAvatar
+          name={author}
+          seed={comment.author.id}
+          src={comment.author.avatarUrl ?? undefined}
+          size="sm"
+        />
+      </PersonLink>
       <div className="min-w-0 px-3 py-2 flex-1 rounded-xl border border-border/60 bg-surface">
         <div className="min-h-5 gap-2 flex items-center">
-          <span className="text-xs font-semibold truncate text-foreground">
+          <PersonLink
+            person={authorPerson}
+            onOpen={onOpenPerson}
+            className="text-xs font-semibold min-w-0 truncate text-foreground"
+          >
             {author}
-          </span>
+          </PersonLink>
           <span className="shrink-0 text-meta text-muted-foreground">
             {formatRelative(comment.createdAt)}
             {edited ? ' · edited' : ''}
@@ -144,6 +197,7 @@ function CommentEntry({
           <MarkdownMessage
             text={comment.content}
             mentionNames={mentionNames}
+            onMentionClick={onMentionClick}
             className="text-sm"
           />
         )}
@@ -169,6 +223,7 @@ export interface CardActivityProps {
     onSaved: () => void,
   ) => void;
   onDeleteComment: (commentId: string) => void;
+  onOpenPerson: (person: ActivityPerson) => void;
 }
 
 export function CardActivity({
@@ -183,6 +238,7 @@ export function CardActivity({
   savingComment,
   onEditComment,
   onDeleteComment,
+  onOpenPerson,
 }: CardActivityProps) {
   const [filter, setFilter] = useState<ActivityFilter>('all');
   const [query, setQuery] = useState('');
@@ -203,6 +259,23 @@ export function CardActivity({
       ),
     [members],
   );
+
+  /* A chip carries the name as typed; the longest member name wins. */
+  const openMention = (mention: string) => {
+    const typed = mention.replace(/^@/, '').toLowerCase();
+    const member = members.find(
+      (entry) =>
+        entry.name.toLowerCase() === typed ||
+        entry.displayName?.toLowerCase() === typed,
+    );
+    if (member) {
+      onOpenPerson({
+        id: member.id,
+        name: member.displayName ?? member.name,
+        avatarUrl: member.avatarUrl,
+      });
+    }
+  };
 
   return (
     <section aria-label="Activity">
@@ -308,25 +381,46 @@ export function CardActivity({
                   onEditComment(entry.comment.id, content, onSaved)
                 }
                 onDelete={() => onDeleteComment(entry.comment.id)}
+                onOpenPerson={onOpenPerson}
+                onMentionClick={openMention}
               />
             );
           }
 
           const actor =
             entry.actor?.displayName ?? entry.actor?.name ?? 'Someone';
+          const actorPerson = entry.actor
+            ? {
+                id: entry.actor.id,
+                name: actor,
+                avatarUrl: entry.actor.avatarUrl,
+              }
+            : undefined;
           return (
             <div
               key={entry.id}
               className="gap-2.5 pl-1.5 text-xs flex items-start text-muted-foreground"
             >
-              <UserAvatar
-                name={actor}
-                seed={entry.actor?.id ?? actor}
-                src={entry.actor?.avatarUrl ?? undefined}
-                size="xs"
-              />
+              <PersonLink
+                person={actorPerson}
+                onOpen={onOpenPerson}
+                className="shrink-0 rounded-full hover:no-underline"
+              >
+                <UserAvatar
+                  name={actor}
+                  seed={entry.actor?.id ?? actor}
+                  src={entry.actor?.avatarUrl ?? undefined}
+                  size="xs"
+                />
+              </PersonLink>
               <p className="min-w-0 leading-5 break-words">
-                <span className="font-medium text-foreground">{actor}</span>{' '}
+                <PersonLink
+                  person={actorPerson}
+                  onOpen={onOpenPerson}
+                  className="font-medium text-foreground"
+                >
+                  {actor}
+                </PersonLink>{' '}
                 {entry.text}
                 <span className="text-muted-foreground/70">
                   {' · '}

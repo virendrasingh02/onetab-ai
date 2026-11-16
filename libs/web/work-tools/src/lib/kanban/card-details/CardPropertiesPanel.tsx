@@ -1,4 +1,4 @@
-import type { Task } from '@org/types';
+import type { Task, WorkItemType } from '@org/types';
 import {
   Button,
   DatePicker,
@@ -19,6 +19,7 @@ import {
   ExternalLink,
   Flag,
   Gauge,
+  Shapes,
   Tag,
   Timer,
   UserRound,
@@ -51,6 +52,7 @@ import { PriorityIcon, StatusIcon } from '../kanban-icons.js';
 import { useKanbanLabels } from '../kanban-custom-store.js';
 import { formatMinutes, parseDuration } from '../relation-meta.js';
 import type { BoardMember, KanbanCard, Priority } from '../types.js';
+import { CardTypePicker } from './CardTypePicker.js';
 import {
   PropertyGroup,
   PropertyRow,
@@ -163,6 +165,7 @@ export interface CardPropertiesPanelProps {
   canEdit: boolean;
   onStatusChange: (stateId: string) => void;
   onPriorityChange: (priority: Priority) => void;
+  onTypeChange: (type: WorkItemType) => void;
   onAssigneesChange: (memberIds: string[]) => void;
   onStartDateChange: (day: string | null) => void;
   onDueDateChange: (day: string | null) => void;
@@ -190,6 +193,7 @@ export function CardPropertiesPanel({
   canEdit,
   onStatusChange,
   onPriorityChange,
+  onTypeChange,
   onAssigneesChange,
   onStartDateChange,
   onDueDateChange,
@@ -297,6 +301,14 @@ export function CardPropertiesPanel({
                 <span className="truncate">{statusTitle}</span>
               </ValueButton>
             }
+          />
+        </PropertyRow>
+
+        <PropertyRow label="Type" icon={Shapes}>
+          <CardTypePicker
+            type={detail?.type ?? card.type}
+            disabled={!canEdit}
+            onChange={onTypeChange}
           />
         </PropertyRow>
 
