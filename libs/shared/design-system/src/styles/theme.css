@@ -1405,3 +1405,40 @@ html:not(.dark) .app-content-panel {
 .message-flash {
   animation: message-flash 2.6s ease-out both;
 }
+
+/*
+ * Workspace identity glow. The shell sets `--workspace-tint` (the workspace
+ * avatar colour) inline; these paint it from the top-left corner so the
+ * switcher, rail and top of the sidebar read as "this workspace". Resolved on
+ * the element itself, so it follows workspace switches without a re-theme.
+ */
+@utility workspace-glow {
+  --workspace-glow-strength: 13%;
+  background-image:
+    radial-gradient(
+      ellipse 320px 200px at 0% 0%,
+      color-mix(in oklch, var(--workspace-tint, var(--primary)) var(--workspace-glow-strength), transparent) 0%,
+      color-mix(in oklch, var(--workspace-tint, var(--primary)) calc(var(--workspace-glow-strength) * 0.35), transparent) 50%,
+      transparent 100%
+    ),
+    radial-gradient(
+      circle at 100% 0%,
+      color-mix(in oklch, var(--accent-blue) 6%, transparent) 0%,
+      transparent 30%
+    );
+  :where(.dark) & {
+    --workspace-glow-strength: 18%;
+  }
+}
+
+@utility workspace-glow-panel {
+  --workspace-glow-strength: 6%;
+  background-image: linear-gradient(
+    to bottom,
+    color-mix(in oklch, var(--workspace-tint, var(--primary)) var(--workspace-glow-strength), transparent) 0px,
+    transparent 140px
+  );
+  :where(.dark) & {
+    --workspace-glow-strength: 9%;
+  }
+}

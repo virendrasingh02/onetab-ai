@@ -51,6 +51,7 @@ export {
   UserCover,
   WorkspaceAvatar,
   WorkspaceColorProvider,
+  useWorkspaceTint,
   type ApiPresenceStatus,
   type AvatarColorResolver,
   type AvatarPresenceResolver,
