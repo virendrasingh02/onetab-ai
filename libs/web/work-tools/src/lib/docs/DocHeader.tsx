@@ -337,7 +337,7 @@ export function DocHeader({
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         onClick={() => onUpdateProject(undefined, undefined)}
-                        className="text-destructive focus:text-destructive"
+                        variant="destructive"
                       >
                         Unlink project
                       </DropdownMenuItem>

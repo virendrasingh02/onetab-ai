@@ -7,6 +7,7 @@ import {
   type ProjectDetail,
 } from '@org/types';
 import {
+  ActionDropdownMenu,
   Badge,
   Button,
   Dialog,
@@ -20,11 +21,9 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
   EmptyState,
+  type EntityAction,
   Input,
   ProjectGlyph,
   Select,
@@ -1035,114 +1034,105 @@ export function AsanaProjectManager() {
           </div>
 
           {activeProject ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+            <ActionDropdownMenu
+              align="start"
+              scope={`project:${activeProject.id}`}
+              trigger={
                 <button
                   type="button"
-                  className="p-1 cursor-pointer rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="p-1 cursor-pointer rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground data-[state=open]:bg-muted data-[state=open]:text-foreground"
                   title="Project options"
                   aria-label="Project options"
                 >
                   <MoreHorizontal className="size-4" />
                 </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-48">
-                <DropdownMenuItem
-                  onClick={openEditProject}
-                  className="gap-2"
-                >
-                  <Pencil className="size-3.5 text-primary" />
-                  Edit project details
-                </DropdownMenuItem>
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger className="gap-2">
-                    <CircleDot className="size-3.5 text-muted-foreground" />
-                    <span className="flex-1">Status</span>
-                    <span className="text-muted-foreground">
-                      {STATUS_LABELS[activeProject.status]}
-                    </span>
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent className="w-36">
-                    {PROJECT_STATUSES.map((st) => (
-                      <DropdownMenuItem
-                        key={st}
-                        onClick={() =>
-                          projectMutations.update.mutate({
-                            projectId: activeProject.id,
-                            input: { status: st },
-                          })
-                        }
-                        className="justify-between"
-                      >
-                        {STATUS_LABELS[st]}
-                        {activeProject.status === st && (
-                          <Check className="size-3.5 shrink-0 text-primary" />
-                        )}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-                {activeProject.ticketPrefix && (
-                  <DropdownMenuItem
-                    onClick={() => {
-                      navigator.clipboard.writeText(
-                        activeProject.ticketPrefix as string,
-                      );
-                      toast.success(
-                        `Copied prefix ${activeProject.ticketPrefix}`,
-                      );
-                    }}
-                    className="gap-2"
-                  >
-                    <Hash className="size-3.5 text-muted-foreground" />
-                    <span className="flex-1">Copy ticket prefix</span>
-                    <span className="font-mono text-muted-foreground">
-                      {activeProject.ticketPrefix}
-                    </span>
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem
-                  onClick={() => shareProject(activeProject)}
-                  className="gap-2"
-                >
-                  <Send className="size-3.5 text-muted-foreground" />
-                  Share in chat…
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => openProjectSettings(activeProject.id)}
-                  className="gap-2"
-                >
-                  <Settings className="size-3.5 text-muted-foreground" />
-                  Project settings
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setViewMode('projects')}
-                  className="gap-2"
-                >
-                  <FolderKanban className="size-3.5 text-muted-foreground" />
-                  All projects
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setIsShortcutsOpen(true)}
-                  className="gap-2"
-                >
-                  <Keyboard className="size-3.5 text-muted-foreground" />
-                  Keyboard shortcuts
-                </DropdownMenuItem>
-                {can(WorkspacePermission.DELETE) ? (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => handleDeleteProject(activeProject.id)}
-                      className="gap-2 text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="size-3.5" />
-                      Delete project
-                    </DropdownMenuItem>
-                  </>
-                ) : null}
-              </DropdownMenuContent>
-            </DropdownMenu>
+              }
+              /* Same action model as the task menu, so the two read alike:
+                 one icon size and tone, grouped rows, a red "Delete…" last. */
+              actions={(): EntityAction[] => [
+                {
+                  id: 'edit',
+                  group: 'edit',
+                  label: 'Edit project details',
+                  icon: Pencil,
+                  shortcut: 'E',
+                  run: openEditProject,
+                },
+                {
+                  id: 'status',
+                  group: 'fields',
+                  label: 'Status',
+                  icon: CircleDot,
+                  hint: STATUS_LABELS[activeProject.status],
+                  children: PROJECT_STATUSES.map(
+                    (st): EntityAction => ({
+                      id: `status-${st}`,
+                      label: STATUS_LABELS[st],
+                      checked: activeProject.status === st,
+                      disabled: activeProject.status === st,
+                      run: () =>
+                        projectMutations.update.mutate({
+                          projectId: activeProject.id,
+                          input: { status: st },
+                        }),
+                    }),
+                  ),
+                },
+                {
+                  id: 'copy-prefix',
+                  group: 'more',
+                  label: 'Copy ticket prefix',
+                  icon: Hash,
+                  hint: activeProject.ticketPrefix,
+                  hidden: !activeProject.ticketPrefix,
+                  successMessage: `Copied prefix ${activeProject.ticketPrefix}`,
+                  run: () =>
+                    navigator.clipboard.writeText(
+                      activeProject.ticketPrefix as string,
+                    ),
+                },
+                {
+                  id: 'share',
+                  group: 'more',
+                  label: 'Share in chat…',
+                  icon: Send,
+                  run: () => shareProject(activeProject),
+                },
+                {
+                  id: 'settings',
+                  group: 'navigate',
+                  label: 'Project settings',
+                  icon: Settings,
+                  run: () => openProjectSettings(activeProject.id),
+                },
+                {
+                  id: 'all-projects',
+                  group: 'navigate',
+                  label: 'All projects',
+                  icon: FolderKanban,
+                  run: () => setViewMode('projects'),
+                },
+                {
+                  id: 'shortcuts',
+                  group: 'navigate',
+                  label: 'Keyboard shortcuts',
+                  icon: Keyboard,
+                  run: () => setIsShortcutsOpen(true),
+                },
+                {
+                  id: 'delete',
+                  group: 'danger',
+                  label: 'Delete project…',
+                  icon: Trash2,
+                  shortcut: 'Del',
+                  destructive: true,
+                  hidden: !can(WorkspacePermission.DELETE),
+                  // `handleDeleteProject` asks first and reports its own errors.
+                  errorMessage: false,
+                  run: () => handleDeleteProject(activeProject.id),
+                },
+              ]}
+            />
           ) : null}
         </div>
 

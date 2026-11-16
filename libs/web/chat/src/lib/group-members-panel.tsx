@@ -296,9 +296,9 @@ export function GroupMembersPanel({
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               onClick={() => handleRemoveMember(member)}
-                              className="gap-2 text-destructive focus:text-destructive"
+                              variant="destructive"
                             >
-                              <UserMinus className="size-3.5" />
+                              <UserMinus />
                               <span>Remove from group</span>
                             </DropdownMenuItem>
                           </>

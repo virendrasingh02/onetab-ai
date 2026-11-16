@@ -218,8 +218,8 @@ export const AppProfileRightPanel: FC<AppProfileRightPanelProps> = ({
               {isConnected && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleDisconnect} className="text-destructive focus:text-destructive">
-                    <AlertCircle className="mr-2 h-3.5 w-3.5" />
+                  <DropdownMenuItem onClick={handleDisconnect} variant="destructive">
+                    <AlertCircle />
                     Disconnect App
                   </DropdownMenuItem>
                 </>

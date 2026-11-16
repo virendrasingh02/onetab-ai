@@ -286,7 +286,7 @@ export function NotionBlockEditor({
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => handleDeleteBlock(block.id)}
-                    className="text-destructive focus:text-destructive"
+                    variant="destructive"
                   >
                     Delete block
                   </DropdownMenuItem>

@@ -262,8 +262,8 @@ export function AgentConnectorsTab({ agent, onChanged }: { agent: AgentWithApps;
                           <ExternalLink className="size-3.5" /> Open connector
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={() => void remove(c)} className="gap-2 text-destructive focus:text-destructive">
-                          <Trash2 className="size-3.5" /> Remove from agent
+                        <DropdownMenuItem onSelect={() => void remove(c)} variant="destructive">
+                          <Trash2 /> Remove from agent
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

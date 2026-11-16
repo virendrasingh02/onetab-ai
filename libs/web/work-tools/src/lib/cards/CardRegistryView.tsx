@@ -308,9 +308,9 @@ export function CardRegistryView() {
                             toast.info(`Deleted "${card.name}"`);
                           });
                         }}
-                        className="text-destructive focus:text-destructive"
+                        variant="destructive"
                       >
-                        <Trash2 className="size-3.5 mr-2" />
+                        <Trash2 />
                         Delete Card
                       </DropdownMenuItem>
                     </DropdownMenuContent>

@@ -638,9 +638,9 @@ function GroupHeader({
                     {canManage && roomAvatarUrl ? (
                       <DropdownMenuItem
                         onClick={handleClearAvatar}
-                        className="gap-2.5 text-destructive focus:text-destructive"
+                        variant="destructive"
                       >
-                        <Trash2 className="size-4" />
+                        <Trash2 />
                         <span>Remove group avatar</span>
                       </DropdownMenuItem>
                     ) : null}
@@ -685,9 +685,9 @@ function GroupHeader({
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={handleLeave}
-                      className="gap-2.5 text-destructive focus:text-destructive"
+                      variant="destructive"
                     >
-                      <LogOut className="size-4" />
+                      <LogOut />
                       <span>Leave group</span>
                     </DropdownMenuItem>
                   </>

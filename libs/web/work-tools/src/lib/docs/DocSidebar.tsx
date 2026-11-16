@@ -429,9 +429,9 @@ export function DocSidebar({
                                 if (ok) onDeleteCompany(company.id);
                               });
                             }}
-                            className="gap-2 text-destructive focus:text-destructive"
+                            variant="destructive"
                           >
-                            <Trash2 className="size-3" />
+                            <Trash2 />
                             Delete Folder
                           </DropdownMenuItem>
                         )}

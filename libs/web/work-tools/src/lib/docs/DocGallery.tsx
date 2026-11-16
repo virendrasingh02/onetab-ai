@@ -172,9 +172,9 @@ function DocCardActions({
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => onDeleteDoc(doc.id)}
-                className="gap-2 text-destructive focus:text-destructive"
+                variant="destructive"
               >
-                <Trash2 className="size-3.5" />
+                <Trash2 />
                 Delete
               </DropdownMenuItem>
             </>

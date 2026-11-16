@@ -232,9 +232,9 @@ function CoworkerMessageHeader({
 
                 <DropdownMenuItem
                   onClick={handleDelete}
-                  className="gap-2.5 text-destructive focus:text-destructive"
+                  variant="destructive"
                 >
-                  <Trash2 className="size-4" />
+                  <Trash2 />
                   <span>Delete coworker</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>

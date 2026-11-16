@@ -1465,12 +1465,12 @@ function MembersTab({
                                   <>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem
-                                      className="gap-2 text-destructive focus:text-destructive"
+                                      variant="destructive"
                                       onClick={() =>
                                         void handleRemoveMember(member)
                                       }
                                     >
-                                      <UserMinus className="size-3.5" />
+                                      <UserMinus />
                                       <span>Remove from channel</span>
                                     </DropdownMenuItem>
                                   </>
@@ -1726,9 +1726,9 @@ function ChannelSettingsDropdown({
             <DropdownMenuSeparator className="my-1 bg-border/60" />
             <DropdownMenuItem
               onSelect={() => void handleLeave()}
-              className="gap-2.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              variant="destructive"
             >
-              <LogOut className="size-4 shrink-0 text-destructive" />
+              <LogOut className="shrink-0 text-destructive" />
               <div className="min-w-0 flex flex-col">
                 <span className="font-semibold text-destructive">
                   Leave this channel

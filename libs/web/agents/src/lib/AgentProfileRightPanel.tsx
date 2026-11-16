@@ -292,8 +292,8 @@ export const AgentProfileRightPanel: FC<AgentProfileRightPanelProps> = ({
               Copy Agent Link
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleDelete} className="text-destructive focus:text-destructive">
-              <Trash2 className="mr-2 size-3.5" />
+            <DropdownMenuItem onClick={handleDelete} variant="destructive">
+              <Trash2 />
               Delete Agent
             </DropdownMenuItem>
           </DropdownMenuContent>

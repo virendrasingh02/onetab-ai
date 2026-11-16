@@ -165,6 +165,12 @@ function MenuActionItems({
                     <span className="flex-1 truncate text-left">
                       {action.label}
                     </span>
+                    {/* The current value, so the row reads without opening it. */}
+                    {action.hint ? (
+                      <span className="pl-2 font-normal text-2xs text-muted-foreground">
+                        {action.hint}
+                      </span>
+                    ) : null}
                   </SubTrigger>
                   <SubContent className="min-w-48">
                     <MenuActionItems

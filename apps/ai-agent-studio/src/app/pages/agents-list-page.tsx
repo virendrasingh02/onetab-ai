@@ -875,9 +875,9 @@ export function AgentsListPage() {
                                 });
                                 if (ok) deleteMutation.mutate(agent.id);
                               }}
-                              className="text-destructive focus:text-destructive"
+                              variant="destructive"
                             >
-                              <Trash2 className="size-3.5 mr-2" /> Move to Trash
+                              <Trash2 /> Move to Trash
                             </DropdownMenuItem>
                           </>
                         ) : (
@@ -901,9 +901,9 @@ export function AgentsListPage() {
                                 if (ok)
                                   permanentDeleteMutation.mutate(agent.id);
                               }}
-                              className="text-destructive focus:text-destructive"
+                              variant="destructive"
                             >
-                              <Trash2 className="size-3.5 mr-2" /> Delete
+                              <Trash2 /> Delete
                               Permanently
                             </DropdownMenuItem>
                           </>

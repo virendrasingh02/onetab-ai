@@ -295,9 +295,9 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={handleDelete}
-              className="text-destructive focus:text-destructive"
+              variant="destructive"
             >
-              <Trash2 className="mr-2 size-3.5" />
+              <Trash2 />
               Delete Coworker
             </DropdownMenuItem>
           </DropdownMenuContent>

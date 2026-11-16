@@ -758,9 +758,9 @@ function AppMessageHeader({ app }: { app: AppModelItem }) {
                             );
                         });
                       }}
-                      className="gap-2.5 text-destructive focus:text-destructive"
+                      variant="destructive"
                     >
-                      <Unplug className="size-4" />
+                      <Unplug />
                       <span>Disconnect app</span>
                     </DropdownMenuItem>
                   </>

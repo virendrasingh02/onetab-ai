@@ -739,9 +739,9 @@ export function PinnedMessageCard({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => onUnpin(message.id)}
-                  className="gap-2 text-destructive hover:bg-destructive/10"
+                  variant="destructive"
                 >
-                  <PinOff className="size-3.5" />
+                  <PinOff />
                   <span>Unpin from channel</span>
                 </DropdownMenuItem>
               </>

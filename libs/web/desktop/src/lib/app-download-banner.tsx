@@ -165,7 +165,7 @@ export function AppDownloadBanner({
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={handleDismiss}
-              className="text-destructive focus:text-destructive"
+              variant="destructive"
             >
               Don&apos;t ask again
             </DropdownMenuItem>

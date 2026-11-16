@@ -156,9 +156,8 @@ export function EntityActions({
                 if (ok) handlers.onDelete?.(entity);
               });
             }}
-            className="gap-2 text-destructive focus:bg-destructive/10"
           >
-            <Trash2 className="size-3.5" />
+            <Trash2 />
             <span>Delete</span>
           </DropdownMenuItem>
         )}
