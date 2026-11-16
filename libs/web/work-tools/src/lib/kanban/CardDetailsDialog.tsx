@@ -743,7 +743,9 @@ function CardDetailsBody({
                   relation: rel.type.toLowerCase(),
                 }))}
                 onItemClick={(item) => {
-                  const target = relations.find((r) => r.id === item.id)?.otherTask;
+                  const target = relations.find(
+                    (r) => r.id === item.id,
+                  )?.otherTask;
                   if (target && canOpen(target.id)) {
                     onOpenCard(target.id);
                   }
@@ -786,17 +788,17 @@ function CardDetailsBody({
               />
             </div>
 
-            <div className="bottom-0 -mx-1 px-1 pt-1 pb-4 sticky z-10 bg-card">
+            <div className="bottom-0 -mx-1 px-1 pt-1 sticky z-10 bg-card">
               <CardCommentComposer
                 workspaceId={workspaceId}
                 cardId={card.id}
                 members={board.members}
+                currentUserId={currentUser?.id}
                 canComment={canCreate}
-                sending={addComment.isPending}
                 prefill={aiComment}
                 onPrefillTaken={clearAiComment}
-                onSend={(content, onSent) =>
-                  addComment.mutate({ content }, { onSuccess: onSent })
+                onSend={(content, mentionedUserIds) =>
+                  addComment.mutateAsync({ content, mentionedUserIds })
                 }
               />
             </div>

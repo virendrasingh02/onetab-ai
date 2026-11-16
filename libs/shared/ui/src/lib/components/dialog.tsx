@@ -48,11 +48,27 @@ export interface DialogContentProps extends ComponentProps<
   mobile?: 'center' | 'full' | 'sheet';
 }
 
+/**
+ * The chat composer's `@` / `/` / `:` menus are portaled to <body> (Lexical
+ * positions them in page coordinates), so a dialog hosting a composer would
+ * otherwise treat a click on one as outside and close, and keep Escape from
+ * closing just the menu.
+ */
+function isComposerMenuTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && !!target.closest('[data-composer-menu]');
+}
+
+const composerMenuOpen = () =>
+  typeof document !== 'undefined' &&
+  !!document.querySelector('[data-composer-menu]');
+
 export function DialogContent({
   className,
   children,
   hideCloseButton = false,
   mobile = 'center',
+  onInteractOutside,
+  onEscapeKeyDown,
   ...props
 }: DialogContentProps) {
   return (
@@ -65,7 +81,7 @@ export function DialogContent({
           'fixed z-50 flex flex-col overflow-hidden bg-popover text-popover-foreground outline-none',
           // --- Centred card (all desktop; the default everywhere) ---
           'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
-          'max-w-lg sm:w-full w-[calc(100vw-2rem)] max-h-[90dvh]',
+          'max-w-lg sm:w-full max-h-[90dvh] w-[calc(100vw-2rem)]',
           'rounded-dialog border border-border shadow-overlay',
           'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-98',
           'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-98',
@@ -88,12 +104,20 @@ export function DialogContent({
             ),
           className,
         )}
+        onInteractOutside={(event) => {
+          if (isComposerMenuTarget(event.target)) event.preventDefault();
+          else onInteractOutside?.(event);
+        }}
+        onEscapeKeyDown={(event) => {
+          if (composerMenuOpen()) event.preventDefault();
+          else onEscapeKeyDown?.(event);
+        }}
         {...props}
       >
         {mobile === 'sheet' ? (
           <div
             aria-hidden
-            className="sm:hidden mx-auto mt-2 mb-0.5 h-1.5 w-10 shrink-0 rounded-full bg-border-strong"
+            className="sm:hidden mt-2 mb-0.5 h-1.5 w-10 mx-auto shrink-0 rounded-full bg-border-strong"
           />
         ) : null}
         {/*

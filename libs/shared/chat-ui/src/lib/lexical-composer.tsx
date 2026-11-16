@@ -1017,7 +1017,11 @@ function MenuShell({
       ref={menuRef}
       role="region"
       aria-label={`${label} suggestions`}
+      // Portaled to <body>: a host modal must not swallow its clicks or
+      // treat them as "outside" (see `isComposerMenuTarget` in @org/ui).
+      data-composer-menu=""
       className={cn(
+        'pointer-events-auto',
         'left-0 mb-5 absolute bottom-full z-120',
         MENU_CLASS,
         className,
@@ -1564,7 +1568,9 @@ function CommandName({ name, query }: { name: string; query: string }) {
   return (
     <>
       /{body.slice(0, at)}
-      <span className="text-brand-text">{body.slice(at, at + query.length)}</span>
+      <span className="text-brand-text">
+        {body.slice(at, at + query.length)}
+      </span>
       {body.slice(at + query.length)}
     </>
   );

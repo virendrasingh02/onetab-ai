@@ -2071,6 +2071,8 @@ export class WorkToolsService {
       task,
       authorId,
       input.content,
+      '',
+      input.mentionedUserIds,
     );
 
     return comment;
@@ -2087,9 +2089,10 @@ export class WorkToolsService {
     authorId: string,
     content: string,
     previousContent = '',
+    pickedUserIds: readonly string[] = [],
   ): Promise<void> {
     try {
-      if (!content.includes('@')) return;
+      if (!content.includes('@') && pickedUserIds.length === 0) return;
 
       const members = await this.prisma.workspaceMember.findMany({
         where: { workspaceId, status: 'ACTIVE' },
@@ -2100,9 +2103,15 @@ export class WorkToolsService {
 
       const users = members.map((m) => m.user);
       const alreadyMentioned = resolveTextMentions(previousContent, users);
-      const mentionedUserIds = resolveTextMentions(content, users).filter(
-        (id) => id !== authorId && !alreadyMentioned.includes(id),
-      );
+      // Chips picked in the composer are exact; `@Name` text covers the rest
+      // (edits, API callers). Picks only count for active members.
+      const memberIds = new Set(users.map((u) => u.id));
+      const mentionedUserIds = [
+        ...new Set([
+          ...pickedUserIds.filter((id) => memberIds.has(id)),
+          ...resolveTextMentions(content, users),
+        ]),
+      ].filter((id) => id !== authorId && !alreadyMentioned.includes(id));
       if (mentionedUserIds.length === 0) return;
 
       this.events.emit(AppEvent.MentionCreated, {
@@ -2158,6 +2167,7 @@ export class WorkToolsService {
       userId,
       input.content,
       existing.content,
+      input.mentionedUserIds,
     );
 
     return comment;

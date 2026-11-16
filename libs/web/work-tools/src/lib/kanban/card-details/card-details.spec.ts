@@ -8,7 +8,7 @@ import {
   type ActivityLookups,
 } from './activity-feed.js';
 import { parseAiList } from './card-ai.js';
-import { activeMention } from './CardCommentComposer.js';
+import { mentionedUserIds } from './CardCommentComposer.js';
 
 const lookups: ActivityLookups = {
   memberName: (id) => ({ u1: 'Amara', u2: 'Ben' })[id],
@@ -184,16 +184,19 @@ describe('dueCountdown', () => {
   });
 });
 
-describe('activeMention', () => {
-  it('finds the query at the caret, spaces included', () => {
-    expect(activeMention('hey @Amara O', 12)).toEqual({
-      start: 4,
-      query: 'Amara O',
-    });
-  });
-
-  it('ignores an @ inside a word, and a closed line', () => {
-    expect(activeMention('mail me@work.com', 16)).toBeNull();
-    expect(activeMention('@Amara\nnext', 11)).toBeNull();
+describe('mentionedUserIds', () => {
+  it('keeps picked people once and drops agents and groups', () => {
+    expect(
+      mentionedUserIds({
+        mentions: [
+          { id: 'u1', kind: 'user' },
+          { id: 'u1', kind: 'user' },
+          { id: 'a1', kind: 'agent' },
+          { id: 'here', kind: 'group' },
+          { id: 'u2', kind: 'user' },
+        ],
+      }),
+    ).toEqual(['u1', 'u2']);
+    expect(mentionedUserIds(undefined)).toEqual([]);
   });
 });

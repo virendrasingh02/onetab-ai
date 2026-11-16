@@ -380,6 +380,8 @@ export const createTaskCommentSchema = z.object({
     .trim()
     .min(1, 'Write a comment first')
     .max(5000, 'Comment must be at most 5000 characters'),
+  /** People picked from the composer's `@` menu; `@Name` text is also read. */
+  mentionedUserIds: z.array(z.string().min(1).max(64)).max(50).optional(),
 });
 
 export const updateTaskCommentSchema = createTaskCommentSchema;
