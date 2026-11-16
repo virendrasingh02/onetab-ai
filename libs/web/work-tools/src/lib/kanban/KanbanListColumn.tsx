@@ -159,6 +159,9 @@ export function KanbanListColumn({
       hidden={drag.activeListId === list.id}
       className={cn(
         'sm:w-80 md:w-84 xl:w-[320px] 2xl:w-[340px] min-h-0 flex w-[85vw] shrink-0 flex-col rounded-xl',
+        // A tinted lane that fades out toward the bottom: the header end reads
+        // as the column's anchor, the empty tail stays airy.
+        'bg-linear-to-b from-accent via-accent/50 via-40% to-transparent',
         'transition-[box-shadow,background-color] duration-(--duration-fast)',
         // Set by the drag engine on whichever column is under the pointer.
         'data-drop-target:bg-surface-muted data-drop-target:ring-2 data-drop-target:ring-primary/25',
@@ -466,8 +469,11 @@ export function KanbanListColumn({
         {composer !== 'top' ? (
           <div
             className={cn(
-              'bottom-0 z-10 -mx-1.5 px-1.5 pt-2 pb-2 sticky bg-background',
-              'in-data-drop-target:bg-surface-muted',
+              'bottom-0 z-10 -mx-1.5 px-1.5 pt-2 pb-2 sticky',
+              // Only once the cards overflow does it need a fill to cover the
+              // ones scrolling under it — and by then it sits at the column's
+              // faded-out bottom, where the board background matches.
+              'in-[.simplebar-scrollable-y]:bg-background',
             )}
           >
             {composer === 'bottom' ? (
