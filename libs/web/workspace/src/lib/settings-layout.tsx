@@ -59,6 +59,7 @@ import {
   Lock,
   Mail,
   MessageSquare,
+  Network,
   Palette,
   Plug,
   Search,
@@ -284,6 +285,12 @@ const NAV_GROUPS: NavGroup[] = [
         label: 'AI Providers & Keys',
         icon: Key,
         keywords: 'openai anthropic api key',
+      },
+      {
+        id: 'knowledge-graph',
+        label: 'Knowledge & Context Graph',
+        icon: Network,
+        keywords: 'knowledge graph context engine code parsing sources indexing retention',
       },
       {
         id: 'ai-persona',

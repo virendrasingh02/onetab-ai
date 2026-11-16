@@ -314,6 +314,18 @@ import type {
   KnowledgeAnswerRequest,
   KnowledgeUsageSummary,
   KnowledgeRetrievalResult,
+  CreateGraphEntityInput,
+  CreateGraphRelationshipInput,
+  GraphEdgeDto,
+  GraphNodeDto,
+  GraphQueryInput,
+  GraphSourceDto,
+  GraphTraversalInput,
+  IndexSourceInput,
+  KnowledgeGraphHealth,
+  SubgraphDto,
+  ContextEngineResult,
+  ContextQueryRequest,
   AIApp,
   CreateAIAppInput,
   AIApprovalRequest,
@@ -6638,6 +6650,87 @@ export const knowledgeApi = {
         `/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/answer`,
         data,
       ),
+    ),
+};
+
+export const knowledgeGraphApi = {
+  health: (workspaceId: string) =>
+    request<KnowledgeGraphHealth>(
+      http.get(`/workspaces/${workspaceId}/knowledge-graph/health`),
+    ),
+
+  query: (workspaceId: string, query: GraphQueryInput) =>
+    request<SubgraphDto>(
+      http.post(`/workspaces/${workspaceId}/knowledge-graph/query`, query),
+    ),
+
+  traverse: (workspaceId: string, input: GraphTraversalInput) =>
+    request<SubgraphDto>(
+      http.post(`/workspaces/${workspaceId}/knowledge-graph/traverse`, input),
+    ),
+
+  listEntities: (workspaceId: string, params?: { query?: string; type?: string; limit?: number }) =>
+    request<SubgraphDto>(
+      http.get(`/workspaces/${workspaceId}/knowledge-graph/entities`, { params }),
+    ),
+
+  getEntity: (workspaceId: string, id: string) =>
+    request<GraphNodeDto | null>(
+      http.get(`/workspaces/${workspaceId}/knowledge-graph/entities/${id}`),
+    ),
+
+  createEntity: (workspaceId: string, data: CreateGraphEntityInput) =>
+    request<GraphNodeDto>(
+      http.post(`/workspaces/${workspaceId}/knowledge-graph/entities`, data),
+    ),
+
+  updateEntity: (workspaceId: string, id: string, data: Partial<CreateGraphEntityInput>) =>
+    request<GraphNodeDto>(
+      http.patch(`/workspaces/${workspaceId}/knowledge-graph/entities/${id}`, data),
+    ),
+
+  deleteEntity: (workspaceId: string, id: string) =>
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/knowledge-graph/entities/${id}`),
+    ),
+
+  getRelations: (workspaceId: string, id: string, direction?: 'OUTGOING' | 'INCOMING' | 'BOTH') =>
+    request<GraphEdgeDto[]>(
+      http.get(`/workspaces/${workspaceId}/knowledge-graph/entities/${id}/relations`, {
+        params: { direction },
+      }),
+    ),
+
+  createRelationship: (workspaceId: string, data: CreateGraphRelationshipInput) =>
+    request<GraphEdgeDto>(
+      http.post(`/workspaces/${workspaceId}/knowledge-graph/relationships`, data),
+    ),
+
+  listSources: (workspaceId: string) =>
+    request<GraphSourceDto[]>(
+      http.get(`/workspaces/${workspaceId}/knowledge-graph/sources`),
+    ),
+
+  indexSource: (workspaceId: string, data: IndexSourceInput) =>
+    request<GraphSourceDto>(
+      http.post(`/workspaces/${workspaceId}/knowledge-graph/sources/index`, data),
+    ),
+
+  deleteSource: (workspaceId: string, id: string) =>
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/knowledge-graph/sources/${id}`),
+    ),
+
+  reindex: (workspaceId: string) =>
+    request<{ status: string; queued: boolean }>(
+      http.post(`/workspaces/${workspaceId}/knowledge-graph/reindex`),
+    ),
+};
+
+export const contextEngineApi = {
+  buildContext: (workspaceId: string, data: ContextQueryRequest) =>
+    request<ContextEngineResult>(
+      http.post(`/workspaces/${workspaceId}/knowledge-graph/context/build`, data),
     ),
 };
 

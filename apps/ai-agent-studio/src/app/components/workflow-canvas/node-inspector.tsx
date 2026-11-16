@@ -1583,6 +1583,167 @@ export function NodeInspector({
                 </div>
               )}
 
+              {/* 8b. KNOWLEDGE GRAPH & CONTEXT ENGINE CONFIGURATION */}
+              {(nodeType === 'GRAPH_SEARCH' ||
+                nodeType === 'GRAPH_TRAVERSE' ||
+                nodeType === 'GRAPH_FIND_ENTITY' ||
+                nodeType === 'GRAPH_FIND_RELATIONS') && (
+                <div className="space-y-3 pt-2 border-t border-border">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground">
+                      {nodeType === 'GRAPH_SEARCH'
+                        ? 'Search Query'
+                        : nodeType === 'GRAPH_FIND_ENTITY'
+                        ? 'Entity Identifier / Name'
+                        : 'Start Node ID / Identifier'}
+                    </Label>
+                    <Input
+                      value={config.query || config.identifier || ''}
+                      placeholder="e.g. Mobile Release, Task-102, AuthService"
+                      disabled={readOnly}
+                      onChange={(e) => {
+                        updateConfig('query', e.target.value);
+                        updateConfig('identifier', e.target.value);
+                      }}
+                    />
+                  </div>
+                  {(nodeType === 'GRAPH_TRAVERSE' ||
+                    nodeType === 'GRAPH_SEARCH') && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-foreground">
+                        Max Depth Hops: {config.maxDepth || 2}
+                      </Label>
+                      <Slider
+                        min={1}
+                        max={4}
+                        value={[Number(config.maxDepth || 2)]}
+                        onValueChange={([v]) => updateConfig('maxDepth', v)}
+                      />
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground">
+                      Max Results Limit: {config.limit || 10}
+                    </Label>
+                    <Slider
+                      min={1}
+                      max={50}
+                      value={[Number(config.limit || 10)]}
+                      onValueChange={([v]) => updateConfig('limit', v)}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {nodeType === 'CONTEXT_RETRIEVE' && (
+                <div className="space-y-3 pt-2 border-t border-border">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground">
+                      Retrieval Mode
+                    </Label>
+                    <select
+                      className="w-full text-xs rounded border border-input bg-background p-1.5 text-foreground"
+                      value={config.mode || 'HYBRID'}
+                      disabled={readOnly}
+                      onChange={(e) => updateConfig('mode', e.target.value)}
+                    >
+                      <option value="HYBRID">Hybrid (Graph + Vector)</option>
+                      <option value="GRAPH">Graph Traversal Only</option>
+                      <option value="VECTOR">Semantic Vector Only</option>
+                      <option value="DIRECT">Direct Platform Sources</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground">
+                      Token Budget: {config.maxTokens || 2500} tokens
+                    </Label>
+                    <Slider
+                      min={500}
+                      max={8000}
+                      step={250}
+                      value={[Number(config.maxTokens || 2500)]}
+                      onValueChange={([v]) => updateConfig('maxTokens', v)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground">
+                      Top Results (Top-K): {config.topK || 8}
+                    </Label>
+                    <Slider
+                      min={2}
+                      max={20}
+                      value={[Number(config.topK || 8)]}
+                      onValueChange={([v]) => updateConfig('topK', v)}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {(nodeType === 'GRAPH_CREATE_ENTITY' ||
+                nodeType === 'GRAPH_UPDATE_ENTITY') && (
+                <div className="space-y-3 pt-2 border-t border-border">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground">
+                      Entity Type
+                    </Label>
+                    <Input
+                      value={config.entityType || 'CustomEntity'}
+                      placeholder="e.g. Task, Component, API, Decision"
+                      disabled={readOnly}
+                      onChange={(e) => updateConfig('entityType', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground">
+                      Entity Name
+                    </Label>
+                    <Input
+                      value={config.name || ''}
+                      placeholder="Name of entity"
+                      disabled={readOnly}
+                      onChange={(e) => updateConfig('name', e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {nodeType === 'GRAPH_CREATE_RELATIONSHIP' && (
+                <div className="space-y-3 pt-2 border-t border-border">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground">
+                      Relation Type
+                    </Label>
+                    <select
+                      className="w-full text-xs rounded border border-input bg-background p-1.5 text-foreground"
+                      value={config.relationType || 'related_to'}
+                      disabled={readOnly}
+                      onChange={(e) => updateConfig('relationType', e.target.value)}
+                    >
+                      <option value="related_to">related_to</option>
+                      <option value="depends_on">depends_on</option>
+                      <option value="references">references</option>
+                      <option value="belongs_to">belongs_to</option>
+                      <option value="calls">calls</option>
+                      <option value="uses">uses</option>
+                      <option value="imports">imports</option>
+                      <option value="contains">contains</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground">
+                      Weight: {config.weight || 1.0}
+                    </Label>
+                    <Slider
+                      min={0.1}
+                      max={2.0}
+                      step={0.1}
+                      value={[Number(config.weight || 1.0)]}
+                      onValueChange={([v]) => updateConfig('weight', v)}
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* 9. CODE EXECUTION CONFIGURATION */}
               {(nodeType === 'CODE_JAVASCRIPT' ||
                 nodeType === 'CODE' ||

@@ -1,4 +1,5 @@
-import { Button, AIModelIcon, UserAvatar } from '@org/ui';
+import type { ContextSourceItem } from '@org/types';
+import { Button, AIModelIcon, UserAvatar, ContextIndicator } from '@org/ui';
 import { cn } from '@org/utils';
 import { Sparkles, TriangleAlert } from 'lucide-react';
 import { MarkdownMessage } from './markdown-message.js';
@@ -17,6 +18,9 @@ export interface AITranscriptMessage {
   content: string;
   /** ISO timestamp — formatted at render, not at creation. */
   at: string;
+  contextSources?: ContextSourceItem[];
+  tokensUsed?: number;
+  tokensSaved?: number;
 }
 
 /**
@@ -103,6 +107,15 @@ export function AIMessage({
           text={message.content}
           className="text-sm leading-relaxed"
         />
+        {!isUser && message.contextSources && message.contextSources.length > 0 ? (
+          <div className="mt-2">
+            <ContextIndicator
+              sources={message.contextSources}
+              tokensUsed={message.tokensUsed}
+              tokensSaved={message.tokensSaved}
+            />
+          </div>
+        ) : null}
       </div>
     </div>
   );

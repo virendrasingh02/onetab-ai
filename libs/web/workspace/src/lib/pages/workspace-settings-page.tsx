@@ -259,6 +259,13 @@ export function WorkspaceSettingsPage({
   const [logoError, setLogoError] = useState<string | null>(null);
   const [isLogoRemoved, setIsLogoRemoved] = useState(false);
   const [copiedSlug, setCopiedSlug] = useState(false);
+  // Knowledge Graph Workspace Settings
+  const [kgEnabled, setKgEnabled] = useState(true);
+  const [kgCodebaseIndexing, setKgCodebaseIndexing] = useState(true);
+  const [kgDocsIndexing, setKgDocsIndexing] = useState(true);
+  const [kgTasksIndexing, setKgTasksIndexing] = useState(true);
+  const [kgSecretScrubbing, setKgSecretScrubbing] = useState(true);
+  const [kgRetention, setKgRetention] = useState('forever');
   // The URL follows the name until the admin edits the URL by hand.
   const [slugTouched, setSlugTouched] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -1502,6 +1509,141 @@ export function WorkspaceSettingsPage({
       {/* ---------------- SECTION: ENTERPRISE CUSTOM LLM ---------------- */}
       {currentTab === 'enterprise-custom-llm' && (
         <EnterpriseCustomLLMSettings workspaceId={workspaceId ?? ''} />
+      )}
+
+      {/* ---------------- SECTION: KNOWLEDGE & CONTEXT GRAPH ---------------- */}
+      {currentTab === 'knowledge-graph' && (
+        <div className="space-y-8">
+          <SettingsSectionHeader
+            title={<>Knowledge & Context Graph</>}
+            description={
+              <>
+                Manage workspace-wide knowledge graph indexing, deterministic code parsing, context engine settings, and privacy controls.
+              </>
+            }
+          />
+
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
+              Graph Engine Status
+            </h3>
+            <SettingsCard divided>
+              <SettingsRow
+                title={<>Enable Platform Knowledge Graph</>}
+                description={
+                  <>
+                    Build an interconnected property graph across code, docs, and tasks for intelligent, token-budgeted AI agent context.
+                  </>
+                }
+              >
+                <Switch
+                  checked={kgEnabled}
+                  onCheckedChange={(val) => {
+                    setKgEnabled(val);
+                    toast.success(val ? 'Knowledge Graph enabled for workspace' : 'Knowledge Graph disabled');
+                  }}
+                />
+              </SettingsRow>
+
+              <SettingsRow
+                title={<>Local Deterministic Code Parser</>}
+                description={
+                  <>
+                    Extract AST components, functions, hooks, endpoints, and database models locally at ₹0 third-party cost.
+                  </>
+                }
+              >
+                <Switch
+                  checked={kgCodebaseIndexing}
+                  disabled={!kgEnabled}
+                  onCheckedChange={setKgCodebaseIndexing}
+                />
+              </SettingsRow>
+
+              <SettingsRow
+                title={<>Secret & Credential Scrubbing</>}
+                description={
+                  <>
+                    Automatically strip API keys, database connection strings, and .env files before storing in the graph.
+                  </>
+                }
+              >
+                <Switch
+                  checked={kgSecretScrubbing}
+                  disabled={!kgEnabled}
+                  onCheckedChange={setKgSecretScrubbing}
+                />
+              </SettingsRow>
+            </SettingsCard>
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
+              Indexing Sources & Retention
+            </h3>
+            <SettingsCard divided>
+              <SettingsRow
+                title={<>Index Notion-Style Documents</>}
+                description={<>Extract headings, topics, and cross-references into graph nodes.</>}
+              >
+                <Switch
+                  checked={kgDocsIndexing}
+                  disabled={!kgEnabled}
+                  onCheckedChange={setKgDocsIndexing}
+                />
+              </SettingsRow>
+
+              <SettingsRow
+                title={<>Index Kanban Tasks & Projects</>}
+                description={<>Track task blockers, dependencies, and assignees in the graph.</>}
+              >
+                <Switch
+                  checked={kgTasksIndexing}
+                  disabled={!kgEnabled}
+                  onCheckedChange={setKgTasksIndexing}
+                />
+              </SettingsRow>
+
+              <SettingsRow
+                title={<>Graph Entity Retention</>}
+                description={<>Duration to retain stale nodes and historical relationships.</>}
+              >
+                <Select value={kgRetention} onValueChange={setKgRetention}>
+                  <SelectTrigger className="w-32 h-8 text-xs border-border bg-surface">
+                    <SelectValue placeholder="Forever" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="forever" className="text-xs">
+                      Forever
+                    </SelectItem>
+                    <SelectItem value="1year" className="text-xs">
+                      1 Year
+                    </SelectItem>
+                    <SelectItem value="90days" className="text-xs">
+                      90 Days
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </SettingsRow>
+            </SettingsCard>
+          </div>
+
+          <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-surface shadow-xs">
+            <div>
+              <h4 className="text-sm font-semibold text-foreground">Interactive Knowledge Explorer</h4>
+              <p className="text-xs text-muted-foreground">
+                View topological node/edge visualization and simulate the Context Engine in AI Agent Studio.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/ai-agent-studio/knowledge')}
+            >
+              Open Studio Explorer
+            </Button>
+          </div>
+        </div>
       )}
 
       {/* ---------------- SECTION 4: AI MODELS & PERSONA ---------------- */}

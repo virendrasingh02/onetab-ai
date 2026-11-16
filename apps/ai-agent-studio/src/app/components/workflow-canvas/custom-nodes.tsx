@@ -3521,6 +3521,14 @@ const BASE_NODE_TYPES: Record<string, any> = {
   EMBEDDING_MODEL: TransformNode,
   CONTEXT_BUILDER: TransformNode,
   TEXT_SPLITTER: TransformNode,
+  GRAPH_SEARCH: TransformNode,
+  GRAPH_FIND_ENTITY: TransformNode,
+  GRAPH_FIND_RELATIONS: TransformNode,
+  GRAPH_TRAVERSE: TransformNode,
+  CONTEXT_RETRIEVE: TransformNode,
+  GRAPH_CREATE_ENTITY: TransformNode,
+  GRAPH_CREATE_RELATIONSHIP: TransformNode,
+  GRAPH_UPDATE_ENTITY: TransformNode,
 
   // Data & Transform
   TRANSFORM: TransformNode,

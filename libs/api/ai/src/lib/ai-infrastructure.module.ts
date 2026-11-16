@@ -17,6 +17,9 @@ import { QdrantVectorService } from './qdrant-vector.service.js';
 import { RagIngestListener } from './rag-ingest.listener.js';
 import { KnowledgeService } from './knowledge.service.js';
 import { KnowledgeController } from './knowledge.controller.js';
+import { KnowledgeGraphService } from './knowledge-graph.service.js';
+import { ContextEngineService } from './context-engine.service.js';
+import { KnowledgeGraphController } from './knowledge-graph.controller.js';
 import { AIStudioService } from './ai-studio.service.js';
 import { AIStudioController } from './ai-studio.controller.js';
 import { AIAppsService } from './ai-apps.service.js';
@@ -55,6 +58,7 @@ import { AIMemoryController } from './ai-memory.controller.js';
     AIFeedbackController,
     AIExecutionsController,
     AIMemoryController,
+    KnowledgeGraphController,
   ],
   providers: [
     AIEncryptionService,
@@ -67,6 +71,8 @@ import { AIMemoryController } from './ai-memory.controller.js';
     PromptTemplateService,
     RagIngestListener,
     KnowledgeService,
+    KnowledgeGraphService,
+    ContextEngineService,
     AIStudioService,
     AIAppsService,
     ApprovalsService,
@@ -87,6 +93,8 @@ import { AIMemoryController } from './ai-memory.controller.js';
     AIInfrastructureService,
     PromptTemplateService,
     KnowledgeService,
+    KnowledgeGraphService,
+    ContextEngineService,
     AIStudioService,
     AIAppsService,
     ApprovalsService,

@@ -270,7 +270,8 @@ export type SearchCategory =
   | 'coworkers'
   | 'calls'
   | 'meetings'
-  | 'workflows';
+  | 'workflows'
+  | 'knowledge_graph';
 
 export interface SearchResultItem {
   id: string;

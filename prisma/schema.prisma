@@ -469,6 +469,9 @@ model Workspace {
   auditLogs                 WorkspaceAuditLog[]
   migrations                MigrationSession[]
   knowledgeBases            KnowledgeBase[]
+  knowledgeGraphNodes       KnowledgeGraphNode[]
+  knowledgeGraphEdges       KnowledgeGraphEdge[]
+  knowledgeGraphSources     KnowledgeGraphSource[]
   aiApps                    AIApp[]
   approvalRequests          ApprovalRequest[]
   aiExecutions              AIExecution[]
@@ -4336,6 +4339,84 @@ model KnowledgeChunk {
 
   @@index([documentId, chunkIndex])
   @@map("knowledge_chunks")
+}
+
+model KnowledgeGraphNode {
+  id             String               @id @default(cuid())
+  workspaceId    String
+  organizationId String?
+  entityType     String
+  name           String
+  identifier     String?
+  description    String?
+  sourceRef      String?
+  sourceType     String?
+  sourceUri      String?
+  contentHash    String?
+  version        Int                  @default(1)
+  confidence     Float                @default(1.0)
+  provenance     String?
+  properties     Json                 @default("{}")
+  metadata       Json                 @default("{}")
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  workspace      Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  sourceEdges    KnowledgeGraphEdge[] @relation("GraphEdgeSource")
+  targetEdges    KnowledgeGraphEdge[] @relation("GraphEdgeTarget")
+
+  @@unique([workspaceId, entityType, identifier])
+  @@index([workspaceId, entityType])
+  @@index([workspaceId, sourceRef])
+  @@index([workspaceId, name])
+  @@map("knowledge_graph_nodes")
+}
+
+model KnowledgeGraphEdge {
+  id             String             @id @default(cuid())
+  workspaceId    String
+  organizationId String?
+  relationType   String
+  sourceNodeId   String
+  targetNodeId   String
+  weight         Float              @default(1.0)
+  confidence     Float              @default(1.0)
+  provenance     String?
+  properties     Json               @default("{}")
+  metadata       Json               @default("{}")
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  workspace      Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  sourceNode     KnowledgeGraphNode @relation("GraphEdgeSource", fields: [sourceNodeId], references: [id], onDelete: Cascade)
+  targetNode     KnowledgeGraphNode @relation("GraphEdgeTarget", fields: [targetNodeId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, sourceNodeId, targetNodeId, relationType])
+  @@index([workspaceId, sourceNodeId])
+  @@index([workspaceId, targetNodeId])
+  @@index([workspaceId, relationType])
+  @@map("knowledge_graph_edges")
+}
+
+model KnowledgeGraphSource {
+  id            String    @id @default(cuid())
+  workspaceId   String
+  name          String
+  sourceType    String
+  sourceUri     String?
+  status        String    @default("QUEUED")
+  contentHash   String?
+  version       Int       @default(1)
+  nodeCount     Int       @default(0)
+  edgeCount     Int       @default(0)
+  errorMessage  String?
+  lastIndexedAt DateTime?
+  metadata      Json      @default("{}")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, sourceType, name])
+  @@index([workspaceId, status])
+  @@map("knowledge_graph_sources")
 }
 
 model AIApp {

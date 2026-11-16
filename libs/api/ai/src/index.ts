@@ -24,6 +24,10 @@ export { PromptTemplateService } from './lib/prompt-template.service.js';
 export { AICredentialService } from './lib/ai-credential.service.js';
 export { AIEncryptionService } from './lib/ai-encryption.service.js';
 export { KnowledgeService } from './lib/knowledge.service.js';
+export { KnowledgeGraphService } from './lib/knowledge-graph.service.js';
+export { ContextEngineService } from './lib/context-engine.service.js';
+export { KnowledgeGraphController } from './lib/knowledge-graph.controller.js';
+export { DeterministicCodeParser } from './lib/knowledge-graph-parser.js';
 export {
   UnsupportedDocumentError,
   extractTextFromFile,

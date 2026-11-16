@@ -75,6 +75,8 @@ export {
   linkPreviewApi,
   aiStudioApi,
   knowledgeApi,
+  knowledgeGraphApi,
+  contextEngineApi,
   aiAppsApi,
   approvalsApi,
   aiExecutionsApi,

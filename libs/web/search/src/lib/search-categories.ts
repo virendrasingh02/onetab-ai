@@ -11,6 +11,7 @@ import {
   Sparkles,
   Users,
   Workflow,
+  Network,
 } from 'lucide-react';
 import type { ComponentType } from 'react';
 
@@ -34,6 +35,7 @@ export const SEARCH_CATEGORY_META: Record<
   coworkers: { label: 'AI coworkers', icon: Sparkles },
   agents: { label: 'AI agents', icon: Bot },
   workflows: { label: 'Workflows & agents', icon: Workflow },
+  knowledge_graph: { label: 'Knowledge Graph', icon: Network },
 };
 
 export const SEARCH_CATEGORIES = Object.keys(SEARCH_CATEGORY_META) as SearchCategory[];

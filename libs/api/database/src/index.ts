@@ -148,5 +148,8 @@ export type {
   MigrationError,
   MigrationValidation,
   MigrationReport,
+  KnowledgeGraphNode,
+  KnowledgeGraphEdge,
+  KnowledgeGraphSource,
 } from './generated/client.js';
 

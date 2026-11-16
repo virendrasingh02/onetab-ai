@@ -1,10 +1,13 @@
-import { ApiError, integrationsApi } from '@org/api-client';
+import { ApiError, integrationsApi, knowledgeGraphApi, contextEngineApi, queryKeys } from '@org/api-client';
 import type {
   KnowledgeAnswer,
   KnowledgeBase,
   KnowledgeDocument,
   KnowledgeRetrievalMode,
   KnowledgeRetrievalResult,
+  GraphEntityType,
+  ContextEngineResult,
+  ContextRetrievalMode,
 } from '@org/types';
 import {
   AppSelect,
@@ -29,9 +32,12 @@ import {
   Switch,
   Textarea,
   toast,
+  KnowledgeStatus,
+  KnowledgeExplorer,
+  ContextInspector,
 } from '@org/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { BookOpen, DatabaseZap, Eye, FileText, Globe, MessageSquareQuote, Plus, RefreshCw, Search, Sparkles, Trash2, Upload } from 'lucide-react';
+import { BookOpen, DatabaseZap, Eye, FileText, Globe, MessageSquareQuote, Plus, RefreshCw, Search, Sparkles, Trash2, Upload, Network } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { useAiModels, useAiProviders } from '../components/workflow-canvas/agent-config/use-agent-config-data.js';
 import { knowledgeService, type NewSource } from '../services/knowledgeService.js';
@@ -91,6 +97,65 @@ export function KnowledgePage() {
   const [noteName, setNoteName] = useState('');
   const [noteText, setNoteText] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Knowledge Graph & Context Engine State
+  const [activeMainTab, setActiveMainTab] = useState<'graph' | 'bases' | 'context'>('graph');
+  const [graphSearchQuery, setGraphSearchQuery] = useState('');
+  const [graphTypeFilter, setGraphTypeFilter] = useState<string>('ALL');
+  const [isIndexSourceOpen, setIsIndexSourceOpen] = useState(false);
+  const [indexSourceName, setIndexSourceName] = useState('');
+  const [indexSourceType, setIndexSourceType] = useState<'CODE_REPO' | 'DOCS' | 'TASKS' | 'PROJECTS' | 'CUSTOM'>('DOCS');
+  const [codeRepoFilesText, setCodeRepoFilesText] = useState('');
+
+  // Context Engine Sandbox State
+  const [contextSandboxQuery, setContextSandboxQuery] = useState('');
+  const [contextSandboxMode, setContextSandboxMode] = useState<ContextRetrievalMode>('HYBRID');
+  const [contextSandboxTokens, setContextSandboxTokens] = useState(2500);
+  const [contextResult, setContextResult] = useState<ContextEngineResult | null>(null);
+
+  // Graph Queries
+  const graphHealthQuery = useQuery({
+    queryKey: queryKeys.knowledgeGraph.health(workspaceId),
+    queryFn: () => knowledgeGraphApi.health(workspaceId),
+  });
+
+  const graphQuery = useQuery({
+    queryKey: queryKeys.knowledgeGraph.entities(workspaceId, {
+      query: graphSearchQuery,
+      type: graphTypeFilter,
+    }),
+    queryFn: () =>
+      knowledgeGraphApi.query(workspaceId, {
+        query: graphSearchQuery || undefined,
+        entityTypes: graphTypeFilter !== 'ALL' ? [graphTypeFilter as any] : undefined,
+        limit: 50,
+      }),
+  });
+
+  const indexSourceMutation = useMutation({
+    mutationFn: (data: { name: string; sourceType: any; codeFiles?: any[] }) =>
+      knowledgeGraphApi.indexSource(workspaceId, data),
+    onSuccess: (res) => {
+      toast.success(`Indexed '${res.name}' (${res.nodeCount} nodes, ${res.edgeCount} edges)`);
+      setIsIndexSourceOpen(false);
+      setIndexSourceName('');
+      setCodeRepoFilesText('');
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.knowledgeGraph.all(workspaceId),
+      });
+    },
+    onError: (err) => toast.error('Indexing failed', { description: errorText(err) }),
+  });
+
+  const contextEngineMutation = useMutation({
+    mutationFn: (data: { query: string; mode: ContextRetrievalMode; maxTokens: number }) =>
+      contextEngineApi.buildContext(workspaceId, data),
+    onSuccess: (res) => {
+      setContextResult(res);
+      toast.success(`Context resolved in ${res.retrievalLatencyMs}ms (${res.tokensUsed} tokens)`);
+    },
+    onError: (err) => toast.error('Context resolution failed', { description: errorText(err) }),
+  });
 
   const listKey = ['workspace-knowledge', workspaceId] as const;
 
@@ -335,39 +400,218 @@ export function KnowledgePage() {
 
   return (
     <StudioPage
-        icon={<BookOpen />}
-        title="Knowledge & RAG"
-        description={`Documents your agents can search and cite in ${activeWorkspace.name}.`}
-        actions={
-          <div className="flex items-center gap-2">
+      icon={<Network className="text-primary size-5" />}
+      title="Knowledge Graph & Context Engine"
+      description={`Unified intelligence layer: relationships across codebases, docs, tasks, conversations, and agents in ${activeWorkspace.name}.`}
+      actions={
+        <div className="flex items-center gap-2">
+          {activeMainTab === 'graph' ? (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  void graphHealthQuery.refetch();
+                  void graphQuery.refetch();
+                }}
+                loading={graphQuery.isRefetching}
+                className="gap-1.5 text-xs"
+              >
+                <RefreshCw className="size-3.5" /> Refresh Graph
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => setIsIndexSourceOpen(true)}
+                className="gap-1.5 text-xs font-semibold"
+              >
+                <Plus className="size-4" /> Index Source
+              </Button>
+            </>
+          ) : activeMainTab === 'bases' ? (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void basesQuery.refetch()}
+                loading={basesQuery.isRefetching}
+                className="gap-1.5 text-xs"
+              >
+                <RefreshCw className="size-3.5" /> Refresh
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => setIsCreateOpen(true)}
+                className="gap-1.5 text-xs font-semibold"
+              >
+                <Plus className="size-4" /> New Knowledge Base
+              </Button>
+            </>
+          ) : null}
+        </div>
+      }
+    >
+      {/* Top Segmented Navigation Tabs */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3 mb-6">
+        <div className="flex items-center gap-1.5 p-1 bg-muted/60 rounded-lg border border-border">
+          <button
+            type="button"
+            onClick={() => setActiveMainTab('graph')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+              activeMainTab === 'graph'
+                ? 'bg-background text-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Network className="size-3.5 text-primary" />
+            Knowledge Graph Explorer
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveMainTab('context')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+              activeMainTab === 'context'
+                ? 'bg-background text-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Sparkles className="size-3.5 text-violet-500" />
+            Context Engine Sandbox
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveMainTab('bases')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+              activeMainTab === 'bases'
+                ? 'bg-background text-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <BookOpen className="size-3.5 text-blue-500" />
+            Knowledge Bases & Documents
+          </button>
+        </div>
+      </div>
+
+      {/* 1. KNOWLEDGE GRAPH EXPLORER TAB */}
+      {activeMainTab === 'graph' && (
+        <div className="space-y-6">
+          <KnowledgeStatus
+            health={graphHealthQuery.data}
+            isLoading={graphHealthQuery.isLoading}
+          />
+
+          <KnowledgeExplorer
+            subgraph={
+              graphQuery.data ?? {
+                nodes: [],
+                edges: [],
+                totalNodes: 0,
+                totalEdges: 0,
+              }
+            }
+            isLoading={graphQuery.isLoading}
+            onSearch={(query: string, type?: GraphEntityType | 'ALL') => {
+              setGraphSearchQuery(query);
+              setGraphTypeFilter(type ?? 'ALL');
+            }}
+            onRefresh={() => {
+              void graphHealthQuery.refetch();
+              void graphQuery.refetch();
+            }}
+          />
+        </div>
+      )}
+
+      {/* 2. CONTEXT ENGINE SANDBOX TAB */}
+      {activeMainTab === 'context' && (
+        <div className="space-y-6">
+          <div className="p-4 rounded-xl border border-border bg-card space-y-4 shadow-sm">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                <Sparkles className="size-4 text-violet-500" />
+                Intelligent Context Engine Simulation
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Test how the Context Engine resolves intents, traverses graph relationships, ranks facts, and compresses context for LLM agents without sending huge documents.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+              <div className="md:col-span-6 space-y-1">
+                <Label className="text-xs font-semibold text-foreground">User Query</Label>
+                <Input
+                  value={contextSandboxQuery}
+                  onChange={(e) => setContextSandboxQuery(e.target.value)}
+                  placeholder="e.g. What is blocking the mobile release and which tasks are assigned to Sarah?"
+                  className="text-xs"
+                />
+              </div>
+
+              <div className="md:col-span-3 space-y-1">
+                <Label className="text-xs font-semibold text-foreground">Retrieval Mode</Label>
+                <select
+                  value={contextSandboxMode}
+                  onChange={(e) => setContextSandboxMode(e.target.value as any)}
+                  className="w-full text-xs rounded-md border border-input bg-background p-2 text-foreground"
+                >
+                  <option value="HYBRID">Hybrid (Graph + Vector)</option>
+                  <option value="GRAPH">Graph Traversal Only</option>
+                  <option value="VECTOR">Semantic Vector Only</option>
+                  <option value="DIRECT">Direct Platform Lookup</option>
+                </select>
+              </div>
+
+              <div className="md:col-span-3 space-y-1">
+                <Label className="text-xs font-semibold text-foreground">
+                  Token Budget ({contextSandboxTokens} tokens)
+                </Label>
+                <Slider
+                  min={500}
+                  max={6000}
+                  step={250}
+                  value={[contextSandboxTokens]}
+                  onValueChange={([v]) => setContextSandboxTokens(v)}
+                />
+              </div>
+            </div>
+
             <Button
-              variant="outline"
               size="sm"
-              onClick={() => void basesQuery.refetch()}
-              loading={basesQuery.isRefetching}
-              className="gap-1.5 text-xs"
+              loading={contextEngineMutation.isPending}
+              disabled={!contextSandboxQuery.trim()}
+              onClick={() =>
+                contextEngineMutation.mutate({
+                  query: contextSandboxQuery,
+                  mode: contextSandboxMode,
+                  maxTokens: contextSandboxTokens,
+                })
+              }
+              className="gap-1.5 text-xs font-semibold"
             >
-              <RefreshCw className="size-3.5" /> Refresh
-            </Button>
-            <Button size="sm" onClick={() => setIsCreateOpen(true)} className="gap-1.5 text-xs font-semibold">
-              <Plus className="size-4" /> New Knowledge Base
+              <Sparkles className="size-3.5" />
+              Build Context
             </Button>
           </div>
-        }
-      >
 
-      {bases.length === 0 ? (
-        <EmptyState
-          icon={<BookOpen />}
-          title="No knowledge bases yet"
-          description="Create one, add documents, and agents can search them to ground their answers."
-          action={
-            <Button onClick={() => setIsCreateOpen(true)} className="gap-1.5">
-              <Plus className="size-4" /> Create a knowledge base
-            </Button>
-          }
-        />
-      ) : (
+          <ContextInspector result={contextResult} />
+        </div>
+      )}
+
+      {/* 3. KNOWLEDGE BASES TAB */}
+      {activeMainTab === 'bases' && (
+        <>
+          {bases.length === 0 ? (
+            <EmptyState
+              icon={<BookOpen />}
+              title="No knowledge bases yet"
+              description="Create one, add documents, and agents can search them to ground their answers."
+              action={
+                <Button onClick={() => setIsCreateOpen(true)} className="gap-1.5">
+                  <Plus className="size-4" /> Create a knowledge base
+                </Button>
+              }
+            />
+          ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Collections */}
           <div className="space-y-4">
@@ -762,6 +1006,8 @@ export function KnowledgePage() {
           </div>
         </div>
       )}
+      </>
+      )}
 
       {/* Create knowledge base */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -1096,6 +1342,101 @@ export function KnowledgePage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Index Knowledge Graph Source Dialog */}
+      <Dialog open={isIndexSourceOpen} onOpenChange={setIsIndexSourceOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm font-bold">
+              <Network className="size-4 text-primary" /> Index Knowledge Source
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Index codebases, platform documents, or tasks into the workspace Knowledge Graph.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogBody className="space-y-4 py-4 text-xs">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground">Source Type</Label>
+              <select
+                value={indexSourceType}
+                onChange={(e) => setIndexSourceType(e.target.value as any)}
+                className="w-full text-xs rounded-md border border-input bg-background p-2 text-foreground"
+              >
+                <option value="DOCS">Platform Documents (Docs & Wiki)</option>
+                <option value="TASKS">Platform Tasks & Projects</option>
+                <option value="CODE_REPO">Codebase / Git Repository</option>
+                <option value="CUSTOM">Custom Entity Source</option>
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground">Source Name</Label>
+              <Input
+                value={indexSourceName}
+                onChange={(e) => setIndexSourceName(e.target.value)}
+                placeholder={
+                  indexSourceType === 'CODE_REPO'
+                    ? 'e.g. onetab-frontend'
+                    : indexSourceType === 'DOCS'
+                    ? 'Workspace Docs'
+                    : 'Tasks & Projects'
+                }
+                className="text-xs"
+              />
+            </div>
+
+            {indexSourceType === 'CODE_REPO' && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground">
+                  Code Files (Paste JS/TS/JSX content or JSON array of filePath/content)
+                </Label>
+                <Textarea
+                  rows={5}
+                  value={codeRepoFilesText}
+                  onChange={(e) => setCodeRepoFilesText(e.target.value)}
+                  placeholder={`// Example:\nexport function authenticateUser(email, password) {\n  return prisma.user.findUnique({ where: { email } });\n}`}
+                  className="font-mono text-xs"
+                />
+              </div>
+            )}
+          </DialogBody>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsIndexSourceOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              loading={indexSourceMutation.isPending}
+              disabled={!indexSourceName.trim()}
+              onClick={() => {
+                let codeFiles: Array<{ filePath: string; content: string }> | undefined;
+                if (indexSourceType === 'CODE_REPO' && codeRepoFilesText.trim()) {
+                  try {
+                    const parsed = JSON.parse(codeRepoFilesText);
+                    if (Array.isArray(parsed)) codeFiles = parsed;
+                  } catch {
+                    codeFiles = [{ filePath: 'src/index.ts', content: codeRepoFilesText }];
+                  }
+                }
+                indexSourceMutation.mutate({
+                  name: indexSourceName,
+                  sourceType: indexSourceType,
+                  codeFiles,
+                });
+              }}
+            >
+              Start Indexing
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </StudioPage>

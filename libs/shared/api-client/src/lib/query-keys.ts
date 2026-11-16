@@ -618,6 +618,19 @@ export const queryKeys = {
         'chunks',
       ] as const,
   },
+  knowledgeGraph: {
+    all: (workspaceId: string) => ['knowledge-graph', workspaceId] as const,
+    health: (workspaceId: string) =>
+      ['knowledge-graph', workspaceId, 'health'] as const,
+    entities: (workspaceId: string, params?: Record<string, unknown>) =>
+      ['knowledge-graph', workspaceId, 'entities', params] as const,
+    entity: (workspaceId: string, id: string) =>
+      ['knowledge-graph', workspaceId, 'entity', id] as const,
+    relations: (workspaceId: string, id: string) =>
+      ['knowledge-graph', workspaceId, 'relations', id] as const,
+    sources: (workspaceId: string) =>
+      ['knowledge-graph', workspaceId, 'sources'] as const,
+  },
   aiApps: {
     all: (workspaceId: string) => ['ai-apps', workspaceId] as const,
     list: (workspaceId: string) => ['ai-apps', workspaceId, 'list'] as const,

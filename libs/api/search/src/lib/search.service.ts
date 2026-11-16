@@ -31,6 +31,7 @@ const CATEGORIES: SearchCategory[] = [
   'calls',
   'meetings',
   'workflows',
+  'knowledge_graph',
 ];
 
 /** Keeps one loud category from crowding out the rest in an "all" search. */
@@ -555,6 +556,35 @@ export class SearchService {
             },
           };
         });
+      }
+
+      case 'knowledge_graph': {
+        const contains = { contains: query, mode: 'insensitive' as const };
+        const rows = await this.prisma.knowledgeGraphNode.findMany({
+          where: {
+            workspaceId,
+            OR: [
+              { name: contains },
+              { identifier: contains },
+              { description: contains },
+            ],
+          },
+          take,
+          orderBy: { updatedAt: 'desc' },
+        });
+
+        return rows.map((node) => ({
+          id: node.id,
+          category,
+          title: `${node.name} (${node.entityType})`,
+          snippet: node.description ? snippet(node.description, query) : (node.identifier || `Graph entity (${node.entityType})`),
+          href: `ai-agent-studio/knowledge?entityId=${node.id}`,
+          timestamp: node.updatedAt.toISOString(),
+          metadata: {
+            entityType: node.entityType,
+            identifier: node.identifier,
+          },
+        }));
       }
     }
   }

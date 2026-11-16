@@ -19,6 +19,7 @@ import {
   Textarea,
   toast,
   useRightPanelStore,
+  RelatedKnowledgePanel,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { AlertTriangle, CornerLeftUp } from 'lucide-react';
@@ -731,6 +732,24 @@ function CardDetailsBody({
                 relationMutations.removeRelation.mutate(relationId)
               }
             />
+
+            {relations.length > 0 && (
+              <RelatedKnowledgePanel
+                title="Knowledge Graph Links"
+                items={relations.map((rel) => ({
+                  id: rel.id,
+                  name: rel.otherTask.title,
+                  entityType: 'TASK' as const,
+                  relation: rel.type.toLowerCase(),
+                }))}
+                onItemClick={(item) => {
+                  const target = relations.find((r) => r.id === item.id)?.otherTask;
+                  if (target && canOpen(target.id)) {
+                    onOpenCard(target.id);
+                  }
+                }}
+              />
+            )}
 
             {/* Real Upload rows filed against this issue; they also surface in
                 the workspace Files hub. */}

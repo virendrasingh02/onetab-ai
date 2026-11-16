@@ -575,6 +575,251 @@ class AgentNodeRegistry {
         defaultConfig: { model: 'text-embedding-3-small', dimensions: 1536 },
         runtime: 'model',
       },
+      {
+        type: 'GRAPH_SEARCH',
+        category: 'knowledge',
+        label: 'Graph Search',
+        subtitle: 'Query Knowledge Graph',
+        description:
+          'Searches entities and relationships across projects, tasks, code, docs and conversations',
+        icon: Network,
+        color: '#8b5cf6',
+        badge: 'Graph',
+        version: '1.0.0',
+        inputs: [
+          { id: 'input', label: 'Query', type: 'string', position: 'left' },
+        ],
+        outputs: [
+          {
+            id: 'output',
+            label: 'Matching Subgraph',
+            type: 'json',
+            position: 'right',
+          },
+        ],
+        defaultConfig: { entityTypes: [], limit: 10 },
+        runtime: 'server',
+      },
+      {
+        type: 'GRAPH_FIND_ENTITY',
+        category: 'knowledge',
+        label: 'Find Entity',
+        subtitle: 'Locate Graph Node',
+        description: 'Finds a specific node by identifier or name',
+        icon: Search,
+        color: '#8b5cf6',
+        badge: 'Graph',
+        version: '1.0.0',
+        inputs: [
+          {
+            id: 'input',
+            label: 'Identifier/Name',
+            type: 'string',
+            position: 'left',
+          },
+        ],
+        outputs: [
+          {
+            id: 'output',
+            label: 'Entity Data',
+            type: 'json',
+            position: 'right',
+          },
+        ],
+        defaultConfig: { entityType: 'Any' },
+        runtime: 'server',
+      },
+      {
+        type: 'GRAPH_FIND_RELATIONS',
+        category: 'knowledge',
+        label: 'Find Relationships',
+        subtitle: 'Inspect Connected Edges',
+        description:
+          'Retrieves all incoming and outgoing relationships for a graph node',
+        icon: GitBranch,
+        color: '#8b5cf6',
+        badge: 'Graph',
+        version: '1.0.0',
+        inputs: [
+          {
+            id: 'input',
+            label: 'Entity ID',
+            type: 'string',
+            position: 'left',
+          },
+        ],
+        outputs: [
+          {
+            id: 'output',
+            label: 'Relationships',
+            type: 'json',
+            position: 'right',
+          },
+        ],
+        defaultConfig: { direction: 'BOTH' },
+        runtime: 'server',
+      },
+      {
+        type: 'GRAPH_TRAVERSE',
+        category: 'knowledge',
+        label: 'Graph Traversal',
+        subtitle: 'Multi-Hop Neighborhood',
+        description:
+          'Traverses connected nodes up to N hops from a starting entity',
+        icon: Network,
+        color: '#8b5cf6',
+        badge: 'Graph',
+        version: '1.0.0',
+        inputs: [
+          {
+            id: 'input',
+            label: 'Start Entity ID',
+            type: 'string',
+            position: 'left',
+          },
+        ],
+        outputs: [
+          {
+            id: 'output',
+            label: 'Traversed Subgraph',
+            type: 'json',
+            position: 'right',
+          },
+        ],
+        defaultConfig: { maxDepth: 2, limit: 50, direction: 'BOTH' },
+        runtime: 'server',
+      },
+      {
+        type: 'CONTEXT_RETRIEVE',
+        category: 'knowledge',
+        label: 'Retrieve Context',
+        subtitle: 'Intelligent Context Engine',
+        description:
+          'Uses the Context Engine to extract small, relevant, token-budgeted prompt context for LLM agents',
+        icon: Sparkles,
+        color: '#6366f1',
+        badge: 'Context',
+        version: '1.0.0',
+        inputs: [
+          {
+            id: 'input',
+            label: 'User Query',
+            type: 'string',
+            position: 'left',
+          },
+        ],
+        outputs: [
+          {
+            id: 'output',
+            label: 'Prompt Context',
+            type: 'string',
+            position: 'right',
+          },
+          {
+            id: 'sources',
+            label: 'Cited Sources',
+            type: 'json',
+            position: 'right',
+          },
+        ],
+        defaultConfig: { mode: 'HYBRID', maxTokens: 2500, topK: 8 },
+        runtime: 'server',
+      },
+      {
+        type: 'GRAPH_CREATE_ENTITY',
+        category: 'knowledge',
+        label: 'Create Entity',
+        subtitle: 'Add Graph Node',
+        description:
+          'Creates a new entity node in the workspace knowledge graph',
+        icon: Database,
+        color: '#8b5cf6',
+        badge: 'Graph',
+        version: '1.0.0',
+        inputs: [
+          {
+            id: 'input',
+            label: 'Entity Data',
+            type: 'json',
+            position: 'left',
+          },
+        ],
+        outputs: [
+          {
+            id: 'output',
+            label: 'Created Node',
+            type: 'json',
+            position: 'right',
+          },
+        ],
+        defaultConfig: { entityType: 'CustomEntity' },
+        runtime: 'server',
+      },
+      {
+        type: 'GRAPH_CREATE_RELATIONSHIP',
+        category: 'knowledge',
+        label: 'Create Relationship',
+        subtitle: 'Link Entities',
+        description: 'Creates a typed edge linking two graph entities',
+        icon: GitBranch,
+        color: '#8b5cf6',
+        badge: 'Graph',
+        version: '1.0.0',
+        inputs: [
+          {
+            id: 'sourceId',
+            label: 'Source Node ID',
+            type: 'string',
+            position: 'left',
+          },
+          {
+            id: 'targetId',
+            label: 'Target Node ID',
+            type: 'string',
+            position: 'left',
+          },
+        ],
+        outputs: [
+          {
+            id: 'output',
+            label: 'Created Edge',
+            type: 'json',
+            position: 'right',
+          },
+        ],
+        defaultConfig: { relationType: 'related_to', weight: 1.0 },
+        runtime: 'server',
+      },
+      {
+        type: 'GRAPH_UPDATE_ENTITY',
+        category: 'knowledge',
+        label: 'Update Knowledge Graph',
+        subtitle: 'Update Entity / Metadata',
+        description:
+          'Updates properties or metadata of an existing graph entity',
+        icon: Layers,
+        color: '#8b5cf6',
+        badge: 'Graph',
+        version: '1.0.0',
+        inputs: [
+          {
+            id: 'input',
+            label: 'Update Payload',
+            type: 'json',
+            position: 'left',
+          },
+        ],
+        outputs: [
+          {
+            id: 'output',
+            label: 'Updated Node',
+            type: 'json',
+            position: 'right',
+          },
+        ],
+        defaultConfig: {},
+        runtime: 'server',
+      },
 
       // 4. Logic & Flow
       {

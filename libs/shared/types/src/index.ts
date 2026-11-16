@@ -625,3 +625,4 @@ export type {
   AiEntityIconDef,
   AiEntityIdentity,
 } from './lib/ai-entity-identity.js';
+export * from './lib/knowledge-graph.js';

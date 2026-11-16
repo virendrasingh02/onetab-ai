@@ -20,6 +20,7 @@ import {
   TabsTrigger,
   ResponsiveTabsList,
   UserAvatar,
+  RelatedKnowledgePanel,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -28,6 +29,7 @@ import {
   FileSpreadsheet,
   FileText,
   List,
+  Network,
   Send,
   Sparkles,
 } from 'lucide-react';
@@ -48,6 +50,35 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
   const headingBlocks = doc.blocks
     ? doc.blocks.filter((b) => ['h1', 'h2', 'h3'].includes(b.type))
     : [];
+
+  const relatedItems = [
+    ...(doc.projectName
+      ? [
+          {
+            id: doc.projectId || 'proj-1',
+            name: doc.projectName,
+            entityType: 'PROJECT' as const,
+            relation: 'belongs_to',
+          },
+        ]
+      : []),
+    ...(doc.authorName
+      ? [
+          {
+            id: doc.authorId || 'author-1',
+            name: doc.authorName,
+            entityType: 'USER' as const,
+            relation: 'created_by',
+          },
+        ]
+      : []),
+    ...headingBlocks.slice(0, 4).map((h) => ({
+      id: h.id,
+      name: h.content || 'Untitled Section',
+      entityType: 'DOCUMENT' as const,
+      relation: 'contains',
+    })),
+  ];
 
   const handlePostComment = () => {
     if (!commentInput.trim()) return;
@@ -205,6 +236,10 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
               <TabsTrigger value="comments" className="text-xs">
                 Comments ({doc.comments ? doc.comments.length : 0})
               </TabsTrigger>
+              <TabsTrigger value="knowledge" className="text-xs gap-1">
+                <Network className="size-3" />
+                Knowledge
+              </TabsTrigger>
             </ResponsiveTabsList>
 
             {/* Document Table of Contents Outline */}
@@ -299,6 +334,14 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
                   <span>Post Comment</span>
                 </Button>
               </div>
+            </TabsContent>
+
+            {/* Knowledge Graph Connections */}
+            <TabsContent value="knowledge" className="py-3">
+              <RelatedKnowledgePanel
+                title="Connected Graph Entities"
+                items={relatedItems}
+              />
             </TabsContent>
           </Tabs>
         </SheetContent>

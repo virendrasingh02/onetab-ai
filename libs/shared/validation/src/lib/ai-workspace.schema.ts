@@ -568,3 +568,108 @@ export type CreateTrackerMonitorInput = z.infer<
 export type UpdateTrackerMonitorInput = z.infer<
   typeof updateTrackerMonitorSchema
 >;
+
+/* --------------------------------------------------- knowledge graph & context engine ------ */
+
+export const createGraphEntitySchema = z.object({
+  entityType: text(80).min(1),
+  name: text(200).min(1),
+  identifier: text(300).optional(),
+  description: text(4_000).optional(),
+  sourceRef: text(200).optional(),
+  sourceType: text(80).optional(),
+  sourceUri: text(2_000).optional(),
+  confidence: z.number().min(0).max(1).optional(),
+  provenance: text(120).optional(),
+  properties: record.optional(),
+  metadata: record.optional(),
+});
+
+export const updateGraphEntitySchema = createGraphEntitySchema.partial();
+
+export const createGraphRelationshipSchema = z.object({
+  relationType: text(80).min(1),
+  sourceNodeId: id,
+  targetNodeId: id,
+  weight: z.number().min(0).max(10).optional(),
+  confidence: z.number().min(0).max(1).optional(),
+  provenance: text(120).optional(),
+  properties: record.optional(),
+  metadata: record.optional(),
+});
+
+export const graphQuerySchema = z.object({
+  query: z.string().trim().max(1_000).optional(),
+  entityTypes: z.array(text(80)).optional(),
+  relationTypes: z.array(text(80)).optional(),
+  sourceTypes: z.array(text(80)).optional(),
+  limit: z.number().int().min(1).max(200).optional(),
+  offset: z.number().int().min(0).optional(),
+  provenance: text(120).optional(),
+});
+
+export const graphTraversalSchema = z.object({
+  startNodeId: id.optional(),
+  startIdentifier: text(300).optional(),
+  entityType: text(80).optional(),
+  maxDepth: z.number().int().min(1).max(5).optional(),
+  relationTypes: z.array(text(80)).optional(),
+  targetEntityTypes: z.array(text(80)).optional(),
+  direction: z.enum(['OUTGOING', 'INCOMING', 'BOTH']).optional(),
+  limit: z.number().int().min(1).max(200).optional(),
+});
+
+export const contextQuerySchema = z.object({
+  query: z.string().trim().min(1).max(4_000),
+  mode: z.enum(['GRAPH', 'VECTOR', 'HYBRID', 'DIRECT']).optional(),
+  maxTokens: z.number().int().min(200).max(32_000).optional(),
+  traversalDepth: z.number().int().min(1).max(4).optional(),
+  topK: z.number().int().min(1).max(50).optional(),
+  similarityThreshold: z.number().min(0).max(1).optional(),
+  recencyWeight: z.number().min(0).max(1).optional(),
+  sourcePriority: z.array(text(80)).optional(),
+  allowedEntityTypes: z.array(text(80)).optional(),
+  targetEntity: z
+    .object({
+      type: text(80),
+      id: text(64).optional(),
+      identifier: text(300).optional(),
+    })
+    .optional(),
+});
+
+export const indexSourceSchema = z.object({
+  name: text(200).min(1),
+  sourceType: z.enum([
+    'CODE_REPO',
+    'DOCS',
+    'TASKS',
+    'PROJECTS',
+    'CONVERSATIONS',
+    'INTEGRATION',
+    'CUSTOM',
+  ]),
+  sourceUri: text(2_000).optional(),
+  metadata: record.optional(),
+  codeFiles: z
+    .array(
+      z.object({
+        filePath: text(1_000).min(1),
+        content: z.string().max(2_000_000),
+      }),
+    )
+    .max(500)
+    .optional(),
+});
+
+export const agentKnowledgeConfigSchema = z.object({
+  sources: z.array(text(80)).min(1),
+  retrievalMode: z.enum(['GRAPH', 'VECTOR', 'HYBRID', 'DIRECT']),
+  maxTokens: z.number().int().min(200).max(16_000),
+  traversalDepth: z.number().int().min(1).max(4),
+  topK: z.number().int().min(1).max(50),
+  similarityThreshold: z.number().min(0).max(1),
+  recencyWeight: z.number().min(0).max(1),
+  allowedEntityTypes: z.array(text(80)).optional(),
+});
+

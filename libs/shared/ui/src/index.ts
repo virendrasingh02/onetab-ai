@@ -1019,3 +1019,4 @@ export {
 } from './lib/components/adaptive-layout.js';
 
 export * from './lib/code-block/index.js';
+export * from './lib/knowledge-graph/index.js';

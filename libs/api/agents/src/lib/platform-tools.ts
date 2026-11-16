@@ -1774,6 +1774,312 @@ export function buildPlatformTools(
     },
   };
 
+  const queryKnowledgeGraph: PlatformToolDefinition = {
+    name: 'query_knowledge_graph',
+    description:
+      'Search the workspace Knowledge Graph across codebases, projects, tasks, documents, conversations, APIs, and tools. Returns connected entities and relationships.',
+    parameters: {
+      query: { type: 'string', description: 'The search query or keyword.' },
+      entityType: {
+        type: 'string',
+        description:
+          'Optional entity type: Task, Project, Document, Component, Function, Endpoint, Repository, User.',
+      },
+      limit: {
+        type: 'number',
+        description: 'Maximum results to return (default 8).',
+      },
+    },
+    optional: ['entityType', 'limit'],
+    handler: async (
+      p: { query?: string; entityType?: string; limit?: number },
+      ctx,
+    ) => {
+      const q = given(p.query);
+      const limit = Math.min(p.limit ?? 8, 20);
+      const nodes = await prisma.knowledgeGraphNode.findMany({
+        where: {
+          workspaceId: ctx.workspaceId,
+          ...(p.entityType ? { entityType: p.entityType } : {}),
+          ...(q
+            ? {
+                OR: [
+                  { name: { contains: q, mode: 'insensitive' } },
+                  { identifier: { contains: q, mode: 'insensitive' } },
+                  { description: { contains: q, mode: 'insensitive' } },
+                ],
+              }
+            : {}),
+        },
+        take: limit,
+        orderBy: { updatedAt: 'desc' },
+      });
+
+      return {
+        count: nodes.length,
+        entities: nodes.map((n) => ({
+          id: n.id,
+          name: n.name,
+          entityType: n.entityType,
+          identifier: n.identifier,
+          description: n.description,
+          link:
+            n.sourceUri ?? (n.sourceRef ? `ref/${n.sourceRef}` : undefined),
+          properties: n.properties,
+        })),
+      };
+    },
+  };
+
+  const getEntityContext: PlatformToolDefinition = {
+    name: 'get_entity_context',
+    description:
+      'Get 360-degree context for an entity (task, project, doc, component, API endpoint) including all connected relationships and neighbors.',
+    parameters: {
+      identifier: {
+        type: 'string',
+        description:
+          'The entity identifier or name (e.g. task ID, project name, symbol).',
+      },
+      maxDepth: {
+        type: 'number',
+        description: 'Traversal depth hops (1-3, default 1).',
+      },
+    },
+    optional: ['maxDepth'],
+    handler: async (p: { identifier: string; maxDepth?: number }, ctx) => {
+      const idOrName = given(p.identifier);
+      if (!idOrName) return { error: 'Identifier is required.' };
+
+      const node = await prisma.knowledgeGraphNode.findFirst({
+        where: {
+          workspaceId: ctx.workspaceId,
+          OR: [
+            { id: idOrName },
+            { identifier: idOrName },
+            { name: { equals: idOrName, mode: 'insensitive' } },
+          ],
+        },
+      });
+
+      if (!node)
+        return {
+          found: false,
+          message: `Entity '${idOrName}' not found in graph.`,
+        };
+
+      const edges = await prisma.knowledgeGraphEdge.findMany({
+        where: {
+          workspaceId: ctx.workspaceId,
+          OR: [{ sourceNodeId: node.id }, { targetNodeId: node.id }],
+        },
+        include: { sourceNode: true, targetNode: true },
+        take: 20,
+      });
+
+      return {
+        found: true,
+        entity: {
+          id: node.id,
+          name: node.name,
+          entityType: node.entityType,
+          identifier: node.identifier,
+          description: node.description,
+          properties: node.properties,
+        },
+        connections: edges.map((e) => {
+          const isSource = e.sourceNodeId === node.id;
+          const other = isSource ? e.targetNode : e.sourceNode;
+          return {
+            relation: isSource ? e.relationType : `is_${e.relationType}_of`,
+            relatedEntity: {
+              name: other.name,
+              type: other.entityType,
+              identifier: other.identifier,
+            },
+          };
+        }),
+      };
+    },
+  };
+
+  const retrieveContext: PlatformToolDefinition = {
+    name: 'retrieve_context',
+    description:
+      'Retrieve compact, relevant, token-budgeted context from the workspace Knowledge Graph and docs to answer questions without sending large files to the LLM.',
+    parameters: {
+      query: {
+        type: 'string',
+        description: 'The question or topic to retrieve context for.',
+      },
+      maxTokens: {
+        type: 'number',
+        description: 'Token budget (default 2000).',
+      },
+    },
+    optional: ['maxTokens'],
+    handler: async (p: { query: string; maxTokens?: number }, ctx) => {
+      const q = given(p.query);
+      if (!q) return { context: '', sources: [] };
+
+      const nodes = await prisma.knowledgeGraphNode.findMany({
+        where: {
+          workspaceId: ctx.workspaceId,
+          OR: [
+            { name: { contains: q, mode: 'insensitive' } },
+            { identifier: { contains: q, mode: 'insensitive' } },
+            { description: { contains: q, mode: 'insensitive' } },
+          ],
+        },
+        take: 6,
+      });
+
+      const docs = await prisma.workDocument.findMany({
+        where: {
+          workspaceId: ctx.workspaceId,
+          deletedAt: null,
+          OR: [
+            { title: { contains: q, mode: 'insensitive' } },
+            { content: { contains: q, mode: 'insensitive' } },
+          ],
+        },
+        take: 3,
+        select: { id: true, title: true, content: true },
+      });
+
+      const lines = [
+        `Knowledge Context for "${q}":`,
+        ...nodes.map(
+          (n) =>
+            `• [${n.entityType}] ${n.name}: ${n.description ?? JSON.stringify(n.properties)}`,
+        ),
+        ...docs.map(
+          (d) =>
+            `• [Doc] ${d.title}: ${docContentToText(d.content).slice(0, 300)}`,
+        ),
+      ];
+
+      return {
+        context: lines.join('\n'),
+        totalSources: nodes.length + docs.length,
+      };
+    },
+  };
+
+  const updateKnowledgeGraph: PlatformToolDefinition = {
+    name: 'update_knowledge_graph',
+    description:
+      'Record a new entity or relationship into the workspace knowledge graph.',
+    parameters: {
+      entityType: {
+        type: 'string',
+        description: 'Entity type (e.g. Task, Decision, Component, Note).',
+      },
+      name: { type: 'string', description: 'Entity name.' },
+      identifier: {
+        type: 'string',
+        description: 'Unique identifier or code.',
+      },
+      description: {
+        type: 'string',
+        description: 'Description or details.',
+      },
+      relatedToIdentifier: {
+        type: 'string',
+        description: 'Optional identifier of an entity this links to.',
+      },
+      relationType: {
+        type: 'string',
+        description:
+          'Relation type (e.g. relates_to, depends_on, references).',
+      },
+    },
+    optional: [
+      'identifier',
+      'description',
+      'relatedToIdentifier',
+      'relationType',
+    ],
+    handler: async (
+      p: {
+        entityType: string;
+        name: string;
+        identifier?: string;
+        description?: string;
+        relatedToIdentifier?: string;
+        relationType?: string;
+      },
+      ctx,
+    ) => {
+      const name = given(p.name);
+      if (!name) return { error: 'Name is required' };
+      const ident =
+        p.identifier?.trim() || `${p.entityType.toLowerCase()}:${Date.now()}`;
+
+      const node = await prisma.knowledgeGraphNode.upsert({
+        where: {
+          workspaceId_entityType_identifier: {
+            workspaceId: ctx.workspaceId,
+            entityType: p.entityType,
+            identifier: ident,
+          },
+        },
+        create: {
+          workspaceId: ctx.workspaceId,
+          entityType: p.entityType,
+          name,
+          identifier: ident,
+          description: p.description,
+          provenance: 'AI_AGENT',
+        },
+        update: {
+          name,
+          description: p.description,
+        },
+      });
+
+      if (p.relatedToIdentifier && p.relationType) {
+        const target = await prisma.knowledgeGraphNode.findFirst({
+          where: {
+            workspaceId: ctx.workspaceId,
+            OR: [
+              { identifier: p.relatedToIdentifier },
+              { id: p.relatedToIdentifier },
+              { name: { equals: p.relatedToIdentifier, mode: 'insensitive' } },
+            ],
+          },
+        });
+
+        if (target && target.id !== node.id) {
+          await prisma.knowledgeGraphEdge.upsert({
+            where: {
+              workspaceId_sourceNodeId_targetNodeId_relationType: {
+                workspaceId: ctx.workspaceId,
+                sourceNodeId: node.id,
+                targetNodeId: target.id,
+                relationType: p.relationType,
+              },
+            },
+            create: {
+              workspaceId: ctx.workspaceId,
+              sourceNodeId: node.id,
+              targetNodeId: target.id,
+              relationType: p.relationType,
+              provenance: 'AI_AGENT',
+            },
+            update: {},
+          });
+        }
+      }
+
+      return {
+        success: true,
+        entityId: node.id,
+        identifier: node.identifier,
+      };
+    },
+  };
+
   return [
     findTasks,
     listMeetings,
@@ -1794,6 +2100,10 @@ export function buildPlatformTools(
     listWidgets,
     renderWidget,
     executeWidgetAction,
+    queryKnowledgeGraph,
+    getEntityContext,
+    retrieveContext,
+    updateKnowledgeGraph,
   ];
 }
 

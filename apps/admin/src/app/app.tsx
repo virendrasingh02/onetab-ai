@@ -224,6 +224,12 @@ const EmailDeliveriesView = lazy(() =>
   })),
 );
 
+const KnowledgeGraphAdminView = lazy(() =>
+  import('./knowledge-graph-admin-view').then((m) => ({
+    default: m.KnowledgeGraphAdminView,
+  })),
+);
+
 function NotFoundPage() {
   return (
     <div className="p-6 grid min-h-dvh place-items-center">
@@ -303,6 +309,7 @@ export function App() {
               element={<PerformanceMonitoringView />}
             />
             <Route path="/errors" element={<ErrorTrackingView />} />
+            <Route path="/knowledge-graph" element={<KnowledgeGraphAdminView />} />
             <Route path="/emails" element={<EmailDeliveriesView />} />
             <Route path="/safety" element={<SafetyReportsView />} />
 
