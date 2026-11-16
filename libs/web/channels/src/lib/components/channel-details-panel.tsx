@@ -44,6 +44,7 @@ import {
   BellOff,
   Blocks,
   Bot,
+  Check,
   ChevronDown,
   Clock,
   Copy,
@@ -68,7 +69,7 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   CoworkerAvatar,
@@ -1781,24 +1782,58 @@ function LinkOutTab({
 
 function ChannelIdFooter({ channelId }: { channelId: string }) {
   const [copied, setCopied] = useState(false);
+  const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (resetTimer.current) clearTimeout(resetTimer.current);
+    },
+    [],
+  );
+
+  const handleCopy = async () => {
+    try {
+      if (!navigator.clipboard) throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(channelId);
+      setCopied(true);
+      toast.success('Channel ID copied to clipboard');
+      if (resetTimer.current) clearTimeout(resetTimer.current);
+      resetTimer.current = setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Could not copy the channel ID');
+    }
+  };
 
   return (
     <div className="px-3 py-2 shrink-0 border-t border-border">
-      <button
-        type="button"
-        onClick={() => {
-          void navigator.clipboard?.writeText(channelId);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
-        }}
-        className="gap-1.5 flex max-w-full items-center rounded-sm text-meta text-muted-foreground outline-none hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
-      >
-        <span className="truncate">Channel ID: {channelId}</span>
-        <Copy className="size-3 shrink-0" aria-hidden />
-        <span className="sr-only">
-          {copied ? 'Channel ID copied' : 'Copy channel ID'}
-        </span>
-      </button>
+      <Hint label={copied ? 'Copied!' : 'Copy channel ID'}>
+        <button
+          type="button"
+          onClick={() => void handleCopy()}
+          aria-label={copied ? 'Channel ID copied' : 'Copy channel ID'}
+          className={cn(
+            'group gap-1.5 px-1.5 py-1 -mx-1.5 flex max-w-full items-center rounded-sm text-meta outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring',
+            copied
+              ? 'text-success'
+              : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+          )}
+        >
+          <span className="truncate">
+            Channel ID: <span className="font-mono">{channelId}</span>
+          </span>
+          {copied ? (
+            <Check className="size-3.5 shrink-0" aria-hidden />
+          ) : (
+            <Copy
+              className="size-3.5 shrink-0 opacity-70 transition-opacity group-hover:opacity-100"
+              aria-hidden
+            />
+          )}
+          <span className="sr-only" aria-live="polite">
+            {copied ? 'Channel ID copied' : ''}
+          </span>
+        </button>
+      </Hint>
     </div>
   );
 }
