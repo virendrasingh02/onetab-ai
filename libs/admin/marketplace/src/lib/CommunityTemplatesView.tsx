@@ -18,14 +18,14 @@ function TemplateOutline({ listing }: { listing: MarketplaceListing }) {
         {items.slice(0, 6).map((item, index) => (
           <li
             key={item}
-            className="px-1.5 py-0.5 rounded bg-surface-raised text-[10px] text-muted-foreground"
+            className="px-1.5 py-0.5 rounded bg-surface-raised text-2xs text-muted-foreground"
           >
             <span className="mr-1 text-muted-foreground">{index + 1}</span>
             {item}
           </li>
         ))}
         {items.length > 6 ? (
-          <li className="self-center text-[10px] text-muted-foreground">
+          <li className="self-center text-2xs text-muted-foreground">
             +{items.length - 6} more
           </li>
         ) : null}

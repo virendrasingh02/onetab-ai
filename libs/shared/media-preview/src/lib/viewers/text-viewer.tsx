@@ -72,7 +72,7 @@ function diffLineClass(line: string): string | undefined {
   if (line.startsWith('+++') || line.startsWith('---')) return undefined;
   if (line.startsWith('+')) return 'bg-success/10 text-success-text';
   if (line.startsWith('-'))
-    return 'bg-red-500/10 text-red-600 dark:text-red-400';
+    return 'bg-destructive/10 text-destructive-text';
   if (line.startsWith('@@')) return 'text-primary font-medium';
   return undefined;
 }
@@ -177,7 +177,7 @@ export function TextViewer({ item, url }: TextViewerProps) {
       </div>
 
       <ScrollArea className="min-h-0 flex-1">
-        <pre className="p-4 leading-6 font-mono text-[13px]">
+        <pre className="p-4 leading-6 font-mono text-body-sm">
           <code>
             {lines.map((line, index) => (
               <div

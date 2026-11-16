@@ -43,7 +43,7 @@ const BADGE_STYLES = {
   positive:
     'border-success/25 bg-success/15 text-success-text',
   negative:
-    'border-rose-500/25 bg-rose-500/15 text-rose-400 dark:text-rose-400',
+    'border-destructive/25 bg-destructive/15 text-destructive-text',
   neutral: 'border-border/80 bg-muted/60 text-muted-foreground',
 };
 
@@ -141,14 +141,14 @@ export function ExecutiveKpiGrid({
             {/* Bottom row: Value + Badge/Detail on left, Sparkline on right */}
             <div className="mt-5 flex items-end justify-between gap-3">
               <div className="min-w-0">
-                <div className="text-2xl sm:text-[28px] font-bold tracking-tight text-foreground tabular-nums">
+                <div className="text-2xl sm:text-stat font-bold tracking-tight text-foreground tabular-nums">
                   {formatKpiValue(kpi.value, kpi.format)}
                 </div>
 
                 <div className="mt-2 flex items-center gap-2 flex-wrap">
                   <span
                     className={cn(
-                      'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold tracking-tight shrink-0',
+                      'inline-flex items-center rounded-full border px-2 py-0.5 text-meta font-semibold tracking-tight shrink-0',
                       BADGE_STYLES[badgeType],
                     )}
                   >

@@ -255,10 +255,10 @@ export function VersionsView() {
       </PageHeader>
 
       {/* Simulator Section */}
-      <Card className="border-blue-200 dark:border-blue-900">
+      <Card className="border-accent-blue/30">
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <Rocket className="h-4 w-4 text-blue-600" />
+            <Rocket className="h-4 w-4 text-accent-blue" />
             Release Gate Evaluation Simulator
           </CardTitle>
           <CardDescription>
@@ -396,7 +396,7 @@ export function VersionsView() {
                 </div>
 
                 <div>
-                  <h4 className="text-xs font-semibold text-amber-600 flex items-center gap-1.5 mb-2">
+                  <h4 className="text-xs font-semibold text-warning-text flex items-center gap-1.5 mb-2">
                     <AlertTriangle className="h-4 w-4" />
                     Rejection Risks ({advisoryWarnings.length})
                   </h4>
@@ -409,7 +409,7 @@ export function VersionsView() {
                       {advisoryWarnings.map((risk, idx: number) => (
                         <li
                           key={idx}
-                          className="text-xs text-amber-700 dark:text-amber-300 flex items-start gap-1.5 bg-amber-500/10 p-2 rounded"
+                          className="text-xs text-warning-text flex items-start gap-1.5 bg-warning/10 p-2 rounded"
                         >
                           <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                           <span>
@@ -433,7 +433,7 @@ export function VersionsView() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-base flex items-center gap-2">
-                <GitBranch className="h-4 w-4 text-blue-600" />
+                <GitBranch className="h-4 w-4 text-accent-blue" />
                 Registered Application Builds
               </CardTitle>
               <CardDescription>
@@ -506,14 +506,14 @@ export function VersionsView() {
                                 ? 'destructive'
                                 : 'secondary'
                           }
-                          className="text-[10px]"
+                          className="text-2xs"
                         >
                           {ver.status.replace(/_/g, ' ')}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {ver.isCurrent ? (
-                          <Badge variant="primary" className="text-[10px]">
+                          <Badge variant="primary" className="text-2xs">
                             Current
                           </Badge>
                         ) : (

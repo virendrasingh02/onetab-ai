@@ -313,7 +313,7 @@ function ForwardMessageForm({
         />
 
         {isPrivateSource ? (
-          <p className="gap-1.5 flex items-start text-[11px] text-muted-foreground">
+          <p className="gap-1.5 flex items-start text-meta text-muted-foreground">
             <ShieldAlert className="size-3.5 mt-px shrink-0" aria-hidden />
             This comes from a private conversation. Everyone in the destination
             will see this copy.

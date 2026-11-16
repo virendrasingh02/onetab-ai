@@ -414,7 +414,7 @@ export function RequirementsView() {
                       id="isBlocking"
                       checked={newIsBlocking}
                       onChange={(e) => setNewIsBlocking(e.target.checked)}
-                      className="rounded border-gray-300 text-primary focus:ring-ring h-4 w-4"
+                      className="rounded border-input text-primary focus:ring-ring h-4 w-4"
                     />
                     <Label htmlFor="isBlocking" className="text-xs cursor-pointer font-medium">
                       Block release if unresolved (Strict Release Gate)
@@ -519,7 +519,7 @@ export function RequirementsView() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-base flex items-center gap-2">
-                <BookOpen className="h-4 w-4 text-blue-600" />
+                <BookOpen className="h-4 w-4 text-accent-blue" />
                 Active Rules Catalog ({requirements.length})
               </CardTitle>
               <CardDescription>
@@ -568,18 +568,18 @@ export function RequirementsView() {
                           {req.externalUrl && (
                             <Badge
                               variant="outline"
-                              className="text-[10px] font-normal"
+                              className="text-2xs font-normal"
                             >
                               {req.externalUrl}
                             </Badge>
                           )}
                         </div>
-                        <div className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">
+                        <div className="text-meta text-muted-foreground line-clamp-1 mt-0.5">
                           {req.description}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary" className="text-[10px]">
+                        <Badge variant="secondary" className="text-2xs">
                           {req.category}
                         </Badge>
                       </TableCell>
@@ -592,7 +592,7 @@ export function RequirementsView() {
                                 ? 'warning'
                                 : 'outline'
                           }
-                          className="text-[10px]"
+                          className="text-2xs"
                         >
                           {req.severity}
                         </Badge>
@@ -601,7 +601,7 @@ export function RequirementsView() {
                         {req.isBlocking ? (
                           <Badge
                             variant="destructive"
-                            className="text-[10px] flex items-center gap-1 w-fit"
+                            className="text-2xs flex items-center gap-1 w-fit"
                           >
                             <ShieldAlert className="h-3 w-3" />
                             Blocking
@@ -609,7 +609,7 @@ export function RequirementsView() {
                         ) : (
                           <Badge
                             variant="outline"
-                            className="text-[10px] text-muted-foreground w-fit"
+                            className="text-2xs text-muted-foreground w-fit"
                           >
                             Advisory
                           </Badge>
@@ -622,7 +622,7 @@ export function RequirementsView() {
                               <Badge
                                 key={idx}
                                 variant="outline"
-                                className="text-[9px] px-1 py-0 font-mono"
+                                className="text-3xs px-1 py-0 font-mono"
                               >
                                 {s.platformCode || s.countryCode || 'Global'}
                               </Badge>
@@ -630,7 +630,7 @@ export function RequirementsView() {
                           ) : (
                             <Badge
                               variant="outline"
-                              className="text-[9px] px-1 py-0"
+                              className="text-3xs px-1 py-0"
                             >
                               Global
                             </Badge>
@@ -770,7 +770,7 @@ export function RequirementsView() {
                     id="editIsBlocking"
                     checked={editIsBlocking}
                     onChange={(e) => setEditIsBlocking(e.target.checked)}
-                    className="rounded border-gray-300 text-primary focus:ring-ring h-4 w-4"
+                    className="rounded border-input text-primary focus:ring-ring h-4 w-4"
                   />
                   <Label
                     htmlFor="editIsBlocking"

@@ -68,7 +68,7 @@ function CopyRow({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <div className="space-y-1">
-      <div className="text-[11px] text-muted-foreground">{label}</div>
+      <div className="text-meta text-muted-foreground">{label}</div>
       <div className="flex items-center gap-2">
         <code className="min-w-0 flex-1 truncate rounded-md border border-border bg-surface-raised px-2 py-1.5 text-xs">{value}</code>
         <Button
@@ -204,13 +204,13 @@ function AppEditor({
             placeholder={app.secretSet ? '•••••••• saved — leave blank to keep it' : 'Client secret'}
             onChange={(e) => setClientSecret(e.target.value)}
           />
-          <p className="text-[11px] text-muted-foreground">Stored encrypted and never shown again.</p>
+          <p className="text-meta text-muted-foreground">Stored encrypted and never shown again.</p>
         </div>
         {app.secretSet && (
           <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
             <div>
               <div className="text-xs font-medium text-foreground">Use this app</div>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-meta text-muted-foreground">
                 {app.serverFallback
                   ? 'Switch off to use the platform default instead — your credentials stay saved.'
                   : 'Switch off to pause connecting these apps — your credentials stay saved.'}
@@ -221,7 +221,7 @@ function AppEditor({
         )}
       </div>
 
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-meta text-muted-foreground">
         Connections already made keep working. Changing the app only affects new sign-ins and token refreshes for this
         workspace.
       </p>

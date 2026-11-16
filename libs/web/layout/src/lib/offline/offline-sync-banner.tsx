@@ -57,9 +57,9 @@ export function OfflineSyncBanner() {
   }
 
   return (
-    <div className="flex h-8 shrink-0 items-center justify-between border-b border-amber-600/20 bg-amber-500/15 px-3 text-xs font-medium text-amber-700 dark:text-amber-300 transition-all">
+    <div className="flex h-8 shrink-0 items-center justify-between border-b border-warning/20 bg-warning/15 px-3 text-xs font-medium text-warning-text transition-all">
       <div className="flex items-center gap-2 min-w-0 truncate">
-        <WifiOff className="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+        <WifiOff className="size-3.5 shrink-0 text-warning-text" />
         <span className="truncate">
           {status.pendingActions > 0
             ? `You are offline. ${status.pendingActions} change${
@@ -73,7 +73,7 @@ export function OfflineSyncBanner() {
         size="xs"
         onClick={handleRetry}
         disabled={busy}
-        className="h-6 gap-1 px-2 text-[11px] text-amber-800 dark:text-amber-200 hover:bg-amber-500/20"
+        className="h-6 gap-1 px-2 text-meta text-warning-text hover:bg-warning/20"
       >
         <RefreshCw className={`size-3 ${busy ? 'animate-spin' : ''}`} />
         <span>{busy ? 'Retrying…' : 'Retry'}</span>

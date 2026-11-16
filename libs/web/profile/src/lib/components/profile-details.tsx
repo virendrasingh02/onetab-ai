@@ -54,7 +54,7 @@ export function ProfileDetails({ user, workspaceRole = 'Member' }: ProfileDetail
         <div className="space-y-2 text-xs">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Role:</span>
-            <Badge variant="primary" className="text-[10px] font-semibold">
+            <Badge variant="primary" className="text-2xs font-semibold">
               {workspaceRole}
             </Badge>
           </div>
@@ -132,7 +132,7 @@ export function ProfileDetails({ user, workspaceRole = 'Member' }: ProfileDetail
             <Clock className="size-3.5 text-primary" />
             <span>Timezone &amp; Local Clock</span>
           </h3>
-          <div className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
+          <div className="flex items-center gap-1 text-meta font-medium text-muted-foreground">
             <span>{workStatus.icon}</span>
             <span>{workStatus.status === 'working' ? 'Working' : workStatus.label === 'Day off' ? 'Day off' : 'Off-hours'}</span>
             <span className="text-muted-foreground/70">· {formatWorkingSchedule(schedule)}</span>
@@ -144,7 +144,7 @@ export function ProfileDetails({ user, workspaceRole = 'Member' }: ProfileDetail
             <span className="text-xl leading-none">{region.flag}</span>
             <div>
               <div className="font-semibold text-foreground">{describeTimezone(userTimezone)}</div>
-              <div className="text-[11px] text-muted-foreground">{diff === 'same time as you' ? 'Same time as you' : diff}</div>
+              <div className="text-meta text-muted-foreground">{diff === 'same time as you' ? 'Same time as you' : diff}</div>
             </div>
           </div>
 

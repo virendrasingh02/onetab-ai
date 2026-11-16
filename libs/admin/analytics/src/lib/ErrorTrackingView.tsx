@@ -193,20 +193,20 @@ export function ErrorTrackingView() {
                         <div className="min-w-0">
                           <div className="gap-2 mb-1 flex flex-wrap items-center">
                             <span
-                              className={`px-1.5 py-0.5 font-semibold rounded-full border text-[10px] ${severityTone(
+                              className={`px-1.5 py-0.5 font-semibold rounded-full border text-2xs ${severityTone(
                                 group.severity,
                               )}`}
                             >
                               {group.severity}
                             </span>
-                            <span className="font-mono text-[10px] text-muted-foreground">
+                            <span className="font-mono text-2xs text-muted-foreground">
                               {group.statusCode} · {group.route}
                             </span>
                           </div>
                           <p className="text-xs font-medium truncate text-foreground">
                             {group.name}: {group.message}
                           </p>
-                          <p className="mt-0.5 text-[11px] text-muted-foreground">
+                          <p className="mt-0.5 text-meta text-muted-foreground">
                             first {formatRelative(group.firstSeenAt)} · last{' '}
                             {formatRelative(group.lastSeenAt)}
                           </p>
@@ -246,7 +246,7 @@ export function ErrorTrackingView() {
                   >
                     {error.statusCode}
                   </span>,
-                  <span className="font-mono text-[11px] text-muted-foreground">
+                  <span className="font-mono text-meta text-muted-foreground">
                     {error.method} {error.route}
                   </span>,
                   <span className="text-foreground">

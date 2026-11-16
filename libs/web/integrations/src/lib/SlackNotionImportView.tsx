@@ -119,7 +119,7 @@ export function SlackNotionImportView({
                         </div>
                         <Badge
                           variant="neutral"
-                          className="shrink-0 text-[10px]"
+                          className="shrink-0 text-2xs"
                         >
                           Beta
                         </Badge>
@@ -176,7 +176,7 @@ export function SlackNotionImportView({
                         </div>
                         <Badge
                           variant="neutral"
-                          className="shrink-0 text-[10px]"
+                          className="shrink-0 text-2xs"
                         >
                           Coming soon
                         </Badge>

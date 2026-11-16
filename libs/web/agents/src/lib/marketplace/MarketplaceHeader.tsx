@@ -33,7 +33,7 @@ export const MarketplaceHeader: React.FC<MarketplaceHeaderProps> = ({
           <button
             type="button"
             onClick={onOpenApprovals}
-            className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-sm border border-warning/30 bg-warning/12 text-[11px] text-warning-text transition-colors hover:bg-warning/20"
+            className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-sm border border-warning/30 bg-warning/12 text-meta text-warning-text transition-colors hover:bg-warning/20"
           >
             <ShieldAlert className="size-3" />
             <span>

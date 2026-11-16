@@ -88,7 +88,7 @@ export function AIEntityModel({
     return (
       <span
         className={cn(
-          'h-5 px-1.5 font-medium inline-flex items-center rounded-md border border-border text-[10px] text-muted-foreground',
+          'h-5 px-1.5 font-medium inline-flex items-center rounded-md border border-border text-2xs text-muted-foreground',
           className,
         )}
       >

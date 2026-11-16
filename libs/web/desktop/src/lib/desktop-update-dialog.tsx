@@ -118,7 +118,7 @@ export function DesktopUpdateDialog({
                 <AlertTriangle className="size-3.5 shrink-0" />
                 <span>Action Required to Continue</span>
               </div>
-              <p className="text-[11px] text-destructive/90">
+              <p className="text-meta text-destructive/90">
                 To protect security and data integrity, you must update to{' '}
                 {currentVersion
                   ? `version ${currentVersion}`
@@ -182,7 +182,7 @@ export function DesktopUpdateDialog({
               <div className="font-medium text-foreground">
                 What&apos;s New:
               </div>
-              <div className="p-3 max-h-36 overflow-y-auto rounded-md border bg-card text-[11px] whitespace-pre-wrap text-muted-foreground">
+              <div className="p-3 max-h-36 overflow-y-auto rounded-md border bg-card text-meta whitespace-pre-wrap text-muted-foreground">
                 {updateStatus.releaseNotes}
               </div>
             </div>

@@ -291,7 +291,7 @@ export function EncryptionSecurityPanel() {
                 </h4>
                 <Badge
                   variant={isCurrentVerified ? 'success' : 'warning'}
-                  className="text-[10px] py-0 h-4 font-medium"
+                  className="text-2xs py-0 h-4 font-medium"
                 >
                   {isCurrentVerified ? 'Verified' : 'Unverified'}
                 </Badge>
@@ -370,7 +370,7 @@ export function EncryptionSecurityPanel() {
                 Device Verification in Progress
               </h4>
             </div>
-            <Badge variant="neutral" className="capitalize text-[10px]">
+            <Badge variant="neutral" className="capitalize text-2xs">
               {activeVerification.phase}
             </Badge>
           </div>
@@ -437,7 +437,7 @@ export function EncryptionSecurityPanel() {
                     <span className="text-2xl select-none" role="img" aria-label={item.name}>
                       {item.symbol}
                     </span>
-                    <span className="text-[11px] font-medium text-foreground mt-1 truncate max-w-full capitalize">
+                    <span className="text-meta font-medium text-foreground mt-1 truncate max-w-full capitalize">
                       {item.name}
                     </span>
                   </div>
@@ -505,7 +505,7 @@ export function EncryptionSecurityPanel() {
                 </h4>
                 <Badge
                   variant={keyBackupStatus?.enabled ? 'success' : 'neutral'}
-                  className="text-[10px] py-0 h-4 font-medium"
+                  className="text-2xs py-0 h-4 font-medium"
                 >
                   {keyBackupStatus?.enabled ? 'Active' : 'Not Configured'}
                 </Badge>
@@ -587,18 +587,18 @@ export function EncryptionSecurityPanel() {
                         {device.displayName || 'Onetab Web Client'}
                       </span>
                       {device.isCurrent ? (
-                        <Badge variant="primary" className="text-[9px] py-0 h-4">
+                        <Badge variant="primary" className="text-3xs py-0 h-4">
                           Current
                         </Badge>
                       ) : null}
                       <Badge
                         variant={isVerified ? 'success' : 'neutral'}
-                        className="text-[9px] py-0 h-4 font-normal"
+                        className="text-3xs py-0 h-4 font-normal"
                       >
                         {isVerified ? 'Verified' : 'Unverified'}
                       </Badge>
                     </div>
-                    <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
+                    <p className="text-meta text-muted-foreground font-mono mt-0.5">
                       {device.id}
                       {device.lastSeenAt
                         ? ` · Seen ${new Date(device.lastSeenAt).toLocaleDateString()}`
@@ -651,7 +651,7 @@ export function EncryptionSecurityPanel() {
 
           <DialogBody>
           <div className="p-3 bg-muted/60 rounded-xl border border-border space-y-2">
-            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+            <span className="text-meta font-semibold text-muted-foreground uppercase tracking-wider">
               Secret Recovery Key
             </span>
             <div className="flex items-center justify-between gap-2">

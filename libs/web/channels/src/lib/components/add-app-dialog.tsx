@@ -94,7 +94,7 @@ export function AddAppDialog({
             <div>
               <DialogTitle className="text-base font-bold flex items-center gap-2">
                 <span>Add App to #{channel.name}</span>
-                <Badge variant="neutral" className="text-[10px] py-0 h-4 font-mono">
+                <Badge variant="neutral" className="text-2xs py-0 h-4 font-mono">
                   Integration
                 </Badge>
               </DialogTitle>
@@ -169,7 +169,7 @@ export function AddAppDialog({
                             </span>
                             <Badge
                               variant="outline"
-                              className="text-[10px] py-0 h-4 capitalize font-mono"
+                              className="text-2xs py-0 h-4 capitalize font-mono"
                             >
                               {integration.provider.toLowerCase().replace(/_/g, ' ')}
                             </Badge>
@@ -179,7 +179,7 @@ export function AddAppDialog({
 
                       <div className="shrink-0 mt-0.5">
                         {isAlreadyAdded ? (
-                          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                          <span className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider">
                             Connected
                           </span>
                         ) : (

@@ -126,7 +126,7 @@ export function AttachmentFileHeader({
             type="button"
             className="group/file-hdr inline-flex items-center gap-1 py-0.5 px-1 -ml-1 text-xs font-semibold text-foreground/90 hover:text-foreground transition-colors rounded-md hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
-            <span className="truncate max-w-[240px] sm:max-w-xs text-[13px] font-semibold text-foreground/95">
+            <span className="truncate max-w-[240px] sm:max-w-xs text-body-sm font-semibold text-foreground/95">
               {attachment.name}
             </span>
             {attachment.size ? (

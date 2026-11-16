@@ -430,7 +430,7 @@ function MetricCardContent({
         <div
           className={cn(
             'gap-1 font-medium flex items-center',
-            isPositive ? 'text-success-text' : 'text-rose-500',
+            isPositive ? 'text-success-text' : 'text-destructive-text',
           )}
         >
           {isPositive ? (
@@ -769,7 +769,7 @@ function TableViewContent({
                           'px-1.5 py-0.5 font-medium inline-flex items-center rounded-md text-2xs',
                           String(row[col]).toLowerCase() === 'success'
                             ? 'bg-success/10 text-success-text'
-                            : 'bg-amber-500/10 text-amber-500',
+                            : 'bg-warning/10 text-warning-text',
                         )}
                       >
                         {row[col]}
@@ -810,13 +810,13 @@ function ProgressSummaryContent({
         label: 'Token Budget Spent',
         current: 62,
         total: 100,
-        color: 'bg-indigo-500',
+        color: 'bg-accent-indigo',
       },
       {
         label: 'Approvals Resolved',
         current: 95,
         total: 100,
-        color: 'bg-blue-500',
+        color: 'bg-accent-blue',
       },
     ];
   }, [data, config.items]);
@@ -1045,7 +1045,7 @@ function ApprovalFormContent({
         {status === 'approved' ? (
           <CheckCircle2 className="size-8 text-success-text" />
         ) : (
-          <XCircle className="size-8 text-rose-500" />
+          <XCircle className="size-8 text-destructive-text" />
         )}
         <div className="text-sm font-semibold text-foreground capitalize">
           Action {status}
@@ -1060,7 +1060,7 @@ function ApprovalFormContent({
   return (
     <div className="space-y-3 py-1 flex h-full flex-col justify-between">
       <div className="space-y-2">
-        <div className="gap-1.5 text-amber-500 font-semibold text-xs flex items-center">
+        <div className="gap-1.5 text-warning-text font-semibold text-xs flex items-center">
           <AlertTriangle className="size-4 shrink-0" />
           <span>Requires Human Approval</span>
         </div>
@@ -1248,12 +1248,12 @@ function SentimentContent({
         />
         <div
           style={{ width: `${sentiment.breakdown.neutral}%` }}
-          className="bg-amber-500"
+          className="bg-warning"
           title="Neutral"
         />
         <div
           style={{ width: `${sentiment.breakdown.negative}%` }}
-          className="bg-rose-500"
+          className="bg-destructive"
           title="Negative"
         />
       </div>
@@ -1264,11 +1264,11 @@ function SentimentContent({
           Positive {sentiment.breakdown.positive}%
         </span>
         <span className="gap-1 flex items-center">
-          <span className="size-2 bg-amber-500 inline-block rounded-full" />{' '}
+          <span className="size-2 bg-warning inline-block rounded-full" />{' '}
           Neutral {sentiment.breakdown.neutral}%
         </span>
         <span className="gap-1 flex items-center">
-          <span className="size-2 bg-rose-500 inline-block rounded-full" />{' '}
+          <span className="size-2 bg-destructive inline-block rounded-full" />{' '}
           Negative {sentiment.breakdown.negative}%
         </span>
       </div>

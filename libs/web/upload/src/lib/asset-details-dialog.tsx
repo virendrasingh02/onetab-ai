@@ -215,7 +215,7 @@ export function AssetDetailsDialog({
           </div>
 
           {/* Metadata */}
-          <dl className="gap-x-4 gap-y-2 grid grid-cols-[auto_1fr] text-[11px]">
+          <dl className="gap-x-4 gap-y-2 grid grid-cols-[auto_1fr] text-meta">
             <dt className="text-muted-foreground">Type</dt>
             <dd className="text-foreground">
               {upload.mimeType}{' '}
@@ -306,12 +306,12 @@ export function AssetDetailsDialog({
           {showHistory ? (
             <div className="rounded-md border border-border bg-surface-inset/40 p-2 space-y-1 max-h-40 overflow-y-auto">
               {versions.isLoading ? (
-                <p className="text-[11px] text-muted-foreground px-1">Loading…</p>
+                <p className="text-meta text-muted-foreground px-1">Loading…</p>
               ) : (
                 (versions.data ?? []).map((v) => (
                   <div
                     key={v.id}
-                    className="gap-2 px-1 py-0.5 flex items-center justify-between text-[11px]"
+                    className="gap-2 px-1 py-0.5 flex items-center justify-between text-meta"
                   >
                     <span className="text-foreground">
                       v{v.version}
@@ -335,7 +335,7 @@ export function AssetDetailsDialog({
           {/* Move */}
           {canManage ? (
             <div className="space-y-1">
-              <span className="text-[11px] font-medium text-muted-foreground">
+              <span className="text-meta font-medium text-muted-foreground">
                 Move to
               </span>
               <AppSelect

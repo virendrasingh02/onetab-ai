@@ -387,7 +387,7 @@ export function IssuesView() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <AlertCircle className="h-5 w-5 text-blue-600 shrink-0" />
+            <AlertCircle className="h-5 w-5 text-accent-blue shrink-0" />
             <div>
               <div className="text-2xl font-bold font-mono">{stats.total}</div>
               <div className="text-xs text-muted-foreground">Total Logged</div>
@@ -397,9 +397,9 @@ export function IssuesView() {
 
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <AlertOctagon className="h-5 w-5 text-amber-600 shrink-0" />
+            <AlertOctagon className="h-5 w-5 text-warning-text shrink-0" />
             <div>
-              <div className="text-2xl font-bold font-mono text-amber-600">
+              <div className="text-2xl font-bold font-mono text-warning-text">
                 {stats.open}
               </div>
               <div className="text-xs text-muted-foreground">Unresolved Issues</div>
@@ -486,7 +486,7 @@ export function IssuesView() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <AlertOctagon className="h-4 w-4 text-amber-600" />
+            <AlertOctagon className="h-4 w-4 text-warning-text" />
             Rejection Records & Actions ({issues.length})
           </CardTitle>
           <CardDescription>
@@ -523,10 +523,10 @@ export function IssuesView() {
                   issues.map((issue) => (
                     <TableRow key={issue.id}>
                       <TableCell>
-                        <Badge variant="outline" className="text-[10px] font-mono uppercase">
+                        <Badge variant="outline" className="text-2xs font-mono uppercase">
                           {issue.source.replace(/_/g, ' ')}
                         </Badge>
-                        <div className="text-[10px] text-muted-foreground mt-1">
+                        <div className="text-2xs text-muted-foreground mt-1">
                           {issue.category.replace(/_/g, ' ')}
                         </div>
                       </TableCell>
@@ -534,16 +534,16 @@ export function IssuesView() {
                         <div className="font-medium text-xs text-foreground">
                           {issue.title}
                         </div>
-                        <div className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
+                        <div className="text-meta text-muted-foreground mt-0.5 line-clamp-2">
                           {issue.description}
                         </div>
                         {issue.remediation && (
-                          <div className="text-[10px] text-blue-600 dark:text-blue-400 mt-1">
+                          <div className="text-2xs text-accent-blue mt-1">
                             <strong>Remediation:</strong> {issue.remediation}
                           </div>
                         )}
                         {issue.resolution && (
-                          <div className="text-[10px] text-success-text mt-0.5">
+                          <div className="text-2xs text-success-text mt-0.5">
                             <strong>Resolved:</strong> {issue.resolution}
                           </div>
                         )}
@@ -553,12 +553,12 @@ export function IssuesView() {
                           {issue.platformCode ?? 'Global'}
                         </div>
                         {issue.appVersionString && (
-                          <div className="text-[10px] font-mono text-muted-foreground">
+                          <div className="text-2xs font-mono text-muted-foreground">
                             v{issue.appVersionString}
                           </div>
                         )}
                         {issue.countryCode && (
-                          <Badge variant="secondary" className="text-[9px] mt-0.5">
+                          <Badge variant="secondary" className="text-3xs mt-0.5">
                             {issue.countryCode}
                           </Badge>
                         )}
@@ -572,7 +572,7 @@ export function IssuesView() {
                                 ? 'warning'
                                 : 'outline'
                           }
-                          className="text-[10px]"
+                          className="text-2xs"
                         >
                           {issue.severity}
                         </Badge>
@@ -586,7 +586,7 @@ export function IssuesView() {
                                 ? 'destructive'
                                 : 'secondary'
                           }
-                          className="text-[10px]"
+                          className="text-2xs"
                         >
                           {issue.status.replace(/_/g, ' ')}
                         </Badge>

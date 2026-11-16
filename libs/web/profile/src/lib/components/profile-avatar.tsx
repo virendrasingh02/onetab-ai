@@ -52,7 +52,7 @@ export function ProfileAvatar({
           className="absolute inset-0 rounded-full bg-black/60 backdrop-blur-2xs opacity-0 group-hover/avatar:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 text-white cursor-pointer select-none"
         >
           <Camera className="size-6 text-white drop-shadow-md" />
-          <span className="text-[10px] font-semibold tracking-wide uppercase">
+          <span className="text-2xs font-semibold tracking-wide uppercase">
             Edit
           </span>
         </button>

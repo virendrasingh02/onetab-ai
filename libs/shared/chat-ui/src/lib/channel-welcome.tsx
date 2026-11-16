@@ -387,7 +387,7 @@ export function ChannelWelcome({
             <h2 className="min-w-0 text-xl font-semibold tracking-tight truncate text-foreground">
               {channelName}
             </h2>
-            <span className="gap-1 px-2 py-0.5 font-medium inline-flex shrink-0 items-center rounded-full border border-border text-[11px] text-muted-foreground [&_svg]:size-3">
+            <span className="gap-1 px-2 py-0.5 font-medium inline-flex shrink-0 items-center rounded-full border border-border text-meta text-muted-foreground [&_svg]:size-3">
               {isPrivate ? <Lock /> : <Globe />}
               {isPrivate ? 'Private' : 'Public'}
             </span>
@@ -556,7 +556,7 @@ export function ChannelWelcome({
 
         {actions.length > 0 ? (
           <div className="mt-6 max-w-2xl">
-            <h3 className="mb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+            <h3 className="mb-2 text-meta font-semibold tracking-wider text-muted-foreground uppercase">
               Get started
             </h3>
             <ul className="gap-2 sm:grid-cols-2 grid">
@@ -580,7 +580,7 @@ export function ChannelWelcome({
                       {action.icon}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="font-medium block text-[13px] text-foreground">
+                      <span className="font-medium block text-body-sm text-foreground">
                         {action.label}
                       </span>
                       <span className="mt-0.5 text-xs leading-snug line-clamp-2 block text-muted-foreground">

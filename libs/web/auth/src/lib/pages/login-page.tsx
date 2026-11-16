@@ -635,7 +635,7 @@ export function LoginPage() {
                       leadingIcon={<Mail />}
                     />
                   </FormControl>
-                  <FormMessage className="text-[11px]" />
+                  <FormMessage className="text-meta" />
                 </FormItem>
               )}
             />
@@ -678,7 +678,7 @@ export function LoginPage() {
                       }
                     />
                   </FormControl>
-                  <FormMessage className="text-[11px]" />
+                  <FormMessage className="text-meta" />
                 </FormItem>
               )}
             />
@@ -718,7 +718,7 @@ export function LoginPage() {
             {/* The label sits on the page background, not a card. */}
             <div className="relative py-1 flex items-center justify-center">
               <div className="border-t border-border w-full absolute" />
-              <span className="bg-background px-2.5 text-[11px] text-muted-foreground relative uppercase tracking-wider">
+              <span className="bg-background px-2.5 text-meta text-muted-foreground relative uppercase tracking-wider">
                 or sign in with
               </span>
             </div>

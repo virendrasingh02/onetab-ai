@@ -42,7 +42,7 @@ export function BrowseChannelsPage() {
               </h2>
               <Badge
                 variant="neutral"
-                className="px-1.5 py-0 h-4.5 text-[11px]"
+                className="px-1.5 py-0 h-4.5 text-meta"
               >
                 {formatCount(filtered.length)}
               </Badge>

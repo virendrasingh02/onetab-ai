@@ -48,7 +48,7 @@ export function ApiAnalyticsView() {
           <span className="font-semibold text-foreground text-xs tracking-tight">
             {row.name}
           </span>
-          <span className="font-mono text-[11px] text-muted-foreground/75 truncate max-w-[320px] mt-0.5">
+          <span className="font-mono text-meta text-muted-foreground/75 truncate max-w-[320px] mt-0.5">
             {row.endpoint}
           </span>
         </div>
@@ -62,11 +62,11 @@ export function ApiAnalyticsView() {
       cell: (row) => (
         <span
           className={cn(
-            'inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase',
+            'inline-flex items-center rounded-full border px-2.5 py-0.5 text-2xs font-semibold tracking-wider uppercase',
             row.status === 'ACTIVE'
               ? 'border-success/25 bg-success/15 text-success-text'
               : row.status === 'DEPRECATED'
-              ? 'border-amber-500/25 bg-amber-500/15 text-amber-400 dark:text-amber-400'
+              ? 'border-warning/25 bg-warning/15 text-warning-text'
               : 'border-border/80 bg-muted/60 text-muted-foreground',
           )}
         >
@@ -97,9 +97,9 @@ export function ApiAnalyticsView() {
           className={cn(
             'font-medium tabular-nums',
             row.errorRate > 5
-              ? 'text-rose-400 font-semibold'
+              ? 'text-destructive-text font-semibold'
               : row.errorRate > 0
-              ? 'text-amber-400'
+              ? 'text-warning-text'
               : 'text-success-text',
           )}
         >

@@ -1635,7 +1635,7 @@ function WorkflowCanvasInner({
               <div
                 role="toolbar"
                 aria-label="Selection actions"
-                className="h-9 gap-1 p-1 animate-in fade-in slide-in-from-top-1 flex items-center rounded-[14px] border border-border bg-surface shadow-sm duration-150 select-none"
+                className="h-9 gap-1 p-1 animate-in fade-in slide-in-from-top-1 flex items-center rounded-xl border border-border bg-surface shadow-sm duration-150 select-none"
               >
                 <span className="px-2 text-xs font-semibold text-foreground tabular-nums">
                   {selectedNodes.length} selected

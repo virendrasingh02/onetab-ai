@@ -159,7 +159,7 @@ export function ComplianceDashboardView() {
               <div>
                 <div className="text-xs mb-1.5 flex items-center justify-between">
                   <span className="font-medium gap-1.5 flex items-center">
-                    <span className="w-2 h-2 bg-blue-500 inline-block rounded-full" />
+                    <span className="w-2 h-2 bg-accent-blue inline-block rounded-full" />
                     Microsoft Store (Windows)
                   </span>
                   <span className="font-medium font-mono">
@@ -168,7 +168,7 @@ export function ComplianceDashboardView() {
                 </div>
                 <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
                   <div
-                    className="bg-blue-500 h-full rounded-full transition-all duration-500"
+                    className="bg-accent-blue h-full rounded-full transition-all duration-500"
                     style={{ width: `${data.storeReadiness.microsoftStore}%` }}
                   />
                 </div>
@@ -197,7 +197,7 @@ export function ComplianceDashboardView() {
               <div>
                 <div className="text-xs mb-1.5 flex items-center justify-between">
                   <span className="font-medium gap-1.5 flex items-center">
-                    <span className="w-2 h-2 bg-violet-500 inline-block rounded-full" />
+                    <span className="w-2 h-2 bg-accent-violet inline-block rounded-full" />
                     Windows Direct (NSIS Installer)
                   </span>
                   <span className="font-medium font-mono">
@@ -206,7 +206,7 @@ export function ComplianceDashboardView() {
                 </div>
                 <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
                   <div
-                    className="bg-violet-500 h-full rounded-full transition-all duration-500"
+                    className="bg-accent-violet h-full rounded-full transition-all duration-500"
                     style={{ width: `${data.storeReadiness.directWindows}%` }}
                   />
                 </div>
@@ -216,7 +216,7 @@ export function ComplianceDashboardView() {
               <div>
                 <div className="text-xs mb-1.5 flex items-center justify-between">
                   <span className="font-medium gap-1.5 flex items-center">
-                    <span className="w-2 h-2 bg-pink-500 inline-block rounded-full" />
+                    <span className="w-2 h-2 bg-accent-pink inline-block rounded-full" />
                     macOS Direct (Apple Notarized DMG)
                   </span>
                   <span className="font-medium font-mono">
@@ -225,7 +225,7 @@ export function ComplianceDashboardView() {
                 </div>
                 <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
                   <div
-                    className="bg-pink-500 h-full rounded-full transition-all duration-500"
+                    className="bg-accent-pink h-full rounded-full transition-all duration-500"
                     style={{ width: `${data.storeReadiness.directMac}%` }}
                   />
                 </div>
@@ -235,7 +235,7 @@ export function ComplianceDashboardView() {
               <div>
                 <div className="text-xs mb-1.5 flex items-center justify-between">
                   <span className="font-medium gap-1.5 flex items-center">
-                    <span className="w-2 h-2 bg-cyan-500 inline-block rounded-full" />
+                    <span className="w-2 h-2 bg-accent-cyan inline-block rounded-full" />
                     Production Web App & PWA
                   </span>
                   <span className="font-medium font-mono">
@@ -244,7 +244,7 @@ export function ComplianceDashboardView() {
                 </div>
                 <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
                   <div
-                    className="bg-cyan-500 h-full rounded-full transition-all duration-500"
+                    className="bg-accent-cyan h-full rounded-full transition-all duration-500"
                     style={{ width: `${data.storeReadiness.web}%` }}
                   />
                 </div>
@@ -290,11 +290,11 @@ export function ComplianceDashboardView() {
                             ? 'destructive'
                             : 'secondary'
                       }
-                      className="text-[10px]"
+                      className="text-2xs"
                     >
                       {v.status}
                     </Badge>
-                    <div className="mt-0.5 text-[10px] text-muted-foreground">
+                    <div className="mt-0.5 text-2xs text-muted-foreground">
                       {v.readinessScore}% Score
                     </div>
                   </div>
@@ -345,7 +345,7 @@ export function ComplianceDashboardView() {
                     <div className="gap-2.5 flex items-center">
                       <Badge
                         variant="outline"
-                        className="font-bold font-mono text-[11px]"
+                        className="font-bold font-mono text-meta"
                       >
                         {c.code}
                       </Badge>
@@ -353,7 +353,7 @@ export function ComplianceDashboardView() {
                         <div className="font-medium text-foreground">
                           {c.name}
                         </div>
-                        <div className="text-[11px] text-muted-foreground">
+                        <div className="text-meta text-muted-foreground">
                           {c.criticalCount > 0 && (
                             <span className="font-medium mr-2 text-destructive">
                               {c.criticalCount} Critical Issue
@@ -413,10 +413,10 @@ export function ComplianceDashboardView() {
                     <div className="font-medium text-foreground">
                       {dl.title}
                     </div>
-                    <div className="text-[11px] text-muted-foreground">
+                    <div className="text-meta text-muted-foreground">
                       {dl.target}
                     </div>
-                    <div className="font-mono text-[11px] text-subtle">
+                    <div className="font-mono text-meta text-subtle">
                       Due: {new Date(dl.date).toLocaleDateString()}
                     </div>
                   </div>
@@ -424,7 +424,7 @@ export function ComplianceDashboardView() {
                     variant={
                       dl.severity === 'CRITICAL' ? 'destructive' : 'warning'
                     }
-                    className="font-mono text-[10px] uppercase"
+                    className="font-mono text-2xs uppercase"
                   >
                     {dl.severity}
                   </Badge>

@@ -229,16 +229,16 @@ function TimelineItem({
             ) : null}
           </button>
           {toolName ? (
-            <Badge variant="outline" className="font-mono text-[10px]">
+            <Badge variant="outline" className="font-mono text-2xs">
               {toolName}
             </Badge>
           ) : null}
-          {row.status === 'SKIPPED' && output['dryRun'] ? <Badge variant="info" className="text-[10px]">Simulated</Badge> : null}
-          {output['simulated'] ? <Badge variant="info" className="text-[10px]">Approval simulated</Badge> : null}
+          {row.status === 'SKIPPED' && output['dryRun'] ? <Badge variant="info" className="text-2xs">Simulated</Badge> : null}
+          {output['simulated'] ? <Badge variant="info" className="text-2xs">Approval simulated</Badge> : null}
           {row.step?.status === 'FAILED' && output['errorCode'] ? (
-            <Badge variant="destructive" className="text-[10px]">{String(output['errorCode']).replace(/_/g, ' ').toLowerCase()}</Badge>
+            <Badge variant="destructive" className="text-2xs">{String(output['errorCode']).replace(/_/g, ' ').toLowerCase()}</Badge>
           ) : null}
-          <span className="ml-auto flex shrink-0 items-center gap-3 text-[11px] tabular-nums text-muted-foreground">
+          <span className="ml-auto flex shrink-0 items-center gap-3 text-meta tabular-nums text-muted-foreground">
             {typeof output['attempts'] === 'number' && (output['attempts'] as number) > 1 ? <span>{output['attempts'] as number} tries</span> : null}
             {row.step?.tokensUsed ? <span>{row.step.tokensUsed.toLocaleString()} tokens</span> : null}
             {row.step && row.status !== 'RUNNING' && row.status !== 'WAITING' ? <span>{formatMs(row.step.latencyMs)}</span> : null}
@@ -313,7 +313,7 @@ function StepDetails({ row, output, slug }: { row: TimelineRow; output: Record<s
   const summary = toolResult !== undefined ? summarizeToolResult(toolResult) : null;
   return (
     <>
-      {output['model'] ? <p className="text-[11px] text-muted-foreground">Model: {String(output['model'])}{output['failedOver'] ? ' (after another provider was unavailable)' : ''}</p> : null}
+      {output['model'] ? <p className="text-meta text-muted-foreground">Model: {String(output['model'])}{output['failedOver'] ? ' (after another provider was unavailable)' : ''}</p> : null}
       {aiOutput || finalOutput ? (
         <div className="max-h-80 overflow-y-auto text-sm">
           <MarkdownMessage text={(aiOutput ?? finalOutput)!} />

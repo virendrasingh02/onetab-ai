@@ -2220,7 +2220,7 @@ export function ToolbarContent({
         active={formats.bold}
         onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')}
       >
-        <span className="font-bold text-[15px] leading-none">B</span>
+        <span className="font-bold text-body-lg leading-none">B</span>
       </ToolButton>
 
       {/* Italic Button */}
@@ -2230,7 +2230,7 @@ export function ToolbarContent({
         active={formats.italic}
         onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')}
       >
-        <span className="font-serif font-semibold text-[15px] leading-none italic">
+        <span className="font-serif font-semibold text-body-lg leading-none italic">
           I
         </span>
       </ToolButton>

@@ -365,7 +365,7 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
             <Sparkles className="size-3.5 text-primary" />
             <span>Predefined color themes</span>
           </span>
-          <span className="text-[11px] text-muted-foreground">Replaces your colors with the preset</span>
+          <span className="text-meta text-muted-foreground">Replaces your colors with the preset</span>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 pt-1">
           {THEME_PRESETS.map((preset) => {
@@ -385,7 +385,7 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
                 }`}
               >
                 <div className="flex items-center justify-between w-full">
-                  <span className="text-[11px] font-bold truncate">{preset.name}</span>
+                  <span className="text-meta font-bold truncate">{preset.name}</span>
                   {active && <Check className="size-3 text-primary shrink-0" />}
                 </div>
                 <div className="flex items-center gap-1">
@@ -461,7 +461,7 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
       {activeTab === 'flat' && (
         <div className="space-y-6">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-meta text-muted-foreground">
               Editing the <strong className="text-foreground">{editMode}</strong> palette
               {editMode !== resolvedTheme && ' — switch Interface mode above to see it across the app'}.
               Untouched colors are generated from your brand color.
@@ -470,7 +470,7 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
               type="button"
               onClick={resetPalette}
               disabled={Object.keys(overrides).length === 0}
-              className="shrink-0 text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 cursor-pointer transition-colors"
+              className="shrink-0 text-meta text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 cursor-pointer transition-colors"
             >
               <RotateCcw className="size-3" />
               <span>Reset {editMode} colors</span>
@@ -502,7 +502,7 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
             <span className="font-bold flex items-center gap-2">
               <span>Accessibility &amp; contrast</span>
               <span
-                className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                className={`text-2xs px-2 py-0.5 rounded-full font-bold uppercase ${
                   buttonContrast.passesAA && bodyContrast.passesAA
                     ? 'bg-success/15 text-success'
                     : 'bg-destructive/15 text-destructive'
@@ -511,7 +511,7 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
                 {buttonContrast.passesAA && bodyContrast.passesAA ? 'AA pass' : 'Needs attention'}
               </span>
             </span>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-meta text-muted-foreground">
               Primary button label: <strong className="text-foreground">{buttonContrast.formattedRatio}</strong>
               {' · '}
               Body text on canvas: <strong className="text-foreground">{bodyContrast.formattedRatio}</strong>
@@ -530,7 +530,7 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
               type="button"
               onClick={() => setDraft((prev) => ({ ...prev, gradients: undefined }))}
               disabled={!draft.gradients}
-              className="text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 cursor-pointer transition-colors"
+              className="text-meta text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 cursor-pointer transition-colors"
             >
               <RotateCcw className="size-3" />
               <span>Reset gradients</span>
@@ -555,7 +555,7 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
             <Eye className="size-3.5 text-primary" />
             <span>Preview · {editMode}</span>
           </span>
-          <span className="text-[10px] font-mono text-primary font-bold uppercase tracking-wider bg-primary/10 px-2 py-0.5 rounded-full">
+          <span className="text-2xs font-mono text-primary font-bold uppercase tracking-wider bg-primary/10 px-2 py-0.5 rounded-full">
             {dirty ? 'Unsaved' : 'Saved'}
           </span>
         </div>
@@ -573,7 +573,7 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
               </div>
               <div>
                 <h4 className="text-xs font-bold">OneTab color engine</h4>
-                <p className="text-[11px] text-muted-foreground">Tokens rendered live</p>
+                <p className="text-meta text-muted-foreground">Tokens rendered live</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -597,16 +597,16 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
               Input field
             </div>
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-[10px] font-semibold text-success bg-success/15 px-2 py-0.5 rounded-full">
+              <span className="text-2xs font-semibold text-success bg-success/15 px-2 py-0.5 rounded-full">
                 ✓ Success
               </span>
-              <span className="text-[10px] font-semibold text-warning bg-warning/15 px-2 py-0.5 rounded-full">
+              <span className="text-2xs font-semibold text-warning bg-warning/15 px-2 py-0.5 rounded-full">
                 ⚠ Warning
               </span>
-              <span className="text-[10px] font-semibold text-destructive bg-destructive/15 px-2 py-0.5 rounded-full">
+              <span className="text-2xs font-semibold text-destructive bg-destructive/15 px-2 py-0.5 rounded-full">
                 ✕ Error
               </span>
-              <span className="text-[10px] font-semibold text-info bg-info/15 px-2 py-0.5 rounded-full">
+              <span className="text-2xs font-semibold text-info bg-info/15 px-2 py-0.5 rounded-full">
                 ℹ Info
               </span>
             </div>
@@ -689,7 +689,7 @@ function ColorFieldItem({
           {overridden && <span className="size-1.5 rounded-full bg-primary shrink-0" title="Customized" />}
         </span>
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-[10px] text-muted-foreground font-mono">{token}</span>
+          <span className="text-2xs text-muted-foreground font-mono">{token}</span>
           <button
             type="button"
             onClick={onReset}

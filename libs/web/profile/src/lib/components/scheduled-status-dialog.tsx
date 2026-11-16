@@ -254,7 +254,7 @@ export function ScheduledStatusDialog({
                     >
                       {s.statusText}
                     </p>
-                    <p className="truncate text-[11px] text-muted-foreground">
+                    <p className="truncate text-meta text-muted-foreground">
                       {summarize(s)}
                       {s.priority > 0 ? ` · priority ${s.priority}` : ''}
                     </p>
@@ -341,7 +341,7 @@ export function ScheduledStatusDialog({
                     onClick={() => set('recurrence', r.value)}
                     aria-pressed={draft.recurrence === r.value}
                     className={cn(
-                      'flex-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors',
+                      'flex-1 rounded-md px-2 py-1 text-meta font-medium transition-colors',
                       draft.recurrence === r.value
                         ? 'bg-background text-foreground shadow-2xs'
                         : 'text-muted-foreground hover:text-foreground',
@@ -354,7 +354,7 @@ export function ScheduledStatusDialog({
 
               {draft.recurrence === 'ONE_TIME' ? (
                 <div className="grid grid-cols-2 gap-2">
-                  <label className="text-[11px] text-muted-foreground">
+                  <label className="text-meta text-muted-foreground">
                     Start
                     <DateTimePicker
                       value={draft.startLocal}
@@ -362,7 +362,7 @@ export function ScheduledStatusDialog({
                       className="mt-0.5"
                     />
                   </label>
-                  <label className="text-[11px] text-muted-foreground">
+                  <label className="text-meta text-muted-foreground">
                     End
                     <DateTimePicker
                       value={draft.endLocal}
@@ -374,7 +374,7 @@ export function ScheduledStatusDialog({
               ) : (
                 <>
                   <div className="grid grid-cols-2 gap-2">
-                    <label className="text-[11px] text-muted-foreground">
+                    <label className="text-meta text-muted-foreground">
                       From
                       <TimePicker
                         value={draft.startTime}
@@ -382,7 +382,7 @@ export function ScheduledStatusDialog({
                         className="mt-0.5"
                       />
                     </label>
-                    <label className="text-[11px] text-muted-foreground">
+                    <label className="text-meta text-muted-foreground">
                       To
                       <TimePicker
                         value={draft.endTime}
@@ -409,7 +409,7 @@ export function ScheduledStatusDialog({
                               )
                             }
                             className={cn(
-                              'size-7 rounded-md text-[11px] font-medium transition-colors',
+                              'size-7 rounded-md text-meta font-medium transition-colors',
                               on
                                 ? 'bg-primary text-primary-foreground'
                                 : 'bg-surface-raised text-muted-foreground hover:text-foreground',
@@ -423,7 +423,7 @@ export function ScheduledStatusDialog({
                   )}
 
                   <div className="grid grid-cols-2 gap-2">
-                    <label className="text-[11px] text-muted-foreground">
+                    <label className="text-meta text-muted-foreground">
                       Only from (optional)
                       <DatePicker
                         value={draft.boundFrom}
@@ -431,7 +431,7 @@ export function ScheduledStatusDialog({
                         className="mt-0.5"
                       />
                     </label>
-                    <label className="text-[11px] text-muted-foreground">
+                    <label className="text-meta text-muted-foreground">
                       Until (optional)
                       <DatePicker
                         value={draft.boundUntil}
@@ -444,7 +444,7 @@ export function ScheduledStatusDialog({
               )}
 
               <div className="flex items-center gap-3">
-                <label className="text-[11px] text-muted-foreground">
+                <label className="text-meta text-muted-foreground">
                   Priority
                   <Input
                     type="number"
@@ -457,7 +457,7 @@ export function ScheduledStatusDialog({
                     className="mt-0.5 h-8 w-20 text-xs"
                   />
                 </label>
-                <label className="flex-1 text-[11px] text-muted-foreground">
+                <label className="flex-1 text-meta text-muted-foreground">
                   While active, set me to
                   <AppSelect
                     value={draft.presence}
@@ -494,7 +494,7 @@ export function ScheduledStatusDialog({
         </ScrollArea>
 
         <div className="flex items-center justify-between border-t border-border bg-surface-muted/50 px-4 py-3">
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-meta text-muted-foreground">
             {items.length}/{MAX_SCHEDULED_STATUSES} used
           </p>
           <Button

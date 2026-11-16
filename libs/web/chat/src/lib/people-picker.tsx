@@ -130,7 +130,7 @@ export function PeoplePicker({
                       {isSelf ? (
                         <Badge
                           variant="neutral"
-                          className="py-0 h-3.5 font-bold tracking-wider text-[9px] uppercase"
+                          className="py-0 h-3.5 font-bold tracking-wider text-3xs uppercase"
                         >
                           You
                         </Badge>
@@ -148,7 +148,7 @@ export function PeoplePicker({
                   </span>
                   <span
                     className={cn(
-                      'size-4 shrink-0 rounded-[5px] border flex items-center justify-center transition-colors',
+                      'size-4 shrink-0 rounded-sm border flex items-center justify-center transition-colors',
                       isSelected
                         ? 'border-brand bg-brand text-brand-foreground'
                         : 'border-border',

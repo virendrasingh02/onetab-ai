@@ -53,7 +53,7 @@ export interface NavEntry {
 
 /**
  * Nesting depth for a sidebar row. Indentation used to be applied ad hoc with
- * `pl-6` / `pl-1.5` / `pl-1` and font sizes down to `text-[10.5px]`, so rows at
+ * `pl-6` / `pl-1.5` / `pl-1` and font sizes down to `text-meta`, so rows at
  * the same logical depth did not line up and the type scale had no rhythm.
  * Depth is now the only knob, and every level shares one ramp.
  */
@@ -68,7 +68,7 @@ const DEPTH_PADDING: Record<NavDepth, string> = {
 const DEPTH_TEXT: Record<NavDepth, string> = {
   0: 'text-sm',
   1: 'text-sm',
-  2: 'text-[13px]',
+  2: 'text-body-sm',
 };
 
 /**
@@ -227,7 +227,7 @@ export function NavRow({
           ) : entry.badge !== undefined ? (
             <Badge
               variant="neutral"
-              className="px-1.5 py-0 h-4 font-semibold ml-auto font-mono text-[10px]"
+              className="px-1.5 py-0 h-4 font-semibold ml-auto font-mono text-2xs"
             >
               {entry.badge}
             </Badge>
@@ -502,7 +502,7 @@ export function NavGroup({
       <div role="group" aria-label={label}>
         <CollapsibleTrigger
           className={navActionClass({
-            extra: 'font-semibold text-[13px] text-muted-foreground',
+            extra: 'font-semibold text-body-sm text-muted-foreground',
           })}
         >
           <ChevronDown
@@ -629,7 +629,7 @@ export function Section({
             }
             className={cn(
               'group/trigger gap-1 min-w-0 flex items-center rounded-md',
-              'font-semibold tracking-wide text-[11px] text-foreground/75 uppercase',
+              'font-semibold tracking-wide text-meta text-foreground/75 uppercase',
               'transition-colors duration-(--duration-fast) hover:text-foreground',
               'cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring',
             )}
@@ -697,7 +697,7 @@ export function Section({
 
         <CollapsibleContent>
           {isEmpty && emptyLabel ? (
-            <p className="px-2.5 py-1 font-medium text-[11px] text-subtle">
+            <p className="px-2.5 py-1 font-medium text-meta text-subtle">
               {emptyLabel}
             </p>
           ) : null}
@@ -768,7 +768,7 @@ function SectionTitleInput({
       }}
       className={cn(
         'h-5 px-1 -ml-1 min-w-0 w-full rounded-sm border border-ring bg-background',
-        'font-semibold tracking-wide text-[11px] text-foreground uppercase',
+        'font-semibold tracking-wide text-meta text-foreground uppercase',
         'outline-none',
       )}
     />

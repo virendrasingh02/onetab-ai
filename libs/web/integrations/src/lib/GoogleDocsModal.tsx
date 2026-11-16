@@ -120,7 +120,7 @@ export function GoogleDocsModal({
                   </p>
                 </div>
               )}
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-meta text-muted-foreground">
                 This is the document's real text — ask the AI assistant to summarize or extract from it and it will read exactly what's shown above.
               </p>
             </div>
@@ -148,7 +148,7 @@ export function GoogleDocsModal({
                   <FileText className="size-4 shrink-0 text-accent-blue" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm text-foreground">{doc.name}</span>
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-meta text-muted-foreground">
                       {doc.owners?.[0]?.displayName ? `${doc.owners[0].displayName} · ` : ''}
                       {doc.modifiedTime ? new Date(doc.modifiedTime).toLocaleDateString() : ''}
                     </span>

@@ -339,7 +339,7 @@ export function GoogleCalendarModal({
             <div className="divide-y divide-border">
               {eventsByDay.map(([dayKey, events]) => (
                 <div key={dayKey} className="px-5 py-3">
-                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                  <p className="mb-2 text-meta font-bold uppercase tracking-wide text-muted-foreground">
                     {formatDayHeading(new Date(dayKey))}
                   </p>
                   <div className="space-y-1">
@@ -352,7 +352,7 @@ export function GoogleCalendarModal({
                       >
                         <div className="flex items-center justify-between gap-2">
                           <span className="truncate text-sm font-medium text-foreground">{event.summary}</span>
-                          <span className="shrink-0 text-[11px] text-muted-foreground">{formatEventTime(event)}</span>
+                          <span className="shrink-0 text-meta text-muted-foreground">{formatEventTime(event)}</span>
                         </div>
                         {event.location ? (
                           <span className="mt-0.5 block truncate text-xs text-muted-foreground">{event.location}</span>

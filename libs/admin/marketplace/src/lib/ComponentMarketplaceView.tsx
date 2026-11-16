@@ -11,7 +11,7 @@ function ComponentSpec({ listing }: { listing: MarketplaceListing }) {
   return (
     <div className="p-2.5 rounded-lg border border-border bg-background">
       {payload.framework ? (
-        <div className="font-semibold tracking-wide mb-1.5 text-[10px] text-accent-violet uppercase">
+        <div className="font-semibold tracking-wide mb-1.5 text-2xs text-accent-violet uppercase">
           {payload.framework}
         </div>
       ) : null}
@@ -20,7 +20,7 @@ function ComponentSpec({ listing }: { listing: MarketplaceListing }) {
           {payload.props.map((prop) => (
             <code
               key={prop}
-              className="px-1.5 py-0.5 rounded bg-surface-raised text-[10px] text-muted-foreground"
+              className="px-1.5 py-0.5 rounded bg-surface-raised text-2xs text-muted-foreground"
             >
               {prop}
             </code>

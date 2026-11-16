@@ -866,7 +866,7 @@ function DirectMessageHeader({
             {member.user.id.startsWith('agent-') ? (
               <Badge
                 variant="primary"
-                className="gap-0.5 py-0 h-4 font-bold tracking-wider text-[9px] uppercase"
+                className="gap-0.5 py-0 h-4 font-bold tracking-wider text-3xs uppercase"
               >
                 <Bot className="size-2.5 mr-0.5 inline-block" />
                 <span>AI AGENT</span>
@@ -874,7 +874,7 @@ function DirectMessageHeader({
             ) : member.user.id.startsWith('app-') ? (
               <Badge
                 variant="neutral"
-                className="gap-0.5 py-0 h-4 font-bold tracking-wider border-accent-violet/20 bg-accent-violet-soft text-[9px] text-accent-violet uppercase"
+                className="gap-0.5 py-0 h-4 font-bold tracking-wider border-accent-violet/20 bg-accent-violet-soft text-3xs text-accent-violet uppercase"
               >
                 <Blocks className="size-2.5 mr-0.5 inline-block" />
                 <span>APP</span>
@@ -1470,7 +1470,7 @@ function NewDirectMessage({
               {recipientCount > 0 ? (
                 <Badge
                   variant="neutral"
-                  className="px-1.5 py-0 h-4 text-[10px]"
+                  className="px-1.5 py-0 h-4 text-2xs"
                 >
                   {recipientCount} selected
                 </Badge>
@@ -1566,7 +1566,7 @@ function NewDirectMessage({
               </h3>
               <p className="max-w-md text-xs mx-auto text-muted-foreground">
                 {outcome} Type below and press{' '}
-                <kbd className="px-1 py-0.5 rounded border border-border bg-background font-sans text-[10px]">
+                <kbd className="px-1 py-0.5 rounded border border-border bg-background font-sans text-2xs">
                   Enter
                 </kbd>{' '}
                 to send.
@@ -1588,7 +1588,7 @@ function NewDirectMessage({
                 be built from here as well as from the field above. */}
             {!selectedChannel && suggestedPeople.length > 0 ? (
               <div className="max-w-lg space-y-2 w-full">
-                <p className="font-semibold tracking-wide text-[11px] text-muted-foreground uppercase">
+                <p className="font-semibold tracking-wide text-meta text-muted-foreground uppercase">
                   {selectedPeople.length > 0 ? 'Add more people' : 'Suggested'}
                 </p>
                 <div className="gap-2 flex flex-wrap justify-center">

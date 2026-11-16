@@ -107,7 +107,7 @@ function StorefrontTile({
           <Icon className="w-5 h-5" />
         </div>
         {installCount > 0 ? (
-          <span className="px-2 py-0.5 font-semibold rounded-full border border-success/40 bg-success/10 text-[10px] text-success">
+          <span className="px-2 py-0.5 font-semibold rounded-full border border-success/40 bg-success/10 text-2xs text-success">
             {formatCount(installCount)} installs
           </span>
         ) : null}
@@ -116,9 +116,9 @@ function StorefrontTile({
         <h3 className="font-bold text-sm text-foreground group-hover:text-foreground">
           {KIND_LABEL[kind]}s
         </h3>
-        <p className="mt-0.5 text-[11px] text-muted-foreground">{blurb}</p>
+        <p className="mt-0.5 text-meta text-muted-foreground">{blurb}</p>
       </div>
-      <span className="mt-auto text-[11px] text-muted-foreground">
+      <span className="mt-auto text-meta text-muted-foreground">
         {formatCount(listingCount)} listing{listingCount === 1 ? '' : 's'}
       </span>
     </Link>
@@ -230,12 +230,12 @@ export function MarketplaceHomeView() {
                       <p className="text-xs font-semibold truncate text-foreground">
                         {KIND_LABEL[row.kind]}s
                       </p>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-meta text-muted-foreground">
                         {formatCount(row.listingCount)} listing
                         {row.listingCount === 1 ? '' : 's'} published
                       </p>
                     </div>
-                    <span className="px-2 py-0.5 font-semibold rounded-full border border-border bg-surface-raised text-[10px] text-foreground">
+                    <span className="px-2 py-0.5 font-semibold rounded-full border border-border bg-surface-raised text-2xs text-foreground">
                       {formatCount(row.installCount)} install
                       {row.installCount === 1 ? '' : 's'}
                     </span>

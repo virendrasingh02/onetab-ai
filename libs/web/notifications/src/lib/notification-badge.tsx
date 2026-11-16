@@ -10,7 +10,7 @@ export function NotificationBadge({ count }: { count: number }) {
   return (
     <Badge
       variant="primary"
-      className="-right-0.5 -top-0.5 min-w-4 px-1 py-0 leading-4 absolute justify-center text-[10px]"
+      className="-right-0.5 -top-0.5 min-w-4 px-1 py-0 leading-4 absolute justify-center text-2xs"
     >
       {count > 99 ? '99+' : count}
     </Badge>

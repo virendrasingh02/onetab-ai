@@ -145,14 +145,14 @@ function SortableNavItemRow({
             {isCore && (
               <Badge
                 variant="neutral"
-                className="h-4 px-1 font-medium text-[9px] uppercase"
+                className="h-4 px-1 font-medium text-3xs uppercase"
               >
                 Core
               </Badge>
             )}
           </div>
           {item.description && (
-            <span className="truncate text-[11px] text-muted-foreground">
+            <span className="truncate text-meta text-muted-foreground">
               {item.description}
             </span>
           )}
@@ -251,7 +251,7 @@ function SortableSectionRow({
           <span className="font-semibold truncate text-foreground">
             {section.label}
           </span>
-          <span className="truncate text-[11px] text-muted-foreground">
+          <span className="truncate text-meta text-muted-foreground">
             {section.description}
           </span>
         </div>
@@ -369,7 +369,7 @@ function IndicatorsPanel() {
             <span className="font-semibold text-foreground">
               Show activity indicators
             </span>
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-meta text-muted-foreground">
               Dots and badges for unread and new activity across every sidebar.
             </span>
           </div>
@@ -394,7 +394,7 @@ function IndicatorsPanel() {
           <span className="text-xs font-semibold text-foreground">
             Indicator style
           </span>
-          <span className="text-[11px] text-muted-foreground">
+          <span className="text-meta text-muted-foreground">
             {INDICATOR_STYLES.find((s) => s.value === prefs.style)?.hint}
           </span>
         </div>
@@ -406,7 +406,7 @@ function IndicatorsPanel() {
               onClick={() => setActivityIndicator('style', option.value)}
               aria-pressed={prefs.style === option.value}
               className={cn(
-                'px-2 py-1 font-medium flex-1 rounded-md text-[11px] transition-all',
+                'px-2 py-1 font-medium flex-1 rounded-md text-meta transition-all',
                 prefs.style === option.value
                   ? 'shadow-2xs font-semibold bg-background text-foreground'
                   : 'text-muted-foreground hover:text-foreground',
@@ -439,7 +439,7 @@ function IndicatorsPanel() {
                   <span className="font-medium text-foreground">
                     {row.label}
                   </span>
-                  <span className="truncate text-[11px] text-muted-foreground">
+                  <span className="truncate text-meta text-muted-foreground">
                     {row.description}
                   </span>
                 </div>
@@ -658,7 +658,7 @@ export function SidebarCustomizerDialog({
                 type="button"
                 onClick={() => setActiveGroup('all')}
                 className={cn(
-                  'px-2.5 py-0.5 font-medium rounded-full text-[11px] transition-colors',
+                  'px-2.5 py-0.5 font-medium rounded-full text-meta transition-colors',
                   activeGroup === 'all'
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-surface-raised text-muted-foreground hover:text-foreground',
@@ -672,7 +672,7 @@ export function SidebarCustomizerDialog({
                   type="button"
                   onClick={() => setActiveGroup(group.id)}
                   className={cn(
-                    'px-2.5 py-0.5 font-medium rounded-full text-[11px] whitespace-nowrap transition-colors',
+                    'px-2.5 py-0.5 font-medium rounded-full text-meta whitespace-nowrap transition-colors',
                     activeGroup === group.id
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-surface-raised text-muted-foreground hover:text-foreground',
@@ -707,7 +707,7 @@ export function SidebarCustomizerDialog({
                         <p className="text-xs font-semibold text-foreground">
                           Sidebar view
                         </p>
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-meta text-muted-foreground">
                           {
                             SIDEBAR_VIEW_OPTIONS.find(
                               (option) => option.value === layoutMode,

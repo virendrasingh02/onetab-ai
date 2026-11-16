@@ -109,7 +109,7 @@ export function JoinChannelControl({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuLabel className="gap-1.5 flex items-center text-[11px] uppercase tracking-wide text-muted-foreground">
+            <DropdownMenuLabel className="gap-1.5 flex items-center text-meta uppercase tracking-wide text-muted-foreground">
               <Clock className="size-3" />
               Join temporarily
             </DropdownMenuLabel>
@@ -158,7 +158,7 @@ export function JoinChannelControl({
                     type="button"
                     onClick={() => setCustomUnit(unit)}
                     aria-pressed={customUnit === unit}
-                    className={`rounded-md px-2.5 py-1 text-[11px] font-medium capitalize transition-colors ${
+                    className={`rounded-md px-2.5 py-1 text-meta font-medium capitalize transition-colors ${
                       customUnit === unit
                         ? 'bg-background text-foreground shadow-2xs'
                         : 'text-muted-foreground hover:text-foreground'

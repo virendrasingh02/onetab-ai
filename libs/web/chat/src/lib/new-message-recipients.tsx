@@ -338,7 +338,7 @@ export function NewMessageRecipients({
         className="w-(--radix-popover-trigger-width) max-h-72 p-1 overflow-y-auto"
       >
         {!multiple && hasSelection ? (
-          <p className="mx-1 mt-1 mb-1.5 px-2 py-1.5 rounded-md bg-muted/60 text-[11px] text-muted-foreground">
+          <p className="mx-1 mt-1 mb-1.5 px-2 py-1.5 rounded-md bg-muted/60 text-meta text-muted-foreground">
             {singleChannel
               ? `A new message goes to one place — picking another channel or a person replaces #${singleChannel.name}.`
               : 'Add more people for a group message — picking a channel replaces them.'}
@@ -346,7 +346,7 @@ export function NewMessageRecipients({
         ) : null}
 
         {showChannelGroup ? (
-          <p className="px-2 pt-1.5 pb-1 font-semibold tracking-wide text-[11px] text-muted-foreground uppercase">
+          <p className="px-2 pt-1.5 pb-1 font-semibold tracking-wide text-meta text-muted-foreground uppercase">
             {hasGroupRows ? 'Channels & groups' : 'Channels'}
           </p>
         ) : null}
@@ -360,7 +360,7 @@ export function NewMessageRecipients({
               {showPeopleHeading ? (
                 <p
                   className={cn(
-                    'px-2 pb-1 font-semibold tracking-wide text-[11px] text-muted-foreground uppercase',
+                    'px-2 pb-1 font-semibold tracking-wide text-meta text-muted-foreground uppercase',
                     showChannelGroup ? 'pt-2' : 'pt-1.5',
                   )}
                 >
@@ -392,7 +392,7 @@ export function NewMessageRecipients({
                     <span className="min-w-0 flex-1 truncate font-medium">
                       {row.channel.name}
                     </span>
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-meta text-muted-foreground">
                       {row.channel.kind === 'group' ? 'Group' : 'Channel'}
                     </span>
                   </>
@@ -418,7 +418,7 @@ export function NewMessageRecipients({
                           {row.person.name}
                         </span>
                         {row.person.isSelf ? (
-                          <span className="font-bold tracking-wider text-[9px] text-muted-foreground uppercase">
+                          <span className="font-bold tracking-wider text-3xs text-muted-foreground uppercase">
                             You
                           </span>
                         ) : row.person.kind === 'agent' ||
@@ -453,7 +453,7 @@ export function NewMessageRecipients({
                 )}
 
                 {isActive ? (
-                  <kbd className="px-1.5 py-0.5 font-sans text-[10px] rounded border border-border bg-background text-muted-foreground">
+                  <kbd className="px-1.5 py-0.5 font-sans text-2xs rounded border border-border bg-background text-muted-foreground">
                     {replaces(row) ? 'Enter to switch' : 'Enter'}
                   </kbd>
                 ) : null}

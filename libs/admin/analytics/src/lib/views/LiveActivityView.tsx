@@ -151,7 +151,7 @@ export function LiveActivityView() {
                           <span className="font-semibold text-foreground">
                             {item.title}
                           </span>
-                          <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-mono">
+                          <Badge variant="outline" className="text-2xs py-0 px-1.5 font-mono">
                             {item.type}
                           </Badge>
                         </div>
@@ -166,7 +166,7 @@ export function LiveActivityView() {
                         </p>
                       )}
 
-                      <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-3 pt-1 text-meta text-muted-foreground">
                         {userEmail && (
                           <span className="flex items-center gap-1">
                             <User className="size-3" />
@@ -182,14 +182,14 @@ export function LiveActivityView() {
                         )}
 
                         {platform && platform !== 'UNKNOWN' && (
-                          <Badge variant="outline" className="text-[9px] py-0 px-1 gap-1">
+                          <Badge variant="outline" className="text-3xs py-0 px-1 gap-1">
                             <Laptop className="size-2.5" />
                             {platform}
                           </Badge>
                         )}
 
                         {item.severity === 'critical' && (
-                          <Badge variant="destructive" className="text-[9px] py-0 px-1 gap-1">
+                          <Badge variant="destructive" className="text-3xs py-0 px-1 gap-1">
                             <AlertTriangle className="size-2.5" />
                             Critical
                           </Badge>

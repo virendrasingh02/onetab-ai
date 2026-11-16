@@ -604,7 +604,7 @@ function AppMessageHeader({ app }: { app: AppModelItem }) {
             {/* Direct Message APP badge */}
             <Badge
               variant="neutral"
-              className="gap-0.5 py-0 h-5 font-bold tracking-wider border-accent-violet/20 bg-accent-violet-soft text-[10px] text-accent-violet uppercase"
+              className="gap-0.5 py-0 h-5 font-bold tracking-wider border-accent-violet/20 bg-accent-violet-soft text-2xs text-accent-violet uppercase"
             >
               <span>APP</span>
             </Badge>
@@ -1122,14 +1122,14 @@ function NewAppMessage() {
                           </span>
                           <Badge
                             variant="neutral"
-                            className="gap-0.5 py-0 h-3.5 font-bold tracking-wider border-accent-violet/20 bg-accent-violet-soft text-[9px] text-accent-violet uppercase"
+                            className="gap-0.5 py-0 h-3.5 font-bold tracking-wider border-accent-violet/20 bg-accent-violet-soft text-3xs text-accent-violet uppercase"
                           >
                             <Blocks className="size-2 mr-0.5 inline-block" />
                             <span>APP</span>
                           </Badge>
                           <Badge
                             variant="neutral"
-                            className="py-0 h-3.5 text-[10px]"
+                            className="py-0 h-3.5 text-2xs"
                           >
                             {app.category}
                           </Badge>

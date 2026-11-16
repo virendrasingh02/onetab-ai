@@ -38,21 +38,21 @@ const DEFAULT_CURVES: Record<string, number[]> = {
 };
 
 const COLOR_CLASSES: Record<string, string> = {
-  rose: 'stroke-rose-500',
+  rose: 'stroke-destructive',
   emerald: 'stroke-success',
-  amber: 'stroke-amber-400',
-  cyan: 'stroke-cyan-400',
-  blue: 'stroke-blue-400',
-  purple: 'stroke-purple-400',
+  amber: 'stroke-warning',
+  cyan: 'stroke-accent-cyan',
+  blue: 'stroke-accent-blue',
+  purple: 'stroke-accent-violet',
 };
 
 const BADGE_STYLES = {
   positive:
     'border-success/25 bg-success/15 text-success-text',
   negative:
-    'border-rose-500/25 bg-rose-500/15 text-rose-400 dark:text-rose-400',
+    'border-destructive/25 bg-destructive/15 text-destructive-text',
   warning:
-    'border-amber-500/25 bg-amber-500/15 text-amber-400 dark:text-amber-400',
+    'border-warning/25 bg-warning/15 text-warning-text',
   neutral: 'border-border/80 bg-muted/60 text-muted-foreground',
 };
 
@@ -212,7 +212,7 @@ export function AdminMetricCard({
       {/* Bottom Row: Metric value + Badge/Detail on left, Sparkline on right */}
       <div className="mt-5 flex items-end justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-2xl sm:text-[28px] font-bold tracking-tight text-foreground tabular-nums">
+          <div className="text-2xl sm:text-stat font-bold tracking-tight text-foreground tabular-nums">
             {value}
           </div>
 
@@ -220,7 +220,7 @@ export function AdminMetricCard({
             {badgeText ? (
               <span
                 className={cn(
-                  'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold tracking-tight shrink-0',
+                  'inline-flex items-center rounded-full border px-2 py-0.5 text-meta font-semibold tracking-tight shrink-0',
                   BADGE_STYLES[computedBadgeType],
                 )}
               >

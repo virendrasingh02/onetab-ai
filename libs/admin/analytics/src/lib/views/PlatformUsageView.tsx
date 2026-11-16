@@ -70,9 +70,9 @@ export function PlatformUsageView() {
       cell: (row) => (
         <div className="flex items-center gap-2 font-semibold">
           {row.platform === 'Desktop' ? (
-            <Laptop className="size-4 text-purple-500" />
+            <Laptop className="size-4 text-accent-violet" />
           ) : (
-            <Globe className="size-4 text-blue-500" />
+            <Globe className="size-4 text-accent-blue" />
           )}
           <span>{row.platform} Client</span>
         </div>
@@ -199,22 +199,22 @@ export function PlatformUsageView() {
       {/* Visual Split */}
       <Card className="rounded-2xl border border-border/60 bg-card p-5 sm:p-6 shadow-2xs">
         <div className="flex items-center justify-between mb-2 text-xs font-semibold">
-          <span className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
+          <span className="flex items-center gap-1.5 text-accent-blue">
             <Globe className="size-3.5" />
             Web ({webPct}%)
           </span>
-          <span className="flex items-center gap-1.5 text-purple-600 dark:text-purple-400">
+          <span className="flex items-center gap-1.5 text-accent-violet">
             <Laptop className="size-3.5" />
             Desktop ({desktopPct}%)
           </span>
         </div>
-        <div className="h-3 w-full rounded-full bg-purple-500/20 overflow-hidden flex">
+        <div className="h-3 w-full rounded-full bg-accent-violet/20 overflow-hidden flex">
           <div
-            className="h-full bg-blue-500 transition-all duration-500"
+            className="h-full bg-accent-blue transition-all duration-500"
             style={{ width: `${webPct}%` }}
           />
           <div
-            className="h-full bg-purple-500 transition-all duration-500"
+            className="h-full bg-accent-violet transition-all duration-500"
             style={{ width: `${desktopPct}%` }}
           />
         </div>

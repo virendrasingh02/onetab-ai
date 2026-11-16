@@ -252,7 +252,7 @@ export function GoogleDriveModal({
                   )}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm text-foreground">{file.name}</span>
-                    <span className="gap-1.5 flex items-center text-[11px] text-muted-foreground">
+                    <span className="gap-1.5 flex items-center text-meta text-muted-foreground">
                       {file.owners?.[0]?.displayName ? <span>{file.owners[0].displayName}</span> : null}
                       {file.modifiedTime ? <span>· {new Date(file.modifiedTime).toLocaleDateString()}</span> : null}
                       {file.size ? <span>· {formatBytes(file.size)}</span> : null}

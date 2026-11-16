@@ -98,7 +98,7 @@ export function ProfileSummaryCard({
                 <span>{region.flag}</span>
                 <span>{describeTimezone(userTimezone)}</span>
               </div>
-              <div className="gap-1 mt-0.5 flex items-center justify-end text-[11px] text-muted-foreground">
+              <div className="gap-1 mt-0.5 flex items-center justify-end text-meta text-muted-foreground">
                 <LocalTime timezone={userTimezone} className="font-mono" />
                 <span>•</span>
                 <span>{diff}</span>
@@ -122,7 +122,7 @@ export function ProfileSummaryCard({
                       : 'Off-Hours'}
                 </span>
               </div>
-              <div className="text-[11px] text-muted-foreground">
+              <div className="text-meta text-muted-foreground">
                 {formatWorkingSchedule(schedule)}
               </div>
             </div>

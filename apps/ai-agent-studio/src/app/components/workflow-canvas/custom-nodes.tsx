@@ -1078,7 +1078,7 @@ function ToolbarButton({
       className={cn(
         // Joined segments: outer corners rounded, shared borders collapsed
         'size-7 relative flex cursor-pointer items-center justify-center border border-border bg-surface transition-colors',
-        'not-first:border-l-0 first:rounded-l-[10px] last:rounded-r-[10px]',
+        'not-first:border-l-0 first:rounded-l-lg last:rounded-r-lg',
         'focus:outline-none focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-ring/60',
         tone === 'danger'
           ? 'text-foreground hover:bg-destructive/15 hover:text-destructive'
@@ -1155,7 +1155,7 @@ export function NodeActionToolbar({
         <div
           role="group"
           aria-label={`${name} actions`}
-          className="flex items-stretch rounded-[10px] shadow-sm select-none"
+          className="flex items-stretch rounded-lg shadow-sm select-none"
         >
           {showAdd && (
             <ToolbarButton
@@ -3166,13 +3166,13 @@ const STICKY_COLORS = {
   blue: {
     border: 'border-accent-blue/30',
     tint: 'bg-accent-blue/10',
-    text: 'text-sky-950 dark:text-sky-200',
+    text: 'text-info-text',
     swatch: 'bg-accent-blue',
   },
   purple: {
     border: 'border-accent-violet/30',
     tint: 'bg-accent-violet/10',
-    text: 'text-purple-950 dark:text-purple-200',
+    text: 'text-accent-violet',
     swatch: 'bg-accent-violet',
   },
   green: {

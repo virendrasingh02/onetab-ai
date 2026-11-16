@@ -14,7 +14,7 @@ function IntegrationSpec({ listing }: { listing: MarketplaceListing }) {
   return (
     <div className="p-2.5 space-y-1.5 rounded-lg border border-border bg-background">
       {payload.authType ? (
-        <div className="gap-1.5 flex items-center text-[11px] text-accent-cyan">
+        <div className="gap-1.5 flex items-center text-meta text-accent-cyan">
           <KeyRound className="w-3 h-3" />
           {payload.authType}
         </div>
@@ -24,7 +24,7 @@ function IntegrationSpec({ listing }: { listing: MarketplaceListing }) {
           {payload.events.map((event) => (
             <span
               key={event}
-              className="px-1.5 py-0.5 rounded bg-surface-raised text-[10px] text-muted-foreground"
+              className="px-1.5 py-0.5 rounded bg-surface-raised text-2xs text-muted-foreground"
             >
               {event}
             </span>

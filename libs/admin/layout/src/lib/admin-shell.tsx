@@ -247,11 +247,11 @@ interface ResourceStatusItem {
 }
 
 const DEFAULT_RESOURCE_ITEMS: ResourceStatusItem[] = [
-  { id: 'res-api', name: 'API Server', status: 'online', badge: 'Live', color: 'bg-emerald-500', to: '/analytics/apis' },
-  { id: 'res-db', name: 'PostgreSQL', status: 'online', badge: 'Live', color: 'bg-emerald-500', to: '/health' },
-  { id: 'res-matrix', name: 'Matrix Chat', status: 'online', badge: 'Live', color: 'bg-emerald-500', to: '/analytics/messaging' },
-  { id: 'res-storage', name: 'Object Store', status: 'online', badge: 'Live', color: 'bg-emerald-500', to: '/analytics/storage' },
-  { id: 'res-cache', name: 'Cache Layer', status: 'online', badge: 'Live', color: 'bg-emerald-500', to: '/performance' },
+  { id: 'res-api', name: 'API Server', status: 'online', badge: 'Live', color: 'bg-success', to: '/analytics/apis' },
+  { id: 'res-db', name: 'PostgreSQL', status: 'online', badge: 'Live', color: 'bg-success', to: '/health' },
+  { id: 'res-matrix', name: 'Matrix Chat', status: 'online', badge: 'Live', color: 'bg-success', to: '/analytics/messaging' },
+  { id: 'res-storage', name: 'Object Store', status: 'online', badge: 'Live', color: 'bg-success', to: '/analytics/storage' },
+  { id: 'res-cache', name: 'Cache Layer', status: 'online', badge: 'Live', color: 'bg-success', to: '/performance' },
 ];
 
 // Flat list for search & title resolution
@@ -340,7 +340,7 @@ function AdminNavRow({
       <Icon className="size-4 shrink-0" />
       <span className="flex-1 truncate">{label}</span>
       {badge ? (
-        <span className="ml-auto inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-mono font-semibold tabular-nums bg-muted border border-border/50 text-muted-foreground">
+        <span className="ml-auto inline-flex items-center px-1.5 py-0.5 rounded-full text-2xs font-mono font-semibold tabular-nums bg-muted border border-border/50 text-muted-foreground">
           {badge}
         </span>
       ) : null}
@@ -368,7 +368,7 @@ function AdminNavSection({
         <div className="group/section flex items-center px-2.5 py-1 select-none">
           <CollapsibleTrigger
             aria-label={`Toggle ${title} section`}
-            className="flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded-md text-[11px] font-semibold uppercase tracking-wide text-foreground/75 outline-none transition-colors duration-150 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
+            className="flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded-md text-meta font-semibold uppercase tracking-wide text-foreground/75 outline-none transition-colors duration-150 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
           >
             <span className="truncate">{title}</span>
             <ChevronDown
@@ -382,11 +382,11 @@ function AdminNavSection({
           {badge ? (
             <span
               className={cn(
-                'ml-auto inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-mono font-semibold tabular-nums border shrink-0',
+                'ml-auto inline-flex items-center px-1.5 py-0.5 rounded-full text-2xs font-mono font-semibold tabular-nums border shrink-0',
                 badge.includes('Alert')
                   ? 'bg-destructive/12 text-destructive border-destructive/20'
                   : badge.includes('Degraded')
-                    ? 'bg-amber-500/12 text-amber-500 border-amber-500/20'
+                    ? 'bg-warning/12 text-warning-text border-warning/20'
                     : 'bg-brand/12 text-brand-text border-brand/20',
               )}
             >
@@ -511,7 +511,7 @@ function SearchCommandPalette({
           {(isWorkspacesLoading || isUsersLoading) && (
             <RefreshCw className="size-3.5 text-primary animate-spin shrink-0" />
           )}
-          <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-muted text-muted-foreground rounded border">
+          <kbd className="px-1.5 py-0.5 text-2xs font-mono bg-muted text-muted-foreground rounded border">
             ESC
           </kbd>
         </div>
@@ -520,9 +520,9 @@ function SearchCommandPalette({
           {/* Workspaces Section */}
           {matchingWorkspaces.length > 0 && (
             <div className="mb-2">
-              <div className="text-[11px] font-semibold text-primary px-2.5 py-1 uppercase tracking-wider flex items-center justify-between">
+              <div className="text-meta font-semibold text-primary px-2.5 py-1 uppercase tracking-wider flex items-center justify-between">
                 <span>Platform Workspaces</span>
-                <span className="text-[10px] text-muted-foreground font-normal">Real Database</span>
+                <span className="text-2xs text-muted-foreground font-normal">Real Database</span>
               </div>
               {matchingWorkspaces.map((ws) => (
                 <button
@@ -534,11 +534,11 @@ function SearchCommandPalette({
                   <Building2 className="size-4 shrink-0 text-primary" />
                   <div className="min-w-0 flex-1">
                     <div className="font-medium text-foreground truncate">{ws.name}</div>
-                    <div className="text-[11px] text-muted-foreground truncate font-mono">
+                    <div className="text-meta text-muted-foreground truncate font-mono">
                       /{ws.slug} • {ws._count?.members ?? 0} members
                     </div>
                   </div>
-                  <span className="text-[10px] font-mono font-semibold uppercase px-1.5 py-0.5 rounded bg-muted border">
+                  <span className="text-2xs font-mono font-semibold uppercase px-1.5 py-0.5 rounded bg-muted border">
                     {ws.status}
                   </span>
                 </button>
@@ -549,9 +549,9 @@ function SearchCommandPalette({
           {/* Users Section */}
           {matchingUsers.length > 0 && (
             <div className="mb-2">
-              <div className="text-[11px] font-semibold text-primary px-2.5 py-1 uppercase tracking-wider flex items-center justify-between">
+              <div className="text-meta font-semibold text-primary px-2.5 py-1 uppercase tracking-wider flex items-center justify-between">
                 <span>Accounts & Operators</span>
-                <span className="text-[10px] text-muted-foreground font-normal">Real Database</span>
+                <span className="text-2xs text-muted-foreground font-normal">Real Database</span>
               </div>
               {matchingUsers.map((user) => (
                 <button
@@ -560,12 +560,12 @@ function SearchCommandPalette({
                   type="button"
                   className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm text-foreground hover:bg-accent/80 transition-colors text-left"
                 >
-                  <Users className="size-4 shrink-0 text-emerald-500" />
+                  <Users className="size-4 shrink-0 text-success-text" />
                   <div className="min-w-0 flex-1">
                     <div className="font-medium text-foreground truncate">{user.name || user.email}</div>
-                    <div className="text-[11px] text-muted-foreground truncate">{user.email}</div>
+                    <div className="text-meta text-muted-foreground truncate">{user.email}</div>
                   </div>
-                  <span className="text-[10px] font-mono font-semibold uppercase px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                  <span className="text-2xs font-mono font-semibold uppercase px-1.5 py-0.5 rounded bg-success/10 text-success-text border border-success/20">
                     {user.systemRole}
                   </span>
                 </button>
@@ -575,7 +575,7 @@ function SearchCommandPalette({
 
           {/* Navigation Pages */}
           <div>
-            <div className="text-[11px] font-medium text-muted-foreground px-2.5 py-1 uppercase tracking-wider">
+            <div className="text-meta font-medium text-muted-foreground px-2.5 py-1 uppercase tracking-wider">
               Navigation Pages
             </div>
             {filteredNavItems.length === 0 && matchingWorkspaces.length === 0 && matchingUsers.length === 0 ? (
@@ -593,7 +593,7 @@ function SearchCommandPalette({
                   <item.icon className="size-4 shrink-0 text-muted-foreground" />
                   <div className="min-w-0 flex-1">
                     <div className="font-medium text-foreground truncate">{item.label}</div>
-                    <div className="text-[10px] text-muted-foreground truncate">{item.groupTitle}</div>
+                    <div className="text-2xs text-muted-foreground truncate">{item.groupTitle}</div>
                   </div>
                   <span className="text-xs text-muted-foreground font-mono">
                     {item.to}
@@ -848,10 +848,10 @@ export function AdminShell() {
         const isHealthy = svc.status === 'HEALTHY';
         const isDegraded = svc.status === 'DEGRADED';
         const color = isHealthy
-          ? 'bg-emerald-500'
+          ? 'bg-success'
           : isDegraded
-            ? 'bg-amber-500'
-            : 'bg-rose-500';
+            ? 'bg-warning'
+            : 'bg-destructive';
 
         const badge =
           svc.latencyMs !== undefined && svc.latencyMs !== null
@@ -1072,7 +1072,7 @@ export function AdminShell() {
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-semibold leading-tight text-foreground flex items-center gap-1.5">
                       <span>Onetab AI</span>
-                      <span className="text-[10px] font-mono uppercase px-1.5 py-0.2 rounded bg-brand/10 text-brand-text border border-brand/20 font-semibold">
+                      <span className="text-2xs font-mono uppercase px-1.5 py-0.2 rounded bg-brand/10 text-brand-text border border-brand/20 font-semibold">
                         Admin
                       </span>
                     </div>
@@ -1087,7 +1087,7 @@ export function AdminShell() {
             <DropdownMenuLabel className="text-xs text-muted-foreground flex items-center justify-between">
               <span>Tenants & Workspaces</span>
               {adminOverview?.workspaces !== undefined && (
-                <span className="text-[10px] font-mono text-primary font-semibold">
+                <span className="text-2xs font-mono text-primary font-semibold">
                   {adminOverview.workspaces} Total
                 </span>
               )}
@@ -1106,14 +1106,14 @@ export function AdminShell() {
                     className={cn(
                       'size-2 rounded-full shrink-0',
                       ws.status === 'ACTIVE'
-                        ? 'bg-emerald-500'
+                        ? 'bg-success'
                         : ws.status === 'ARCHIVED'
                           ? 'bg-muted-foreground'
-                          : 'bg-amber-500',
+                          : 'bg-warning',
                     )}
                   />
                   <span className="font-medium truncate flex-1">{ws.name}</span>
-                  <span className="text-[10px] font-mono text-muted-foreground">/{ws.slug}</span>
+                  <span className="text-2xs font-mono text-muted-foreground">/{ws.slug}</span>
                 </DropdownMenuItem>
               ))
             ) : (
@@ -1179,7 +1179,7 @@ export function AdminShell() {
           >
             <Search className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground" />
             <span className="flex-1 truncate">Search console…</span>
-            <kbd className="inline-flex h-5 items-center rounded border border-border/60 bg-background px-1.5 font-mono text-[10px] font-semibold text-muted-foreground">
+            <kbd className="inline-flex h-5 items-center rounded border border-border/60 bg-background px-1.5 font-mono text-2xs font-semibold text-muted-foreground">
               ⌘K
             </kbd>
           </button>
@@ -1202,8 +1202,8 @@ export function AdminShell() {
           {isCollapsed ? (
             <Hint side="right" label="Live Activity (Streaming)">
               <RailNavLink to="/analytics/live" onClick={onCloseMobile} aria-label="Live Activity">
-                <Radio className="size-4 shrink-0 text-emerald-500" />
-                <span className="absolute right-1 top-1 size-2 rounded-full bg-emerald-500 animate-pulse ring-2 ring-card" />
+                <Radio className="size-4 shrink-0 text-success-text" />
+                <span className="absolute right-1 top-1 size-2 rounded-full bg-success animate-pulse ring-2 ring-card" />
               </RailNavLink>
             </Hint>
           ) : (
@@ -1212,9 +1212,9 @@ export function AdminShell() {
               onClick={onCloseMobile}
               className={({ isActive }) => cn(ROW_BASE, isActive ? ROW_ACTIVE : ROW_IDLE)}
             >
-              <Radio className="size-4 shrink-0 text-emerald-500" />
+              <Radio className="size-4 shrink-0 text-success-text" />
               <span className="flex-1 truncate">Live Activity</span>
-              <span className="size-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <span className="size-2 rounded-full bg-success animate-pulse shrink-0" />
             </NavLink>
           )}
 
@@ -1285,7 +1285,7 @@ export function AdminShell() {
                 >
                   <span className={cn('size-2 rounded-full shrink-0', res.color)} />
                   <span className="flex-1 truncate">{res.name}</span>
-                  <span className="px-1.5 py-0.2 rounded text-[10px] font-mono text-muted-foreground bg-muted border border-border/50 shrink-0">
+                  <span className="px-1.5 py-0.2 rounded text-2xs font-mono text-muted-foreground bg-muted border border-border/50 shrink-0">
                     {res.badge}
                   </span>
                 </NavLink>
@@ -1403,7 +1403,7 @@ export function AdminShell() {
                     <p className="text-sm font-semibold leading-none text-foreground truncate max-w-[150px]">
                       {displayName}
                     </p>
-                    <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-brand/10 text-brand-text border border-brand/20 font-semibold">
+                    <span className="text-2xs font-mono uppercase px-1.5 py-0.5 rounded bg-brand/10 text-brand-text border border-brand/20 font-semibold">
                       {currentUser?.systemRole || 'SUPERADMIN'}
                     </span>
                   </div>
@@ -1522,7 +1522,7 @@ export function AdminShell() {
             >
               <Search className="size-3.5" />
               <span>Search…</span>
-              <kbd className="text-[10px] font-mono bg-background px-1 py-0.2 rounded border">⌘K</kbd>
+              <kbd className="text-2xs font-mono bg-background px-1 py-0.2 rounded border">⌘K</kbd>
             </button>
 
             {/* Cross-App Link to AI Agent Studio */}
@@ -1547,8 +1547,8 @@ export function AdminShell() {
             </a>
 
             {/* Live Indicator */}
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-border/80 bg-background/50 text-[11px] font-medium text-foreground">
-              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-border/80 bg-background/50 text-meta font-medium text-foreground">
+              <span className="size-1.5 rounded-full bg-success animate-pulse" />
               <span className="hidden sm:inline">Live</span>
             </div>
 

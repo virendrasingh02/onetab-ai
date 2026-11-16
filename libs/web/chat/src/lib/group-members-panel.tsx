@@ -160,7 +160,7 @@ export function GroupMembersPanel({
           <h2 className="text-sm font-semibold tracking-tight truncate">
             Members
           </h2>
-          <Badge variant="neutral" className="px-1.5 py-0 h-4 text-[10px]">
+          <Badge variant="neutral" className="px-1.5 py-0 h-4 text-2xs">
             {members.length}
           </Badge>
         </div>
@@ -242,12 +242,12 @@ export function GroupMembersPanel({
                           {member.displayName}
                         </span>
                         {isSelf ? (
-                          <span className="text-[10px] text-muted-foreground">
+                          <span className="text-2xs text-muted-foreground">
                             (you)
                           </span>
                         ) : null}
                       </div>
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-2xs text-muted-foreground">
                         {roleLabel}
                       </span>
                     </div>

@@ -137,7 +137,7 @@ export function RegisterPage() {
                     leadingIcon={<User />}
                   />
                 </FormControl>
-                <FormMessage className="text-[11px]" />
+                <FormMessage className="text-meta" />
               </FormItem>
             )}
           />
@@ -157,7 +157,7 @@ export function RegisterPage() {
                     leadingIcon={<Mail />}
                   />
                 </FormControl>
-                <FormMessage className="text-[11px]" />
+                <FormMessage className="text-meta" />
               </FormItem>
             )}
           />
@@ -194,8 +194,8 @@ export function RegisterPage() {
                         key={rule.label}
                         className={
                           met
-                            ? 'gap-1 text-[11px] flex items-center text-success-text'
-                            : 'gap-1 text-[11px] flex items-center text-muted-foreground'
+                            ? 'gap-1 text-meta flex items-center text-success-text'
+                            : 'gap-1 text-meta flex items-center text-muted-foreground'
                         }
                       >
                         <Check
@@ -207,7 +207,7 @@ export function RegisterPage() {
                     );
                   })}
                 </ul>
-                <FormMessage className="text-[11px]" />
+                <FormMessage className="text-meta" />
               </FormItem>
             )}
           />
@@ -236,7 +236,7 @@ export function RegisterPage() {
                     }
                   />
                 </FormControl>
-                <FormMessage className="text-[11px]" />
+                <FormMessage className="text-meta" />
               </FormItem>
             )}
           />
@@ -278,7 +278,7 @@ export function RegisterPage() {
                     .
                   </label>
                 </div>
-                <FormMessage className="text-[11px]" />
+                <FormMessage className="text-meta" />
               </FormItem>
             )}
           />

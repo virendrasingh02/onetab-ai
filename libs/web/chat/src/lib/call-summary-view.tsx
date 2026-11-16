@@ -411,7 +411,7 @@ export function CallSummaryView({
             <h3 className="text-sm font-semibold text-foreground truncate">
               {call?.title || 'Call notes & summary'}
             </h3>
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <div className="flex items-center gap-2 text-meta text-muted-foreground">
               {isLive ? (
                 <span className="flex items-center gap-1.5 font-medium text-success-text">
                   <span className="size-1.5 rounded-full bg-success animate-pulse" />
@@ -491,7 +491,7 @@ export function CallSummaryView({
             <TabsTrigger value="actions" className="gap-1">
               Actions
               {actionItems.length > 0 && (
-                <span className="text-[10px] text-muted-foreground tabular-nums">
+                <span className="text-2xs text-muted-foreground tabular-nums">
                   {actionItems.length}
                 </span>
               )}
@@ -499,7 +499,7 @@ export function CallSummaryView({
             <TabsTrigger value="decisions" className="gap-1">
               Decisions
               {decisions.length > 0 && (
-                <span className="text-[10px] text-muted-foreground tabular-nums">
+                <span className="text-2xs text-muted-foreground tabular-nums">
                   {decisions.length}
                 </span>
               )}
@@ -597,7 +597,7 @@ export function CallSummaryView({
                             setOverviewDraft(summary.overview ?? '');
                             setEditingOverview((editing) => !editing);
                           }}
-                          className="h-6 px-2 text-[11px] text-muted-foreground"
+                          className="h-6 px-2 text-meta text-muted-foreground"
                         >
                           {editingOverview ? 'Cancel' : 'Edit'}
                         </Button>
@@ -866,7 +866,7 @@ export function CallSummaryView({
                   size="xs"
                   onClick={() => void handleNotesAssist(action)}
                   disabled={assistBusy}
-                  className="text-[11px] gap-1 h-7 whitespace-nowrap"
+                  className="text-meta gap-1 h-7 whitespace-nowrap"
                 >
                   <Sparkles className="size-3 text-brand-text" />
                   {label}
@@ -886,7 +886,7 @@ export function CallSummaryView({
                 aria-label="Your call notes"
                 className="flex-1 resize-none border-none p-4 text-sm focus-visible:ring-0 rounded-none bg-transparent"
               />
-              <div className="px-3 py-1.5 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground">
+              <div className="px-3 py-1.5 border-t border-border flex items-center justify-between text-meta text-muted-foreground">
                 <span aria-live="polite" className="flex items-center gap-1">
                   {notes.status === 'saving' && (
                     <>
@@ -1051,7 +1051,7 @@ export function CallSummaryView({
                       <div className="min-w-0 space-y-0.5">
                         <p className="text-xs text-foreground leading-relaxed">{decision.content}</p>
                         {decision.madeBy || decision.sourceTimestamp != null ? (
-                          <p className="text-[11px] text-muted-foreground">
+                          <p className="text-meta text-muted-foreground">
                             {decision.madeBy
                               ? decision.madeBy.displayName || decision.madeBy.name
                               : null}
@@ -1105,7 +1105,7 @@ export function CallSummaryView({
                   <div key={t.id} className="text-xs space-y-1 p-2 rounded-lg hover:bg-accent transition-colors">
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <span className="font-semibold text-foreground">{t.speakerName}</span>
-                      <span className="font-mono text-[10px] tabular-nums">{clock(t.timestamp)}</span>
+                      <span className="font-mono text-2xs tabular-nums">{clock(t.timestamp)}</span>
                     </div>
                     <p className="text-foreground leading-relaxed pl-2 border-l-2 border-brand/40">
                       {t.text}
@@ -1142,7 +1142,7 @@ export function CallSummaryView({
                         key={q}
                         type="button"
                         onClick={() => setQuestion(q)}
-                        className="px-2.5 py-1 rounded-full border border-border text-[11px] bg-background hover:bg-accent transition-colors"
+                        className="px-2.5 py-1 rounded-full border border-border text-meta bg-background hover:bg-accent transition-colors"
                       >
                         {q}
                       </button>
@@ -1252,7 +1252,7 @@ function ActionItemRow({
             size="xs"
             onClick={onConvert}
             loading={converting}
-            className="text-[11px] h-6 px-2"
+            className="text-meta h-6 px-2"
           >
             Add to tasks
           </Button>

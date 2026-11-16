@@ -33,7 +33,7 @@ export function AnalyticsFunnelChart({
         return (
           <div key={stage.name} className="flex flex-col gap-1">
             {idx > 0 && (
-              <div className="flex items-center gap-1.5 pl-6 text-[11px] text-muted-foreground">
+              <div className="flex items-center gap-1.5 pl-6 text-meta text-muted-foreground">
                 <ArrowDown className="size-3 text-destructive" />
                 <span className="text-destructive font-medium">-{dropOff}%</span>
                 <span>drop-off from {prevStage?.name}</span>

@@ -120,7 +120,7 @@ export function EngagementAnalyticsView() {
         <Card className="p-4">
           <div className="flex items-center justify-between pb-3 border-b mb-3">
             <h3 className="text-sm font-semibold flex items-center gap-2">
-              <Building2 className="size-4 text-purple-500" />
+              <Building2 className="size-4 text-accent-violet" />
               Most Active Workspaces
             </h3>
             <span className="text-xs text-muted-foreground">Activity Score</span>
@@ -149,7 +149,7 @@ export function EngagementAnalyticsView() {
         <Card className="p-4">
           <div className="flex items-center justify-between pb-3 border-b mb-3">
             <h3 className="text-sm font-semibold flex items-center gap-2">
-              <Users className="size-4 text-blue-500" />
+              <Users className="size-4 text-accent-blue" />
               Most Active Users
             </h3>
             <span className="text-xs text-muted-foreground">Activity Score</span>

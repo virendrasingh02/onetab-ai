@@ -250,7 +250,7 @@ function LinkHoverBody({ href, enrich }: { href: string; enrich: boolean }) {
 
       <div className="space-y-2 px-3 pt-3 pb-2.5">
         {showKind || showSiteName ? (
-          <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+          <div className="flex min-w-0 items-center gap-1.5 text-meta text-muted-foreground">
             {showKind ? (
               <span className="inline-flex shrink-0 items-center gap-1 font-medium text-foreground">
                 <KindIcon className="size-3.5 shrink-0" aria-hidden="true" />
@@ -258,7 +258,7 @@ function LinkHoverBody({ href, enrich }: { href: string; enrich: boolean }) {
               </span>
             ) : null}
             {target.fileType ? (
-              <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-normal">
+              <Badge variant="outline" className="px-1.5 py-0 text-2xs font-normal">
                 {target.fileType}
               </Badge>
             ) : null}
@@ -326,7 +326,7 @@ function LinkHoverBody({ href, enrich }: { href: string; enrich: boolean }) {
         </div>
 
         {target.insecure ? (
-          <p role="note" className="flex items-center gap-1 text-[11px] text-warning-text">
+          <p role="note" className="flex items-center gap-1 text-meta text-warning-text">
             <ShieldAlert className="size-3 shrink-0" aria-hidden="true" />
             Not secure — this link doesn&apos;t use HTTPS
           </p>

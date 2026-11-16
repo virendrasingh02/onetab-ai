@@ -102,23 +102,23 @@ export function IntegrationLogsView({
                             ? 'destructive'
                             : 'neutral'
                       }
-                      className="text-[10px] px-1.5 py-0"
+                      className="text-2xs px-1.5 py-0"
                     >
                       {job.status}
                     </Badge>
                   </div>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-meta text-muted-foreground">
                     Processed {job.itemsProcessed} items • {new Date(job.createdAt).toLocaleString()}
                   </p>
                   {job.errorMessage && (
-                    <p className="text-[11px] text-destructive-text mt-0.5 font-mono">
+                    <p className="text-meta text-destructive-text mt-0.5 font-mono">
                       Error: {job.errorMessage}
                     </p>
                   )}
                 </div>
               </div>
 
-              <div className="text-right text-[11px] text-muted-foreground shrink-0">
+              <div className="text-right text-meta text-muted-foreground shrink-0">
                 {job.retryCount > 0 && <span>Retries: {job.retryCount} • </span>}
                 <span>ID: {job.id.slice(0, 8)}</span>
               </div>

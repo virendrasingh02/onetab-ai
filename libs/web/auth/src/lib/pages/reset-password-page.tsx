@@ -118,7 +118,7 @@ export function ResetPasswordPage() {
                     }
                   />
                 </FormControl>
-                <FormMessage className="text-[11px]" />
+                <FormMessage className="text-meta" />
               </FormItem>
             )}
           />
@@ -147,7 +147,7 @@ export function ResetPasswordPage() {
                     }
                   />
                 </FormControl>
-                <FormMessage className="text-[11px]" />
+                <FormMessage className="text-meta" />
               </FormItem>
             )}
           />

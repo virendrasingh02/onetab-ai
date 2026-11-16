@@ -271,7 +271,7 @@ function CelebrationBadge({ employee }: { employee: EmployeeCard }) {
       ? `Birthday ${describeDaysUntil(soonest.daysUntil)}`
       : `${soonest.years}-year anniversary ${describeDaysUntil(soonest.daysUntil)}`;
   return (
-    <Badge variant={soonest.daysUntil === 0 ? 'success' : 'info'} className="mt-2 gap-1 px-1.5 py-0 text-[11px]">
+    <Badge variant={soonest.daysUntil === 0 ? 'success' : 'info'} className="mt-2 gap-1 px-1.5 py-0 text-meta">
       <Icon className="size-3" aria-hidden /> {label}
     </Badge>
   );

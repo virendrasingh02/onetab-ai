@@ -195,7 +195,7 @@ export function MembersPage() {
           ) : (
             <Badge
               variant="neutral"
-              className="px-1.5 py-0 h-4.5 gap-1 text-[11px]"
+              className="px-1.5 py-0 h-4.5 gap-1 text-meta"
             >
               <span>{members.data?.length ?? 0} humans</span>
               <span aria-hidden>·</span>
@@ -276,7 +276,7 @@ export function MembersPage() {
                       </h3>
                       <Badge
                         variant="neutral"
-                        className="px-1.5 py-0 font-medium text-[10px]"
+                        className="px-1.5 py-0 font-medium text-2xs"
                       >
                         {filteredHumans.length}
                       </Badge>
@@ -443,7 +443,7 @@ export function MembersPage() {
                                     variant={
                                       ROLE_BADGE[member.role] ?? 'neutral'
                                     }
-                                    className="font-bold px-1 py-0 h-4 shrink-0 text-[9px] uppercase"
+                                    className="font-bold px-1 py-0 h-4 shrink-0 text-3xs uppercase"
                                   >
                                     {member.role.toLowerCase()}
                                   </Badge>
@@ -553,7 +553,7 @@ export function MembersPage() {
                       </h3>
                       <Badge
                         variant="primary"
-                        className="px-1.5 py-0 font-medium text-[10px]"
+                        className="px-1.5 py-0 font-medium text-2xs"
                       >
                         {filteredCoworkers.length}
                       </Badge>
@@ -614,7 +614,7 @@ export function MembersPage() {
                                 </p>
                                 <Badge
                                   variant="primary"
-                                  className="font-bold px-1 py-0 h-4 border-purple-500/30 bg-purple-500/15 text-purple-700 dark:text-purple-300 text-[9px] uppercase"
+                                  className="font-bold px-1 py-0 h-4 border-accent-violet/30 bg-accent-violet/15 text-accent-violet text-3xs uppercase"
                                 >
                                   AI COWORKER
                                 </Badge>

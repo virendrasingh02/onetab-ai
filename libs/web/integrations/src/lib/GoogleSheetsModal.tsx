@@ -150,7 +150,7 @@ export function GoogleSheetsModal({
                     type="button"
                     onClick={() => setActiveTab(t.title)}
                     className={cn(
-                      'px-2 py-0.5 text-[11px] font-semibold rounded-md transition-colors',
+                      'px-2 py-0.5 text-meta font-semibold rounded-md transition-colors',
                       (effectiveTab === t.title) ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent',
                     )}
                   >
@@ -192,7 +192,7 @@ export function GoogleSheetsModal({
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm text-foreground">{sheet.name}</span>
                       {sheet.modifiedTime ? (
-                        <span className="text-[11px] text-muted-foreground">{new Date(sheet.modifiedTime).toLocaleDateString()}</span>
+                        <span className="text-meta text-muted-foreground">{new Date(sheet.modifiedTime).toLocaleDateString()}</span>
                       ) : null}
                     </span>
                   </button>

@@ -211,7 +211,7 @@ export function WidgetPreview({
                       </div>
                     ) : null}
                     {m.text ? (
-                      <div className="whitespace-pre-wrap break-words rounded-xl px-3.5 py-2.5 text-[15px] leading-[1.55]" style={{ background: 'var(--ot-soft)' }}>
+                      <div className="whitespace-pre-wrap break-words rounded-xl px-3.5 py-2.5 text-body-lg leading-[1.55]" style={{ background: 'var(--ot-soft)' }}>
                         {m.text}
                       </div>
                     ) : null}
@@ -221,8 +221,8 @@ export function WidgetPreview({
                     <BotText>{m.text}</BotText>
                     {m.tools ? <p className="mt-1 text-xs" style={{ color: 'var(--ot-muted)' }}>{m.tools} tool call{m.tools === 1 ? '' : 's'}</p> : null}
                     {m.needsApproval ? (
-                      <div className="mt-2.5 space-y-1 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2.5 text-xs">
-                        <div className="flex items-center gap-1 font-semibold text-amber-600">
+                      <div className="mt-2.5 space-y-1 rounded-lg border border-warning/40 bg-warning/10 p-2.5 text-xs">
+                        <div className="flex items-center gap-1 font-semibold text-warning-text">
                           <AlertCircle className="size-3.5" /> Waiting for approval
                         </div>
                         <p style={{ color: 'var(--ot-muted)' }}>
@@ -291,7 +291,7 @@ export function WidgetPreview({
           <button
             type="button"
             onClick={() => onViewChange('open')}
-            className="flex items-center gap-2.5 rounded-full border py-1.5 pl-1.5 pr-5 text-[15px] font-medium transition-transform hover:-translate-y-px"
+            className="flex items-center gap-2.5 rounded-full border py-1.5 pl-1.5 pr-5 text-body-lg font-medium transition-transform hover:-translate-y-px"
             style={{ background: 'var(--ot-bg)', borderColor: 'var(--ot-line)', boxShadow: 'var(--ot-shadow)', color: 'var(--ot-fg)' }}
           >
             <Avatar src={look.avatarSrc} className="size-9" />
@@ -332,7 +332,7 @@ function Header({ look, compact, children }: { look: WidgetLook; compact?: boole
     <div className={cn('flex items-center gap-3', compact ? 'px-0.5 pb-3.5' : 'pb-2.5 pl-5 pr-4 pt-[18px]')}>
       <Avatar src={look.avatarSrc} className="size-10" />
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[15px] font-semibold leading-tight">{look.title}</div>
+        <div className="truncate text-body-lg font-semibold leading-tight">{look.title}</div>
         {look.subtitle ? (
           <div className="truncate text-sm leading-tight" style={{ color: 'var(--ot-muted)' }}>
             {look.subtitle}
@@ -394,7 +394,7 @@ function IconButton({
 }
 
 function BotText({ children }: { children: ReactNode }) {
-  return <div className="whitespace-pre-wrap break-words text-[15px] leading-[1.55]">{children}</div>;
+  return <div className="whitespace-pre-wrap break-words text-body-lg leading-[1.55]">{children}</div>;
 }
 
 function Composer({
@@ -427,7 +427,7 @@ function Composer({
   const fileRef = useRef<HTMLInputElement>(null);
   return (
     <div
-      className={cn('rounded-[10px] border-[1.5px] transition-colors', !emphasis && 'focus-within:border-[var(--ot-brand)]')}
+      className={cn('rounded-lg border-[1.5px] transition-colors', !emphasis && 'focus-within:border-[var(--ot-brand)]')}
       style={{ background: 'var(--ot-bg)', borderColor: emphasis ? 'var(--ot-brand)' : 'var(--ot-line)' }}
       onDragOver={onAttach ? (e) => e.preventDefault() : undefined}
       onDrop={
@@ -491,7 +491,7 @@ function Composer({
         placeholder={placeholder}
         aria-label="Message"
         disabled={disabled}
-        className="min-w-0 flex-1 bg-transparent py-[7px] text-[15px] outline-none placeholder:text-[var(--ot-muted)] disabled:cursor-not-allowed"
+        className="min-w-0 flex-1 bg-transparent py-[7px] text-body-lg outline-none placeholder:text-[var(--ot-muted)] disabled:cursor-not-allowed"
         style={{ color: 'var(--ot-fg)' }}
       />
       <button
@@ -533,14 +533,14 @@ function FileChip({
         {status === 'uploading' ? (
           <Loader2 className="size-3.5 animate-spin" />
         ) : failed ? (
-          <AlertCircle className="size-3.5 text-red-500" />
+          <AlertCircle className="size-3.5 text-destructive-text" />
         ) : (
           <FileText className="size-3.5" />
         )}
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-xs font-medium leading-tight">{name}</span>
-        <span className={cn('block truncate text-[11px] leading-tight', failed && 'text-red-500')} style={failed ? undefined : { color: 'var(--ot-muted)' }}>
+        <span className={cn('block truncate text-meta leading-tight', failed && 'text-destructive-text')} style={failed ? undefined : { color: 'var(--ot-muted)' }}>
           {meta}
         </span>
       </span>
@@ -569,13 +569,13 @@ function HistoryList({ history, onNewChat }: { history: WidgetHistory; onNewChat
         <button type="button" onClick={history.toggle} className="inline-flex items-center gap-1 text-xs font-medium hover:underline" style={{ color: 'var(--ot-muted)' }}>
           <ArrowLeft className="size-3.5" /> Back
         </button>
-        <span className="flex-1 text-center text-[13px] font-semibold">Conversations</span>
+        <span className="flex-1 text-center text-body-sm font-semibold">Conversations</span>
         <button type="button" onClick={onNewChat} className="inline-flex items-center gap-1 text-xs font-medium hover:underline" style={{ color: 'var(--ot-brand)' }}>
           <SquarePen className="size-3.5" /> New
         </button>
       </div>
       <div className="flex-1 overflow-y-auto px-3 pb-3" aria-busy={history.loading}>
-        {history.error ? <p className="px-2 py-2 text-xs text-red-500">{history.error}</p> : null}
+        {history.error ? <p className="px-2 py-2 text-xs text-destructive-text">{history.error}</p> : null}
         {history.loading && !items.length ? (
           <div className="space-y-2 px-2 pt-1">
             {[0, 1, 2].map((i) => (
@@ -585,7 +585,7 @@ function HistoryList({ history, onNewChat }: { history: WidgetHistory; onNewChat
         ) : !items.length ? (
           <div className="flex flex-col items-center gap-2 px-6 py-10 text-center" style={{ color: 'var(--ot-muted)' }}>
             <MessageCircle className="size-6" />
-            <p className="text-[13px]">No conversations yet. Ask something and it will show up here.</p>
+            <p className="text-body-sm">No conversations yet. Ask something and it will show up here.</p>
           </div>
         ) : (
           <ul aria-label="Conversations">
@@ -598,8 +598,8 @@ function HistoryList({ history, onNewChat }: { history: WidgetHistory; onNewChat
                   className="flex w-full flex-col items-start gap-0.5 rounded-lg px-2.5 py-2 pr-9 text-left transition-colors hover:bg-[var(--ot-soft)]"
                   style={c.current ? { background: 'var(--ot-soft)' } : undefined}
                 >
-                  <span className="w-full truncate text-[13.5px] font-medium leading-snug">{c.title}</span>
-                  <span className="text-[11.5px]" style={{ color: 'var(--ot-muted)' }}>
+                  <span className="w-full truncate text-body-sm font-medium leading-snug">{c.title}</span>
+                  <span className="text-xs" style={{ color: 'var(--ot-muted)' }}>
                     {c.current ? 'Current · ' : ''}
                     {formatRelative(c.updatedAt)}
                   </span>
@@ -626,7 +626,7 @@ function HistoryList({ history, onNewChat }: { history: WidgetHistory; onNewChat
 function Disclaimer({ look, className }: { look: WidgetLook; className?: string }) {
   if (!hasNote(look)) return null;
   return (
-    <p className={cn('text-center text-[11.5px] leading-normal', className)} style={{ color: 'var(--ot-muted)' }}>
+    <p className={cn('text-center text-xs leading-normal', className)} style={{ color: 'var(--ot-muted)' }}>
       {look.disclaimer ? `${look.disclaimer} ` : null}
       {look.privacyUrl ? (
         <a href={look.privacyUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-[3px] underline">

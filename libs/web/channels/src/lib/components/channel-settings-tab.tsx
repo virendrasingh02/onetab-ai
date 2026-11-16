@@ -345,7 +345,7 @@ function TabsCard({
 
         {/* The strip as members see it, in order. */}
         <div className="gap-1 flex flex-wrap items-center">
-          <Badge variant="outline" className="gap-1 font-medium text-[11px]">
+          <Badge variant="outline" className="gap-1 font-medium text-meta">
             <MessageSquare className="size-3" />
             Messages
           </Badge>
@@ -358,7 +358,7 @@ function TabsCard({
                 <Badge
                   key={tab.id}
                   variant="outline"
-                  className="gap-1 font-medium text-[11px]"
+                  className="gap-1 font-medium text-meta"
                 >
                   <Icon className="size-3" />
                   {meta.label}
@@ -366,7 +366,7 @@ function TabsCard({
               );
             })}
           {hiddenCount > 0 ? (
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-meta text-muted-foreground">
               · {hiddenCount} hidden
             </span>
           ) : null}
@@ -384,7 +384,7 @@ function TabsCard({
             Customize tabs
           </Button>
         ) : (
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-meta text-muted-foreground">
             Only channel managers can change the tabs here.
           </p>
         )}

@@ -244,13 +244,13 @@ export function PlatformsView() {
               {/* Versions */}
               <div className="grid grid-cols-2 gap-3 p-3 rounded-lg border border-border bg-card/60">
                 <div>
-                  <div className="text-muted-foreground text-[11px]">Current Version</div>
+                  <div className="text-muted-foreground text-meta">Current Version</div>
                   <div className="font-mono font-medium text-sm mt-0.5">
                     {p.currentVersion}
                   </div>
                 </div>
                 <div>
-                  <div className="text-muted-foreground text-[11px]">Minimum Supported</div>
+                  <div className="text-muted-foreground text-meta">Minimum Supported</div>
                   <div className="font-mono font-medium text-sm mt-0.5">
                     {p.minSupportedVersion}
                   </div>
@@ -277,11 +277,11 @@ export function PlatformsView() {
                         <div className="flex items-center gap-2">
                           <Radio className="w-3 h-3 text-success" />
                           <span className="font-medium">{d.name}</span>
-                          <span className="font-mono text-[10px] text-muted-foreground">
+                          <span className="font-mono text-2xs text-muted-foreground">
                             ({d.code})
                           </span>
                         </div>
-                        <Badge variant="outline" className="text-[10px]">
+                        <Badge variant="outline" className="text-2xs">
                           Active
                         </Badge>
                       </div>

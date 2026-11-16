@@ -188,14 +188,14 @@ export function RequirePlatformOperator({ children }: { children: ReactNode }) {
             <span className="text-sm font-semibold tracking-tight text-foreground">
               Onetab AI
             </span>
-            <span className="font-semibold tracking-wider px-1.5 py-0.5 rounded-md border border-brand/20 bg-brand/10 text-[10px] text-brand-text uppercase">
+            <span className="font-semibold tracking-wider px-1.5 py-0.5 rounded-md border border-brand/20 bg-brand/10 text-2xs text-brand-text uppercase">
               Admin
             </span>
             <span
               className={cn(
-                'px-2 py-0.5 gap-1.5 inline-flex items-center rounded-full border font-mono text-[10px]',
+                'px-2 py-0.5 gap-1.5 inline-flex items-center rounded-full border font-mono text-2xs',
                 loginError && loginError.toLowerCase().includes('reach')
-                  ? 'border-rose-500/30 bg-rose-500/10 text-rose-400'
+                  ? 'border-destructive/30 bg-destructive/10 text-destructive-text'
                   : 'border-success/30 bg-success/10 text-success-text',
               )}
             >
@@ -203,7 +203,7 @@ export function RequirePlatformOperator({ children }: { children: ReactNode }) {
                 className={cn(
                   'size-1.5 rounded-full',
                   loginError && loginError.toLowerCase().includes('reach')
-                    ? 'bg-rose-500'
+                    ? 'bg-destructive'
                     : 'animate-pulse bg-success',
                 )}
               />
@@ -227,7 +227,7 @@ export function RequirePlatformOperator({ children }: { children: ReactNode }) {
         {/* Main Content Area */}
         <main className="py-8 my-auto flex w-full max-w-[380px] flex-col items-center">
           <div className="w-full">
-            <h1 className="text-2xl sm:text-[28px] font-bold tracking-tight leading-tight text-center text-foreground">
+            <h1 className="text-2xl sm:text-stat font-bold tracking-tight leading-tight text-center text-foreground">
               Sign in to Admin
             </h1>
 
@@ -258,7 +258,7 @@ export function RequirePlatformOperator({ children }: { children: ReactNode }) {
                     <div className="inset-0 absolute flex items-center">
                       <div className="w-full border-t border-border" />
                     </div>
-                    <div className="relative flex justify-center text-[11px]">
+                    <div className="relative flex justify-center text-meta">
                       <span className="px-2 bg-background text-muted-foreground">
                         or use operator credentials
                       </span>
@@ -291,7 +291,7 @@ export function RequirePlatformOperator({ children }: { children: ReactNode }) {
                         <ShieldCheck className="size-4 text-muted-foreground" />
                       }
                     />
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-meta text-muted-foreground">
                       Two-factor authentication is on for this account.
                     </p>
                   </div>
@@ -433,12 +433,12 @@ export function RequirePlatformOperator({ children }: { children: ReactNode }) {
 
         {/* Bottom Legal Notice & Footer Links */}
         <footer className="pt-6 pb-2 max-w-md px-2 space-y-2.5 w-full text-center">
-          <p className="sm:text-xs leading-relaxed text-[11px] text-muted-foreground">
+          <p className="sm:text-xs leading-relaxed text-meta text-muted-foreground">
             Admin console is restricted to authorized platform personnel only.
             All administrative actions are logged and audited.
           </p>
 
-          <div className="sm:text-xs gap-3 sm:gap-4 flex flex-wrap items-center justify-center text-[11px] text-muted-foreground">
+          <div className="sm:text-xs gap-3 sm:gap-4 flex flex-wrap items-center justify-center text-meta text-muted-foreground">
             <span>© {new Date().getFullYear()} Onetab AI</span>
             <a
               href={`${WEB_APP_URL}/privacy`}
@@ -476,7 +476,7 @@ export function RequirePlatformOperator({ children }: { children: ReactNode }) {
             <span className="text-sm font-semibold tracking-tight text-foreground">
               Onetab AI
             </span>
-            <span className="font-semibold tracking-wider px-1.5 py-0.5 rounded-md border border-destructive/20 bg-destructive/10 text-[10px] text-destructive uppercase">
+            <span className="font-semibold tracking-wider px-1.5 py-0.5 rounded-md border border-destructive/20 bg-destructive/10 text-2xs text-destructive uppercase">
               Access Denied
             </span>
           </div>
@@ -499,7 +499,7 @@ export function RequirePlatformOperator({ children }: { children: ReactNode }) {
               <ShieldAlert className="size-6" />
             </div>
 
-            <h1 className="text-2xl sm:text-[28px] font-bold tracking-tight leading-tight text-center text-foreground">
+            <h1 className="text-2xl sm:text-stat font-bold tracking-tight leading-tight text-center text-foreground">
               Access Denied
             </h1>
 
@@ -552,7 +552,7 @@ export function RequirePlatformOperator({ children }: { children: ReactNode }) {
 
         {/* Footer */}
         <footer className="pt-6 pb-2 max-w-md px-2 space-y-2.5 w-full text-center">
-          <div className="sm:text-xs gap-3 sm:gap-4 flex flex-wrap items-center justify-center text-[11px] text-muted-foreground">
+          <div className="sm:text-xs gap-3 sm:gap-4 flex flex-wrap items-center justify-center text-meta text-muted-foreground">
             <span>© {new Date().getFullYear()} Onetab AI</span>
             <a
               href={`${WEB_APP_URL}/privacy`}

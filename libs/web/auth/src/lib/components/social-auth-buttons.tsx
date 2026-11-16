@@ -207,7 +207,7 @@ export function SocialAuthButtons({
       {dividerLabel ? (
         <div className="my-3.5 relative flex items-center justify-center">
           <div className="absolute w-full border-t border-border" />
-          <span className="px-2.5 tracking-wider relative bg-background text-[11px] text-muted-foreground uppercase">
+          <span className="px-2.5 tracking-wider relative bg-background text-meta text-muted-foreground uppercase">
             {dividerLabel}
           </span>
         </div>

@@ -26,7 +26,7 @@ export const AIEntityStatus: FC<AIEntityStatusProps> = ({
 
   if (type === 'agent') {
     return (
-      <Badge variant="primary" className={cn('text-[10px] tracking-wider uppercase font-semibold', className)}>
+      <Badge variant="primary" className={cn('text-2xs tracking-wider uppercase font-semibold', className)}>
         AI Agent
       </Badge>
     );

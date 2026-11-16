@@ -90,7 +90,7 @@ export function ActivityRowLink({
     <time
       dateTime={new Date(content.lastActivityAt).toISOString()}
       className={cn(
-        'shrink-0 text-[11px] text-muted-foreground tabular-nums transition-opacity',
+        'shrink-0 text-meta text-muted-foreground tabular-nums transition-opacity',
         // The ⋯ / star sit over this corner while they show.
         isPinned
           ? 'opacity-0'

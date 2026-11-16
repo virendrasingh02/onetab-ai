@@ -318,7 +318,7 @@ function UpdateStatusLabel({ status }: { status: DesktopUpdateStatus }) {
   return (
     <Badge
       variant={status.state === "error" ? "destructive" : "neutral"}
-      className="text-[11px] font-normal"
+      className="text-meta font-normal"
     >
       {text}
     </Badge>

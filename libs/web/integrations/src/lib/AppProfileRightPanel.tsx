@@ -265,7 +265,7 @@ export const AppProfileRightPanel: FC<AppProfileRightPanelProps> = ({
               <h2 className="text-lg font-bold tracking-tight text-foreground truncate">{app.name}</h2>
               <Badge
                 variant="neutral"
-                className="text-[10px] font-bold uppercase tracking-wider border-accent-violet/30 bg-accent-violet/10 text-accent-violet"
+                className="text-2xs font-bold uppercase tracking-wider border-accent-violet/30 bg-accent-violet/10 text-accent-violet"
               >
                 APP
               </Badge>
@@ -357,7 +357,7 @@ export const AppProfileRightPanel: FC<AppProfileRightPanelProps> = ({
           <div className="space-y-4">
             {/* Box 1: Description */}
             <div className="rounded-xl border border-border bg-surface-inset/40 p-4 space-y-2">
-              <h3 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <h3 className="text-meta font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                 <Plug className="size-3.5 text-accent-violet" />
                 <span>About Integration</span>
               </h3>
@@ -366,7 +366,7 @@ export const AppProfileRightPanel: FC<AppProfileRightPanelProps> = ({
 
             {/* Box 2: Connection Status & Identity */}
             <div className="rounded-xl border border-border bg-surface-inset/40 p-4 space-y-2.5 text-xs">
-              <h3 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <h3 className="text-meta font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                 <Shield className="size-3.5 text-primary" />
                 <span>Integration Status</span>
               </h3>
@@ -383,7 +383,7 @@ export const AppProfileRightPanel: FC<AppProfileRightPanelProps> = ({
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Webhook Feeds:</span>
-                <Badge variant={isConnected ? 'neutral' : 'outline'} className="text-[10px]">
+                <Badge variant={isConnected ? 'neutral' : 'outline'} className="text-2xs">
                   {isConnected ? 'Subscribed & Live' : 'Suspended'}
                 </Badge>
               </div>
@@ -391,22 +391,22 @@ export const AppProfileRightPanel: FC<AppProfileRightPanelProps> = ({
 
             {/* Box 3: What the app can do, from its connector manifest */}
             <div className="rounded-xl border border-border bg-surface-inset/40 p-4 space-y-2">
-              <h3 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center justify-between gap-1.5">
+              <h3 className="text-meta font-bold text-muted-foreground uppercase tracking-wider flex items-center justify-between gap-1.5">
                 <span className="flex items-center gap-1.5">
                   <Zap className="size-3.5 text-accent-amber" />
                   <span>Capabilities</span>
                 </span>
                 {connectorActions.length > 0 && (
-                  <span className="font-mono text-[10px] font-normal normal-case">{connectorActions.length}</span>
+                  <span className="font-mono text-2xs font-normal normal-case">{connectorActions.length}</span>
                 )}
               </h3>
               {!isConnected && (connectorActions.length > 0 || connectorTriggers.length > 0) && (
-                <p className="text-[11px] text-warning-text">
+                <p className="text-meta text-warning-text">
                   {needsReconnect ? 'Reconnect' : 'Connect'} {app.name} so agents and workflows can use these.
                 </p>
               )}
               {connectorQuery.data?.unavailableReason && (
-                <p className="text-[11px] text-muted-foreground">{connectorQuery.data.unavailableReason}</p>
+                <p className="text-meta text-muted-foreground">{connectorQuery.data.unavailableReason}</p>
               )}
               {connectorQuery.isLoading ? (
                 <div className="flex justify-center py-3">
@@ -428,7 +428,7 @@ export const AppProfileRightPanel: FC<AppProfileRightPanelProps> = ({
                             {action.label}
                             {writes && (
                               <span
-                                className="inline-flex items-center gap-0.5 text-[10px] font-normal text-muted-foreground"
+                                className="inline-flex items-center gap-0.5 text-2xs font-normal text-muted-foreground"
                                 title="Makes changes in the app"
                               >
                                 <PencilLine className="size-2.5" />
@@ -437,7 +437,7 @@ export const AppProfileRightPanel: FC<AppProfileRightPanelProps> = ({
                             )}
                           </p>
                           {action.description && (
-                            <p className="line-clamp-2 text-[11px] text-muted-foreground">{action.description}</p>
+                            <p className="line-clamp-2 text-meta text-muted-foreground">{action.description}</p>
                           )}
                         </div>
                       </li>
@@ -448,7 +448,7 @@ export const AppProfileRightPanel: FC<AppProfileRightPanelProps> = ({
                       <button
                         type="button"
                         onClick={() => setShowAllActions((v) => !v)}
-                        className="text-[11px] font-medium text-primary-text hover:underline"
+                        className="text-meta font-medium text-primary-text hover:underline"
                       >
                         {showAllActions ? 'Show less' : `Show all ${connectorActions.length}`}
                       </button>
@@ -464,7 +464,7 @@ export const AppProfileRightPanel: FC<AppProfileRightPanelProps> = ({
 
             {connectorTriggers.length > 0 && (
               <div className="rounded-xl border border-border bg-surface-inset/40 p-4 space-y-2">
-                <h3 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <h3 className="text-meta font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                   <Bell className="size-3.5 text-primary" />
                   <span>Events agents can react to</span>
                 </h3>
@@ -473,7 +473,7 @@ export const AppProfileRightPanel: FC<AppProfileRightPanelProps> = ({
                     <li key={trigger.id}>
                       <p className="font-medium text-foreground">{trigger.label}</p>
                       {trigger.description && (
-                        <p className="line-clamp-2 text-[11px] text-muted-foreground">{trigger.description}</p>
+                        <p className="line-clamp-2 text-meta text-muted-foreground">{trigger.description}</p>
                       )}
                     </li>
                   ))}

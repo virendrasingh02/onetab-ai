@@ -243,7 +243,7 @@ export function MigrationWizardDialog({
                     }`}
                   />
                   <span
-                    className={`text-[10px] truncate text-center ${
+                    className={`text-2xs truncate text-center ${
                       isCurrent
                         ? 'font-medium text-foreground'
                         : 'text-muted-foreground'
@@ -293,15 +293,15 @@ export function MigrationWizardDialog({
                 {connectedSlackAccount && (
                   <div className="mt-6 pt-4 border-t border-border/60 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                     <div>
-                      <span className="text-muted-foreground block text-[11px]">Workspace</span>
+                      <span className="text-muted-foreground block text-meta">Workspace</span>
                       <span className="font-medium text-foreground">{connectedSlackAccount.teamName}</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground block text-[11px]">Team ID</span>
+                      <span className="text-muted-foreground block text-meta">Team ID</span>
                       <span className="font-mono text-muted-foreground">{connectedSlackAccount.teamId}</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground block text-[11px]">Connected By</span>
+                      <span className="text-muted-foreground block text-meta">Connected By</span>
                       <span className="font-medium text-foreground">{connectedSlackAccount.userName}</span>
                     </div>
                   </div>
@@ -321,7 +321,7 @@ export function MigrationWizardDialog({
                           <CheckCircle2 className="size-3.5" /> Ready for migration
                         </span>
                       ) : (
-                        <span className="text-amber-500 font-medium flex items-center gap-1">
+                        <span className="text-warning-text font-medium flex items-center gap-1">
                           <AlertTriangle className="size-3.5" /> Action required
                         </span>
                       )}
@@ -336,7 +336,7 @@ export function MigrationWizardDialog({
                       >
                         <div>
                           <span className="font-medium text-foreground block">{cap.name}</span>
-                          <span className="text-muted-foreground text-[11px] leading-tight block mt-0.5">
+                          <span className="text-muted-foreground text-meta leading-tight block mt-0.5">
                             {cap.description}
                           </span>
                         </div>
@@ -348,7 +348,7 @@ export function MigrationWizardDialog({
                                 ? 'warning'
                                 : 'neutral'
                           }
-                          className="capitalize shrink-0 text-[10px]"
+                          className="capitalize shrink-0 text-2xs"
                         >
                           {cap.status.replace('_', ' ')}
                         </Badge>
@@ -392,28 +392,28 @@ export function MigrationWizardDialog({
                       <span className="text-lg font-bold text-foreground">
                         ~{readiness.estimates.membersCount}
                       </span>
-                      <span className="text-[11px] text-muted-foreground block">Members</span>
+                      <span className="text-meta text-muted-foreground block">Members</span>
                     </Card>
                     <Card className="p-4 text-center">
                       <Hash className="size-4 mx-auto text-muted-foreground mb-1" />
                       <span className="text-lg font-bold text-foreground">
                         ~{readiness.estimates.channelsCount}
                       </span>
-                      <span className="text-[11px] text-muted-foreground block">Channels</span>
+                      <span className="text-meta text-muted-foreground block">Channels</span>
                     </Card>
                     <Card className="p-4 text-center">
                       <MessageSquare className="size-4 mx-auto text-muted-foreground mb-1" />
                       <span className="text-lg font-bold text-foreground">
                         ~{readiness.estimates.messagesCount.toLocaleString()}
                       </span>
-                      <span className="text-[11px] text-muted-foreground block">Messages</span>
+                      <span className="text-meta text-muted-foreground block">Messages</span>
                     </Card>
                     <Card className="p-4 text-center">
                       <Calendar className="size-4 mx-auto text-muted-foreground mb-1" />
                       <span className="text-lg font-bold text-foreground">
                         {readiness.estimates.estimatedDurationMinutes[0]}–{readiness.estimates.estimatedDurationMinutes[1]}m
                       </span>
-                      <span className="text-[11px] text-muted-foreground block">Est. Duration</span>
+                      <span className="text-meta text-muted-foreground block">Est. Duration</span>
                     </Card>
                   </div>
 
@@ -426,14 +426,14 @@ export function MigrationWizardDialog({
                           chk.status === 'passed'
                             ? 'border-border/60 bg-card/40'
                             : chk.status === 'warning'
-                              ? 'border-amber-500/30 bg-amber-500/5'
+                              ? 'border-warning/30 bg-warning/5'
                               : 'border-destructive/30 bg-destructive/5'
                         }`}
                       >
                         {chk.status === 'passed' ? (
                           <CheckCircle2 className="size-4 text-success-text shrink-0 mt-0.5" />
                         ) : chk.status === 'warning' ? (
-                          <AlertTriangle className="size-4 text-amber-500 shrink-0 mt-0.5" />
+                          <AlertTriangle className="size-4 text-warning-text shrink-0 mt-0.5" />
                         ) : (
                           <XCircle className="size-4 text-destructive shrink-0 mt-0.5" />
                         )}
@@ -448,16 +448,16 @@ export function MigrationWizardDialog({
                                     ? 'warning'
                                     : 'destructive'
                               }
-                              className="capitalize text-[10px]"
+                              className="capitalize text-2xs"
                             >
                               {chk.status}
                             </Badge>
                           </div>
-                          <p className="text-muted-foreground mt-1 text-[11px] leading-relaxed">
+                          <p className="text-muted-foreground mt-1 text-meta leading-relaxed">
                             {chk.message}
                           </p>
                           {chk.resolutionHint && (
-                            <p className="text-foreground/80 mt-1.5 text-[11px] font-medium bg-muted/40 p-2 rounded-lg">
+                            <p className="text-foreground/80 mt-1.5 text-meta font-medium bg-muted/40 p-2 rounded-lg">
                               Tip: {chk.resolutionHint}
                             </p>
                           )}
@@ -488,7 +488,7 @@ export function MigrationWizardDialog({
                     <span className="text-xs font-semibold text-foreground block">
                       Include Public Channels
                     </span>
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-meta text-muted-foreground">
                       Migrate all discoverable public channels and their topics.
                     </span>
                   </div>
@@ -505,7 +505,7 @@ export function MigrationWizardDialog({
                     <span className="text-xs font-semibold text-foreground block">
                       Include Available Private Channels
                     </span>
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-meta text-muted-foreground">
                       Migrate private channels authorized under current credentials.
                     </span>
                   </div>
@@ -522,7 +522,7 @@ export function MigrationWizardDialog({
                     <span className="text-xs font-semibold text-foreground block">
                       Direct Messages (1:1 & Group DMs)
                     </span>
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-meta text-muted-foreground">
                       Requires explicit multi-user consent or Corporate Export token.
                     </span>
                   </div>
@@ -539,7 +539,7 @@ export function MigrationWizardDialog({
                     <span className="text-xs font-semibold text-foreground block">
                       Migrate Files & Media Attachments
                     </span>
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-meta text-muted-foreground">
                       Download and mirror files into Onetab Object Storage.
                     </span>
                   </div>
@@ -556,7 +556,7 @@ export function MigrationWizardDialog({
                     <span className="text-xs font-semibold text-foreground block">
                       Structure Only (No History)
                     </span>
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-meta text-muted-foreground">
                       Recreates channels and member memberships without importing past messages.
                     </span>
                   </div>
@@ -611,12 +611,12 @@ export function MigrationWizardDialog({
                                 {u.sourceEmail || 'None'}
                               </TableCell>
                               <TableCell>
-                                <Badge variant="outline" className="capitalize text-[10px]">
+                                <Badge variant="outline" className="capitalize text-2xs">
                                   {u.matchType.replace('_', ' ')}
                                 </Badge>
                               </TableCell>
                               <TableCell>
-                                <span className="font-mono text-[11px] text-foreground">
+                                <span className="font-mono text-meta text-foreground">
                                   {u.destinationName || 'Create Placeholder'}
                                 </span>
                               </TableCell>
@@ -654,12 +654,12 @@ export function MigrationWizardDialog({
                               </TableCell>
                               <TableCell>
                                 {c.conflictType === 'none' ? (
-                                  <Badge variant="success" className="text-[10px]">Available</Badge>
+                                  <Badge variant="success" className="text-2xs">Available</Badge>
                                 ) : (
-                                  <Badge variant="warning" className="text-[10px]">Collision</Badge>
+                                  <Badge variant="warning" className="text-2xs">Collision</Badge>
                                 )}
                               </TableCell>
-                              <TableCell className="font-mono text-[11px]">
+                              <TableCell className="font-mono text-meta">
                                 #{c.suggestedSlug}
                               </TableCell>
                             </TableRow>
@@ -696,7 +696,7 @@ export function MigrationWizardDialog({
                             <span className="font-medium text-foreground text-xs block">
                               Channel #{c.sourceName} conflicts with existing destination channel
                             </span>
-                            <span className="text-[11px] text-muted-foreground">
+                            <span className="text-meta text-muted-foreground">
                               Select resolution strategy to prevent accidental overwrites.
                             </span>
                           </div>
@@ -768,23 +768,23 @@ export function MigrationWizardDialog({
                 </h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                   <div>
-                    <span className="text-muted-foreground block text-[11px]">Scope Mode</span>
+                    <span className="text-muted-foreground block text-meta">Scope Mode</span>
                     <span className="font-semibold text-foreground capitalize">{scope.mode}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block text-[11px]">Attachments</span>
+                    <span className="text-muted-foreground block text-meta">Attachments</span>
                     <span className="font-semibold text-foreground">
                       {scope.includeFiles ? 'Enabled' : 'Disabled'}
                     </span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block text-[11px]">Private Channels</span>
+                    <span className="text-muted-foreground block text-meta">Private Channels</span>
                     <span className="font-semibold text-foreground">
                       {scope.includePrivateChannels ? 'Included' : 'Excluded'}
                     </span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block text-[11px]">Direct Messages</span>
+                    <span className="text-muted-foreground block text-meta">Direct Messages</span>
                     <span className="font-semibold text-foreground">
                       {scope.includeDms ? 'Included' : 'Excluded'}
                     </span>
@@ -847,7 +847,7 @@ export function MigrationWizardDialog({
                     <span className="font-semibold text-foreground">
                       Current Stage: {liveProgress?.currentStage || 'PROCESSING'}
                     </span>
-                    <Badge variant="outline" className="font-mono text-[10px]">
+                    <Badge variant="outline" className="font-mono text-2xs">
                       {liveProgress?.throughput.recordsPerSecond || 0} items/sec
                     </Badge>
                   </div>
@@ -865,7 +865,7 @@ export function MigrationWizardDialog({
                     <Card key={cat} className="p-3.5 space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="capitalize font-medium text-foreground">{cat}</span>
-                        <span className="text-muted-foreground text-[11px]">
+                        <span className="text-muted-foreground text-meta">
                           {prg.processed} / {prg.total} ({prg.percent}%)
                         </span>
                       </div>
@@ -880,11 +880,11 @@ export function MigrationWizardDialog({
                 <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">
                   Live Activity Stream
                 </h4>
-                <div className="max-h-48 overflow-y-auto rounded-xl border bg-card/40 p-3 space-y-2 font-mono text-[11px]">
+                <div className="max-h-48 overflow-y-auto rounded-xl border bg-card/40 p-3 space-y-2 font-mono text-meta">
                   {liveProgress?.recentActivities.map((act) => (
                     <div key={act.id} className="flex items-center justify-between gap-2 text-muted-foreground">
                       <span className="text-foreground truncate">{act.message}</span>
-                      <span className="text-[10px] shrink-0">{new Date(act.timestamp).toLocaleTimeString()}</span>
+                      <span className="text-2xs shrink-0">{new Date(act.timestamp).toLocaleTimeString()}</span>
                     </div>
                   ))}
                   {(!liveProgress?.recentActivities || liveProgress.recentActivities.length === 0) && (
@@ -918,19 +918,19 @@ export function MigrationWizardDialog({
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
                   <Card className="p-4">
                     <span className="text-xl font-bold text-foreground">{finalReport.counts.members}</span>
-                    <span className="text-[11px] text-muted-foreground block mt-1">Users Mapped</span>
+                    <span className="text-meta text-muted-foreground block mt-1">Users Mapped</span>
                   </Card>
                   <Card className="p-4">
                     <span className="text-xl font-bold text-foreground">{finalReport.counts.channels}</span>
-                    <span className="text-[11px] text-muted-foreground block mt-1">Channels Created</span>
+                    <span className="text-meta text-muted-foreground block mt-1">Channels Created</span>
                   </Card>
                   <Card className="p-4">
                     <span className="text-xl font-bold text-foreground">{finalReport.counts.messages.toLocaleString()}</span>
-                    <span className="text-[11px] text-muted-foreground block mt-1">Messages Preserved</span>
+                    <span className="text-meta text-muted-foreground block mt-1">Messages Preserved</span>
                   </Card>
                   <Card className="p-4">
                     <span className="text-xl font-bold text-foreground">{finalReport.counts.files}</span>
-                    <span className="text-[11px] text-muted-foreground block mt-1">Files Attached</span>
+                    <span className="text-meta text-muted-foreground block mt-1">Files Attached</span>
                   </Card>
                 </div>
               )}
@@ -941,7 +941,7 @@ export function MigrationWizardDialog({
           {step === 9 && (
             <div className="space-y-6">
               <div className="flex items-start gap-3">
-                <span className="p-2 rounded-xl bg-purple-500/10 text-purple-400">
+                <span className="p-2 rounded-xl bg-accent-violet/10 text-accent-violet">
                   <Sparkles className="size-6" />
                 </span>
                 <div>
@@ -960,7 +960,7 @@ export function MigrationWizardDialog({
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="capitalize text-[10px]">
+                          <Badge variant="outline" className="capitalize text-2xs">
                             {rec.category}
                           </Badge>
                           <h4 className="text-xs font-semibold text-foreground">

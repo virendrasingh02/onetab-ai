@@ -203,7 +203,7 @@ export function AddAiEntityToChannelDialog({
             <div>
               <DialogTitle className="text-base font-bold flex items-center gap-2">
                 <span>Add AI to #{channel.name}</span>
-                <Badge variant="primary" className="text-[10px] py-0 h-4">
+                <Badge variant="primary" className="text-2xs py-0 h-4">
                   AI Powered
                 </Badge>
               </DialogTitle>
@@ -283,12 +283,12 @@ export function AddAiEntityToChannelDialog({
                           <span className="text-xs font-bold text-foreground">
                             {item.name}
                           </span>
-                          <span className="text-[11px] font-mono text-brand-text">
+                          <span className="text-meta font-mono text-brand-text">
                             {item.handle}
                           </span>
                           <Badge
                             variant="outline"
-                            className="text-[10px] py-0 h-4 font-mono"
+                            className="text-2xs py-0 h-4 font-mono"
                           >
                             {item.model}
                           </Badge>
@@ -301,7 +301,7 @@ export function AddAiEntityToChannelDialog({
                             {item.tags.map((tag) => (
                               <span
                                 key={tag}
-                                className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium"
+                                className="text-2xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium"
                               >
                                 {tag}
                               </span>

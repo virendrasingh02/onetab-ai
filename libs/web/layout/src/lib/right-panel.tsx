@@ -268,7 +268,7 @@ function PanelFrame({
               {title}
             </h2>
             {subtitle ? (
-              <div className="font-normal leading-tight truncate text-[11px] text-muted-foreground">
+              <div className="font-normal leading-tight truncate text-meta text-muted-foreground">
                 {subtitle}
               </div>
             ) : null}

@@ -41,7 +41,7 @@ export function LocationAnalyticsView() {
       sortable: true,
       cell: (row) => (
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="font-mono text-[10px] px-1.5 py-0">
+          <Badge variant="outline" className="font-mono text-2xs px-1.5 py-0">
             {row.code}
           </Badge>
           <span className="font-semibold text-foreground">{row.name}</span>
@@ -98,7 +98,7 @@ export function LocationAnalyticsView() {
       />
 
       {/* Privacy Notice Banner */}
-      <div className="flex items-center gap-2.5 p-3 rounded-lg border bg-blue-500/10 border-blue-500/20 text-xs text-blue-600 dark:text-blue-400">
+      <div className="flex items-center gap-2.5 p-3 rounded-lg border bg-accent-blue/10 border-accent-blue/20 text-xs text-accent-blue">
         <ShieldCheck className="size-4 shrink-0" />
         <span>
           <strong>Privacy Guaranteed:</strong> Geo-analytics are strictly aggregated at country and regional level to ensure GDPR, CCPA, and enterprise confidentiality compliance.

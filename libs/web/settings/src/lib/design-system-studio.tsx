@@ -192,7 +192,7 @@ export function DesignSystemStudio() {
       header: 'Model',
       accessorKey: 'model',
       sortable: true,
-      cell: (row) => <Badge variant="secondary" className="font-mono text-[10px]">{row.model}</Badge>,
+      cell: (row) => <Badge variant="secondary" className="font-mono text-2xs">{row.model}</Badge>,
     },
     {
       id: 'category',
@@ -208,7 +208,7 @@ export function DesignSystemStudio() {
       cell: (row) => (
         <span
           className={cn(
-            'inline-flex items-center rounded-xs px-1.5 py-0.2 text-[10px] font-medium border',
+            'inline-flex items-center rounded-xs px-1.5 py-0.2 text-2xs font-medium border',
             row.status === 'active' && 'bg-success/10 text-success-text border-success/20',
             row.status === 'draft' && 'bg-warning/10 text-warning-text border-warning/20',
             row.status === 'archived' && 'bg-muted text-muted-foreground border-border',
@@ -370,7 +370,7 @@ export function DesignSystemStudio() {
               <h1 className="text-base font-bold tracking-tight text-foreground">
                 Platform Design System Studio
               </h1>
-              <Badge variant="secondary" className="font-mono text-[10px]">
+              <Badge variant="secondary" className="font-mono text-2xs">
                 v2.0 • ReUI-Inspired
               </Badge>
             </div>
@@ -414,7 +414,7 @@ export function DesignSystemStudio() {
 
           {/* Density Switcher */}
           <div className="flex items-center gap-1">
-            <span className="text-[11px] font-medium text-subtle">Density:</span>
+            <span className="text-meta font-medium text-subtle">Density:</span>
             <AppSelect
               size="sm"
               value={density}
@@ -429,7 +429,7 @@ export function DesignSystemStudio() {
 
           {/* Radius Switcher */}
           <div className="flex items-center gap-1">
-            <span className="text-[11px] font-medium text-subtle">Radius:</span>
+            <span className="text-meta font-medium text-subtle">Radius:</span>
             <AppSelect
               size="sm"
               value={radius}
@@ -444,7 +444,7 @@ export function DesignSystemStudio() {
 
           {/* Accent Color Picker */}
           <div className="flex items-center gap-1">
-            <span className="text-[11px] font-medium text-subtle">Accent:</span>
+            <span className="text-meta font-medium text-subtle">Accent:</span>
             <AppSelect
               size="sm"
               value={accent}
@@ -523,7 +523,7 @@ export function DesignSystemStudio() {
                     )}
                   >
                     <span className="text-xs font-semibold">{c.name}</span>
-                    <div className="flex items-center justify-between text-[10px] font-mono opacity-80">
+                    <div className="flex items-center justify-between text-2xs font-mono opacity-80">
                       <span>{c.token}</span>
                       {copiedToken === `var(${c.token})` ? <Check className="size-3" /> : <Copy className="size-3 opacity-60" />}
                     </div>
@@ -552,7 +552,7 @@ export function DesignSystemStudio() {
                       />
                       <span className="text-xs font-medium capitalize text-foreground">{accName}</span>
                     </div>
-                    <span className="text-[10px] font-mono text-subtle">
+                    <span className="text-2xs font-mono text-subtle">
                       {copiedToken === `var(--accent-${accName})` ? 'Copied!' : 'Copy'}
                     </span>
                   </div>
@@ -900,7 +900,7 @@ export function DesignSystemStudio() {
                       <p className="text-muted-foreground">
                         Drawers support bottom, left, and right positions with smooth animations and keyboard escape traps.
                       </p>
-                      <div className="rounded-md bg-surface-raised p-3 border border-border font-mono text-[11px]">
+                      <div className="rounded-md bg-surface-raised p-3 border border-border font-mono text-meta">
                         status: &quot;ready&quot;
                         <br />
                         execution_id: &quot;trace-948271&quot;

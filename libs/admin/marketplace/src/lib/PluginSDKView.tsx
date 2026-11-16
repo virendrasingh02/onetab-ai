@@ -47,7 +47,7 @@ function CopyButton({ value, label }: { value: string; label: string }) {
           window.setTimeout(() => setCopied(false), 1500);
         });
       }}
-      className="px-2 py-1 rounded gap-1 flex items-center bg-surface-raised text-[11px] text-foreground transition hover:bg-muted"
+      className="px-2 py-1 rounded gap-1 flex items-center bg-surface-raised text-meta text-foreground transition hover:bg-muted"
     >
       {copied ? (
         <Check className="w-3 h-3 text-success" />
@@ -81,7 +81,7 @@ function SDKReference() {
                   <Terminal className="w-3.5 h-3.5 mt-0.5 shrink-0 text-accent-blue" />
                   <div>
                     <code className="text-foreground">{runtime}</code>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    <p className="mt-0.5 text-meta text-muted-foreground">
                       {runtime === 'SANDBOXED_JS'
                         ? 'Runs in-process in a locked-down worker. Needs an entryPoint.'
                         : runtime === 'WEBHOOK'
@@ -105,7 +105,7 @@ function SDKReference() {
                 return (
                   <code
                     key={scope}
-                    className={`px-2 py-1 rounded border text-[11px] ${
+                    className={`px-2 py-1 rounded border text-meta ${
                       privileged
                         ? 'border-warning/40 bg-warning/15 text-warning'
                         : 'border-border bg-surface-raised text-foreground'
@@ -118,14 +118,14 @@ function SDKReference() {
             </div>
 
             <div className="mt-4 pt-4 border-t border-border">
-              <h4 className="font-semibold tracking-wide mb-2 text-[11px] text-muted-foreground uppercase">
+              <h4 className="font-semibold tracking-wide mb-2 text-meta text-muted-foreground uppercase">
                 UI surfaces
               </h4>
               <div className="gap-1.5 flex flex-wrap">
                 {sdk.data.surfaces.map((surface) => (
                   <code
                     key={surface}
-                    className="px-2 py-1 rounded border border-border bg-surface-raised text-[11px] text-foreground"
+                    className="px-2 py-1 rounded border border-border bg-surface-raised text-meta text-foreground"
                   >
                     {surface}
                   </code>
@@ -182,7 +182,7 @@ function ManifestConsole() {
         />
 
         {parsed.error ? (
-          <p className="mt-2 gap-1.5 flex items-center text-[11px] text-destructive">
+          <p className="mt-2 gap-1.5 flex items-center text-meta text-destructive">
             <AlertTriangle className="w-3 h-3" /> Invalid JSON: {parsed.error}
           </p>
         ) : null}
@@ -237,7 +237,7 @@ function ManifestConsole() {
               </p>
               {result.requiresConsent.length > 0 ? (
                 <div className="p-3 rounded-lg border border-warning/40 bg-warning/15">
-                  <p className="font-semibold gap-1.5 mb-1.5 flex items-center text-[11px] text-warning">
+                  <p className="font-semibold gap-1.5 mb-1.5 flex items-center text-meta text-warning">
                     <ShieldAlert className="w-3.5 h-3.5" />
                     Needs an admin&apos;s explicit consent at install time
                   </p>
@@ -245,7 +245,7 @@ function ManifestConsole() {
                     {result.requiresConsent.map((scope) => (
                       <code
                         key={scope}
-                        className="px-1.5 py-0.5 rounded bg-warning/15 text-[10px] text-warning"
+                        className="px-1.5 py-0.5 rounded bg-warning/15 text-2xs text-warning"
                       >
                         {scope}
                       </code>
@@ -253,7 +253,7 @@ function ManifestConsole() {
                   </div>
                 </div>
               ) : (
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-meta text-muted-foreground">
                   Requests read-only scopes — installs without a consent prompt.
                 </p>
               )}
@@ -288,12 +288,12 @@ function ManifestConsole() {
             <div className="space-y-2">
               <div className="gap-2 flex items-center">
                 <KeyRound className="w-4 h-4 shrink-0 text-warning" />
-                <code className="px-2 py-1.5 rounded flex-1 border border-border bg-background text-[11px] break-all text-warning">
+                <code className="px-2 py-1.5 rounded flex-1 border border-border bg-background text-meta break-all text-warning">
                   {credentials.apiKey}
                 </code>
                 <CopyButton value={credentials.apiKey} label="Copy key" />
               </div>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-meta text-muted-foreground">
                 Registered{' '}
                 <code className="text-muted-foreground">
                   {credentials.listingSlug}
@@ -385,19 +385,19 @@ function PluginManagementConsole() {
                   {activeSlug}
                 </span>
                 <span
-                  className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
+                  className={`px-2 py-0.5 text-2xs font-bold rounded-full ${
                     regQuery.data.status === 'ACTIVE'
-                      ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
-                      : 'bg-rose-500/15 text-rose-500 border border-rose-500/30'
+                      ? 'bg-success/15 text-success-text border border-success/30'
+                      : 'bg-destructive/15 text-destructive-text border border-destructive/30'
                   }`}
                 >
                   {regQuery.data.status}
                 </span>
-                <span className="text-[11px] text-muted-foreground font-mono">
+                <span className="text-meta text-muted-foreground font-mono">
                   v{regQuery.data.sdkVersion} · {regQuery.data.runtime}
                 </span>
               </div>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-meta text-muted-foreground">
                 Key prefix:{' '}
                 <code className="text-foreground font-mono">
                   {regQuery.data.apiKeyPrefix || 'None'}
@@ -436,12 +436,12 @@ function PluginManagementConsole() {
                 <KeyRound className="w-3.5 h-3.5" /> New Production API Key Generated
               </p>
               <div className="flex items-center gap-2">
-                <code className="px-2 py-1.5 rounded flex-1 border border-border bg-background text-[11px] break-all font-mono text-warning">
+                <code className="px-2 py-1.5 rounded flex-1 border border-border bg-background text-meta break-all font-mono text-warning">
                   {newRotatedKey}
                 </code>
                 <CopyButton value={newRotatedKey} label="Copy Key" />
               </div>
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 Copy and store this new key immediately. The old API key has been revoked and can no longer be used.
               </p>
             </div>

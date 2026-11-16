@@ -312,7 +312,7 @@ export function ChannelDetailsPanel({
               <span className="text-xs font-semibold block text-foreground">
                 Channel AI Agents &amp; Apps
               </span>
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-2xs text-muted-foreground">
                 {(channelAgents.data ?? []).length} agents ·{' '}
                 {(channelApps.data ?? []).length} apps
               </span>
@@ -344,7 +344,7 @@ export function ChannelDetailsPanel({
 
           {/* List of active AI agents */}
           <div className="space-y-2">
-            <span className="font-bold tracking-wider block text-[10px] text-muted-foreground uppercase">
+            <span className="font-bold tracking-wider block text-2xs text-muted-foreground uppercase">
               Active AI Agents ({(channelAgents.data ?? []).length})
             </span>
             {channelAgents.isLoading ? (
@@ -369,16 +369,16 @@ export function ChannelDetailsPanel({
                       </div>
                       <Badge
                         variant={link.isEnabled ? 'primary' : 'neutral'}
-                        className="py-0 h-4 text-[10px]"
+                        className="py-0 h-4 text-2xs"
                       >
                         {link.isEnabled ? 'Active' : 'Paused'}
                       </Badge>
                     </div>
-                    <p className="mt-0.5 line-clamp-2 text-[11px] text-muted-foreground">
+                    <p className="mt-0.5 line-clamp-2 text-meta text-muted-foreground">
                       {link.agent.description}
                     </p>
                     <div className="mt-2 flex items-center justify-between">
-                      <span className="font-mono text-[10px] text-muted-foreground">
+                      <span className="font-mono text-2xs text-muted-foreground">
                         {link.agent.model}
                       </span>
                       <div className="gap-2 flex items-center">
@@ -390,7 +390,7 @@ export function ChannelDetailsPanel({
                               isEnabled: !link.isEnabled,
                             })
                           }
-                          className="font-semibold cursor-pointer text-[10px] text-primary hover:underline"
+                          className="font-semibold cursor-pointer text-2xs text-primary hover:underline"
                         >
                           {link.isEnabled ? 'Pause' : 'Enable'}
                         </button>
@@ -399,7 +399,7 @@ export function ChannelDetailsPanel({
                           onClick={() =>
                             channelAgentMutations.remove.mutate(link.agentId)
                           }
-                          className="font-semibold cursor-pointer text-[10px] text-muted-foreground hover:text-destructive hover:underline"
+                          className="font-semibold cursor-pointer text-2xs text-muted-foreground hover:text-destructive hover:underline"
                         >
                           Remove
                         </button>
@@ -411,7 +411,7 @@ export function ChannelDetailsPanel({
             )}
 
             {/* List of connected apps */}
-            <span className="font-bold tracking-wider pt-2 block text-[10px] text-muted-foreground uppercase">
+            <span className="font-bold tracking-wider pt-2 block text-2xs text-muted-foreground uppercase">
               Connected Apps ({(channelApps.data ?? []).length})
             </span>
             {channelApps.isLoading ? (
@@ -436,14 +436,14 @@ export function ChannelDetailsPanel({
                           {link.integration.displayName ??
                             link.integration.provider}
                         </span>
-                        <span className="truncate font-mono text-[10px] text-accent-violet">
+                        <span className="truncate font-mono text-2xs text-accent-violet">
                           {link.integration.provider}
                         </span>
                       </div>
                       <Badge
                         variant={link.isEnabled ? 'primary' : 'neutral'}
                         className={cn(
-                          'py-0 h-4 text-[10px]',
+                          'py-0 h-4 text-2xs',
                           link.isEnabled &&
                             'border-accent-violet/20 bg-accent-violet-soft text-accent-violet',
                         )}
@@ -460,7 +460,7 @@ export function ChannelDetailsPanel({
                             isEnabled: !link.isEnabled,
                           })
                         }
-                        className="font-semibold cursor-pointer text-[10px] text-accent-violet hover:underline"
+                        className="font-semibold cursor-pointer text-2xs text-accent-violet hover:underline"
                       >
                         {link.isEnabled ? 'Mute' : 'Enable'}
                       </button>
@@ -469,7 +469,7 @@ export function ChannelDetailsPanel({
                         onClick={() =>
                           channelAppMutations.remove.mutate(link.integrationId)
                         }
-                        className="font-semibold cursor-pointer text-[10px] text-muted-foreground hover:text-destructive hover:underline"
+                        className="font-semibold cursor-pointer text-2xs text-muted-foreground hover:text-destructive hover:underline"
                       >
                         Disconnect
                       </button>
@@ -519,11 +519,11 @@ export function ChannelDetailsPanel({
                   <span className="text-xs font-bold text-foreground">
                     Welcome New Members
                   </span>
-                  <Badge variant="primary" className="py-0 h-4 text-[10px]">
+                  <Badge variant="primary" className="py-0 h-4 text-2xs">
                     Enabled
                   </Badge>
                 </div>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                <p className="mt-0.5 text-meta text-muted-foreground">
                   Sends welcome guides &amp; tips when anyone joins #
                   {channel.name}.
                 </p>
@@ -536,11 +536,11 @@ export function ChannelDetailsPanel({
                   <span className="text-xs font-bold text-foreground">
                     Daily Standup Reminder
                   </span>
-                  <Badge variant="primary" className="py-0 h-4 text-[10px]">
+                  <Badge variant="primary" className="py-0 h-4 text-2xs">
                     Enabled
                   </Badge>
                 </div>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                <p className="mt-0.5 text-meta text-muted-foreground">
                   Collects daily status updates at 9:30 AM every weekday.
                 </p>
               </div>
@@ -673,7 +673,7 @@ function NotificationMenu({
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="start" className="w-64">
-        <DropdownMenuLabel className="tracking-wide text-[11px] text-subtle uppercase">
+        <DropdownMenuLabel className="tracking-wide text-meta text-subtle uppercase">
           Notify me about
         </DropdownMenuLabel>
 
@@ -966,7 +966,7 @@ function ChannelCoworkersTab({
           <span className="text-xs font-semibold block text-foreground">
             AI Coworkers in #{channelName}
           </span>
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-2xs text-muted-foreground">
             Persistent teammates that can be @mentioned to respond here.
           </span>
         </div>
@@ -995,7 +995,7 @@ function ChannelCoworkersTab({
                     <span className="text-xs font-medium block truncate">
                       {coworker.name}
                     </span>
-                    <span className="block truncate text-[10px] text-muted-foreground">
+                    <span className="block truncate text-2xs text-muted-foreground">
                       {coworker.role}
                     </span>
                   </span>
@@ -1038,7 +1038,7 @@ function ChannelCoworkersTab({
                   </span>
                   <CoworkerStatusDot status={link.coworker.status} />
                 </div>
-                <span className="block truncate text-[10px] text-muted-foreground">
+                <span className="block truncate text-2xs text-muted-foreground">
                   {link.coworker.role}
                 </span>
               </Link>
@@ -1046,7 +1046,7 @@ function ChannelCoworkersTab({
                 size="sm"
                 variant={link.isEnabled ? 'outline' : 'subtle'}
                 onClick={() => handleToggle(link.coworkerId, link.isEnabled)}
-                className="h-6 px-2 shrink-0 text-[10px]"
+                className="h-6 px-2 shrink-0 text-2xs"
               >
                 {link.isEnabled ? 'Enabled' : 'Disabled'}
               </Button>
@@ -1277,7 +1277,7 @@ function MembersTab({
             </div>
             <Badge
               variant="outline"
-              className="py-0 h-4.5 px-1.5 bg-background font-mono text-[10px]"
+              className="py-0 h-4.5 px-1.5 bg-background font-mono text-2xs"
             >
               Enter
             </Badge>
@@ -1290,7 +1290,7 @@ function MembersTab({
           <>
             {/* Section 1: Members in this channel */}
             <div className="space-y-1">
-              <span className="font-bold px-1 block text-[11px] text-muted-foreground">
+              <span className="font-bold px-1 block text-meta text-muted-foreground">
                 Members in this channel
               </span>
 
@@ -1368,7 +1368,7 @@ function MembersTab({
                                   {displayName}
                                 </span>
                                 {isSelf ? (
-                                  <span className="font-normal shrink-0 text-[11px] text-muted-foreground">
+                                  <span className="font-normal shrink-0 text-meta text-muted-foreground">
                                     (you)
                                   </span>
                                 ) : null}
@@ -1377,7 +1377,7 @@ function MembersTab({
                                 </span>
                               </div>
                               {subtitle ? (
-                                <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                                <p className="mt-0.5 truncate text-meta text-muted-foreground">
                                   {subtitle}
                                 </p>
                               ) : null}
@@ -1400,7 +1400,7 @@ function MembersTab({
                               >
                                 <Badge
                                   variant="neutral"
-                                  className="gap-1 py-0 h-4 px-1.5 text-[10px]"
+                                  className="gap-1 py-0 h-4 px-1.5 text-2xs"
                                 >
                                   <Clock className="size-2.5" />
                                   Temp
@@ -1411,7 +1411,7 @@ function MembersTab({
                             {member.role === 'ADMIN' ? (
                               <Badge
                                 variant="neutral"
-                                className="py-0 h-4 px-1.5 text-[10px]"
+                                className="py-0 h-4 px-1.5 text-2xs"
                               >
                                 Admin
                               </Badge>
@@ -1489,7 +1489,7 @@ function MembersTab({
             {/* Section 2: Not in this channel */}
             {notInChannelFiltered.length > 0 ? (
               <div className="pt-2 space-y-1 border-t border-border">
-                <span className="font-bold px-1 block text-[11px] text-muted-foreground">
+                <span className="font-bold px-1 block text-meta text-muted-foreground">
                   Not in this channel
                 </span>
                 <ul className="space-y-0.5">
@@ -1526,7 +1526,7 @@ function MembersTab({
                                 </span>
                               </div>
                               {subtitle ? (
-                                <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                                <p className="mt-0.5 truncate text-meta text-muted-foreground">
                                   {subtitle}
                                 </p>
                               ) : null}
@@ -1654,7 +1654,7 @@ function ChannelSettingsDropdown({
               <span className="font-semibold text-foreground">
                 Rename &amp; edit details
               </span>
-              <span className="truncate text-[10px] text-muted-foreground">
+              <span className="truncate text-2xs text-muted-foreground">
                 Name, topic and description
               </span>
             </div>
@@ -1677,7 +1677,7 @@ function ChannelSettingsDropdown({
             <span className="font-semibold text-foreground">
               Copy channel link
             </span>
-            <span className="truncate text-[10px] text-muted-foreground">
+            <span className="truncate text-2xs text-muted-foreground">
               Share this channel with a teammate
             </span>
           </div>
@@ -1692,7 +1692,7 @@ function ChannelSettingsDropdown({
             <span className="font-semibold text-foreground">
               Export channel history
             </span>
-            <span className="truncate text-[10px] text-muted-foreground">
+            <span className="truncate text-2xs text-muted-foreground">
               Download channel metadata and details as JSON
             </span>
           </div>
@@ -1712,7 +1712,7 @@ function ChannelSettingsDropdown({
               <span className="font-semibold text-foreground">
                 {channel.isArchived ? 'Unarchive channel' : 'Archive channel'}
               </span>
-              <span className="truncate text-[10px] text-muted-foreground">
+              <span className="truncate text-2xs text-muted-foreground">
                 {channel.isArchived
                   ? 'Make the channel active again'
                   : 'Keep the history, close the conversation'}
@@ -1733,7 +1733,7 @@ function ChannelSettingsDropdown({
                 <span className="font-semibold text-destructive">
                   Leave this channel
                 </span>
-                <span className="truncate text-[10px] text-destructive/80">
+                <span className="truncate text-2xs text-destructive/80">
                   {channel.visibility === 'PRIVATE'
                     ? 'You’ll need an invite to rejoin'
                     : 'Rejoin any time from Browse channels'}
@@ -1791,7 +1791,7 @@ function ChannelIdFooter({ channelId }: { channelId: string }) {
           setCopied(true);
           setTimeout(() => setCopied(false), 1500);
         }}
-        className="gap-1.5 flex max-w-full items-center rounded-sm text-[11px] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
+        className="gap-1.5 flex max-w-full items-center rounded-sm text-meta text-muted-foreground outline-none hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
       >
         <span className="truncate">Channel ID: {channelId}</span>
         <Copy className="size-3 shrink-0" aria-hidden />

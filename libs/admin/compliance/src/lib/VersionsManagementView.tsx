@@ -413,7 +413,7 @@ export function VersionsManagementView() {
                 </div>
                 <div className="flex justify-between py-1">
                   <span className="text-muted-foreground">Deployment:</span>
-                  <Badge variant="outline" className="text-[10px] py-0 px-1.5">Live Production</Badge>
+                  <Badge variant="outline" className="text-2xs py-0 px-1.5">Live Production</Badge>
                 </div>
               </CardContent>
             </Card>
@@ -717,18 +717,18 @@ export function VersionsManagementView() {
                           <div className="font-semibold text-xs font-mono flex items-center gap-1.5">
                             v{rel.version}
                             {rel.isCurrent && (
-                              <Badge variant="success" className="text-[10px] py-0 px-1">
+                              <Badge variant="success" className="text-2xs py-0 px-1">
                                 Current
                               </Badge>
                             )}
                           </div>
-                          <div className="text-[11px] text-muted-foreground font-mono">
+                          <div className="text-meta text-muted-foreground font-mono">
                             Build {rel.buildNumber}
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-[10px]">
+                        <Badge variant="outline" className="text-2xs">
                           {rel.releaseChannel}
                         </Badge>
                       </TableCell>
@@ -749,7 +749,7 @@ export function VersionsManagementView() {
                       </TableCell>
                       <TableCell>
                         {rel.mandatoryUpdate ? (
-                          <Badge variant="destructive" className="text-[10px]">
+                          <Badge variant="destructive" className="text-2xs">
                             Mandatory
                           </Badge>
                         ) : (
@@ -1161,7 +1161,7 @@ export function VersionsManagementView() {
                               ? 'warning'
                               : 'outline'
                           }
-                          className="text-[10px]"
+                          className="text-2xs"
                         >
                           {log.action}
                         </Badge>
@@ -1252,7 +1252,7 @@ export function VersionsManagementView() {
               {detailsRelease.changelog && (
                 <div className="space-y-1">
                   <div className="font-medium text-foreground">Technical Changelog:</div>
-                  <div className="p-3 bg-card border rounded-md whitespace-pre-wrap font-mono text-[11px] text-muted-foreground">
+                  <div className="p-3 bg-card border rounded-md whitespace-pre-wrap font-mono text-meta text-muted-foreground">
                     {detailsRelease.changelog}
                   </div>
                 </div>

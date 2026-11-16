@@ -144,7 +144,8 @@ export function CreateWorkspacePage() {
   const slugTouched = form.formState.dirtyFields.slug;
   useEffect(() => {
     if (slugTouched) return;
-    const suggested = suggestion.data?.slug ?? slugify(name).slice(0, 40).replace(/-+$/, '');
+    const suggested =
+      suggestion.data?.slug ?? slugify(name).slice(0, 40).replace(/-+$/, '');
     if (suggested) form.setValue('slug', suggested, { shouldValidate: true });
   }, [name, suggestion.data?.slug, slugTouched, form]);
 
@@ -318,7 +319,9 @@ export function CreateWorkspacePage() {
         // Anything else is surfaced by <FormError> below.
         const message = formErrorMessage(error);
         if (/already taken|already exists/i.test(message ?? '')) {
-          form.setError('slug', { message: 'That workspace URL is already taken.' });
+          form.setError('slug', {
+            message: 'That workspace URL is already taken.',
+          });
           setCurrentStep(1);
         }
       }
@@ -373,7 +376,7 @@ export function CreateWorkspacePage() {
   const host = window.location.host;
 
   return (
-    <div className="selection:text-primary-foreground min-h-full bg-background text-foreground selection:bg-primary">
+    <div className="min-h-full bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
       <div className="max-w-5xl px-4 py-8 sm:px-6 mx-auto w-full">
         {/* Page header — same title block as the settings screens. */}
         <div className="mb-6 gap-3 flex items-start">
@@ -381,8 +384,12 @@ export function CreateWorkspacePage() {
             type="button"
             variant="ghost"
             size="icon"
-            aria-label={currentStep === 2 ? 'Back to workspace details' : 'Go back'}
-            onClick={() => (currentStep === 2 ? setCurrentStep(1) : navigate(-1))}
+            aria-label={
+              currentStep === 2 ? 'Back to workspace details' : 'Go back'
+            }
+            onClick={() =>
+              currentStep === 2 ? setCurrentStep(1) : navigate(-1)
+            }
             className="mt-0.5 shrink-0 text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -394,7 +401,7 @@ export function CreateWorkspacePage() {
               actions={
                 <ol
                   aria-label="Workspace setup progress"
-                  className="gap-2 hidden sm:flex items-center"
+                  className="gap-2 sm:flex hidden items-center"
                 >
                   {STEPS.map((s) => {
                     const done = s.id < currentStep;
@@ -407,10 +414,14 @@ export function CreateWorkspacePage() {
                       >
                         <span
                           className={cn(
-                            'size-5 text-[11px] font-semibold flex shrink-0 items-center justify-center rounded-full border transition-colors',
-                            done && 'border-primary bg-primary text-primary-foreground',
-                            active && 'border-primary bg-primary/10 text-primary',
-                            !done && !active && 'border-border text-muted-foreground',
+                            'size-5 font-semibold flex shrink-0 items-center justify-center rounded-full border text-meta transition-colors',
+                            done &&
+                              'border-primary bg-primary text-primary-foreground',
+                            active &&
+                              'border-primary bg-primary/10 text-primary',
+                            !done &&
+                              !active &&
+                              'border-border text-muted-foreground',
                           )}
                         >
                           {done ? <Check className="h-3 w-3" /> : s.id}
@@ -428,7 +439,7 @@ export function CreateWorkspacePage() {
                         {s.id < STEPS.length && (
                           <span
                             className={cn(
-                              'h-px w-8 transition-colors',
+                              'w-8 h-px transition-colors',
                               done ? 'bg-primary' : 'bg-border',
                             )}
                           />
@@ -491,7 +502,7 @@ export function CreateWorkspacePage() {
                                 onFocus={(event) => event.target.select()}
                               />
                             </FormControl>
-                            <FormDescription className="text-[11px] text-muted-foreground">
+                            <FormDescription className="text-meta text-muted-foreground">
                               Usually your company or team name.
                             </FormDescription>
                             <FormMessage />
@@ -539,7 +550,7 @@ export function CreateWorkspacePage() {
                             </FormControl>
                             <FormDescription
                               aria-live="polite"
-                              className="gap-1.5 flex flex-wrap items-center text-[11px] text-muted-foreground"
+                              className="gap-1.5 flex flex-wrap items-center text-meta text-muted-foreground"
                             >
                               {fieldState.error ? null : slugChecking ? (
                                 'Checking availability…'
@@ -577,7 +588,9 @@ export function CreateWorkspacePage() {
                                 </span>
                               ) : slugAvailable ? (
                                 <span>
-                                  <span className="text-success">Available.</span>{' '}
+                                  <span className="text-success">
+                                    Available.
+                                  </span>{' '}
                                   Lowercase letters, numbers and dashes.
                                 </span>
                               ) : (
@@ -631,7 +644,7 @@ export function CreateWorkspacePage() {
                               seed={slug || name}
                               size="xl"
                             />
-                            <span className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/45 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                            <span className="inset-0 bg-black/45 text-white absolute flex items-center justify-center rounded-2xl opacity-0 transition-opacity group-hover:opacity-100">
                               <ImagePlus className="h-5 w-5" />
                             </span>
                           </button>
@@ -656,7 +669,8 @@ export function CreateWorkspacePage() {
                                   onClick={handleRemoveLogo}
                                   className="h-8 text-xs text-muted-foreground hover:text-destructive"
                                 >
-                                  <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Remove
+                                  <Trash2 className="h-3.5 w-3.5 mr-1.5" />{' '}
+                                  Remove
                                 </Button>
                               )}
                             </div>
@@ -666,7 +680,10 @@ export function CreateWorkspacePage() {
                                 : 'PNG, JPEG, WebP or GIF · 256×256 px · up to 2 MB · or drop it here'}
                             </p>
                             {logoError && (
-                              <p role="alert" className="text-xs mt-1 text-destructive">
+                              <p
+                                role="alert"
+                                className="text-xs mt-1 text-destructive"
+                              >
                                 {logoError}
                               </p>
                             )}
@@ -721,7 +738,9 @@ export function CreateWorkspacePage() {
                           type="file"
                           accept=".csv,.xlsx,.xls,.tsv,.txt,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                           className="hidden"
-                          onChange={(e) => handleFileUpload(e.target.files?.[0])}
+                          onChange={(e) =>
+                            handleFileUpload(e.target.files?.[0])
+                          }
                         />
                       </SettingsGroup>
 
@@ -811,7 +830,7 @@ export function CreateWorkspacePage() {
                         )}
                       </SettingsGroup>
 
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-meta text-muted-foreground">
                         Everyone invited joins as a member. You can invite more
                         people, or change roles, from workspace settings at any
                         time.
@@ -892,7 +911,7 @@ export function CreateWorkspacePage() {
                     <h4 className="text-sm font-semibold truncate text-foreground">
                       {displayName}
                     </h4>
-                    <p className="truncate font-mono text-[11px] text-muted-foreground">
+                    <p className="truncate font-mono text-meta text-muted-foreground">
                       {host}/w/{slug || '…'}
                     </p>
                   </div>
@@ -900,22 +919,22 @@ export function CreateWorkspacePage() {
 
                 <div className="p-4 space-y-4">
                   <div>
-                    <p className="mb-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                    <p className="mb-1.5 font-semibold tracking-wide text-meta text-muted-foreground uppercase">
                       Channels
                     </p>
-                    <div className="gap-2 px-2 py-1.5 text-xs flex items-center rounded-md bg-selected font-medium text-foreground">
+                    <div className="gap-2 px-2 py-1.5 text-xs font-medium flex items-center rounded-md bg-selected text-foreground">
                       <Hash className="h-3.5 w-3.5 text-muted-foreground" />
                       general
                     </div>
                   </div>
 
                   <div>
-                    <p className="mb-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                    <p className="mb-1.5 font-semibold tracking-wide text-meta text-muted-foreground uppercase">
                       Members · {invitedEmails.length + 1}
                     </p>
                     <div className="gap-2 flex flex-wrap items-center">
                       <Avatar className="h-7 w-7 border border-primary">
-                        <AvatarFallback className="text-primary-foreground text-xs font-bold bg-primary">
+                        <AvatarFallback className="text-xs font-bold bg-primary text-primary-foreground">
                           {initials(
                             currentUser?.displayName ||
                               currentUser?.name ||
@@ -928,18 +947,18 @@ export function CreateWorkspacePage() {
                           key={email}
                           className="h-7 w-7 border border-border-strong"
                         >
-                          <AvatarFallback className="font-bold bg-surface-raised text-[10px] text-secondary-foreground">
+                          <AvatarFallback className="font-bold bg-surface-raised text-2xs text-secondary-foreground">
                             {initials(email)}
                           </AvatarFallback>
                         </Avatar>
                       ))}
                       {invitedEmails.length > 6 && (
-                        <span className="h-7 w-7 font-bold flex items-center justify-center rounded-full border border-border-strong bg-surface-raised text-[10px] text-muted-foreground">
+                        <span className="h-7 w-7 font-bold flex items-center justify-center rounded-full border border-border-strong bg-surface-raised text-2xs text-muted-foreground">
                           +{invitedEmails.length - 6}
                         </span>
                       )}
                     </div>
-                    <p className="mt-2 text-[11px] text-muted-foreground">
+                    <p className="mt-2 text-meta text-muted-foreground">
                       {invitedEmails.length > 0
                         ? 'You join as owner; invitees join as members.'
                         : 'You join as the owner.'}

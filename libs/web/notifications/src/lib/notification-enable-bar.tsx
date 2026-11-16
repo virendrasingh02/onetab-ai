@@ -464,7 +464,7 @@ export function NotificationEnableBar({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel className="text-[11px] text-muted-foreground">
+              <DropdownMenuLabel className="text-meta text-muted-foreground">
                 Notification Scope
               </DropdownMenuLabel>
               <DropdownMenuItem
@@ -474,7 +474,7 @@ export function NotificationEnableBar({
                 <Sparkles className="size-3.5 text-primary" />
                 <div className="flex flex-col">
                   <span>All Activity</span>
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-2xs text-muted-foreground">
                     Messages, mentions & replies
                   </span>
                 </div>
@@ -489,7 +489,7 @@ export function NotificationEnableBar({
                 <BellRing className="size-3.5 text-warning-text" />
                 <div className="flex flex-col">
                   <span>Mentions Only</span>
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-2xs text-muted-foreground">
                     Direct @mentions & DMs
                   </span>
                 </div>
@@ -515,7 +515,7 @@ export function NotificationEnableBar({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuLabel className="text-[11px] text-muted-foreground">
+            <DropdownMenuLabel className="text-meta text-muted-foreground">
               Snooze Notification Bar
             </DropdownMenuLabel>
             <DropdownMenuSeparator />

@@ -51,20 +51,20 @@ const money = (cents: number, currency = 'USD') =>
 
 const STATUS_STYLE: Record<string, string> = {
   ACTIVE: 'bg-success/15 text-success-text border-success/25',
-  TRIALING: 'bg-sky-500/15 text-sky-500 border-sky-500/25',
-  PAST_DUE: 'bg-amber-500/15 text-amber-500 border-amber-500/25',
+  TRIALING: 'bg-info/15 text-info-text border-info/25',
+  PAST_DUE: 'bg-warning/15 text-warning-text border-warning/25',
   UNPAID: 'bg-destructive/15 text-destructive border-destructive/25',
-  EXHAUSTED: 'bg-amber-500/15 text-amber-500 border-amber-500/25',
+  EXHAUSTED: 'bg-warning/15 text-warning-text border-warning/25',
   EXPIRED: 'bg-muted text-muted-foreground border-border',
   INACTIVE: 'bg-muted text-muted-foreground border-border',
-  SCHEDULED: 'bg-sky-500/15 text-sky-500 border-sky-500/25',
+  SCHEDULED: 'bg-info/15 text-info-text border-info/25',
   PAID: 'bg-success/15 text-success-text border-success/25',
 };
 
 function StatusPill({ value }: { value: string }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase ${
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-2xs font-semibold tracking-wider uppercase ${
         STATUS_STYLE[value] ?? 'bg-muted text-muted-foreground border-border'
       }`}
     >
@@ -112,7 +112,7 @@ function OverviewTab() {
           <div key={t.label} className="rounded-xl border border-border bg-card p-4">
             <p className="text-xs text-muted-foreground">{t.label}</p>
             <p className="mt-1 text-2xl font-bold text-foreground">{t.value}</p>
-            <p className="mt-1 text-[11px] text-muted-foreground">{t.note}</p>
+            <p className="mt-1 text-meta text-muted-foreground">{t.note}</p>
           </div>
         ))}
       </div>
@@ -330,7 +330,7 @@ function CouponDialog({
                 <SelectItem value="APPROVED">Approved for production (use sparingly)</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-meta text-muted-foreground">
               With a payment provider configured, a $0 total still goes through the provider. This only governs deployments with no provider.
             </p>
           </div>
@@ -708,7 +708,7 @@ function AuditTab() {
           {q.data.map((e) => (
             <TableRow key={e.id}>
               <TableCell className="text-xs text-muted-foreground">{formatDateTime(e.createdAt)}</TableCell>
-              <TableCell><Badge variant="secondary" className="font-mono text-[10px]">{e.action}</Badge></TableCell>
+              <TableCell><Badge variant="secondary" className="font-mono text-2xs">{e.action}</Badge></TableCell>
               <TableCell className="text-xs">{e.targetType}{e.targetId ? ` · ${e.targetId}` : ''}</TableCell>
               <TableCell className="text-xs text-muted-foreground">{e.actorId ?? 'system'}</TableCell>
             </TableRow>

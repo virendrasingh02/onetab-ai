@@ -72,7 +72,7 @@ export function CallSummaryMessageCard({
             </div>
             <div className="min-w-0">
               <h4 className="text-xs font-semibold text-foreground truncate">{displayTitle}</h4>
-              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+              <div className="flex items-center gap-2 text-meta text-muted-foreground">
                 <span className="flex items-center gap-1 font-mono tabular-nums">
                   <Clock className="size-3" />
                   {formatDuration(duration)}

@@ -529,7 +529,7 @@ function GroupHeader({
             <button
               type="button"
               onClick={onToggleMembersPanel}
-              className="gap-1 flex cursor-pointer items-center text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+              className="gap-1 flex cursor-pointer items-center text-meta text-muted-foreground transition-colors hover:text-foreground"
             >
               {onlineCount > 0 ? (
                 <span className="gap-1 font-medium inline-flex items-center text-success">
