@@ -345,7 +345,8 @@ export type BoardAction =
 export interface CardPatch {
   title?: string;
   description?: string;
-  priority?: Priority;
+  /** `null` clears it back to "No priority". */
+  priority?: Priority | null;
   /** `yyyy-mm-dd`, or `null` to clear the deadline. */
   dueDate?: string | null;
   memberIds?: string[];
@@ -372,7 +373,11 @@ export function compareBy(key: SortKey) {
         if (!b.dueDate) return -1;
         return a.dueDate.localeCompare(b.dueDate);
       case 'priority':
-        return PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
+        // "No priority" sinks below Low, like undated cards under "due".
+        return (
+          (a.priority ? PRIORITY_RANK[a.priority] : 4) -
+          (b.priority ? PRIORITY_RANK[b.priority] : 4)
+        );
       case 'title':
         return a.title.localeCompare(b.title);
       case 'created':

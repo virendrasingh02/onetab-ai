@@ -68,7 +68,8 @@ export interface KanbanCard {
   dueDate?: string;
   /** True once the task reaches a terminal column — nothing is due any more. */
   dueComplete: boolean;
-  priority: Priority;
+  /** `null` is "No priority" — where every new task starts. */
+  priority: Priority | null;
   createdAt: string;
   /** Label names, from `Task.labels`; colours come from the workspace catalogue. */
   labels: string[];

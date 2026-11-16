@@ -133,8 +133,11 @@ export function ProjectDashboardView({
         if (isOverdue) overdue++;
         if (isPressing) urgentOrHigh++;
         if (isOverdue || isPressing) attention.push({ card, listId: list.id });
-        priorityCounts[card.priority] =
-          (priorityCounts[card.priority] || 0) + 1;
+        // The breakdown charts set priorities; unprioritised tasks sit it out.
+        if (card.priority) {
+          priorityCounts[card.priority] =
+            (priorityCounts[card.priority] || 0) + 1;
+        }
 
         card.memberIds.forEach((mId) => {
           memberTaskCounts[mId] = (memberTaskCounts[mId] || 0) + 1;

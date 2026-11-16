@@ -55,7 +55,8 @@ export interface ImportedCard {
   /** Local calendar day as `yyyy-mm-dd`; absent when the source gave no date. */
   dueDate?: string;
   dueComplete: boolean;
-  priority: Priority;
+  /** `null` when the source had none — the task lands with "No priority". */
+  priority: Priority | null;
   checklist: ImportedChecklistItem[];
   comments: ImportedComment[];
   createdAt: string;

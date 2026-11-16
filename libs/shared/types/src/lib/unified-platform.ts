@@ -165,7 +165,8 @@ export interface ContextOverviewDto {
     id: string;
     title: string;
     status: string;
-    priority: string;
+    /** `null` when the task has no priority. */
+    priority: string | null;
     identifier?: string;
     href: string;
   }>;

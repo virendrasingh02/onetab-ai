@@ -79,6 +79,7 @@ export {
   type SettingsDirtyEntry,
 } from './lib/settings-dirty.store.js';
 export { SettingsSaveBar } from './lib/settings-save-bar.js';
+export { useSettingsView } from './lib/use-settings-view.js';
 
 export {
   useWorkspaceStore,

@@ -14,12 +14,20 @@ import type { Priority } from './types.js';
 
 export type PriorityOption = Priority | 'NO_PRIORITY' | string;
 
+/** A picked option as a task stores it: "No priority" is `null`. */
+export function toTaskPriority(option: PriorityOption): Priority | null {
+  return option === 'NO_PRIORITY' || option === 'NONE'
+    ? null
+    : (option as Priority);
+}
+
 export interface KanbanPriorityPickerProps {
-  priority: PriorityOption;
+  /** `null` reads as "No priority". */
+  priority: PriorityOption | null;
   onPriorityChange: (priority: PriorityOption) => void;
   trigger?: React.ReactNode;
   align?: 'start' | 'center' | 'end';
-  /** Drops "No priority": a saved task always has one, so it can't be stored. */
+  /** Drops "No priority", for things that must always carry one. */
   required?: boolean;
 }
 
@@ -81,7 +89,7 @@ export function KanbanPriorityPicker({
         {/* List items */}
         <div className="space-y-0.5">
           {customPriorities.map((item) => {
-            const isSelected = item.id === priority;
+            const isSelected = item.id === (priority ?? 'NO_PRIORITY');
             return (
               <DropdownMenuItem
                 key={item.id}

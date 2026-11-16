@@ -30,7 +30,8 @@ export interface ChatTaskFields {
   description?: string | null;
   projectId: string | null;
   assigneeId?: string | null;
-  priority?: TaskPriority;
+  /** `null`/absent files the task with no priority. */
+  priority?: TaskPriority | null;
   dueDate?: string | null;
   /** Post the new task's link back into the conversation it came from. */
   share?: boolean;
@@ -131,7 +132,7 @@ export function useChatTasks() {
         title: fields.title.slice(0, 200),
         description: fields.description || null,
         status: TaskStatus.TODO,
-        priority: fields.priority ?? TaskPriority.MEDIUM,
+        priority: fields.priority ?? null,
         projectId: fields.projectId,
         assigneeId: fields.assigneeId ?? null,
         assigneeIds: fields.assigneeId ? [fields.assigneeId] : [],

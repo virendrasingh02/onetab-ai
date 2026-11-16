@@ -347,7 +347,7 @@ export function KanbanListColumn({
         contentClassName="px-1.5 pt-0.5"
       >
         {/* `relative`: the drop placeholder is positioned against this list. */}
-        <ul ref={cardsRef} className="min-h-8 space-y-2.5 relative">
+        <ul ref={cardsRef} className="min-h-8 gap-2 relative flex flex-col">
           {/*
             Keyed off the unfiltered count rather than off what is on screen: a
             card in the air still belongs to this column, and letting the empty
@@ -443,9 +443,9 @@ export function KanbanListColumn({
             One element per column, mounted for the whole drag and moved with a
             transform, so sliding it from slot to slot is something CSS can
             animate — inserting and removing a node between the tiles could not
-            be. Out of flow, so where it sits among its siblings does not matter;
-            `mt-0!` opts it out of the list's `space-y-2`, which would otherwise
-            offset it from the slot it is meant to be marking.
+            be. Out of flow, so where it sits among its siblings does not matter
+            and the list's flex `gap` skips it. (The list used `space-y` once;
+            its margins leaked out under the last card, hence `gap`.)
           */}
           <li
             data-kanban-placeholder
@@ -469,7 +469,7 @@ export function KanbanListColumn({
         {composer !== 'top' ? (
           <div
             className={cn(
-              'bottom-0 z-10 -mx-1.5 px-1.5 pt-2 pb-2 sticky',
+              'bottom-0 z-10 -mx-1.5 px-1.5 pt-1.5 pb-1.5 sticky',
               // Only once the cards overflow does it need a fill to cover the
               // ones scrolling under it — and by then it sits at the column's
               // faded-out bottom, where the board background matches.
@@ -491,7 +491,7 @@ export function KanbanListColumn({
                 size="sm"
                 leadingIcon={<Plus className="size-3.5" />}
                 onClick={() => openComposer('bottom')}
-                className="h-8 text-xs font-medium w-full justify-start rounded-md text-muted-foreground hover:bg-surface hover:text-foreground"
+                className="h-7 text-xs font-medium w-full justify-start rounded-md text-muted-foreground hover:bg-surface hover:text-foreground"
               >
                 Add task
               </Button>

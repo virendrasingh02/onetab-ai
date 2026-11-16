@@ -34,7 +34,10 @@ import {
   UnassignedLeadIcon,
 } from '../kanban/kanban-icons.js';
 import { KanbanLeadPicker } from '../kanban/KanbanLeadPicker.js';
-import { KanbanPriorityPicker } from '../kanban/KanbanPriorityPicker.js';
+import {
+  KanbanPriorityPicker,
+  toTaskPriority,
+} from '../kanban/KanbanPriorityPicker.js';
 import { KanbanStatusPicker } from '../kanban/KanbanStatusPicker.js';
 import { useBoardTaskActions } from '../kanban/task-actions.js';
 import { useWorkflowStates } from '../kanban/task-states.js';
@@ -49,7 +52,6 @@ import type {
   BoardState,
   KanbanCard,
   KanbanList,
-  Priority,
 } from '../kanban/types.js';
 
 /** Controls a row owns; a click on them never opens the task. */
@@ -440,7 +442,7 @@ export function ProjectListView({
                                   dispatch({
                                     type: 'card/update',
                                     cardId: card.id,
-                                    patch: { priority: value as Priority },
+                                    patch: { priority: toTaskPriority(value) },
                                   })
                                 }
                                 trigger={
@@ -453,8 +455,10 @@ export function ProjectListView({
                                       className="size-3.5"
                                     />
                                     <span className="truncate">
-                                      {PRIORITY_META[card.priority]?.label ??
-                                        card.priority}
+                                      {card.priority
+                                        ? (PRIORITY_META[card.priority]?.label ??
+                                          card.priority)
+                                        : 'No priority'}
                                     </span>
                                   </button>
                                 }

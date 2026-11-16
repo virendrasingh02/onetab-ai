@@ -38,6 +38,9 @@ export interface CreateTaskDialogProps {
   onCreate: (input: CreateTaskInput) => Promise<unknown>;
 }
 
+/** The select's stand-in for "no priority" — sent to the server as `null`. */
+const NO_PRIORITY = 'NO_PRIORITY';
+
 const PRIORITY_ORDER: TaskPriority[] = [
   TaskPriority.URGENT,
   TaskPriority.HIGH,
@@ -59,7 +62,8 @@ export function CreateTaskDialog({
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<string>(defaultStatus);
   const { patchFor } = useWorkflowStates();
-  const [priority, setPriority] = useState<TaskPriority>(TaskPriority.MEDIUM);
+  // Starts unset, like a task added straight onto the board.
+  const [priority, setPriority] = useState<TaskPriority | null>(null);
   const [memberIds, setMemberIds] = useState<string[]>([]);
   const [dueDate, setDueDate] = useState<string | undefined>();
   const [createMore, setCreateMore] = useState(false);
@@ -70,7 +74,7 @@ export function CreateTaskDialog({
     setTitle('');
     setDescription('');
     setStatus(defaultStatus);
-    setPriority(TaskPriority.MEDIUM);
+    setPriority(null);
     setMemberIds([]);
     setDueDate(undefined);
   }, [open, defaultStatus]);
@@ -153,13 +157,20 @@ export function CreateTaskDialog({
 
               <Field label="Priority">
                 <AppSelect
-                  value={priority}
-                  onValueChange={(value) => setPriority(value as TaskPriority)}
+                  value={priority ?? NO_PRIORITY}
+                  onValueChange={(value) =>
+                    setPriority(
+                      value === NO_PRIORITY ? null : (value as TaskPriority),
+                    )
+                  }
                   aria-label="Priority"
-                  options={PRIORITY_ORDER.map((value) => ({
-                    value,
-                    label: PRIORITY_META[value].label,
-                  }))}
+                  options={[
+                    { value: NO_PRIORITY, label: 'No priority' },
+                    ...PRIORITY_ORDER.map((value) => ({
+                      value,
+                      label: PRIORITY_META[value].label,
+                    })),
+                  ]}
                 />
               </Field>
 

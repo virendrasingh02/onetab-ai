@@ -1750,7 +1750,9 @@ model Task {
   status          TaskStatus               @default(TODO)
   /// A custom workflow status; null means the built-in one for `status`.
   stateId         String?
-  priority        TaskPriority             @default(MEDIUM)
+  /// Null means "No priority" — what a new task starts with until someone
+  /// sets one.
+  priority        TaskPriority?
   startDate       DateTime?
   dueDate         DateTime?
   completedAt     DateTime?

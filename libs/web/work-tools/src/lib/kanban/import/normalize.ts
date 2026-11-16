@@ -367,7 +367,7 @@ export function buildBoardState(
       // A card only reads as "due complete" when it actually has a due date;
       // otherwise the badge has nothing to strike through.
       dueComplete: Boolean(task.dueDate) && done,
-      priority: task.priority ?? 'MEDIUM',
+      priority: task.priority ?? null,
       checklist: (task.checklist ?? []).map((item) => ({
         id: createId('ci'),
         text: item.text,

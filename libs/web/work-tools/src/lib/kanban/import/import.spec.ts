@@ -207,10 +207,10 @@ describe('linear', () => {
     expect(names).toEqual(['bug', 'parser']);
   });
 
-  it('falls back to MEDIUM for "No priority"', () => {
+  it('keeps "No priority" as no priority', () => {
     const { board } = build(LINEAR, 'linear');
     const backlog = board.lists.find((l) => l.title === 'Backlog');
-    expect(backlog?.cards[0].priority).toBe('MEDIUM');
+    expect(backlog?.cards[0].priority).toBeNull();
   });
 
   it('regroups by any column on request', () => {

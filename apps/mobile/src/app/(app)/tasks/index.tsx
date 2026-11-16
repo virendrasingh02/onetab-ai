@@ -381,7 +381,7 @@ export default function TasksScreen() {
                           </AppText>
                         ) : null}
                         <Badge
-                          label={item.priority}
+                          label={item.priority ?? 'No priority'}
                           tone={
                             item.priority === 'URGENT'
                               ? 'danger'

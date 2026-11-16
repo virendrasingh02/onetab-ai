@@ -1,5 +1,13 @@
 import { cn } from '@org/utils';
-import type { ComponentProps, MouseEventHandler, ReactNode } from 'react';
+import {
+  useEffect,
+  useRef,
+  type ComponentProps,
+  type MouseEventHandler,
+  type ReactNode,
+} from 'react';
+import { ResponsiveTabsList, type TabItem } from './responsive-tabs.js';
+import { Tabs, TabsContent } from './tabs.js';
 
 /**
  * Shared building blocks for the workspace settings screens.
@@ -106,7 +114,9 @@ export function SettingsCard({
     <div
       className={cn(
         'rounded-xl border border-border bg-surface shadow-xs',
-        divided ? 'divide-y divide-border/60 overflow-hidden' : 'p-5 space-y-5',
+        divided
+          ? 'divide-y divide-border/60 overflow-hidden'
+          : 'p-4 sm:p-5 space-y-4',
         className,
       )}
       {...props}
@@ -200,7 +210,7 @@ export function SettingsRow({
     <div
       className={cn(
         'gap-x-4 gap-y-3 flex flex-wrap items-center justify-between transition-colors hover:bg-accent/40',
-        nested ? 'py-3 pr-4 pl-[4.25rem]' : 'p-4 sm:p-5',
+        nested ? 'py-2.5 pr-4 pl-[4.25rem]' : 'px-4 py-3 sm:px-5 sm:py-3.5',
         className,
       )}
       {...props}
@@ -236,28 +246,45 @@ export function SettingsRow({
   );
 }
 
+/** Fired on `window` to ask the `<SettingsTabs>` that owns a panel to show it. */
+const ACTIVATE_TAB_EVENT = 'settings:activate-tab';
+
+/** The nearest vertically scrollable ancestor of `el` (the settings `<main>`). */
+function scrollParentOf(el: HTMLElement) {
+  let parent = el.parentElement;
+  while (parent) {
+    const { overflowY } = getComputedStyle(parent);
+    if (overflowY === 'auto' || overflowY === 'scroll') return parent;
+    parent = parent.parentElement;
+  }
+  return null;
+}
+
 /**
  * Smooth-scrolls the settings page to the element with `id`, moving only its
  * nearest scrollable ancestor. `Element.scrollIntoView()` also scrolls
  * `overflow: hidden` ancestors, which shoves the whole settings shell up out
- * of the viewport.
+ * of the viewport. When the target sits in a hidden `<SettingsTabPanel>`, that
+ * tab is selected first.
  */
-export function scrollToSettingsSection(id: string) {
+export function scrollToSettingsSection(id: string, retried = false) {
   const el = document.getElementById(id);
   if (!el) return;
-  let parent = el.parentElement;
-  while (parent) {
-    const { overflowY } = getComputedStyle(parent);
-    if (
-      (overflowY === 'auto' || overflowY === 'scroll') &&
-      parent.scrollHeight > parent.clientHeight
-    ) {
-      break;
-    }
-    parent = parent.parentElement;
+  const panel = el.closest<HTMLElement>('[data-settings-tab-panel]');
+  if (panel && panel.dataset['state'] === 'inactive' && !retried) {
+    window.dispatchEvent(
+      new CustomEvent(ACTIVATE_TAB_EVENT, {
+        detail: panel.dataset['settingsTabPanel'],
+      }),
+    );
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => scrollToSettingsSection(id, true)),
+    );
+    return;
   }
+  const parent = scrollParentOf(el);
   if (!parent) return;
-  // Land just below the sticky jump nav, whose height varies as it wraps.
+  // Land just below the sticky jump nav / tab bar, whose height varies.
   const nav = parent.querySelector<HTMLElement>('[data-settings-jump-nav]');
   const offset = (nav?.offsetHeight ?? 0) + 16;
   const top =
@@ -280,7 +307,7 @@ export function SettingsJumpNav({ items, className }: SettingsJumpNavProps) {
       aria-label="On this page"
       data-settings-jump-nav=""
       className={cn(
-        '-top-6 md:-top-10 -mx-1 px-1 py-2 backdrop-blur-md sticky z-10 bg-background/90',
+        '-top-5 md:-top-6 -mx-1 px-1 py-2 backdrop-blur-md sticky z-10 bg-surface-muted/90',
         className,
       )}
     >
@@ -298,5 +325,105 @@ export function SettingsJumpNav({ items, className }: SettingsJumpNavProps) {
         ))}
       </ul>
     </nav>
+  );
+}
+
+export interface SettingsTabsProps {
+  /** One entry per sub-page of the section. */
+  items: TabItem[];
+  value: string;
+  onValueChange: (value: string) => void;
+  /** `<SettingsTabPanel>`s, one per item. */
+  children: ReactNode;
+  className?: string;
+  'aria-label'?: string;
+}
+
+/**
+ * Splits a long settings section into sub-pages behind a sticky underline tab
+ * bar, so a section is a short screen instead of one long scroll. Panels stay
+ * mounted while hidden (unsaved form edits and dirty-guards survive a tab
+ * switch), and `scrollToSettingsSection()` selects the tab that owns its
+ * target.
+ */
+export function SettingsTabs({
+  items,
+  value,
+  onValueChange,
+  children,
+  className,
+  'aria-label': ariaLabel = 'Section pages',
+}: SettingsTabsProps) {
+  const barRef = useRef<HTMLDivElement>(null);
+  const latest = useRef({ items, onValueChange });
+  latest.current = { items, onValueChange };
+
+  useEffect(() => {
+    const onActivate = (event: Event) => {
+      const next = (event as CustomEvent<string>).detail;
+      const { items: current, onValueChange: change } = latest.current;
+      if (current.some((item) => item.value === next)) change(next);
+    };
+    window.addEventListener(ACTIVATE_TAB_EVENT, onActivate);
+    return () => window.removeEventListener(ACTIVATE_TAB_EVENT, onActivate);
+  }, []);
+
+  const change = (next: string) => {
+    onValueChange(next);
+    // Switching from deep inside a long tab: bring the new tab's top into view.
+    const bar = barRef.current;
+    const parent = bar ? scrollParentOf(bar) : null;
+    if (!bar || !parent) return;
+    const stuck =
+      bar.getBoundingClientRect().top - parent.getBoundingClientRect().top <= 1;
+    if (!stuck) return;
+    const wrapper = bar.parentElement;
+    if (!wrapper) return;
+    const top =
+      wrapper.getBoundingClientRect().top -
+      parent.getBoundingClientRect().top +
+      parent.scrollTop -
+      8;
+    parent.scrollTo({ top: Math.max(0, top) });
+  };
+
+  return (
+    <Tabs
+      value={value}
+      onValueChange={change}
+      className={cn('gap-5', className)}
+    >
+      <div
+        ref={barRef}
+        data-settings-jump-nav=""
+        className="-top-5 md:-top-6 -mx-1 px-1 pt-2 backdrop-blur-md sticky z-10 border-b border-border bg-surface-muted/90"
+      >
+        <ResponsiveTabsList
+          variant="underline"
+          size="md"
+          items={items}
+          aria-label={ariaLabel}
+          className="min-w-0"
+        />
+      </div>
+      {children}
+    </Tabs>
+  );
+}
+
+/** One sub-page of a `<SettingsTabs>`; `value` matches its tab item. */
+export function SettingsTabPanel({
+  value,
+  className,
+  ...props
+}: ComponentProps<'div'> & { value: string }) {
+  return (
+    <TabsContent
+      value={value}
+      forceMount
+      data-settings-tab-panel={value}
+      className={cn('mt-0 space-y-6 rounded-none', className)}
+      {...props}
+    />
   );
 }

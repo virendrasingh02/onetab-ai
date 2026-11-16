@@ -245,7 +245,9 @@ export function matchesFilter(
   }
 
   if (filter.priorities.length > 0) {
-    if (!filter.priorities.includes(card.priority)) return false;
+    if (!card.priority || !filter.priorities.includes(card.priority)) {
+      return false;
+    }
   }
 
   if (

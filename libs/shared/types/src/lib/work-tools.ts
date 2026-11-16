@@ -237,7 +237,8 @@ export interface Task {
   status: TaskStatus;
   /** A custom workflow status; null/absent means the built-in for `status`. */
   stateId?: string | null;
-  priority: TaskPriority;
+  /** `null` is "No priority" — where every new task starts. */
+  priority: TaskPriority | null;
   dueDate: IsoDateString | null;
   startDate?: IsoDateString | null;
   /** Position within its status column. Lower sorts first. */

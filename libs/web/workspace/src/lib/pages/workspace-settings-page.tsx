@@ -59,8 +59,9 @@ import {
   SettingsBadge,
   SettingsCard,
   SettingsRow,
-  SettingsJumpNav,
   SettingsSectionHeader,
+  SettingsTabPanel,
+  SettingsTabs,
   Field,
 } from '@org/ui';
 import { cn, getSystemTimezone, initials, slugify } from '@org/utils';
@@ -140,6 +141,7 @@ import { usePlanEntitlements } from '../hooks/use-plan-entitlements.js';
 import { SettingsLayout } from '../settings-layout.js';
 import { useRegisterSettingsDirty } from '../settings-dirty.store.js';
 import { useWorkspacePreference } from '../settings-preferences.store.js';
+import { useSettingsView } from '../use-settings-view.js';
 import { WorkspaceMembersSettings } from '../components/workspace-members-settings.js';
 import { WorkspacePermissionsSettings } from '../components/workspace-permissions-settings.js';
 import { WorkspaceAuditSettings } from '../components/workspace-audit-settings.js';
@@ -173,8 +175,8 @@ export interface WorkspaceSettingsPageProps {
   themePanel?: ReactNode;
   /** The full profile panel, from `@org/web-profile`. */
   profilePanel?: ReactNode;
-  /** The employee work-profile panel (contact, birthday, privacy), from `@org/web-members`. */
-  workProfilePanel?: ReactNode;
+  /** One employee work-profile sub-page (contact, employment, privacy), from `@org/web-members`. */
+  workProfilePanel?: (section: WorkProfileSection) => ReactNode;
   /** The profile-completion checklist opening the Profile section, from `@org/web-members`. */
   profileCompletionPanel?: ReactNode;
   /** The invitations & access-links manager, from `@org/web-invitations`. */
@@ -184,6 +186,38 @@ export interface WorkspaceSettingsPageProps {
 }
 
 /** Short badge label for a `WorkspacePolicy` subject-role value. Mirrors `POLICY_OPTIONS` in `workspace-permissions-settings.tsx`. */
+export type WorkProfileSection = 'contact' | 'employment' | 'privacy';
+
+/*
+ * Long sections are split into sub-pages (`<SettingsTabs>`, selected via
+ * `?view=`). Profile tab ids line up with PROFILE_ANCHOR in @org/web-members:
+ * its completion checklist jumps to anchors inside these panels.
+ */
+const PROFILE_VIEWS = ['profile', 'contact', 'employment', 'privacy'] as const;
+const PROFILE_TABS = [
+  { value: 'profile', label: 'Profile' },
+  { value: 'contact', label: 'About & contact' },
+  { value: 'employment', label: 'Employment' },
+  { value: 'privacy', label: 'Birthday & privacy' },
+];
+const SECURITY_VIEWS = ['overview', 'sign-in', 'sessions', 'account'] as const;
+const SECURITY_TABS = [
+  { value: 'overview', label: 'Checkup' },
+  { value: 'sign-in', label: 'Sign-in & 2FA' },
+  { value: 'sessions', label: 'Sessions & devices' },
+  { value: 'account', label: 'Encryption & account' },
+];
+const APPEARANCE_VIEWS = ['theme', 'interface'] as const;
+const APPEARANCE_TABS = [
+  { value: 'theme', label: 'Theme' },
+  { value: 'interface', label: 'Interface & app' },
+];
+const NOTIFICATION_VIEWS = ['delivery', 'display'] as const;
+const NOTIFICATION_TABS = [
+  { value: 'delivery', label: 'What & where' },
+  { value: 'display', label: 'Display & sound' },
+];
+
 function policySubjectLabel(role: PolicySubjectRole | undefined): string {
   switch (role) {
     case PolicySubjectRole.OWNER_ONLY:
@@ -353,6 +387,14 @@ export function WorkspaceSettingsPage({
     searchParams.get('section') ||
     'appearance';
   const currentTab = SECTION_ALIASES[rawSection] ?? rawSection;
+  const [profileView, setProfileView] = useSettingsView(PROFILE_VIEWS, {
+    work: 'contact',
+  });
+  const [securityView, setSecurityView] = useSettingsView(SECURITY_VIEWS);
+  const [appearanceView, setAppearanceView] =
+    useSettingsView(APPEARANCE_VIEWS);
+  const [notificationsView, setNotificationsView] =
+    useSettingsView(NOTIFICATION_VIEWS);
   const handleTabChange = (val: string) => {
     if (!workspaceSlug) return;
     navigate(`/w/${workspaceSlug}/settings/${val}`);
@@ -901,8 +943,15 @@ export function WorkspaceSettingsPage({
             }
           />
 
-          {themePanel}
+          <SettingsTabs
+            items={APPEARANCE_TABS}
+            value={appearanceView}
+            onValueChange={setAppearanceView}
+            aria-label="Appearance pages"
+          >
+          <SettingsTabPanel value="theme">{themePanel}</SettingsTabPanel>
 
+          <SettingsTabPanel value="interface">
           {/* Subsection: General */}
           <div className="space-y-3">
             <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
@@ -1160,6 +1209,7 @@ export function WorkspaceSettingsPage({
             </SettingsCard>
           </div>
 
+
           <DesktopSettingsCard />
 
           {/*
@@ -1169,6 +1219,8 @@ export function WorkspaceSettingsPage({
             independently of it and self-hides via import.meta.env.PROD.
           */}
           <PlatformDiagnosticsLink />
+          </SettingsTabPanel>
+          </SettingsTabs>
         </div>
       )}
 
@@ -1191,21 +1243,15 @@ export function WorkspaceSettingsPage({
               }
             />
 
-            {/* Ids match PROFILE_ANCHOR in @org/web-members (which depends on this lib). */}
-            {workProfilePanel && (
-              <SettingsJumpNav
-                items={[
-                  { id: 'profile-account', label: 'Profile' },
-                  { id: 'work-profile-contact', label: 'About & contact' },
-                  { id: 'work-profile-employment', label: 'Employment' },
-                  { id: 'work-profile-privacy', label: 'Birthday & privacy' },
-                ]}
-              />
-            )}
-
             {profileCompletionPanel}
 
-            <div id="profile-account">
+            <SettingsTabs
+              items={workProfilePanel ? PROFILE_TABS : PROFILE_TABS.slice(0, 1)}
+              value={profileView}
+              onValueChange={setProfileView}
+              aria-label="Profile pages"
+            >
+            <SettingsTabPanel value="profile" id="profile-account">
               {profilePanel ?? (
                 <SettingsCard>
                   <div className="sm:flex-row sm:items-center gap-4 pb-6 flex flex-col justify-between border-b border-border/40">
@@ -1424,9 +1470,16 @@ export function WorkspaceSettingsPage({
                   </Form>
                 </SettingsCard>
               )}
-            </div>
-
-            {workProfilePanel}
+            </SettingsTabPanel>
+            {workProfilePanel &&
+              (['contact', 'employment', 'privacy'] as const).map(
+                (section) => (
+                  <SettingsTabPanel key={section} value={section}>
+                    {workProfilePanel(section)}
+                  </SettingsTabPanel>
+                ),
+              )}
+            </SettingsTabs>
           </div>
         )}
 
@@ -1445,12 +1498,20 @@ export function WorkspaceSettingsPage({
             }
           />
 
-          <NotificationDeliverySettings workspaceId={workspaceId} />
-
-          {/* Display Preferences & Screen Positioning */}
-          <div className="pt-8 border-t border-border">
-            <NotificationDisplaySettingsPanel workspaceId={workspaceId} />
-          </div>
+          <SettingsTabs
+            items={NOTIFICATION_TABS}
+            value={notificationsView}
+            onValueChange={setNotificationsView}
+            aria-label="Notification pages"
+          >
+            <SettingsTabPanel value="delivery">
+              <NotificationDeliverySettings workspaceId={workspaceId} />
+            </SettingsTabPanel>
+            {/* Display Preferences & Screen Positioning */}
+            <SettingsTabPanel value="display">
+              <NotificationDisplaySettingsPanel workspaceId={workspaceId} />
+            </SettingsTabPanel>
+          </SettingsTabs>
         </div>
       )}
 
@@ -2842,6 +2903,13 @@ export function WorkspaceSettingsPage({
             }
           />
 
+          <SettingsTabs
+            items={SECURITY_TABS}
+            value={securityView}
+            onValueChange={setSecurityView}
+            aria-label="Security pages"
+          >
+          <SettingsTabPanel value="overview">
           {/* SECURITY CHECKUP — every line is derived from the real
               security overview; nothing here is decorative. */}
           {(() => {
@@ -3034,7 +3102,9 @@ export function WorkspaceSettingsPage({
               </div>
             );
           })()}
+          </SettingsTabPanel>
 
+          <SettingsTabPanel value="sign-in">
           {/* SIGN-IN METHODS SECTION */}
           <div className="space-y-4">
             <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
@@ -3420,6 +3490,9 @@ export function WorkspaceSettingsPage({
             </SettingsCard>
           </div>
 
+          </SettingsTabPanel>
+
+          <SettingsTabPanel value="sessions">
           {/* 3. ACTIVE SESSIONS SECTION */}
           <div className="space-y-4">
             <div className="sm:flex-row sm:items-center gap-3 flex flex-col justify-between">
@@ -3528,6 +3601,9 @@ export function WorkspaceSettingsPage({
             </SettingsCard>
           </div>
 
+          </SettingsTabPanel>
+
+          <SettingsTabPanel value="account">
           {/* 4. MATRIX END-TO-END ENCRYPTION & KEY BACKUP */}
           {encryptionSecurityPanel}
           <SettingsSectionHeader
@@ -3537,6 +3613,8 @@ export function WorkspaceSettingsPage({
             }
           />
           <AccountDeletionPanel />
+          </SettingsTabPanel>
+          </SettingsTabs>
         </div>
       )}
 

@@ -184,7 +184,7 @@ export default function TaskDetailScreen() {
             </Pressable>
 
             <Badge
-              label={task.priority}
+              label={task.priority ?? 'No priority'}
               tone={
                 task.priority === 'URGENT'
                   ? 'danger'

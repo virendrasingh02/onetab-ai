@@ -684,7 +684,7 @@ export function SettingsLayout({
     setCollapsed((current) => ({ ...current, [id]: !current[id] }));
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-background bg-app-gradient font-sans text-foreground">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-background font-sans text-foreground">
       {/* Live-apply preferences (font size, …) so a change previews here. */}
       <WorkspacePreferencesEffects workspaceId={workspaceId} />
       {/* Rounds trips the automations/schedule/pulse/documents/files/general
@@ -748,19 +748,16 @@ export function SettingsLayout({
                           type="button"
                           onClick={() => toggleGroup(group.id)}
                           aria-expanded={!isCollapsed}
-                          className="group/hdr px-2.5 py-1 flex w-full items-center justify-between rounded-md text-left transition-colors hover:bg-accent/40"
+                          className="group/hdr px-2.5 pt-2 pb-1 flex w-full items-center justify-between rounded-md text-left transition-colors hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
-                          <span className="gap-1.5 font-semibold tracking-wider text-xs flex items-center text-muted-foreground uppercase">
+                          <span className="font-semibold tracking-wider text-meta text-foreground/70 uppercase transition-colors group-hover/hdr:text-foreground">
                             {group.title}
-                            <span className="font-semibold text-xs text-muted-foreground/80 normal-case tabular-nums">
-                              {items.length}
-                            </span>
                           </span>
                           {!isSearching ? (
                             <ChevronDown
                               className={cn(
-                                'size-3.5 text-muted-foreground/60 transition-transform group-hover/hdr:text-muted-foreground',
-                                isCollapsed && '-rotate-90',
+                                'size-3.5 text-foreground/70 opacity-0 transition-all group-hover/hdr:opacity-100 group-focus-visible/hdr:opacity-100',
+                                isCollapsed && '-rotate-90 opacity-100',
                               )}
                             />
                           ) : null}
@@ -787,18 +784,11 @@ export function SettingsLayout({
                                     'px-2.5 py-1.5 font-medium text-sm flex w-full cursor-pointer items-center justify-between rounded-xl text-left transition-all',
                                     isActive
                                       ? 'font-semibold bg-accent text-foreground dark:bg-primary/15'
-                                      : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                                      : 'text-foreground/85 hover:bg-accent/60 hover:text-foreground',
                                   )}
                                 >
                                   <div className="gap-2.5 min-w-0 flex items-center">
-                                    <Icon
-                                      className={cn(
-                                        'size-4 shrink-0',
-                                        isActive
-                                          ? 'text-primary'
-                                          : 'text-muted-foreground',
-                                      )}
-                                    />
+                                    <Icon className="size-4 shrink-0" />
                                     <span className="truncate">
                                       {item.label}
                                     </span>
@@ -831,8 +821,10 @@ export function SettingsLayout({
             </aside>
 
             {/* Main Settings Content Area (Native Scrolling) */}
-            <main className="min-h-0 p-6 md:p-10 relative flex flex-1 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent] flex-col overflow-x-hidden overflow-y-auto bg-surface-inset/20">
-              <div className="max-w-4xl space-y-8 mx-auto w-full">
+            {/* Same surface as the app's channel sidebar. */}
+            <main
+              className="min-h-0 min-w-0 px-4 py-5 md:px-8 md:py-6 relative flex flex-1 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent] flex-col overflow-x-hidden overflow-y-auto bg-surface-muted">
+              <div className="max-w-4xl space-y-6 mx-auto w-full">
                 {children}
               </div>
               <SettingsSaveBar />

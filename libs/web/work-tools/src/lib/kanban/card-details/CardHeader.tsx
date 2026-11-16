@@ -13,7 +13,6 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
-  Check,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -40,7 +39,6 @@ import {
   useKanbanCardViewStore,
   type KanbanCardViewMode,
 } from '../kanban-card-view-store.js';
-import { useEffect, useState } from 'react';
 import { CubeProjectIcon, StatusIcon } from '../kanban-icons.js';
 import type { CardAiTask } from './card-ai.js';
 
@@ -128,45 +126,18 @@ async function copyToClipboard(text: string, confirmation: string) {
   }
 }
 
-/** The ticket id as a chip: one click copies it, and says so in place. */
+/**
+ * The ticket id, quiet and selectable. It trails the status as the last
+ * breadcrumb step; copying it lives in the ⋯ menu ("Copy ticket ID").
+ */
 function TicketId({ identifier }: { identifier: string }) {
-  const [copied, setCopied] = useState(false);
-  useEffect(() => {
-    if (!copied) return;
-    const timer = window.setTimeout(() => setCopied(false), 1500);
-    return () => window.clearTimeout(timer);
-  }, [copied]);
-
   return (
-    <Hint label={copied ? 'Copied' : 'Copy ticket ID'}>
-      <button
-        type="button"
-        onClick={() => {
-          navigator.clipboard
-            .writeText(identifier)
-            .then(() => setCopied(true))
-            .catch(() => toast.error('Could not reach the clipboard'));
-        }}
-        aria-label={`Ticket ${identifier}. Copy ID`}
-        className={cn(
-          'group/id h-6 gap-1 pr-1.5 pl-2 font-semibold tracking-wide inline-flex shrink-0 items-center rounded-md border font-mono text-meta',
-          'transition-colors duration-(--duration-fast) outline-none focus-visible:ring-1 focus-visible:ring-ring',
-          copied
-            ? 'border-success/40 bg-success/10 text-success-text'
-            : 'border-border bg-muted/60 text-foreground hover:border-border-strong hover:bg-muted',
-        )}
-      >
-        {identifier}
-        {copied ? (
-          <Check className="size-3" aria-hidden />
-        ) : (
-          <Copy
-            className="size-3 text-muted-foreground opacity-50 group-hover/id:opacity-100"
-            aria-hidden
-          />
-        )}
-      </button>
-    </Hint>
+    <span
+      className="font-medium tracking-tight shrink-0 font-mono text-xs text-muted-foreground select-all"
+      title={`Ticket ${identifier}`}
+    >
+      {identifier}
+    </span>
   );
 }
 
@@ -176,38 +147,43 @@ export interface CardSiblings {
   total: number;
   onPrevious?: () => void;
   onNext?: () => void;
+  /** Titles of the neighbouring cards, named in the arrows' tooltips. */
+  previousTitle?: string;
+  nextTitle?: string;
 }
 
-/** Steps through the cards of the same column without leaving the card. */
+/**
+ * Steps through the cards of the same column without leaving the card. Just
+ * the two arrows; each tooltip names the card it leads to.
+ */
 function CardStepper({ siblings }: { siblings: CardSiblings }) {
   const stepClass =
-    'size-6 grid place-items-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent/60 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-35';
+    'size-7 grid place-items-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent/60 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-35';
+  const label = (direction: 'Previous' | 'Next', title?: string) =>
+    title ? `${direction}: ${title}` : `${direction} card`;
   return (
     <div
       role="group"
-      aria-label="Cards in this column"
+      aria-label={`Card ${siblings.position} of ${siblings.total} in this column`}
       className="gap-0.5 flex shrink-0 items-center"
     >
-      <Hint label="Previous card">
+      <Hint label={label('Previous', siblings.previousTitle)}>
         <button
           type="button"
           disabled={!siblings.onPrevious}
           onClick={siblings.onPrevious}
-          aria-label="Previous card in this column"
+          aria-label={label('Previous', siblings.previousTitle)}
           className={stepClass}
         >
           <ChevronLeft className="size-4" aria-hidden />
         </button>
       </Hint>
-      <span className="min-w-9 text-center text-meta text-muted-foreground tabular-nums">
-        {siblings.position} / {siblings.total}
-      </span>
-      <Hint label="Next card">
+      <Hint label={label('Next', siblings.nextTitle)}>
         <button
           type="button"
           disabled={!siblings.onNext}
           onClick={siblings.onNext}
-          aria-label="Next card in this column"
+          aria-label={label('Next', siblings.nextTitle)}
           className={stepClass}
         >
           <ChevronRight className="size-4" aria-hidden />
@@ -282,10 +258,10 @@ export function CardHeader({
         compact ? 'px-2' : 'px-4',
       )}
     >
-      <div className="min-w-0 gap-1.5 text-xs flex items-center">
+      <div className="min-w-0 gap-2 text-sm flex items-center">
         {compact ? null : (
           <>
-            <CubeProjectIcon className="size-3.5 shrink-0 text-accent-amber" />
+            <CubeProjectIcon className="size-4 shrink-0 text-accent-amber" />
             <span className="max-w-40 font-medium truncate text-muted-foreground">
               {projectName}
             </span>
@@ -294,17 +270,13 @@ export function CardHeader({
             </span>
           </>
         )}
-        <TicketId identifier={identifier} />
-
-        <span className="mx-1 h-4 w-px shrink-0 bg-border/80" aria-hidden />
-
         <span
           className="min-w-0 gap-1.5 font-medium inline-flex items-center text-foreground"
           title={`In ${statusTitle}`}
         >
           <StatusIcon
             status={statusId}
-            className="size-3.5 shrink-0"
+            className="size-4 shrink-0"
             showTooltip={false}
           />
           <span className={cn('truncate', compact ? 'max-w-20' : 'max-w-36')}>
@@ -312,7 +284,11 @@ export function CardHeader({
           </span>
         </span>
 
-        {siblings.total > 1 ? <CardStepper siblings={siblings} /> : null}
+        <span className="text-muted-foreground/60" aria-hidden>
+          /
+        </span>
+        <TicketId identifier={identifier} />
+
 
         {agent ? (
           <button
@@ -329,6 +305,12 @@ export function CardHeader({
       </div>
 
       <div className="gap-1 flex shrink-0 items-center">
+        {siblings.total > 1 ? (
+          <>
+            <CardStepper siblings={siblings} />
+            <span className="mx-1 h-4 w-px shrink-0 bg-border/80" aria-hidden />
+          </>
+        ) : null}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button

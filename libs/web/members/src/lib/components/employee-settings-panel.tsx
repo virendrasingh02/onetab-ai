@@ -36,9 +36,8 @@ import {
   useRegisterSettingsDirty,
 } from '@org/web-workspace';
 import { useMutation } from '@tanstack/react-query';
-import { CheckCircle2, Circle, UserRound } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { CheckCircle2, Circle, Plus, UserRound } from 'lucide-react';
+import { useState } from 'react';
 
 /** Completion items stored on the account profile (Settings → Profile). */
 const ACCOUNT_FIELD_KEYS = new Set([
@@ -52,13 +51,19 @@ const ACCOUNT_FIELD_KEYS = new Set([
 /** Completion items set by HR on the Employment card. */
 const HR_FIELD_KEYS = new Set(['department', 'team', 'joiningDate']);
 
-/** Section ids on Settings → Profile; `account` wraps the account form. */
+/**
+ * Element ids on Settings → Profile; `account` is the Profile tab panel. The
+ * others live inside their own tab panels — `scrollToSettingsSection()`
+ * selects the owning tab before scrolling.
+ */
 export const PROFILE_ANCHOR = {
   account: 'profile-account',
   contact: 'work-profile-contact',
   employment: 'work-profile-employment',
   privacy: 'work-profile-privacy',
 } as const;
+
+export type EmployeeSettingsSection = 'contact' | 'employment' | 'privacy';
 const ANCHOR = PROFILE_ANCHOR;
 
 const VISIBILITY_OPTIONS: { value: PeopleVisibility; label: string }[] = [
@@ -87,24 +92,23 @@ const linkError = (l: { label: string; url: string }) => {
 };
 
 /**
- * Settings → Profile, below the account form: the employee-specific details —
- * contact, skills, links, birthday, privacy and celebration notifications.
- * Name, photo, title, location, time zone and bio live in the account form above.
+ * Settings → Profile sub-pages: the employee-specific details — contact,
+ * skills, links (`contact`), HR fields (`employment`), birthday, privacy and
+ * celebration notifications (`privacy`). Name, photo, title, location, time
+ * zone and bio live on the Profile tab. Without `section` all three render.
+ * `?view=work` deep links land on the `contact` tab (see the settings page).
  */
-export function EmployeeSettingsPanel() {
+export function EmployeeSettingsPanel({
+  section,
+}: {
+  section?: EmployeeSettingsSection;
+} = {}) {
   const { workspaceId } = useCurrentWorkspace();
   const me = useCurrentUser();
   const { data, isLoading, isError, refetch } = useEmployeeProfile(
     workspaceId,
     me?.id,
   );
-  const [searchParams] = useSearchParams();
-  // `?view=work` (celebration nudges, the profile rail) deep-links the
-  // employee details, which used to be their own tab.
-  const deepLinked = !!data && searchParams.get('view') === 'work';
-  useEffect(() => {
-    if (deepLinked) scrollToSettingsSection(ANCHOR.contact);
-  }, [deepLinked]);
 
   if (isLoading)
     return <Skeleton className="h-96 w-full rounded-xl" aria-busy="true" />;
@@ -120,19 +124,29 @@ export function EmployeeSettingsPanel() {
   }
 
   return (
-    <div className="space-y-8">
-      <ContactSection key={`c-${data.userId}`} data={data} />
-      <EmploymentSection data={data} />
-      {data.privacy && data.celebrationPrefs && (
-        <PrivacySection key={`p-${data.userId}`} data={data} />
+    <div className="space-y-6">
+      {(!section || section === 'contact') && (
+        <ContactSection key={`c-${data.userId}`} data={data} />
       )}
+      {(!section || section === 'employment') && (
+        <EmploymentSection data={data} />
+      )}
+      {(!section || section === 'privacy') &&
+        data.privacy &&
+        data.celebrationPrefs && (
+          <PrivacySection key={`p-${data.userId}`} data={data} />
+        )}
     </div>
   );
 }
 
 // --- completion --------------------------------------------------------------------
 
-/** Profile-completion checklist that opens Settings → Profile; each item jumps to its field. */
+/**
+ * Compact profile-completion bar that opens Settings → Profile: percentage,
+ * progress and only the missing items as chips — each one opens the tab that
+ * holds its field. Done items collapse to a count.
+ */
 export function EmployeeProfileCompletion() {
   const { workspaceId } = useCurrentWorkspace();
   const me = useCurrentUser();
@@ -140,81 +154,78 @@ export function EmployeeProfileCompletion() {
   const completion = data?.completion;
   if (!completion) return null;
 
+  const missing = completion.items.filter((item) => !item.done);
+  const doneCount = completion.items.length - missing.length;
+
   return (
-    <SettingsGroup
-      title="Profile completion"
-      action={
-        <span className="text-sm font-semibold tabular-nums">
-          {completion.percent}%
-        </span>
-      }
-    >
-      <SettingsCard>
-        <Progress value={completion.percent} label="Profile completion" />
-        {completion.missing.length === 0 ? (
-          <p className="gap-1.5 text-sm flex items-center text-success-text">
-            <CheckCircle2 className="size-4" aria-hidden /> Your profile is
-            complete.
-          </p>
-        ) : (
-          <ul className="gap-x-6 gap-y-1 sm:grid-cols-2 grid">
-            {completion.items.map((item) => {
-              if (item.done) {
-                return (
-                  <li
-                    key={item.key}
-                    className="gap-2 py-1 text-sm flex items-center text-muted-foreground"
+    <SettingsCard className="space-y-3">
+      <div className="gap-x-4 gap-y-2 flex flex-wrap items-center">
+        <div className="gap-2 flex shrink-0 items-baseline">
+          <span className="text-sm font-semibold text-foreground">
+            Profile completion
+          </span>
+          <span className="text-sm font-semibold text-foreground tabular-nums">
+            {completion.percent}%
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {doneCount} of {completion.items.length} done
+          </span>
+        </div>
+        <Progress
+          value={completion.percent}
+          label="Profile completion"
+          className="min-w-40 flex-1"
+        />
+      </div>
+      {missing.length === 0 ? (
+        <p className="gap-1.5 text-sm flex items-center text-success-text">
+          <CheckCircle2 className="size-4" aria-hidden /> Your profile is
+          complete.
+        </p>
+      ) : (
+        <ul
+          className="gap-1.5 flex flex-wrap items-center"
+          aria-label="Missing"
+        >
+          {missing.map((item) => {
+            const byHr = HR_FIELD_KEYS.has(item.key);
+            const chip =
+              'gap-1.5 px-2.5 py-1 text-xs inline-flex items-center rounded-full border';
+            return (
+              <li key={item.key}>
+                {byHr ? (
+                  <span
+                    className={`${chip} border-dashed border-border text-muted-foreground`}
+                    title="Set by HR"
                   >
-                    <CheckCircle2
-                      className="size-4 text-success-text"
-                      aria-hidden
-                    />{' '}
+                    <Circle className="size-3" aria-hidden />
                     {item.label}
-                  </li>
-                );
-              }
-              const label = (
-                <>
-                  <Circle
-                    className="size-4 text-muted-foreground"
-                    aria-hidden
-                  />{' '}
-                  {item.label}
-                  <span className="text-xs ml-auto text-muted-foreground">
-                    {HR_FIELD_KEYS.has(item.key) ? 'Set by HR' : 'Add'}
+                    <span className="text-2xs">· HR</span>
                   </span>
-                </>
-              );
-              const rowClass =
-                'gap-2 py-1 flex w-full items-center text-left text-sm';
-              return (
-                <li key={item.key}>
-                  {HR_FIELD_KEYS.has(item.key) ? (
-                    <span className={rowClass}>{label}</span>
-                  ) : (
-                    <button
-                      type="button"
-                      className={`${rowClass} cursor-pointer hover:text-primary-text`}
-                      onClick={() =>
-                        scrollToSettingsSection(
-                          ACCOUNT_FIELD_KEYS.has(item.key)
-                            ? ANCHOR.account
-                            : item.section === 'privacy'
-                              ? ANCHOR.privacy
-                              : ANCHOR.contact,
-                        )
-                      }
-                    >
-                      {label}
-                    </button>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </SettingsCard>
-    </SettingsGroup>
+                ) : (
+                  <button
+                    type="button"
+                    className={`${chip} cursor-pointer border-border bg-surface text-foreground transition-colors hover:border-primary/40 hover:text-primary-text`}
+                    onClick={() =>
+                      scrollToSettingsSection(
+                        ACCOUNT_FIELD_KEYS.has(item.key)
+                          ? ANCHOR.account
+                          : item.section === 'privacy'
+                            ? ANCHOR.privacy
+                            : ANCHOR.contact,
+                      )
+                    }
+                  >
+                    <Plus className="size-3" aria-hidden />
+                    {item.label}
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </SettingsCard>
   );
 }
 
@@ -344,7 +355,12 @@ function ContactSection({ data }: { data: EmployeeProfileView }) {
     setLinks(data.links ?? []);
   };
 
-  useRegisterSettingsDirty('settings.work-profile.contact', dirty, submit, reset);
+  useRegisterSettingsDirty(
+    'settings.work-profile.contact',
+    dirty,
+    submit,
+    reset,
+  );
 
   return (
     <SettingsGroup

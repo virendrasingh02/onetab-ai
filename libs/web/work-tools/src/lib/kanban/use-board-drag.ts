@@ -42,10 +42,10 @@ import { createDragGhost, type DragGhost } from './drag-ghost.js';
  * walk with the arrow keys, drop with Space.
  */
 
-/** Vertical rhythm between tiles — the column's `space-y-2`. */
+/** Vertical rhythm between tiles — the column list's `gap-2`. */
 const CARD_GAP = 8;
-/** Horizontal rhythm between columns — the board row's `gap-4`. */
-const COLUMN_GAP = 16;
+/** Horizontal rhythm between columns — the board row's `gap-1`. */
+const COLUMN_GAP = 4;
 /** Pointer travel, in px, before a press becomes a drag. */
 const MOUSE_ACTIVATION_DISTANCE = 5;
 /** Hold time before a touch becomes a drag, and the travel that cancels it. */

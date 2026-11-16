@@ -37,7 +37,10 @@ import {
 import { KanbanEstimatePicker } from '../KanbanEstimatePicker.js';
 import { KanbanLabelPicker } from '../KanbanLabelPicker.js';
 import { KanbanLeadPicker } from '../KanbanLeadPicker.js';
-import { KanbanPriorityPicker } from '../KanbanPriorityPicker.js';
+import {
+  KanbanPriorityPicker,
+  toTaskPriority,
+} from '../KanbanPriorityPicker.js';
 import {
   KanbanRefPicker,
   type KanbanRefPickerItem,
@@ -164,7 +167,7 @@ export interface CardPropertiesPanelProps {
   parentExcludeIds: string[];
   canEdit: boolean;
   onStatusChange: (stateId: string) => void;
-  onPriorityChange: (priority: Priority) => void;
+  onPriorityChange: (priority: Priority | null) => void;
   onTypeChange: (type: WorkItemType) => void;
   onAssigneesChange: (memberIds: string[]) => void;
   onStartDateChange: (day: string | null) => void;
@@ -314,16 +317,20 @@ export function CardPropertiesPanel({
 
         <PropertyRow label="Priority" icon={Flag}>
           <KanbanPriorityPicker
-            required
             priority={card.priority}
             onPriorityChange={(priority) =>
-              onPriorityChange(priority as Priority)
+              onPriorityChange(toTaskPriority(priority))
             }
             trigger={
               <ValueButton disabled={!canEdit}>
                 <PriorityIcon priority={card.priority} className="size-4" />
-                <span className="capitalize">
-                  {card.priority.toLowerCase()}
+                <span
+                  className={cn(
+                    'capitalize',
+                    !card.priority && 'text-muted-foreground',
+                  )}
+                >
+                  {card.priority?.toLowerCase() ?? 'No priority'}
                 </span>
               </ValueButton>
             }
@@ -564,7 +571,7 @@ export function CardPropertiesPanel({
         </PropertyRow>
       </PropertyGroup>
 
-      <div className="space-y-1 pt-4 text-xs border-t border-border/60 text-muted-foreground">
+      <div className="space-y-0.5 pt-3 text-meta border-t border-border/60 text-muted-foreground/80">
         <p>Created {formatRelative(card.createdAt)}</p>
         {detail ? <p>Updated {formatRelative(detail.updatedAt)}</p> : null}
         {detail?.completedAt ? (

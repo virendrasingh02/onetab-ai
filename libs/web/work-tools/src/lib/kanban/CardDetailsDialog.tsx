@@ -244,7 +244,7 @@ function CardTitle({
           event.currentTarget.blur();
         }
       }}
-      className="min-h-0 p-0 text-xl leading-7 font-semibold tracking-tight rounded-md border-0 bg-transparent text-foreground shadow-none focus-visible:ring-0"
+      className="min-h-0 p-0 text-2xl leading-8 font-semibold tracking-tight rounded-md border-0 bg-transparent text-foreground shadow-none focus-visible:ring-0"
     />
   );
 }
@@ -518,6 +518,10 @@ function CardDetailsBody({
     total: siblingIds.length,
     onPrevious: previousId ? () => onOpenCard(previousId) : undefined,
     onNext: nextId ? () => onOpenCard(nextId) : undefined,
+    previousTitle: previousId
+      ? findCard(board, previousId)?.card.title
+      : undefined,
+    nextTitle: nextId ? findCard(board, nextId)?.card.title : undefined,
   };
 
   /*
@@ -560,7 +564,9 @@ function CardDetailsBody({
           toIndex: Number.MAX_SAFE_INTEGER,
         })
       }
-      onPriorityChange={(priority: Priority) => updateCard({ priority })}
+      onPriorityChange={(priority: Priority | null) =>
+        updateCard({ priority })
+      }
       onTypeChange={(type: WorkItemType) => updateTask({ type })}
       onAssigneesChange={(memberIds) => updateCard({ memberIds })}
       onStartDateChange={(startDate) => updateCard({ startDate })}

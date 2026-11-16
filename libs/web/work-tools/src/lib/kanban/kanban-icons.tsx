@@ -269,11 +269,16 @@ export function StatusIcon({
 /* --------------------------------------------------------- priority icons --- */
 
 export interface PriorityIconProps {
-  priority: Priority | 'NO_PRIORITY' | 'NONE';
+  /** `null` is a task with no priority yet. */
+  priority: Priority | 'NO_PRIORITY' | 'NONE' | null;
   className?: string;
 }
 
-export function PriorityIcon({ priority, className }: PriorityIconProps) {
+export function PriorityIcon({
+  priority: given,
+  className,
+}: PriorityIconProps) {
+  const priority = given ?? 'NO_PRIORITY';
   // Theme-fixed: the same red/orange/yellow/grey in every view and workspace.
   const style: CSSProperties | undefined =
     priority in PRIORITY_COLORS

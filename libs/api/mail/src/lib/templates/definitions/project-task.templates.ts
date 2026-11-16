@@ -71,7 +71,7 @@ export const PROJECT_TASK_TEMPLATES: EmailTemplateDefinition[] = [
       ${EmailCard([
         { label: 'Task', value: '{{task.name}}' },
         { label: 'Project', value: '{{project.name || "General"}}' },
-        { label: 'Priority', value: '{{task.priority || "Medium"}}' },
+        { label: 'Priority', value: '{{task.priority || "None"}}' },
         { label: 'Due Date', value: '{{formatDate task.dueDate}}' },
       ])}
       ${EmailButton('View Task Details', '{{task.url || "http://localhost:4200"}}')}
@@ -161,7 +161,7 @@ export const PROJECT_TASK_TEMPLATES: EmailTemplateDefinition[] = [
       ${EmailAlert('The following task was due on {{formatDate task.dueDate}} and is marked overdue.', 'danger')}
       ${EmailCard([
         { label: 'Task', value: '{{task.name}}' },
-        { label: 'Priority', value: '{{task.priority || "High"}}' },
+        { label: 'Priority', value: '{{task.priority || "None"}}' },
         { label: 'Original Due Date', value: '{{formatDate task.dueDate}}' },
       ])}
       ${EmailButton('Update Task Status', '{{task.url || "http://localhost:4200"}}', { color: '#dc2626' })}

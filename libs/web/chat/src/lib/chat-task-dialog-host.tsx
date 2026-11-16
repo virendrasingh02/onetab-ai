@@ -31,7 +31,11 @@ import {
 
 const UNASSIGNED = 'unassigned';
 
-const PRIORITIES: Array<{ value: TaskPriority; label: string }> = [
+/** The select's stand-in for "no priority" — sent to the server as `null`. */
+const NO_PRIORITY = 'NO_PRIORITY';
+
+const PRIORITIES: Array<{ value: TaskPriority | typeof NO_PRIORITY; label: string }> = [
+  { value: NO_PRIORITY, label: 'No priority' },
   { value: TaskPriority.URGENT, label: 'Urgent' },
   { value: TaskPriority.HIGH, label: 'High' },
   { value: TaskPriority.MEDIUM, label: 'Medium' },
@@ -89,7 +93,8 @@ function ChatTaskForm({
   const [description, setDescription] = useState(draft.description ?? '');
   const [pickedProjectId, setPickedProjectId] = useState<string>();
   const [assigneeId, setAssigneeId] = useState(draft.assigneeId ?? UNASSIGNED);
-  const [priority, setPriority] = useState<TaskPriority>(TaskPriority.MEDIUM);
+  // Starts unset, like a task added straight onto the board.
+  const [priority, setPriority] = useState<TaskPriority | null>(null);
   const [dueDate, setDueDate] = useState<string | undefined>();
   const [share, setShare] = useState(false);
   const [pending, setPending] = useState(false);
@@ -239,8 +244,12 @@ function ChatTaskForm({
           </Field>
           <Field label="Priority">
             <AppSelect
-              value={priority}
-              onValueChange={(value) => setPriority(value as TaskPriority)}
+              value={priority ?? NO_PRIORITY}
+              onValueChange={(value) =>
+                setPriority(
+                  value === NO_PRIORITY ? null : (value as TaskPriority),
+                )
+              }
               aria-label="Priority"
               options={PRIORITIES}
             />

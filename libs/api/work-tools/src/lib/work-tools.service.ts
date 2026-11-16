@@ -1397,7 +1397,8 @@ export class WorkToolsService {
         status,
         stateId: resolved.stateId ?? null,
         ...(status === TaskStatus.DONE ? { completedAt: new Date() } : {}),
-        priority: (input.priority as TaskPriority) ?? TaskPriority.MEDIUM,
+        // A new task has no priority until someone picks one.
+        priority: (input.priority as TaskPriority | null | undefined) ?? null,
         type: (input.type as WorkItemType) ?? WorkItemType.TASK,
         projectId,
         teamId: input.teamId ?? null,
@@ -1505,7 +1506,7 @@ export class WorkToolsService {
       ...(nextStatus !== undefined ? { status: nextStatus } : {}),
       ...(resolved.stateId !== undefined ? { stateId: resolved.stateId } : {}),
       ...(input.priority !== undefined
-        ? { priority: input.priority as TaskPriority }
+        ? { priority: input.priority as TaskPriority | null }
         : {}),
       ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
       ...(input.teamId !== undefined ? { teamId: input.teamId } : {}),
@@ -1570,7 +1571,10 @@ export class WorkToolsService {
           newValue: newState,
         });
       }
-      if (input.priority && input.priority !== existing.priority) {
+      if (
+        input.priority !== undefined &&
+        input.priority !== existing.priority
+      ) {
         await this.logActivity(
           workspaceId,
           taskId,

@@ -157,7 +157,7 @@ function WorkspaceSettings() {
         projectsPanel={<WorkspaceProjectSettings />}
         themePanel={<ThemeSettings />}
         profilePanel={<ProfileSettingsPanel />}
-        workProfilePanel={<EmployeeSettingsPanel />}
+        workProfilePanel={(section) => <EmployeeSettingsPanel section={section} />}
         profileCompletionPanel={<EmployeeProfileCompletion />}
         invitationsPanel={<InvitationsPage embedded />}
         encryptionSecurityPanel={<EncryptionSecurityPanel />}

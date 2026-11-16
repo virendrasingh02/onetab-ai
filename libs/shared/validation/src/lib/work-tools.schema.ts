@@ -313,7 +313,7 @@ export const createTaskSchema = z.object({
   status: z.enum(TaskStatus).optional(),
   /** A custom workflow status; its category overrides `status`. */
   stateId: z.string().max(64).nullable().optional(),
-  priority: z.enum(TaskPriority).optional(),
+  priority: z.enum(TaskPriority).nullable().optional(),
   projectId: z.string().nullable().optional(),
   sprintId: z.string().nullable().optional(),
   milestoneId: z.string().nullable().optional(),
@@ -340,7 +340,7 @@ export const updateTaskSchema = z.object({
   status: z.enum(TaskStatus).optional(),
   /** A custom workflow status; its category overrides `status`. */
   stateId: z.string().max(64).nullable().optional(),
-  priority: z.enum(TaskPriority).optional(),
+  priority: z.enum(TaskPriority).nullable().optional(),
   projectId: z.string().nullable().optional(),
   sprintId: z.string().nullable().optional(),
   milestoneId: z.string().nullable().optional(),

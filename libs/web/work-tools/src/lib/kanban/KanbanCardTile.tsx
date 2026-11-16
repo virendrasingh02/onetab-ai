@@ -33,7 +33,10 @@ import {
   UnassignedLeadIcon,
 } from './kanban-icons.js';
 import { KanbanLeadPicker } from './KanbanLeadPicker.js';
-import { KanbanPriorityPicker } from './KanbanPriorityPicker.js';
+import {
+  KanbanPriorityPicker,
+  toTaskPriority,
+} from './KanbanPriorityPicker.js';
 import { KanbanStatusPicker } from './KanbanStatusPicker.js';
 import { buildTaskActions, formatCardDate } from './task-actions.js';
 import type { CardPatch } from './server-board.js';
@@ -219,7 +222,7 @@ export function KanbanCardTile({
               />
             </span>
             {(show.ticketId ?? true) && ticket ? (
-              <span className="text-xs font-medium tracking-tight font-mono text-muted-foreground transition-colors select-all hover:text-foreground">
+              <span className="text-meta font-medium tracking-tight font-mono text-muted-foreground transition-colors select-all hover:text-foreground">
                 {ticket}
               </span>
             ) : null}
@@ -288,12 +291,13 @@ export function KanbanCardTile({
             )}
 
             {/* Priority Pill (interactive priority changer) */}
-            {(show.priority ?? true) && (
+            {/* Hidden while the task has no priority — the ⋯ menu sets one. */}
+            {(show.priority ?? true) && card.priority && (
               <div data-no-drag className="shrink-0">
                 <KanbanPriorityPicker
                   priority={card.priority}
                   onPriorityChange={(priority) =>
-                    onUpdate?.({ priority: priority as Priority })
+                    onUpdate?.({ priority: toTaskPriority(priority) })
                   }
                   align="start"
                   trigger={
