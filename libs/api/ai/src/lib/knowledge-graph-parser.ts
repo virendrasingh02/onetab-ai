@@ -1,8 +1,5 @@
 import { createHash } from 'node:crypto';
-import type {
-  GraphEntityType,
-  GraphRelationType,
-} from '@org/types';
+import type { GraphEntityType, GraphRelationType } from '@org/types';
 
 export interface ParsedGraphEntity {
   entityType: GraphEntityType;
@@ -51,10 +48,10 @@ const SENSITIVE_FILENAME_PATTERNS = [
 ];
 
 const SECRET_PATTERNS = [
-  /(api[_-]?key|secret|password|bearer|auth[_-]?token|access[_-]?token)\s*[:=]\s*['"][a-zA-Z0-9_\-\.]{8,}['"]/gi,
-  /Bearer\s+[a-zA-Z0-9_\-\.]{16,}/gi,
+  /(api[_-]?key|secret|password|bearer|auth[_-]?token|access[_-]?token)\s*[:=]\s*['"][a-zA-Z0-9_.-]{8,}['"]/gi,
+  /Bearer\s+[a-zA-Z0-9_.-]{16,}/gi,
   /ghp_[a-zA-Z0-9]{36}/gi,
-  /glpat-[a-zA-Z0-9_\-]{20}/gi,
+  /glpat-[a-zA-Z0-9_-]{20}/gi,
   /sk-[a-zA-Z0-9]{32,}/gi,
 ];
 
@@ -130,7 +127,9 @@ export class DeterministicCodeParser {
       for (let i = 0; i < pathParts.length - 1; i++) {
         const folderName = pathParts[i]!;
         const parentFolderPath = currentFolderPath;
-        currentFolderPath = currentFolderPath ? `${currentFolderPath}/${folderName}` : folderName;
+        currentFolderPath = currentFolderPath
+          ? `${currentFolderPath}/${folderName}`
+          : folderName;
         const folderId = `folder:${repoName}/${currentFolderPath}`;
 
         if (!foldersSeen.has(folderId)) {
@@ -177,7 +176,9 @@ export class DeterministicCodeParser {
       const fileId = `file:${repoName}/${normPath}`;
       const safeContent = scrubSecrets(file.content);
       const lines = safeContent.split('\n');
-      const ext = fileName.includes('.') ? fileName.split('.').pop()?.toLowerCase() ?? '' : '';
+      const ext = fileName.includes('.')
+        ? (fileName.split('.').pop()?.toLowerCase() ?? '')
+        : '';
 
       entities.push({
         entityType: 'SourceFile',
@@ -264,7 +265,14 @@ export class DeterministicCodeParser {
 
       // Parse JS, JSX, TS, TSX files
       if (['js', 'jsx', 'ts', 'tsx', 'mjs', 'cjs'].includes(ext)) {
-        this.parseSourceFileCode(repoName, normPath, fileId, safeContent, entities, relations);
+        this.parseSourceFileCode(
+          repoName,
+          normPath,
+          fileId,
+          safeContent,
+          entities,
+          relations,
+        );
       }
     }
 
@@ -383,7 +391,14 @@ export class DeterministicCodeParser {
         }
       }
     } else {
-      this.parseSourceFileCode(repoName, normPath, fileId, safeContent, entities, relations);
+      this.parseSourceFileCode(
+        repoName,
+        normPath,
+        fileId,
+        safeContent,
+        entities,
+        relations,
+      );
     }
 
     return { entities, relations };
@@ -399,7 +414,8 @@ export class DeterministicCodeParser {
   ): void {
     // 1. Imports
     // e.g. import { A, B } from './path' or import C from 'lib'
-    const importRegex = /import\s+(?:(?:\*\s+as\s+(\w+))|(?:\{([^}]+)\})|(?:(\w+)(?:,\s*\{([^}]+)\})?))\s+from\s+['"]([^'"]+)['"]/g;
+    const importRegex =
+      /import\s+(?:(?:\*\s+as\s+(\w+))|(?:\{([^}]+)\})|(?:(\w+)(?:,\s*\{([^}]+)\})?))\s+from\s+['"]([^'"]+)['"]/g;
     let importMatch: RegExpExecArray | null;
     while ((importMatch = importRegex.exec(content)) !== null) {
       const modulePath = importMatch[5];
@@ -425,7 +441,8 @@ export class DeterministicCodeParser {
     }
 
     // CommonJS require
-    const requireRegex = /(?:const|let|var)\s+(?:\{([^}]+)\}|(\w+))\s*=\s*require\(['"]([^'"]+)['"]\)/g;
+    const requireRegex =
+      /(?:const|let|var)\s+(?:\{([^}]+)\}|(\w+))\s*=\s*require\(['"]([^'"]+)['"]\)/g;
     let reqMatch: RegExpExecArray | null;
     while ((reqMatch = requireRegex.exec(content)) !== null) {
       const mod = reqMatch[3];
@@ -447,7 +464,8 @@ export class DeterministicCodeParser {
 
     // 2. Classes
     // e.g. class FooService extends Bar implements Baz
-    const classRegex = /(?:export\s+)?(?:default\s+)?class\s+(\w+)(?:\s+extends\s+(\w+))?(?:\s+implements\s+([\w\s,]+))?/g;
+    const classRegex =
+      /(?:export\s+)?(?:default\s+)?class\s+(\w+)(?:\s+extends\s+(\w+))?(?:\s+implements\s+([\w\s,]+))?/g;
     let classMatch: RegExpExecArray | null;
     while ((classMatch = classRegex.exec(content)) !== null) {
       const className = classMatch[1]!;
@@ -497,34 +515,63 @@ export class DeterministicCodeParser {
 
     // 3. React Components & Functions
     // Function declaration: function Foo(...) or const Foo = (...) =>
-    const funcDeclRegex = /(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+(\w+)\s*\(([^)]*)\)/g;
+    const funcDeclRegex =
+      /(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+(\w+)\s*\(([^)]*)\)/g;
     let funcMatch: RegExpExecArray | null;
     while ((funcMatch = funcDeclRegex.exec(content)) !== null) {
       const name = funcMatch[1]!;
       const params = funcMatch[2]?.trim() ?? '';
-      this.registerFunctionOrComponent(repoName, filePath, fileId, name, params, funcMatch[0].includes('export'), content, entities, relations);
+      this.registerFunctionOrComponent(
+        repoName,
+        filePath,
+        fileId,
+        name,
+        params,
+        funcMatch[0].includes('export'),
+        content,
+        entities,
+        relations,
+      );
     }
 
     // Arrow functions assigned to const/let: const MyComponent = (...) =>
-    const arrowFuncRegex = /(?:export\s+)?const\s+(\w+)\s*=\s*(?:async\s*)?\(([^)]*)\)\s*(?::\s*[^=]+)?\s*=>/g;
+    const arrowFuncRegex =
+      /(?:export\s+)?const\s+(\w+)\s*=\s*(?:async\s*)?\(([^)]*)\)\s*(?::\s*[^=]+)?\s*=>/g;
     let arrowMatch: RegExpExecArray | null;
     while ((arrowMatch = arrowFuncRegex.exec(content)) !== null) {
       const name = arrowMatch[1]!;
       const params = arrowMatch[2]?.trim() ?? '';
-      this.registerFunctionOrComponent(repoName, filePath, fileId, name, params, arrowMatch[0].includes('export'), content, entities, relations);
+      this.registerFunctionOrComponent(
+        repoName,
+        filePath,
+        fileId,
+        name,
+        params,
+        arrowMatch[0].includes('export'),
+        content,
+        entities,
+        relations,
+      );
     }
 
     // 4. API Endpoints (NestJS decorators or Express route calls)
     // @Controller('route') and @Get('path'), @Post('path'), etc.
-    const controllerMatch = /@Controller\s*\(\s*(?:'([^']*)'|"([^"]*)")?\s*\)/.exec(content);
-    const controllerPrefix = controllerMatch ? (controllerMatch[1] ?? controllerMatch[2] ?? '') : '';
+    const controllerMatch =
+      /@Controller\s*\(\s*(?:'([^']*)'|"([^"]*)")?\s*\)/.exec(content);
+    const controllerPrefix = controllerMatch
+      ? (controllerMatch[1] ?? controllerMatch[2] ?? '')
+      : '';
 
-    const endpointRegex = /@(Get|Post|Put|Delete|Patch)\s*\(\s*(?:'([^']*)'|"([^"]*)")?\s*\)\s*(?:\n\s*@[^\n]+)*\s*(?:async\s+)?(\w+)\s*\(/g;
+    const endpointRegex =
+      /@(Get|Post|Put|Delete|Patch)\s*\(\s*(?:'([^']*)'|"([^"]*)")?\s*\)\s*(?:\n\s*@[^\n]+)*\s*(?:async\s+)?(\w+)\s*\(/g;
     let epMatch: RegExpExecArray | null;
     while ((epMatch = endpointRegex.exec(content)) !== null) {
       const method = epMatch[1]!.toUpperCase();
       const subPath = epMatch[2] ?? epMatch[3] ?? '';
-      const fullPath = `/${controllerPrefix}/${subPath}`.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
+      const fullPath =
+        `/${controllerPrefix}/${subPath}`
+          .replace(/\/+/g, '/')
+          .replace(/\/$/, '') || '/';
       const handlerName = epMatch[4]!;
       const epId = `endpoint:${method}:${fullPath}`;
 
@@ -566,7 +613,8 @@ export class DeterministicCodeParser {
     }
 
     // 5. Database Model References (e.g. this.prisma.user.findMany, prisma.task.create)
-    const prismaModelRegex = /prisma\.(\w+)\.(findMany|findUnique|findFirst|create|update|delete|upsert|count)/g;
+    const prismaModelRegex =
+      /prisma\.(\w+)\.(findMany|findUnique|findFirst|create|update|delete|upsert|count)/g;
     let dbMatch: RegExpExecArray | null;
     while ((dbMatch = prismaModelRegex.exec(content)) !== null) {
       const model = dbMatch[1]!;
@@ -647,10 +695,20 @@ export class DeterministicCodeParser {
   ): void {
     // Determine if it's a React Component: PascalCase and returns JSX or file is .jsx/.tsx
     const isPascalCase = /^[A-Z][a-zA-Z0-9]+$/.test(name);
-    const isComponent = isPascalCase && (filePath.endsWith('.tsx') || filePath.endsWith('.jsx') || fullContent.includes(`<${name}`) || fullContent.includes('return <'));
-    const isHook = name.startsWith('use') && name.length > 3 && /^[A-Z]/.test(name.slice(3));
+    const isComponent =
+      isPascalCase &&
+      (filePath.endsWith('.tsx') ||
+        filePath.endsWith('.jsx') ||
+        fullContent.includes(`<${name}`) ||
+        fullContent.includes('return <'));
+    const isHook =
+      name.startsWith('use') && name.length > 3 && /^[A-Z]/.test(name.slice(3));
 
-    const entityType: GraphEntityType = isComponent ? 'Component' : isHook ? 'Hook' : 'Function';
+    const entityType: GraphEntityType = isComponent
+      ? 'Component'
+      : isHook
+        ? 'Hook'
+        : 'Function';
     const symbolId = `${isComponent ? 'comp' : isHook ? 'hook' : 'func'}:${repoName}/${filePath}#${name}`;
 
     entities.push({
@@ -705,7 +763,10 @@ export class DeterministicCodeParser {
     }
   }
 
-  private resolveRelativePath(currentFilePath: string, relativePath: string): string {
+  private resolveRelativePath(
+    currentFilePath: string,
+    relativePath: string,
+  ): string {
     const curParts = currentFilePath.split('/');
     curParts.pop(); // remove file name
     const relParts = relativePath.split('/');
@@ -719,7 +780,10 @@ export class DeterministicCodeParser {
       }
     }
     const resolved = curParts.join('/');
-    return resolved.endsWith('.js') || resolved.endsWith('.ts') || resolved.endsWith('.tsx') || resolved.endsWith('.jsx')
+    return resolved.endsWith('.js') ||
+      resolved.endsWith('.ts') ||
+      resolved.endsWith('.tsx') ||
+      resolved.endsWith('.jsx')
       ? resolved
       : `${resolved}.ts`;
   }

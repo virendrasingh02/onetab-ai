@@ -6,6 +6,7 @@
  * build is deleted here rather than left beside the production output.
  */
 import { spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { readdirSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,9 +16,13 @@ const sourceMap =
   process.env.NODE_ENV !== 'production' ||
   process.env.GENERATE_SOURCEMAP === 'true';
 
+// Run tsc through node directly: no shell, so paths with spaces stay intact on Windows.
+const tscBin = createRequire(import.meta.url).resolve('typescript/bin/tsc');
+
 const result = spawnSync(
-  'tsc',
+  process.execPath,
   [
+    tscBin,
     '-b',
     join(root, 'tsconfig.app.json'),
     '--force',
@@ -26,7 +31,7 @@ const result = spawnSync(
     '--declarationMap',
     String(sourceMap),
   ],
-  { stdio: 'inherit', shell: process.platform === 'win32' },
+  { stdio: 'inherit' },
 );
 if (result.status !== 0) process.exit(result.status ?? 1);
 

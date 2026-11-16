@@ -22,20 +22,22 @@
       },
       "build": {
         "options": {
-          "env": { "NODE_ENV": "production" }
+          "env": {
+            "NODE_ENV": "production"
+          }
         }
       }
     }
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.101.4",
+    "@tanstack/react-query": "^5.107.1",
     "@org/i18n": "*",
     "@org/realtime": "*",
     "@org/sync": "*",
     "@org/web-coworkers": "*",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-router-dom": "^6.30.3",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router-dom": "^6.30.6",
     "matrix-js-sdk": "42.0.0"
   }
 }

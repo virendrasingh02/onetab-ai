@@ -3,7 +3,15 @@ import { CATALOG_NODES, stepUnsupportedReason } from './node-library.js';
 
 describe('stepUnsupportedReason', () => {
   it('is empty for steps that run and for canvas notes', () => {
-    for (const type of ['AGENT', 'IF_ELSE', 'HTTP_REQUEST', 'START', 'APP_CONNECTOR_ACTION', 'STICKY_NOTE', 'widget_renderer']) {
+    for (const type of [
+      'AGENT',
+      'IF_ELSE',
+      'HTTP_REQUEST',
+      'START',
+      'APP_CONNECTOR_ACTION',
+      'STICKY_NOTE',
+      'widget_renderer',
+    ]) {
       expect(stepUnsupportedReason(type)).toBeUndefined();
     }
   });
@@ -14,9 +22,27 @@ describe('stepUnsupportedReason', () => {
   });
 
   it('flags only the catalog steps the engine can’t run', () => {
-    const flagged = CATALOG_NODES.filter((n) => stepUnsupportedReason(n.type)).map((n) => n.type).sort();
-    expect(flagged).toEqual(
-      ['AI_GUARDRAIL', 'DATA_MAPPER', 'DOC_RETRIEVAL', 'EMBEDDING_MODEL', 'ESCALATE_HUMAN', 'MODEL_ROUTER', 'RERANKER', 'SLACK_SEND', 'SWITCH_CASE'],
-    );
+    const flagged = CATALOG_NODES.filter((n) => stepUnsupportedReason(n.type))
+      .map((n) => n.type)
+      .sort();
+    expect(flagged).toEqual([
+      'AI_GUARDRAIL',
+      'CONTEXT_RETRIEVE',
+      'DATA_MAPPER',
+      'DOC_RETRIEVAL',
+      'EMBEDDING_MODEL',
+      'ESCALATE_HUMAN',
+      'GRAPH_CREATE_ENTITY',
+      'GRAPH_CREATE_RELATIONSHIP',
+      'GRAPH_FIND_ENTITY',
+      'GRAPH_FIND_RELATIONS',
+      'GRAPH_SEARCH',
+      'GRAPH_TRAVERSE',
+      'GRAPH_UPDATE_ENTITY',
+      'MODEL_ROUTER',
+      'RERANKER',
+      'SLACK_SEND',
+      'SWITCH_CASE',
+    ]);
   });
 });
