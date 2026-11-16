@@ -176,7 +176,7 @@ export function KanbanListColumn({
         onPointerDown={columnDrag.onPointerDown}
         onKeyDown={columnDrag.onKeyDown}
         className={cn(
-          'gap-2 pl-3 pr-1.5 h-10 flex shrink-0 items-center justify-between rounded-lg',
+          'gap-2 pl-2.5 pr-1 h-10 flex shrink-0 items-center justify-between rounded-lg',
           'cursor-grab touch-manipulation select-none',
           'focus-visible:ring-[3px] focus-visible:ring-ring/30 focus-visible:outline-none',
         )}
@@ -321,7 +321,7 @@ export function KanbanListColumn({
       </header>
 
       {composer === 'top' ? (
-        <div className="px-2.5 pb-2.5">
+        <div className="px-1.5 pb-2">
           <CardComposer
             ref={composerRef}
             value={draft}
@@ -333,10 +333,15 @@ export function KanbanListColumn({
         </div>
       ) : null}
 
+      {/*
+        No `overflow-hidden` here: SimpleBar reads the root's overflow and
+        would switch its own scrolling off. The board row clips vertically
+        instead, so only the cards scroll.
+      */}
       <ScrollArea
         className="min-h-0 flex-1"
         viewportRef={cardsScrollRef}
-        contentClassName="px-2.5 pt-0.5 pb-2.5"
+        contentClassName="px-1.5 pt-0.5"
       >
         {/* `relative`: the drop placeholder is positioned against this list. */}
         <ul ref={cardsRef} className="min-h-8 space-y-2.5 relative">
@@ -453,28 +458,39 @@ export function KanbanListColumn({
           ) : null}
         </ul>
 
-        {/* Adding sits right under the last card, where the new one lands. */}
-        {composer === 'bottom' ? (
-          <div className="mt-2.5">
-            <CardComposer
-              ref={composerRef}
-              value={draft}
-              onChange={setDraft}
-              onSubmit={submitDraft}
-              onClose={() => setComposer(null)}
-              onKeyDown={handleComposerKeyDown}
-            />
-          </div>
-        ) : composer === null ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            leadingIcon={<Plus className="size-3.5" />}
-            onClick={() => openComposer('bottom')}
-            className="mt-1.5 h-8 text-xs font-medium w-full justify-start rounded-md text-muted-foreground hover:bg-surface hover:text-foreground"
+        {/*
+          Adding sits right under the last card, where the new one lands, and
+          sticks to the bottom of the column once the cards outgrow it — so it
+          is always one click away without scrolling.
+        */}
+        {composer !== 'top' ? (
+          <div
+            className={cn(
+              'bottom-0 z-10 -mx-1.5 px-1.5 pt-2 pb-2 sticky bg-background',
+              'in-data-drop-target:bg-surface-muted',
+            )}
           >
-            Add task
-          </Button>
+            {composer === 'bottom' ? (
+              <CardComposer
+                ref={composerRef}
+                value={draft}
+                onChange={setDraft}
+                onSubmit={submitDraft}
+                onClose={() => setComposer(null)}
+                onKeyDown={handleComposerKeyDown}
+              />
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                leadingIcon={<Plus className="size-3.5" />}
+                onClick={() => openComposer('bottom')}
+                className="h-8 text-xs font-medium w-full justify-start rounded-md text-muted-foreground hover:bg-surface hover:text-foreground"
+              >
+                Add task
+              </Button>
+            )}
+          </div>
         ) : null}
       </ScrollArea>
     </section>

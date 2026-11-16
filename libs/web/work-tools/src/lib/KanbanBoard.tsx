@@ -320,7 +320,7 @@ export function KanbanBoard({
 
       {/* Kanban Columns Drag Scroller */}
       {isLoading ? (
-        <div className="gap-4 sm:gap-5 px-4 sm:px-6 pb-4 flex flex-1 items-start overflow-hidden">
+        <div className="gap-1 px-3 sm:px-4 pb-3 flex flex-1 items-start overflow-hidden">
           {[0, 1, 2, 3].map((column) => (
             <div
               key={column}
@@ -335,7 +335,7 @@ export function KanbanBoard({
           ref={scrollerRef}
           onPointerDown={pan.onPointerDown}
           // Blank space pans the board; `data-panning` is set while it does.
-          className="scrollbar-subtle gap-4 sm:gap-5 px-4 sm:px-6 pb-4 scroll-px-4 sm:scroll-px-6 min-h-0 relative flex flex-1 cursor-grab items-stretch overflow-x-auto data-panning:cursor-grabbing data-panning:select-none"
+          className="scrollbar-subtle gap-1 px-3 sm:px-4 pb-3 scroll-px-3 sm:scroll-px-4min-h-0 relative flex flex-1 cursor-grab items-stretch overflow-x-auto overflow-y-hidden data-panning:cursor-grabbing data-panning:select-none"
         >
           {board.lists.map((list, index) => (
             <KanbanListColumn
