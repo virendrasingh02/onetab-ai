@@ -34,7 +34,7 @@ function formatUptime(seconds: number): string {
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div className="space-y-0.5">
-      <span className="text-[11px] text-muted-foreground">{label}</span>
+      <span className="text-meta text-muted-foreground">{label}</span>
       <p className="break-words text-xs text-foreground">{value}</p>
     </div>
   );
@@ -117,7 +117,7 @@ export function DesktopDiagnosticsCard() {
             <Label htmlFor="desktop-hardware-acceleration" className="text-xs font-medium">
               Hardware acceleration
             </Label>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-meta text-muted-foreground">
               Use the graphics card for smoother rendering. Turn off if you see flicker or blank
               areas.{restartPending ? ' Restart to apply.' : ''}
             </p>
@@ -146,7 +146,7 @@ export function DesktopDiagnosticsCard() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0 space-y-0.5">
             <p className="text-xs font-medium">Application control</p>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-meta text-muted-foreground">
               Restart to recover from a stuck state, open native info, or quit fully.
             </p>
           </div>
@@ -194,7 +194,7 @@ export function DesktopDiagnosticsCard() {
         </div>
 
         {error && !diagnostics && (
-          <p className="text-[11px] text-destructive">Diagnostics are unavailable right now.</p>
+          <p className="text-meta text-destructive">Diagnostics are unavailable right now.</p>
         )}
 
         {diagnostics && (
@@ -236,7 +236,7 @@ export function DesktopDiagnosticsCard() {
                 <Label htmlFor="desktop-accessibility-toggle" className="text-xs font-medium">
                   Screen reader accessibility support
                 </Label>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-meta text-muted-foreground">
                   Explicitly enable Assistive Technology integration across Electron windows.
                 </p>
               </div>
@@ -250,7 +250,7 @@ export function DesktopDiagnosticsCard() {
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/70 bg-surface-muted/30 p-3">
               <div className="min-w-0 space-y-0.5">
                 <p className="text-xs font-medium">Link handlers</p>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-meta text-muted-foreground">
                   Whether this computer opens these links in Onetab AI.
                 </p>
               </div>
@@ -259,7 +259,7 @@ export function DesktopDiagnosticsCard() {
                   <Badge
                     key={protocol.scheme}
                     variant={protocol.registered ? 'success' : 'warning'}
-                    className="font-mono text-[10px]"
+                    className="font-mono text-2xs"
                   >
                     {protocol.scheme}://{protocol.registered ? '' : ' not set'}
                   </Badge>

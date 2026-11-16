@@ -113,7 +113,12 @@ export function ContextMenu({
     <ContextMenuContext.Provider
       value={{ open, setOpen, position, setPosition, handleContextMenu }}
     >
-      <MenuPrimitive.Root open={open} onOpenChange={setOpen} modal={modal} dir={dir}>
+      <MenuPrimitive.Root
+        open={open}
+        onOpenChange={setOpen}
+        modal={modal}
+        dir={dir}
+      >
         {children}
       </MenuPrimitive.Root>
     </ContextMenuContext.Provider>
@@ -130,8 +135,21 @@ export interface ContextMenuTriggerProps extends ComponentPropsWithoutRef<'div'>
   asChild?: boolean;
 }
 
-export const ContextMenuTrigger = forwardRef<HTMLDivElement, ContextMenuTriggerProps>(
-  ({ disabled = false, asChild = false, onContextMenu, className, children, ...props }, ref) => {
+export const ContextMenuTrigger = forwardRef<
+  HTMLDivElement,
+  ContextMenuTriggerProps
+>(
+  (
+    {
+      disabled = false,
+      asChild = false,
+      onContextMenu,
+      className,
+      children,
+      ...props
+    },
+    ref,
+  ) => {
     const context = useContext(ContextMenuContext);
 
     const handleContextMenu = (e: ReactMouseEvent<HTMLDivElement>) => {
@@ -164,8 +182,9 @@ ContextMenuTrigger.displayName = 'ContextMenuTrigger';
 /* Context Menu Content & Sub-components                                      */
 /* -------------------------------------------------------------------------- */
 
-export interface ContextMenuContentProps
-  extends ComponentPropsWithoutRef<typeof MenuPrimitive.Content> {
+export interface ContextMenuContentProps extends ComponentPropsWithoutRef<
+  typeof MenuPrimitive.Content
+> {
   collisionPadding?: number;
 }
 
@@ -220,8 +239,9 @@ export const ContextMenuPortal = MenuPrimitive.Portal;
 export const ContextMenuSub = MenuPrimitive.Sub;
 export const ContextMenuRadioGroup = MenuPrimitive.RadioGroup;
 
-export interface ContextMenuItemProps
-  extends ComponentPropsWithoutRef<typeof MenuPrimitive.Item> {
+export interface ContextMenuItemProps extends ComponentPropsWithoutRef<
+  typeof MenuPrimitive.Item
+> {
   inset?: boolean;
   destructive?: boolean;
   icon?: ReactNode;
@@ -231,43 +251,49 @@ export interface ContextMenuItemProps
 export const ContextMenuItem = forwardRef<
   ElementRef<typeof MenuPrimitive.Item>,
   ContextMenuItemProps
->(({ className, inset, destructive, icon, shortcut, children, ...props }, ref) => {
-  return (
-    <MenuPrimitive.Item
-      ref={ref}
-      data-slot="context-menu-item"
-      data-variant={destructive ? 'destructive' : 'default'}
-      className={cn(
-        menuItemClasses,
-        inset && menuIndicatorInset,
-        destructive && menuDestructiveClasses,
-        className,
-      )}
-      {...props}
-    >
-      {icon && (
-        <span className="size-4 shrink-0 text-muted-foreground [&_svg]:size-4 flex items-center justify-center">
-          {icon}
-        </span>
-      )}
-      {icon || shortcut ? (
-        <span className="flex-1 text-left truncate">{children}</span>
-      ) : (
-        children
-      )}
-      {shortcut && (
-        <span className="ml-auto inline-flex items-center pl-3">
-          <KbdShortcut keys={shortcut} size="xs" variant="muted" />
-        </span>
-      )}
-    </MenuPrimitive.Item>
-  );
-});
+>(
+  (
+    { className, inset, destructive, icon, shortcut, children, ...props },
+    ref,
+  ) => {
+    return (
+      <MenuPrimitive.Item
+        ref={ref}
+        data-slot="context-menu-item"
+        data-variant={destructive ? 'destructive' : 'default'}
+        className={cn(
+          menuItemClasses,
+          inset && menuIndicatorInset,
+          destructive && menuDestructiveClasses,
+          className,
+        )}
+        {...props}
+      >
+        {icon && (
+          <span className="size-4 [&_svg]:size-4 flex shrink-0 items-center justify-center text-muted-foreground">
+            {icon}
+          </span>
+        )}
+        {icon || shortcut ? (
+          <span className="flex-1 truncate text-left">{children}</span>
+        ) : (
+          children
+        )}
+        {shortcut && (
+          <span className="pl-3 ml-auto inline-flex items-center">
+            <KbdShortcut keys={shortcut} size="xs" variant="muted" />
+          </span>
+        )}
+      </MenuPrimitive.Item>
+    );
+  },
+);
 
 ContextMenuItem.displayName = 'ContextMenuItem';
 
-export type ContextMenuCheckboxItemProps =
-  ComponentPropsWithoutRef<typeof MenuPrimitive.CheckboxItem>;
+export type ContextMenuCheckboxItemProps = ComponentPropsWithoutRef<
+  typeof MenuPrimitive.CheckboxItem
+>;
 
 export const ContextMenuCheckboxItem = forwardRef<
   ElementRef<typeof MenuPrimitive.CheckboxItem>,
@@ -293,8 +319,9 @@ export const ContextMenuCheckboxItem = forwardRef<
 
 ContextMenuCheckboxItem.displayName = 'ContextMenuCheckboxItem';
 
-export type ContextMenuRadioItemProps =
-  ComponentPropsWithoutRef<typeof MenuPrimitive.RadioItem>;
+export type ContextMenuRadioItemProps = ComponentPropsWithoutRef<
+  typeof MenuPrimitive.RadioItem
+>;
 
 export const ContextMenuRadioItem = forwardRef<
   ElementRef<typeof MenuPrimitive.RadioItem>,
@@ -319,8 +346,9 @@ export const ContextMenuRadioItem = forwardRef<
 
 ContextMenuRadioItem.displayName = 'ContextMenuRadioItem';
 
-export interface ContextMenuLabelProps
-  extends ComponentPropsWithoutRef<typeof MenuPrimitive.Label> {
+export interface ContextMenuLabelProps extends ComponentPropsWithoutRef<
+  typeof MenuPrimitive.Label
+> {
   inset?: boolean;
 }
 
@@ -340,8 +368,9 @@ export const ContextMenuLabel = forwardRef<
 
 ContextMenuLabel.displayName = 'ContextMenuLabel';
 
-export type ContextMenuSeparatorProps =
-  ComponentPropsWithoutRef<typeof MenuPrimitive.Separator>;
+export type ContextMenuSeparatorProps = ComponentPropsWithoutRef<
+  typeof MenuPrimitive.Separator
+>;
 
 export const ContextMenuSeparator = forwardRef<
   ElementRef<typeof MenuPrimitive.Separator>,
@@ -371,7 +400,10 @@ export function ContextMenuShortcut({
 }: ContextMenuShortcutProps) {
   if (keys) {
     return (
-      <span className={cn('pl-3 ml-auto inline-flex items-center', className)} {...props}>
+      <span
+        className={cn('pl-3 ml-auto inline-flex items-center', className)}
+        {...props}
+      >
         <KbdShortcut keys={keys} size="xs" variant="muted" />
       </span>
     );
@@ -380,7 +412,7 @@ export function ContextMenuShortcut({
   return (
     <span
       className={cn(
-        'pl-3 font-normal tracking-wide ml-auto font-mono text-[10px] text-subtle inline-flex items-center gap-1',
+        'pl-3 font-normal tracking-wide gap-1 ml-auto inline-flex items-center font-mono text-2xs text-subtle',
         className,
       )}
       {...props}
@@ -394,8 +426,9 @@ export function ContextMenuShortcut({
   );
 }
 
-export interface ContextMenuSubTriggerProps
-  extends ComponentPropsWithoutRef<typeof MenuPrimitive.SubTrigger> {
+export interface ContextMenuSubTriggerProps extends ComponentPropsWithoutRef<
+  typeof MenuPrimitive.SubTrigger
+> {
   inset?: boolean;
 }
 
@@ -423,8 +456,9 @@ export const ContextMenuSubTrigger = forwardRef<
 
 ContextMenuSubTrigger.displayName = 'ContextMenuSubTrigger';
 
-export interface ContextMenuSubContentProps
-  extends ComponentPropsWithoutRef<typeof MenuPrimitive.SubContent> {
+export interface ContextMenuSubContentProps extends ComponentPropsWithoutRef<
+  typeof MenuPrimitive.SubContent
+> {
   collisionPadding?: number;
 }
 

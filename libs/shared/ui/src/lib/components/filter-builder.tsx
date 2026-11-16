@@ -2,10 +2,7 @@ import { cn } from '@org/utils';
 import { AppSelect } from './app-select.js';
 import { Filter, Plus, Trash2 } from 'lucide-react';
 
-import {
-  useState,
-  type ComponentProps,
-} from 'react';
+import { useState, type ComponentProps } from 'react';
 import { Button } from './button.js';
 
 export type FilterOperator =
@@ -50,7 +47,14 @@ export function FilterBuilder({
   const [rules, setRules] = useState<FilterRule[]>(() =>
     initialRules.length > 0
       ? initialRules
-      : [{ id: 'rule-1', field: fields[0]?.id ?? '', operator: 'contains', value: '' }],
+      : [
+          {
+            id: 'rule-1',
+            field: fields[0]?.id ?? '',
+            operator: 'contains',
+            value: '',
+          },
+        ],
   );
 
   const operatorLabels: Record<FilterOperator, string> = {
@@ -83,7 +87,14 @@ export function FilterBuilder({
   };
 
   const handleReset = () => {
-    const defaultRule = [{ id: 'rule-1', field: fields[0]?.id ?? '', operator: 'contains' as FilterOperator, value: '' }];
+    const defaultRule = [
+      {
+        id: 'rule-1',
+        field: fields[0]?.id ?? '',
+        operator: 'contains' as FilterOperator,
+        value: '',
+      },
+    ];
     setRules(defaultRule);
     onReset?.();
   };
@@ -91,32 +102,32 @@ export function FilterBuilder({
   return (
     <div
       className={cn(
-        'flex flex-col gap-3 rounded-card border border-border bg-surface p-3.5 shadow-xs text-xs',
+        'gap-3 p-3.5 text-xs flex flex-col rounded-card border border-border bg-surface shadow-xs',
         className,
       )}
       {...props}
     >
-      <div className="flex items-center justify-between border-b border-border pb-2">
-        <div className="flex items-center gap-1.5 font-semibold text-foreground">
+      <div className="pb-2 flex items-center justify-between border-b border-border">
+        <div className="gap-1.5 font-semibold flex items-center text-foreground">
           <Filter className="size-3.5 text-brand-text" />
           <span>Filter Rules</span>
         </div>
         <button
           type="button"
           onClick={handleReset}
-          className="text-[11px] text-muted-foreground hover:text-foreground font-medium"
+          className="font-medium text-meta text-muted-foreground hover:text-foreground"
         >
           Reset all
         </button>
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="gap-2 flex flex-col">
         {rules.map((rule, idx) => {
           const selectedField = fields.find((f) => f.id === rule.field);
 
           return (
-            <div key={rule.id} className="flex flex-wrap items-center gap-2">
-              <span className="w-12 text-[11px] font-mono text-subtle">
+            <div key={rule.id} className="gap-2 flex flex-wrap items-center">
+              <span className="w-12 font-mono text-meta text-subtle">
                 {idx === 0 ? 'Where' : 'And'}
               </span>
 
@@ -135,14 +146,20 @@ export function FilterBuilder({
                 size="sm"
                 className="w-36"
                 value={rule.operator}
-                onValueChange={(v) => updateRule(rule.id, { operator: v as FilterOperator })}
+                onValueChange={(v) =>
+                  updateRule(rule.id, { operator: v as FilterOperator })
+                }
                 aria-label="Operator"
-                options={Object.entries(operatorLabels).map(([op, label]) => ({ value: op, label }))}
+                options={Object.entries(operatorLabels).map(([op, label]) => ({
+                  value: op,
+                  label,
+                }))}
               />
 
               {/* Value Input */}
-              {rule.operator !== 'is_empty' && rule.operator !== 'is_not_empty' && (
-                selectedField?.type === 'select' && selectedField.options ? (
+              {rule.operator !== 'is_empty' &&
+                rule.operator !== 'is_not_empty' &&
+                (selectedField?.type === 'select' && selectedField.options ? (
                   <AppSelect
                     size="sm"
                     className="w-40"
@@ -150,24 +167,28 @@ export function FilterBuilder({
                     onValueChange={(v) => updateRule(rule.id, { value: v })}
                     placeholder="Select value..."
                     aria-label="Value"
-                    options={selectedField.options.map((opt) => ({ value: opt.value, label: opt.label }))}
+                    options={selectedField.options.map((opt) => ({
+                      value: opt.value,
+                      label: opt.label,
+                    }))}
                   />
                 ) : (
                   <input
                     type={selectedField?.type === 'number' ? 'number' : 'text'}
                     value={rule.value}
-                    onChange={(e) => updateRule(rule.id, { value: e.target.value })}
+                    onChange={(e) =>
+                      updateRule(rule.id, { value: e.target.value })
+                    }
                     placeholder="Value..."
-                    className="h-7 min-w-32 flex-1 rounded-btn border border-input theme-fixed bg-field px-2 text-xs text-foreground placeholder:text-subtle outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
+                    className="h-7 min-w-32 theme-fixed px-2 text-xs flex-1 rounded-btn border border-input bg-field text-foreground outline-none placeholder:text-subtle focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
                   />
-                )
-              )}
+                ))}
 
               {rules.length > 1 && (
                 <button
                   type="button"
                   onClick={() => removeRule(rule.id)}
-                  className="size-7 rounded-btn flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                  className="size-7 flex items-center justify-center rounded-btn text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                 >
                   <Trash2 className="size-3.5" />
                 </button>
@@ -177,7 +198,7 @@ export function FilterBuilder({
         })}
       </div>
 
-      <div className="flex items-center justify-between pt-2 border-t border-border mt-1">
+      <div className="pt-2 mt-1 flex items-center justify-between border-t border-border">
         <Button
           variant="outline"
           size="xs"

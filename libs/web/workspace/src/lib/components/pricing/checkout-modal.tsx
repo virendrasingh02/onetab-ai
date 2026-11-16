@@ -39,7 +39,9 @@ export interface CheckoutModalProps {
 }
 
 const money = (cents: number, currency = 'USD') =>
-  new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(cents / 100);
+  new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(
+    cents / 100,
+  );
 
 /** Pure presentation of a server quote; the browser never computes a payable total. */
 export function CheckoutModal({
@@ -93,7 +95,8 @@ export function CheckoutModal({
       appliedCode ?? '',
       startTrial,
     ),
-    queryFn: () => billingApi.quote(workspaceId as string, quoteInput as CheckoutPlanInput),
+    queryFn: () =>
+      billingApi.quote(workspaceId as string, quoteInput as CheckoutPlanInput),
     enabled: open && !!workspaceId && !!quoteInput,
     retry: false,
   });
@@ -120,7 +123,9 @@ export function CheckoutModal({
       }
     } catch (err) {
       setAppliedCode(null);
-      setCouponError(err instanceof Error ? err.message : 'Could not validate the coupon.');
+      setCouponError(
+        err instanceof Error ? err.message : 'Could not validate the coupon.',
+      );
     } finally {
       setIsApplying(false);
     }
@@ -136,7 +141,10 @@ export function CheckoutModal({
   const checkoutMutation = useMutation({
     mutationFn: (input: CheckoutPlanInput) => {
       if (!workspaceId) throw new Error('Workspace is required.');
-      return billingApi.checkout(workspaceId, { ...input, idempotencyKey: idempotencyKey.current });
+      return billingApi.checkout(workspaceId, {
+        ...input,
+        idempotencyKey: idempotencyKey.current,
+      });
     },
     onSuccess: (session) => {
       setCheckoutError(null);
@@ -145,7 +153,9 @@ export function CheckoutModal({
         window.location.assign(session.redirectUrl);
         return;
       }
-      queryClient.invalidateQueries({ queryKey: queryKeys.billing.all(workspaceId as string) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.billing.all(workspaceId as string),
+      });
       queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.all() });
       if (session.status === 'COMPLETED') {
         toast.success('Your plan is active.');
@@ -155,7 +165,8 @@ export function CheckoutModal({
         setCheckoutError(session.failureReason ?? 'Checkout did not complete.');
       }
     },
-    onError: (err: Error) => setCheckoutError(err.message || 'Checkout failed. Please try again.'),
+    onError: (err: Error) =>
+      setCheckoutError(err.message || 'Checkout failed. Please try again.'),
   });
 
   const trialDaysAvailable = paymentsEnabled ? (plan?.trialDays ?? 0) : 0;
@@ -163,7 +174,8 @@ export function CheckoutModal({
   const dueNow = quote?.dueNowCents ?? 0;
   const ctaLabel = useMemo(() => {
     if (checkoutMutation.isPending) return 'Working…';
-    if (quote && quote.trialDays > 0) return `Start ${quote.trialDays}-day free trial`;
+    if (quote && quote.trialDays > 0)
+      return `Start ${quote.trialDays}-day free trial`;
     if (quote && quote.totalCents === 0) return 'Activate plan';
     return 'Continue to payment';
   }, [checkoutMutation.isPending, quote]);
@@ -173,14 +185,14 @@ export function CheckoutModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md p-0 overflow-hidden">
-        <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6 border-b border-border">
+        <div className="p-6 border-b border-border bg-gradient-to-r from-primary/10 via-primary/5 to-transparent">
           <DialogHeader>
-            <div className="flex items-center gap-2 mb-1">
-              <Badge variant="primary" className="text-[10px] uppercase font-bold">
+            <div className="gap-2 mb-1 flex items-center">
+              <Badge variant="primary" className="font-bold text-2xs uppercase">
                 {interval} billing
               </Badge>
               {plan.isPopular && (
-                <Badge variant="secondary" className="text-[10px] uppercase">
+                <Badge variant="secondary" className="text-2xs uppercase">
                   Most Popular
                 </Badge>
               )}
@@ -195,18 +207,20 @@ export function CheckoutModal({
         </div>
 
         <div className="p-6 space-y-5">
-          <div className="rounded-xl border border-border bg-surface-muted/30 p-3.5 space-y-2 text-xs">
-            <div className="flex justify-between items-center text-muted-foreground">
+          <div className="p-3.5 space-y-2 text-xs rounded-xl border border-border bg-surface-muted/30">
+            <div className="flex items-center justify-between text-muted-foreground">
               <span>Micro agents</span>
-              <span className="font-semibold text-foreground">{plan.machineLimits.microAgents}</span>
+              <span className="font-semibold text-foreground">
+                {plan.machineLimits.microAgents}
+              </span>
             </div>
-            <div className="flex justify-between items-center text-muted-foreground">
+            <div className="flex items-center justify-between text-muted-foreground">
               <span>Requests per month</span>
               <span className="font-semibold text-foreground">
                 {plan.machineLimits.requestsPerMonth.toLocaleString()}
               </span>
             </div>
-            <div className="flex justify-between items-center text-muted-foreground">
+            <div className="flex items-center justify-between text-muted-foreground">
               <span>Included AI credits</span>
               <span className="font-semibold text-foreground">
                 ${plan.machineLimits.aiCreditsUsd} / month
@@ -215,22 +229,31 @@ export function CheckoutModal({
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="checkout-coupon" className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+            <label
+              htmlFor="checkout-coupon"
+              className="text-xs font-semibold gap-1.5 flex items-center text-foreground"
+            >
               <Tag className="size-3.5 text-primary" aria-hidden />
               Coupon code
             </label>
             {appliedCode ? (
-              <div className="flex items-center justify-between rounded-lg border border-success/30 bg-success/5 px-3 py-2 text-xs">
-                <span className="flex items-center gap-1.5 font-medium text-success-text">
+              <div className="px-3 py-2 text-xs flex items-center justify-between rounded-lg border border-success/30 bg-success/5">
+                <span className="gap-1.5 font-medium flex items-center text-success-text">
                   <Check className="size-3.5" aria-hidden />
                   <span className="font-mono">{appliedCode}</span> applied
                 </span>
-                <Button type="button" variant="ghost" size="sm" onClick={removeCoupon} aria-label="Remove coupon">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={removeCoupon}
+                  aria-label="Remove coupon"
+                >
                   <X className="size-3.5" />
                 </Button>
               </div>
             ) : (
-              <div className="flex gap-2">
+              <div className="gap-2 flex">
                 <Input
                   id="checkout-coupon"
                   placeholder="Enter code"
@@ -254,9 +277,13 @@ export function CheckoutModal({
                   size="sm"
                   disabled={isApplying || !promoInput.trim()}
                   onClick={() => void applyCoupon()}
-                  className="shrink-0 text-xs h-9"
+                  className="text-xs h-9 shrink-0"
                 >
-                  {isApplying ? <Loader2 className="size-3.5 animate-spin" /> : 'Apply'}
+                  {isApplying ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    'Apply'
+                  )}
                 </Button>
               </div>
             )}
@@ -268,17 +295,22 @@ export function CheckoutModal({
           </div>
 
           {trialDaysAvailable > 0 && (
-            <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 p-3.5">
+            <div className="p-3.5 flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5">
               <div className="space-y-0.5">
-                <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <p className="text-xs font-bold gap-1.5 flex items-center text-foreground">
                   <Sparkles className="size-3.5 text-primary" aria-hidden />
                   Start with a {trialDaysAvailable}-day free trial
                 </p>
-                <p className="text-[11px] text-muted-foreground">
-                  Needs a payment method; charged automatically when the trial ends. First trial only.
+                <p className="text-meta text-muted-foreground">
+                  Needs a payment method; charged automatically when the trial
+                  ends. First trial only.
                 </p>
               </div>
-              <Switch checked={startTrial} onCheckedChange={setStartTrial} aria-label="Start free trial" />
+              <Switch
+                checked={startTrial}
+                onCheckedChange={setStartTrial}
+                aria-label="Start free trial"
+              />
             </div>
           )}
 
@@ -289,10 +321,13 @@ export function CheckoutModal({
               <div className="space-y-2">
                 <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-4 w-2/3" />
-                <Skeleton className="h-6 w-1/2 ml-auto" />
+                <Skeleton className="h-6 ml-auto w-1/2" />
               </div>
             ) : quoteQuery.isError ? (
-              <div role="alert" className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-destructive">
+              <div
+                role="alert"
+                className="gap-2 p-3 flex items-start rounded-lg border border-destructive/30 bg-destructive/5 text-destructive"
+              >
                 <AlertTriangle className="size-4 shrink-0" aria-hidden />
                 <span>{(quoteQuery.error as Error).message}</span>
               </div>
@@ -305,7 +340,7 @@ export function CheckoutModal({
                   <span>{money(quote.subtotalCents, quote.currency)}</span>
                 </div>
                 {quote.discountCents > 0 && (
-                  <div className="flex justify-between text-success-text font-medium">
+                  <div className="font-medium flex justify-between text-success-text">
                     <span>Discount ({quote.promotionCode})</span>
                     <span>-{money(quote.discountCents, quote.currency)}</span>
                   </div>
@@ -318,48 +353,70 @@ export function CheckoutModal({
                       : money(quote.taxCents, quote.currency)}
                   </span>
                 </div>
-                <div className="flex justify-between items-baseline pt-2 border-t border-border font-bold text-sm text-foreground">
+                <div className="pt-2 font-bold text-sm flex items-baseline justify-between border-t border-border text-foreground">
                   <span>Due today</span>
-                  <span className="text-lg text-primary">{money(dueNow, quote.currency)}</span>
+                  <span className="text-lg text-primary">
+                    {money(dueNow, quote.currency)}
+                  </span>
                 </div>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-meta text-muted-foreground">
                   {quote.trialDays > 0
                     ? `Then ${money(quote.totalCents, quote.currency)} after ${quote.trialDays} days, `
                     : 'Renews at '}
-                  {money(quote.renewalCents, quote.currency)} per {isAnnual ? 'year' : 'month'} until cancelled.
+                  {money(quote.renewalCents, quote.currency)} per{' '}
+                  {isAnnual ? 'year' : 'month'} until cancelled.
                 </p>
               </>
             ) : null}
           </div>
 
           {blockedNoProvider && (
-            <p role="status" className="rounded-lg border border-border bg-surface-muted/40 p-3 text-xs text-muted-foreground">
-              Online payments are not enabled on this deployment yet, so this plan cannot be purchased. A coupon
-              that covers the full price can still be applied.
+            <p
+              role="status"
+              className="p-3 text-xs rounded-lg border border-border bg-surface-muted/40 text-muted-foreground"
+            >
+              Online payments are not enabled on this deployment yet, so this
+              plan cannot be purchased. A coupon that covers the full price can
+              still be applied.
             </p>
           )}
 
           {checkoutError && (
-            <div role="alert" className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
+            <div
+              role="alert"
+              className="gap-2 p-3 text-xs flex items-start rounded-lg border border-destructive/30 bg-destructive/5 text-destructive"
+            >
               <AlertTriangle className="size-4 shrink-0" aria-hidden />
               <span>{checkoutError}</span>
             </div>
           )}
         </div>
 
-        <DialogFooter className="p-4 border-t border-border bg-surface-muted/30 flex justify-end gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="p-4 gap-2 flex justify-end border-t border-border bg-surface-muted/30">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onOpenChange(false)}
+          >
             Cancel
           </Button>
           <Button
             type="button"
             variant="primary"
             size="sm"
-            disabled={checkoutMutation.isPending || !quote || quoteQuery.isError || blockedNoProvider}
+            disabled={
+              checkoutMutation.isPending ||
+              !quote ||
+              quoteQuery.isError ||
+              blockedNoProvider
+            }
             onClick={() => quoteInput && checkoutMutation.mutate(quoteInput)}
             className="font-semibold"
           >
-            {checkoutMutation.isPending && <Loader2 className="size-3.5 mr-2 animate-spin" />}
+            {checkoutMutation.isPending && (
+              <Loader2 className="size-3.5 mr-2 animate-spin" />
+            )}
             {ctaLabel}
           </Button>
         </DialogFooter>

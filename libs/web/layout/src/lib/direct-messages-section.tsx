@@ -324,7 +324,7 @@ export function DirectMessageRow({
                   {name}
                 </span>
               </span>
-              <span className="font-normal block text-[11px] text-muted-foreground">
+              <span className="font-normal block text-meta text-muted-foreground">
                 {PRESENCE_LABELS[presence]} · @{member.user.name}
               </span>
             </DropdownMenuLabel>
@@ -427,7 +427,7 @@ function SelfDmRow({
           className="shrink-0"
         />
         <span className="flex-1 truncate">{name}</span>
-        <span className="font-medium text-[10px] text-muted-foreground/70">
+        <span className="font-medium text-2xs text-muted-foreground/70">
           you
         </span>
       </NavLink>

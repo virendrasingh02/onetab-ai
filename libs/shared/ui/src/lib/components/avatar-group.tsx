@@ -22,8 +22,8 @@ export interface UserAvatarGroupProps {
 }
 
 const OVERFLOW_SIZES: Record<NonNullable<AvatarProps['size']>, string> = {
-  xs: 'size-5 text-[9px]',
-  sm: 'size-6 text-[10px]',
+  xs: 'size-5 text-3xs',
+  sm: 'size-6 text-2xs',
   md: 'size-8 text-xs',
   lg: 'size-10 text-sm',
   xl: 'size-16 text-base',
@@ -74,7 +74,7 @@ export function UserAvatarGroup({
         return (
           <Hint key={user.id || index} label={name} side="top">
             <span
-              className="inline-flex shrink-0 transition-transform duration-150 ease-out hover:z-10 hover:scale-110"
+              className="ease-out inline-flex shrink-0 transition-transform duration-150 hover:z-10 hover:scale-110"
               style={{ zIndex: visibleUsers.length - index }}
             >
               <UserAvatar
@@ -83,7 +83,7 @@ export function UserAvatarGroup({
                 seed={user.id}
                 size={size}
                 indicator={false}
-                className="ring-2 ring-background shadow-xs font-bold"
+                className="font-bold shadow-xs ring-2 ring-background"
               />
             </span>
           </Hint>
@@ -91,11 +91,18 @@ export function UserAvatarGroup({
       })}
 
       {overflow > 0 && (
-        <Hint label={remainingNames ? `+${overflow} more: ${remainingNames}` : `+${overflow} more`} side="top">
+        <Hint
+          label={
+            remainingNames
+              ? `+${overflow} more: ${remainingNames}`
+              : `+${overflow} more`
+          }
+          side="top"
+        >
           <span
             style={{ zIndex: 0 }}
             className={cn(
-              'relative inline-flex shrink-0 select-none items-center justify-center rounded-full font-bold tabular-nums',
+              'font-bold relative inline-flex shrink-0 items-center justify-center rounded-full tabular-nums select-none',
               'border border-border/80 bg-muted/90 text-muted-foreground ring-2 ring-background',
               OVERFLOW_SIZES[size ?? 'xs'],
               overflowClassName,

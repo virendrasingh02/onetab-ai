@@ -111,7 +111,7 @@ export function ViewDisplayMenu({
             />
           </div>
           {orderBy !== 'manual' ? (
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-meta text-muted-foreground">
               Only changes your view. The team's manual order is kept.
             </p>
           ) : null}

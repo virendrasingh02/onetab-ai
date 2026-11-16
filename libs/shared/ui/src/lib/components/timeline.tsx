@@ -8,13 +8,11 @@ import {
   Info,
   Loader2,
 } from 'lucide-react';
-import {
-  useState,
-  type ReactNode,
-} from 'react';
+import { useState, type ReactNode } from 'react';
 import { Badge } from './badge.js';
 
-export type TimelineEventStatus = 'completed' | 'in_progress' | 'pending' | 'failed' | 'info';
+export type TimelineEventStatus =
+  'completed' | 'in_progress' | 'pending' | 'failed' | 'info';
 
 export interface TimelineItem {
   id: string;
@@ -38,8 +36,14 @@ export interface TimelineProps {
   emptyText?: string;
 }
 
-export function Timeline({ items, className, emptyText = 'No activity recorded' }: TimelineProps) {
-  const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(new Set());
+export function Timeline({
+  items,
+  className,
+  emptyText = 'No activity recorded',
+}: TimelineProps) {
+  const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(
+    new Set(),
+  );
 
   const toggleExpand = (id: string) => {
     const next = new Set(expandedItemIds);
@@ -53,7 +57,7 @@ export function Timeline({ items, className, emptyText = 'No activity recorded' 
       case 'completed':
         return <CheckCircle2 className="size-4 text-success" />;
       case 'in_progress':
-        return <Loader2 className="size-4 text-primary animate-spin" />;
+        return <Loader2 className="size-4 animate-spin text-primary" />;
       case 'failed':
         return <AlertCircle className="size-4 text-destructive" />;
       case 'pending':
@@ -66,60 +70,69 @@ export function Timeline({ items, className, emptyText = 'No activity recorded' 
 
   if (items.length === 0) {
     return (
-      <div className="py-8 text-center text-xs text-subtle select-none">
+      <div className="py-8 text-xs text-center text-subtle select-none">
         {emptyText}
       </div>
     );
   }
 
   return (
-    <div className={cn('relative flex flex-col space-y-4 pl-6 text-xs', className)}>
+    <div
+      className={cn('space-y-4 pl-6 text-xs relative flex flex-col', className)}
+    >
       {/* Vertical spine */}
-      <div className="absolute bottom-2 left-[11px] top-2 w-[2px] bg-border" />
+      <div className="bottom-2 top-2 absolute left-[11px] w-[2px] bg-border" />
 
       {items.map((item) => {
         const isExpanded = expandedItemIds.has(item.id);
         const hasDetails = Boolean(item.details);
 
         return (
-          <div key={item.id} className="relative flex items-start gap-3">
+          <div key={item.id} className="gap-3 relative flex items-start">
             {/* Status node */}
-            <div className="absolute -left-6 flex size-6 items-center justify-center rounded-full bg-surface border border-border shadow-xs">
+            <div className="-left-6 size-6 absolute flex items-center justify-center rounded-full border border-border bg-surface shadow-xs">
               {getStatusIcon(item.status)}
             </div>
 
             {/* Event card */}
-            <div className="flex-1 rounded-card border border-border bg-surface p-3 shadow-xs">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
+            <div className="p-3 flex-1 rounded-card border border-border bg-surface shadow-xs">
+              <div className="gap-2 flex flex-wrap items-center justify-between">
+                <div className="gap-2 flex items-center">
                   {item.actor && (
                     <span className="font-semibold text-foreground">
                       {item.actor.name}
                     </span>
                   )}
-                  <span className="font-medium text-foreground">{item.title}</span>
+                  <span className="font-medium text-foreground">
+                    {item.title}
+                  </span>
                   {item.duration && (
-                    <Badge variant="secondary" className="font-mono text-[10px] h-4 px-1.5">
+                    <Badge
+                      variant="secondary"
+                      className="h-4 px-1.5 font-mono text-2xs"
+                    >
                       {item.duration}
                     </Badge>
                   )}
                 </div>
 
-                <span className="text-[11px] text-subtle font-mono">{item.timestamp}</span>
+                <span className="font-mono text-meta text-subtle">
+                  {item.timestamp}
+                </span>
               </div>
 
               {item.description && (
-                <p className="mt-1 text-muted-foreground leading-relaxed">
+                <p className="mt-1 leading-relaxed text-muted-foreground">
                   {item.description}
                 </p>
               )}
 
               {item.tags && item.tags.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
+                <div className="mt-2 gap-1 flex flex-wrap">
                   {item.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="rounded-xs bg-surface-raised px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground"
+                      className="px-1.5 py-0.5 rounded-xs bg-surface-raised font-mono text-2xs text-muted-foreground"
                     >
                       {tag}
                     </span>
@@ -132,14 +145,18 @@ export function Timeline({ items, className, emptyText = 'No activity recorded' 
                   <button
                     type="button"
                     onClick={() => toggleExpand(item.id)}
-                    className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground font-medium outline-none"
+                    className="gap-1 font-medium flex items-center text-meta text-muted-foreground outline-none hover:text-foreground"
                   >
-                    {isExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                    {isExpanded ? (
+                      <ChevronDown className="size-3.5" />
+                    ) : (
+                      <ChevronRight className="size-3.5" />
+                    )}
                     <span>{isExpanded ? 'Hide details' : 'Show details'}</span>
                   </button>
 
                   {isExpanded && (
-                    <div className="mt-2 rounded-btn bg-surface-raised p-2.5 font-mono text-[11px] text-foreground/90 overflow-x-auto">
+                    <div className="mt-2 p-2.5 overflow-x-auto rounded-btn bg-surface-raised font-mono text-meta text-foreground/90">
                       {item.details}
                     </div>
                   )}

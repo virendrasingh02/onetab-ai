@@ -47,8 +47,9 @@ const VARIANT_GAP: Record<TabsVariant, number> = {
 /* Responsive Tabs List                                                       */
 /* -------------------------------------------------------------------------- */
 
-export interface ResponsiveTabsListProps
-  extends ComponentPropsWithoutRef<typeof TabsPrimitive.List> {
+export interface ResponsiveTabsListProps extends ComponentPropsWithoutRef<
+  typeof TabsPrimitive.List
+> {
   variant?: TabsVariant;
   size?: TabsSize;
   layoutId?: string;
@@ -163,7 +164,11 @@ export const ResponsiveTabsList = forwardRef<
           data-state={item.value === activeTab ? 'active' : 'inactive'}
           className={cn(tabsTriggerClassName(variant, size), item.className)}
         >
-          <TabsTriggerContent icon={item.icon} badge={item.badge} count={item.count}>
+          <TabsTriggerContent
+            icon={item.icon}
+            badge={item.badge}
+            count={item.count}
+          >
             {item.label}
           </TabsTriggerContent>
         </span>
@@ -182,24 +187,26 @@ export const ResponsiveTabsList = forwardRef<
               close();
             }}
             className={cn(
-              'flex items-center justify-between gap-2.5 px-3 py-2 text-xs font-medium cursor-pointer',
-              isActive && 'text-foreground font-semibold',
+              'gap-2.5 px-3 py-2 text-xs font-medium flex cursor-pointer items-center justify-between',
+              isActive && 'font-semibold text-foreground',
             )}
           >
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="gap-2 min-w-0 flex items-center">
               {item.icon && (
-                <span className="flex shrink-0 items-center text-muted-foreground [&_svg]:size-4">
+                <span className="[&_svg]:size-4 flex shrink-0 items-center text-muted-foreground">
                   {item.icon}
                 </span>
               )}
               <span className="truncate">{item.label}</span>
               {item.count !== undefined && (
-                <span className="rounded-full bg-muted-foreground/15 px-1.5 py-0.5 text-[10px] font-semibold leading-tight text-muted-foreground">
+                <span className="px-1.5 py-0.5 font-semibold leading-tight rounded-full bg-muted-foreground/15 text-2xs text-muted-foreground">
                   {item.count}
                 </span>
               )}
               {item.badge && (
-                <span className="inline-flex shrink-0 items-center">{item.badge}</span>
+                <span className="inline-flex shrink-0 items-center">
+                  {item.badge}
+                </span>
               )}
             </div>
             {isActive && <Check className="size-3.5 shrink-0 text-primary" />}
@@ -289,8 +296,9 @@ ResponsiveTabsList.displayName = 'ResponsiveTabsList';
 /* Responsive Tabs (Full Root + ResponsiveTabsList Wrapper)                  */
 /* -------------------------------------------------------------------------- */
 
-export interface ResponsiveTabsProps
-  extends ComponentPropsWithoutRef<typeof TabsPrimitive.Root> {
+export interface ResponsiveTabsProps extends ComponentPropsWithoutRef<
+  typeof TabsPrimitive.Root
+> {
   items: TabItem[];
   variant?: TabsVariant;
   size?: TabsSize;
@@ -340,7 +348,7 @@ export const ResponsiveTabs = forwardRef<
       value={value}
       defaultValue={defaultValue}
       onValueChange={onValueChange}
-      className={cn('flex min-w-0 flex-col gap-2', className)}
+      className={cn('min-w-0 gap-2 flex flex-col', className)}
       {...props}
     >
       <ResponsiveTabsList

@@ -25,33 +25,35 @@ export const AIModelMeta = memo(function AIModelMeta({
   const meta = normalizeModel(targetModel, provider ?? null);
 
   return (
-    <div className={cn('flex flex-wrap items-center gap-1.5 text-[10px]', className)}>
+    <div
+      className={cn('gap-1.5 flex flex-wrap items-center text-2xs', className)}
+    >
       {meta.contextWindow && meta.contextWindow !== 'N/A' && (
-        <span className="font-mono px-1 py-0.2 rounded bg-surface-raised border border-border/60 text-muted-foreground">
+        <span className="px-1 py-0.2 rounded border border-border/60 bg-surface-raised font-mono text-muted-foreground">
           {meta.contextWindow}
         </span>
       )}
 
       {meta.capabilities?.reasoning && (
-        <span className="px-1 py-0.2 rounded bg-brand/10 border border-brand/20 text-brand-text font-medium">
+        <span className="px-1 py-0.2 rounded font-medium border border-brand/20 bg-brand/10 text-brand-text">
           Reasoning
         </span>
       )}
 
       {meta.capabilities?.vision && (
-        <span className="px-1 py-0.2 rounded bg-info/10 border border-info/20 text-info-text">
+        <span className="px-1 py-0.2 rounded border border-info/20 bg-info/10 text-info-text">
           Vision
         </span>
       )}
 
       {meta.capabilities?.toolCalling && showAll && (
-        <span className="px-1 py-0.2 rounded bg-surface-raised border border-border/40 text-muted-foreground">
+        <span className="px-1 py-0.2 rounded border border-border/40 bg-surface-raised text-muted-foreground">
           Tools
         </span>
       )}
 
       {meta.speed && showAll && (
-        <span className="capitalize px-1 py-0.2 rounded bg-surface-raised border border-border/40 text-muted-foreground">
+        <span className="px-1 py-0.2 rounded border border-border/40 bg-surface-raised text-muted-foreground capitalize">
           {meta.speed}
         </span>
       )}

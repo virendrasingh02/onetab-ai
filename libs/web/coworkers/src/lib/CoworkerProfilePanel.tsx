@@ -363,7 +363,7 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
         <AIEntityProfileFact icon={Shield} label="Knowledge Access">
           <Badge
             variant={coworker.permissions?.knowledgeAccess ? 'primary' : 'neutral'}
-            className="text-[10px]"
+            className="text-2xs"
           >
             {coworker.permissions?.knowledgeAccess ? 'RAG Enabled' : 'Restricted'}
           </Badge>
@@ -440,7 +440,7 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
                 <div className="min-w-0">
                   <p className="truncate font-medium">{link.agent.name}</p>
                   {link.agent.role && (
-                    <p className="truncate text-[11px] text-muted-foreground">{link.agent.role}</p>
+                    <p className="truncate text-meta text-muted-foreground">{link.agent.role}</p>
                   )}
                 </div>
               </div>
@@ -466,7 +466,7 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate font-medium">{m.name ?? m.target}</span>
                     <div className="flex shrink-0 items-center gap-1">
-                      <Badge variant={m.enabled ? 'primary' : 'neutral'} className="px-1 py-0 text-[9px]">
+                      <Badge variant={m.enabled ? 'primary' : 'neutral'} className="px-1 py-0 text-3xs">
                         {m.enabled ? (m.frequency ?? 'hourly') : 'paused'}
                       </Badge>
                       {canManageMonitor(m, coworker.creatorId) ? (
@@ -490,21 +490,21 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
                       ) : null}
                     </div>
                   </div>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  <p className="mt-0.5 text-meta text-muted-foreground">
                     Watches {m.target} for “{m.condition}”
                     {m.destinations?.length ? ` · tells ${m.destinations.join(', ')}` : ''}
                   </p>
                   {m.lastError ? (
-                    <p className="mt-1 text-[11px] text-destructive">{m.lastError}</p>
+                    <p className="mt-1 text-meta text-destructive">{m.lastError}</p>
                   ) : m.lastResult ? (
-                    <p className="mt-1 text-[11px] text-foreground/80">
+                    <p className="mt-1 text-meta text-foreground/80">
                       {m.lastResult.count > 0 ? m.lastResult.summary : 'Last check: nothing to report'}
                       {m.lastCheckedAt ? (
                         <span className="text-muted-foreground"> · {formatRelative(m.lastCheckedAt)}</span>
                       ) : null}
                     </p>
                   ) : (
-                    <p className="mt-1 text-[11px] text-muted-foreground">Not checked yet — first check within 5 minutes.</p>
+                    <p className="mt-1 text-meta text-muted-foreground">Not checked yet — first check within 5 minutes.</p>
                   )}
                 </div>
               ))}
@@ -522,13 +522,13 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
               {schedules.map((s: AgentSchedule) => (
                 <div key={s.id} className="rounded-lg border border-border bg-surface p-2.5 text-xs">
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-[11px] font-medium">{s.cronExpression}</span>
-                    <Badge variant={s.isActive ? 'primary' : 'neutral'} className="px-1 py-0 text-[9px]">
+                    <span className="font-mono text-meta font-medium">{s.cronExpression}</span>
+                    <Badge variant={s.isActive ? 'primary' : 'neutral'} className="px-1 py-0 text-3xs">
                       {s.isActive ? 'Active' : 'Paused'}
                     </Badge>
                   </div>
                   {s.description && (
-                    <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{s.description}</p>
+                    <p className="mt-0.5 truncate text-meta text-muted-foreground">{s.description}</p>
                   )}
                 </div>
               ))}
@@ -657,12 +657,12 @@ export const CoworkerProfileDetails: FC<CoworkerProfileDetailsProps> = ({
                   <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
                     {coworker.name}
                   </h2>
-                  <Badge variant="primary" className="text-[10px] uppercase font-bold tracking-wider">
+                  <Badge variant="primary" className="text-2xs uppercase font-bold tracking-wider">
                     AI COWORKER
                   </Badge>
                   <Badge
                     variant={coworker.isActive ? 'secondary' : 'outline'}
-                    className="text-[10px] font-semibold"
+                    className="text-2xs font-semibold"
                   >
                     {coworker.isActive ? 'Active' : 'Disabled'}
                   </Badge>
@@ -741,7 +741,7 @@ export const CoworkerProfileDetails: FC<CoworkerProfileDetailsProps> = ({
 
           {coworker.personality && (
             <div className="pt-3 border-t border-border/60">
-              <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
+              <h4 className="text-meta font-bold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
                 <Brain className="size-3 text-primary" />
                 <span>Persona &amp; Demeanor</span>
               </h4>
@@ -761,7 +761,7 @@ export const CoworkerProfileDetails: FC<CoworkerProfileDetailsProps> = ({
           <div className="space-y-2.5 text-xs">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Assigned Role:</span>
-              <Badge variant="primary" className="text-[10px] font-semibold">
+              <Badge variant="primary" className="text-2xs font-semibold">
                 {coworker.role}
               </Badge>
             </div>
@@ -787,7 +787,7 @@ export const CoworkerProfileDetails: FC<CoworkerProfileDetailsProps> = ({
               <span className="text-muted-foreground">Workspace Knowledge (RAG):</span>
               <Badge
                 variant={coworker.permissions?.knowledgeAccess ? 'primary' : 'secondary'}
-                className="text-[10px]"
+                className="text-2xs"
               >
                 {coworker.permissions?.knowledgeAccess ? 'Enabled' : 'Restricted'}
               </Badge>
@@ -797,7 +797,7 @@ export const CoworkerProfileDetails: FC<CoworkerProfileDetailsProps> = ({
               <div className="flex flex-wrap gap-1.5">
                 {(coworker.permissions?.allowActions ?? ['search_docs', 'list_projects', 'list_tasks']).map(
                   (action) => (
-                    <Badge key={action} variant="neutral" className="font-mono text-[10px]">
+                    <Badge key={action} variant="neutral" className="font-mono text-2xs">
                       {action}
                     </Badge>
                   ),
@@ -807,7 +807,7 @@ export const CoworkerProfileDetails: FC<CoworkerProfileDetailsProps> = ({
             {coworker.matrixRoomId && (
               <div className="flex items-center justify-between pt-2 border-t border-border/60">
                 <span className="text-muted-foreground">Matrix Room:</span>
-                <span className="font-mono text-[11px] text-muted-foreground truncate max-w-[200px]">
+                <span className="font-mono text-meta text-muted-foreground truncate max-w-[200px]">
                   {coworker.matrixRoomId}
                 </span>
               </div>
@@ -824,9 +824,9 @@ export const CoworkerProfileDetails: FC<CoworkerProfileDetailsProps> = ({
           <div className="p-3 rounded-xl border border-border/80 bg-surface-raised space-y-2 text-xs">
             <div className="flex items-center justify-between">
               <span className="font-semibold text-foreground">Operational Availability</span>
-              <Badge variant="success" className="text-[10px]">24/7 Always On</Badge>
+              <Badge variant="success" className="text-2xs">24/7 Always On</Badge>
             </div>
-            <div className="text-[11px] text-muted-foreground font-mono leading-relaxed line-clamp-3">
+            <div className="text-meta text-muted-foreground font-mono leading-relaxed line-clamp-3">
               {coworker.systemInstructions || 'Ready for proactive collaboration on workspace deliverables.'}
             </div>
           </div>
@@ -853,10 +853,10 @@ export const CoworkerProfileDetails: FC<CoworkerProfileDetailsProps> = ({
                   className="flex items-center justify-between rounded-xl border border-border bg-surface-raised px-3.5 py-2.5 text-xs"
                 >
                   <div className="flex items-center gap-2.5 overflow-hidden">
-                    <Bot className="size-4 text-violet-500 shrink-0" />
+                    <Bot className="size-4 text-accent-violet shrink-0" />
                     <div className="truncate">
                       <p className="font-semibold text-foreground truncate">{link.agent.name}</p>
-                      <p className="text-[11px] text-muted-foreground truncate">{link.agent.role}</p>
+                      <p className="text-meta text-muted-foreground truncate">{link.agent.role}</p>
                     </div>
                   </div>
                   <Button
@@ -895,12 +895,12 @@ export const CoworkerProfileDetails: FC<CoworkerProfileDetailsProps> = ({
                   className="flex items-center justify-between rounded-xl border border-border bg-surface-raised px-3.5 py-2.5 text-xs"
                 >
                   <div className="flex items-center gap-2.5 overflow-hidden">
-                    <Layers className="size-4 text-sky-500 shrink-0" />
+                    <Layers className="size-4 text-info-text shrink-0" />
                     <div className="truncate">
                       <p className="font-semibold text-foreground truncate capitalize">
                         {link.integration.displayName || link.integration.provider}
                       </p>
-                      <p className="text-[11px] text-muted-foreground truncate">
+                      <p className="text-meta text-muted-foreground truncate">
                         Status: {link.integration.status}
                       </p>
                     </div>

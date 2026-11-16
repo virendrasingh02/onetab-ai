@@ -71,7 +71,7 @@ export function ChannelOrganizationMenu({
       </Hint>
 
       <DropdownMenuContent align="end" side="bottom" className="w-60">
-        <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        <DropdownMenuLabel className="text-meta uppercase tracking-wide text-muted-foreground">
           Sort channels by
         </DropdownMenuLabel>
         <DropdownMenuRadioGroup value={sort.mode} onValueChange={handleMode}>
@@ -89,7 +89,7 @@ export function ChannelOrganizationMenu({
         {directionMatters && activeMode ? (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            <DropdownMenuLabel className="text-meta uppercase tracking-wide text-muted-foreground">
               Direction
             </DropdownMenuLabel>
             <DropdownMenuRadioGroup

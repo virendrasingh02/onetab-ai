@@ -28,7 +28,7 @@ export function SelectTrigger({
        * text field with a select sit crooked.
        */
       className={cn(
-        'gap-2 flex w-fit items-center justify-between rounded-input border border-input theme-fixed bg-field',
+        'gap-2 theme-fixed flex w-fit items-center justify-between rounded-input border border-input bg-field',
         'text-xs whitespace-nowrap text-foreground',
         'hover:border-field-border',
         'transition-[color,border-color,box-shadow] duration-(--duration-fast) ease-standard',
@@ -65,7 +65,7 @@ export function SelectContent({
            are the same object to the eye, so they share radius and lift. */
         className={cn(
           'relative z-50 max-h-(--radix-select-content-available-height) bg-popover text-popover-foreground',
-          'min-w-44 max-w-[calc(100vw-1rem)] p-1 overflow-hidden rounded-popup border border-border shadow-overlay',
+          'min-w-44 p-1 max-w-[calc(100vw-1rem)] overflow-hidden rounded-popup border border-border shadow-overlay',
           position === 'popper' &&
             'data-[side=bottom]:translate-y-1.5 data-[side=top]:-translate-y-1.5',
           className,
@@ -96,7 +96,7 @@ export function SelectLabel({
     <SelectPrimitive.Label
       data-slot="select-label"
       className={cn(
-        'px-2 py-1 font-semibold tracking-wider text-[10px] text-subtle uppercase',
+        'px-2 py-1 font-semibold tracking-wider text-2xs text-subtle uppercase',
         className,
       )}
       {...props}

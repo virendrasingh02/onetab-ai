@@ -24,7 +24,7 @@ export function TaskTicket({
   return (
     <span
       className={cn(
-        'font-medium tracking-tight shrink-0 font-mono text-[11px] text-muted-foreground tabular-nums',
+        'font-medium tracking-tight shrink-0 font-mono text-meta text-muted-foreground tabular-nums',
         className,
       )}
     >
@@ -39,7 +39,7 @@ export function TaskLabelChip({ name }: { name: string }) {
   const color = colorOf(name);
   return (
     <span
-      className="theme-fixed h-5 max-w-32 px-1.5 gap-1 font-medium inline-flex shrink-0 items-center rounded-sm border text-[11px] whitespace-nowrap"
+      className="theme-fixed h-5 max-w-32 px-1.5 gap-1 font-medium inline-flex shrink-0 items-center rounded-sm border text-meta whitespace-nowrap"
       style={{
         backgroundColor: `${color}15`,
         borderColor: `${color}35`,
@@ -75,7 +75,7 @@ export function TaskLabelChips({
       ))}
       {rest > 0 ? (
         <span
-          className="text-[11px] text-muted-foreground tabular-nums"
+          className="text-meta text-muted-foreground tabular-nums"
           title={labels.slice(max).join(', ')}
         >
           +{rest}

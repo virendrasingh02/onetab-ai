@@ -13,7 +13,6 @@ import {
 import type { ComponentProps, ReactNode } from 'react';
 import { Button } from './button.js';
 
-
 export type UniversalCardType =
   | 'agent'
   | 'app'
@@ -63,13 +62,17 @@ export interface UniversalCardConfig {
   footer?: ReactNode;
 }
 
-
 export interface UniversalCardProps extends ComponentProps<'div'> {
   config: UniversalCardConfig;
   onActionClick?: (actionId: string, cardConfig: UniversalCardConfig) => void;
 }
 
-export function UniversalCard({ config, onActionClick, className, ...props }: UniversalCardProps) {
+export function UniversalCard({
+  config,
+  onActionClick,
+  className,
+  ...props
+}: UniversalCardProps) {
   const {
     type,
     variant = 'default',
@@ -86,7 +89,6 @@ export function UniversalCard({ config, onActionClick, className, ...props }: Un
     actions = [],
     footer,
   } = config;
-
 
   const statusBadgeClasses = {
     success: 'bg-success/15 text-success-text border-success/30',
@@ -132,8 +134,9 @@ export function UniversalCard({ config, onActionClick, className, ...props }: Un
     <div
       className={cn(
         'group relative flex flex-col rounded-card border border-border bg-surface shadow-xs transition-all duration-(--duration-fast)',
-        'hover:border-border-strong hover:shadow-sm text-xs',
-        variant === 'featured' && 'border-primary/40 bg-gradient-to-b from-primary/5 to-transparent',
+        'text-xs hover:border-border-strong hover:shadow-sm',
+        variant === 'featured' &&
+          'border-primary/40 bg-gradient-to-b from-primary/5 to-transparent',
         variant === 'interactive' && 'cursor-pointer hover:border-primary/50',
         densityPadding,
         className,
@@ -141,19 +144,25 @@ export function UniversalCard({ config, onActionClick, className, ...props }: Un
       {...props}
     >
       {/* Card Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-raised border border-border">
+      <div className="gap-3 flex items-start justify-between">
+        <div className="gap-2.5 min-w-0 flex items-center">
+          <div className="size-8 flex shrink-0 items-center justify-center rounded-md border border-border bg-surface-raised">
             {avatarUrl ? (
-              <img src={avatarUrl} alt={title} className="size-full rounded-md object-cover" />
+              <img
+                src={avatarUrl}
+                alt={title}
+                className="size-full rounded-md object-cover"
+              />
             ) : (
               getTypeIcon()
             )}
           </div>
           <div className="min-w-0">
-            <h4 className="font-semibold text-foreground truncate">{title}</h4>
+            <h4 className="font-semibold truncate text-foreground">{title}</h4>
             {subtitle && (
-              <span className="text-[11px] text-muted-foreground truncate block">{subtitle}</span>
+              <span className="block truncate text-meta text-muted-foreground">
+                {subtitle}
+              </span>
             )}
           </div>
         </div>
@@ -161,7 +170,7 @@ export function UniversalCard({ config, onActionClick, className, ...props }: Un
         {status && (
           <span
             className={cn(
-              'shrink-0 rounded-xs border px-1.5 py-0.2 text-[10px] font-medium',
+              'px-1.5 py-0.2 font-medium shrink-0 rounded-xs border text-2xs',
               statusBadgeClasses,
             )}
           >
@@ -172,18 +181,18 @@ export function UniversalCard({ config, onActionClick, className, ...props }: Un
 
       {/* Card Body */}
       {description && (
-        <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2">
+        <p className="leading-relaxed line-clamp-2 text-meta text-muted-foreground">
           {description}
         </p>
       )}
 
       {/* Metadata or Key-Values */}
       {metadata && Object.keys(metadata).length > 0 && (
-        <div className="grid grid-cols-2 gap-2 rounded-btn bg-surface-raised p-2 text-[11px] font-mono border border-border/60">
+        <div className="gap-2 p-2 grid grid-cols-2 rounded-btn border border-border/60 bg-surface-raised font-mono text-meta">
           {Object.entries(metadata).map(([key, val]) => (
             <div key={key} className="truncate">
               <span className="text-subtle capitalize">{key}: </span>
-              <span className="text-foreground font-medium">{String(val)}</span>
+              <span className="font-medium text-foreground">{String(val)}</span>
             </div>
           ))}
         </div>
@@ -191,11 +200,11 @@ export function UniversalCard({ config, onActionClick, className, ...props }: Un
 
       {/* Tags */}
       {tags && tags.length > 0 && (
-        <div className="flex flex-wrap gap-1">
+        <div className="gap-1 flex flex-wrap">
           {tags.map((tag) => (
             <span
               key={tag}
-              className="rounded-xs bg-surface-raised px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground"
+              className="px-1.5 py-0.5 rounded-xs bg-surface-raised font-mono text-2xs text-muted-foreground"
             >
               #{tag}
             </span>
@@ -205,10 +214,10 @@ export function UniversalCard({ config, onActionClick, className, ...props }: Un
 
       {/* Footer & Actions */}
       {(actions.length > 0 || footer) && (
-        <div className="mt-auto pt-2.5 border-t border-border flex items-center justify-between gap-2">
-          <div className="text-[11px] text-subtle">{footer}</div>
+        <div className="pt-2.5 gap-2 mt-auto flex items-center justify-between border-t border-border">
+          <div className="text-meta text-subtle">{footer}</div>
 
-          <div className="flex items-center gap-1.5 ml-auto">
+          <div className="gap-1.5 ml-auto flex items-center">
             {actions.map((act) => (
               <Button
                 key={act.id}

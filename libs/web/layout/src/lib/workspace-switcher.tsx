@@ -347,13 +347,13 @@ export function WorkspaceMenu({
                     <div className="px-2 py-1 gap-2 flex items-center">
                       <div className="min-w-0 leading-tight flex-1">
                         {group.email ? (
-                          <div className="truncate text-[12px] text-muted-foreground">
+                          <div className="truncate text-xs text-muted-foreground">
                             {group.email}
                           </div>
                         ) : null}
                       </div>
                       {/* {isActive ? (
-                        <span className="rounded px-1.5 py-0.5 font-semibold tracking-wide shrink-0 bg-brand/10 text-[9px] text-brand-text uppercase">
+                        <span className="rounded px-1.5 py-0.5 font-semibold tracking-wide shrink-0 bg-brand/10 text-3xs text-brand-text uppercase">
                           Active
                         </span>
                       ) : (
@@ -367,7 +367,7 @@ export function WorkspaceMenu({
                               accountId: group.accountId,
                             });
                           }}
-                          className="h-6 px-1.5 font-medium shrink-0 text-[10px]"
+                          className="h-6 px-1.5 font-medium shrink-0 text-2xs"
                         >
                           Switch
                         </Button>
@@ -376,7 +376,7 @@ export function WorkspaceMenu({
 
                     {/* That account's workspaces */}
                     {rows.length === 0 ? (
-                      <div className="px-2 pb-1 pl-9 text-[11px] text-muted-foreground">
+                      <div className="px-2 pb-1 pl-9 text-meta text-muted-foreground">
                         No workspaces yet in this account.
                       </div>
                     ) : (
@@ -413,7 +413,7 @@ export function WorkspaceMenu({
                                 {/* Meta line: member count · plan. The open
                                     workspace uses the live billing plan; the
                                     others use the plan from the list payload. */}
-                                <span className="mt-0.5 gap-1.5 font-normal flex items-center text-[10px] text-muted-foreground">
+                                <span className="mt-0.5 gap-1.5 font-normal flex items-center text-2xs text-muted-foreground">
                                   <span className="truncate">
                                     {workspace.memberCount} member
                                     {workspace.memberCount === 1 ? '' : 's'}
@@ -429,7 +429,7 @@ export function WorkspaceMenu({
                                         size="xs"
                                         showIcon={false}
                                         variant="subtle"
-                                        className="h-3.5 px-1 font-semibold shrink-0 rounded text-[8.5px]"
+                                        className="h-3.5 px-1 font-semibold shrink-0 rounded text-3xs"
                                       />
                                     </>
                                   ) : null}

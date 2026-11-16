@@ -66,7 +66,7 @@ export function AuthLayout({
       <main className="py-6 my-auto flex w-full max-w-[360px] flex-col items-center">
         <div className={cn('w-full', className)}>
           {hero ? <div className="mb-5 flex justify-center">{hero}</div> : null}
-          <h1 className="text-2xl sm:text-[28px] font-bold tracking-tight leading-tight text-center text-foreground">
+          <h1 className="text-2xl sm:text-stat font-bold tracking-tight leading-tight text-center text-foreground">
             {title}
           </h1>
 
@@ -89,7 +89,7 @@ export function AuthLayout({
       {/* Bottom Legal Notice & Footer Links */}
       <footer className="pt-4 max-w-md px-2 space-y-2 w-full text-center">
         {LEGAL_LINKS.terms ? (
-          <p className="sm:text-xs leading-relaxed text-[11px] text-subtle">
+          <p className="sm:text-xs leading-relaxed text-meta text-subtle">
             By proceeding, you acknowledge that you have read, understood, and
             agree to {brandName}&apos;s{' '}
             <a
@@ -104,7 +104,7 @@ export function AuthLayout({
           </p>
         ) : null}
 
-        <div className="sm:text-xs gap-3 sm:gap-4 flex flex-wrap items-center justify-center text-[11px] text-subtle">
+        <div className="sm:text-xs gap-3 sm:gap-4 flex flex-wrap items-center justify-center text-meta text-subtle">
           <span>
             © {new Date().getFullYear()} {brandName}
           </span>

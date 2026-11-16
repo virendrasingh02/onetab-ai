@@ -13,9 +13,7 @@ import {
   SearchInput,
 } from '@org/ui';
 import { useCurrentWorkspace } from '@org/web-workspace';
-import {
-  ExternalLink,
-} from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { NODE_CATALOG, type NodeCatalogItem } from '../workflow-catalog.js';
 
 const CATEGORIES = [
@@ -32,13 +30,16 @@ export function AutomationActionsTab() {
 
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [search, setSearch] = useState('');
-  const [selectedAction, setSelectedAction] = useState<NodeCatalogItem | null>(null);
+  const [selectedAction, setSelectedAction] = useState<NodeCatalogItem | null>(
+    null,
+  );
 
   const filteredItems = NODE_CATALOG.filter((item) => {
     // Exclude the root trigger node from the actions catalog
     if (item.type === 'TRIGGER' || item.category === 'triggers') return false;
 
-    if (activeCategory !== 'all' && item.category !== activeCategory) return false;
+    if (activeCategory !== 'all' && item.category !== activeCategory)
+      return false;
 
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -53,8 +54,8 @@ export function AutomationActionsTab() {
   return (
     <div className="space-y-6">
       {/* Search and Category Filter */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex flex-wrap gap-1.5 p-1 bg-muted/60 rounded-lg">
+      <div className="sm:flex-row sm:items-center gap-4 flex flex-col items-start justify-between">
+        <div className="gap-1.5 p-1 flex flex-wrap rounded-lg bg-muted/60">
           {CATEGORIES.map((cat) => (
             <button
               key={cat.id}
@@ -71,7 +72,7 @@ export function AutomationActionsTab() {
           ))}
         </div>
 
-        <div className="w-full sm:w-64">
+        <div className="sm:w-64 w-full">
           <SearchInput
             placeholder="Search actions by name or type…"
             value={search}
@@ -81,34 +82,34 @@ export function AutomationActionsTab() {
       </div>
 
       {/* Grid of Action Nodes */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="md:grid-cols-2 lg:grid-cols-3 gap-4 grid grid-cols-1">
         {filteredItems.map((item) => {
           const Icon = item.icon;
           return (
             <Card
               key={item.type}
-              className="p-5 flex flex-col justify-between hover:border-primary/50 transition-colors"
+              className="p-5 flex flex-col justify-between transition-colors hover:border-primary/50"
             >
               <div>
-                <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="gap-2 mb-2 flex items-start justify-between">
                   <div className="p-2 rounded-md bg-primary/10 text-primary">
                     <Icon className="h-5 w-5" />
                   </div>
-                  <Badge variant="outline" className="text-[11px] font-mono">
+                  <Badge variant="outline" className="font-mono text-meta">
                     {item.type}
                   </Badge>
                 </div>
 
-                <h3 className="font-semibold text-base text-foreground mb-1">
+                <h3 className="font-semibold text-base mb-1 text-foreground">
                   {item.label}
                 </h3>
 
-                <p className="text-sm text-muted-foreground line-clamp-2 mb-4 leading-relaxed">
+                <p className="text-sm mb-4 leading-relaxed line-clamp-2 text-muted-foreground">
                   {item.description}
                 </p>
               </div>
 
-              <div className="pt-3 border-t border-border/50 flex items-center justify-between">
+              <div className="pt-3 flex items-center justify-between border-t border-border/50">
                 <Button
                   size="sm"
                   variant="ghost"
@@ -134,16 +135,19 @@ export function AutomationActionsTab() {
 
       {/* Details Dialog */}
       {selectedAction && (
-        <Dialog open={!!selectedAction} onOpenChange={(open) => !open && setSelectedAction(null)}>
+        <Dialog
+          open={!!selectedAction}
+          onOpenChange={(open) => !open && setSelectedAction(null)}
+        >
           <DialogContent className="max-w-lg">
             <DialogHeader>
-              <div className="flex items-center gap-3">
+              <div className="gap-3 flex items-center">
                 <div className="p-2 rounded-md bg-primary/10 text-primary">
                   <selectedAction.icon className="h-6 w-6" />
                 </div>
                 <div>
                   <DialogTitle>{selectedAction.label}</DialogTitle>
-                  <Badge variant="outline" className="font-mono text-xs mt-1">
+                  <Badge variant="outline" className="text-xs mt-1 font-mono">
                     {selectedAction.type}
                   </Badge>
                 </div>
@@ -151,26 +155,32 @@ export function AutomationActionsTab() {
             </DialogHeader>
 
             <DialogBody className="space-y-4 py-2">
-              <p className="text-sm text-muted-foreground leading-relaxed">
+              <p className="text-sm leading-relaxed text-muted-foreground">
                 {selectedAction.description}
               </p>
 
               <div>
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                <h4 className="text-xs font-semibold tracking-wider mb-2 text-muted-foreground uppercase">
                   Configurable Parameters
                 </h4>
-                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-56 pr-1 overflow-y-auto">
                   {selectedAction.fields.map((f) => (
                     <div
                       key={f.key}
-                      className="p-2.5 rounded-md border border-border/50 bg-muted/20 text-xs"
+                      className="p-2.5 text-xs rounded-md border border-border/50 bg-muted/20"
                     >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-medium text-foreground">{f.label}</span>
-                        <code className="text-[10px] text-muted-foreground">{f.key} ({f.kind})</code>
+                      <div className="mb-1 flex items-center justify-between">
+                        <span className="font-medium text-foreground">
+                          {f.label}
+                        </span>
+                        <code className="text-2xs text-muted-foreground">
+                          {f.key} ({f.kind})
+                        </code>
                       </div>
                       {f.hint && (
-                        <p className="text-[11px] text-muted-foreground">{f.hint}</p>
+                        <p className="text-meta text-muted-foreground">
+                          {f.hint}
+                        </p>
                       )}
                     </div>
                   ))}
@@ -179,12 +189,15 @@ export function AutomationActionsTab() {
 
               {selectedAction.outputs && selectedAction.outputs.length > 0 && (
                 <div>
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                  <h4 className="text-xs font-semibold tracking-wider mb-1.5 text-muted-foreground uppercase">
                     Context Outputs
                   </h4>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="gap-1.5 flex flex-wrap">
                     {selectedAction.outputs.map((out) => (
-                      <span key={out} className="px-2 py-0.5 font-mono text-[10px] rounded bg-muted text-foreground">
+                      <span
+                        key={out}
+                        className="px-2 py-0.5 rounded bg-muted font-mono text-2xs text-foreground"
+                      >
                         {`{{${selectedAction.type.toLowerCase()}.${out}}}`}
                       </span>
                     ))}

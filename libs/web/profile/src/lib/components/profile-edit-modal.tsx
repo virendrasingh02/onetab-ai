@@ -250,7 +250,7 @@ export function ProfileEditModal({
                         className="inset-0 bg-black/60 backdrop-blur-2xs gap-1 text-white absolute flex cursor-pointer flex-col items-center justify-center opacity-0 transition-opacity group-hover/edit:opacity-100"
                       >
                         <Camera className="size-5 text-white" />
-                        <span className="font-bold tracking-wider text-[9px] uppercase">
+                        <span className="font-bold tracking-wider text-3xs uppercase">
                           Change
                         </span>
                       </button>
@@ -358,7 +358,7 @@ export function ProfileEditModal({
                     </>
                   }
                   labelAside={
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-meta text-muted-foreground">
                       Primary Login
                     </span>
                   }
@@ -403,7 +403,7 @@ export function ProfileEditModal({
                         <FormLabel className="text-xs font-semibold">
                           Bio
                         </FormLabel>
-                        <span className="font-mono text-[10px] text-muted-foreground">
+                        <span className="font-mono text-2xs text-muted-foreground">
                           {(field.value || '').length}/280
                         </span>
                       </div>
@@ -441,7 +441,7 @@ export function ProfileEditModal({
                           }
                         />
                       </FormControl>
-                      <FormDescription className="text-[11px]">
+                      <FormDescription className="text-meta">
                         Used for scheduling, teammate local time cards, and
                         notifications.
                       </FormDescription>

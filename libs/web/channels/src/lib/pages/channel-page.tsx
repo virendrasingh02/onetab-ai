@@ -923,7 +923,7 @@ export function ChannelPage({
                     <Bot className="size-4 shrink-0 text-primary" />
                     <div className="min-w-0 flex-1">
                       <span className="text-foreground">Add AI Agent</span>
-                      <p className="truncate text-[10px] text-muted-foreground">
+                      <p className="truncate text-2xs text-muted-foreground">
                         Add assistant / reviewer bot
                       </p>
                     </div>
@@ -936,7 +936,7 @@ export function ChannelPage({
                     <Blocks className="size-4 shrink-0 text-accent-violet" />
                     <div className="min-w-0 flex-1">
                       <span className="text-foreground">Connect App</span>
-                      <p className="truncate text-[10px] text-muted-foreground">
+                      <p className="truncate text-2xs text-muted-foreground">
                         GitHub, Linear, Sentry &amp; Jira
                       </p>
                     </div>
@@ -951,7 +951,7 @@ export function ChannelPage({
                     <Workflow className="size-4 shrink-0 text-accent-violet" />
                     <div className="min-w-0 flex-1">
                       <span className="text-foreground">Workflows</span>
-                      <p className="truncate text-[10px] text-muted-foreground">
+                      <p className="truncate text-2xs text-muted-foreground">
                         Triggers, standups &amp; alerts
                       </p>
                     </div>
@@ -964,7 +964,7 @@ export function ChannelPage({
                     <LayoutTemplate className="size-4 shrink-0 text-accent-amber" />
                     <div className="min-w-0 flex-1">
                       <span className="text-foreground">Channel Templates</span>
-                      <p className="truncate text-[10px] text-muted-foreground">
+                      <p className="truncate text-2xs text-muted-foreground">
                         Sprint, incident &amp; launch packs
                       </p>
                     </div>

@@ -42,12 +42,12 @@ const FILTER_TABS: Array<{ id: NotificationFilterTab; label: string }> = [
 function getCategoryIcon(kind?: string) {
   if (!kind) return null;
   if (/^AI_/i.test(kind)) return <Bot className="size-3 text-primary" />;
-  if (/MENTION/i.test(kind)) return <AtSign className="size-3 text-sky-500" />;
-  if (kind === 'CHAT_MESSAGE') return <MessageSquare className="size-3 text-sky-500" />;
-  if (/^TASK_/i.test(kind)) return <CheckSquare className="size-3 text-emerald-500" />;
-  if (/^CALL_/i.test(kind)) return <Phone className="size-3 text-violet-500" />;
-  if (/^MEETING_/i.test(kind)) return <Calendar className="size-3 text-amber-500" />;
-  if (/DOCUMENT|FILE/i.test(kind)) return <FileText className="size-3 text-blue-500" />;
+  if (/MENTION/i.test(kind)) return <AtSign className="size-3 text-info-text" />;
+  if (kind === 'CHAT_MESSAGE') return <MessageSquare className="size-3 text-info-text" />;
+  if (/^TASK_/i.test(kind)) return <CheckSquare className="size-3 text-success-text" />;
+  if (/^CALL_/i.test(kind)) return <Phone className="size-3 text-accent-violet" />;
+  if (/^MEETING_/i.test(kind)) return <Calendar className="size-3 text-warning-text" />;
+  if (/DOCUMENT|FILE/i.test(kind)) return <FileText className="size-3 text-accent-blue" />;
   return <Sparkles className="size-3 text-muted-foreground" />;
 }
 
@@ -141,7 +141,7 @@ export function NotificationCenterList({
                 {tab.id === 'unread' && unread > 0 ? (
                   <span
                     className={cn(
-                      'ml-1.5 px-1.5 text-[10px] font-bold inline-flex items-center justify-center rounded-full',
+                      'ml-1.5 px-1.5 text-2xs font-bold inline-flex items-center justify-center rounded-full',
                       isActive
                         ? 'bg-primary-foreground/20 text-primary-foreground'
                         : 'bg-primary text-primary-foreground',
@@ -253,7 +253,7 @@ export function NotificationCenterList({
                     >
                       {n.title}
                     </span>
-                    <span className="text-[11px] shrink-0 whitespace-nowrap text-muted-foreground">
+                    <span className="text-meta shrink-0 whitespace-nowrap text-muted-foreground">
                       {formatRelative(n.createdAt)}
                     </span>
                   </div>
@@ -266,7 +266,7 @@ export function NotificationCenterList({
 
                   {categoryLabel ? (
                     <div className="mt-1.5 gap-1.5 flex items-center">
-                      <span className="gap-1 px-1.5 py-0.5 text-[10px] font-medium inline-flex items-center rounded-md bg-muted text-muted-foreground">
+                      <span className="gap-1 px-1.5 py-0.5 text-2xs font-medium inline-flex items-center rounded-md bg-muted text-muted-foreground">
                         {categoryIcon}
                         <span>{categoryLabel}</span>
                       </span>

@@ -20,7 +20,7 @@ const STATE_TONE: Record<FeatureState, 'success' | 'warning' | 'neutral'> = {
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div className="space-y-0.5">
-      <p className="text-[11px] text-muted-foreground">{label}</p>
+      <p className="text-meta text-muted-foreground">{label}</p>
       <p className="font-mono text-xs text-foreground">{value}</p>
     </div>
   );
@@ -95,7 +95,7 @@ export function PlatformDiagnosticsPage() {
                   {FEATURE_REGISTRY[feature.id]?.name ?? feature.id}
                 </p>
                 {feature.reason ? (
-                  <p className="text-[11px] text-muted-foreground">{feature.reason}</p>
+                  <p className="text-meta text-muted-foreground">{feature.reason}</p>
                 ) : null}
               </div>
               <Badge variant={STATE_TONE[feature.state]} className="shrink-0 font-mono">

@@ -17,7 +17,7 @@ export function DocStatusBadge({ status = 'Draft' }: { status?: DocStatus }) {
   return (
     <Badge
       variant={STATUS_VARIANT[status]}
-      className="text-[10px] px-1.5 py-0 h-4.5"
+      className="px-1.5 py-0 h-4.5 text-2xs"
     >
       {status}
     </Badge>

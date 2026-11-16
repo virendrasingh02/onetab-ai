@@ -117,17 +117,17 @@ export function MediaPreviewToolbar({
 
         <div className="flex min-w-0 flex-1 flex-col justify-center">
           <div className="flex min-w-0 items-center gap-2">
-            <span className="truncate text-[13px] font-semibold leading-tight text-foreground">
+            <span className="truncate text-body-sm font-semibold leading-tight text-foreground">
               {uploaderName || item.name}
             </span>
             {count > 1 ? (
-              <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+              <span className="shrink-0 text-meta tabular-nums text-muted-foreground">
                 {index + 1} / {count}
               </span>
             ) : null}
           </div>
 
-          <div className="flex min-w-0 items-center gap-1.5 text-[11px] leading-none text-muted-foreground">
+          <div className="flex min-w-0 items-center gap-1.5 text-meta leading-none text-muted-foreground">
             {relativeTime ? <span className="shrink-0">{relativeTime}</span> : null}
 
             {channelName ? (

@@ -156,7 +156,7 @@ export function CustomApiModal({
               placeholder="https://api.example.com/v1"
               className="w-full mt-1.5 px-3 py-2 text-xs rounded-lg border border-border bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-ring font-mono"
             />
-            <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
+            <p className="text-meta text-muted-foreground mt-1 flex items-center gap-1">
               <ShieldCheck className="size-3 text-success" />
               Private IP ranges and internal metadata endpoints are automatically blocked.
             </p>
@@ -276,7 +276,7 @@ export function CustomApiModal({
                 {testResult.message}
               </div>
               {testResult.details?.durationMs && (
-                <p className="text-[11px] opacity-80">
+                <p className="text-meta opacity-80">
                   Response latency: {testResult.details.durationMs}ms
                 </p>
               )}

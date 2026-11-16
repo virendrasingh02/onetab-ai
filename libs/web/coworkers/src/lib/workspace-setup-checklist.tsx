@@ -163,7 +163,7 @@ export function WorkspaceSetupChecklist() {
                 <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
               ) : (
                 <span
-                  className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border border-border text-[10px] font-semibold text-muted-foreground"
+                  className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border border-border text-2xs font-semibold text-muted-foreground"
                   aria-hidden
                 >
                   {i + 1}
@@ -176,7 +176,7 @@ export function WorkspaceSetupChecklist() {
                   {step.title}
                   <span className="sr-only">{step.done ? ' — done' : ''}</span>
                 </div>
-                <p className="text-[11px] text-muted-foreground">{step.hint}</p>
+                <p className="text-meta text-muted-foreground">{step.hint}</p>
               </div>
             </div>
             {!step.done && (

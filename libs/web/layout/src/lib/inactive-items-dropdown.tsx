@@ -114,7 +114,7 @@ export function InactiveItemsDropdown({
           type="button"
           aria-label={`Inactive ${label}`}
           className={cn(
-            'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-medium transition-colors cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring select-none',
+            'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-meta font-medium transition-colors cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring select-none',
             'text-muted-foreground/75 hover:text-foreground hover:bg-accent/60',
             open && 'bg-accent/70 text-foreground font-semibold',
             className,
@@ -143,7 +143,7 @@ export function InactiveItemsDropdown({
         )}
       >
         <div className="px-3 py-2 border-b border-border/60 bg-muted/20">
-          <p className="text-[11px] font-medium text-muted-foreground leading-normal select-none">
+          <p className="text-meta font-medium text-muted-foreground leading-normal select-none">
             No messages in at least 30 days
           </p>
         </div>
@@ -205,7 +205,7 @@ export function InactiveItemsDropdown({
                       {age ? (
                         <span
                           className={cn(
-                            'shrink-0 text-[11px] tabular-nums text-muted-foreground/70',
+                            'shrink-0 text-meta tabular-nums text-muted-foreground/70',
                             // Makes way for the ⋯ button on hover / focus.
                             hasActions &&
                               'group-hover/inactive-item:invisible group-focus-within/inactive-item:invisible pointer-coarse:invisible',

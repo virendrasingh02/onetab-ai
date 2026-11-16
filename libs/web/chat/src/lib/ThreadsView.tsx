@@ -412,7 +412,7 @@ function ThreadDetail({
 
   return (
     <div className="border-t border-border bg-muted/20 last:rounded-b-[inherit]">
-      <div className="gap-2 px-4 py-1.5 font-medium flex items-center text-[11px] text-muted-foreground">
+      <div className="gap-2 px-4 py-1.5 font-medium flex items-center text-meta text-muted-foreground">
         <span className="h-px flex-1 bg-border" aria-hidden />
         <span>
           {isLoading
@@ -609,7 +609,7 @@ function ThreadDetail({
             asChild
             variant="ghost"
             size="sm"
-            className="h-7 gap-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+            className="h-7 gap-1.5 text-meta text-muted-foreground hover:text-foreground"
           >
             <Link to={channelLink}>
               {isChannel ? (
@@ -916,20 +916,20 @@ function RoomThreadSection({
                 className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground"
                 aria-hidden
               />
-              <h3 className="font-semibold truncate text-[15px] text-foreground group-hover:underline">
+              <h3 className="font-semibold truncate text-body-lg text-foreground group-hover:underline">
                 {group.roomName}
               </h3>
             </Link>
             <Badge
               variant="neutral"
-              className="px-1.5 py-0 h-[18px] text-[11px]"
+              className="px-1.5 py-0 h-[18px] text-meta"
             >
               {group.threads.length}
             </Badge>
             {group.unreadCount > 0 ? (
               <Badge
                 variant="primary"
-                className="px-1.5 py-0 h-[18px] text-[11px]"
+                className="px-1.5 py-0 h-[18px] text-meta"
               >
                 {group.unreadCount} unread
               </Badge>
@@ -942,7 +942,7 @@ function RoomThreadSection({
           ) : null}
         </div>
         {group.lastActivity ? (
-          <span className="pt-0.5 shrink-0 font-mono text-[11px] text-subtle">
+          <span className="pt-0.5 shrink-0 font-mono text-meta text-subtle">
             {formatRelative(new Date(group.lastActivity).toISOString())}
           </span>
         ) : null}
@@ -1145,7 +1145,7 @@ function ThreadsViewContent() {
             <h2 className="text-base font-medium truncate tracking-[-0.01em] text-foreground">
               Threads
             </h2>
-            <Badge variant="outline" className="h-5 px-1.5 py-0 text-[11px]">
+            <Badge variant="outline" className="h-5 px-1.5 py-0 text-meta">
               {threads.length}
             </Badge>
           </div>

@@ -130,7 +130,7 @@ export function MigrationCenterView({ embedded = false }: MigrationCenterViewPro
                           ? 'outline'
                           : 'neutral'
                   }
-                  className="font-mono text-[10px]"
+                  className="font-mono text-2xs"
                 >
                   {currentStatus.replace('_', ' ')}
                 </Badge>
@@ -174,27 +174,27 @@ export function MigrationCenterView({ embedded = false }: MigrationCenterViewPro
         {/* Source & Destination Details Bar */}
         <div className="mt-6 pt-5 border-t border-border/60 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
           <div>
-            <span className="text-muted-foreground block text-[11px]">Source</span>
+            <span className="text-muted-foreground block text-meta">Source</span>
             <span className="font-semibold text-foreground flex items-center gap-1.5 mt-0.5">
               <span className="size-2 rounded-full bg-[#E01E5A]" />
               {slackIntegration?.displayName || 'Slack Workspace'}
             </span>
           </div>
           <div>
-            <span className="text-muted-foreground block text-[11px]">Destination</span>
+            <span className="text-muted-foreground block text-meta">Destination</span>
             <span className="font-semibold text-foreground flex items-center gap-1.5 mt-0.5">
               <span className="size-2 rounded-full bg-success" />
               Current Workspace
             </span>
           </div>
           <div>
-            <span className="text-muted-foreground block text-[11px]">Connection Health</span>
+            <span className="text-muted-foreground block text-meta">Connection Health</span>
             <span className="font-semibold text-success-text flex items-center gap-1 mt-0.5">
               {slackIntegration ? 'Active & Authorized' : 'Awaiting Connection'}
             </span>
           </div>
           <div>
-            <span className="text-muted-foreground block text-[11px]">Latest Verification</span>
+            <span className="text-muted-foreground block text-meta">Latest Verification</span>
             <span className="text-muted-foreground mt-0.5 block">
               {latestMigration?.completedAt ? new Date(latestMigration.completedAt).toLocaleDateString() : 'Pending'}
             </span>
@@ -229,7 +229,7 @@ export function MigrationCenterView({ embedded = false }: MigrationCenterViewPro
               <Card key={cap.key} className="p-4 flex items-start justify-between gap-3 text-xs">
                 <div>
                   <span className="font-semibold text-foreground block">{cap.name}</span>
-                  <span className="text-[11px] text-muted-foreground mt-1 line-clamp-2 block leading-relaxed">
+                  <span className="text-meta text-muted-foreground mt-1 line-clamp-2 block leading-relaxed">
                     {cap.description}
                   </span>
                 </div>
@@ -241,7 +241,7 @@ export function MigrationCenterView({ embedded = false }: MigrationCenterViewPro
                         ? 'warning'
                         : 'neutral'
                   }
-                  className="capitalize shrink-0 text-[10px]"
+                  className="capitalize shrink-0 text-2xs"
                 >
                   {cap.status.replace('_', ' ')}
                 </Badge>
@@ -284,7 +284,7 @@ export function MigrationCenterView({ embedded = false }: MigrationCenterViewPro
                         <Layers className="size-4 text-accent-primary" />
                         <div>
                           <span>{m.sourceWorkspaceName || 'Slack Workspace'}</span>
-                          <span className="text-[10px] text-muted-foreground block font-mono">
+                          <span className="text-2xs text-muted-foreground block font-mono">
                             {m.id}
                           </span>
                         </div>
@@ -304,7 +304,7 @@ export function MigrationCenterView({ embedded = false }: MigrationCenterViewPro
                                 ? 'destructive'
                                 : 'neutral'
                         }
-                        className="text-[10px]"
+                        className="text-2xs"
                       >
                         {m.status}
                       </Badge>

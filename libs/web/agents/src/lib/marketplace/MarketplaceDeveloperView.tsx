@@ -237,7 +237,7 @@ export const MarketplaceDeveloperView: React.FC<MarketplaceDeveloperViewProps> =
           <h3 className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
             Manifest preview (SDK v1)
           </h3>
-          <Card className="overflow-x-auto bg-surface-raised/50 p-4 font-mono text-[11px] text-muted-foreground">
+          <Card className="overflow-x-auto bg-surface-raised/50 p-4 font-mono text-meta text-muted-foreground">
             <pre>
               {JSON.stringify(
                 {

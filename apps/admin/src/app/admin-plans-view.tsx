@@ -118,14 +118,14 @@ export function AdminPlansView() {
         <Card className="p-4 rounded-xl border border-border bg-card/80 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-muted-foreground">Paid Revenue (30d)</span>
-            <div className="size-7 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+            <div className="size-7 rounded-lg bg-success/10 text-success-text flex items-center justify-center">
               <DollarSign className="size-3.5" />
             </div>
           </div>
           <div className="text-xl font-bold text-foreground mt-2">
             {isStatsLoading ? <Skeleton className="h-7 w-24" /> : formatCurrency(stats?.paidRevenueCents ?? 0)}
           </div>
-          <p className="text-[11px] text-muted-foreground mt-1">
+          <p className="text-meta text-muted-foreground mt-1">
             {stats?.paidInvoiceCount ?? 0} settled invoices
           </p>
         </Card>
@@ -140,7 +140,7 @@ export function AdminPlansView() {
           <div className="text-xl font-bold text-foreground mt-2">
             {isStatsLoading ? <Skeleton className="h-7 w-24" /> : formatCurrency(stats?.estimatedMrrCents ?? 0)}
           </div>
-          <p className="text-[11px] text-muted-foreground mt-1 truncate">
+          <p className="text-meta text-muted-foreground mt-1 truncate">
             {stats?.estimatedMrrNote || 'Recurring monthly revenue'}
           </p>
         </Card>
@@ -148,14 +148,14 @@ export function AdminPlansView() {
         <Card className="p-4 rounded-xl border border-border bg-card/80 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-muted-foreground">Active Workspaces</span>
-            <div className="size-7 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center">
+            <div className="size-7 rounded-lg bg-accent-blue/10 text-accent-blue flex items-center justify-center">
               <Users className="size-3.5" />
             </div>
           </div>
           <div className="text-xl font-bold text-foreground mt-2">
             {isStatsLoading ? <Skeleton className="h-7 w-16" /> : totalSubscribers.toLocaleString()}
           </div>
-          <p className="text-[11px] text-muted-foreground mt-1">
+          <p className="text-meta text-muted-foreground mt-1">
             Across {PLAN_TIERS.length} plan tiers
           </p>
         </Card>
@@ -163,7 +163,7 @@ export function AdminPlansView() {
         <Card className="p-4 rounded-xl border border-border bg-card/80 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-muted-foreground">Payment Health</span>
-            <div className="size-7 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center">
+            <div className="size-7 rounded-lg bg-warning/10 text-warning-text flex items-center justify-center">
               <AlertTriangle className="size-3.5" />
             </div>
           </div>
@@ -174,7 +174,7 @@ export function AdminPlansView() {
               `${stats?.failedPaymentSubscriptions ?? 0} At Risk`
             )}
           </div>
-          <p className="text-[11px] text-muted-foreground mt-1">
+          <p className="text-meta text-muted-foreground mt-1">
             {stats?.trialConversionRate != null
               ? `${(stats.trialConversionRate * 100).toFixed(0)}% trial conversion`
               : 'Past due or unpaid invoices'}
@@ -225,7 +225,7 @@ export function AdminPlansView() {
                     {plan.name}
                   </span>
                   {plan.isPopular && (
-                    <Badge variant="primary" className="text-[9px] uppercase">
+                    <Badge variant="primary" className="text-3xs uppercase">
                       Popular
                     </Badge>
                   )}
@@ -242,7 +242,7 @@ export function AdminPlansView() {
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                  <p className="text-meta text-muted-foreground mt-0.5">
                     Annual: {plan.isCustomQuote ? 'Negotiated' : `$${plan.pricing.annual}/mo`}
                   </p>
                 </div>
@@ -417,7 +417,7 @@ export function AdminPlansView() {
                     Plan tier quotas, feature gates, and operational limits
                   </p>
                 </div>
-                <span className="inline-flex items-center rounded-full border border-border/80 bg-muted/60 px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase text-foreground">
+                <span className="inline-flex items-center rounded-full border border-border/80 bg-muted/60 px-2.5 py-0.5 text-2xs font-semibold tracking-wider uppercase text-foreground">
                   {selectedPlan.expandedFeatures.length} Features
                 </span>
               </div>
@@ -441,12 +441,12 @@ export function AdminPlansView() {
                       </TableCell>
                       <TableCell className="py-3.5 px-5">
                         {feat.included ? (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-success/25 bg-success/15 text-success-text px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-success/25 bg-success/15 text-success-text px-2 py-0.5 text-2xs font-semibold tracking-wider uppercase">
                             <Check className="size-3" />
                             Yes
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 text-muted-foreground/60 px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 text-muted-foreground/60 px-2 py-0.5 text-2xs font-semibold tracking-wider uppercase">
                             <Minus className="size-3" />
                             No
                           </span>

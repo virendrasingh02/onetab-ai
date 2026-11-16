@@ -394,7 +394,7 @@ function ReviewStep({
           ))}
         </ul>
         {sensitive.length > 0 && (
-          <p className="mt-2 text-[11px] text-muted-foreground">
+          <p className="mt-2 text-meta text-muted-foreground">
             Sensitive permissions are only granted after you approve them on the next step.
           </p>
         )}

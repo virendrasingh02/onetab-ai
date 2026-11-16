@@ -31,7 +31,9 @@ export function CodeBlockContent({
   isTerminal = false,
   className,
 }: CodeBlockContentProps) {
-  const [tokens, setTokens] = useState<HighlightedToken[][]>(() => plainTextToTokens(code));
+  const [tokens, setTokens] = useState<HighlightedToken[][]>(() =>
+    plainTextToTokens(code),
+  );
   const [isExpanded, setIsExpanded] = useState(false);
   const [canExpand, setCanExpand] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -95,12 +97,12 @@ export function CodeBlockContent({
   }, [maxHeight, isExpanded]);
 
   return (
-    <div className="relative group">
+    <div className="group relative">
       <div
         ref={containerRef}
         style={containerStyle}
         className={cn(
-          'relative overflow-x-auto text-xs font-mono transition-[max-height] duration-200 scrollbar-subtle',
+          'text-xs scrollbar-subtle relative overflow-x-auto font-mono transition-[max-height] duration-200',
           !isWordWrap && 'overflow-x-auto',
           maxHeight && !isExpanded && 'overflow-y-hidden',
           className,
@@ -109,26 +111,27 @@ export function CodeBlockContent({
         role="region"
         aria-label={`${language} code snippet`}
       >
-        <pre className="m-0 py-2 px-3.5 bg-transparent float-left min-w-full">
+        <pre className="m-0 py-2 px-3.5 float-left min-w-full bg-transparent">
           <code className="block">
             {tokens.map((lineTokens, lineIndex) => {
               const currentLineNumber = startLineNumber + lineIndex;
-              const isLineHighlighted = activeHighlightedLines.has(currentLineNumber);
+              const isLineHighlighted =
+                activeHighlightedLines.has(currentLineNumber);
 
               return (
                 <div
                   key={`line-${currentLineNumber}`}
                   className={cn(
-                    'table-row leading-5',
+                    'leading-5 table-row',
                     isLineHighlighted &&
-                      'bg-primary/10 border-l-2 border-primary -ml-[2px] font-medium text-foreground',
+                      'font-medium -ml-[2px] border-l-2 border-primary bg-primary/10 text-foreground',
                   )}
                 >
                   {/* Line numbers gutter */}
                   {showLineNumbers && (
                     <span
                       aria-hidden="true"
-                      className="table-cell select-none pr-4 text-right text-muted-foreground/40 font-mono text-[11px] align-top"
+                      className="pr-4 table-cell text-right align-top font-mono text-meta text-muted-foreground/40 select-none"
                       style={{ minWidth: `${gutterWidth + 1}ch` }}
                     >
                       {currentLineNumber}
@@ -139,7 +142,7 @@ export function CodeBlockContent({
                   {isTerminal && !showLineNumbers && (
                     <span
                       aria-hidden="true"
-                      className="table-cell select-none pr-2.5 text-muted-foreground/60 font-mono text-[11px] align-top"
+                      className="pr-2.5 table-cell align-top font-mono text-meta text-muted-foreground/60 select-none"
                     >
                       $
                     </span>
@@ -149,33 +152,34 @@ export function CodeBlockContent({
                   <span
                     className={cn(
                       'table-cell align-top',
-                      isWordWrap ? 'whitespace-pre-wrap break-all' : 'whitespace-pre',
+                      isWordWrap
+                        ? 'break-all whitespace-pre-wrap'
+                        : 'whitespace-pre',
                     )}
                   >
-                    {lineTokens.length === 0 || (lineTokens.length === 1 && lineTokens[0].content === '') ? (
-                      // Empty line spacer
-                      '\n'
-                    ) : (
-                      lineTokens.map((token, tokenIdx) => {
-                        const style: React.CSSProperties = {
-                          color: token.htmlStyle?.color || token.color,
-                          ...(token.htmlStyle as any),
-                        };
+                    {lineTokens.length === 0 ||
+                    (lineTokens.length === 1 && lineTokens[0].content === '')
+                      ? // Empty line spacer
+                        '\n'
+                      : lineTokens.map((token, tokenIdx) => {
+                          const style: React.CSSProperties = {
+                            color: token.htmlStyle?.color || token.color,
+                            ...(token.htmlStyle as any),
+                          };
 
-                        return (
-                          <span
-                            key={`tok-${tokenIdx}`}
-                            style={style}
-                            className={cn(
-                              token.htmlStyle?.['--shiki-dark'] &&
-                                'dark:![color:var(--shiki-dark)]',
-                            )}
-                          >
-                            {token.content}
-                          </span>
-                        );
-                      })
-                    )}
+                          return (
+                            <span
+                              key={`tok-${tokenIdx}`}
+                              style={style}
+                              className={cn(
+                                token.htmlStyle?.['--shiki-dark'] &&
+                                  'dark:![color:var(--shiki-dark)]',
+                              )}
+                            >
+                              {token.content}
+                            </span>
+                          );
+                        })}
                   </span>
                 </div>
               );
@@ -188,15 +192,15 @@ export function CodeBlockContent({
       {canExpand ? (
         <div
           className={cn(
-            'flex items-center justify-center p-1.5 border-t border-border/60 bg-surface-raised/90 text-xs select-none backdrop-blur-xs',
+            'p-1.5 text-xs backdrop-blur-xs flex items-center justify-center border-t border-border/60 bg-surface-raised/90 select-none',
             !isExpanded &&
-              'absolute inset-x-0 bottom-0 bg-gradient-to-t from-surface via-surface/90 to-transparent pt-8',
+              'inset-x-0 bottom-0 pt-8 absolute bg-gradient-to-t from-surface via-surface/90 to-transparent',
           )}
         >
           <button
             type="button"
             onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium bg-surface-raised border border-border shadow-xs hover:bg-accent text-foreground transition-colors"
+            className="gap-1.5 px-3 py-1 font-medium flex items-center rounded-full border border-border bg-surface-raised text-meta text-foreground shadow-xs transition-colors hover:bg-accent"
           >
             {isExpanded ? (
               <>

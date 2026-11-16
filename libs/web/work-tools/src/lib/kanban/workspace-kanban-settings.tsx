@@ -33,7 +33,10 @@ function errorMessage(error: unknown, fallback: string): string {
 
 /** A team key from its name: `Core Engineering` → `COREENG`. */
 function keyFromName(name: string): string {
-  return name.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+  return name
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+    .slice(0, 6);
 }
 
 /**
@@ -54,7 +57,7 @@ function ColorSwatchPicker({
   return (
     <div>
       <label className="text-xs font-semibold mb-1.5 block">{label}</label>
-      <div role="group" aria-label={label} className="flex items-center gap-2">
+      <div role="group" aria-label={label} className="gap-2 flex items-center">
         {LABEL_COLORS.map((color) => (
           <button
             key={color}
@@ -64,7 +67,7 @@ function ColorSwatchPicker({
             onClick={() => onChange(color)}
             className={`size-6 rounded-full border-2 transition-transform ${
               value === color
-                ? 'border-foreground scale-110'
+                ? 'scale-110 border-foreground'
                 : 'border-transparent'
             }`}
             style={{ backgroundColor: color }}
@@ -83,8 +86,8 @@ function SectionHeading({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between px-1">
-      <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">
+    <div className="px-1 flex items-center justify-between">
+      <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
         {title}
       </h3>
       {action}
@@ -212,7 +215,7 @@ export function WorkspaceKanbanSettings() {
         <h1 className="text-xl font-bold tracking-tight text-foreground">
           Tasks & Kanban
         </h1>
-        <p className="text-xs text-muted-foreground mt-1">
+        <p className="text-xs mt-1 text-muted-foreground">
           Statuses, labels and teams, shared by every board. Ticket IDs are set
           per project, from the project&apos;s identifier settings.
         </p>
@@ -223,20 +226,25 @@ export function WorkspaceKanbanSettings() {
 
       {/* ---------------- PRIORITIES ---------------- */}
       <div className="space-y-3">
-        <SectionHeading title={<>Task priorities ({KANBAN_PRIORITIES.length})</>} />
-        <div className="rounded-xl border border-border bg-surface shadow-xs divide-y divide-border/60 overflow-hidden">
+        <SectionHeading
+          title={<>Task priorities ({KANBAN_PRIORITIES.length})</>}
+        />
+        <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-surface shadow-xs">
           {KANBAN_PRIORITIES.map((priority) => (
             <div
               key={priority.id}
-              className="p-3.5 flex items-center justify-between gap-4"
+              className="p-3.5 gap-4 flex items-center justify-between"
             >
-              <div className="flex items-center gap-3 min-w-0">
-                <PriorityIcon priority={priority.id as never} className="size-4" />
+              <div className="gap-3 min-w-0 flex items-center">
+                <PriorityIcon
+                  priority={priority.id as never}
+                  className="size-4"
+                />
                 <span className="text-xs font-semibold text-foreground">
                   {priority.label}
                 </span>
               </div>
-              <span className="font-mono text-[11px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded border border-border/50">
+              <span className="px-1.5 py-0.5 rounded border border-border/50 bg-muted/60 font-mono text-meta text-muted-foreground">
                 Key: {priority.key}
               </span>
             </div>
@@ -262,7 +270,7 @@ export function WorkspaceKanbanSettings() {
           }
         />
 
-        <div className="rounded-xl border border-border bg-surface shadow-xs p-5">
+        <div className="p-5 rounded-xl border border-border bg-surface shadow-xs">
           {labelsQuery.isLoading ? (
             <p className="text-xs text-muted-foreground">Loading labels…</p>
           ) : labelsQuery.isError ? (
@@ -272,11 +280,11 @@ export function WorkspaceKanbanSettings() {
               No labels yet. Add one here, or create one while tagging a card.
             </p>
           ) : (
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="gap-2 flex flex-wrap items-center">
               {labels.map((lbl) => (
                 <span
                   key={lbl.id}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border group"
+                  className="gap-1.5 px-3 py-1 text-xs font-medium group inline-flex items-center rounded-full border"
                   style={{
                     backgroundColor: `${lbl.color}15`,
                     borderColor: `${lbl.color}40`,
@@ -291,7 +299,7 @@ export function WorkspaceKanbanSettings() {
                   <button
                     type="button"
                     onClick={() => openLabelDialog(lbl)}
-                    className="opacity-50 group-hover:opacity-100 hover:text-foreground cursor-pointer ml-1"
+                    className="ml-1 cursor-pointer opacity-50 group-hover:opacity-100 hover:text-foreground"
                     aria-label={`Edit label ${lbl.name}`}
                     title="Edit label"
                   >
@@ -300,7 +308,7 @@ export function WorkspaceKanbanSettings() {
                   <button
                     type="button"
                     onClick={() => void handleRemoveLabel(lbl)}
-                    className="opacity-50 group-hover:opacity-100 hover:text-destructive cursor-pointer"
+                    className="cursor-pointer opacity-50 group-hover:opacity-100 hover:text-destructive"
                     aria-label={`Remove label ${lbl.name}`}
                     title="Remove label"
                   >
@@ -331,11 +339,13 @@ export function WorkspaceKanbanSettings() {
           }
         />
 
-        <div className="rounded-xl border border-border bg-surface shadow-xs divide-y divide-border/60 overflow-hidden">
+        <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-surface shadow-xs">
           {teamsQuery.isLoading ? (
             <p className="p-3 text-xs text-muted-foreground">Loading teams…</p>
           ) : teamsQuery.isError ? (
-            <p className="p-3 text-xs text-destructive">Could not load teams.</p>
+            <p className="p-3 text-xs text-destructive">
+              Could not load teams.
+            </p>
           ) : teams.length === 0 ? (
             <p className="p-3 text-xs text-muted-foreground">
               No teams yet. Tasks and projects can be filed under a team once
@@ -345,22 +355,22 @@ export function WorkspaceKanbanSettings() {
             teams.map((team) => (
               <div
                 key={team.id}
-                className="p-3 flex items-center justify-between gap-2 hover:bg-accent/30"
+                className="p-3 gap-2 flex items-center justify-between hover:bg-accent/30"
               >
-                <div className="flex items-center gap-2 text-xs font-medium text-foreground min-w-0">
+                <div className="gap-2 text-xs font-medium min-w-0 flex items-center text-foreground">
                   <Contact
                     className="size-3.5 shrink-0"
                     style={{ color: team.color ?? undefined }}
                   />
                   <span className="truncate">{team.name}</span>
-                  <span className="font-mono text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded border border-border/50">
+                  <span className="px-1.5 py-0.5 rounded border border-border/50 bg-muted/60 font-mono text-2xs text-muted-foreground">
                     {team.key}
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => void handleRemoveTeam(team)}
-                  className="text-muted-foreground hover:text-destructive p-1"
+                  className="p-1 text-muted-foreground hover:text-destructive"
                   aria-label={`Delete team ${team.name}`}
                 >
                   <Trash2 className="size-3" />
@@ -383,7 +393,9 @@ export function WorkspaceKanbanSettings() {
             </DialogHeader>
             <DialogBody className="space-y-4">
               <div>
-                <label className="text-xs font-semibold mb-1 block">Label name</label>
+                <label className="text-xs font-semibold mb-1 block">
+                  Label name
+                </label>
                 <Input
                   autoFocus
                   value={labelName}
@@ -392,8 +404,10 @@ export function WorkspaceKanbanSettings() {
                   maxLength={50}
                   className="h-9 text-xs"
                 />
-                {editingLabel && labelName.trim() && labelName.trim() !== editingLabel.name ? (
-                  <p className="text-[11px] text-muted-foreground mt-1">
+                {editingLabel &&
+                labelName.trim() &&
+                labelName.trim() !== editingLabel.name ? (
+                  <p className="mt-1 text-meta text-muted-foreground">
                     Every task tagged “{editingLabel.name}” is renamed too.
                   </p>
                 ) : null}
@@ -405,14 +419,22 @@ export function WorkspaceKanbanSettings() {
               />
             </DialogBody>
             <DialogFooter>
-              <Button type="button" variant="ghost" size="sm" onClick={() => setLabelDialogOpen(false)}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setLabelDialogOpen(false)}
+              >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 size="sm"
                 disabled={!labelName.trim()}
-                loading={labelMutations.create.isPending || labelMutations.update.isPending}
+                loading={
+                  labelMutations.create.isPending ||
+                  labelMutations.update.isPending
+                }
               >
                 {editingLabel ? 'Save' : 'Create label'}
               </Button>
@@ -429,7 +451,9 @@ export function WorkspaceKanbanSettings() {
             </DialogHeader>
             <DialogBody className="space-y-4">
               <div>
-                <label className="text-xs font-semibold mb-1 block">Team name</label>
+                <label className="text-xs font-semibold mb-1 block">
+                  Team name
+                </label>
                 <Input
                   autoFocus
                   value={teamName}
@@ -445,25 +469,34 @@ export function WorkspaceKanbanSettings() {
                   value={effectiveTeamKey}
                   onChange={(e) => {
                     setTeamKeyTouched(true);
-                    setTeamKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''));
+                    setTeamKey(
+                      e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''),
+                    );
                   }}
                   placeholder="ENG"
                   maxLength={10}
                   className="h-9 text-xs font-mono uppercase"
                 />
-                <p className="text-[11px] text-muted-foreground mt-1">
+                <p className="mt-1 text-meta text-muted-foreground">
                   2–10 letters or digits, unique in this workspace.
                 </p>
               </div>
             </DialogBody>
             <DialogFooter>
-              <Button type="button" variant="ghost" size="sm" onClick={() => setTeamDialogOpen(false)}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setTeamDialogOpen(false)}
+              >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 size="sm"
-                disabled={teamName.trim().length < 2 || effectiveTeamKey.length < 2}
+                disabled={
+                  teamName.trim().length < 2 || effectiveTeamKey.length < 2
+                }
                 loading={teamMutations.create.isPending}
               >
                 Create team

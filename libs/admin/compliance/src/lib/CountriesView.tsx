@@ -120,23 +120,23 @@ export function CountriesView() {
       </PageHeader>
 
       {/* Precedence explanation banner */}
-      <Card className="border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20">
+      <Card className="border-accent-blue/30 bg-accent-blue/50">
         <CardContent className="p-4 flex items-center gap-3">
-          <Scale className="h-6 w-6 text-blue-600 dark:text-blue-400 shrink-0" />
+          <Scale className="h-6 w-6 text-accent-blue shrink-0" />
           <div className="text-sm">
-            <span className="font-semibold text-blue-900 dark:text-blue-300">
+            <span className="font-semibold text-accent-blue">
               Deterministic Precedence Architecture:
             </span>{' '}
             Requirements evaluate hierarchically:{' '}
-            <Badge variant="outline" className="mx-1 border-blue-400 text-blue-800 dark:text-blue-200">
+            <Badge variant="outline" className="mx-1 border-accent-blue text-accent-blue">
               Country-Specific
             </Badge>{' '}
             overrides{' '}
-            <Badge variant="outline" className="mx-1 border-blue-400 text-blue-800 dark:text-blue-200">
+            <Badge variant="outline" className="mx-1 border-accent-blue text-accent-blue">
               Regional Jurisdiction (e.g. EU)
             </Badge>{' '}
             which overrides{' '}
-            <Badge variant="outline" className="mx-1 border-blue-400 text-blue-800 dark:text-blue-200">
+            <Badge variant="outline" className="mx-1 border-accent-blue text-accent-blue">
               Global Standards
             </Badge>
             . No scattered ad-hoc location checks.
@@ -150,7 +150,7 @@ export function CountriesView() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <Globe className="h-4 w-4 text-blue-600" />
+                <Globe className="h-4 w-4 text-accent-blue" />
                 Jurisdictions & Markets
               </CardTitle>
               <CardDescription>
@@ -213,7 +213,7 @@ export function CountriesView() {
                             <div className="font-medium text-xs leading-none">
                               {c.name}
                             </div>
-                            <div className="text-[11px] text-muted-foreground mt-0.5">
+                            <div className="text-meta text-muted-foreground mt-0.5">
                               Code: {c.code}
                             </div>
                           </div>
@@ -226,7 +226,7 @@ export function CountriesView() {
                                 ? 'destructive'
                                 : 'secondary'
                           }
-                          className="text-[10px] uppercase"
+                          className="text-2xs uppercase"
                         >
                           {c.status}
                         </Badge>
@@ -281,8 +281,8 @@ export function CountriesView() {
             <CardContent className="space-y-4">
               {/* Highlight specific laws */}
               {selectedCountryCode === 'IN' && (
-                <div className="p-3.5 rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 text-xs space-y-1">
-                  <div className="font-semibold text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
+                <div className="p-3.5 rounded-lg border border-warning/30 bg-warning/50 text-xs space-y-1">
+                  <div className="font-semibold text-warning-text flex items-center gap-1.5">
                     <ShieldAlert className="h-4 w-4" />
                     India DPDP Act 2023 Statutory Requirements Active
                   </div>
@@ -293,8 +293,8 @@ export function CountriesView() {
               )}
 
               {selectedCountryCode === 'DE' || selectedCountryCode === 'FR' || selectedCountryCode === 'EU' ? (
-                <div className="p-3.5 rounded-lg border border-blue-300 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 text-xs space-y-1">
-                  <div className="font-semibold text-blue-900 dark:text-blue-300 flex items-center gap-1.5">
+                <div className="p-3.5 rounded-lg border border-accent-blue/30 bg-accent-blue/50 text-xs space-y-1">
+                  <div className="font-semibold text-accent-blue flex items-center gap-1.5">
                     <ShieldCheck className="h-4 w-4" />
                     EU GDPR & Digital Services Act Requirements Active
                   </div>
@@ -305,8 +305,8 @@ export function CountriesView() {
               ) : null}
 
               {selectedCountryCode === 'US' && (
-                <div className="p-3.5 rounded-lg border border-purple-300 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-950/20 text-xs space-y-1">
-                  <div className="font-semibold text-purple-900 dark:text-purple-300 flex items-center gap-1.5">
+                <div className="p-3.5 rounded-lg border border-accent-violet/30 bg-accent-violet/50 text-xs space-y-1">
+                  <div className="font-semibold text-accent-violet flex items-center gap-1.5">
                     <Shield className="h-4 w-4" />
                     US California CCPA / CPRA & Children's Privacy
                   </div>
@@ -355,28 +355,28 @@ export function CountriesView() {
                               <div className="font-medium text-xs text-foreground">
                                 {req.title}
                               </div>
-                              <div className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">
+                              <div className="text-meta text-muted-foreground line-clamp-1 mt-0.5">
                                 {req.description}
                               </div>
                               <div className="flex items-center gap-2 mt-1">
                                 {isCountryScope ? (
-                                  <Badge variant="outline" className="text-[10px] border-success text-success-text">
+                                  <Badge variant="outline" className="text-2xs border-success text-success-text">
                                     Country Override ({selectedCountryCode})
                                   </Badge>
                                 ) : (
-                                  <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                                  <Badge variant="outline" className="text-2xs text-muted-foreground">
                                     Inherited (Global/Region)
                                   </Badge>
                                 )}
                                 {req.externalUrl && (
-                                  <span className="text-[10px] text-muted-foreground">
+                                  <span className="text-2xs text-muted-foreground">
                                     Ref: {req.externalUrl}
                                   </span>
                                 )}
                               </div>
                             </TableCell>
                             <TableCell>
-                              <Badge variant="secondary" className="text-[10px]">
+                              <Badge variant="secondary" className="text-2xs">
                                 {req.category}
                               </Badge>
                             </TableCell>
@@ -389,14 +389,14 @@ export function CountriesView() {
                                       ? 'warning'
                                       : 'outline'
                                 }
-                                className="text-[10px]"
+                                className="text-2xs"
                               >
                                 {req.severity}
                               </Badge>
                             </TableCell>
                             <TableCell>
                               {req.isBlocking ? (
-                                <Badge variant="destructive" className="text-[10px]">
+                                <Badge variant="destructive" className="text-2xs">
                                   Yes
                                 </Badge>
                               ) : (

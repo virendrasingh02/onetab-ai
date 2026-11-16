@@ -60,7 +60,7 @@ export function AIActivitySection({ workspaceId, slug }: { workspaceId: string |
 
   const stats = [
     { label: 'Running', value: running, tone: 'text-primary', href: 'ai/runs' },
-    { label: 'Waiting', value: waiting, tone: 'text-amber-500', href: 'ai/approvals' },
+    { label: 'Waiting', value: waiting, tone: 'text-warning-text', href: 'ai/approvals' },
     { label: 'Failed', value: failed, tone: failed ? 'text-destructive' : 'text-foreground', href: 'ai/runs' },
     { label: 'Done', value: completed, tone: 'text-foreground', href: 'ai/runs' },
   ];
@@ -74,13 +74,13 @@ export function AIActivitySection({ workspaceId, slug }: { workspaceId: string |
             AI Activity
           </h2>
           {running > 0 ? (
-            <Badge variant="primary" className="h-4 gap-1 px-1.5 py-0 text-[10px]">
+            <Badge variant="primary" className="h-4 gap-1 px-1.5 py-0 text-2xs">
               <Loader2 className="size-2.5 animate-spin" aria-hidden />
               {running} running
             </Badge>
           ) : null}
         </div>
-        <Link to={`/w/${slug}/ai/runs`} className="text-[11px] text-muted-foreground hover:text-foreground">
+        <Link to={`/w/${slug}/ai/runs`} className="text-meta text-muted-foreground hover:text-foreground">
           All runs
         </Link>
       </div>
@@ -89,7 +89,7 @@ export function AIActivitySection({ workspaceId, slug }: { workspaceId: string |
         {/* Last 24 hours at a glance */}
         <Card>
           <CardContent className="space-y-3 p-3">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Last 24 hours</p>
+            <p className="text-meta font-medium uppercase tracking-wide text-muted-foreground">Last 24 hours</p>
             {runs.isLoading ? (
               <SkeletonList rows={1} />
             ) : runs.isError ? (
@@ -103,22 +103,22 @@ export function AIActivitySection({ workspaceId, slug }: { workspaceId: string |
                     className="rounded-md border border-border bg-accent/30 p-2 text-center transition-colors hover:bg-accent/60"
                   >
                     <div className={`text-base font-bold ${s.tone}`}>{s.value}</div>
-                    <div className="truncate text-[10px] text-muted-foreground">{s.label}</div>
+                    <div className="truncate text-2xs text-muted-foreground">{s.label}</div>
                   </Link>
                 ))}
               </div>
             )}
             {pending.length > 0 ? (
               <div className="space-y-1.5 border-t border-border/60 pt-2">
-                <p className="flex items-center gap-1.5 text-[11px] font-medium text-foreground">
-                  <ShieldCheck className="size-3.5 text-amber-500" aria-hidden />
+                <p className="flex items-center gap-1.5 text-meta font-medium text-foreground">
+                  <ShieldCheck className="size-3.5 text-warning-text" aria-hidden />
                   {pending.length} waiting for your approval
                 </p>
                 {pending.slice(0, 3).map((a) => (
                   <Link
                     key={a.id}
                     to={`/w/${slug}/ai/approvals`}
-                    className="flex items-center justify-between gap-2 rounded-md px-1.5 py-1 text-[11px] hover:bg-accent/40"
+                    className="flex items-center justify-between gap-2 rounded-md px-1.5 py-1 text-meta hover:bg-accent/40"
                   >
                     <span className="truncate capitalize text-foreground">{humanize(a.actionType)}</span>
                     <span className="shrink-0 text-muted-foreground">{formatRelative(a.createdAt)}</span>
@@ -132,7 +132,7 @@ export function AIActivitySection({ workspaceId, slug }: { workspaceId: string |
         {/* What coworkers did */}
         <Card className="lg:col-span-2">
           <CardContent className="space-y-1 p-3">
-            <p className="pb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Coworkers</p>
+            <p className="pb-1 text-meta font-medium uppercase tracking-wide text-muted-foreground">Coworkers</p>
             {coworkerLogs.isLoading ? (
               <SkeletonList rows={3} />
             ) : recentCoworker.length === 0 ? (
@@ -142,7 +142,7 @@ export function AIActivitySection({ workspaceId, slug }: { workspaceId: string |
                 </p>
                 <Link
                   to={`/w/${slug}/directory`}
-                  className="shrink-0 text-[11px] font-medium text-primary hover:underline"
+                  className="shrink-0 text-meta font-medium text-primary hover:underline"
                 >
                   Meet your coworkers
                 </Link>
@@ -161,12 +161,12 @@ export function AIActivitySection({ workspaceId, slug }: { workspaceId: string |
                       <Sparkles className="size-3.5 shrink-0 text-primary" aria-hidden />
                     )}
                     <span className="shrink-0 text-xs font-medium text-foreground">{log.agent.name}</span>
-                    <span className="truncate text-[11px] text-muted-foreground">
+                    <span className="truncate text-meta text-muted-foreground">
                       {(log.outputResult || log.promptText).split('\n')[0]}
                     </span>
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
-                    <span className="text-[10px] text-muted-foreground">{formatRelative(log.executedAt)}</span>
+                    <span className="text-2xs text-muted-foreground">{formatRelative(log.executedAt)}</span>
                     <ChevronRight className="size-3 text-muted-foreground" aria-hidden />
                   </div>
                 </Link>

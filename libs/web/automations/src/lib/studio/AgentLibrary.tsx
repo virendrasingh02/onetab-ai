@@ -460,7 +460,7 @@ function EntityCard({ entity, to }: { entity: AIEntity; to: string }) {
                       ? 'destructive'
                       : 'success'
                 }
-                className="text-[10px]"
+                className="text-2xs"
               >
                 {state}
               </Badge>
@@ -478,7 +478,7 @@ function EntityCard({ entity, to }: { entity: AIEntity; to: string }) {
         >
           {entity.description || 'No description yet'}
         </p>
-        <p className="pt-3 mt-auto border-t border-border/60 text-[11px] text-muted-foreground">
+        <p className="pt-3 mt-auto border-t border-border/60 text-meta text-muted-foreground">
           {entity.lastActiveAt
             ? `Active ${formatRelative(entity.lastActiveAt)}`
             : 'Not used yet'}{' '}
@@ -578,7 +578,7 @@ function TemplateCard({
           </p>
         </div>
       </div>
-      <ol className="space-y-0.5 pl-12 text-[11px] text-muted-foreground">
+      <ol className="space-y-0.5 pl-12 text-meta text-muted-foreground">
         {bp.steps.slice(0, 5).map((s, i) => (
           <li key={s.id}>
             {i + 1}. {s.title}
@@ -588,7 +588,7 @@ function TemplateCard({
       </ol>
       <div className="gap-2 pt-1 mt-auto flex items-center justify-between">
         {template.requires?.length ? (
-          <Badge variant="outline" className="text-[10px]">
+          <Badge variant="outline" className="text-2xs">
             Needs{' '}
             {template.requires
               .map((r) => r.charAt(0).toUpperCase() + r.slice(1))

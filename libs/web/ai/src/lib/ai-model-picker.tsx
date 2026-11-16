@@ -76,7 +76,7 @@ export function AIModelPicker({ model, onModelChange }: AIModelPickerProps) {
                   <span className="font-medium text-xs leading-snug truncate">
                     {option.label}
                   </span>
-                  <span className="leading-snug truncate text-[10px] text-muted-foreground">
+                  <span className="leading-snug truncate text-2xs text-muted-foreground">
                     {option.badge
                       ? `${option.category || 'AI'} · ${option.badge}`
                       : option.description ||

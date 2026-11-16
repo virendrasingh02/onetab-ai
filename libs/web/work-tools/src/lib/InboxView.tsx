@@ -299,7 +299,7 @@ function PriorityBadge({ priority }: { priority: TaskPriority }) {
       return (
         <Badge
           variant="neutral"
-          className="gap-1 px-1.5 py-0 h-4 font-semibold border-accent-rose/30 bg-accent-rose-soft text-[10px] text-accent-rose"
+          className="gap-1 px-1.5 py-0 h-4 font-semibold border-accent-rose/30 bg-accent-rose-soft text-2xs text-accent-rose"
         >
           <Flame className="size-2.5 shrink-0" />
           <span>Urgent</span>
@@ -309,7 +309,7 @@ function PriorityBadge({ priority }: { priority: TaskPriority }) {
       return (
         <Badge
           variant="neutral"
-          className="gap-1 px-1.5 py-0 h-4 font-semibold border-accent-amber/30 bg-accent-amber-soft text-[10px] text-accent-amber"
+          className="gap-1 px-1.5 py-0 h-4 font-semibold border-accent-amber/30 bg-accent-amber-soft text-2xs text-accent-amber"
         >
           <ArrowUp className="size-2.5 shrink-0" />
           <span>High</span>
@@ -319,7 +319,7 @@ function PriorityBadge({ priority }: { priority: TaskPriority }) {
       return (
         <Badge
           variant="neutral"
-          className="gap-1 px-1.5 py-0 h-4 font-semibold border-accent-blue/30 bg-accent-blue-soft text-[10px] text-accent-blue"
+          className="gap-1 px-1.5 py-0 h-4 font-semibold border-accent-blue/30 bg-accent-blue-soft text-2xs text-accent-blue"
         >
           <Minus className="size-2.5 shrink-0" />
           <span>Medium</span>
@@ -329,7 +329,7 @@ function PriorityBadge({ priority }: { priority: TaskPriority }) {
       return (
         <Badge
           variant="neutral"
-          className="gap-1 px-1.5 py-0 h-4 font-semibold bg-muted text-[10px] text-muted-foreground"
+          className="gap-1 px-1.5 py-0 h-4 font-semibold bg-muted text-2xs text-muted-foreground"
         >
           <ArrowDown className="size-2.5 shrink-0" />
           <span>Low</span>
@@ -409,14 +409,14 @@ function FeedRow({
                 </span>
                 <Badge
                   variant="neutral"
-                  className="px-1.5 py-0 h-4 font-semibold tracking-wide text-[10px] uppercase"
+                  className="px-1.5 py-0 h-4 font-semibold tracking-wide text-2xs uppercase"
                 >
                   {kindLabel}
                 </Badge>
                 {isUnread && (
                   <Badge
                     variant="primary"
-                    className="px-1.5 py-0 h-4 font-bold text-[10px]"
+                    className="px-1.5 py-0 h-4 font-bold text-2xs"
                   >
                     New
                   </Badge>
@@ -429,14 +429,14 @@ function FeedRow({
               </div>
 
               {/* Meta information: Channel / Timestamp */}
-              <div className="gap-3 pt-0.5 flex flex-wrap items-center text-[11px] text-muted-foreground">
+              <div className="gap-3 pt-0.5 flex flex-wrap items-center text-meta text-muted-foreground">
                 {item.channel ? (
                   <span className="gap-1 font-medium inline-flex items-center text-primary">
                     <Hash className="size-3" aria-hidden />
                     <span>{item.channel.name}</span>
                   </span>
                 ) : null}
-                <span className="gap-1 inline-flex items-center font-mono text-[10px] text-muted-foreground/80">
+                <span className="gap-1 inline-flex items-center font-mono text-2xs text-muted-foreground/80">
                   <Clock className="size-3 text-muted-foreground/60" />
                   <span>{formatRelative(item.occurredAt)}</span>
                 </span>
@@ -917,7 +917,7 @@ export function InboxView() {
                             ) : null}
 
                             {latest ? (
-                              <span className="mt-1 block font-mono text-[10px] text-muted-foreground/70">
+                              <span className="mt-1 block font-mono text-2xs text-muted-foreground/70">
                                 {formatRelative(latest.occurredAt)}
                               </span>
                             ) : null}
@@ -1028,7 +1028,7 @@ export function InboxView() {
                           <Link to={taskHref} className="min-w-0 block flex-1">
                             <div className="gap-2 flex flex-wrap items-center">
                               {task.identifier ? (
-                                <span className="font-bold px-1.5 py-0.2 rounded bg-brand/10 font-mono text-[11px] text-brand-text">
+                                <span className="font-bold px-1.5 py-0.2 rounded bg-brand/10 font-mono text-meta text-brand-text">
                                   {task.identifier}
                                 </span>
                               ) : null}
@@ -1037,7 +1037,7 @@ export function InboxView() {
                               </h4>
                               <Badge
                                 variant="neutral"
-                                className="px-1.5 py-0 h-4 font-medium text-[10px] capitalize"
+                                className="px-1.5 py-0 h-4 font-medium text-2xs capitalize"
                               >
                                 {task.status.toLowerCase().replace(/_/g, ' ')}
                               </Badge>
@@ -1079,7 +1079,7 @@ export function InboxView() {
                               ) : null}
 
                               {task._count?.comments ? (
-                                <span className="gap-1 inline-flex items-center font-mono text-[10px] text-muted-foreground/80">
+                                <span className="gap-1 inline-flex items-center font-mono text-2xs text-muted-foreground/80">
                                   <MessageSquare className="size-3" />
                                   <span>{task._count.comments}</span>
                                 </span>

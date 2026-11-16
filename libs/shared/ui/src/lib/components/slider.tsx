@@ -1,7 +1,10 @@
 import { cn } from '@org/utils';
 import { useCallback, useRef, useState, type ComponentProps } from 'react';
 
-export interface SliderProps extends Omit<ComponentProps<'div'>, 'onChange' | 'defaultValue'> {
+export interface SliderProps extends Omit<
+  ComponentProps<'div'>,
+  'onChange' | 'defaultValue'
+> {
   value?: number[];
   defaultValue?: number[];
   min?: number;
@@ -12,7 +15,6 @@ export interface SliderProps extends Omit<ComponentProps<'div'>, 'onChange' | 'd
   showTooltip?: boolean;
   formatTooltip?: (value: number) => string;
 }
-
 
 export function Slider({
   value: controlledValue,
@@ -68,7 +70,10 @@ export function Slider({
   const handlePointerMove = (e: React.PointerEvent) => {
     if (activeThumbIndex === null || !trackRef.current || disabled) return;
     const rect = trackRef.current.getBoundingClientRect();
-    const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const percent = Math.max(
+      0,
+      Math.min(1, (e.clientX - rect.left) / rect.width),
+    );
     const rawVal = min + percent * (max - min);
     updateValue(activeThumbIndex, rawVal);
   };
@@ -87,7 +92,10 @@ export function Slider({
   const handleTrackClick = (e: React.MouseEvent) => {
     if (disabled || !trackRef.current || activeThumbIndex !== null) return;
     const rect = trackRef.current.getBoundingClientRect();
-    const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const percent = Math.max(
+      0,
+      Math.min(1, (e.clientX - rect.left) / rect.width),
+    );
     const rawVal = min + percent * (max - min);
     const snapped = snap(rawVal);
 
@@ -106,7 +114,9 @@ export function Slider({
   };
 
   const rangeStartPercent =
-    values.length === 1 ? 0 : Math.min(...values.map((v) => ((v - min) / (max - min)) * 100));
+    values.length === 1
+      ? 0
+      : Math.min(...values.map((v) => ((v - min) / (max - min)) * 100));
   const rangeEndPercent =
     values.length === 1
       ? ((values[0] - min) / (max - min)) * 100
@@ -115,8 +125,8 @@ export function Slider({
   return (
     <div
       className={cn(
-        'relative flex w-full touch-none select-none items-center py-2 cursor-pointer',
-        disabled && 'pointer-events-none opacity-50 cursor-not-allowed',
+        'py-2 relative flex w-full cursor-pointer touch-none items-center select-none',
+        disabled && 'pointer-events-none cursor-not-allowed opacity-50',
         className,
       )}
       onPointerMove={handlePointerMove}
@@ -126,7 +136,7 @@ export function Slider({
       <div
         ref={trackRef}
         onClick={handleTrackClick}
-        className="relative h-1.5 w-full grow overflow-hidden rounded-full bg-surface-raised border border-border"
+        className="h-1.5 relative w-full grow overflow-hidden rounded-full border border-border bg-surface-raised"
       >
         <div
           className="absolute h-full bg-brand transition-all duration-75"
@@ -168,15 +178,15 @@ export function Slider({
               }
             }}
             className={cn(
-              'absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-brand bg-surface shadow-xs',
+              'size-4 absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-brand bg-surface shadow-xs',
               'transition-transform duration-(--duration-fast) outline-none',
-              'hover:scale-110 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:scale-110',
+              'hover:scale-110 focus-visible:scale-110 focus-visible:ring-2 focus-visible:ring-ring/50',
               isDragging && 'scale-125 border-brand shadow-md',
             )}
             style={{ left: `${percent}%` }}
           >
             {(showTooltip || isDragging) && (
-              <span className="absolute -top-7 left-1/2 -translate-x-1/2 rounded-btn bg-foreground px-1.5 py-0.5 text-[10px] font-medium text-background shadow-xs pointer-events-none whitespace-nowrap">
+              <span className="-top-7 px-1.5 py-0.5 font-medium pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-btn bg-foreground text-2xs whitespace-nowrap text-background shadow-xs">
                 {formatTooltip(val)}
               </span>
             )}

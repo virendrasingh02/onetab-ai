@@ -27,8 +27,8 @@ const avatarVariants = cva(
   {
     variants: {
       size: {
-        xs: 'size-5 text-[10px]',
-        sm: 'size-6 text-[11px]',
+        xs: 'size-5 text-2xs',
+        sm: 'size-6 text-meta',
         md: 'size-8 text-xs',
         lg: 'size-10 text-sm',
         xl: 'size-16 text-xl',
@@ -50,7 +50,13 @@ export interface AvatarProps
   isLoading?: boolean;
 }
 
-export function Avatar({ className, size, shape, isLoading, ...props }: AvatarProps) {
+export function Avatar({
+  className,
+  size,
+  shape,
+  isLoading,
+  ...props
+}: AvatarProps) {
   if (isLoading) {
     return (
       <SkeletonAvatar
@@ -114,7 +120,7 @@ export function AvatarImage({
       {resolvedSrc && !isLoaded && !isError ? (
         <Skeleton
           data-slot="avatar-skeleton"
-          className="absolute inset-0 size-full rounded-[inherit] z-1"
+          className="inset-0 absolute z-1 size-full rounded-[inherit]"
         />
       ) : null}
       <AvatarPrimitive.Image
@@ -369,9 +375,9 @@ const INDICATOR_SIZES: Record<
   NonNullable<AvatarProps['size']>,
   { dot: string; emoji: string }
 > = {
-  xs: { dot: 'size-[5px]', emoji: 'text-[9px]' },
-  sm: { dot: 'size-1.5', emoji: 'text-[10px]' },
-  md: { dot: 'size-[7px]', emoji: 'text-[11px]' },
+  xs: { dot: 'size-[5px]', emoji: 'text-3xs' },
+  sm: { dot: 'size-1.5', emoji: 'text-2xs' },
+  md: { dot: 'size-[7px]', emoji: 'text-meta' },
   lg: { dot: 'size-[9px]', emoji: 'text-xs' },
   xl: { dot: 'size-3', emoji: 'text-base' },
 };
@@ -416,8 +422,7 @@ function notchMaskStyle(size: NonNullable<AvatarProps['size']>) {
   // Dot radius + its 2px ring + ~1px breathing room — the floor below the %.
   const min = `${DOT_PX[size] / 2 + 2.5}px`;
   const r = `max(12%, ${min})`;
-  const mask =
-    `radial-gradient(ellipse ${r} ${r} at 86% 86%, #0000 0 99%, #000 100%)`;
+  const mask = `radial-gradient(ellipse ${r} ${r} at 86% 86%, #0000 0 99%, #000 100%)`;
   return {
     WebkitMaskImage: mask,
     maskImage: mask,
@@ -541,7 +546,9 @@ export function UserAvatar({
   // through — `'' ?? name` keeps `''`, which would paint every seedless avatar
   // the same colour. Fall back to the name only when there is genuinely no seed.
   const tintSeed = seed?.trim() ? seed : name;
-  const AiGlyph = src?.startsWith('icon:') ? getAiEntityPresetIcon(src) : undefined;
+  const AiGlyph = src?.startsWith('icon:')
+    ? getAiEntityPresetIcon(src)
+    : undefined;
 
   const geometry = INDICATOR_SIZES[size ?? 'md'];
   const showEmoji = indicator && Boolean(statusEmoji);
@@ -564,7 +571,7 @@ export function UserAvatar({
          * sit on the <Avatar> above.
          */}
         <span
-          className="absolute inset-0 overflow-hidden rounded-full"
+          className="inset-0 absolute overflow-hidden rounded-full"
           style={scooped ? notchMaskStyle(size ?? 'md') : undefined}
         >
           {AiGlyph ? (
@@ -573,7 +580,10 @@ export function UserAvatar({
             <span
               role="img"
               aria-label={name}
-              className={cn('flex size-full items-center justify-center rounded-full border', getAiEntityTone('agent', tintSeed, src))}
+              className={cn(
+                'flex size-full items-center justify-center rounded-full border',
+                getAiEntityTone('agent', tintSeed, src),
+              )}
             >
               <AiGlyph className="size-[55%]" aria-hidden />
             </span>
@@ -708,9 +718,7 @@ export function WorkspaceAvatar({
                 backgroundColor: avatarTint(tintSeed, avatarColor),
               }
         }
-        className={
-          glyph ? 'border border-border bg-surface-raised' : undefined
-        }
+        className={glyph ? 'border border-border bg-surface-raised' : undefined}
       >
         {glyph ? (
           <IconRenderer

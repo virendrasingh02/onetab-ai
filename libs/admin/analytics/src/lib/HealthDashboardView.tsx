@@ -148,7 +148,7 @@ export function HealthDashboardView() {
                       ? 'no response'
                       : `${service.latencyMs}ms`}
                   </div>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-meta text-muted-foreground">
                     {service.detail}
                   </p>
                 </Panel>

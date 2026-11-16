@@ -105,7 +105,7 @@ export function CardRelations({
                     showTooltip={false}
                   />
                   {view.otherTask.identifier ? (
-                    <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                    <span className="shrink-0 font-mono text-meta text-muted-foreground">
                       {view.otherTask.identifier}
                     </span>
                   ) : null}

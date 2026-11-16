@@ -11,7 +11,7 @@ function AgentSpec({ listing }: { listing: MarketplaceListing }) {
   return (
     <div className="p-2.5 space-y-1.5 rounded-lg border border-border bg-background">
       {payload.model ? (
-        <div className="gap-1.5 flex items-center text-[11px] text-muted-foreground">
+        <div className="gap-1.5 flex items-center text-meta text-muted-foreground">
           <Cpu className="w-3 h-3 text-success" />
           <code className="text-foreground">{payload.model}</code>
         </div>
@@ -21,7 +21,7 @@ function AgentSpec({ listing }: { listing: MarketplaceListing }) {
           {payload.tools.slice(0, 4).map((tool) => (
             <span
               key={tool}
-              className="px-1.5 py-0.5 rounded bg-surface-raised text-[10px] text-muted-foreground"
+              className="px-1.5 py-0.5 rounded bg-surface-raised text-2xs text-muted-foreground"
             >
               {tool}
             </span>

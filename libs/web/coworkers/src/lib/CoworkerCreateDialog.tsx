@@ -348,7 +348,7 @@ export const CoworkerCreateDialog: FC<CoworkerCreateDialogProps> = ({
                   <p className="text-xs font-semibold text-foreground">
                     Workspace Knowledge Access (RAG)
                   </p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-meta text-muted-foreground">
                     Allows coworker to search documents, discussions, and project boards.
                   </p>
                 </div>
@@ -368,7 +368,7 @@ export const CoworkerCreateDialog: FC<CoworkerCreateDialogProps> = ({
                   <Layers className="h-3.5 w-3.5 text-primary" />
                   Delegate Sub-Agents
                 </h3>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
+                <p className="text-meta text-muted-foreground mt-0.5">
                   Select which workspace AI Agents this coworker can consult or delegate to.
                 </p>
               </div>
@@ -385,18 +385,18 @@ export const CoworkerCreateDialog: FC<CoworkerCreateDialogProps> = ({
                         className={cn(
                           'flex items-center justify-between p-2.5 rounded-lg border text-left text-xs transition-colors',
                           isSelected
-                            ? 'border-violet-500 bg-violet-500/10 text-foreground'
+                            ? 'border-accent-violet bg-accent-violet/10 text-foreground'
                             : 'border-border/60 bg-card text-muted-foreground hover:bg-muted/30',
                         )}
                       >
                         <div className="truncate">
                           <p className="font-medium truncate">{agent.name}</p>
-                          <p className="text-[10px] text-muted-foreground truncate">
+                          <p className="text-2xs text-muted-foreground truncate">
                             {agent.role}
                           </p>
                         </div>
                         {isSelected && (
-                          <Check className="h-3.5 w-3.5 text-violet-500 shrink-0 ml-1.5" />
+                          <Check className="h-3.5 w-3.5 text-accent-violet shrink-0 ml-1.5" />
                         )}
                       </button>
                     );
@@ -525,7 +525,7 @@ function ToolPicker({ allowed, onToggle }: { allowed: string[]; onToggle: (id: s
   return (
     <fieldset className="space-y-2">
       <legend className="text-xs font-semibold text-foreground">Extra tools</legend>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-meta text-muted-foreground">
         It can always search documents and list projects, tasks and channels. Pick what else it may do.
       </p>
       {isLoading ? (
@@ -550,8 +550,8 @@ function ToolPicker({ allowed, onToggle }: { allowed: string[]; onToggle: (id: s
                 )}
               >
                 <span className="min-w-0">
-                  <span className="block truncate font-mono text-[11px]">{tool.label}</span>
-                  {tool.group ? <span className="block text-[10px] text-muted-foreground">{tool.group}</span> : null}
+                  <span className="block truncate font-mono text-meta">{tool.label}</span>
+                  {tool.group ? <span className="block text-2xs text-muted-foreground">{tool.group}</span> : null}
                 </span>
                 {isChecked ? <Check className="ml-1.5 h-3.5 w-3.5 shrink-0 text-primary" /> : null}
               </button>

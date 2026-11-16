@@ -9,19 +9,38 @@ export function getThemeColor(token: string, fallback?: string): string {
 }
 
 /** Helper utility to retrieve named gradient token CSS variable. */
-export function getThemeGradient(name: 'primary' | 'secondary' | 'accent' | 'hero' | 'sidebar' | 'button' | 'surface' | 'background' = 'primary', fallback = 'none'): string {
+export function getThemeGradient(
+  name:
+    | 'primary'
+    | 'secondary'
+    | 'accent'
+    | 'hero'
+    | 'sidebar'
+    | 'button'
+    | 'surface'
+    | 'background' = 'primary',
+  fallback = 'none',
+): string {
   return `var(--gradient-${name}, ${fallback})`;
 }
 
 /** Helper utility to generate comprehensive surface styling (flat, gradient, glassmorphism). */
 export function getSurfaceStyle(
-  variant: 'default' | 'raised' | 'muted' | 'inset' | 'gradient' | 'glass' = 'default',
-  options?: { blur?: number; opacity?: number; border?: boolean; customGradient?: GradientConfig | string },
+  variant:
+    'default' | 'raised' | 'muted' | 'inset' | 'gradient' | 'glass' = 'default',
+  options?: {
+    blur?: number;
+    opacity?: number;
+    border?: boolean;
+    customGradient?: GradientConfig | string;
+  },
 ): CSSProperties {
   const style: CSSProperties = {};
 
   if (variant === 'gradient') {
-    style.background = options?.customGradient ? generateCssGradient(options.customGradient) : 'var(--gradient-surface, var(--surface))';
+    style.background = options?.customGradient
+      ? generateCssGradient(options.customGradient)
+      : 'var(--gradient-surface, var(--surface))';
   } else if (variant === 'glass') {
     const blur = options?.blur ?? 12;
     const opacity = options?.opacity ?? 0.8;
@@ -52,9 +71,11 @@ export function getThemeTokens() {
   return {
     colors: {
       primary: 'var(--color-primary, var(--primary))',
-      primaryForeground: 'var(--color-primary-foreground, var(--primary-foreground))',
+      primaryForeground:
+        'var(--color-primary-foreground, var(--primary-foreground))',
       secondary: 'var(--color-secondary, var(--secondary))',
-      secondaryForeground: 'var(--color-secondary-foreground, var(--secondary-foreground))',
+      secondaryForeground:
+        'var(--color-secondary-foreground, var(--secondary-foreground))',
       background: 'var(--color-background, var(--background))',
       foreground: 'var(--color-foreground, var(--foreground))',
       card: 'var(--color-card, var(--card))',
@@ -62,7 +83,8 @@ export function getThemeTokens() {
       muted: 'var(--color-muted, var(--muted))',
       mutedForeground: 'var(--color-muted-foreground, var(--muted-foreground))',
       accent: 'var(--color-accent, var(--accent))',
-      accentForeground: 'var(--color-accent-foreground, var(--accent-foreground))',
+      accentForeground:
+        'var(--color-accent-foreground, var(--accent-foreground))',
       border: 'var(--color-border, var(--border))',
       ring: 'var(--color-ring, var(--ring))',
       destructive: 'var(--color-destructive, var(--destructive))',
@@ -120,7 +142,7 @@ export function ThemeSurface({
     <div
       onClick={onClick}
       style={{ ...surfaceStyle, ...style }}
-      className={`border rounded-(--radius-card,8px) text-foreground transition-colors ${className}`}
+      className={`rounded-(--radius-card,8px) border text-foreground transition-colors ${className}`}
     >
       {children}
     </div>
@@ -129,7 +151,16 @@ export function ThemeSurface({
 
 export interface GradientSurfaceProps {
   children?: ReactNode;
-  gradient?: 'primary' | 'secondary' | 'accent' | 'hero' | 'sidebar' | 'button' | 'surface' | GradientConfig | string;
+  gradient?:
+    | 'primary'
+    | 'secondary'
+    | 'accent'
+    | 'hero'
+    | 'sidebar'
+    | 'button'
+    | 'surface'
+    | GradientConfig
+    | string;
   className?: string;
   style?: CSSProperties;
 }
@@ -141,9 +172,19 @@ export function GradientSurface({
   className = '',
   style,
 }: GradientSurfaceProps) {
-  const bg = typeof gradient === 'string' && ['primary', 'secondary', 'accent', 'hero', 'sidebar', 'button', 'surface'].includes(gradient)
-    ? getThemeGradient(gradient as any)
-    : generateCssGradient(gradient);
+  const bg =
+    typeof gradient === 'string' &&
+    [
+      'primary',
+      'secondary',
+      'accent',
+      'hero',
+      'sidebar',
+      'button',
+      'surface',
+    ].includes(gradient)
+      ? getThemeGradient(gradient as any)
+      : generateCssGradient(gradient);
 
   return (
     <div
@@ -208,23 +249,26 @@ export function ThemeButton({
   onClick,
 }: ThemeButtonProps) {
   const sizeClasses = {
-    xs: 'px-2.5 py-1 text-[11px] h-7',
+    xs: 'px-2.5 py-1 text-meta h-7',
     sm: 'px-3 py-1.5 text-xs h-8',
     md: 'px-4 py-2 text-xs font-medium h-9',
     lg: 'px-5 py-2.5 text-sm font-semibold h-10',
   }[size];
 
   const variantStyle: CSSProperties = {};
-  let baseClasses = 'inline-flex items-center justify-center gap-2 rounded-(--radius-btn,6px) transition-all cursor-pointer select-none font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:pointer-events-none';
+  let baseClasses =
+    'inline-flex items-center justify-center gap-2 rounded-(--radius-btn,6px) transition-all cursor-pointer select-none font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:pointer-events-none';
 
   if (variant === 'gradient') {
     variantStyle.background = getThemeGradient(gradientType);
     variantStyle.color = 'var(--primary-foreground, #ffffff)';
-    baseClasses += ' shadow-xs hover:brightness-105 active:scale-[0.98] border-0';
+    baseClasses +=
+      ' shadow-xs hover:brightness-105 active:scale-[0.98] border-0';
   } else if (variant === 'primary') {
     variantStyle.background = 'var(--primary)';
     variantStyle.color = 'var(--primary-foreground)';
-    baseClasses += ' shadow-xs hover:brightness-95 active:scale-[0.98] border-0';
+    baseClasses +=
+      ' shadow-xs hover:brightness-95 active:scale-[0.98] border-0';
   } else if (variant === 'secondary') {
     variantStyle.background = 'var(--secondary)';
     variantStyle.color = 'var(--secondary-foreground)';
@@ -255,7 +299,15 @@ export function ThemeButton({
 
 export interface ThemeBadgeProps {
   children?: ReactNode;
-  variant?: 'primary' | 'secondary' | 'gradient' | 'outline' | 'success' | 'warning' | 'destructive' | 'info';
+  variant?:
+    | 'primary'
+    | 'secondary'
+    | 'gradient'
+    | 'outline'
+    | 'success'
+    | 'warning'
+    | 'destructive'
+    | 'info';
   className?: string;
   style?: CSSProperties;
 }
@@ -268,16 +320,19 @@ export function ThemeBadge({
   style,
 }: ThemeBadgeProps) {
   const variantStyle: CSSProperties = {};
-  let baseClass = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide border';
+  let baseClass =
+    'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-semibold tracking-wide border';
 
   if (variant === 'gradient') {
     variantStyle.background = getThemeGradient('primary');
     variantStyle.color = 'var(--primary-foreground, #ffffff)';
     baseClass += ' border-transparent shadow-2xs';
   } else if (variant === 'primary') {
-    variantStyle.background = 'color-mix(in srgb, var(--primary) 15%, transparent)';
+    variantStyle.background =
+      'color-mix(in srgb, var(--primary) 15%, transparent)';
     variantStyle.color = 'var(--primary-text, var(--primary))';
-    variantStyle.borderColor = 'color-mix(in srgb, var(--primary) 25%, transparent)';
+    variantStyle.borderColor =
+      'color-mix(in srgb, var(--primary) 25%, transparent)';
   } else if (variant === 'secondary') {
     variantStyle.background = 'var(--secondary)';
     variantStyle.color = 'var(--secondary-foreground)';
@@ -287,25 +342,36 @@ export function ThemeBadge({
     variantStyle.color = 'var(--foreground)';
     variantStyle.borderColor = 'var(--border)';
   } else if (variant === 'success') {
-    variantStyle.background = 'color-mix(in srgb, var(--success) 15%, transparent)';
+    variantStyle.background =
+      'color-mix(in srgb, var(--success) 15%, transparent)';
     variantStyle.color = 'var(--success-text, var(--success))';
-    variantStyle.borderColor = 'color-mix(in srgb, var(--success) 25%, transparent)';
+    variantStyle.borderColor =
+      'color-mix(in srgb, var(--success) 25%, transparent)';
   } else if (variant === 'warning') {
-    variantStyle.background = 'color-mix(in srgb, var(--warning) 15%, transparent)';
+    variantStyle.background =
+      'color-mix(in srgb, var(--warning) 15%, transparent)';
     variantStyle.color = 'var(--warning-text, var(--warning))';
-    variantStyle.borderColor = 'color-mix(in srgb, var(--warning) 25%, transparent)';
+    variantStyle.borderColor =
+      'color-mix(in srgb, var(--warning) 25%, transparent)';
   } else if (variant === 'destructive') {
-    variantStyle.background = 'color-mix(in srgb, var(--destructive) 15%, transparent)';
+    variantStyle.background =
+      'color-mix(in srgb, var(--destructive) 15%, transparent)';
     variantStyle.color = 'var(--destructive-text, var(--destructive))';
-    variantStyle.borderColor = 'color-mix(in srgb, var(--destructive) 25%, transparent)';
+    variantStyle.borderColor =
+      'color-mix(in srgb, var(--destructive) 25%, transparent)';
   } else if (variant === 'info') {
-    variantStyle.background = 'color-mix(in srgb, var(--info) 15%, transparent)';
+    variantStyle.background =
+      'color-mix(in srgb, var(--info) 15%, transparent)';
     variantStyle.color = 'var(--info-text, var(--info))';
-    variantStyle.borderColor = 'color-mix(in srgb, var(--info) 25%, transparent)';
+    variantStyle.borderColor =
+      'color-mix(in srgb, var(--info) 25%, transparent)';
   }
 
   return (
-    <span style={{ ...variantStyle, ...style }} className={`${baseClass} ${className}`}>
+    <span
+      style={{ ...variantStyle, ...style }}
+      className={`${baseClass} ${className}`}
+    >
       {children}
     </span>
   );

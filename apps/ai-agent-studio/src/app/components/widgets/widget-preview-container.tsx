@@ -142,7 +142,7 @@ export function WidgetPreviewContainer({
             actionLogs.map((log) => (
               <div key={log.id} className="flex items-start gap-2 border-b border-zinc-800/60 pb-1">
                 <span className="text-zinc-500 text-2xs shrink-0">{log.timestamp}</span>
-                <span className="text-indigo-400 font-semibold shrink-0">[{log.action}]</span>
+                <span className="text-accent-indigo font-semibold shrink-0">[{log.action}]</span>
                 <span className="text-zinc-300 truncate">
                   {JSON.stringify(log.payload)}
                 </span>

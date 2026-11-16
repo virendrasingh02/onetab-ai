@@ -10,11 +10,10 @@ import {
 } from './code-block.utils.js';
 import type { HighlightedToken } from './types.js';
 
-export interface CodeInputProps
-  extends Omit<
-    React.TextareaHTMLAttributes<HTMLTextAreaElement>,
-    'value' | 'onChange' | 'rows' | 'wrap'
-  > {
+export interface CodeInputProps extends Omit<
+  React.TextareaHTMLAttributes<HTMLTextAreaElement>,
+  'value' | 'onChange' | 'rows' | 'wrap'
+> {
   value: string;
   /** Receives the new code string (not the change event). */
   onChange?: (value: string) => void;
@@ -85,7 +84,8 @@ export function CodeInput({
     let cancelled = false;
     const timer = setTimeout(async () => {
       const tokens = await highlightCodeToTokens(code, lang).catch(() => null);
-      if (!cancelled && tokens) setHighlight({ lines: code.split('\n'), tokens });
+      if (!cancelled && tokens)
+        setHighlight({ lines: code.split('\n'), tokens });
     }, 60);
     return () => {
       cancelled = true;
@@ -120,12 +120,20 @@ export function CodeInput({
     }
     if (e.key !== 'Tab') tabReleased.current = false;
 
-    if (e.key === 'Tab' && !tabReleased.current && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (
+      e.key === 'Tab' &&
+      !tabReleased.current &&
+      !e.ctrlKey &&
+      !e.metaKey &&
+      !e.altKey
+    ) {
       e.preventDefault();
       const { selectionStart: start, selectionEnd: end } = el;
       const lineStart = code.lastIndexOf('\n', start - 1) + 1;
       if (e.shiftKey) {
-        const removable = code.slice(lineStart, lineStart + INDENT.length).match(/^ {1,2}/)?.[0];
+        const removable = code
+          .slice(lineStart, lineStart + INDENT.length)
+          .match(/^ {1,2}/)?.[0];
         if (!removable) return;
         el.setSelectionRange(lineStart, lineStart + removable.length);
         insertText(el, '');
@@ -140,7 +148,13 @@ export function CodeInput({
     }
 
     // Enter keeps the current line's indentation.
-    if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (
+      e.key === 'Enter' &&
+      !e.shiftKey &&
+      !e.ctrlKey &&
+      !e.metaKey &&
+      !e.altKey
+    ) {
       const lineStart = code.lastIndexOf('\n', el.selectionStart - 1) + 1;
       const indent = code.slice(lineStart).match(/^[ \t]*/)?.[0] ?? '';
       if (indent) {
@@ -164,7 +178,8 @@ export function CodeInput({
         minHeight: minRows * LINE_HEIGHT_PX + PAD_Y_PX * 2,
         maxHeight: maxRows * LINE_HEIGHT_PX + PAD_Y_PX * 2,
       };
-  const textClass = 'm-0 py-2 px-3 font-mono text-xs leading-5 whitespace-pre [tab-size:2]';
+  const textClass =
+    'm-0 py-2 px-3 font-mono text-xs leading-5 whitespace-pre [tab-size:2]';
 
   return (
     <div
@@ -174,21 +189,22 @@ export function CodeInput({
         'group/code flex w-full flex-col overflow-hidden rounded-lg border border-border/80 bg-surface-inset shadow-xs',
         'transition-[border-color,box-shadow] duration-(--duration-fast)',
         'focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/25',
-        invalid && 'border-destructive ring-2 ring-destructive/20 focus-within:border-destructive focus-within:ring-destructive/20',
+        invalid &&
+          'border-destructive ring-2 ring-destructive/20 focus-within:border-destructive focus-within:ring-destructive/20',
         disabled && 'opacity-70',
         fill && 'min-h-0 flex-1',
         className,
       )}
     >
       {showHeader && (
-        <div className="flex h-8 shrink-0 items-center justify-between gap-2 border-b border-border/70 bg-surface-raised/80 px-3 select-none">
-          <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
+        <div className="h-8 gap-2 px-3 flex shrink-0 items-center justify-between border-b border-border/70 bg-surface-raised/80 select-none">
+          <div className="min-w-0 gap-2 flex items-center text-muted-foreground">
             <Code2 className="size-3.5 shrink-0" />
-            <span className="truncate font-mono text-[11px] font-medium tracking-wide">
+            <span className="font-medium tracking-wide truncate font-mono text-meta">
               {title ?? getLanguageName(lang)}
             </span>
           </div>
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="gap-1 flex shrink-0 items-center">
             {actions}
             {showCopy && (
               <Button
@@ -199,11 +215,17 @@ export function CodeInput({
                 disabled={!code}
                 className={cn(
                   'size-6',
-                  copied ? 'text-success-text' : 'text-muted-foreground hover:text-foreground',
+                  copied
+                    ? 'text-success-text'
+                    : 'text-muted-foreground hover:text-foreground',
                 )}
                 aria-label={copied ? 'Copied' : 'Copy code'}
               >
-                {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                {copied ? (
+                  <Check className="size-3.5" />
+                ) : (
+                  <Copy className="size-3.5" />
+                )}
               </Button>
             )}
           </div>
@@ -211,13 +233,16 @@ export function CodeInput({
       )}
 
       <div
-        className={cn('relative flex overflow-auto scrollbar-subtle', fill && 'min-h-0 flex-1')}
+        className={cn(
+          'scrollbar-subtle relative flex overflow-auto',
+          fill && 'min-h-0 flex-1',
+        )}
         style={scrollStyle}
       >
         {showLineNumbers && (
           <div
             aria-hidden="true"
-            className="sticky left-0 z-10 shrink-0 self-stretch border-r border-border/50 bg-surface-raised/60 py-2 pr-2 text-right font-mono text-[11px] leading-5 text-muted-foreground/50 select-none backdrop-blur-xs"
+            className="left-0 py-2 pr-2 leading-5 backdrop-blur-xs sticky z-10 shrink-0 self-stretch border-r border-border/50 bg-surface-raised/60 text-right font-mono text-meta text-muted-foreground/50 select-none"
             style={{ width: `${gutterCh + 1}ch` }}
           >
             {lines.map((_, i) => (
@@ -226,24 +251,33 @@ export function CodeInput({
           </div>
         )}
 
-        <div className="grid min-w-0 flex-1 [grid-template-areas:'stack'] *:[grid-area:stack]">
-          <pre aria-hidden="true" className={cn(textClass, 'pointer-events-none text-foreground')}>
+        <div className="min-w-0 grid flex-1 [grid-template-areas:'stack'] *:[grid-area:stack]">
+          <pre
+            aria-hidden="true"
+            className={cn(textClass, 'pointer-events-none text-foreground')}
+          >
             {lines.map((text, i) => {
               const tokens = renderedLines[i];
               return (
-              <div key={i} className="min-h-5">
-                {tokens
-                  ? tokens.map((token, t) => (
-                      <span
-                        key={t}
-                        style={{ color: token.htmlStyle?.color || token.color, ...(token.htmlStyle as React.CSSProperties) }}
-                        className={cn(token.htmlStyle?.['--shiki-dark'] && 'dark:![color:var(--shiki-dark)]')}
-                      >
-                        {token.content}
-                      </span>
-                    ))
-                  : text}
-              </div>
+                <div key={i} className="min-h-5">
+                  {tokens
+                    ? tokens.map((token, t) => (
+                        <span
+                          key={t}
+                          style={{
+                            color: token.htmlStyle?.color || token.color,
+                            ...(token.htmlStyle as React.CSSProperties),
+                          }}
+                          className={cn(
+                            token.htmlStyle?.['--shiki-dark'] &&
+                              'dark:![color:var(--shiki-dark)]',
+                          )}
+                        >
+                          {token.content}
+                        </span>
+                      ))
+                    : text}
+                </div>
               );
             })}
           </pre>
@@ -283,7 +317,9 @@ export function CodeInput({
  */
 function insertText(el: HTMLTextAreaElement, text: string) {
   el.focus();
-  const ok = typeof document.execCommand === 'function' && document.execCommand('insertText', false, text);
+  const ok =
+    typeof document.execCommand === 'function' &&
+    document.execCommand('insertText', false, text);
   if (!ok) {
     el.setRangeText(text, el.selectionStart, el.selectionEnd, 'end');
     el.dispatchEvent(new Event('input', { bubbles: true }));

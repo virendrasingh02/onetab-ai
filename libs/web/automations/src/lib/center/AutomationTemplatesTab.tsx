@@ -14,13 +14,11 @@ import {
   SearchInput,
   toast,
 } from '@org/ui';
-import { useCurrentWorkspace, useWorkspacePermission } from '@org/web-workspace';
 import {
-  ArrowRight,
-  Clock,
-  Layers,
-  Search,
-} from 'lucide-react';
+  useCurrentWorkspace,
+  useWorkspacePermission,
+} from '@org/web-workspace';
+import { ArrowRight, Clock, Layers, Search } from 'lucide-react';
 import { useWorkflowMutations, useWorkflows } from '../use-automations.js';
 import {
   WORKFLOW_TEMPLATES,
@@ -46,7 +44,8 @@ export function AutomationTemplatesTab() {
 
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [search, setSearch] = useState('');
-  const [selectedTemplate, setSelectedTemplate] = useState<WorkflowTemplate | null>(null);
+  const [selectedTemplate, setSelectedTemplate] =
+    useState<WorkflowTemplate | null>(null);
 
   const workflows = workflowsQuery.data ?? [];
 
@@ -87,7 +86,8 @@ export function AutomationTemplatesTab() {
         onSuccess: (wf) => {
           setSelectedTemplate(null);
           toast.success(`Created “${name}” from template`, {
-            description: 'It starts paused so you can configure credentials and review steps.',
+            description:
+              'It starts paused so you can configure credentials and review steps.',
           });
           navigate(`/w/${slug}/automations/builder/${wf.id}`);
         },
@@ -101,8 +101,8 @@ export function AutomationTemplatesTab() {
   return (
     <div className="space-y-6">
       {/* Header filter bar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex flex-wrap gap-1.5 p-1 bg-muted/60 rounded-lg">
+      <div className="sm:flex-row sm:items-center gap-4 flex flex-col items-start justify-between">
+        <div className="gap-1.5 p-1 flex flex-wrap rounded-lg bg-muted/60">
           {CATEGORY_TABS.map((cat) => (
             <button
               key={cat.id}
@@ -119,7 +119,7 @@ export function AutomationTemplatesTab() {
           ))}
         </div>
 
-        <div className="w-full sm:w-64">
+        <div className="sm:w-64 w-full">
           <SearchInput
             placeholder="Search templates or tags…"
             value={search}
@@ -135,13 +135,20 @@ export function AutomationTemplatesTab() {
           title="No templates match your search"
           description="Try adjusting your category or search terms to explore available automation templates."
           action={
-            <Button variant="outline" size="sm" onClick={() => { setSearch(''); setActiveCategory('all'); }}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSearch('');
+                setActiveCategory('all');
+              }}
+            >
               Reset filters
             </Button>
           }
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="md:grid-cols-2 lg:grid-cols-3 gap-4 grid grid-cols-1">
           {filteredTemplates.map((template) => {
             const graph = template.build();
             const nodeCount = graph.nodes.length;
@@ -149,53 +156,56 @@ export function AutomationTemplatesTab() {
             return (
               <Card
                 key={template.id}
-                className="flex flex-col justify-between p-5 hover:border-primary/50 transition-all hover:shadow-sm"
+                className="p-5 flex flex-col justify-between transition-all hover:border-primary/50 hover:shadow-sm"
               >
                 <div>
-                  <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="gap-2 mb-2 flex items-start justify-between">
                     <span className="text-2xl" role="img" aria-hidden="true">
                       ⚡
                     </span>
-                    <Badge variant="outline" className="text-[11px] font-normal uppercase">
+                    <Badge
+                      variant="outline"
+                      className="font-normal text-meta uppercase"
+                    >
                       {template.category ?? 'automation'}
                     </Badge>
                   </div>
 
-                  <h3 className="font-semibold text-base tracking-tight text-foreground line-clamp-1 mb-1">
+                  <h3 className="font-semibold text-base tracking-tight mb-1 line-clamp-1 text-foreground">
                     {template.name}
                   </h3>
 
-                  <p className="text-sm text-muted-foreground line-clamp-3 mb-4 leading-relaxed">
+                  <p className="text-sm mb-4 leading-relaxed line-clamp-3 text-muted-foreground">
                     {template.description}
                   </p>
                 </div>
 
                 <div className="pt-3 border-t border-border/50">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
-                    <span className="inline-flex items-center gap-1">
+                  <div className="text-xs mb-3 flex items-center justify-between text-muted-foreground">
+                    <span className="gap-1 inline-flex items-center">
                       <Layers className="h-3.5 w-3.5" />
                       {nodeCount} steps
                     </span>
                     {template.estimatedTimeSaved && (
-                      <span className="inline-flex items-center gap-1 text-primary font-medium">
+                      <span className="gap-1 font-medium inline-flex items-center text-primary">
                         <Clock className="h-3.5 w-3.5" />
                         Saves ~{template.estimatedTimeSaved}
                       </span>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="gap-2 flex items-center">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full text-xs"
+                      className="text-xs w-full"
                       onClick={() => setSelectedTemplate(template)}
                     >
                       Preview
                     </Button>
                     <Button
                       size="sm"
-                      className="w-full text-xs"
+                      className="text-xs w-full"
                       onClick={() => handleInstall(template)}
                       disabled={create.isPending}
                     >
@@ -212,15 +222,20 @@ export function AutomationTemplatesTab() {
 
       {/* Preview Dialog */}
       {selectedTemplate && (
-        <Dialog open={!!selectedTemplate} onOpenChange={(open) => !open && setSelectedTemplate(null)}>
+        <Dialog
+          open={!!selectedTemplate}
+          onOpenChange={(open) => !open && setSelectedTemplate(null)}
+        >
           <DialogContent className="max-w-xl">
             <DialogHeader>
-              <div className="flex items-center gap-3">
+              <div className="gap-3 flex items-center">
                 <span className="text-3xl">⚡</span>
                 <div>
                   <DialogTitle>{selectedTemplate.name}</DialogTitle>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="outline" className="uppercase">{selectedTemplate.category}</Badge>
+                  <div className="gap-2 mt-1 flex items-center">
+                    <Badge variant="outline" className="uppercase">
+                      {selectedTemplate.category}
+                    </Badge>
                     {selectedTemplate.estimatedTimeSaved && (
                       <span className="text-xs text-muted-foreground">
                         Saves ~{selectedTemplate.estimatedTimeSaved}
@@ -232,27 +247,34 @@ export function AutomationTemplatesTab() {
             </DialogHeader>
 
             <DialogBody className="space-y-4 py-2">
-              <p className="text-sm text-muted-foreground leading-relaxed">
+              <p className="text-sm leading-relaxed text-muted-foreground">
                 {selectedTemplate.description}
               </p>
 
               <div>
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                <h4 className="text-xs font-semibold tracking-wider mb-2 text-muted-foreground uppercase">
                   Workflow Steps Included
                 </h4>
-                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                  {(selectedTemplate.build().nodes as Array<{ id: string; data?: { label?: string; type?: string } }>).map((n, i) => (
+                <div className="space-y-2 max-h-56 pr-1 overflow-y-auto">
+                  {(
+                    selectedTemplate.build().nodes as Array<{
+                      id: string;
+                      data?: { label?: string; type?: string };
+                    }>
+                  ).map((n, i) => (
                     <div
                       key={n.id}
-                      className="flex items-center justify-between p-2.5 rounded-md border border-border/60 bg-muted/30 text-xs"
+                      className="p-2.5 text-xs flex items-center justify-between rounded-md border border-border/60 bg-muted/30"
                     >
-                      <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-[10px]">
+                      <div className="gap-2 flex items-center">
+                        <span className="w-5 h-5 font-bold flex items-center justify-center rounded-full bg-primary/10 text-2xs text-primary">
                           {i + 1}
                         </span>
-                        <span className="font-medium text-foreground">{n.data?.label ?? n.id}</span>
+                        <span className="font-medium text-foreground">
+                          {n.data?.label ?? n.id}
+                        </span>
                       </div>
-                      <Badge variant="outline" className="text-[10px]">
+                      <Badge variant="outline" className="text-2xs">
                         {n.data?.type ?? 'STEP'}
                       </Badge>
                     </div>
@@ -262,14 +284,14 @@ export function AutomationTemplatesTab() {
 
               {selectedTemplate.tags && selectedTemplate.tags.length > 0 && (
                 <div>
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                  <h4 className="text-xs font-semibold tracking-wider mb-1.5 text-muted-foreground uppercase">
                     Tags
                   </h4>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="gap-1.5 flex flex-wrap">
                     {selectedTemplate.tags.map((tag) => (
                       <span
                         key={tag}
-                        className="px-2 py-0.5 rounded text-[11px] bg-secondary text-secondary-foreground"
+                        className="px-2 py-0.5 rounded bg-secondary text-meta text-secondary-foreground"
                       >
                         #{tag}
                       </span>
@@ -280,7 +302,10 @@ export function AutomationTemplatesTab() {
             </DialogBody>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setSelectedTemplate(null)}>
+              <Button
+                variant="outline"
+                onClick={() => setSelectedTemplate(null)}
+              >
                 Cancel
               </Button>
               <Button

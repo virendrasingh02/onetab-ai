@@ -199,7 +199,7 @@ export function EditChannelDetailsDialog({
               <p
                 id="channel-name-hint"
                 className={cn(
-                  'text-[11px]',
+                  'text-meta',
                   nameError ? 'text-destructive' : 'text-muted-foreground',
                 )}
               >
@@ -241,7 +241,7 @@ export function EditChannelDetailsDialog({
                 maxLength={500}
                 rows={4}
               />
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-meta text-muted-foreground">
                 {description.length}/500
               </p>
             </div>
@@ -261,7 +261,7 @@ export function EditChannelDetailsDialog({
                 maxLength={300}
                 rows={2}
               />
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-meta text-muted-foreground">
                 {welcomeMessage.length}/300
               </p>
             </div>
@@ -369,7 +369,7 @@ function AnonymousPostingSection({
             <p className="text-xs font-semibold text-foreground">
               Anonymous messages
             </p>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-meta text-muted-foreground">
               Members can post as “Anonymous Participant”. Only moderators can
               see who sent one.
             </p>
@@ -395,7 +395,7 @@ function AnonymousPostingSection({
             />
           </div>
           <div className="space-y-1">
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-meta text-muted-foreground">
               Roles that may post anonymously
             </p>
             <div className="gap-1.5 flex flex-wrap">
@@ -407,7 +407,7 @@ function AnonymousPostingSection({
                     type="button"
                     onClick={() => toggleRole(role)}
                     className={cn(
-                      'px-2 py-0.5 rounded-full border text-[11px] capitalize transition-colors',
+                      'px-2 py-0.5 rounded-full border text-meta capitalize transition-colors',
                       on
                         ? 'border-primary bg-primary/10 text-primary'
                         : 'border-border text-muted-foreground hover:text-foreground',
@@ -453,7 +453,7 @@ function EmailIntegrationSection({
           <Send className="size-4 text-muted-foreground" />
           <div>
             <p className="text-xs font-semibold text-foreground">Email</p>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-meta text-muted-foreground">
               Send email to this address to post it in the channel.
             </p>
           </div>
@@ -467,7 +467,7 @@ function EmailIntegrationSection({
 
       {data.address ? (
         <div className="gap-2 px-2.5 py-1.5 flex items-center rounded-lg border border-border bg-surface-muted">
-          <code className="min-w-0 flex-1 truncate text-[11px] text-foreground">
+          <code className="min-w-0 flex-1 truncate text-meta text-foreground">
             {data.address}
           </code>
           <Button
@@ -475,7 +475,7 @@ function EmailIntegrationSection({
             variant="ghost"
             size="sm"
             onClick={copy}
-            className="h-6 gap-1 px-2 text-[11px]"
+            className="h-6 gap-1 px-2 text-meta"
           >
             {copied ? (
               <Check className="size-3 text-success-text" />
@@ -486,7 +486,7 @@ function EmailIntegrationSection({
           </Button>
         </div>
       ) : (
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-meta text-muted-foreground">
           Incoming email is not configured for this deployment.
         </p>
       )}
@@ -501,7 +501,7 @@ function EmailIntegrationSection({
               aria-label="Thread by subject"
             />
           </div>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-meta text-muted-foreground">
             {data.messageCount} email
             {data.messageCount === 1 ? '' : 's'} routed here so far.
           </p>
@@ -698,7 +698,7 @@ export function ChannelPostingDialog({
                     <span className="text-xs font-semibold text-foreground">
                       {option.title}
                     </span>
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-meta text-muted-foreground">
                       {option.blurb}
                     </span>
                   </button>
@@ -718,7 +718,7 @@ export function ChannelPostingDialog({
                         <p className="text-xs font-medium text-foreground">
                           {row.label}
                         </p>
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-meta text-muted-foreground">
                           {row.description}
                         </p>
                       </div>
@@ -741,7 +741,7 @@ export function ChannelPostingDialog({
                     <p className="text-xs font-medium text-foreground">
                       People who can post
                     </p>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-meta text-muted-foreground">
                       Channel admins, workspace admins and the creator
                       {alwaysPostIds.size > 0
                         ? ` (${alwaysPostIds.size})`
@@ -758,7 +758,7 @@ export function ChannelPostingDialog({
                             type="button"
                             onClick={() => togglePoster(id)}
                             aria-label={`Remove ${user?.displayName ?? user?.name ?? 'person'}`}
-                            className="gap-1.5 py-0.5 pl-0.5 pr-2 flex items-center rounded-full border border-border bg-surface-raised text-[11px] transition-colors hover:bg-accent"
+                            className="gap-1.5 py-0.5 pl-0.5 pr-2 flex items-center rounded-full border border-border bg-surface-raised text-meta transition-colors hover:bg-accent"
                           >
                             <UserAvatar
                               name={user?.displayName ?? user?.name ?? '?'}
@@ -788,11 +788,11 @@ export function ChannelPostingDialog({
                   </div>
                   <ScrollArea className="max-h-40 rounded-lg border border-border">
                     {channelMembers.isLoading ? (
-                      <p className="px-3 py-4 text-center text-[11px] text-muted-foreground">
+                      <p className="px-3 py-4 text-center text-meta text-muted-foreground">
                         Loading members…
                       </p>
                     ) : candidates.length === 0 ? (
-                      <p className="px-3 py-4 text-center text-[11px] text-muted-foreground">
+                      <p className="px-3 py-4 text-center text-meta text-muted-foreground">
                         {search
                           ? 'No matching members.'
                           : 'Everyone else in this channel is already listed.'}
@@ -827,7 +827,7 @@ export function ChannelPostingDialog({
               </>
             )}
 
-            <p className="pt-1 font-medium tracking-wide text-[11px] text-muted-foreground uppercase">
+            <p className="pt-1 font-medium tracking-wide text-meta text-muted-foreground uppercase">
               Applied instantly
             </p>
             <AnonymousPostingSection
@@ -952,7 +952,7 @@ export function AddAgentToChannelDialog({
             <div>
               <DialogTitle className="text-base font-bold gap-2 flex items-center">
                 <span>Add AI Agent to #{channel.name}</span>
-                <Badge variant="primary" className="py-0 h-4 text-[10px]">
+                <Badge variant="primary" className="py-0 h-4 text-2xs">
                   AI Powered
                 </Badge>
               </DialogTitle>
@@ -1014,12 +1014,12 @@ export function AddAgentToChannelDialog({
                           <span className="text-xs font-bold text-foreground">
                             {agent.name}
                           </span>
-                          <span className="font-mono text-[11px] text-brand-text">
+                          <span className="font-mono text-meta text-brand-text">
                             {agent.handle}
                           </span>
                           <Badge
                             variant="outline"
-                            className="py-0 h-4 font-mono text-[10px]"
+                            className="py-0 h-4 font-mono text-2xs"
                           >
                             {agent.model}
                           </Badge>
@@ -1031,7 +1031,7 @@ export function AddAgentToChannelDialog({
                           {agent.tags.map((tag) => (
                             <span
                               key={tag}
-                              className="px-1.5 py-0.5 rounded font-medium bg-muted text-[10px] text-muted-foreground"
+                              className="px-1.5 py-0.5 rounded font-medium bg-muted text-2xs text-muted-foreground"
                             >
                               {tag}
                             </span>
@@ -1222,19 +1222,19 @@ export function ChannelTemplatesDialog({
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="text-xl">{tpl.icon}</span>
-                    <Badge variant="outline" className="py-0 h-4 text-[10px]">
+                    <Badge variant="outline" className="py-0 h-4 text-2xs">
                       {tpl.category}
                     </Badge>
                   </div>
                   <h4 className="font-bold text-xs mt-2 text-foreground">
                     {tpl.name}
                   </h4>
-                  <p className="mt-1 leading-relaxed line-clamp-2 text-[11px] text-muted-foreground">
+                  <p className="mt-1 leading-relaxed line-clamp-2 text-meta text-muted-foreground">
                     {tpl.description}
                   </p>
                 </div>
 
-                <div className="mt-3 pt-2.5 flex items-center justify-between border-t border-border/60 font-mono text-[10px] text-muted-foreground">
+                <div className="mt-3 pt-2.5 flex items-center justify-between border-t border-border/60 font-mono text-2xs text-muted-foreground">
                   <span>{tpl.starterBookmarks.length} bookmarks</span>
                   <span>{tpl.recommendedAgents.join(' ')}</span>
                 </div>
@@ -1370,7 +1370,7 @@ export function ChannelWorkflowsDialog({
                   </h4>
                   <Badge
                     variant={wf.active ? 'primary' : 'neutral'}
-                    className="py-0 h-4 text-[10px]"
+                    className="py-0 h-4 text-2xs"
                   >
                     {wf.active ? 'Active' : 'Paused'}
                   </Badge>
@@ -1378,7 +1378,7 @@ export function ChannelWorkflowsDialog({
                 <p className="text-xs mt-1 leading-relaxed text-muted-foreground">
                   {wf.description}
                 </p>
-                <span className="gap-1 mt-1.5 flex items-center font-mono text-[10px] text-brand-text">
+                <span className="gap-1 mt-1.5 flex items-center font-mono text-2xs text-brand-text">
                   <Zap className="size-3" />
                   <span>Trigger: {wf.trigger}</span>
                 </span>

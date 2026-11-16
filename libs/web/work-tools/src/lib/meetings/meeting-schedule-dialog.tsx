@@ -378,7 +378,7 @@ export function MeetingScheduleDialog({
                         <div className="gap-4 p-3 flex items-start justify-between rounded-lg border border-border bg-surface-raised">
                           <div>
                             <FormLabel>Add to the calendar</FormLabel>
-                            <p className="mt-1 text-[11px] text-muted-foreground">
+                            <p className="mt-1 text-meta text-muted-foreground">
                               Also create a calendar event so it shows on the
                               schedule.
                             </p>

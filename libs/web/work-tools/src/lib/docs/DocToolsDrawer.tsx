@@ -88,12 +88,14 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
         mdStr += `- [${b.checked ? 'x' : ' '}] ${b.content}\n`;
       else if (b.type === 'bullet_list') mdStr += `- ${b.content}\n`;
       else if (b.type === 'numbered_list') mdStr += `1. ${b.content}\n`;
-      else if (b.type === 'callout') mdStr += `> ${b.icon || '💡'} ${b.content}\n\n`;
+      else if (b.type === 'callout')
+        mdStr += `> ${b.icon || '💡'} ${b.content}\n\n`;
       else if (b.type === 'code')
         mdStr += `\`\`\`${b.language || 'typescript'}\n${b.content}\n\`\`\`\n\n`;
       else if (b.type === 'quote') mdStr += `> ${b.content}\n\n`;
       else if (b.type === 'table') {
-        if (b.headers) mdStr += `| ${b.headers.join(' | ')} |\n| ${b.headers.map(() => '---').join(' | ')} |\n`;
+        if (b.headers)
+          mdStr += `| ${b.headers.join(' | ')} |\n| ${b.headers.map(() => '---').join(' | ')} |\n`;
         if (b.rows) {
           b.rows.forEach((r) => {
             mdStr += `| ${r.join(' | ')} |\n`;
@@ -120,7 +122,7 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="gap-2 flex items-center">
       {/* Export Modal */}
       <Dialog>
         <DialogTrigger asChild>
@@ -131,7 +133,7 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
         </DialogTrigger>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="gap-2 flex items-center">
               <Download className="size-4 text-accent-blue" />
               Export Document
             </DialogTitle>
@@ -139,21 +141,23 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
               Download your Notion page into Markdown, HTML, or raw JSON format.
             </DialogDescription>
           </DialogHeader>
-          <DialogBody className="grid grid-cols-3 gap-3">
+          <DialogBody className="gap-3 grid grid-cols-3">
             <button
               type="button"
               onClick={() => handleDownload('markdown')}
-              className="p-3 rounded-lg border border-border bg-surface-raised hover:border-accent-blue hover:bg-accent/40 text-center transition-all flex flex-col items-center gap-2 cursor-pointer"
+              className="p-3 gap-2 flex cursor-pointer flex-col items-center rounded-lg border border-border bg-surface-raised text-center transition-all hover:border-accent-blue hover:bg-accent/40"
             >
               <FileText className="size-6 text-accent-blue" />
               <span className="text-xs font-bold text-foreground">
-                {downloadedFormat === 'markdown' ? 'Downloaded!' : 'Markdown (.md)'}
+                {downloadedFormat === 'markdown'
+                  ? 'Downloaded!'
+                  : 'Markdown (.md)'}
               </span>
             </button>
             <button
               type="button"
               onClick={() => handleDownload('html')}
-              className="p-3 rounded-lg border border-border bg-surface-raised hover:border-accent-green/30 hover:bg-accent/40 text-center transition-all flex flex-col items-center gap-2 cursor-pointer"
+              className="p-3 gap-2 flex cursor-pointer flex-col items-center rounded-lg border border-border bg-surface-raised text-center transition-all hover:border-accent-green/30 hover:bg-accent/40"
             >
               <FileCode className="size-6 text-accent-green" />
               <span className="text-xs font-bold text-foreground">
@@ -163,7 +167,7 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
             <button
               type="button"
               onClick={() => handleDownload('json')}
-              className="p-3 rounded-lg border border-border bg-surface-raised hover:border-accent-violet/30 hover:bg-accent/40 text-center transition-all flex flex-col items-center gap-2 cursor-pointer"
+              className="p-3 gap-2 flex cursor-pointer flex-col items-center rounded-lg border border-border bg-surface-raised text-center transition-all hover:border-accent-violet/30 hover:bg-accent/40"
             >
               <FileSpreadsheet className="size-6 text-accent-violet" />
               <span className="text-xs font-bold text-foreground">
@@ -184,7 +188,7 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
         </SheetTrigger>
         <SheetContent className="w-80 sm:w-96 p-4">
           <SheetHeader className="pb-3 border-b border-border">
-            <SheetTitle className="text-sm font-bold flex items-center gap-2">
+            <SheetTitle className="text-sm font-bold gap-2 flex items-center">
               <Sparkles className="size-4 text-accent-blue" />
               Page Tools & Discussions
             </SheetTitle>
@@ -193,7 +197,7 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
             </SheetDescription>
           </SheetHeader>
 
-          <Tabs defaultValue="outline" className="mt-4 flex-1 flex flex-col">
+          <Tabs defaultValue="outline" className="mt-4 flex flex-1 flex-col">
             <ResponsiveTabsList fullWidth className="h-8">
               <TabsTrigger value="outline" className="text-xs">
                 Outline ({headingBlocks.length})
@@ -205,20 +209,23 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
 
             {/* Document Table of Contents Outline */}
             <TabsContent value="outline" className="py-3 space-y-2">
-              <p className="text-[11px] font-semibold uppercase text-subtle">
+              <p className="font-semibold text-meta text-subtle uppercase">
                 Page Headings Outline
               </p>
               {headingBlocks.length === 0 ? (
-                <p className="text-xs text-subtle italic">No heading blocks in this page yet.</p>
+                <p className="text-xs text-subtle italic">
+                  No heading blocks in this page yet.
+                </p>
               ) : (
                 <ul className="space-y-1.5">
                   {headingBlocks.map((hb) => (
                     <li
                       key={hb.id}
                       className={cn(
-                        'text-xs rounded-md p-1.5 hover:bg-accent cursor-pointer transition-colors text-foreground line-clamp-1',
+                        'text-xs p-1.5 line-clamp-1 cursor-pointer rounded-md text-foreground transition-colors hover:bg-accent',
                         hb.type === 'h1' && 'font-bold pl-2 text-foreground',
-                        hb.type === 'h2' && 'font-semibold pl-4 text-muted-foreground',
+                        hb.type === 'h2' &&
+                          'font-semibold pl-4 text-muted-foreground',
                         hb.type === 'h3' && 'font-medium pl-6 text-subtle',
                       )}
                     >
@@ -230,16 +237,22 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
             </TabsContent>
 
             {/* Discussion & Comments */}
-            <TabsContent value="comments" className="py-3 flex-1 flex flex-col justify-between">
-              <ScrollArea className="max-h-96" contentClassName="space-y-3 pr-1">
+            <TabsContent
+              value="comments"
+              className="py-3 flex flex-1 flex-col justify-between"
+            >
+              <ScrollArea
+                className="max-h-96"
+                contentClassName="space-y-3 pr-1"
+              >
                 {doc.comments && doc.comments.length > 0 ? (
                   doc.comments.map((cm) => (
                     <div
                       key={cm.id}
-                      className="p-2.5 rounded-lg border border-border bg-surface-raised space-y-1"
+                      className="p-2.5 space-y-1 rounded-lg border border-border bg-surface-raised"
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
+                        <div className="gap-1.5 flex items-center">
                           <UserAvatar
                             name={cm.author}
                             src={cm.avatar}
@@ -250,17 +263,23 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
                             {cm.author}
                           </span>
                         </div>
-                        <span className="text-[10px] text-subtle">{cm.createdAt}</span>
+                        <span className="text-2xs text-subtle">
+                          {cm.createdAt}
+                        </span>
                       </div>
-                      <p className="text-xs text-muted-foreground pl-6">{cm.text}</p>
+                      <p className="text-xs pl-6 text-muted-foreground">
+                        {cm.text}
+                      </p>
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-subtle italic">No comments yet. Start a discussion!</p>
+                  <p className="text-xs text-subtle italic">
+                    No comments yet. Start a discussion!
+                  </p>
                 )}
               </ScrollArea>
 
-              <div className="pt-3 border-t border-border mt-3 space-y-2">
+              <div className="pt-3 mt-3 space-y-2 border-t border-border">
                 <Input
                   placeholder="Write a comment..."
                   value={commentInput}
@@ -274,7 +293,7 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
                   variant="primary"
                   size="sm"
                   onClick={handlePostComment}
-                  className="w-full text-xs h-7 gap-1"
+                  className="text-xs h-7 gap-1 w-full"
                 >
                   <Send className="size-3" />
                   <span>Post Comment</span>

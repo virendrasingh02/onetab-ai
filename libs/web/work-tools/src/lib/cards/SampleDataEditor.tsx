@@ -7,8 +7,13 @@ export interface SampleDataEditorProps {
   onChange: (data: Record<string, unknown>) => void;
 }
 
-export function SampleDataEditor({ sampleData, onChange }: SampleDataEditorProps) {
-  const [jsonText, setJsonText] = useState(() => JSON.stringify(sampleData, null, 2));
+export function SampleDataEditor({
+  sampleData,
+  onChange,
+}: SampleDataEditorProps) {
+  const [jsonText, setJsonText] = useState(() =>
+    JSON.stringify(sampleData, null, 2),
+  );
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -31,11 +36,15 @@ export function SampleDataEditor({ sampleData, onChange }: SampleDataEditorProps
   };
 
   return (
-    <div className="flex flex-col h-full bg-surface border-l border-border/60 p-4 space-y-3">
+    <div className="p-4 space-y-3 flex h-full flex-col border-l border-border/60 bg-surface">
       <div className="flex items-center justify-between">
         <div>
-          <span className="text-xs font-bold text-foreground block">Sample Mock Data</span>
-          <span className="text-[10px] text-muted-foreground">Test bindings and preview rendering with realistic mock data</span>
+          <span className="text-xs font-bold block text-foreground">
+            Sample Mock Data
+          </span>
+          <span className="text-2xs text-muted-foreground">
+            Test bindings and preview rendering with realistic mock data
+          </span>
         </div>
         <Button size="sm" onClick={handleApply} className="text-xs h-7 gap-1">
           <Check className="size-3" />
@@ -44,7 +53,7 @@ export function SampleDataEditor({ sampleData, onChange }: SampleDataEditorProps
       </div>
 
       {error && (
-        <div className="p-2.5 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive-text text-xs font-mono">
+        <div className="p-2.5 text-xs rounded-lg border border-destructive/30 bg-destructive/10 font-mono text-destructive-text">
           ⚠ {error}
         </div>
       )}

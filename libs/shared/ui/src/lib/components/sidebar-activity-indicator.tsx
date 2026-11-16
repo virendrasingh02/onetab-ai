@@ -236,7 +236,7 @@ export function SidebarBadge({
       role="img"
       aria-label={label}
       className={cn(
-        'h-4 min-w-4 px-1 py-0 shrink-0 justify-center font-mono text-[10px] leading-none tabular-nums',
+        'h-4 min-w-4 px-1 py-0 shrink-0 justify-center font-mono text-2xs leading-none tabular-nums',
         tone === 'mention'
           ? 'border-transparent'
           : 'border-transparent bg-activity/15 text-activity-text',
@@ -277,9 +277,11 @@ export function SidebarMentionBadge({
       role="img"
       aria-label={label}
       className={cn(
-        'inline-flex shrink-0 items-center justify-center gap-px rounded-full bg-destructive font-semibold text-destructive-foreground leading-none tabular-nums shadow-sm',
-        size === 'md' ? 'h-[18px] min-w-[18px] text-[10.5px]' : 'h-4 min-w-4 text-[10px]',
-        showCount ? 'pl-[3px] pr-1.5' : 'px-0',
+        'font-semibold inline-flex shrink-0 items-center justify-center gap-px rounded-full bg-destructive leading-none text-destructive-foreground tabular-nums shadow-sm',
+        size === 'md'
+          ? 'h-[18px] min-w-[18px] text-meta'
+          : 'h-4 min-w-4 text-2xs',
+        showCount ? 'pr-1.5 pl-[3px]' : 'px-0',
         className,
       )}
     >

@@ -502,7 +502,7 @@ export function DocsTreeSection({
                   />
                   {/* What a closed folder is hiding. Gives way to the actions. */}
                   {isCollapsed && folderDocs.length > 0 ? (
-                    <span className="font-medium ml-auto text-[11px] text-subtle tabular-nums group-focus-within/row:hidden group-hover/row:hidden pointer-coarse:hidden">
+                    <span className="font-medium ml-auto text-meta text-subtle tabular-nums group-focus-within/row:hidden group-hover/row:hidden pointer-coarse:hidden">
                       {folderDocs.length}
                     </span>
                   ) : null}

@@ -202,7 +202,7 @@ export function InitiativesView({
                     <div className="gap-2 mb-1 flex items-center">
                       <span
                         className={cn(
-                          'gap-1 font-bold px-2 py-0.5 inline-flex items-center rounded-full border text-[10px]',
+                          'gap-1 font-bold px-2 py-0.5 inline-flex items-center rounded-full border text-2xs',
                           init.health === ProjectHealth.HEALTHY &&
                             'border-accent-green/30 bg-accent-green-soft text-accent-green',
                           init.health === ProjectHealth.AT_RISK &&
@@ -216,7 +216,7 @@ export function InitiativesView({
                         {HEALTH_LABELS[init.health]}
                       </span>
                       {init.targetDate && (
-                        <span className="gap-1 flex items-center text-[11px] text-muted-foreground">
+                        <span className="gap-1 flex items-center text-meta text-muted-foreground">
                           <Calendar className="size-3" />
                           Target:{' '}
                           {new Date(init.targetDate).toLocaleDateString()}
@@ -284,7 +284,7 @@ export function InitiativesView({
 
                   {/* Connected Projects */}
                   <div className="gap-2 pt-2 flex flex-col border-t border-border/40">
-                    <span className="font-medium text-[11px] text-muted-foreground">
+                    <span className="font-medium text-meta text-muted-foreground">
                       Projects ({childProjects.length})
                     </span>
                     <div className="gap-2 flex flex-wrap">
@@ -307,7 +307,7 @@ export function InitiativesView({
                               size="xs"
                             />
                             <span className="font-medium">{p.name}</span>
-                            <span className="font-mono text-[10px] text-muted-foreground">
+                            <span className="font-mono text-2xs text-muted-foreground">
                               ({p._count?.tasks || 0})
                             </span>
                           </button>

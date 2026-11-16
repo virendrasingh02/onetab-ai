@@ -69,7 +69,8 @@ export function MultiSelect({
   popoverClassName,
   align = 'start',
 }: MultiSelectProps) {
-  const [uncontrolledValue, setUncontrolledValue] = useState<string[]>(defaultValue);
+  const [uncontrolledValue, setUncontrolledValue] =
+    useState<string[]>(defaultValue);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -90,7 +91,9 @@ export function MultiSelect({
     if (!q) return options;
     return options.filter((opt) => {
       const labelMatch = opt.label.toLowerCase().includes(q);
-      const subMatch = (opt.subtitle || opt.description || '').toLowerCase().includes(q);
+      const subMatch = (opt.subtitle || opt.description || '')
+        .toLowerCase()
+        .includes(q);
       const valMatch = opt.value.toLowerCase().includes(q);
       return labelMatch || subMatch || valMatch;
     });
@@ -119,7 +122,7 @@ export function MultiSelect({
     ? Math.max(0, selectedOptions.length - maxSelectedChips)
     : 0;
 
-  const activePlaceholder = query ? '' : (searchPlaceholder || placeholder);
+  const activePlaceholder = query ? '' : searchPlaceholder || placeholder;
 
   return (
     <div className={cn('relative w-full', className)}>
@@ -137,34 +140,35 @@ export function MultiSelect({
               }
             }}
             className={cn(
-              'min-h-[42px] w-full px-2.5 py-1.5 rounded-xl border border-border bg-surface-raised flex flex-wrap items-center gap-1.5 cursor-text transition-colors',
-              'hover:border-field-border focus-within:border-ring focus-within:ring-1 focus-within:ring-ring/25',
+              'px-2.5 py-1.5 gap-1.5 flex min-h-[42px] w-full cursor-text flex-wrap items-center rounded-xl border border-border bg-surface-raised transition-colors',
+              'focus-within:border-ring focus-within:ring-1 focus-within:ring-ring/25 hover:border-field-border',
               open && 'border-brand ring-1 ring-brand/25',
-              disabled && 'opacity-50 cursor-not-allowed pointer-events-none bg-muted/40',
+              disabled &&
+                'pointer-events-none cursor-not-allowed bg-muted/40 opacity-50',
             )}
           >
             <div
               role="group"
               aria-label="Selected options"
-              className="flex flex-wrap items-center gap-1.5"
+              className="gap-1.5 flex flex-wrap items-center"
             >
               {visibleChips.map((opt) => (
                 <span
                   key={opt.value}
-                  className="inline-flex items-center gap-1.5 pl-1 pr-2 py-0.5 rounded-full bg-surface border border-border/80 text-xs font-medium text-foreground shadow-2xs transition-all hover:bg-accent/40"
+                  className="gap-1.5 pl-1 pr-2 py-0.5 text-xs font-medium shadow-2xs inline-flex items-center rounded-full border border-border/80 bg-surface text-foreground transition-all hover:bg-accent/40"
                 >
                   {opt.avatarUrl ? (
                     <OptionAvatarImage
                       src={opt.avatarUrl}
                       alt={opt.label}
-                      className="size-5 rounded-full object-cover shrink-0"
+                      className="size-5 shrink-0 rounded-full object-cover"
                     />
                   ) : opt.icon ? (
-                    <span className="size-5 rounded-full bg-muted flex items-center justify-center text-[10px] shrink-0 text-muted-foreground">
+                    <span className="size-5 flex shrink-0 items-center justify-center rounded-full bg-muted text-2xs text-muted-foreground">
                       {opt.icon}
                     </span>
                   ) : null}
-                  <span className="truncate max-w-[140px] text-xs font-medium">
+                  <span className="text-xs font-medium max-w-[140px] truncate">
                     {opt.label}
                   </span>
                   {!disabled && (
@@ -173,7 +177,7 @@ export function MultiSelect({
                       tabIndex={-1}
                       aria-label={`Remove ${opt.label}`}
                       onClick={(e) => removeOption(e, opt.value)}
-                      className="text-muted-foreground hover:text-foreground hover:bg-muted/80 rounded-full p-0.5 transition-colors cursor-pointer"
+                      className="p-0.5 cursor-pointer rounded-full text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
                     >
                       <X className="size-3" />
                     </button>
@@ -182,7 +186,7 @@ export function MultiSelect({
               ))}
 
               {remainingCount > 0 && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-surface border border-border text-[11px] font-medium text-muted-foreground">
+                <span className="px-2 py-0.5 font-medium inline-flex items-center rounded-full border border-border bg-surface text-meta text-muted-foreground">
                   +{remainingCount} more
                 </span>
               )}
@@ -201,7 +205,11 @@ export function MultiSelect({
               }}
               onFocus={() => setOpen(true)}
               onKeyDown={(e) => {
-                if (e.key === 'Backspace' && !query && selectedOptions.length > 0) {
+                if (
+                  e.key === 'Backspace' &&
+                  !query &&
+                  selectedOptions.length > 0
+                ) {
                   const last = selectedOptions[selectedOptions.length - 1];
                   if (last) {
                     toggleOption(last.value);
@@ -210,7 +218,7 @@ export function MultiSelect({
                   setOpen(false);
                 }
               }}
-              className="flex-1 min-w-[120px] bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none border-none p-0 focus:ring-0"
+              className="text-xs p-0 min-w-[120px] flex-1 border-none bg-transparent text-foreground outline-none placeholder:text-muted-foreground focus:ring-0"
             />
           </div>
         </PopoverPrimitive.Anchor>
@@ -222,13 +230,13 @@ export function MultiSelect({
             onOpenAutoFocus={(e) => e.preventDefault()}
             onCloseAutoFocus={(e) => e.preventDefault()}
             className={cn(
-              'z-50 w-72 sm:w-80 p-1.5 rounded-2xl border border-border bg-popover text-popover-foreground shadow-2xl space-y-0.5 select-none outline-none',
+              'w-72 sm:w-80 p-1.5 shadow-2xl space-y-0.5 z-50 rounded-2xl border border-border bg-popover text-popover-foreground outline-none select-none',
               popoverClassName,
             )}
           >
-            <div className="max-h-64 overflow-y-auto space-y-0.5 py-0.5 scrollbar-subtle">
+            <div className="max-h-64 space-y-0.5 py-0.5 scrollbar-subtle overflow-y-auto">
               {filteredOptions.length === 0 ? (
-                <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+                <div className="px-3 py-4 text-xs text-center text-muted-foreground">
                   No options found
                 </div>
               ) : (
@@ -243,32 +251,33 @@ export function MultiSelect({
                       disabled={opt.disabled}
                       onClick={() => !opt.disabled && toggleOption(opt.value)}
                       className={cn(
-                        'w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-left cursor-pointer transition-colors duration-150 outline-none',
+                        'px-3 py-2 text-xs flex w-full cursor-pointer items-center justify-between rounded-xl text-left transition-colors duration-150 outline-none',
                         isSelected
                           ? 'bg-accent/40 text-foreground hover:bg-accent/70'
                           : 'text-foreground/90 hover:bg-accent/60',
-                        opt.disabled && 'opacity-50 cursor-not-allowed pointer-events-none',
+                        opt.disabled &&
+                          'pointer-events-none cursor-not-allowed opacity-50',
                       )}
                     >
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="gap-3 min-w-0 flex flex-1 items-center">
                         {opt.avatarUrl ? (
                           <OptionAvatarImage
                             src={opt.avatarUrl}
                             alt={opt.label}
-                            className="size-8 rounded-full object-cover shrink-0"
+                            className="size-8 shrink-0 rounded-full object-cover"
                           />
                         ) : opt.icon ? (
-                          <span className="size-8 rounded-full bg-muted/60 flex items-center justify-center shrink-0 text-muted-foreground [&_svg]:size-4">
+                          <span className="size-8 [&_svg]:size-4 flex shrink-0 items-center justify-center rounded-full bg-muted/60 text-muted-foreground">
                             {opt.icon}
                           </span>
                         ) : null}
 
                         <div className="min-w-0 flex-1">
-                          <span className="block text-xs truncate font-semibold text-foreground leading-tight">
+                          <span className="text-xs font-semibold leading-tight block truncate text-foreground">
                             {opt.label}
                           </span>
                           {subtitle && (
-                            <span className="block text-[11px] truncate text-muted-foreground mt-0.5 leading-tight font-normal">
+                            <span className="mt-0.5 leading-tight font-normal block truncate text-meta text-muted-foreground">
                               {subtitle}
                             </span>
                           )}
@@ -276,7 +285,7 @@ export function MultiSelect({
                       </div>
 
                       {isSelected && (
-                        <Check className="size-4 text-foreground shrink-0 stroke-[2.5] ml-2" />
+                        <Check className="size-4 ml-2 shrink-0 stroke-[2.5] text-foreground" />
                       )}
                     </button>
                   );

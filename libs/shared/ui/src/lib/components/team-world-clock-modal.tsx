@@ -211,7 +211,7 @@ export function TeamWorldClockModal({
                       className={cn(
                         'p-4 rounded-xl border transition-all',
                         isViewer
-                          ? 'shadow-xs border-primary/40 bg-primary/5'
+                          ? 'border-primary/40 bg-primary/5 shadow-xs'
                           : 'border-border bg-surface/50 hover:bg-surface',
                       )}
                     >
@@ -226,12 +226,12 @@ export function TeamWorldClockModal({
                                 {describeTimezone(group.timezone)}
                               </span>
                               {isViewer && (
-                                <span className="px-1.5 py-0.2 font-bold rounded-full bg-primary text-[9px] text-primary-foreground">
+                                <span className="px-1.5 py-0.2 font-bold rounded-full bg-primary text-3xs text-primary-foreground">
                                   YOU
                                 </span>
                               )}
                             </div>
-                            <div className="text-[11px] text-muted-foreground">
+                            <div className="text-meta text-muted-foreground">
                               {dateFormatted} · {offsetFormatted}
                             </div>
                           </div>
@@ -241,7 +241,7 @@ export function TeamWorldClockModal({
                           <div className="text-base font-bold font-mono text-foreground">
                             {timeFormatted}
                           </div>
-                          <div className="text-[10px] text-muted-foreground">
+                          <div className="text-2xs text-muted-foreground">
                             {diffFormatted}
                           </div>
                         </div>
@@ -251,7 +251,7 @@ export function TeamWorldClockModal({
                       <div className="mt-3 pt-2.5 text-xs flex items-center justify-between border-t border-border/50">
                         <span
                           className={cn(
-                            'gap-1 font-medium px-2 py-0.5 inline-flex items-center rounded-full text-[11px]',
+                            'gap-1 font-medium px-2 py-0.5 inline-flex items-center rounded-full text-meta',
                             workStatus.status === 'working'
                               ? 'bg-success/15 text-success'
                               : workStatus.status === 'sleeping'
@@ -278,7 +278,7 @@ export function TeamWorldClockModal({
                             />
                           ))}
                           {group.members.length > 4 && (
-                            <span className="font-bold pl-1 text-[9px] text-muted-foreground">
+                            <span className="font-bold pl-1 text-3xs text-muted-foreground">
                               +{group.members.length - 4}
                             </span>
                           )}
@@ -315,7 +315,7 @@ export function TeamWorldClockModal({
                   <span>
                     UTC Hour: {String(selectedHour).padStart(2, '0')}:00
                   </span>
-                  <span className="text-[11px] text-muted-foreground">
+                  <span className="text-meta text-muted-foreground">
                     Viewer Time:{' '}
                     {formatTimeInZone(
                       new Date(Date.UTC(2026, 0, 1, selectedHour, 0)),
@@ -334,7 +334,7 @@ export function TeamWorldClockModal({
                   }
                   className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-border accent-primary"
                 />
-                <div className="flex justify-between font-mono text-[9px] text-muted-foreground">
+                <div className="flex justify-between font-mono text-3xs text-muted-foreground">
                   <span>00:00</span>
                   <span>06:00</span>
                   <span>12:00</span>
@@ -372,7 +372,7 @@ export function TeamWorldClockModal({
                           <span className="font-medium truncate text-foreground">
                             {describeTimezone(group.timezone)}
                           </span>
-                          <span className="text-[10px] text-muted-foreground">
+                          <span className="text-2xs text-muted-foreground">
                             ({group.members.length}{' '}
                             {group.members.length === 1 ? 'member' : 'members'})
                           </span>
@@ -381,7 +381,7 @@ export function TeamWorldClockModal({
                         <div className="gap-3 flex shrink-0 items-center">
                           <span
                             className={cn(
-                              'font-medium px-2 py-0.5 gap-1 flex items-center rounded-full text-[10px]',
+                              'font-medium px-2 py-0.5 gap-1 flex items-center rounded-full text-2xs',
                               workStatus.status === 'working'
                                 ? 'bg-success/15 text-success'
                                 : workStatus.status === 'sleeping'

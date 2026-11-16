@@ -240,7 +240,7 @@ export function BuilderOptionSelect({
   const groups = [...new Set(list.map((option) => option.group ?? ''))];
 
   if (!isLoading && list.length === 0 && !value) {
-    return <p className="text-[11px] text-muted-foreground">{EMPTY_SOURCE_TEXT[source]}</p>;
+    return <p className="text-meta text-muted-foreground">{EMPTY_SOURCE_TEXT[source]}</p>;
   }
 
   return (
@@ -261,12 +261,12 @@ export function BuilderOptionSelect({
                 <span className="flex flex-col">
                   <span>
                     {index === 0 && group && groups.length > 1 ? (
-                      <span className="mr-1 text-[10px] uppercase tracking-wider text-muted-foreground">{group} ·</span>
+                      <span className="mr-1 text-2xs uppercase tracking-wider text-muted-foreground">{group} ·</span>
                     ) : null}
                     {option.label}
                   </span>
                   {option.hint ? (
-                    <span className="line-clamp-1 text-[10px] text-muted-foreground">{option.hint}</span>
+                    <span className="line-clamp-1 text-2xs text-muted-foreground">{option.hint}</span>
                   ) : null}
                 </span>
               </SelectItem>

@@ -148,7 +148,7 @@ function LinkDocMenu({
         align="end"
         className="w-64 max-h-72 overflow-y-auto"
       >
-        <DropdownMenuLabel className="text-[11px]">
+        <DropdownMenuLabel className="text-meta">
           Link document to {project.name}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -172,7 +172,7 @@ function LinkDocMenu({
                 </span>
               </div>
               {/* A doc has one project, so linking moves it from this one. */}
-              <Badge variant="neutral" className="shrink-0 text-[9px]">
+              <Badge variant="neutral" className="shrink-0 text-3xs">
                 {d.projectName ? `In ${d.projectName}` : d.category}
               </Badge>
             </DropdownMenuItem>
@@ -426,7 +426,7 @@ export function ProjectDocsView({
                               {doc.title || 'Untitled Document'}
                             </button>
                           </CardTitle>
-                          <CardDescription className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                          <CardDescription className="mt-0.5 truncate text-meta text-muted-foreground">
                             {doc.category}
                           </CardDescription>
                         </div>
@@ -447,12 +447,12 @@ export function ProjectDocsView({
                       </p>
                     )}
 
-                    <div className="pt-2.5 flex items-center justify-between border-t border-border/60 text-[11px] text-muted-foreground">
+                    <div className="pt-2.5 flex items-center justify-between border-t border-border/60 text-meta text-muted-foreground">
                       <span className="max-w-[120px] truncate">
                         {doc.updatedAt}
                       </span>
 
-                      <div className="gap-1.5 flex shrink-0 items-center text-[10px] text-muted-foreground">
+                      <div className="gap-1.5 flex shrink-0 items-center text-2xs text-muted-foreground">
                         <Sparkles className="size-3 text-accent-blue" />
                         <span>{readingMinutes(doc.blocks)}m read</span>
                       </div>

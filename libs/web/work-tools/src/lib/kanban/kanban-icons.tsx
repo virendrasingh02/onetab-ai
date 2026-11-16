@@ -285,7 +285,7 @@ export function PriorityIcon({ priority, className }: PriorityIconProps) {
       return (
         <span
           className={cn(
-            'tracking-tight w-3.5 inline-block shrink-0 text-center font-mono text-[11px] leading-none text-muted-foreground select-none',
+            'tracking-tight w-3.5 inline-block shrink-0 text-center font-mono text-meta leading-none text-muted-foreground select-none',
             className,
           )}
         >

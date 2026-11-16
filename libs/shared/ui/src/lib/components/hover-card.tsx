@@ -1,11 +1,6 @@
 import { cn } from '@org/utils';
 import * as HoverCardPrimitive from '@radix-ui/react-hover-card';
-import {
-  Calendar,
-  Hash,
-  Lock,
-  Users,
-} from 'lucide-react';
+import { Calendar, Hash, Lock, Users } from 'lucide-react';
 import {
   forwardRef,
   type ComponentPropsWithoutRef,
@@ -19,8 +14,9 @@ import { Badge } from './badge.js';
 /* Base Hover Card Primitives                                                 */
 /* -------------------------------------------------------------------------- */
 
-export type HoverCardProps =
-  ComponentPropsWithoutRef<typeof HoverCardPrimitive.Root>;
+export type HoverCardProps = ComponentPropsWithoutRef<
+  typeof HoverCardPrimitive.Root
+>;
 
 export function HoverCard({
   openDelay = 300,
@@ -39,33 +35,45 @@ export function HoverCard({
 export const HoverCardTrigger = HoverCardPrimitive.Trigger;
 export const HoverCardPortal = HoverCardPrimitive.Portal;
 
-export interface HoverCardContentProps
-  extends ComponentPropsWithoutRef<typeof HoverCardPrimitive.Content> {
+export interface HoverCardContentProps extends ComponentPropsWithoutRef<
+  typeof HoverCardPrimitive.Content
+> {
   collisionPadding?: number;
 }
 
 export const HoverCardContent = forwardRef<
   ElementRef<typeof HoverCardPrimitive.Content>,
   HoverCardContentProps
->(({ className, align = 'center', sideOffset = 6, collisionPadding = 8, ...props }, ref) => {
-  return (
-    <HoverCardPortal>
-      <HoverCardPrimitive.Content
-        ref={ref}
-        data-slot="hover-card-content"
-        align={align}
-        sideOffset={sideOffset}
-        collisionPadding={collisionPadding}
-        className={cn(
-          'z-50 w-72 max-w-[calc(100vw-1rem)] max-h-(--radix-hover-card-content-available-height) overflow-y-auto overscroll-contain scrollbar-subtle',
-          'rounded-popup border border-border bg-popover p-3 text-popover-foreground shadow-overlay outline-none',
-          className,
-        )}
-        {...props}
-      />
-    </HoverCardPortal>
-  );
-});
+>(
+  (
+    {
+      className,
+      align = 'center',
+      sideOffset = 6,
+      collisionPadding = 8,
+      ...props
+    },
+    ref,
+  ) => {
+    return (
+      <HoverCardPortal>
+        <HoverCardPrimitive.Content
+          ref={ref}
+          data-slot="hover-card-content"
+          align={align}
+          sideOffset={sideOffset}
+          collisionPadding={collisionPadding}
+          className={cn(
+            'w-72 scrollbar-subtle z-50 max-h-(--radix-hover-card-content-available-height) max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain',
+            'p-3 rounded-popup border border-border bg-popover text-popover-foreground shadow-overlay outline-none',
+            className,
+          )}
+          {...props}
+        />
+      </HoverCardPortal>
+    );
+  },
+);
 
 HoverCardContent.displayName = 'HoverCardContent';
 
@@ -98,7 +106,7 @@ export function UserHoverCard({
     <HoverCard openDelay={openDelay} closeDelay={closeDelay}>
       <HoverCardTrigger asChild>{children}</HoverCardTrigger>
       <HoverCardContent className="w-80">
-        <div className="flex items-start justify-between gap-3">
+        <div className="gap-3 flex items-start justify-between">
           <UserAvatar
             name={user.name}
             src={user.avatarUrl}
@@ -107,29 +115,36 @@ export function UserHoverCard({
             className="size-11"
           />
           {user.role && (
-            <Badge variant="outline" className="text-[10px] font-normal capitalize">
+            <Badge
+              variant="outline"
+              className="font-normal text-2xs capitalize"
+            >
               {user.role}
             </Badge>
           )}
         </div>
 
         <div className="mt-2.5">
-          <div className="flex items-center gap-1.5">
-            <h4 className="text-sm font-semibold text-foreground truncate">{user.name}</h4>
+          <div className="gap-1.5 flex items-center">
+            <h4 className="text-sm font-semibold truncate text-foreground">
+              {user.name}
+            </h4>
           </div>
           {user.email && (
-            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+            <p className="text-xs truncate text-muted-foreground">
+              {user.email}
+            </p>
           )}
         </div>
 
         {user.bio && (
-          <p className="mt-2 text-xs text-foreground/90 leading-relaxed line-clamp-2">
+          <p className="mt-2 text-xs leading-relaxed line-clamp-2 text-foreground/90">
             {user.bio}
           </p>
         )}
 
         {user.timezone && (
-          <div className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <div className="mt-3 gap-1.5 flex items-center text-meta text-muted-foreground">
             <Calendar className="size-3.5" />
             <span>Local time: {user.timezone}</span>
           </div>
@@ -163,39 +178,39 @@ export function ProjectHoverCard({
     <HoverCard openDelay={openDelay} closeDelay={closeDelay}>
       <HoverCardTrigger asChild>{children}</HoverCardTrigger>
       <HoverCardContent className="w-80">
-        <div className="flex items-start justify-between gap-2">
+        <div className="gap-2 flex items-start justify-between">
           <div>
             {project.identifier && (
-              <span className="font-mono text-[10px] font-semibold text-subtle uppercase">
+              <span className="font-semibold font-mono text-2xs text-subtle uppercase">
                 {project.identifier}
               </span>
             )}
-            <h4 className="text-sm font-semibold text-foreground leading-snug">
+            <h4 className="text-sm font-semibold leading-snug text-foreground">
               {project.name}
             </h4>
           </div>
           {project.status && (
-            <Badge variant="secondary" className="text-[10px] font-normal">
+            <Badge variant="secondary" className="font-normal text-2xs">
               {project.status}
             </Badge>
           )}
         </div>
 
         {project.description && (
-          <p className="mt-2 text-xs text-muted-foreground leading-relaxed line-clamp-2">
+          <p className="mt-2 text-xs leading-relaxed line-clamp-2 text-muted-foreground">
             {project.description}
           </p>
         )}
 
-        <div className="mt-3 flex items-center gap-4 border-t border-border/50 pt-2 text-[11px] text-muted-foreground">
+        <div className="mt-3 gap-4 pt-2 flex items-center border-t border-border/50 text-meta text-muted-foreground">
           {project.membersCount !== undefined && (
-            <div className="flex items-center gap-1">
+            <div className="gap-1 flex items-center">
               <Users className="size-3.5" />
               <span>{project.membersCount} members</span>
             </div>
           )}
           {project.updatedAt && (
-            <div className="flex items-center gap-1">
+            <div className="gap-1 flex items-center">
               <Calendar className="size-3.5" />
               <span>Updated {project.updatedAt}</span>
             </div>
@@ -230,40 +245,46 @@ export function KanbanCardHoverCard({
     <HoverCard openDelay={openDelay} closeDelay={closeDelay}>
       <HoverCardTrigger asChild>{children}</HoverCardTrigger>
       <HoverCardContent className="w-72">
-        <div className="flex items-center justify-between gap-2">
+        <div className="gap-2 flex items-center justify-between">
           {card.identifier && (
-            <span className="font-mono text-[10px] font-semibold text-subtle">
+            <span className="font-semibold font-mono text-2xs text-subtle">
               {card.identifier}
             </span>
           )}
           {card.priority && (
-            <Badge variant="outline" className="text-[10px] capitalize">
+            <Badge variant="outline" className="text-2xs capitalize">
               {card.priority}
             </Badge>
           )}
         </div>
 
-        <h4 className="mt-1.5 text-xs font-semibold text-foreground line-clamp-2">
+        <h4 className="mt-1.5 text-xs font-semibold line-clamp-2 text-foreground">
           {card.title}
         </h4>
 
-        <div className="mt-3 flex flex-col gap-1 text-[11px] text-muted-foreground border-t border-border/50 pt-2">
+        <div className="mt-3 gap-1 pt-2 flex flex-col border-t border-border/50 text-meta text-muted-foreground">
           {card.status && (
             <div className="flex items-center justify-between">
               <span>Status:</span>
-              <span className="font-medium text-foreground capitalize">{card.status}</span>
+              <span className="font-medium text-foreground capitalize">
+                {card.status}
+              </span>
             </div>
           )}
           {card.assignee && (
             <div className="flex items-center justify-between">
               <span>Assignee:</span>
-              <span className="font-medium text-foreground">{card.assignee}</span>
+              <span className="font-medium text-foreground">
+                {card.assignee}
+              </span>
             </div>
           )}
           {card.dueDate && (
             <div className="flex items-center justify-between">
               <span>Due Date:</span>
-              <span className="font-medium text-foreground">{card.dueDate}</span>
+              <span className="font-medium text-foreground">
+                {card.dueDate}
+              </span>
             </div>
           )}
         </div>
@@ -294,23 +315,25 @@ export function ChannelHoverCard({
     <HoverCard openDelay={openDelay} closeDelay={closeDelay}>
       <HoverCardTrigger asChild>{children}</HoverCardTrigger>
       <HoverCardContent className="w-72">
-        <div className="flex items-center gap-1.5">
+        <div className="gap-1.5 flex items-center">
           {channel.isPrivate ? (
             <Lock className="size-3.5 text-muted-foreground" />
           ) : (
             <Hash className="size-3.5 text-muted-foreground" />
           )}
-          <h4 className="text-xs font-semibold text-foreground truncate">{channel.name}</h4>
+          <h4 className="text-xs font-semibold truncate text-foreground">
+            {channel.name}
+          </h4>
         </div>
 
         {channel.description && (
-          <p className="mt-1.5 text-xs text-muted-foreground line-clamp-2">
+          <p className="mt-1.5 text-xs line-clamp-2 text-muted-foreground">
             {channel.description}
           </p>
         )}
 
         {channel.membersCount !== undefined && (
-          <div className="mt-2.5 flex items-center gap-1 text-[11px] text-muted-foreground border-t border-border/50 pt-2">
+          <div className="mt-2.5 gap-1 pt-2 flex items-center border-t border-border/50 text-meta text-muted-foreground">
             <Users className="size-3.5" />
             <span>{channel.membersCount} members</span>
           </div>

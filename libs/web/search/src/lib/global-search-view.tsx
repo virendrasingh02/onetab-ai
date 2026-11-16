@@ -310,7 +310,7 @@ function FilterGroup({
 }) {
   return (
     <div className="space-y-1.5">
-      <p className="font-semibold uppercase tracking-wide text-[11px] text-muted-foreground">
+      <p className="font-semibold uppercase tracking-wide text-meta text-muted-foreground">
         {title}
       </p>
       {children}

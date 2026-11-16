@@ -165,14 +165,14 @@ export function AuditLogView() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:px-5 sm:py-3.5 border-b border-border/40">
           <div>
             <h3 className="text-sm sm:text-base font-semibold text-foreground tracking-tight flex items-center gap-2">
-              <History className="h-4 w-4 text-blue-500" />
+              <History className="h-4 w-4 text-accent-blue" />
               Audit Ledger Records
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
               Verified append-only event stream for SOC 2, ISO 27001, and App Store compliance
             </p>
           </div>
-          <span className="inline-flex items-center rounded-full border border-border/80 bg-muted/60 px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase text-foreground">
+          <span className="inline-flex items-center rounded-full border border-border/80 bg-muted/60 px-2.5 py-0.5 text-2xs font-semibold tracking-wider uppercase text-foreground">
             {total} Records
           </span>
         </div>
@@ -214,10 +214,10 @@ export function AuditLogView() {
                       <span
                         className={
                           log.action.includes('OVERRIDE')
-                            ? 'inline-flex items-center rounded-full border border-rose-500/25 bg-rose-500/15 text-rose-400 px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase'
+                            ? 'inline-flex items-center rounded-full border border-destructive/25 bg-destructive/15 text-destructive-text px-2.5 py-0.5 text-2xs font-semibold tracking-wider uppercase'
                             : log.action.includes('UPDATE')
-                            ? 'inline-flex items-center rounded-full border border-amber-500/25 bg-amber-500/15 text-amber-400 px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase'
-                            : 'inline-flex items-center rounded-full border border-blue-500/25 bg-blue-500/15 text-blue-400 px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase'
+                            ? 'inline-flex items-center rounded-full border border-warning/25 bg-warning/15 text-warning-text px-2.5 py-0.5 text-2xs font-semibold tracking-wider uppercase'
+                            : 'inline-flex items-center rounded-full border border-accent-blue/25 bg-accent-blue/15 text-accent-blue px-2.5 py-0.5 text-2xs font-semibold tracking-wider uppercase'
                         }
                       >
                         {log.action.replace(/_/g, ' ')}

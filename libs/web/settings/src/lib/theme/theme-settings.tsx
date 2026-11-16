@@ -153,7 +153,7 @@ export function ThemeSettings() {
                   <div className="flex items-center justify-between">
                     <h4 className="text-sm font-semibold text-foreground">{preset.name}</h4>
                     {isSelected && (
-                      <span className="flex items-center gap-1 text-[10px] font-bold text-brand-text bg-brand/10 px-2 py-0.5 rounded-full">
+                      <span className="flex items-center gap-1 text-2xs font-bold text-brand-text bg-brand/10 px-2 py-0.5 rounded-full">
                         <Check className="size-3" />
                         <span>Active</span>
                       </span>
@@ -173,7 +173,7 @@ export function ThemeSettings() {
                         style={{ backgroundColor: color }}
                       />
                     ))}
-                    <span className="text-[10px] text-muted-foreground font-mono ml-auto">
+                    <span className="text-2xs text-muted-foreground font-mono ml-auto">
                       light + dark
                     </span>
                   </div>

@@ -202,24 +202,6 @@
   --background-image-gradient-surface: var(--gradient-surface);
   --background-image-gradient-background: var(--gradient-background);
 
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 12px;
-  --radius-2xl: 16px;
-  --radius-full: 9999px;
-
-  /*
-   * Radii named after what they wrap, so a component asks for `rounded-card`
-   * rather than picking a t-shirt size and drifting from the spec.
-   */
-  --radius-card: var(--radius-md);
-  --radius-btn: var(--radius-lg);
-  --radius-input: var(--radius-lg);
-  --radius-popup: var(--radius-md);
-  --radius-dialog: var(--radius-xl);
-
   --font-sans: var(--font-sans-stack);
   --font-mono: var(--font-mono-stack);
 
@@ -233,9 +215,33 @@
   --text-message: 15px;
   --text-message--line-height: 1.5;
 
-  /* Smallest legible chat meta text (badges, kbd hints, timestamps). */
+  /*
+   * Small-type ramp below Tailwind's `text-xs` (12px). Use these instead of
+   * `text-[Npx]` so every caption, badge and timestamp lands on one of three
+   * sizes with a line-height tuned for it.
+   *   text-meta  11px — secondary labels, timestamps, table meta, helper text
+   *   text-2xs   10px — badges, counters, kbd hints, section eyebrows
+   *   text-3xs    9px — dense micro labels (avatar initials, tiny pills)
+   */
+  --text-meta: 11px;
+  --text-meta--line-height: 16px;
   --text-2xs: 10px;
-  --text-2xs--line-height: 1.4;
+  --text-2xs--line-height: 14px;
+  --text-3xs: 9px;
+  --text-3xs--line-height: 12px;
+
+  /*
+   * Half-steps of the body ramp that Tailwind's xs/sm/base skip.
+   *   text-body-sm 13px — dense list rows, nav items, file names
+   *   text-body-lg 15px — emphasised titles inside lists/cards
+   *   text-stat    28px — KPI / metric numerals
+   */
+  --text-body-sm: 13px;
+  --text-body-sm--line-height: 18px;
+  --text-body-lg: 15px;
+  --text-body-lg--line-height: 22px;
+  --text-stat: 28px;
+  --text-stat--line-height: 34px;
 
   --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
   --shadow-sm:
@@ -254,6 +260,43 @@
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-entrance: cubic-bezier(0, 0, 0, 1);
   --ease-exit: cubic-bezier(0.3, 0, 1, 1);
+}
+
+/*
+ * Radius scale. Deliberately NOT `inline`: under `@theme inline` Tailwind
+ * bakes the literal (`rounded-md` → `8px`), so the Appearance → Radius preset
+ * could only reach the handful of semantic `rounded-card` call sites. Here
+ * every `rounded-*` utility compiles to `var(--radius-*)`, and the
+ * `[data-radius]` presets below re-point the whole scale at once.
+ *
+ * Values are the `md` preset — what renders before the provider sets an
+ * attribute. Keep them in step with `radiusScale` in `lib/tokens.ts`.
+ */
+@theme {
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
+  --radius-full: 9999px;
+
+  /*
+   * Radii named after what they wrap, so a component asks for `rounded-card`
+   * rather than picking a t-shirt size and drifting from the spec. Prefer
+   * these in components; they are aliases of the scale, never their own value.
+   *   card   — panels, tiles, list containers    (md)
+   *   btn    — buttons, toggles, segmented tabs  (lg)
+   *   input  — text fields, selects, composers   (lg)
+   *   popup  — menus, popovers, tooltips         (md)
+   *   dialog — dialogs, sheets, drawers          (xl)
+   */
+  --radius-card: var(--radius-md);
+  --radius-btn: var(--radius-lg);
+  --radius-input: var(--radius-lg);
+  --radius-popup: var(--radius-md);
+  --radius-dialog: var(--radius-xl);
 }
 
 /*
@@ -647,69 +690,69 @@
 }
 
 /* --------------------------------------------------- Radius Presets ---- */
+/*
+ * Each preset re-points the whole t-shirt scale; the semantic roles
+ * (card/btn/input/popup/dialog) are re-derived on the same element so a
+ * nested `[data-radius]` scope resolves against its own scale rather than
+ * inheriting the root's already-computed value.
+ */
+[data-radius] {
+  --radius: var(--radius-md);
+  --radius-card: var(--radius-md);
+  --radius-btn: var(--radius-lg);
+  --radius-input: var(--radius-lg);
+  --radius-popup: var(--radius-md);
+  --radius-dialog: var(--radius-xl);
+}
+
 [data-radius='xs'] {
-  --radius: 4px;
+  --radius-xs: 2px;
   --radius-sm: 2px;
   --radius-md: 4px;
-  --radius-lg: 6px;
-  --radius-xl: 8px;
-  --radius-card: 4px;
-  --radius-btn: 4px;
-  --radius-input: 4px;
-  --radius-popup: 4px;
-  --radius-dialog: 6px;
+  --radius-lg: 4px;
+  --radius-xl: 6px;
+  --radius-2xl: 8px;
+  --radius-3xl: 10px;
 }
 
 [data-radius='sm'] {
-  --radius: 6px;
+  --radius-xs: 3px;
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
   --radius-xl: 10px;
-  --radius-card: 6px;
-  --radius-btn: 6px;
-  --radius-input: 6px;
-  --radius-popup: 6px;
-  --radius-dialog: 8px;
+  --radius-2xl: 12px;
+  --radius-3xl: 16px;
 }
 
 [data-radius='md'] {
-  --radius: 8px;
+  --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 10px;
   --radius-xl: 12px;
-  --radius-card: 8px;
-  --radius-btn: 10px;
-  --radius-input: 10px;
-  --radius-popup: 8px;
-  --radius-dialog: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
 }
 
 [data-radius='lg'] {
-  --radius: 10px;
-  --radius-sm: 6px;
+  --radius-xs: 6px;
+  --radius-sm: 8px;
   --radius-md: 10px;
   --radius-lg: 12px;
   --radius-xl: 16px;
-  --radius-card: 10px;
-  --radius-btn: 12px;
-  --radius-input: 12px;
-  --radius-popup: 10px;
-  --radius-dialog: 14px;
+  --radius-2xl: 20px;
+  --radius-3xl: 24px;
 }
 
 [data-radius='xl'] {
-  --radius: 14px;
-  --radius-sm: 8px;
+  --radius-xs: 8px;
+  --radius-sm: 10px;
   --radius-md: 14px;
-  --radius-lg: 18px;
+  --radius-lg: 16px;
   --radius-xl: 20px;
-  --radius-card: 14px;
-  --radius-btn: 14px;
-  --radius-input: 14px;
-  --radius-popup: 14px;
-  --radius-dialog: 18px;
+  --radius-2xl: 24px;
+  --radius-3xl: 28px;
 }
 
 /* ---------------------------------------------------- Accent Themes ---- */

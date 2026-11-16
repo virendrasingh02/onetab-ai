@@ -990,7 +990,7 @@ export function AsanaProjectManager() {
                   align="start"
                   className="w-56 max-h-72 overflow-y-auto"
                 >
-                  <DropdownMenuLabel className="text-[11px]">
+                  <DropdownMenuLabel className="text-meta">
                     Switch Project
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
@@ -1559,7 +1559,7 @@ function ProjectDialog({
                       <span className="font-bold text-xs text-foreground">
                         {tmpl.name}
                       </span>
-                      <span className="line-clamp-2 text-[10px] text-muted-foreground">
+                      <span className="line-clamp-2 text-2xs text-muted-foreground">
                         {tmpl.description}
                       </span>
                     </button>

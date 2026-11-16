@@ -50,7 +50,7 @@ export function IconPicker({
         align={align}
       />
       {showError && editor.error ? (
-        <p role="alert" className="max-w-56 text-[11px] text-destructive">
+        <p role="alert" className="max-w-56 text-meta text-destructive">
           {editor.error}
         </p>
       ) : null}

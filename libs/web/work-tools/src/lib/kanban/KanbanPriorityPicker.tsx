@@ -74,7 +74,7 @@ export function KanbanPriorityPicker({
       >
         {/* Header */}
         <div className="px-2.5 py-1.5 mb-1 text-xs flex items-center justify-between text-muted-foreground">
-          <span className="font-medium text-[12px]">Change priority...</span>
+          <span className="font-medium text-xs">Change priority...</span>
           <KbdShortcut shortcut="P then P" size="xs" variant="muted" />
         </div>
 
@@ -105,7 +105,7 @@ export function KanbanPriorityPicker({
                   {isSelected && (
                     <Check className="size-3.5 shrink-0 stroke-[2.5] text-foreground" />
                   )}
-                  <span className="font-mono text-[11px] text-muted-foreground/70 tabular-nums">
+                  <span className="font-mono text-meta text-muted-foreground/70 tabular-nums">
                     {item.key}
                   </span>
                 </div>

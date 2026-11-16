@@ -224,22 +224,22 @@ export function WorkspaceDetailAnalyticsView() {
                 <div className="flex flex-col">
                   <span className="font-semibold">{m.name || m.email}</span>
                   {m.name && (
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-meta text-muted-foreground">
                       {m.email}
                     </span>
                   )}
                 </div>
                 <div className="flex items-center gap-3">
-                  <Badge variant="secondary" className="text-[10px]">
+                  <Badge variant="secondary" className="text-2xs">
                     {m.role}
                   </Badge>
                   {m.platform && (
-                    <Badge variant="outline" className="text-[9px] gap-1">
+                    <Badge variant="outline" className="text-3xs gap-1">
                       <Laptop className="size-2.5" />
                       {m.platform}
                     </Badge>
                   )}
-                  <span className="text-muted-foreground text-[11px]">
+                  <span className="text-muted-foreground text-meta">
                     {m.lastActiveAt
                       ? new Date(m.lastActiveAt).toLocaleDateString()
                       : 'Never'}

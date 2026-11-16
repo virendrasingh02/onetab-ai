@@ -240,7 +240,7 @@ export const UniversalInstallModal: React.FC<UniversalInstallModalProps> = ({
                       <p className="text-xs font-semibold text-foreground">
                         {currentWorkspace.name}
                       </p>
-                      <p className="font-mono text-[11px] text-muted-foreground">
+                      <p className="font-mono text-meta text-muted-foreground">
                         /w/{currentWorkspace.slug}
                       </p>
                     </div>
@@ -287,7 +287,7 @@ export const UniversalInstallModal: React.FC<UniversalInstallModalProps> = ({
                         <p className="text-xs text-muted-foreground">
                           {perm.description}
                         </p>
-                        <span className="block font-mono text-[10px] text-muted-foreground">
+                        <span className="block font-mono text-2xs text-muted-foreground">
                           scope: {perm.scope}
                         </span>
                       </div>
@@ -366,7 +366,7 @@ export const UniversalInstallModal: React.FC<UniversalInstallModalProps> = ({
 
               {listing.commands && listing.commands.length > 0 && (
                 <Card className="mx-auto max-w-sm gap-2 p-3.5 text-left bg-surface-raised/40">
-                  <span className="block text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
+                  <span className="block text-meta font-semibold tracking-wider uppercase text-muted-foreground">
                     Try running in chat
                   </span>
                   {listing.commands.map((cmd) => (
@@ -461,7 +461,7 @@ function ToggleRow({
         <span className="block text-xs font-semibold text-foreground">
           {title}
         </span>
-        <span className="text-[11px] text-muted-foreground">{description}</span>
+        <span className="text-meta text-muted-foreground">{description}</span>
       </div>
       <Switch
         checked={checked}

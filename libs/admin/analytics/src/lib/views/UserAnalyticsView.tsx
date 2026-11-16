@@ -44,7 +44,7 @@ export function UserAnalyticsView() {
             {row.name || row.email}
           </span>
           {row.name && (
-            <span className="text-[11px] text-muted-foreground truncate max-w-[200px]">
+            <span className="text-meta text-muted-foreground truncate max-w-[200px]">
               {row.email}
             </span>
           )}
@@ -57,7 +57,7 @@ export function UserAnalyticsView() {
       accessorKey: 'systemRole',
       sortable: true,
       cell: (row) => (
-        <span className="inline-flex items-center rounded-full border border-border/80 bg-muted/60 px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase text-foreground">
+        <span className="inline-flex items-center rounded-full border border-border/80 bg-muted/60 px-2.5 py-0.5 text-2xs font-semibold tracking-wider uppercase text-foreground">
           {row.systemRole}
         </span>
       ),
@@ -93,7 +93,7 @@ export function UserAnalyticsView() {
       sortable: true,
       align: 'right',
       cell: (row) => (
-        <span className="text-muted-foreground text-[11px]">
+        <span className="text-muted-foreground text-meta">
           {row.lastSeenAt
             ? new Date(row.lastSeenAt).toLocaleDateString()
             : 'Never'}

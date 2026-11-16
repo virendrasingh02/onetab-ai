@@ -90,35 +90,35 @@ function getCategoryBadge(category: EmailTemplateCategory | string) {
   let colorCls = 'bg-slate-500/15 text-slate-400 border-slate-500/25';
 
   if (cat === 'AUTHENTICATION')
-    colorCls = 'bg-blue-500/15 text-blue-400 border-blue-500/25';
+    colorCls = 'bg-accent-blue/15 text-accent-blue border-accent-blue/25';
   else if (cat === 'WORKSPACE')
-    colorCls = 'bg-violet-500/15 text-violet-400 border-violet-500/25';
+    colorCls = 'bg-accent-violet/15 text-accent-violet border-accent-violet/25';
   else if (cat === 'TEAM')
-    colorCls = 'bg-indigo-500/15 text-indigo-400 border-indigo-500/25';
+    colorCls = 'bg-accent-indigo/15 text-accent-indigo border-accent-indigo/25';
   else if (cat === 'PROJECTS')
-    colorCls = 'bg-sky-500/15 text-sky-400 border-sky-500/25';
+    colorCls = 'bg-info/15 text-info-text border-info/25';
   else if (cat === 'TASKS')
-    colorCls = 'bg-amber-500/15 text-amber-400 border-amber-500/25';
+    colorCls = 'bg-warning/15 text-warning-text border-warning/25';
   else if (cat === 'DOCS')
     colorCls = 'bg-accent-green-soft text-accent-green border-accent-green/25';
   else if (cat === 'MESSAGING')
-    colorCls = 'bg-cyan-500/15 text-cyan-400 border-cyan-500/25';
+    colorCls = 'bg-accent-cyan/15 text-accent-cyan border-accent-cyan/25';
   else if (cat === 'MEETINGS')
-    colorCls = 'bg-purple-500/15 text-purple-400 border-purple-500/25';
+    colorCls = 'bg-accent-violet/15 text-accent-violet border-accent-violet/25';
   else if (cat === 'AI_AGENTS')
-    colorCls = 'bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/25';
+    colorCls = 'bg-accent-pink/15 text-accent-pink border-accent-pink/25';
   else if (cat === 'HIRE')
-    colorCls = 'bg-pink-500/15 text-pink-400 border-pink-500/25';
+    colorCls = 'bg-accent-pink/15 text-accent-pink border-accent-pink/25';
   else if (cat === 'VOICE')
-    colorCls = 'bg-rose-500/15 text-rose-400 border-rose-500/25';
+    colorCls = 'bg-destructive/15 text-destructive-text border-destructive/25';
   else if (cat === 'BILLING')
-    colorCls = 'bg-teal-500/15 text-teal-400 border-teal-500/25';
+    colorCls = 'bg-accent-teal/15 text-accent-teal border-accent-teal/25';
   else if (cat === 'SECURITY')
-    colorCls = 'bg-red-500/15 text-red-400 border-red-500/25';
+    colorCls = 'bg-destructive/15 text-destructive-text border-destructive/25';
 
   return (
     <span
-      className={`px-2 py-0.5 font-semibold tracking-wider inline-flex items-center rounded-full border text-[10px] uppercase ${colorCls}`}
+      className={`px-2 py-0.5 font-semibold tracking-wider inline-flex items-center rounded-full border text-2xs uppercase ${colorCls}`}
     >
       {name}
     </span>
@@ -129,28 +129,28 @@ function getStatusBadge(status: EmailDeliveryStatus) {
   switch (status) {
     case 'DELIVERED':
       return (
-        <span className="gap-1 px-2.5 py-0.5 font-semibold tracking-wider inline-flex items-center rounded-full border border-success/25 bg-success/15 text-[10px] text-success-text uppercase">
+        <span className="gap-1 px-2.5 py-0.5 font-semibold tracking-wider inline-flex items-center rounded-full border border-success/25 bg-success/15 text-2xs text-success-text uppercase">
           <CheckCircle2 className="size-3" />
           DELIVERED
         </span>
       );
     case 'SENT':
       return (
-        <span className="gap-1 border-blue-500/25 bg-blue-500/15 text-blue-400 px-2.5 py-0.5 font-semibold tracking-wider inline-flex items-center rounded-full border text-[10px] uppercase">
+        <span className="gap-1 border-accent-blue/25 bg-accent-blue/15 text-accent-blue px-2.5 py-0.5 font-semibold tracking-wider inline-flex items-center rounded-full border text-2xs uppercase">
           <CheckCircle2 className="size-3" />
           SENT
         </span>
       );
     case 'OPENED':
       return (
-        <span className="gap-1 border-teal-500/25 bg-teal-500/15 text-teal-400 px-2.5 py-0.5 font-semibold tracking-wider inline-flex items-center rounded-full border text-[10px] uppercase">
+        <span className="gap-1 border-accent-teal/25 bg-accent-teal/15 text-accent-teal px-2.5 py-0.5 font-semibold tracking-wider inline-flex items-center rounded-full border text-2xs uppercase">
           <Eye className="size-3" />
           OPENED
         </span>
       );
     case 'CLICKED':
       return (
-        <span className="gap-1 border-cyan-500/25 bg-cyan-500/15 text-cyan-400 px-2.5 py-0.5 font-semibold tracking-wider inline-flex items-center rounded-full border text-[10px] uppercase">
+        <span className="gap-1 border-accent-cyan/25 bg-accent-cyan/15 text-accent-cyan px-2.5 py-0.5 font-semibold tracking-wider inline-flex items-center rounded-full border text-2xs uppercase">
           <MousePointerClick className="size-3" />
           CLICKED
         </span>
@@ -159,7 +159,7 @@ function getStatusBadge(status: EmailDeliveryStatus) {
     case 'BOUNCED':
     case 'COMPLAINED':
       return (
-        <span className="gap-1 border-rose-500/25 bg-rose-500/15 text-rose-400 px-2.5 py-0.5 font-semibold tracking-wider inline-flex items-center rounded-full border text-[10px] uppercase">
+        <span className="gap-1 border-destructive/25 bg-destructive/15 text-destructive-text px-2.5 py-0.5 font-semibold tracking-wider inline-flex items-center rounded-full border text-2xs uppercase">
           <XCircle className="size-3" />
           {status}
         </span>
@@ -167,14 +167,14 @@ function getStatusBadge(status: EmailDeliveryStatus) {
     case 'QUEUED':
     case 'SENDING':
       return (
-        <span className="gap-1 border-amber-500/25 bg-amber-500/15 text-amber-400 px-2.5 py-0.5 font-semibold tracking-wider inline-flex items-center rounded-full border text-[10px] uppercase">
+        <span className="gap-1 border-warning/25 bg-warning/15 text-warning-text px-2.5 py-0.5 font-semibold tracking-wider inline-flex items-center rounded-full border text-2xs uppercase">
           <Clock className="size-3" />
           {status}
         </span>
       );
     default:
       return (
-        <span className="gap-1 px-2.5 py-0.5 font-semibold tracking-wider inline-flex items-center rounded-full border border-border/80 bg-muted/60 text-[10px] text-muted-foreground uppercase">
+        <span className="gap-1 px-2.5 py-0.5 font-semibold tracking-wider inline-flex items-center rounded-full border border-border/80 bg-muted/60 text-2xs text-muted-foreground uppercase">
           {status}
         </span>
       );
@@ -613,7 +613,7 @@ export function EmailDeliveriesView() {
                             <div className="font-medium text-xs text-foreground">
                               {tpl.name}
                             </div>
-                            <div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
+                            <div className="mt-0.5 font-mono text-2xs text-muted-foreground">
                               {tpl.templateKey}
                             </div>
                           </TableCell>
@@ -628,7 +628,7 @@ export function EmailDeliveriesView() {
                           </TableCell>
                           <TableCell className="py-3.5 px-5">
                             <span
-                              className={`px-2 py-0.5 font-semibold tracking-wider inline-flex items-center rounded-full text-[10px] uppercase ${
+                              className={`px-2 py-0.5 font-semibold tracking-wider inline-flex items-center rounded-full text-2xs uppercase ${
                                 tpl.status === 'ACTIVE'
                                   ? 'border border-success/25 bg-success/15 text-success-text'
                                   : 'border border-border bg-muted text-muted-foreground'
@@ -639,16 +639,16 @@ export function EmailDeliveriesView() {
                           </TableCell>
                           <TableCell className="py-3.5 px-5">
                             {tpl.isSystemTemplate ? (
-                              <span className="border-blue-500/25 bg-blue-500/10 text-blue-400 px-2 py-0.5 font-medium inline-flex items-center rounded-full border text-[10px]">
+                              <span className="border-accent-blue/25 bg-accent-blue/10 text-accent-blue px-2 py-0.5 font-medium inline-flex items-center rounded-full border text-2xs">
                                 System Default
                               </span>
                             ) : (
-                              <span className="border-purple-500/25 bg-purple-500/10 text-purple-400 px-2 py-0.5 font-medium inline-flex items-center rounded-full border text-[10px]">
+                              <span className="border-accent-violet/25 bg-accent-violet/10 text-accent-violet px-2 py-0.5 font-medium inline-flex items-center rounded-full border text-2xs">
                                 Custom Override
                               </span>
                             )}
                           </TableCell>
-                          <TableCell className="py-3.5 px-5 font-mono text-[11px] text-muted-foreground">
+                          <TableCell className="py-3.5 px-5 font-mono text-meta text-muted-foreground">
                             v{tpl.version || 1}
                           </TableCell>
                           <TableCell className="py-3.5 px-5 text-right">
@@ -737,7 +737,7 @@ export function EmailDeliveriesView() {
                   <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                     Fallback Chain
                   </span>
-                  <Layers className="size-4 text-amber-400" />
+                  <Layers className="size-4 text-warning-text" />
                 </div>
                 <div className="text-sm font-mono text-foreground">
                   {providersData?.fallback?.length
@@ -798,13 +798,13 @@ export function EmailDeliveriesView() {
                             {p.provider}
                           </span>
                           {isPrimary && (
-                            <span className="font-mono text-[10px] text-primary uppercase">
+                            <span className="font-mono text-2xs text-primary uppercase">
                               primary
                             </span>
                           )}
                         </div>
                         <span
-                          className={`px-2 py-0.5 rounded-full border font-mono text-[10px] uppercase ${
+                          className={`px-2 py-0.5 rounded-full border font-mono text-2xs uppercase ${
                             p.ready
                               ? 'border-success/25 bg-success/15 text-success-text'
                               : 'border-border bg-muted text-muted-foreground'
@@ -1050,7 +1050,7 @@ export function EmailDeliveriesView() {
                             {email.recipient}
                           </TableCell>
                           <TableCell className="py-3.5 px-5">
-                            <span className="px-2.5 py-0.5 inline-flex items-center rounded-full border border-border/80 bg-muted/60 font-mono text-[10px] text-foreground uppercase">
+                            <span className="px-2.5 py-0.5 inline-flex items-center rounded-full border border-border/80 bg-muted/60 font-mono text-2xs text-foreground uppercase">
                               {email.type}
                             </span>
                           </TableCell>
@@ -1062,7 +1062,7 @@ export function EmailDeliveriesView() {
                               {email.provider}
                             </span>
                             {email.providerMessageId && (
-                              <span className="block text-[10px] opacity-75">
+                              <span className="block text-2xs opacity-75">
                                 {email.providerMessageId}
                               </span>
                             )}
@@ -1305,7 +1305,7 @@ export function EmailDeliveriesView() {
                             <TableCell className="font-semibold font-mono text-primary">
                               &#123;&#123;{v.name}&#125;&#125;
                             </TableCell>
-                            <TableCell className="font-mono text-[11px] text-muted-foreground">
+                            <TableCell className="font-mono text-meta text-muted-foreground">
                               {v.type}
                             </TableCell>
                             <TableCell className="text-muted-foreground">
@@ -1334,7 +1334,7 @@ export function EmailDeliveriesView() {
                     <span className="font-semibold block text-foreground">
                       Mock Sample Payload (JSON)
                     </span>
-                    <pre className="p-3 overflow-x-auto rounded-xl bg-muted/60 font-mono text-[11px] text-foreground">
+                    <pre className="p-3 overflow-x-auto rounded-xl bg-muted/60 font-mono text-meta text-foreground">
                       {JSON.stringify(
                         previewTemplate.variablesSchema.samplePayload,
                         null,
@@ -1455,7 +1455,7 @@ export function EmailDeliveriesView() {
         <DialogContent className="max-w-2xl flex max-h-[85vh] flex-col">
           <DialogHeader>
             <DialogTitle className="gap-2 text-base flex items-center">
-              <Edit3 className="size-4 text-amber-400" />
+              <Edit3 className="size-4 text-warning-text" />
               Customize Template: {editingTemplate?.name}
             </DialogTitle>
           </DialogHeader>
@@ -1497,7 +1497,7 @@ export function EmailDeliveriesView() {
                 <label className="font-semibold block text-foreground">
                   HTML Body Content
                 </label>
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-2xs text-muted-foreground">
                   Supports &#123;&#123;variable&#125;&#125; and &#123;#if&#125;
                   conditionals
                 </span>
@@ -1597,7 +1597,7 @@ export function EmailDeliveriesView() {
                       Error Code: {selectedEmail.errorCode ?? 'UNKNOWN'}
                     </span>
                   </div>
-                  <p className="font-mono text-[11px] whitespace-pre-wrap">
+                  <p className="font-mono text-meta whitespace-pre-wrap">
                     {selectedEmail.errorMessage}
                   </p>
                 </div>
@@ -1631,7 +1631,7 @@ export function EmailDeliveriesView() {
                     </div>
                   )}
                   {selectedEmail.openedAt && (
-                    <div className="text-teal-400 flex justify-between">
+                    <div className="text-accent-teal flex justify-between">
                       <span>Opened:</span>
                       <span className="font-medium font-mono">
                         {formatDateTime(selectedEmail.openedAt)}
@@ -1639,7 +1639,7 @@ export function EmailDeliveriesView() {
                     </div>
                   )}
                   {selectedEmail.clickedAt && (
-                    <div className="text-cyan-400 flex justify-between">
+                    <div className="text-accent-cyan flex justify-between">
                       <span>Clicked:</span>
                       <span className="font-medium font-mono">
                         {formatDateTime(selectedEmail.clickedAt)}
@@ -1647,7 +1647,7 @@ export function EmailDeliveriesView() {
                     </div>
                   )}
                   {selectedEmail.bouncedAt && (
-                    <div className="text-rose-400 flex justify-between">
+                    <div className="text-destructive-text flex justify-between">
                       <span>Bounced:</span>
                       <span className="font-medium font-mono">
                         {formatDateTime(selectedEmail.bouncedAt)}
@@ -1657,7 +1657,7 @@ export function EmailDeliveriesView() {
                 </div>
               </div>
 
-              <div className="font-mono text-[10px] text-muted-foreground">
+              <div className="font-mono text-2xs text-muted-foreground">
                 Delivery ID: {selectedEmail.id}
               </div>
             </DialogBody>

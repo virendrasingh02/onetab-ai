@@ -494,7 +494,7 @@ export function ThreadRepliesButton({
       type="button"
       onClick={onOpen}
       className={cn(
-        'group mt-1.5 gap-2 px-2.5 py-1 font-medium flex items-center rounded-md bg-surface text-[13px] text-info-text no-underline transition-colors hover:bg-accent hover:no-underline',
+        'group mt-1.5 gap-2 px-2.5 py-1 font-medium flex items-center rounded-md bg-surface text-body-sm text-info-text no-underline transition-colors hover:bg-accent hover:no-underline',
         hasUnread && 'ring-1 ring-info-text/30',
       )}
     >
@@ -1918,7 +1918,7 @@ export function DateSeparator({ timestamp, onJumpToDate }: DateSeparatorProps) {
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="gap-1.5 px-4 py-1.5 font-semibold flex cursor-pointer items-center rounded-full border border-border bg-surface text-[13px] text-foreground shadow-xs transition-colors hover:bg-accent hover:text-foreground"
+            className="gap-1.5 px-4 py-1.5 font-semibold flex cursor-pointer items-center rounded-full border border-border bg-surface text-body-sm text-foreground shadow-xs transition-colors hover:bg-accent hover:text-foreground"
           >
             <span>{label}</span>
             <ChevronDown className="size-3 text-muted-foreground" />

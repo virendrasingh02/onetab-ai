@@ -159,7 +159,7 @@ export function DocHeader({
                     key={preset.id}
                     type="button"
                     onClick={() => onUpdateCover(preset.style)}
-                    className="h-10 p-1 text-white font-medium flex items-end overflow-hidden rounded-md border border-border text-[10px] shadow-sm transition-transform hover:scale-105"
+                    className="h-10 p-1 text-white font-medium flex items-end overflow-hidden rounded-md border border-border text-2xs shadow-sm transition-transform hover:scale-105"
                     style={{ background: preset.style }}
                   >
                     <span className="bg-black/50 px-1 rounded backdrop-blur-xs max-w-full truncate">
@@ -209,7 +209,7 @@ export function DocHeader({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-36">
-                <DropdownMenuLabel className="text-[11px]">
+                <DropdownMenuLabel className="text-meta">
                   Set Status
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -242,7 +242,7 @@ export function DocHeader({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuLabel className="text-[11px]">
+                <DropdownMenuLabel className="text-meta">
                   Category
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -299,7 +299,7 @@ export function DocHeader({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel className="text-[11px]">
+                  <DropdownMenuLabel className="text-meta">
                     Associated Project
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
@@ -352,7 +352,7 @@ export function DocHeader({
         {/* Breadcrumb Path */}
         <div className="mb-2">
           <Breadcrumb>
-            <BreadcrumbList className="text-[11px]">
+            <BreadcrumbList className="text-meta">
               <BreadcrumbItem>
                 <BreadcrumbLink asChild>
                   <button
@@ -445,7 +445,7 @@ export function DocHeader({
         </div>
 
         {/* Header Metrics */}
-        <div className="gap-4 mt-3 pt-3 flex flex-wrap items-center border-t border-border/60 text-[11px] text-muted-foreground">
+        <div className="gap-4 mt-3 pt-3 flex flex-wrap items-center border-t border-border/60 text-meta text-muted-foreground">
           <div className="gap-1.5 flex items-center">
             <Clock className="size-3.5 text-subtle" />
             <span>Updated {doc.updatedAt}</span>

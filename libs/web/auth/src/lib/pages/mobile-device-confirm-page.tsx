@@ -272,7 +272,7 @@ export function MobileDeviceConfirmPage() {
 
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="space-y-0.5">
-                <span className="text-subtle text-[11px]">Device</span>
+                <span className="text-subtle text-meta">Device</span>
                 <p className="font-medium text-foreground flex items-center gap-1">
                   <Laptop className="size-3.5 text-muted-foreground" />
                   <span>{deviceInfo.deviceInfo.platform}</span>
@@ -280,21 +280,21 @@ export function MobileDeviceConfirmPage() {
               </div>
 
               <div className="space-y-0.5">
-                <span className="text-subtle text-[11px]">Client</span>
+                <span className="text-subtle text-meta">Client</span>
                 <p className="font-medium text-foreground">
                   {deviceInfo.deviceInfo.clientName}
                 </p>
               </div>
 
               <div className="space-y-0.5">
-                <span className="text-subtle text-[11px]">Pairing Code</span>
+                <span className="text-subtle text-meta">Pairing Code</span>
                 <p className="font-mono font-bold text-foreground tracking-wider">
                   {deviceInfo.userCode}
                 </p>
               </div>
 
               <div className="space-y-0.5">
-                <span className="text-subtle text-[11px]">Network</span>
+                <span className="text-subtle text-meta">Network</span>
                 <p className="text-foreground flex items-center gap-1 truncate">
                   <Globe className="size-3.5 text-subtle" />
                   <span>{deviceInfo.deviceInfo.ip || 'Local Network'}</span>
@@ -303,7 +303,7 @@ export function MobileDeviceConfirmPage() {
             </div>
           </div>
 
-          <p className="text-[11px] text-subtle text-center px-2">
+          <p className="text-meta text-subtle text-center px-2">
             Only confirm this request if you initiated it on your own computer.
           </p>
         </div>

@@ -54,7 +54,8 @@ export interface AIProvidersSettingsProps {
 export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
   const queryClient = useQueryClient();
 
-  const [selectedProvider, setSelectedProvider] = useState<AIProviderMetadata | null>(null);
+  const [selectedProvider, setSelectedProvider] =
+    useState<AIProviderMetadata | null>(null);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
@@ -66,11 +67,18 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
   const [isEnabledInput, setIsEnabledInput] = useState(true);
 
   // Test connection state
-  const [testResult, setTestResult] = useState<ProviderConnectionTestResult | null>(null);
-  const [testingProviderId, setTestingProviderId] = useState<string | null>(null);
+  const [testResult, setTestResult] =
+    useState<ProviderConnectionTestResult | null>(null);
+  const [testingProviderId, setTestingProviderId] = useState<string | null>(
+    null,
+  );
 
   // Fetch all providers
-  const { data: providers = [], isLoading, refetch } = useQuery({
+  const {
+    data: providers = [],
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ['ai-providers', workspaceId],
     queryFn: () => aiApi.getProviders(workspaceId),
     staleTime: 10_000,
@@ -78,10 +86,14 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
 
   // Save credential mutation
   const saveMutation = useMutation({
-    mutationFn: (input: { provider: AIProvider; data: SaveProviderCredentialInput }) =>
-      aiApi.saveCredential(workspaceId, input.provider, input.data),
+    mutationFn: (input: {
+      provider: AIProvider;
+      data: SaveProviderCredentialInput;
+    }) => aiApi.saveCredential(workspaceId, input.provider, input.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ai-providers', workspaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ['ai-providers', workspaceId],
+      });
       setIsConfigOpen(false);
       setApiKeyInput('');
       setTestResult(null);
@@ -93,7 +105,9 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
     mutationFn: (provider: AIProvider) =>
       aiApi.deleteCredential(workspaceId, provider),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ai-providers', workspaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ['ai-providers', workspaceId],
+      });
       setIsDeleteOpen(false);
       setIsConfigOpen(false);
       setTestResult(null);
@@ -106,19 +120,27 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
       aiApi.testProvider(workspaceId, provider),
     onSuccess: (res) => {
       setTestResult(res);
-      queryClient.invalidateQueries({ queryKey: ['ai-providers', workspaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ['ai-providers', workspaceId],
+      });
     },
   });
 
   // Update model settings mutation
   const modelSettingMutation = useMutation({
-    mutationFn: (input: { modelId: string; enabled?: boolean; isDefault?: boolean }) =>
+    mutationFn: (input: {
+      modelId: string;
+      enabled?: boolean;
+      isDefault?: boolean;
+    }) =>
       aiApi.updateModelSetting(workspaceId, input.modelId, {
         enabled: input.enabled,
         isDefault: input.isDefault,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ai-providers', workspaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ['ai-providers', workspaceId],
+      });
     },
   });
 
@@ -167,7 +189,10 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
   const renderStatusBadge = (status: AIProviderStatus, isTesting: boolean) => {
     if (isTesting) {
       return (
-        <Badge variant="neutral" className="gap-1.5 bg-info/10 text-info-text border-info/20">
+        <Badge
+          variant="neutral"
+          className="gap-1.5 border-info/20 bg-info/10 text-info-text"
+        >
           <RefreshCw className="size-3 animate-spin" />
           <span>Testing...</span>
         </Badge>
@@ -177,42 +202,60 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
     switch (status) {
       case 'CONNECTED':
         return (
-          <Badge variant="neutral" className="gap-1.5 bg-success/10 text-success-text border-success/20 font-medium">
+          <Badge
+            variant="neutral"
+            className="gap-1.5 font-medium border-success/20 bg-success/10 text-success-text"
+          >
             <CheckCircle2 className="size-3" />
             <span>Connected</span>
           </Badge>
         );
       case 'AUTH_ERROR':
         return (
-          <Badge variant="neutral" className="gap-1.5 bg-destructive/10 text-destructive-text border-destructive/20 font-medium">
+          <Badge
+            variant="neutral"
+            className="gap-1.5 font-medium border-destructive/20 bg-destructive/10 text-destructive-text"
+          >
             <AlertCircle className="size-3" />
             <span>Auth Error</span>
           </Badge>
         );
       case 'RATE_LIMITED':
         return (
-          <Badge variant="neutral" className="gap-1.5 bg-warning/10 text-warning-text border-warning/20 font-medium">
+          <Badge
+            variant="neutral"
+            className="gap-1.5 font-medium border-warning/20 bg-warning/10 text-warning-text"
+          >
             <AlertTriangle className="size-3" />
             <span>Rate Limited</span>
           </Badge>
         );
       case 'UNAVAILABLE':
         return (
-          <Badge variant="neutral" className="gap-1.5 bg-warning/10 text-warning-text border-warning/20 font-medium">
+          <Badge
+            variant="neutral"
+            className="gap-1.5 font-medium border-warning/20 bg-warning/10 text-warning-text"
+          >
             <AlertTriangle className="size-3" />
             <span>Unavailable</span>
           </Badge>
         );
       case 'DISABLED':
         return (
-          <Badge variant="neutral" className="gap-1.5 bg-muted text-muted-foreground font-medium">
+          <Badge
+            variant="neutral"
+            className="gap-1.5 font-medium bg-muted text-muted-foreground"
+          >
             <span>Disabled</span>
           </Badge>
         );
       case 'NOT_CONFIGURED':
       default:
         return (
-          <Badge variant="neutral" className="gap-1.5 bg-muted/60 text-muted-foreground font-medium">
+          <Badge
+            variant="neutral"
+            className="gap-1.5 font-medium bg-muted/60 text-muted-foreground"
+          >
             <span className="size-1.5 rounded-full bg-muted-foreground/60" />
             <span>Not Configured</span>
           </Badge>
@@ -222,9 +265,11 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
 
   if (isLoading) {
     return (
-      <div className="p-8 flex flex-col items-center justify-center space-y-3">
+      <div className="p-8 space-y-3 flex flex-col items-center justify-center">
         <RefreshCw className="size-6 animate-spin text-primary" />
-        <p className="text-xs text-muted-foreground">Loading AI providers and credentials...</p>
+        <p className="text-xs text-muted-foreground">
+          Loading AI providers and credentials...
+        </p>
       </div>
     );
   }
@@ -232,16 +277,21 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="sm:flex-row sm:items-center gap-4 flex flex-col justify-between">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+          <h1 className="text-xl font-bold tracking-tight gap-2 flex items-center text-foreground">
             <span>AI Providers & API Keys</span>
-            <Badge variant="neutral" className="bg-brand/10 text-brand-text border-brand/20 text-[10px] font-semibold">
+            <Badge
+              variant="neutral"
+              className="font-semibold border-brand/20 bg-brand/10 text-2xs text-brand-text"
+            >
               Multi-Provider
             </Badge>
           </h1>
-          <p className="text-xs text-muted-foreground mt-1">
-            Manage provider credentials, API endpoints, and model capabilities for this workspace. Keys are encrypted at rest and never exposed to the browser.
+          <p className="text-xs mt-1 text-muted-foreground">
+            Manage provider credentials, API endpoints, and model capabilities
+            for this workspace. Keys are encrypted at rest and never exposed to
+            the browser.
           </p>
         </div>
 
@@ -257,18 +307,22 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
       </div>
 
       {/* Security Guarantee Banner */}
-      <div className="flex items-start gap-3 p-4 rounded-xl border border-border/80 bg-surface-inset/50 text-xs">
-        <ShieldCheck className="size-4 text-success shrink-0 mt-0.5" />
+      <div className="gap-3 p-4 text-xs flex items-start rounded-xl border border-border/80 bg-surface-inset/50">
+        <ShieldCheck className="size-4 mt-0.5 shrink-0 text-success" />
         <div className="space-y-0.5">
-          <span className="font-semibold text-foreground">Zero-Trust Credential Security</span>
-          <p className="text-[11px] text-muted-foreground">
-            All API keys are encrypted on the backend using AES-256-GCM before being stored. Plaintext credentials are never returned over the network, stored in Redux, or placed in browser storage.
+          <span className="font-semibold text-foreground">
+            Zero-Trust Credential Security
+          </span>
+          <p className="text-meta text-muted-foreground">
+            All API keys are encrypted on the backend using AES-256-GCM before
+            being stored. Plaintext credentials are never returned over the
+            network, stored in Redux, or placed in browser storage.
           </p>
         </div>
       </div>
 
       {/* Provider Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="md:grid-cols-2 gap-4 grid grid-cols-1">
         {providers.map((provider) => {
           const isTesting = testingProviderId === provider.id;
           const isDefault = provider.id === 'nvidia';
@@ -277,30 +331,36 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
             <div
               key={provider.id}
               className={cn(
-                'relative flex flex-col justify-between rounded-xl border bg-surface p-5 transition-all shadow-2xs hover:shadow-xs',
+                'p-5 shadow-2xs relative flex flex-col justify-between rounded-xl border bg-surface transition-all hover:shadow-xs',
                 provider.configured
                   ? 'border-border'
-                  : 'border-dashed border-border/70 bg-surface-inset/40'
+                  : 'border-dashed border-border/70 bg-surface-inset/40',
               )}
             >
               {/* Card Top */}
               <div className="space-y-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex size-10 items-center justify-center rounded-xl bg-surface border border-border/80 shadow-2xs">
+                <div className="gap-3 flex items-start justify-between">
+                  <div className="gap-3 flex items-center">
+                    <div className="size-10 shadow-2xs flex items-center justify-center rounded-xl border border-border/80 bg-surface">
                       <AIProviderIcon provider={provider.id} size={22} />
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-bold text-foreground">{provider.name}</h3>
+                      <div className="gap-2 flex items-center">
+                        <h3 className="text-sm font-bold text-foreground">
+                          {provider.name}
+                        </h3>
                         {isDefault && (
-                          <Badge variant="neutral" className="text-[10px] bg-brand/10 text-brand-text border-brand/20 font-semibold px-1.5 py-0">
+                          <Badge
+                            variant="neutral"
+                            className="font-semibold px-1.5 py-0 border-brand/20 bg-brand/10 text-2xs text-brand-text"
+                          >
                             Default
                           </Badge>
                         )}
                       </div>
-                      <p className="text-[11px] text-muted-foreground line-clamp-1">
-                        {provider.description || `${provider.name} AI model provider`}
+                      <p className="line-clamp-1 text-meta text-muted-foreground">
+                        {provider.description ||
+                          `${provider.name} AI model provider`}
                       </p>
                     </div>
                   </div>
@@ -309,34 +369,47 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
                 </div>
 
                 {/* Credential Status & Key Info */}
-                <div className="rounded-xl border border-border/50 bg-surface/50 p-3 space-y-2 text-xs">
+                <div className="p-3 space-y-2 text-xs rounded-xl border border-border/50 bg-surface/50">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                    <span className="gap-1.5 flex items-center text-meta text-muted-foreground">
                       <Key className="size-3 text-muted-foreground/80" />
                       Credential:
                     </span>
-                    <span className="font-mono text-[11px] font-medium text-foreground">
-                      {provider.maskedKey || (provider.configured ? 'Configured via Environment' : 'None')}
+                    <span className="font-medium font-mono text-meta text-foreground">
+                      {provider.maskedKey ||
+                        (provider.configured
+                          ? 'Configured via Environment'
+                          : 'None')}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-muted-foreground">Default Model:</span>
-                    <AIModelBadge modelId={provider.defaultModel} provider={provider.id} variant="subtle" size="xs" />
+                    <span className="text-meta text-muted-foreground">
+                      Default Model:
+                    </span>
+                    <AIModelBadge
+                      modelId={provider.defaultModel}
+                      provider={provider.id}
+                      variant="subtle"
+                      size="xs"
+                    />
                   </div>
 
-                  <div className="flex items-center justify-between pt-1 border-t border-border/30">
-                    <span className="text-[11px] text-muted-foreground">Available Models:</span>
-                    <span className="text-[11px] font-semibold text-primary">
-                      {provider.models.length} {provider.models.length === 1 ? 'model' : 'models'}
+                  <div className="pt-1 flex items-center justify-between border-t border-border/30">
+                    <span className="text-meta text-muted-foreground">
+                      Available Models:
+                    </span>
+                    <span className="font-semibold text-meta text-primary">
+                      {provider.models.length}{' '}
+                      {provider.models.length === 1 ? 'model' : 'models'}
                     </span>
                   </div>
                 </div>
               </div>
 
               {/* Card Footer Actions */}
-              <div className="flex items-center justify-between gap-2 pt-4 mt-4 border-t border-border/40">
-                <div className="flex items-center gap-2">
+              <div className="gap-2 pt-4 mt-4 flex items-center justify-between border-t border-border/40">
+                <div className="gap-2 flex items-center">
                   <Button
                     variant="outline"
                     size="sm"
@@ -369,7 +442,7 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
                     variant="ghost"
                     size="sm"
                     onClick={() => handleOpenDelete(provider)}
-                    className="h-8 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 px-2"
+                    className="h-8 text-xs px-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
                     title="Remove API Key"
                   >
                     <Trash2 className="size-3.5" />
@@ -384,87 +457,100 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
       {/* Model Catalog & Management Section */}
       <div className="space-y-4 pt-6 border-t border-border/60">
         <div>
-          <h2 className="text-base font-bold text-foreground">Model Catalog & Defaults</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Enable or disable individual models for this workspace or select your default engine.
+          <h2 className="text-base font-bold text-foreground">
+            Model Catalog & Defaults
+          </h2>
+          <p className="text-xs mt-0.5 text-muted-foreground">
+            Enable or disable individual models for this workspace or select
+            your default engine.
           </p>
         </div>
 
-        <div className="rounded-xl border border-border bg-surface shadow-xs divide-y divide-border/60 overflow-hidden">
-          {providers.flatMap((p) => p.models).map((model: AIModelMetadata) => {
-            const capabilities = Array.isArray(model.capabilities)
-              ? model.capabilities
-              : Object.entries(model.capabilities)
-                  .filter(([, v]) => Boolean(v))
-                  .map(([k]) => k);
+        <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-surface shadow-xs">
+          {providers
+            .flatMap((p) => p.models)
+            .map((model: AIModelMetadata) => {
+              const capabilities = Array.isArray(model.capabilities)
+                ? model.capabilities
+                : Object.entries(model.capabilities)
+                    .filter(([, v]) => Boolean(v))
+                    .map(([k]) => k);
 
-            return (
-              <div
-                key={model.id}
-                className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-surface/50 transition-colors"
-              >
-                <div className="space-y-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-foreground">{model.name}</span>
-                    <Badge variant="neutral" className="text-[10px] uppercase font-mono px-1.5 py-0">
-                      {model.provider}
-                    </Badge>
-                    {model.default && (
-                      <Badge variant="neutral" className="text-[10px] bg-brand/10 text-brand-text border-brand/20 font-semibold px-1.5 py-0">
-                        Default
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-[11px] font-mono text-muted-foreground truncate">
-                    {model.model}
-                  </p>
-                  <div className="flex flex-wrap gap-1 pt-1">
-                    {capabilities.map((cap) => (
-                      <span
-                        key={cap}
-                        className="inline-flex items-center text-[9.5px] font-medium px-1.5 py-0.5 rounded-md bg-surface border border-border/60 text-muted-foreground"
-                      >
-                        {cap}
+              return (
+                <div
+                  key={model.id}
+                  className="p-4 sm:flex-row sm:items-center gap-3 flex flex-col justify-between transition-colors hover:bg-surface/50"
+                >
+                  <div className="space-y-1 min-w-0">
+                    <div className="gap-2 flex items-center">
+                      <span className="text-xs font-bold text-foreground">
+                        {model.name}
                       </span>
-                    ))}
+                      <Badge
+                        variant="neutral"
+                        className="px-1.5 py-0 font-mono text-2xs uppercase"
+                      >
+                        {model.provider}
+                      </Badge>
+                      {model.default && (
+                        <Badge
+                          variant="neutral"
+                          className="font-semibold px-1.5 py-0 border-brand/20 bg-brand/10 text-2xs text-brand-text"
+                        >
+                          Default
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="truncate font-mono text-meta text-muted-foreground">
+                      {model.model}
+                    </p>
+                    <div className="gap-1 pt-1 flex flex-wrap">
+                      {capabilities.map((cap) => (
+                        <span
+                          key={cap}
+                          className="font-medium px-1.5 py-0.5 inline-flex items-center rounded-md border border-border/60 bg-surface text-3xs text-muted-foreground"
+                        >
+                          {cap}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="gap-3 sm:self-center flex shrink-0 items-center self-end">
+                    {!model.default && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          modelSettingMutation.mutate({
+                            modelId: model.id,
+                            isDefault: true,
+                          })
+                        }
+                        className="h-7 px-2 text-meta text-muted-foreground hover:text-foreground"
+                      >
+                        Set as Default
+                      </Button>
+                    )}
+
+                    <div className="gap-2 flex items-center">
+                      <span className="text-meta text-muted-foreground">
+                        {model.enabled ? 'Enabled' : 'Disabled'}
+                      </span>
+                      <Switch
+                        checked={model.enabled}
+                        onCheckedChange={(checked) =>
+                          modelSettingMutation.mutate({
+                            modelId: model.id,
+                            enabled: checked,
+                          })
+                        }
+                      />
+                    </div>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
-                  {!model.default && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        modelSettingMutation.mutate({
-                          modelId: model.id,
-                          isDefault: true,
-                        })
-                      }
-                      className="h-7 text-[11px] text-muted-foreground hover:text-foreground px-2"
-                    >
-                      Set as Default
-                    </Button>
-                  )}
-
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-muted-foreground">
-                      {model.enabled ? 'Enabled' : 'Disabled'}
-                    </span>
-                    <Switch
-                      checked={model.enabled}
-                      onCheckedChange={(checked) =>
-                        modelSettingMutation.mutate({
-                          modelId: model.id,
-                          enabled: checked,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
         </div>
       </div>
 
@@ -472,12 +558,13 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
       <Dialog open={isConfigOpen} onOpenChange={setIsConfigOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base">
+            <DialogTitle className="gap-2 text-base flex items-center">
               <Key className="size-4 text-primary" />
               <span>Configure {selectedProvider?.name}</span>
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Provide your API credentials and endpoints. Credentials are encrypted securely at rest.
+              Provide your API credentials and endpoints. Credentials are
+              encrypted securely at rest.
             </DialogDescription>
           </DialogHeader>
 
@@ -485,15 +572,22 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
             <DialogBody className="space-y-4">
               {/* Stored Key Indicator */}
               {selectedProvider.maskedKey ? (
-                <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-surface-inset text-xs">
-                  <div className="flex items-center gap-2">
+                <div className="p-3 text-xs flex items-center justify-between rounded-xl border border-border bg-surface-inset">
+                  <div className="gap-2 flex items-center">
                     <Lock className="size-3.5 text-success" />
                     <div>
-                      <span className="font-semibold text-foreground block">Active Stored Key</span>
-                      <span className="font-mono text-muted-foreground">{selectedProvider.maskedKey}</span>
+                      <span className="font-semibold block text-foreground">
+                        Active Stored Key
+                      </span>
+                      <span className="font-mono text-muted-foreground">
+                        {selectedProvider.maskedKey}
+                      </span>
                     </div>
                   </div>
-                  <Badge variant="neutral" className="text-[10px] bg-success/10 text-success-text border-success/20">
+                  <Badge
+                    variant="neutral"
+                    className="border-success/20 bg-success/10 text-2xs text-success-text"
+                  >
                     Encrypted
                   </Badge>
                 </div>
@@ -503,26 +597,37 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
               {selectedProvider.requiresApiKey && (
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-foreground">
-                    {selectedProvider.maskedKey ? 'Update API Key' : 'Enter API Key'}
+                    {selectedProvider.maskedKey
+                      ? 'Update API Key'
+                      : 'Enter API Key'}
                   </label>
                   <div className="relative">
                     <Input
                       type={showApiKey ? 'text' : 'password'}
-                      placeholder={selectedProvider.maskedKey ? 'Leave blank to keep existing key' : 'Paste your API key'}
+                      placeholder={
+                        selectedProvider.maskedKey
+                          ? 'Leave blank to keep existing key'
+                          : 'Paste your API key'
+                      }
                       value={apiKeyInput}
                       onChange={(e) => setApiKeyInput(e.target.value)}
-                      className="h-9 text-xs font-mono pr-9"
+                      className="h-9 text-xs pr-9 font-mono"
                     />
                     <button
                       type="button"
                       onClick={() => setShowApiKey(!showApiKey)}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      className="right-2.5 absolute top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     >
-                      {showApiKey ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                      {showApiKey ? (
+                        <EyeOff className="size-3.5" />
+                      ) : (
+                        <Eye className="size-3.5" />
+                      )}
                     </button>
                   </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    For security, newly entered keys are only visible while typing and cannot be read once saved.
+                  <p className="text-meta text-muted-foreground">
+                    For security, newly entered keys are only visible while
+                    typing and cannot be read once saved.
                   </p>
                 </div>
               )}
@@ -539,8 +644,9 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
                   onChange={(e) => setBaseUrlInput(e.target.value)}
                   className="h-9 text-xs font-mono"
                 />
-                <p className="text-[11px] text-muted-foreground">
-                  Custom endpoint URL or proxy for enterprise NIM / self-hosted gateway.
+                <p className="text-meta text-muted-foreground">
+                  Custom endpoint URL or proxy for enterprise NIM / self-hosted
+                  gateway.
                 </p>
               </div>
 
@@ -549,15 +655,26 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
                 <label className="text-xs font-semibold text-foreground">
                   Default Model
                 </label>
-                <Select value={defaultModelInput} onValueChange={setDefaultModelInput}>
+                <Select
+                  value={defaultModelInput}
+                  onValueChange={setDefaultModelInput}
+                >
                   <SelectTrigger className="h-9 text-xs">
                     <SelectValue placeholder="Select default model" />
                   </SelectTrigger>
                   <SelectContent>
                     {selectedProvider.models.map((m) => (
-                      <SelectItem key={m.model} value={m.model} className="text-xs">
-                        <div className="flex items-center gap-2">
-                          <AIModelIcon modelId={m.model} provider={selectedProvider.id} size={15} />
+                      <SelectItem
+                        key={m.model}
+                        value={m.model}
+                        className="text-xs"
+                      >
+                        <div className="gap-2 flex items-center">
+                          <AIModelIcon
+                            modelId={m.model}
+                            provider={selectedProvider.id}
+                            size={15}
+                          />
                           <span>{m.name || m.model}</span>
                         </div>
                       </SelectItem>
@@ -567,20 +684,28 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
               </div>
 
               {/* Enable / Disable Switch */}
-              <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-surface-inset">
+              <div className="p-3 flex items-center justify-between rounded-xl border border-border bg-surface-inset">
                 <div>
-                  <h4 className="text-xs font-semibold text-foreground">Enable Provider</h4>
-                  <p className="text-[11px] text-muted-foreground">
-                    Allow workspace chats, agents, and automations to invoke this provider
+                  <h4 className="text-xs font-semibold text-foreground">
+                    Enable Provider
+                  </h4>
+                  <p className="text-meta text-muted-foreground">
+                    Allow workspace chats, agents, and automations to invoke
+                    this provider
                   </p>
                 </div>
-                <Switch checked={isEnabledInput} onCheckedChange={setIsEnabledInput} />
+                <Switch
+                  checked={isEnabledInput}
+                  onCheckedChange={setIsEnabledInput}
+                />
               </div>
 
               {/* Live Test Connection in Dialog */}
-              <div className="pt-2 border-t border-border/50 space-y-3">
+              <div className="pt-2 space-y-3 border-t border-border/50">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-foreground">Connection Health</span>
+                  <span className="text-xs font-semibold text-foreground">
+                    Connection Health
+                  </span>
                   <Button
                     type="button"
                     variant="outline"
@@ -601,13 +726,13 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
                 {testResult && (
                   <div
                     className={cn(
-                      'p-3 rounded-xl border text-xs space-y-1',
+                      'p-3 text-xs space-y-1 rounded-xl border',
                       testResult.status === 'CONNECTED'
                         ? 'border-success/20 bg-success/5 text-success-text'
-                        : 'border-destructive/20 bg-destructive/5 text-destructive-text'
+                        : 'border-destructive/20 bg-destructive/5 text-destructive-text',
                     )}
                   >
-                    <div className="flex items-center gap-1.5 font-semibold">
+                    <div className="gap-1.5 font-semibold flex items-center">
                       {testResult.status === 'CONNECTED' ? (
                         <Check className="size-3.5" />
                       ) : (
@@ -619,7 +744,7 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
                           : 'Connection Failed'}
                       </span>
                     </div>
-                    <p className="text-[11px]">{testResult.detail}</p>
+                    <p className="text-meta">{testResult.detail}</p>
                   </div>
                 )}
               </div>
@@ -627,7 +752,7 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
           )}
 
           <DialogFooter className="gap-2 sm:gap-0">
-            <div className="flex items-center justify-between w-full">
+            <div className="flex w-full items-center justify-between">
               {selectedProvider?.maskedKey ? (
                 <Button
                   type="button"
@@ -637,7 +762,7 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
                     setIsConfigOpen(false);
                     setIsDeleteOpen(true);
                   }}
-                  className="h-8 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                  className="h-8 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
                 >
                   <Trash2 className="size-3.5 mr-1" />
                   <span>Remove Key</span>
@@ -646,9 +771,14 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
                 <div />
               )}
 
-              <div className="flex items-center gap-2">
+              <div className="gap-2 flex items-center">
                 <DialogClose asChild>
-                  <Button type="button" variant="outline" size="sm" className="h-8 text-xs">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs"
+                  >
                     Cancel
                   </Button>
                 </DialogClose>
@@ -672,18 +802,24 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
       <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base text-destructive flex items-center gap-2">
+            <DialogTitle className="text-base gap-2 flex items-center text-destructive">
               <AlertTriangle className="size-4" />
               <span>Remove {selectedProvider?.name} API Key?</span>
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Removing this credential will disable any workspace models or agents relying on this key. This action cannot be undone.
+              Removing this credential will disable any workspace models or
+              agents relying on this key. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
 
           <DialogFooter className="gap-2">
             <DialogClose asChild>
-              <Button type="button" variant="outline" size="sm" className="h-8 text-xs">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+              >
                 Cancel
               </Button>
             </DialogClose>
@@ -691,7 +827,9 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
               type="button"
               variant="destructive"
               size="sm"
-              onClick={() => selectedProvider && deleteMutation.mutate(selectedProvider.id)}
+              onClick={() =>
+                selectedProvider && deleteMutation.mutate(selectedProvider.id)
+              }
               disabled={deleteMutation.isPending}
               className="h-8 text-xs"
             >

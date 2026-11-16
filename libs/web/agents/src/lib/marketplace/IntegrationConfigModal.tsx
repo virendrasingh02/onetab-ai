@@ -123,7 +123,7 @@ export const IntegrationConfigModal: React.FC<IntegrationConfigModalProps> = ({
               <span className="text-xs font-semibold block text-foreground">
                 Enable slash commands
               </span>
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-meta text-muted-foreground">
                 Allow members to trigger commands in chat
               </span>
             </div>
@@ -136,7 +136,7 @@ export const IntegrationConfigModal: React.FC<IntegrationConfigModalProps> = ({
 
           {installation.grantedScopes && installation.grantedScopes.length > 0 && (
             <div className="rounded-xl border border-border/60 bg-surface-raised/30 p-3 space-y-1.5">
-              <span className="text-[11px] font-semibold gap-1 flex items-center text-muted-foreground">
+              <span className="text-meta font-semibold gap-1 flex items-center text-muted-foreground">
                 <Shield className="size-3" aria-hidden />
                 Active permissions
               </span>

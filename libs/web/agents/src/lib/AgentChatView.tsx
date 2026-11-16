@@ -323,7 +323,7 @@ function AgentMessageHeader({ agent }: { agent: AgentModelItem }) {
 
             <Badge
               variant="primary"
-              className="gap-0.5 py-0 h-5 font-bold tracking-wider text-[10px] uppercase"
+              className="gap-0.5 py-0 h-5 font-bold tracking-wider text-2xs uppercase"
             >
               <span>AI AGENT</span>
             </Badge>
@@ -683,13 +683,13 @@ function NewAgentMessage() {
                         </span>
                         <Badge
                           variant="neutral"
-                          className="h-3.5 px-1 font-bold tracking-wider bg-muted text-[9px] text-muted-foreground uppercase"
+                          className="h-3.5 px-1 font-bold tracking-wider bg-muted text-3xs text-muted-foreground uppercase"
                         >
                           APP
                         </Badge>
                         <Badge
                           variant="primary"
-                          className="h-3.5 px-1 ml-auto font-mono text-[9px]"
+                          className="h-3.5 px-1 ml-auto font-mono text-3xs"
                         >
                           {agent.model || 'gpt-4o'}
                         </Badge>

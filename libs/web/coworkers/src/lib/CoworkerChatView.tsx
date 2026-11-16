@@ -154,7 +154,7 @@ function CoworkerMessageHeader({
 
             <Badge
               variant="primary"
-              className="gap-0.5 py-0 h-5 font-bold tracking-wider text-[10px] uppercase"
+              className="gap-0.5 py-0 h-5 font-bold tracking-wider text-2xs uppercase"
             >
               <span>AI COWORKER</span>
             </Badge>

@@ -115,7 +115,10 @@ export function CalendarView() {
       hint: TIME_LABEL.format(new Date(Date.parse(event.startAt) + offsetMs)),
       successMessage: `“${event.title}” rescheduled`,
       run: () =>
-        calendar.update.mutateAsync({ eventId: event.id, input: shifted(event, offsetMs) }),
+        calendar.update.mutateAsync({
+          eventId: event.id,
+          input: shifted(event, offsetMs),
+        }),
     });
     return [
       {
@@ -132,7 +135,10 @@ export function CalendarView() {
             confirmLabel: 'Rename',
           });
           if (!title || title === event.title) return;
-          await calendar.update.mutateAsync({ eventId: event.id, input: { title } });
+          await calendar.update.mutateAsync({
+            eventId: event.id,
+            input: { title },
+          });
         },
       },
       {
@@ -191,7 +197,8 @@ export function CalendarView() {
         hidden: !isOrganizer,
         confirm: {
           title: `Delete “${event.title}”?`,
-          description: 'It’s removed from everyone’s calendar. This cannot be undone.',
+          description:
+            'It’s removed from everyone’s calendar. This cannot be undone.',
           confirmLabel: 'Delete event',
           destructive: true,
         },
@@ -237,29 +244,32 @@ export function CalendarView() {
     month.getMonth() === today.getMonth();
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="min-h-0 flex flex-1 flex-col">
       {/* Channel-style Header */}
       <div className="border-b border-border bg-background">
-        <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-6 py-1.5 min-h-12">
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="flex min-w-0 items-center gap-1.5">
-              <CalendarIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-              <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
+        <div className="gap-2.5 px-3 sm:px-6 py-1.5 min-h-12 flex flex-wrap items-center justify-between">
+          <div className="min-w-0 gap-2 flex items-center">
+            <div className="min-w-0 gap-1.5 flex items-center">
+              <CalendarIcon
+                className="size-4 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+              <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
                 Calendar
               </h2>
-              <Badge variant="neutral" className="text-[11px] px-1.5 py-0 h-4.5">
+              <Badge variant="neutral" className="px-1.5 py-0 h-4.5 text-meta">
                 {MONTH_LABEL.format(month)}
               </Badge>
             </div>
 
-            <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
+            <div className="h-4 mx-1 sm:block hidden w-px bg-border" />
 
-            <p className="hidden min-w-0 max-w-[48ch] truncate text-xs text-muted-foreground sm:block">
+            <p className="min-w-0 text-xs sm:block hidden max-w-[48ch] truncate text-muted-foreground">
               Meetings, due dates and milestones across your workspace
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="gap-2 flex items-center">
             <div className="p-0.5 flex items-center rounded-lg border border-border bg-surface">
               <Button
                 variant="ghost"
@@ -283,139 +293,146 @@ export function CalendarView() {
                 <ChevronRight className="size-3.5" />
               </Button>
             </div>
-            <Button size="sm" className="h-7 text-xs gap-1" leadingIcon={<Plus className="size-3.5" />}>
+            <Button
+              size="sm"
+              className="h-7 text-xs gap-1"
+              leadingIcon={<Plus className="size-3.5" />}
+            >
               Schedule event
             </Button>
           </div>
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
-        <div className="mx-auto max-w-7xl">
-
-      <div className="gap-6 lg:grid-cols-3 grid flex-1 grid-cols-1">
-        <Panel className="lg:col-span-2">
-          <div
-            role="grid"
-            aria-label={MONTH_LABEL.format(month)}
-            aria-rowcount={6}
-            aria-colcount={7}
-          >
-            <div
-              role="row"
-              className="mb-2 gap-2 text-xs font-medium grid grid-cols-7 text-center text-muted-foreground"
-            >
-              {DAYS.map((day) => (
-                <div key={day} role="columnheader">
-                  {day}
+      <div className="min-h-0 p-4 sm:p-6 flex-1 overflow-y-auto">
+        <div className="max-w-7xl mx-auto">
+          <div className="gap-6 lg:grid-cols-3 grid flex-1 grid-cols-1">
+            <Panel className="lg:col-span-2">
+              <div
+                role="grid"
+                aria-label={MONTH_LABEL.format(month)}
+                aria-rowcount={6}
+                aria-colcount={7}
+              >
+                <div
+                  role="row"
+                  className="mb-2 gap-2 text-xs font-medium grid grid-cols-7 text-center text-muted-foreground"
+                >
+                  {DAYS.map((day) => (
+                    <div key={day} role="columnheader">
+                      {day}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
 
-            <div role="row" className="gap-2 grid grid-cols-7">
-              {blanks.map((blank) => (
-                <div key={`blank-${blank}`} aria-hidden />
-              ))}
-              {dates.map((date) => {
-                const isToday = showingCurrentMonth && date === today.getDate();
-                const dayEvents = byDate.get(date);
-                return (
-                  <div
-                    key={date}
-                    role="gridcell"
-                    aria-current={isToday ? 'date' : undefined}
-                    aria-label={
-                      dayEvents
-                        ? `${date}: ${dayEvents.length} event${dayEvents.length === 1 ? '' : 's'}`
-                        : String(date)
-                    }
-                    className={cn(
-                      'min-h-16 p-2 text-xs flex flex-col justify-between rounded-lg border',
-                      'transition-colors duration-(--duration-fast)',
-                      isToday
-                        ? 'font-semibold border-success/40 bg-success/10 text-success'
-                        : 'bg-background hover:border-border-strong',
-                    )}
-                  >
-                    <span>{date}</span>
-                    {dayEvents ? (
-                      <span
-                        aria-hidden
+                <div role="row" className="gap-2 grid grid-cols-7">
+                  {blanks.map((blank) => (
+                    <div key={`blank-${blank}`} aria-hidden />
+                  ))}
+                  {dates.map((date) => {
+                    const isToday =
+                      showingCurrentMonth && date === today.getDate();
+                    const dayEvents = byDate.get(date);
+                    return (
+                      <div
+                        key={date}
+                        role="gridcell"
+                        aria-current={isToday ? 'date' : undefined}
+                        aria-label={
+                          dayEvents
+                            ? `${date}: ${dayEvents.length} event${dayEvents.length === 1 ? '' : 's'}`
+                            : String(date)
+                        }
                         className={cn(
-                          'size-1.5 self-end rounded-full',
-                          isToday ? 'bg-success' : 'bg-primary',
+                          'min-h-16 p-2 text-xs flex flex-col justify-between rounded-lg border',
+                          'transition-colors duration-(--duration-fast)',
+                          isToday
+                            ? 'font-semibold border-success/40 bg-success/10 text-success'
+                            : 'bg-background hover:border-border-strong',
                         )}
-                      />
-                    ) : isToday ? (
-                      <span
-                        aria-hidden
-                        className="size-1.5 self-end rounded-full bg-success"
-                      />
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </Panel>
+                      >
+                        <span>{date}</span>
+                        {dayEvents ? (
+                          <span
+                            aria-hidden
+                            className={cn(
+                              'size-1.5 self-end rounded-full',
+                              isToday ? 'bg-success' : 'bg-primary',
+                            )}
+                          />
+                        ) : isToday ? (
+                          <span
+                            aria-hidden
+                            className="size-1.5 self-end rounded-full bg-success"
+                          />
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </Panel>
 
-        <Panel title="Today’s agenda" subtitle={DAY_LABEL.format(today)}>
-          {query.isLoading ? (
-            <SkeletonList rows={3} />
-          ) : query.isError ? (
-            <ErrorState
-              title="Could not load the calendar"
-              description="Something went wrong reaching the server."
-              onRetry={() => query.refetch()}
-            />
-          ) : agenda.length === 0 ? (
-            <EmptyState
-              icon={<CalendarIcon />}
-              title="Nothing scheduled today"
-              description="Events you or your teammates schedule will show up here."
-            />
-          ) : (
-            <ul className="space-y-3">
-              {agenda.map((event) => (
-                <EntityContextMenu
-                  key={event.id}
-                  actions={() => eventActions(event)}
-                  scope={`event:${event.id}`}
-                  entityType="calendar-event"
-                  entity={event}
-                  label={event.title}
-                >
-                <li
-                  tabIndex={0}
-                  className="p-3 rounded-lg border bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-                >
-                  <div className="mb-1 gap-2 flex items-center justify-between">
-                    <span className="gap-1 text-xs flex items-center font-mono text-success">
-                      <Clock className="size-3" aria-hidden />{' '}
-                      {event.isAllDay
-                        ? 'All day'
-                        : TIME_LABEL.format(new Date(event.startAt))}
-                    </span>
-                    <Badge variant="neutral" className="text-[10px] uppercase">
-                      Meeting
-                    </Badge>
-                  </div>
-                  <h3 className="text-sm font-medium text-foreground">
-                    {event.title}
-                  </h3>
-                  {event.location ? (
-                    <p className="mt-1 gap-1 text-xs flex items-center text-muted-foreground">
-                      <MapPin className="size-3 shrink-0" aria-hidden />
-                      {event.location}
-                    </p>
-                  ) : null}
-                </li>
-                </EntityContextMenu>
-              ))}
-            </ul>
-          )}
-        </Panel>
-      </div>
+            <Panel title="Today’s agenda" subtitle={DAY_LABEL.format(today)}>
+              {query.isLoading ? (
+                <SkeletonList rows={3} />
+              ) : query.isError ? (
+                <ErrorState
+                  title="Could not load the calendar"
+                  description="Something went wrong reaching the server."
+                  onRetry={() => query.refetch()}
+                />
+              ) : agenda.length === 0 ? (
+                <EmptyState
+                  icon={<CalendarIcon />}
+                  title="Nothing scheduled today"
+                  description="Events you or your teammates schedule will show up here."
+                />
+              ) : (
+                <ul className="space-y-3">
+                  {agenda.map((event) => (
+                    <EntityContextMenu
+                      key={event.id}
+                      actions={() => eventActions(event)}
+                      scope={`event:${event.id}`}
+                      entityType="calendar-event"
+                      entity={event}
+                      label={event.title}
+                    >
+                      <li
+                        tabIndex={0}
+                        className="p-3 rounded-lg border bg-surface-muted focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none"
+                      >
+                        <div className="mb-1 gap-2 flex items-center justify-between">
+                          <span className="gap-1 text-xs flex items-center font-mono text-success">
+                            <Clock className="size-3" aria-hidden />{' '}
+                            {event.isAllDay
+                              ? 'All day'
+                              : TIME_LABEL.format(new Date(event.startAt))}
+                          </span>
+                          <Badge
+                            variant="neutral"
+                            className="text-2xs uppercase"
+                          >
+                            Meeting
+                          </Badge>
+                        </div>
+                        <h3 className="text-sm font-medium text-foreground">
+                          {event.title}
+                        </h3>
+                        {event.location ? (
+                          <p className="mt-1 gap-1 text-xs flex items-center text-muted-foreground">
+                            <MapPin className="size-3 shrink-0" aria-hidden />
+                            {event.location}
+                          </p>
+                        ) : null}
+                      </li>
+                    </EntityContextMenu>
+                  ))}
+                </ul>
+              )}
+            </Panel>
+          </div>
         </div>
       </div>
       {prompts.dialog}

@@ -15,7 +15,7 @@ const KIND_LABEL: Record<EntityBadgeKind, string> = {
 
 const KIND_CLASS: Record<EntityBadgeKind, string> = {
   agent: '',
-  coworker: 'border-purple-500/30 bg-purple-500/15 text-purple-700 dark:text-purple-300',
+  coworker: 'border-accent-violet/30 bg-accent-violet/15 text-accent-violet',
   app: 'border-accent-violet/20 bg-accent-violet-soft text-accent-violet',
   doc: 'border-info/30 bg-info/15 text-info-text',
   task: 'border-success/30 bg-success/15 text-success',

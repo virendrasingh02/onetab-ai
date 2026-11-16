@@ -173,7 +173,7 @@ function SourceBadge({
       <Badge
         asChild
         variant="neutral"
-        className="gap-1 px-1.5 py-0 h-4.5 text-[10px] font-medium max-w-[16ch] cursor-pointer transition-colors hover:bg-accent hover:text-foreground"
+        className="gap-1 px-1.5 py-0 h-4.5 text-2xs font-medium max-w-[16ch] cursor-pointer transition-colors hover:bg-accent hover:text-foreground"
       >
         <button
           type="button"
@@ -192,7 +192,7 @@ function SourceBadge({
   return (
     <Badge
       variant="neutral"
-      className="gap-1 px-1.5 py-0 h-4.5 text-[10px] font-medium max-w-[16ch]"
+      className="gap-1 px-1.5 py-0 h-4.5 text-2xs font-medium max-w-[16ch]"
     >
       {inner}
     </Badge>
@@ -561,7 +561,7 @@ function UploadRow({
               {item.filename}
             </h3>
             {item.version && item.version > 1 ? (
-              <span className="text-[10px] font-medium text-muted-foreground shrink-0">
+              <span className="text-2xs font-medium text-muted-foreground shrink-0">
                 v{item.version}
               </span>
             ) : null}
@@ -572,7 +572,7 @@ function UploadRow({
               />
             ) : null}
           </div>
-          <div className="gap-1.5 mt-0.5 flex items-center truncate text-[11px] text-muted-foreground">
+          <div className="gap-1.5 mt-0.5 flex items-center truncate text-meta text-muted-foreground">
             <span className="truncate">
               {isOwner ? `${uploaderName} (you)` : uploaderName}
             </span>

@@ -138,7 +138,7 @@ export function KanbanLabelPicker({
           )}
 
           {filteredLabels.length === 0 && !search.trim() && (
-            <div className="py-2 text-center text-[11px] text-muted-foreground">
+            <div className="py-2 text-center text-meta text-muted-foreground">
               No labels yet. Type a name to create one.
             </div>
           )}

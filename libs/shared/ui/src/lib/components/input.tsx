@@ -4,6 +4,28 @@ import TextareaAutosize, {
   type TextareaAutosizeProps,
 } from 'react-textarea-autosize';
 
+/**
+ * The one look every text control shares: theme-fixed field surface, input
+ * border, input radius and the brand focus ring. Inputs, textareas and
+ * composite controls (chip/tag inputs, search-with-pills) all use it, so a
+ * hand-rolled box can never drift from `<Input>`. `theme-fixed` keeps it the
+ * same in every workspace theme; it follows light/dark mode only.
+ */
+export const fieldBoxClass =
+  'rounded-input border border-input theme-fixed bg-field text-foreground transition-[color,background-color,border-color,box-shadow] duration-(--duration-fast)';
+
+/** Focus treatment for a box that wraps its input (`focus-within`). */
+export const fieldBoxFocusWithinClass =
+  'focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/25';
+
+/** Invalid treatment for a composite box (a bare input uses `aria-invalid:`). */
+export const fieldBoxInvalidClass =
+  'border-destructive ring-2 ring-destructive/20 focus-within:border-destructive focus-within:ring-destructive/20';
+
+/** Text/placeholder styling for an `<input>` sitting inside a field box. */
+export const fieldBoxInputClass =
+  'min-w-0 flex-1 border-0 bg-transparent p-0 text-xs text-foreground outline-none placeholder:text-subtle';
+
 export interface InputProps extends Omit<ComponentProps<'input'>, 'prefix'> {
   /** Icon rendered inside the field, before the text. */
   leadingIcon?: ReactNode;
@@ -51,20 +73,21 @@ export function Input({
         data-slot="input-affix"
         aria-invalid={isInvalid}
         className={cn(
-          'flex w-full items-center gap-1.5 rounded-input border border-input theme-fixed bg-field text-foreground',
+          'gap-1.5 flex w-full items-center',
+          fieldBoxClass,
           sizeClasses,
           // Comfortable tap height on touch; the global 16px font rule below
           // `sm` needs the extra room anyway.
           'pointer-coarse:min-h-11',
-          'transition-[color,background-color,border-color,box-shadow] duration-(--duration-fast)',
-          'focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/25',
+          fieldBoxFocusWithinClass,
           'has-[input:disabled]:cursor-not-allowed has-[input:disabled]:bg-surface-muted has-[input:disabled]:text-disabled has-[input:disabled]:opacity-100',
-          (invalid || isInvalid === true || isInvalid === 'true') && 'border-destructive ring-2 ring-destructive/20',
+          (invalid || isInvalid === true || isInvalid === 'true') &&
+            'border-destructive ring-2 ring-destructive/20',
           wrapperClassName,
         )}
       >
         {prefix != null ? (
-          <span className="pointer-events-none shrink-0 select-none text-subtle [&_svg]:size-3.5">
+          <span className="[&_svg]:size-3.5 pointer-events-none shrink-0 text-subtle select-none">
             {prefix}
           </span>
         ) : null}
@@ -73,14 +96,14 @@ export function Input({
           data-slot="input"
           aria-invalid={isInvalid}
           className={cn(
-            'min-w-0 flex-1 border-0 bg-transparent p-0 text-inherit outline-none',
+            'min-w-0 p-0 flex-1 border-0 bg-transparent text-inherit outline-none',
             'placeholder:text-subtle disabled:cursor-not-allowed',
             className,
           )}
           {...props}
         />
         {suffix != null ? (
-          <span className="pointer-events-none shrink-0 select-none text-subtle [&_svg]:size-3.5">
+          <span className="[&_svg]:size-3.5 pointer-events-none shrink-0 text-subtle select-none">
             {suffix}
           </span>
         ) : null}
@@ -94,17 +117,19 @@ export function Input({
       data-slot="input"
       aria-invalid={isInvalid}
       className={cn(
-        'min-w-0 flex w-full rounded-input border border-input theme-fixed bg-field text-foreground',
+        'min-w-0 flex w-full',
+        fieldBoxClass,
         sizeClasses,
         'pointer-coarse:min-h-11',
-        'placeholder:text-subtle',
-        'transition-[color,background-color,border-color,box-shadow] duration-(--duration-fast) outline-none',
+        'outline-none placeholder:text-subtle',
         'focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25',
         'disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-disabled disabled:opacity-100',
         'aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20',
         'file:h-7 file:text-xs file:font-medium file:inline-flex file:border-0 file:bg-transparent file:text-foreground',
-        leadingIcon && (inputSize === 'sm' ? 'pl-7' : inputSize === 'lg' ? 'pl-10' : 'pl-9'),
-        trailingSlot && (inputSize === 'sm' ? 'pr-7' : inputSize === 'lg' ? 'pr-10' : 'pr-9'),
+        leadingIcon &&
+          (inputSize === 'sm' ? 'pl-7' : inputSize === 'lg' ? 'pl-10' : 'pl-9'),
+        trailingSlot &&
+          (inputSize === 'sm' ? 'pr-7' : inputSize === 'lg' ? 'pr-10' : 'pr-9'),
         className,
       )}
       {...props}
@@ -119,7 +144,7 @@ export function Input({
         <span
           aria-hidden
           className={cn(
-            'pointer-events-none absolute top-1/2 -translate-y-1/2 text-subtle [&_svg]:size-4',
+            '[&_svg]:size-4 pointer-events-none absolute top-1/2 -translate-y-1/2 text-subtle',
             inputSize === 'sm' ? 'left-2.5 [&_svg]:size-3.5' : 'left-3',
           )}
         >
@@ -128,7 +153,7 @@ export function Input({
       ) : null}
       {field}
       {trailingSlot ? (
-        <span className="right-2 absolute top-1/2 -translate-y-1/2 flex items-center">
+        <span className="right-2 absolute top-1/2 flex -translate-y-1/2 items-center">
           {trailingSlot}
         </span>
       ) : null}
@@ -151,21 +176,23 @@ export function InputGroup({
   return (
     <div
       className={cn(
-        'inline-flex w-full items-stretch rounded-input border border-input theme-fixed bg-field focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/25 overflow-hidden',
+        'inline-flex w-full items-stretch overflow-hidden',
+        fieldBoxClass,
+        fieldBoxFocusWithinClass,
         className,
       )}
       {...props}
     >
       {prefixNode && (
-        <div className="flex items-center px-2.5 bg-surface-raised border-r border-border text-xs text-muted-foreground select-none">
+        <div className="px-2.5 text-xs flex items-center border-r border-border bg-surface-raised text-muted-foreground select-none">
           {prefixNode}
         </div>
       )}
-      <div className="flex-1 [&_input]:border-0 [&_input]:rounded-none [&_input]:focus-visible:ring-0 [&_input]:bg-transparent">
+      <div className="flex-1 [&_input]:rounded-none [&_input]:border-0 [&_input]:bg-transparent [&_input]:focus-visible:ring-0">
         {children}
       </div>
       {suffixNode && (
-        <div className="flex items-center px-2.5 bg-surface-raised border-l border-border text-xs text-muted-foreground select-none">
+        <div className="px-2.5 text-xs flex items-center border-l border-border bg-surface-raised text-muted-foreground select-none">
           {suffixNode}
         </div>
       )}
@@ -193,9 +220,9 @@ export function Textarea({
       aria-invalid={isInvalid}
       minRows={minRows ?? rows ?? 2}
       className={cn(
-        'min-h-16 px-3 py-2 text-xs flex w-full rounded-input border border-input theme-fixed bg-field text-foreground',
-        'resize-none placeholder:text-subtle',
-        'transition-[color,background-color,border-color,box-shadow] duration-(--duration-fast) outline-none',
+        'min-h-16 px-3 py-2 text-xs flex w-full',
+        fieldBoxClass,
+        'resize-none outline-none placeholder:text-subtle',
         'focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25',
         'disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-disabled disabled:opacity-100',
         'aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20',
@@ -205,4 +232,3 @@ export function Textarea({
     />
   );
 }
-

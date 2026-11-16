@@ -324,7 +324,7 @@ export function WorkflowCanvasControls() {
       <div
         role="group"
         aria-label="Canvas controls"
-        className="h-9 gap-1 p-1 flex items-center rounded-[14px] border border-border bg-surface shadow-sm select-none"
+        className="h-9 gap-1 p-1 flex items-center rounded-xl border border-border bg-surface shadow-sm select-none"
       >
         <div className="flex items-center">
           <Button
@@ -1028,12 +1028,12 @@ function WorkflowEditor({
           {workflow ? (
             <Badge
               variant={isActive ? 'success' : 'neutral'}
-              className="shrink-0 text-[10px]"
+              className="shrink-0 text-2xs"
             >
               {isActive ? 'On' : 'Paused'}
             </Badge>
           ) : (
-            <Badge variant="outline" className="shrink-0 text-[10px]">
+            <Badge variant="outline" className="shrink-0 text-2xs">
               Not saved yet
             </Badge>
           )}
@@ -1281,7 +1281,7 @@ function StepPalette({
           if (!inGroup.length) return null;
           return (
             <div key={category} className="mb-2">
-              <p className="px-2 py-1 font-semibold tracking-wider text-[10px] text-muted-foreground uppercase">
+              <p className="px-2 py-1 font-semibold tracking-wider text-2xs text-muted-foreground uppercase">
                 {title}
               </p>
               {inGroup.map((item) => {
@@ -1300,7 +1300,7 @@ function StepPalette({
                       <span className="text-xs font-semibold block text-foreground">
                         {item.label}
                       </span>
-                      <span className="block text-[11px] text-muted-foreground">
+                      <span className="block text-meta text-muted-foreground">
                         {item.description}
                       </span>
                     </span>
@@ -1382,10 +1382,10 @@ function StepInspector({
     <div className="min-h-0 flex h-full flex-col">
       <div className="gap-2 p-3 flex shrink-0 items-center justify-between border-b border-border">
         <div className="min-w-0">
-          <p className="font-semibold tracking-wider text-[10px] text-muted-foreground uppercase">
+          <p className="font-semibold tracking-wider text-2xs text-muted-foreground uppercase">
             {item?.label ?? node.type}
           </p>
-          <p className="truncate font-mono text-[10px] text-muted-foreground">
+          <p className="truncate font-mono text-2xs text-muted-foreground">
             id: {node.id}
           </p>
         </div>
@@ -1451,7 +1451,7 @@ function StepInspector({
             >
               Values you can use here
             </h3>
-            <p className="mb-2 text-[11px] text-muted-foreground">
+            <p className="mb-2 text-meta text-muted-foreground">
               Click to copy, then paste into a field.
             </p>
             <ul className="space-y-1">
@@ -1462,10 +1462,10 @@ function StepInspector({
                     onClick={() => copyToClipboard(v.ref, 'Reference')}
                     className="gap-2 px-2 py-1 flex w-full items-center justify-between rounded-md border border-border bg-background text-left hover:border-primary/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                   >
-                    <code className="truncate font-mono text-[11px] text-foreground">
+                    <code className="truncate font-mono text-meta text-foreground">
                       {v.ref}
                     </code>
-                    <span className="shrink-0 text-[10px] text-muted-foreground">
+                    <span className="shrink-0 text-2xs text-muted-foreground">
                       {v.from}
                     </span>
                   </button>
@@ -1618,9 +1618,7 @@ function RunDialog({
   running: boolean;
   dirty: boolean;
   runsPath: string;
-  onRun: (
-    payload: Record<string, unknown>,
-  ) => Promise<{
+  onRun: (payload: Record<string, unknown>) => Promise<{
     runId: string;
     status: string;
     results: Array<{ stepId: string; status: string; output: unknown }>;
@@ -1837,7 +1835,7 @@ function VersionsDialog({
                         v{v.versionNumber}
                       </span>
                       {v.isPublished ? (
-                        <Badge variant="success" className="text-[10px]">
+                        <Badge variant="success" className="text-2xs">
                           Published
                         </Badge>
                       ) : null}

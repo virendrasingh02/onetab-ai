@@ -180,7 +180,7 @@ export function KanbanBoard({
   return (
     <div className="group/board min-h-128 pt-4 flex h-full flex-col overflow-hidden text-foreground">
       {/* Board Filter Controls & AI Overlay */}
-      <div className="mb-2 px-4 sm:px-6 space-y-2 relative shrink-0 empty:mb-0">
+      <div className="mb-2 px-4 sm:px-6 space-y-2 empty:mb-0 relative shrink-0">
         {/* AI Filter Input Prompt Overlay Bar */}
         {showAIFilterInput && (
           <div className="gap-2 p-2 text-xs animate-in fade-in flex items-center rounded-xl border border-accent-violet/40 bg-accent-violet-soft">
@@ -212,12 +212,12 @@ export function KanbanBoard({
         {/* Active Filter Chips Pill Bar */}
         {filterCount > 0 && (
           <div className="gap-1.5 text-xs pt-1 flex flex-wrap items-center">
-            <span className="font-medium text-[11px] text-muted-foreground">
+            <span className="font-medium text-meta text-muted-foreground">
               Active filters:
             </span>
 
             {filter.query && (
-              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent text-[11px]">
+              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent text-meta">
                 Query: "{filter.query}"
                 <X
                   className="size-3 cursor-pointer hover:text-foreground"
@@ -227,7 +227,7 @@ export function KanbanBoard({
             )}
 
             {filter.aiQuery && (
-              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent-violet-soft text-[11px] text-accent-violet">
+              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent-violet-soft text-meta text-accent-violet">
                 Smart filter: "{filter.aiQuery}"
                 <X
                   className="size-3 cursor-pointer hover:text-foreground"
@@ -239,7 +239,7 @@ export function KanbanBoard({
             )}
 
             {filter.status.length > 0 && (
-              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent text-[11px]">
+              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent text-meta">
                 Status ({filter.status.length})
                 <X
                   className="size-3 cursor-pointer hover:text-foreground"
@@ -249,7 +249,7 @@ export function KanbanBoard({
             )}
 
             {filter.priorities.length > 0 && (
-              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent text-[11px]">
+              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent text-meta">
                 Priority ({filter.priorities.length})
                 <X
                   className="size-3 cursor-pointer hover:text-foreground"
@@ -261,7 +261,7 @@ export function KanbanBoard({
             )}
 
             {filter.memberIds.length > 0 && (
-              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent text-[11px]">
+              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent text-meta">
                 Assignee ({filter.memberIds.length})
                 <X
                   className="size-3 cursor-pointer hover:text-foreground"
@@ -273,7 +273,7 @@ export function KanbanBoard({
             )}
 
             {filter.milestones.length > 0 && (
-              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent text-[11px]">
+              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent text-meta">
                 Milestones ({filter.milestones.length})
                 <X
                   className="size-3 cursor-pointer hover:text-foreground"
@@ -285,7 +285,7 @@ export function KanbanBoard({
             )}
 
             {filter.due !== 'any' && (
-              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent text-[11px] capitalize">
+              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent text-meta capitalize">
                 Due: {filter.due}
                 <X
                   className="size-3 cursor-pointer hover:text-foreground"
@@ -299,7 +299,7 @@ export function KanbanBoard({
                 setFilter(EMPTY_FILTER);
                 setAiPromptInput('');
               }}
-              className="ml-1 text-[11px] text-muted-foreground underline hover:text-foreground"
+              className="ml-1 text-meta text-muted-foreground underline hover:text-foreground"
             >
               Clear all
             </button>

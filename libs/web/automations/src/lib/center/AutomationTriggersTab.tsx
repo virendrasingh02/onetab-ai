@@ -29,14 +29,20 @@ export function AutomationTriggersTab() {
   const { workspaceId, slug } = useCurrentWorkspace();
   const workflowsQuery = useWorkflows(workspaceId);
 
-  const [activeTab, setActiveTab] = useState<'events' | 'schedules' | 'webhooks'>('events');
+  const [activeTab, setActiveTab] = useState<
+    'events' | 'schedules' | 'webhooks'
+  >('events');
   const [search, setSearch] = useState('');
 
   // Webhook tester state
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string>('');
   const [webhookSecret, setWebhookSecret] = useState<string>('');
   const [webhookPayload, setWebhookPayload] = useState<string>(
-    JSON.stringify({ event: 'external.lead_created', customer: 'Acme Corp', amount: 1200 }, null, 2),
+    JSON.stringify(
+      { event: 'external.lead_created', customer: 'Acme Corp', amount: 1200 },
+      null,
+      2,
+    ),
   );
   const [testResult, setTestResult] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
@@ -48,10 +54,15 @@ export function AutomationTriggersTab() {
   const filteredEvents = WORKFLOW_EVENTS.filter((e) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
-    return e.label.toLowerCase().includes(q) || e.value.toLowerCase().includes(q);
+    return (
+      e.label.toLowerCase().includes(q) || e.value.toLowerCase().includes(q)
+    );
   });
 
-  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://app.onetab.ai';
+  const baseUrl =
+    typeof window !== 'undefined'
+      ? window.location.origin
+      : 'https://app.onetab.ai';
   const sampleWebhookUrl = selectedWorkflowId
     ? `${baseUrl}/api/automations/workflows/${selectedWorkflowId}/webhook`
     : `${baseUrl}/api/automations/workflows/<WORKFLOW_ID>/webhook`;
@@ -84,7 +95,12 @@ export function AutomationTriggersTab() {
         return;
       }
 
-      const res = await triggerWebhook(workspaceId ?? '', selectedWorkflowId, parsed, webhookSecret || undefined);
+      const res = await triggerWebhook(
+        workspaceId ?? '',
+        selectedWorkflowId,
+        parsed,
+        webhookSecret || undefined,
+      );
       setTestResult(JSON.stringify(res, null, 2));
       toast.success('Webhook triggered successfully!', {
         description: `Run initiated: ${res.executionId}`,
@@ -101,14 +117,14 @@ export function AutomationTriggersTab() {
   return (
     <div className="space-y-6">
       {/* Sub-tab navigation */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex gap-2 border-b border-border w-full sm:w-auto">
+      <div className="sm:flex-row sm:items-center gap-4 flex flex-col items-start justify-between">
+        <div className="gap-2 sm:w-auto flex w-full border-b border-border">
           <button
             type="button"
             onClick={() => setActiveTab('events')}
             className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors ${
               activeTab === 'events'
-                ? 'border-primary text-primary font-semibold'
+                ? 'font-semibold border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -119,7 +135,7 @@ export function AutomationTriggersTab() {
             onClick={() => setActiveTab('schedules')}
             className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors ${
               activeTab === 'schedules'
-                ? 'border-primary text-primary font-semibold'
+                ? 'font-semibold border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -130,7 +146,7 @@ export function AutomationTriggersTab() {
             onClick={() => setActiveTab('webhooks')}
             className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors ${
               activeTab === 'webhooks'
-                ? 'border-primary text-primary font-semibold'
+                ? 'font-semibold border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -139,7 +155,7 @@ export function AutomationTriggersTab() {
         </div>
 
         {activeTab === 'events' && (
-          <div className="w-full sm:w-64">
+          <div className="sm:w-64 w-full">
             <SearchInput
               placeholder="Search triggers by name or event…"
               value={search}
@@ -153,35 +169,45 @@ export function AutomationTriggersTab() {
       {activeTab === 'events' && (
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Workflows can listen to real domain events fired across the platform. Whenever an event is dispatched with matching criteria, connected automations trigger automatically.
+            Workflows can listen to real domain events fired across the
+            platform. Whenever an event is dispatched with matching criteria,
+            connected automations trigger automatically.
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="md:grid-cols-2 lg:grid-cols-3 gap-4 grid grid-cols-1">
             {filteredEvents.map((evt) => (
-              <Card key={evt.value} className="p-4 flex flex-col justify-between hover:border-primary/40 transition-colors">
+              <Card
+                key={evt.value}
+                className="p-4 flex flex-col justify-between transition-colors hover:border-primary/40"
+              >
                 <div>
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <span className="font-semibold text-sm text-foreground flex items-center gap-1.5">
-                      <Zap className="h-4 w-4 text-amber-500" />
+                  <div className="gap-2 mb-1.5 flex items-center justify-between">
+                    <span className="font-semibold text-sm gap-1.5 flex items-center text-foreground">
+                      <Zap className="h-4 w-4 text-warning-text" />
                       {evt.label}
                     </span>
-                    <Badge variant="outline" className="text-[10px] font-mono">
+                    <Badge variant="outline" className="font-mono text-2xs">
                       {evt.value}
                     </Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
-                    Fires in real-time when this domain action occurs within the workspace.
+                  <p className="text-xs mb-3 line-clamp-2 text-muted-foreground">
+                    Fires in real-time when this domain action occurs within the
+                    workspace.
                   </p>
                 </div>
 
-                <div className="pt-2 border-t border-border/40 flex items-center justify-between">
-                  <span className="text-[11px] text-muted-foreground">Payload: JSON object</span>
+                <div className="pt-2 flex items-center justify-between border-t border-border/40">
+                  <span className="text-meta text-muted-foreground">
+                    Payload: JSON object
+                  </span>
                   <Button
                     size="sm"
                     variant="ghost"
                     className="text-xs h-7 gap-1"
                     onClick={() => {
-                      navigate(`/w/${slug}/automations/builder/new?trigger=${encodeURIComponent(evt.value)}`);
+                      navigate(
+                        `/w/${slug}/automations/builder/new?trigger=${encodeURIComponent(evt.value)}`,
+                      );
                     }}
                   >
                     Build Workflow
@@ -198,39 +224,46 @@ export function AutomationTriggersTab() {
       {activeTab === 'schedules' && (
         <div className="space-y-4">
           <Card className="p-5">
-            <h3 className="font-semibold text-base mb-1 flex items-center gap-2">
+            <h3 className="font-semibold text-base mb-1 gap-2 flex items-center">
               <CalendarClock className="h-5 w-5 text-primary" />
               Time-based & Cron Scheduling
             </h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Our high-reliability scheduler sweeps every minute with timezone awareness, daylight-saving compensation, and missed-run guards.
+            <p className="text-sm mb-4 text-muted-foreground">
+              Our high-reliability scheduler sweeps every minute with timezone
+              awareness, daylight-saving compensation, and missed-run guards.
             </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div className="md:grid-cols-3 gap-4 mb-4 grid grid-cols-1">
               <div className="p-3.5 rounded-lg border bg-muted/20">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
+                <span className="text-xs font-semibold tracking-wider mb-1 block text-muted-foreground uppercase">
                   Preset Intervals
                 </span>
                 <p className="text-xs text-muted-foreground">
-                  Hourly, Daily at specific times, Weekly on selected days, or Monthly on the 1st.
+                  Hourly, Daily at specific times, Weekly on selected days, or
+                  Monthly on the 1st.
                 </p>
               </div>
 
               <div className="p-3.5 rounded-lg border bg-muted/20">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
+                <span className="text-xs font-semibold tracking-wider mb-1 block text-muted-foreground uppercase">
                   Custom 5-field Cron
                 </span>
                 <p className="text-xs text-muted-foreground">
-                  Full standard Unix cron syntax (<code className="text-primary font-mono text-[11px]">0 9 * * 1-5</code> for business days at 9 AM).
+                  Full standard Unix cron syntax (
+                  <code className="font-mono text-meta text-primary">
+                    0 9 * * 1-5
+                  </code>{' '}
+                  for business days at 9 AM).
                 </p>
               </div>
 
               <div className="p-3.5 rounded-lg border bg-muted/20">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
+                <span className="text-xs font-semibold tracking-wider mb-1 block text-muted-foreground uppercase">
                   Timezone Protection
                 </span>
                 <p className="text-xs text-muted-foreground">
-                  Target explicit timezones (e.g. America/New_York, UTC, Asia/Kolkata) without server clock drift.
+                  Target explicit timezones (e.g. America/New_York, UTC,
+                  Asia/Kolkata) without server clock drift.
                 </p>
               </div>
             </div>
@@ -238,7 +271,9 @@ export function AutomationTriggersTab() {
             <div className="flex justify-end">
               <Button
                 size="sm"
-                onClick={() => navigate(`/w/${slug}/automations/builder/new?trigger=CRON`)}
+                onClick={() =>
+                  navigate(`/w/${slug}/automations/builder/new?trigger=CRON`)
+                }
               >
                 <Plus className="h-4 w-4 mr-1.5" />
                 Create Scheduled Automation
@@ -252,28 +287,36 @@ export function AutomationTriggersTab() {
       {activeTab === 'webhooks' && (
         <div className="space-y-6">
           <Card className="p-5">
-            <h3 className="font-semibold text-base mb-1 flex items-center gap-2">
-              <Webhook className="h-5 w-5 text-indigo-500" />
+            <h3 className="font-semibold text-base mb-1 gap-2 flex items-center">
+              <Webhook className="h-5 w-5 text-accent-indigo" />
               Inbound Webhooks
             </h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Expose a dedicated HTTP POST endpoint to trigger workflows from external systems (GitHub, Stripe, Shopify, custom microservices, etc.).
+            <p className="text-sm mb-4 text-muted-foreground">
+              Expose a dedicated HTTP POST endpoint to trigger workflows from
+              external systems (GitHub, Stripe, Shopify, custom microservices,
+              etc.).
             </p>
 
             {/* Workflow selector */}
             <div className="space-y-4 max-w-2xl">
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
+                <label className="text-xs font-semibold tracking-wider mb-1 block text-muted-foreground uppercase">
                   Target Automation Workflow
                 </label>
                 {webhookWorkflows.length === 0 ? (
-                  <div className="p-3 border rounded-lg bg-muted/30 text-xs text-muted-foreground flex items-center justify-between">
-                    <span>No workflows currently have a Webhook trigger configured.</span>
+                  <div className="p-3 text-xs flex items-center justify-between rounded-lg border bg-muted/30 text-muted-foreground">
+                    <span>
+                      No workflows currently have a Webhook trigger configured.
+                    </span>
                     <Button
                       size="sm"
                       variant="outline"
                       className="text-xs"
-                      onClick={() => navigate(`/w/${slug}/automations/builder/new?trigger=WEBHOOK`)}
+                      onClick={() =>
+                        navigate(
+                          `/w/${slug}/automations/builder/new?trigger=WEBHOOK`,
+                        )
+                      }
                     >
                       Create Webhook Automation
                     </Button>
@@ -293,20 +336,24 @@ export function AutomationTriggersTab() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
-                  Optional Webhook Secret (<code className="text-primary font-mono text-[11px]">x-webhook-secret</code>)
+                <label className="text-xs font-semibold tracking-wider mb-1 block text-muted-foreground uppercase">
+                  Optional Webhook Secret (
+                  <code className="font-mono text-meta text-primary">
+                    x-webhook-secret
+                  </code>
+                  )
                 </label>
                 <Input
                   placeholder="Optional secret token for HMAC / bearer validation"
                   value={webhookSecret}
                   onChange={(e) => setWebhookSecret(e.target.value)}
-                  className="font-mono text-xs"
+                  className="text-xs font-mono"
                 />
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="mb-1 flex items-center justify-between">
+                  <label className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                     Curl Command
                   </label>
                   <Button
@@ -315,24 +362,34 @@ export function AutomationTriggersTab() {
                     className="h-6 text-xs gap-1"
                     onClick={handleCopyCurl}
                   >
-                    {copiedCurl ? <Check className="h-3 w-3 text-success-text" /> : <Copy className="h-3 w-3" />}
+                    {copiedCurl ? (
+                      <Check className="h-3 w-3 text-success-text" />
+                    ) : (
+                      <Copy className="h-3 w-3" />
+                    )}
                     {copiedCurl ? 'Copied' : 'Copy Curl'}
                   </Button>
                 </div>
-                <div className="bg-muted/80 p-3 rounded-lg font-mono text-xs overflow-x-auto text-foreground">
+                <div className="p-3 text-xs overflow-x-auto rounded-lg bg-muted/80 font-mono text-foreground">
                   {curlSnippet}
                 </div>
               </div>
 
               {/* Interactive test payload */}
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
+                <label className="text-xs font-semibold tracking-wider mb-1 block text-muted-foreground uppercase">
                   Interactive Test JSON Payload
                 </label>
-                <CodeInput language="json" value={webhookPayload} onChange={setWebhookPayload} minRows={4} maxRows={12} />
+                <CodeInput
+                  language="json"
+                  value={webhookPayload}
+                  onChange={setWebhookPayload}
+                  minRows={4}
+                  maxRows={12}
+                />
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="gap-3 flex items-center">
                 <Button
                   onClick={handleTestWebhook}
                   disabled={testing || !selectedWorkflowId}
@@ -345,10 +402,10 @@ export function AutomationTriggersTab() {
 
               {testResult && (
                 <div className="mt-4 p-3 rounded-lg border bg-muted/40">
-                  <span className="text-xs font-semibold text-muted-foreground block mb-1">
+                  <span className="text-xs font-semibold mb-1 block text-muted-foreground">
                     Response Output:
                   </span>
-                  <pre className="font-mono text-xs whitespace-pre-wrap text-foreground">
+                  <pre className="text-xs font-mono whitespace-pre-wrap text-foreground">
                     {testResult}
                   </pre>
                 </div>

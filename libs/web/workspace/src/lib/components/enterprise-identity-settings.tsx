@@ -84,7 +84,10 @@ export function EnterpriseIdentitySettingsPanel({
   const { hasFeature } = usePlanEntitlements(workspace.id);
   const isEnterprise = hasFeature('sso_saml');
 
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://app.mie.ai';
+  const origin =
+    typeof window !== 'undefined'
+      ? window.location.origin
+      : 'https://app.mie.ai';
   const spEntityId = `${origin}/api/v1/auth/sso/saml/metadata`;
   const acsUrl = `${origin}/api/v1/auth/sso/saml/acs`;
   const oidcRedirectUri = `${origin}/api/v1/auth/sso/oidc/callback`;
@@ -106,23 +109,34 @@ export function EnterpriseIdentitySettingsPanel({
 
   // Policy & Enforcement
   const [enforceSso, setEnforceSso] = useState(false);
-  const [allowPasswordFallbackForAdmins, setAllowPasswordFallbackForAdmins] = useState(true);
+  const [allowPasswordFallbackForAdmins, setAllowPasswordFallbackForAdmins] =
+    useState(true);
 
   // SCIM State
   const [scimEnabled, setScimEnabled] = useState(false);
-  const [activeTab, setActiveTab] = useState<'sso' | 'domains' | 'scim' | 'mappings' | 'guides'>('sso');
+  const [activeTab, setActiveTab] = useState<
+    'sso' | 'domains' | 'scim' | 'mappings' | 'guides'
+  >('sso');
 
   // Dialog & Modal States
-  const [newScimTokenModal, setNewScimTokenModal] = useState<string | null>(null);
-  const [newRecoveryCodeModal, setNewRecoveryCodeModal] = useState<string | null>(null);
+  const [newScimTokenModal, setNewScimTokenModal] = useState<string | null>(
+    null,
+  );
+  const [newRecoveryCodeModal, setNewRecoveryCodeModal] = useState<
+    string | null
+  >(null);
   const [newDomainInput, setNewDomainInput] = useState('');
   const [addMappingModalOpen, setAddMappingModalOpen] = useState(false);
   const [newMappingGroupName, setNewMappingGroupName] = useState('');
-  const [newMappingRole, setNewMappingRole] = useState<'MEMBER' | 'ADMIN' | 'GUEST'>('MEMBER');
+  const [newMappingRole, setNewMappingRole] = useState<
+    'MEMBER' | 'ADMIN' | 'GUEST'
+  >('MEMBER');
 
   // Test state
   const [isTesting, setIsTesting] = useState(false);
-  const [testResult, setTestResult] = useState<SSOConnectionTestResult | null>(null);
+  const [testResult, setTestResult] = useState<SSOConnectionTestResult | null>(
+    null,
+  );
 
   // Queries
   const { data: config } = useQuery({
@@ -131,10 +145,7 @@ export function EnterpriseIdentitySettingsPanel({
     enabled: !!workspace.id && isEnterprise,
   });
 
-  const {
-    data: groupMappings = [],
-    refetch: refetchMappings,
-  } = useQuery({
+  const { data: groupMappings = [], refetch: refetchMappings } = useQuery({
     queryKey: queryKeys.workspaces.enterpriseGroupMappings(workspace.id),
     queryFn: () => enterpriseIdentityApi.listGroupRoleMappings(workspace.id),
     enabled: !!workspace.id && isEnterprise,
@@ -151,10 +162,16 @@ export function EnterpriseIdentitySettingsPanel({
 
       setOidcIssuer(config.oidcIssuer || '');
       setOidcClientId(config.oidcClientId || '');
-      setOidcScopes(Array.isArray(config.oidcScopes) ? config.oidcScopes.join(' ') : 'openid profile email');
+      setOidcScopes(
+        Array.isArray(config.oidcScopes)
+          ? config.oidcScopes.join(' ')
+          : 'openid profile email',
+      );
 
       setEnforceSso(config.enforceSso ?? false);
-      setAllowPasswordFallbackForAdmins(config.allowPasswordFallbackForAdmins ?? true);
+      setAllowPasswordFallbackForAdmins(
+        config.allowPasswordFallbackForAdmins ?? true,
+      );
       setScimEnabled(config.scimEnabled ?? false);
     }
   }, [config]);
@@ -172,12 +189,16 @@ export function EnterpriseIdentitySettingsPanel({
         idpEntityId: providerType === 'SAML' ? idpEntityId.trim() : undefined,
         ssoUrl: providerType === 'SAML' ? ssoUrl.trim() : undefined,
         certificate: providerType === 'SAML' ? certificate.trim() : undefined,
-        allowIdpInitiated: providerType === 'SAML' ? allowIdpInitiated : undefined,
+        allowIdpInitiated:
+          providerType === 'SAML' ? allowIdpInitiated : undefined,
         forceAuthn: providerType === 'SAML' ? forceAuthn : undefined,
 
         oidcIssuer: providerType === 'OIDC' ? oidcIssuer.trim() : undefined,
         oidcClientId: providerType === 'OIDC' ? oidcClientId.trim() : undefined,
-        oidcClientSecret: providerType === 'OIDC' && oidcClientSecret.trim() ? oidcClientSecret.trim() : undefined,
+        oidcClientSecret:
+          providerType === 'OIDC' && oidcClientSecret.trim()
+            ? oidcClientSecret.trim()
+            : undefined,
         oidcScopes: providerType === 'OIDC' ? parsedScopes : undefined,
 
         enforceSso,
@@ -186,7 +207,9 @@ export function EnterpriseIdentitySettingsPanel({
       return enterpriseIdentityApi.saveConfig(workspace.id, payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.enterpriseIdentity(workspace.id) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.workspaces.enterpriseIdentity(workspace.id),
+      });
       toast.success('SSO & Provisioning configuration updated successfully.');
       setOidcClientSecret(''); // Clear out plaintext secret from state once saved
     },
@@ -219,14 +242,19 @@ export function EnterpriseIdentitySettingsPanel({
   };
 
   const verifyDomainMutation = useMutation({
-    mutationFn: (domain: string) => enterpriseIdentityApi.verifyDomain(workspace.id, domain),
+    mutationFn: (domain: string) =>
+      enterpriseIdentityApi.verifyDomain(workspace.id, domain),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.enterpriseIdentity(workspace.id) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.workspaces.enterpriseIdentity(workspace.id),
+      });
       if (data.verified) {
         toast.success(`Domain ${data.domain} successfully verified!`);
         setNewDomainInput('');
       } else {
-        toast.error(`DNS check failed for ${data.domain}. Could not find valid TXT record matching ${data.txtRecordValue}`);
+        toast.error(
+          `DNS check failed for ${data.domain}. Could not find valid TXT record matching ${data.txtRecordValue}`,
+        );
       }
     },
     onError: (err: any) => {
@@ -237,7 +265,9 @@ export function EnterpriseIdentitySettingsPanel({
   const rotateScimTokenMutation = useMutation({
     mutationFn: () => enterpriseIdentityApi.rotateScimToken(workspace.id),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.enterpriseIdentity(workspace.id) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.workspaces.enterpriseIdentity(workspace.id),
+      });
       setNewScimTokenModal(data.rawToken);
       toast.success('New SCIM 2.0 Bearer Token generated.');
     },
@@ -249,7 +279,9 @@ export function EnterpriseIdentitySettingsPanel({
   const generateRecoveryCodeMutation = useMutation({
     mutationFn: () => enterpriseIdentityApi.generateRecoveryCode(workspace.id),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.enterpriseIdentity(workspace.id) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.workspaces.enterpriseIdentity(workspace.id),
+      });
       setNewRecoveryCodeModal(data.recoveryCode);
       toast.success('Emergency break-glass recovery code generated.');
     },
@@ -276,7 +308,8 @@ export function EnterpriseIdentitySettingsPanel({
   });
 
   const deleteMappingMutation = useMutation({
-    mutationFn: (mappingId: string) => enterpriseIdentityApi.deleteGroupRoleMapping(workspace.id, mappingId),
+    mutationFn: (mappingId: string) =>
+      enterpriseIdentityApi.deleteGroupRoleMapping(workspace.id, mappingId),
     onSuccess: () => {
       refetchMappings();
       toast.success('Mapping deleted.');
@@ -296,44 +329,67 @@ export function EnterpriseIdentitySettingsPanel({
   // ----------------------------------------------------
   if (!isEnterprise) {
     return (
-      <Card className="border-indigo-500/20 bg-gradient-to-br from-indigo-500/5 via-card to-card">
+      <Card className="border-accent-indigo/20 bg-gradient-to-br from-accent-indigo/5 via-card to-card">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Crown className="size-5 text-indigo-500" />
-              <CardTitle className="text-base font-bold">Enterprise SSO & Automated SCIM Provisioning</CardTitle>
+            <div className="gap-2 flex items-center">
+              <Crown className="size-5 text-accent-indigo" />
+              <CardTitle className="text-base font-bold">
+                Enterprise SSO & Automated SCIM Provisioning
+              </CardTitle>
             </div>
             <PlanBadge plan="enterprise" size="sm" variant="gradient" />
           </div>
           <CardDescription className="text-xs text-muted-foreground">
-            Centralize enterprise authentication, directory sync, automated role-based provisioning, and domain enforcement.
+            Centralize enterprise authentication, directory sync, automated
+            role-based provisioning, and domain enforcement.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="rounded-xl border border-border bg-surface-muted/50 p-4 text-xs space-y-3">
-            <p className="font-semibold text-foreground">Enterprise Identity Features Include:</p>
+          <div className="p-4 text-xs space-y-3 rounded-xl border border-border bg-surface-muted/50">
+            <p className="font-semibold text-foreground">
+              Enterprise Identity Features Include:
+            </p>
             <ul className="space-y-2 text-muted-foreground">
-              <li className="flex items-center gap-2">
-                <Check className="size-3.5 text-indigo-500 shrink-0" />
-                <span><strong>SAML 2.0 & OpenID Connect:</strong> Pre-built integrations with Microsoft Entra ID (Azure AD), Okta, Google Workspace, and Ping Identity.</span>
+              <li className="gap-2 flex items-center">
+                <Check className="size-3.5 shrink-0 text-accent-indigo" />
+                <span>
+                  <strong>SAML 2.0 & OpenID Connect:</strong> Pre-built
+                  integrations with Microsoft Entra ID (Azure AD), Okta, Google
+                  Workspace, and Ping Identity.
+                </span>
               </li>
-              <li className="flex items-center gap-2">
-                <Check className="size-3.5 text-indigo-500 shrink-0" />
-                <span><strong>SCIM 2.0 Directory Sync:</strong> Automated employee onboarding, immediate deprovisioning on departure, and role synchronization.</span>
+              <li className="gap-2 flex items-center">
+                <Check className="size-3.5 shrink-0 text-accent-indigo" />
+                <span>
+                  <strong>SCIM 2.0 Directory Sync:</strong> Automated employee
+                  onboarding, immediate deprovisioning on departure, and role
+                  synchronization.
+                </span>
               </li>
-              <li className="flex items-center gap-2">
-                <Check className="size-3.5 text-indigo-500 shrink-0" />
-                <span><strong>Domain Verification & Enforced SSO:</strong> Enforce enterprise single sign-on across corporate email domains with emergency break-glass protection.</span>
+              <li className="gap-2 flex items-center">
+                <Check className="size-3.5 shrink-0 text-accent-indigo" />
+                <span>
+                  <strong>Domain Verification & Enforced SSO:</strong> Enforce
+                  enterprise single sign-on across corporate email domains with
+                  emergency break-glass protection.
+                </span>
               </li>
-              <li className="flex items-center gap-2">
-                <Check className="size-3.5 text-indigo-500 shrink-0" />
-                <span><strong>Security & Isolation:</strong> Cryptographic verification, tenant-isolated data, AES-256-GCM secret encryption, and audit logs.</span>
+              <li className="gap-2 flex items-center">
+                <Check className="size-3.5 shrink-0 text-accent-indigo" />
+                <span>
+                  <strong>Security & Isolation:</strong> Cryptographic
+                  verification, tenant-isolated data, AES-256-GCM secret
+                  encryption, and audit logs.
+                </span>
               </li>
             </ul>
           </div>
         </CardContent>
         <CardFooter className="flex items-center justify-between">
-          <p className="text-[11px] text-muted-foreground">Available on Enterprise and Max tier plans.</p>
+          <p className="text-meta text-muted-foreground">
+            Available on Enterprise and Max tier plans.
+          </p>
           <Button
             variant="primary"
             size="sm"
@@ -354,11 +410,19 @@ export function EnterpriseIdentitySettingsPanel({
       <SettingsSectionHeader
         title="Enterprise Identity & Provisioning"
         badge={
-          <Badge variant={config?.isActive ? 'success' : 'neutral'} className="text-[10px]">
+          <Badge
+            variant={config?.isActive ? 'success' : 'neutral'}
+            className="text-2xs"
+          >
             {config?.isActive ? 'ACTIVE' : 'NOT CONFIGURED'}
           </Badge>
         }
-        description={<>Configure SAML 2.0 / OIDC Single Sign-On, SCIM 2.0 automated user provisioning, and domain enforcement for {workspace.name}.</>}
+        description={
+          <>
+            Configure SAML 2.0 / OIDC Single Sign-On, SCIM 2.0 automated user
+            provisioning, and domain enforcement for {workspace.name}.
+          </>
+        }
         actions={
           <>
             <Button
@@ -372,24 +436,24 @@ export function EnterpriseIdentitySettingsPanel({
                 <>
                   <RefreshCw className="size-3.5 mr-1.5 animate-spin" />
                   Testing...
-          </>
-        ) : (
-          <>
-            <Play className="size-3.5 mr-1.5 fill-current" />
-            Test Connection
-          </>
-        )}
-      </Button>
+                </>
+              ) : (
+                <>
+                  <Play className="size-3.5 mr-1.5 fill-current" />
+                  Test Connection
+                </>
+              )}
+            </Button>
 
-      <Button
-        variant="primary"
-        size="sm"
-        onClick={() => saveMutation.mutate()}
-        disabled={saveMutation.isPending}
-        className="text-xs font-semibold"
-      >
-        {saveMutation.isPending ? 'Saving...' : 'Save Changes'}
-      </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => saveMutation.mutate()}
+              disabled={saveMutation.isPending}
+              className="text-xs font-semibold"
+            >
+              {saveMutation.isPending ? 'Saving...' : 'Save Changes'}
+            </Button>
           </>
         }
       />
@@ -397,37 +461,55 @@ export function EnterpriseIdentitySettingsPanel({
       {/* Connection Test Feedback Banner */}
       {testResult && (
         <div
-          className={`p-3.5 rounded-xl border text-xs flex items-center justify-between ${
+          className={`p-3.5 text-xs flex items-center justify-between rounded-xl border ${
             testResult.success
-              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+              ? 'border-success/30 bg-success/10 text-success-text'
               : 'border-destructive/30 bg-destructive/10 text-destructive'
           }`}
         >
-          <div className="flex items-center gap-2.5">
+          <div className="gap-2.5 flex items-center">
             {testResult.success ? (
-              <CheckCircle2 className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <CheckCircle2 className="size-4 shrink-0 text-success-text" />
             ) : (
               <AlertCircle className="size-4 shrink-0 text-destructive" />
             )}
             <div>
-              <div className="font-semibold">{testResult.success ? 'Identity Provider Connection OK' : 'Connection Error'}</div>
-              <div className="text-[11px] opacity-90">{testResult.message}</div>
+              <div className="font-semibold">
+                {testResult.success
+                  ? 'Identity Provider Connection OK'
+                  : 'Connection Error'}
+              </div>
+              <div className="text-meta opacity-90">{testResult.message}</div>
             </div>
           </div>
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-2xs text-muted-foreground">
             {new Date(testResult.timestamp).toLocaleTimeString()}
           </span>
         </div>
       )}
 
       {/* Settings Tabs */}
-      <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as any)} className="w-full">
-        <TabsList className="grid grid-cols-5 w-full bg-surface-muted/50 p-1">
-          <TabsTrigger value="sso" className="text-xs">SSO Configuration</TabsTrigger>
-          <TabsTrigger value="domains" className="text-xs">Domain Verification</TabsTrigger>
-          <TabsTrigger value="scim" className="text-xs">SCIM 2.0 Provisioning</TabsTrigger>
-          <TabsTrigger value="mappings" className="text-xs">Role Mappings</TabsTrigger>
-          <TabsTrigger value="guides" className="text-xs">Setup Guides</TabsTrigger>
+      <Tabs
+        value={activeTab}
+        onValueChange={(val) => setActiveTab(val as any)}
+        className="w-full"
+      >
+        <TabsList className="p-1 grid w-full grid-cols-5 bg-surface-muted/50">
+          <TabsTrigger value="sso" className="text-xs">
+            SSO Configuration
+          </TabsTrigger>
+          <TabsTrigger value="domains" className="text-xs">
+            Domain Verification
+          </TabsTrigger>
+          <TabsTrigger value="scim" className="text-xs">
+            SCIM 2.0 Provisioning
+          </TabsTrigger>
+          <TabsTrigger value="mappings" className="text-xs">
+            Role Mappings
+          </TabsTrigger>
+          <TabsTrigger value="guides" className="text-xs">
+            Setup Guides
+          </TabsTrigger>
         </TabsList>
 
         {/* ----------------- TAB 1: SSO CONFIGURATION ----------------- */}
@@ -435,47 +517,93 @@ export function EnterpriseIdentitySettingsPanel({
           {/* Service Provider (SP) Metadata Box */}
           <Card className="border-border">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold">Service Provider (Mie AI) Endpoints</CardTitle>
+              <CardTitle className="text-sm font-semibold">
+                Service Provider (Mie AI) Endpoints
+              </CardTitle>
               <CardDescription className="text-xs">
-                Provide these metadata URLs to your Identity Provider (Microsoft Entra ID, Okta, Google Workspace).
+                Provide these metadata URLs to your Identity Provider (Microsoft
+                Entra ID, Okta, Google Workspace).
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              <div className="md:grid-cols-2 gap-3 text-xs grid grid-cols-1">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-medium text-muted-foreground">SP Entity ID / Audience URI</label>
-                  <div className="flex items-center gap-1.5">
-                    <Input readOnly value={spEntityId} className="text-xs font-mono h-8 bg-surface-muted/50" />
-                    <Button variant="outline" size="sm" onClick={() => copyToClipboard(spEntityId, 'SP Entity ID')} className="h-8 px-2.5">
+                  <label className="font-medium text-meta text-muted-foreground">
+                    SP Entity ID / Audience URI
+                  </label>
+                  <div className="gap-1.5 flex items-center">
+                    <Input
+                      readOnly
+                      value={spEntityId}
+                      className="text-xs h-8 bg-surface-muted/50 font-mono"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        copyToClipboard(spEntityId, 'SP Entity ID')
+                      }
+                      className="h-8 px-2.5"
+                    >
                       <Copy className="size-3.5" />
                     </Button>
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[11px] font-medium text-muted-foreground">SAML ACS (Assertion Consumer Service) URL</label>
-                  <div className="flex items-center gap-1.5">
-                    <Input readOnly value={acsUrl} className="text-xs font-mono h-8 bg-surface-muted/50" />
-                    <Button variant="outline" size="sm" onClick={() => copyToClipboard(acsUrl, 'ACS URL')} className="h-8 px-2.5">
+                  <label className="font-medium text-meta text-muted-foreground">
+                    SAML ACS (Assertion Consumer Service) URL
+                  </label>
+                  <div className="gap-1.5 flex items-center">
+                    <Input
+                      readOnly
+                      value={acsUrl}
+                      className="text-xs h-8 bg-surface-muted/50 font-mono"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyToClipboard(acsUrl, 'ACS URL')}
+                      className="h-8 px-2.5"
+                    >
                       <Copy className="size-3.5" />
                     </Button>
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[11px] font-medium text-muted-foreground">OIDC Redirect / Callback URI</label>
-                  <div className="flex items-center gap-1.5">
-                    <Input readOnly value={oidcRedirectUri} className="text-xs font-mono h-8 bg-surface-muted/50" />
-                    <Button variant="outline" size="sm" onClick={() => copyToClipboard(oidcRedirectUri, 'OIDC Redirect URI')} className="h-8 px-2.5">
+                  <label className="font-medium text-meta text-muted-foreground">
+                    OIDC Redirect / Callback URI
+                  </label>
+                  <div className="gap-1.5 flex items-center">
+                    <Input
+                      readOnly
+                      value={oidcRedirectUri}
+                      className="text-xs h-8 bg-surface-muted/50 font-mono"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        copyToClipboard(oidcRedirectUri, 'OIDC Redirect URI')
+                      }
+                      className="h-8 px-2.5"
+                    >
                       <Copy className="size-3.5" />
                     </Button>
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[11px] font-medium text-muted-foreground">SAML SP Metadata XML</label>
-                  <div className="flex items-center gap-1.5">
-                    <Input readOnly value={spEntityId} className="text-xs font-mono h-8 bg-surface-muted/50" />
+                  <label className="font-medium text-meta text-muted-foreground">
+                    SAML SP Metadata XML
+                  </label>
+                  <div className="gap-1.5 flex items-center">
+                    <Input
+                      readOnly
+                      value={spEntityId}
+                      className="text-xs h-8 bg-surface-muted/50 font-mono"
+                    />
                     <Button
                       variant="outline"
                       size="sm"
@@ -495,14 +623,19 @@ export function EnterpriseIdentitySettingsPanel({
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-sm font-semibold">Identity Provider Details</CardTitle>
+                  <CardTitle className="text-sm font-semibold">
+                    Identity Provider Details
+                  </CardTitle>
                   <CardDescription className="text-xs">
-                    Configure your corporate authentication protocol and credentials.
+                    Configure your corporate authentication protocol and
+                    credentials.
                   </CardDescription>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-muted-foreground">Protocol:</span>
-                  <div className="inline-flex rounded-lg border border-border p-0.5 bg-surface-muted/50">
+                <div className="gap-2 flex items-center">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Protocol:
+                  </span>
+                  <div className="p-0.5 inline-flex rounded-lg border border-border bg-surface-muted/50">
                     <button
                       type="button"
                       onClick={() => setProviderType('SAML')}
@@ -532,32 +665,42 @@ export function EnterpriseIdentitySettingsPanel({
             <CardContent className="space-y-4">
               {providerType === 'SAML' ? (
                 <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:grid-cols-2 gap-4 grid grid-cols-1">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-foreground">IdP Entity ID (Issuer)</label>
+                      <label className="text-xs font-semibold text-foreground">
+                        IdP Entity ID (Issuer)
+                      </label>
                       <Input
                         value={idpEntityId}
                         onChange={(e) => setIdpEntityId(e.target.value)}
                         placeholder="https://sts.windows.net/xxxx/ or https://okta.com/xxx"
                         className="text-xs h-9 font-mono"
                       />
-                      <p className="text-[11px] text-muted-foreground">The unique URI identifying your Identity Provider.</p>
+                      <p className="text-meta text-muted-foreground">
+                        The unique URI identifying your Identity Provider.
+                      </p>
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-foreground">IdP Single Sign-On URL (SSO Endpoint)</label>
+                      <label className="text-xs font-semibold text-foreground">
+                        IdP Single Sign-On URL (SSO Endpoint)
+                      </label>
                       <Input
                         value={ssoUrl}
                         onChange={(e) => setSsoUrl(e.target.value)}
                         placeholder="https://login.microsoftonline.com/.../saml2 or https://dev.okta.com/app/.../sso/saml"
                         className="text-xs h-9 font-mono"
                       />
-                      <p className="text-[11px] text-muted-foreground">Where Mie AI redirects users to sign in with your IdP.</p>
+                      <p className="text-meta text-muted-foreground">
+                        Where Mie AI redirects users to sign in with your IdP.
+                      </p>
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-foreground">X.509 Public Certificate (PEM format)</label>
+                    <label className="text-xs font-semibold text-foreground">
+                      X.509 Public Certificate (PEM format)
+                    </label>
                     <Textarea
                       value={certificate}
                       onChange={(e) => setCertificate(e.target.value)}
@@ -565,47 +708,69 @@ export function EnterpriseIdentitySettingsPanel({
                       rows={4}
                       className="text-xs font-mono"
                     />
-                    <p className="text-[11px] text-muted-foreground">
-                      Public certificate used to cryptographically verify SAML response signatures and integrity.
+                    <p className="text-meta text-muted-foreground">
+                      Public certificate used to cryptographically verify SAML
+                      response signatures and integrity.
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                    <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-surface-muted/30">
+                  <div className="sm:grid-cols-2 gap-4 pt-2 grid grid-cols-1">
+                    <div className="p-3 flex items-center justify-between rounded-lg border border-border bg-surface-muted/30">
                       <div className="space-y-0.5 pr-2">
-                        <div className="text-xs font-medium text-foreground">Allow IdP-Initiated SSO</div>
-                        <div className="text-[10px] text-muted-foreground">Allows users to sign in directly from their IdP dashboard.</div>
+                        <div className="text-xs font-medium text-foreground">
+                          Allow IdP-Initiated SSO
+                        </div>
+                        <div className="text-2xs text-muted-foreground">
+                          Allows users to sign in directly from their IdP
+                          dashboard.
+                        </div>
                       </div>
-                      <Switch checked={allowIdpInitiated} onCheckedChange={setAllowIdpInitiated} />
+                      <Switch
+                        checked={allowIdpInitiated}
+                        onCheckedChange={setAllowIdpInitiated}
+                      />
                     </div>
 
-                    <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-surface-muted/30">
+                    <div className="p-3 flex items-center justify-between rounded-lg border border-border bg-surface-muted/30">
                       <div className="space-y-0.5 pr-2">
-                        <div className="text-xs font-medium text-foreground">Force Authentication</div>
-                        <div className="text-[10px] text-muted-foreground">Forces the IdP to re-prompt users for credentials every session.</div>
+                        <div className="text-xs font-medium text-foreground">
+                          Force Authentication
+                        </div>
+                        <div className="text-2xs text-muted-foreground">
+                          Forces the IdP to re-prompt users for credentials
+                          every session.
+                        </div>
                       </div>
-                      <Switch checked={forceAuthn} onCheckedChange={setForceAuthn} />
+                      <Switch
+                        checked={forceAuthn}
+                        onCheckedChange={setForceAuthn}
+                      />
                     </div>
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:grid-cols-2 gap-4 grid grid-cols-1">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-foreground">OpenID Connect Issuer URL</label>
+                      <label className="text-xs font-semibold text-foreground">
+                        OpenID Connect Issuer URL
+                      </label>
                       <Input
                         value={oidcIssuer}
                         onChange={(e) => setOidcIssuer(e.target.value)}
                         placeholder="https://login.microsoftonline.com/{tenant}/v2.0 or https://{domain}.okta.com"
                         className="text-xs h-9 font-mono"
                       />
-                      <p className="text-[11px] text-muted-foreground">
-                        Must support OIDC Discovery at <code>/.well-known/openid-configuration</code>.
+                      <p className="text-meta text-muted-foreground">
+                        Must support OIDC Discovery at{' '}
+                        <code>/.well-known/openid-configuration</code>.
                       </p>
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-foreground">Client ID</label>
+                      <label className="text-xs font-semibold text-foreground">
+                        Client ID
+                      </label>
                       <Input
                         value={oidcClientId}
                         onChange={(e) => setOidcClientId(e.target.value)}
@@ -615,39 +780,47 @@ export function EnterpriseIdentitySettingsPanel({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:grid-cols-2 gap-4 grid grid-cols-1">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-foreground">Client Secret</label>
+                      <label className="text-xs font-semibold text-foreground">
+                        Client Secret
+                      </label>
                       <div className="relative">
                         <Input
                           type={showOidcSecret ? 'text' : 'password'}
                           value={oidcClientSecret}
                           onChange={(e) => setOidcClientSecret(e.target.value)}
                           placeholder="••••••••••••••••"
-                          className="text-xs h-9 font-mono pr-9"
+                          className="text-xs h-9 pr-9 font-mono"
                         />
                         <button
                           type="button"
                           onClick={() => setShowOidcSecret(!showOidcSecret)}
-                          className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
+                          className="right-2.5 top-2.5 absolute text-muted-foreground hover:text-foreground"
                         >
-                          {showOidcSecret ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                          {showOidcSecret ? (
+                            <EyeOff className="size-4" />
+                          ) : (
+                            <Eye className="size-4" />
+                          )}
                         </button>
                       </div>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-meta text-muted-foreground">
                         Encrypted with AES-256-GCM. Leave blank if unchanged.
                       </p>
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-foreground">OIDC Scopes</label>
+                      <label className="text-xs font-semibold text-foreground">
+                        OIDC Scopes
+                      </label>
                       <Input
                         value={oidcScopes}
                         onChange={(e) => setOidcScopes(e.target.value)}
                         placeholder="openid profile email groups"
                         className="text-xs h-9 font-mono"
                       />
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-meta text-muted-foreground">
                         Space-separated scopes required for identity and claims.
                       </p>
                     </div>
@@ -660,56 +833,71 @@ export function EnterpriseIdentitySettingsPanel({
           {/* SSO Enforcement & Admin Lockout Protection */}
           <Card className="border-border">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold">SSO Enforcement & Break-Glass Recovery</CardTitle>
+              <CardTitle className="text-sm font-semibold">
+                SSO Enforcement & Break-Glass Recovery
+              </CardTitle>
               <CardDescription className="text-xs">
-                Configure mandatory SSO policies and lockout protections for organization administrators.
+                Configure mandatory SSO policies and lockout protections for
+                organization administrators.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-border bg-surface-muted/30">
+              <div className="sm:flex-row sm:items-center gap-4 p-4 flex flex-col items-start justify-between rounded-xl border border-border bg-surface-muted/30">
                 <div className="space-y-0.5">
-                  <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <ShieldAlert className="size-4 text-amber-500" />
+                  <div className="text-xs font-semibold gap-1.5 flex items-center text-foreground">
+                    <ShieldAlert className="size-4 text-warning-text" />
                     Enforce SSO for Verified Domains
                   </div>
-                  <p className="text-[11px] text-muted-foreground max-w-lg">
-                    When active, users whose email belongs to a verified domain must sign in with SSO. Regular password logins are rejected.
+                  <p className="max-w-lg text-meta text-muted-foreground">
+                    When active, users whose email belongs to a verified domain
+                    must sign in with SSO. Regular password logins are rejected.
                   </p>
                 </div>
                 <Switch checked={enforceSso} onCheckedChange={setEnforceSso} />
               </div>
 
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-border bg-surface-muted/30">
+              <div className="sm:flex-row sm:items-center gap-4 p-4 flex flex-col items-start justify-between rounded-xl border border-border bg-surface-muted/30">
                 <div className="space-y-0.5">
                   <div className="text-xs font-semibold text-foreground">
                     Allow Password Fallback for Workspace Admins & Owners
                   </div>
-                  <p className="text-[11px] text-muted-foreground max-w-lg">
-                    Recommended. Ensures administrators can still access the workspace using their existing credentials if the Identity Provider experiences an outage.
+                  <p className="max-w-lg text-meta text-muted-foreground">
+                    Recommended. Ensures administrators can still access the
+                    workspace using their existing credentials if the Identity
+                    Provider experiences an outage.
                   </p>
                 </div>
-                <Switch checked={allowPasswordFallbackForAdmins} onCheckedChange={setAllowPasswordFallbackForAdmins} />
+                <Switch
+                  checked={allowPasswordFallbackForAdmins}
+                  onCheckedChange={setAllowPasswordFallbackForAdmins}
+                />
               </div>
 
               {/* Emergency Break-Glass Key Generator */}
-              <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5 space-y-3">
+              <div className="p-4 space-y-3 rounded-xl border border-warning/20 bg-warning/5">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <KeyRound className="size-4 text-amber-500" />
-                    <span className="text-xs font-semibold text-foreground">Emergency Break-Glass Recovery Key</span>
+                  <div className="gap-2 flex items-center">
+                    <KeyRound className="size-4 text-warning-text" />
+                    <span className="text-xs font-semibold text-foreground">
+                      Emergency Break-Glass Recovery Key
+                    </span>
                   </div>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => generateRecoveryCodeMutation.mutate()}
                     disabled={generateRecoveryCodeMutation.isPending}
-                    className="text-xs border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+                    className="text-xs border-warning/30 text-warning-text hover:bg-warning/10"
                   >
-                    {generateRecoveryCodeMutation.isPending ? 'Generating...' : 'Generate New Recovery Key'}
+                    {generateRecoveryCodeMutation.isPending
+                      ? 'Generating...'
+                      : 'Generate New Recovery Key'}
                   </Button>
                 </div>
-                <p className="text-[11px] text-muted-foreground">
-                  A high-entropy one-time recovery key used to bypass SSO enforcement via <code>/auth/sso/recovery</code> in critical IdP failure scenarios.
+                <p className="text-meta text-muted-foreground">
+                  A high-entropy one-time recovery key used to bypass SSO
+                  enforcement via <code>/auth/sso/recovery</code> in critical
+                  IdP failure scenarios.
                 </p>
               </div>
             </CardContent>
@@ -720,13 +908,16 @@ export function EnterpriseIdentitySettingsPanel({
         <TabsContent value="domains" className="space-y-6 pt-4">
           <Card className="border-border">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold">Corporate Email Domains</CardTitle>
+              <CardTitle className="text-sm font-semibold">
+                Corporate Email Domains
+              </CardTitle>
               <CardDescription className="text-xs">
-                Verify ownership of your email domains via DNS TXT records to enable domain-directed SSO and strict SSO enforcement.
+                Verify ownership of your email domains via DNS TXT records to
+                enable domain-directed SSO and strict SSO enforcement.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center gap-2">
+              <div className="gap-2 flex items-center">
                 <Input
                   value={newDomainInput}
                   onChange={(e) => setNewDomainInput(e.target.value)}
@@ -741,35 +932,51 @@ export function EnterpriseIdentitySettingsPanel({
                       toast.error('Please enter a valid domain name');
                       return;
                     }
-                    verifyDomainMutation.mutate(newDomainInput.trim().toLowerCase());
+                    verifyDomainMutation.mutate(
+                      newDomainInput.trim().toLowerCase(),
+                    );
                   }}
                   disabled={verifyDomainMutation.isPending}
                   className="text-xs"
                 >
-                  {verifyDomainMutation.isPending ? 'Checking DNS...' : 'Verify Domain'}
+                  {verifyDomainMutation.isPending
+                    ? 'Checking DNS...'
+                    : 'Verify Domain'}
                 </Button>
               </div>
 
               {/* TXT Instructions */}
-              <div className="p-3.5 rounded-lg border border-border bg-surface-muted/40 text-xs space-y-1.5">
-                <div className="font-semibold text-foreground flex items-center gap-1.5">
+              <div className="p-3.5 text-xs space-y-1.5 rounded-lg border border-border bg-surface-muted/40">
+                <div className="font-semibold gap-1.5 flex items-center text-foreground">
                   <Globe className="size-3.5 text-primary" />
                   DNS TXT Verification Instructions:
                 </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Create a TXT record on your domain apex (<code>@</code>) or host:
+                <p className="text-meta text-muted-foreground">
+                  Create a TXT record on your domain apex (<code>@</code>) or
+                  host:
                 </p>
-                <div className="flex items-center gap-2 p-2 rounded bg-surface border border-border font-mono text-[11px]">
-                  <span>Record Type: <strong>TXT</strong></span>
+                <div className="gap-2 p-2 rounded flex items-center border border-border bg-surface font-mono text-meta">
+                  <span>
+                    Record Type: <strong>TXT</strong>
+                  </span>
                   <span className="text-muted-foreground">|</span>
-                  <span>Value: <strong>mie-ai-verification={config?.domainVerificationToken || 'generated-per-org'}</strong></span>
+                  <span>
+                    Value:{' '}
+                    <strong>
+                      mie-ai-verification=
+                      {config?.domainVerificationToken || 'generated-per-org'}
+                    </strong>
+                  </span>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() =>
-                      copyToClipboard(`mie-ai-verification=${config?.domainVerificationToken || ''}`, 'DNS TXT Record')
+                      copyToClipboard(
+                        `mie-ai-verification=${config?.domainVerificationToken || ''}`,
+                        'DNS TXT Record',
+                      )
                     }
-                    className="ml-auto h-6 text-[10px] px-2"
+                    className="h-6 px-2 ml-auto text-2xs"
                   >
                     <Copy className="size-3 mr-1" /> Copy
                   </Button>
@@ -778,25 +985,41 @@ export function EnterpriseIdentitySettingsPanel({
 
               {/* Verified Domains List */}
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-foreground">Configured Domains</label>
-                {config?.verifiedDomains && config.verifiedDomains.length > 0 ? (
-                  <div className="divide-y divide-border border border-border rounded-lg overflow-hidden">
+                <label className="text-xs font-semibold text-foreground">
+                  Configured Domains
+                </label>
+                {config?.verifiedDomains &&
+                config.verifiedDomains.length > 0 ? (
+                  <div className="divide-y divide-border overflow-hidden rounded-lg border border-border">
                     {config.verifiedDomains.map((domain: string) => (
-                      <div key={domain} className="flex items-center justify-between p-3 text-xs bg-card">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="size-4 text-emerald-500" />
-                          <span className="font-medium text-foreground">{domain}</span>
-                          <Badge variant="success" className="text-[10px]">VERIFIED</Badge>
+                      <div
+                        key={domain}
+                        className="p-3 text-xs flex items-center justify-between bg-card"
+                      >
+                        <div className="gap-2 flex items-center">
+                          <CheckCircle2 className="size-4 text-success-text" />
+                          <span className="font-medium text-foreground">
+                            {domain}
+                          </span>
+                          <Badge variant="success" className="text-2xs">
+                            VERIFIED
+                          </Badge>
                         </div>
-                        <span className="text-[10px] text-muted-foreground">
-                          Verified on {config.domainVerifiedAt ? new Date(config.domainVerifiedAt).toLocaleDateString() : 'Active'}
+                        <span className="text-2xs text-muted-foreground">
+                          Verified on{' '}
+                          {config.domainVerifiedAt
+                            ? new Date(
+                                config.domainVerifiedAt,
+                              ).toLocaleDateString()
+                            : 'Active'}
                         </span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="text-xs text-muted-foreground p-4 text-center border border-dashed rounded-lg">
-                    No domains verified yet. Add your domain above to enable domain-matched SSO.
+                  <div className="text-xs p-4 rounded-lg border border-dashed text-center text-muted-foreground">
+                    No domains verified yet. Add your domain above to enable
+                    domain-matched SSO.
                   </div>
                 )}
               </div>
@@ -810,67 +1033,104 @@ export function EnterpriseIdentitySettingsPanel({
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-sm font-semibold">SCIM 2.0 Directory Provisioning</CardTitle>
+                  <CardTitle className="text-sm font-semibold">
+                    SCIM 2.0 Directory Provisioning
+                  </CardTitle>
                   <CardDescription className="text-xs">
-                    Automate employee lifecycle management (create, update, suspend, role assignment) directly from your IdP.
+                    Automate employee lifecycle management (create, update,
+                    suspend, role assignment) directly from your IdP.
                   </CardDescription>
                 </div>
-                <Switch checked={scimEnabled} onCheckedChange={setScimEnabled} />
+                <Switch
+                  checked={scimEnabled}
+                  onCheckedChange={setScimEnabled}
+                />
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <div className="md:grid-cols-2 gap-4 text-xs grid grid-cols-1">
                 <div className="space-y-1.5">
-                  <label className="font-semibold text-foreground">SCIM 2.0 Base URL (Tenant URL)</label>
-                  <div className="flex items-center gap-1.5">
-                    <Input readOnly value={scimBaseUrl} className="font-mono text-xs h-9 bg-surface-muted/50" />
-                    <Button variant="outline" size="sm" onClick={() => copyToClipboard(scimBaseUrl, 'SCIM Base URL')} className="h-9 px-3">
+                  <label className="font-semibold text-foreground">
+                    SCIM 2.0 Base URL (Tenant URL)
+                  </label>
+                  <div className="gap-1.5 flex items-center">
+                    <Input
+                      readOnly
+                      value={scimBaseUrl}
+                      className="text-xs h-9 bg-surface-muted/50 font-mono"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        copyToClipboard(scimBaseUrl, 'SCIM Base URL')
+                      }
+                      className="h-9 px-3"
+                    >
                       <Copy className="size-3.5" />
                     </Button>
                   </div>
-                  <p className="text-[11px] text-muted-foreground">Paste this into your IdP's SCIM / Provisioning Tenant URL field.</p>
+                  <p className="text-meta text-muted-foreground">
+                    Paste this into your IdP's SCIM / Provisioning Tenant URL
+                    field.
+                  </p>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="font-semibold text-foreground">SCIM Bearer Token</label>
-                  <div className="flex items-center gap-1.5">
+                  <label className="font-semibold text-foreground">
+                    SCIM Bearer Token
+                  </label>
+                  <div className="gap-1.5 flex items-center">
                     <Input
                       readOnly
-                      value={config?.scimTokenPrefix ? `${config.scimTokenPrefix}••••••••••••••••••••••••••••` : 'No active token'}
-                      className="font-mono text-xs h-9 bg-surface-muted/50"
+                      value={
+                        config?.scimTokenPrefix
+                          ? `${config.scimTokenPrefix}••••••••••••••••••••••••••••`
+                          : 'No active token'
+                      }
+                      className="text-xs h-9 bg-surface-muted/50 font-mono"
                     />
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => rotateScimTokenMutation.mutate()}
                       disabled={rotateScimTokenMutation.isPending}
-                      className="h-9 px-3 shrink-0 text-xs"
+                      className="h-9 px-3 text-xs shrink-0"
                     >
                       <RefreshCw className="size-3.5 mr-1.5" />
                       Rotate Token
                     </Button>
                   </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    Tokens are hashed with SHA-256 at rest. Generating a new token revokes the previous token immediately.
+                  <p className="text-meta text-muted-foreground">
+                    Tokens are hashed with SHA-256 at rest. Generating a new
+                    token revokes the previous token immediately.
                   </p>
                 </div>
               </div>
 
               {/* Sync Status Box */}
-              <div className="flex items-center justify-between p-3.5 rounded-lg border border-border bg-surface-muted/30 text-xs">
-                <div className="flex items-center gap-2.5">
+              <div className="p-3.5 text-xs flex items-center justify-between rounded-lg border border-border bg-surface-muted/30">
+                <div className="gap-2.5 flex items-center">
                   <Users className="size-4 text-primary" />
                   <div>
-                    <div className="font-medium text-foreground">Automated Deprovisioning Policy</div>
-                    <div className="text-[11px] text-muted-foreground">
-                      Users deactivated in IdP are suspended in Mie AI, revoking active sessions while preserving historical documents and audit records.
+                    <div className="font-medium text-foreground">
+                      Automated Deprovisioning Policy
+                    </div>
+                    <div className="text-meta text-muted-foreground">
+                      Users deactivated in IdP are suspended in Mie AI, revoking
+                      active sessions while preserving historical documents and
+                      audit records.
                     </div>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-[11px] font-medium text-foreground">Last Sync</div>
-                  <div className="text-[10px] text-muted-foreground">
-                    {config?.scimLastSyncAt ? new Date(config.scimLastSyncAt).toLocaleString() : 'Never'}
+                  <div className="font-medium text-meta text-foreground">
+                    Last Sync
+                  </div>
+                  <div className="text-2xs text-muted-foreground">
+                    {config?.scimLastSyncAt
+                      ? new Date(config.scimLastSyncAt).toLocaleString()
+                      : 'Never'}
                   </div>
                 </div>
               </div>
@@ -884,9 +1144,12 @@ export function EnterpriseIdentitySettingsPanel({
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-sm font-semibold">IdP Group to Workspace Role Mappings</CardTitle>
+                  <CardTitle className="text-sm font-semibold">
+                    IdP Group to Workspace Role Mappings
+                  </CardTitle>
                   <CardDescription className="text-xs">
-                    Map corporate security groups pushed through SCIM or SAML claims to Mie AI workspace roles.
+                    Map corporate security groups pushed through SCIM or SAML
+                    claims to Mie AI workspace roles.
                   </CardDescription>
                 </div>
                 <Button
@@ -906,16 +1169,29 @@ export function EnterpriseIdentitySettingsPanel({
                   <TableHeader>
                     <TableRow>
                       <TableHead className="text-xs">IdP Group Name</TableHead>
-                      <TableHead className="text-xs">Assigned Workspace Role</TableHead>
-                      <TableHead className="text-xs text-right">Actions</TableHead>
+                      <TableHead className="text-xs">
+                        Assigned Workspace Role
+                      </TableHead>
+                      <TableHead className="text-xs text-right">
+                        Actions
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {groupMappings.map((mapping) => (
                       <TableRow key={mapping.id}>
-                        <TableCell className="text-xs font-medium font-mono">{mapping.groupName}</TableCell>
+                        <TableCell className="text-xs font-medium font-mono">
+                          {mapping.groupName}
+                        </TableCell>
                         <TableCell className="text-xs">
-                          <Badge variant={mapping.targetRole === 'ADMIN' ? 'primary' : 'neutral'} className="text-[10px]">
+                          <Badge
+                            variant={
+                              mapping.targetRole === 'ADMIN'
+                                ? 'primary'
+                                : 'neutral'
+                            }
+                            className="text-2xs"
+                          >
                             {mapping.targetRole}
                           </Badge>
                         </TableCell>
@@ -923,8 +1199,10 @@ export function EnterpriseIdentitySettingsPanel({
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => deleteMappingMutation.mutate(mapping.id)}
-                            className="h-7 px-2 text-destructive hover:bg-destructive/10 border-destructive/30"
+                            onClick={() =>
+                              deleteMappingMutation.mutate(mapping.id)
+                            }
+                            className="h-7 px-2 border-destructive/30 text-destructive hover:bg-destructive/10"
                           >
                             <Trash2 className="size-3.5" />
                           </Button>
@@ -934,11 +1212,14 @@ export function EnterpriseIdentitySettingsPanel({
                   </TableBody>
                 </Table>
               ) : (
-                <div className="text-center p-6 border border-dashed rounded-lg text-xs text-muted-foreground space-y-2">
+                <div className="p-6 text-xs space-y-2 rounded-lg border border-dashed text-center text-muted-foreground">
                   <Users className="size-8 mx-auto text-muted-foreground/50" />
                   <p>No group role mappings configured.</p>
-                  <p className="text-[11px]">
-                    By default, provisioned users receive the <strong>MEMBER</strong> role. Add a mapping to automatically promote groups (e.g. <code>Engineers-Leads</code>) to <strong>ADMIN</strong>.
+                  <p className="text-meta">
+                    By default, provisioned users receive the{' '}
+                    <strong>MEMBER</strong> role. Add a mapping to automatically
+                    promote groups (e.g. <code>Engineers-Leads</code>) to{' '}
+                    <strong>ADMIN</strong>.
                   </p>
                 </div>
               )}
@@ -948,79 +1229,179 @@ export function EnterpriseIdentitySettingsPanel({
 
         {/* ----------------- TAB 5: SETUP GUIDES ----------------- */}
         <TabsContent value="guides" className="space-y-4 pt-4">
-          <Accordion type="single" collapsible className="w-full space-y-2">
-            <AccordionItem value="entra" className="border border-border rounded-xl px-4 bg-card">
+          <Accordion type="single" collapsible className="space-y-2 w-full">
+            <AccordionItem
+              value="entra"
+              className="px-4 rounded-xl border border-border bg-card"
+            >
               <AccordionTrigger className="text-xs font-semibold hover:no-underline">
-                <div className="flex items-center gap-2">
-                  <div className="size-2 rounded-full bg-blue-500" />
+                <div className="gap-2 flex items-center">
+                  <div className="size-2 rounded-full bg-accent-blue" />
                   Microsoft Entra ID (Azure AD) Integration Guide
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="text-xs text-muted-foreground space-y-3 pt-2">
-                <ol className="list-decimal pl-5 space-y-2">
-                  <li>In Microsoft Entra admin center, navigate to <strong>Identity &gt; Applications &gt; Enterprise applications</strong>.</li>
-                  <li>Click <strong>New application &gt; Create your own application</strong>. Name it &quot;Mie AI&quot; and select &quot;Integrate any other application you don&apos;t find in the gallery&quot;.</li>
-                  <li>Under <strong>Single sign-on</strong>, select <strong>SAML</strong>.</li>
-                  <li>In <strong>Basic SAML Configuration</strong>:
-                    <ul className="list-disc pl-5 mt-1 space-y-1 font-mono text-[11px]">
-                      <li>Identifier (Entity ID): <code>{spEntityId}</code></li>
-                      <li>Reply URL (Assertion Consumer Service URL): <code>{acsUrl}</code></li>
-                      <li>Sign on URL: <code>{origin}/auth/login</code></li>
+              <AccordionContent className="text-xs space-y-3 pt-2 text-muted-foreground">
+                <ol className="pl-5 space-y-2 list-decimal">
+                  <li>
+                    In Microsoft Entra admin center, navigate to{' '}
+                    <strong>
+                      Identity &gt; Applications &gt; Enterprise applications
+                    </strong>
+                    .
+                  </li>
+                  <li>
+                    Click{' '}
+                    <strong>
+                      New application &gt; Create your own application
+                    </strong>
+                    . Name it &quot;Mie AI&quot; and select &quot;Integrate any
+                    other application you don&apos;t find in the gallery&quot;.
+                  </li>
+                  <li>
+                    Under <strong>Single sign-on</strong>, select{' '}
+                    <strong>SAML</strong>.
+                  </li>
+                  <li>
+                    In <strong>Basic SAML Configuration</strong>:
+                    <ul className="pl-5 mt-1 space-y-1 list-disc font-mono text-meta">
+                      <li>
+                        Identifier (Entity ID): <code>{spEntityId}</code>
+                      </li>
+                      <li>
+                        Reply URL (Assertion Consumer Service URL):{' '}
+                        <code>{acsUrl}</code>
+                      </li>
+                      <li>
+                        Sign on URL: <code>{origin}/auth/login</code>
+                      </li>
                     </ul>
                   </li>
-                  <li>In <strong>Attributes &amp; Claims</strong>, ensure <code>emailaddress</code>, <code>givenname</code>, and <code>surname</code> are present. Add group claim if using group-to-role mappings.</li>
-                  <li>Download <strong>Certificate (Base64)</strong> and copy the <strong>Login URL</strong> &amp; <strong>Microsoft Entra Identifier</strong> into Mie AI.</li>
-                  <li>To configure SCIM: under <strong>Provisioning</strong>, select <strong>Automatic</strong>. Paste Tenant URL: <code>{scimBaseUrl}</code> and the Secret Token generated in Mie AI.</li>
+                  <li>
+                    In <strong>Attributes &amp; Claims</strong>, ensure{' '}
+                    <code>emailaddress</code>, <code>givenname</code>, and{' '}
+                    <code>surname</code> are present. Add group claim if using
+                    group-to-role mappings.
+                  </li>
+                  <li>
+                    Download <strong>Certificate (Base64)</strong> and copy the{' '}
+                    <strong>Login URL</strong> &amp;{' '}
+                    <strong>Microsoft Entra Identifier</strong> into Mie AI.
+                  </li>
+                  <li>
+                    To configure SCIM: under <strong>Provisioning</strong>,
+                    select <strong>Automatic</strong>. Paste Tenant URL:{' '}
+                    <code>{scimBaseUrl}</code> and the Secret Token generated in
+                    Mie AI.
+                  </li>
                 </ol>
               </AccordionContent>
             </AccordionItem>
 
-            <AccordionItem value="okta" className="border border-border rounded-xl px-4 bg-card">
+            <AccordionItem
+              value="okta"
+              className="px-4 rounded-xl border border-border bg-card"
+            >
               <AccordionTrigger className="text-xs font-semibold hover:no-underline">
-                <div className="flex items-center gap-2">
-                  <div className="size-2 rounded-full bg-sky-500" />
+                <div className="gap-2 flex items-center">
+                  <div className="size-2 rounded-full bg-info" />
                   Okta SAML 2.0 &amp; SCIM Setup Guide
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="text-xs text-muted-foreground space-y-3 pt-2">
-                <ol className="list-decimal pl-5 space-y-2">
-                  <li>In Okta Admin Console, navigate to <strong>Applications &gt; Applications &gt; Create App Integration</strong>.</li>
-                  <li>Select <strong>SAML 2.0</strong> and click Next.</li>
-                  <li>In <strong>SAML Settings</strong>:
-                    <ul className="list-disc pl-5 mt-1 space-y-1 font-mono text-[11px]">
-                      <li>Single sign-on URL: <code>{acsUrl}</code></li>
-                      <li>Audience URI (SP Entity ID): <code>{spEntityId}</code></li>
-                      <li>Name ID format: <code>EmailAddress</code></li>
+              <AccordionContent className="text-xs space-y-3 pt-2 text-muted-foreground">
+                <ol className="pl-5 space-y-2 list-decimal">
+                  <li>
+                    In Okta Admin Console, navigate to{' '}
+                    <strong>
+                      Applications &gt; Applications &gt; Create App Integration
+                    </strong>
+                    .
+                  </li>
+                  <li>
+                    Select <strong>SAML 2.0</strong> and click Next.
+                  </li>
+                  <li>
+                    In <strong>SAML Settings</strong>:
+                    <ul className="pl-5 mt-1 space-y-1 list-disc font-mono text-meta">
+                      <li>
+                        Single sign-on URL: <code>{acsUrl}</code>
+                      </li>
+                      <li>
+                        Audience URI (SP Entity ID): <code>{spEntityId}</code>
+                      </li>
+                      <li>
+                        Name ID format: <code>EmailAddress</code>
+                      </li>
                     </ul>
                   </li>
-                  <li>Under Attribute Statements, configure <code>email</code>: <code>user.email</code>, <code>firstName</code>: <code>user.firstName</code>, <code>lastName</code>: <code>user.lastName</code>.</li>
-                  <li>Copy Okta <strong>Identity Provider Single Sign-On URL</strong>, <strong>Identity Provider Issuer</strong>, and download the <strong>X.509 Certificate</strong> into Mie AI.</li>
-                  <li>For SCIM: Enable SCIM in the App integration, paste <code>{scimBaseUrl}</code> and your bearer token under <strong>Provisioning &gt; Integration</strong>.</li>
+                  <li>
+                    Under Attribute Statements, configure <code>email</code>:{' '}
+                    <code>user.email</code>, <code>firstName</code>:{' '}
+                    <code>user.firstName</code>, <code>lastName</code>:{' '}
+                    <code>user.lastName</code>.
+                  </li>
+                  <li>
+                    Copy Okta{' '}
+                    <strong>Identity Provider Single Sign-On URL</strong>,{' '}
+                    <strong>Identity Provider Issuer</strong>, and download the{' '}
+                    <strong>X.509 Certificate</strong> into Mie AI.
+                  </li>
+                  <li>
+                    For SCIM: Enable SCIM in the App integration, paste{' '}
+                    <code>{scimBaseUrl}</code> and your bearer token under{' '}
+                    <strong>Provisioning &gt; Integration</strong>.
+                  </li>
                 </ol>
               </AccordionContent>
             </AccordionItem>
 
-            <AccordionItem value="google" className="border border-border rounded-xl px-4 bg-card">
+            <AccordionItem
+              value="google"
+              className="px-4 rounded-xl border border-border bg-card"
+            >
               <AccordionTrigger className="text-xs font-semibold hover:no-underline">
-                <div className="flex items-center gap-2">
-                  <div className="size-2 rounded-full bg-red-500" />
+                <div className="gap-2 flex items-center">
+                  <div className="size-2 rounded-full bg-destructive" />
                   Google Workspace Custom SAML App Guide
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="text-xs text-muted-foreground space-y-3 pt-2">
-                <ol className="list-decimal pl-5 space-y-2">
-                  <li>In Google Admin console, go to <strong>Apps &gt; Web and mobile apps</strong>.</li>
-                  <li>Click <strong>Add app &gt; Add custom SAML app</strong>. Name it &quot;Mie AI&quot;.</li>
-                  <li>Copy Google&apos;s <strong>SSO URL</strong>, <strong>Entity ID</strong>, and download the certificate.</li>
-                  <li>In Service provider details:
-                    <ul className="list-disc pl-5 mt-1 space-y-1 font-mono text-[11px]">
-                      <li>ACS URL: <code>{acsUrl}</code></li>
-                      <li>Entity ID: <code>{spEntityId}</code></li>
-                      <li>Name ID format: <code>EMAIL</code></li>
+              <AccordionContent className="text-xs space-y-3 pt-2 text-muted-foreground">
+                <ol className="pl-5 space-y-2 list-decimal">
+                  <li>
+                    In Google Admin console, go to{' '}
+                    <strong>Apps &gt; Web and mobile apps</strong>.
+                  </li>
+                  <li>
+                    Click <strong>Add app &gt; Add custom SAML app</strong>.
+                    Name it &quot;Mie AI&quot;.
+                  </li>
+                  <li>
+                    Copy Google&apos;s <strong>SSO URL</strong>,{' '}
+                    <strong>Entity ID</strong>, and download the certificate.
+                  </li>
+                  <li>
+                    In Service provider details:
+                    <ul className="pl-5 mt-1 space-y-1 list-disc font-mono text-meta">
+                      <li>
+                        ACS URL: <code>{acsUrl}</code>
+                      </li>
+                      <li>
+                        Entity ID: <code>{spEntityId}</code>
+                      </li>
+                      <li>
+                        Name ID format: <code>EMAIL</code>
+                      </li>
                     </ul>
                   </li>
-                  <li>Map Google attributes <code>Primary email</code> to <code>email</code>, <code>First name</code> to <code>firstName</code>, and <code>Last name</code> to <code>lastName</code>.</li>
-                  <li>Grant user access to the app under <strong>User access</strong>.</li>
+                  <li>
+                    Map Google attributes <code>Primary email</code> to{' '}
+                    <code>email</code>, <code>First name</code> to{' '}
+                    <code>firstName</code>, and <code>Last name</code> to{' '}
+                    <code>lastName</code>.
+                  </li>
+                  <li>
+                    Grant user access to the app under{' '}
+                    <strong>User access</strong>.
+                  </li>
                 </ol>
               </AccordionContent>
             </AccordionItem>
@@ -1029,30 +1410,41 @@ export function EnterpriseIdentitySettingsPanel({
       </Tabs>
 
       {/* Modal: SCIM Token Generated */}
-      <Dialog open={!!newScimTokenModal} onOpenChange={() => setNewScimTokenModal(null)}>
+      <Dialog
+        open={!!newScimTokenModal}
+        onOpenChange={() => setNewScimTokenModal(null)}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold flex items-center gap-2">
-              <KeyRound className="size-4 text-emerald-500" />
+            <DialogTitle className="text-base font-bold gap-2 flex items-center">
+              <KeyRound className="size-4 text-success-text" />
               New SCIM 2.0 Bearer Token
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Copy this token now. It is hashed with SHA-256 and will never be shown again.
+              Copy this token now. It is hashed with SHA-256 and will never be
+              shown again.
             </DialogDescription>
           </DialogHeader>
-          <div className="p-3 bg-surface-muted border border-border rounded-lg font-mono text-xs break-all select-all">
+          <div className="p-3 text-xs rounded-lg border border-border bg-surface-muted font-mono break-all select-all">
             {newScimTokenModal}
           </div>
           <DialogFooter className="flex items-center justify-between">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => copyToClipboard(newScimTokenModal || '', 'SCIM Bearer Token')}
+              onClick={() =>
+                copyToClipboard(newScimTokenModal || '', 'SCIM Bearer Token')
+              }
               className="text-xs"
             >
               <Copy className="size-3.5 mr-1.5" /> Copy Token
             </Button>
-            <Button variant="primary" size="sm" onClick={() => setNewScimTokenModal(null)} className="text-xs">
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setNewScimTokenModal(null)}
+              className="text-xs"
+            >
               I have saved this token
             </Button>
           </DialogFooter>
@@ -1060,33 +1452,45 @@ export function EnterpriseIdentitySettingsPanel({
       </Dialog>
 
       {/* Modal: Recovery Code Generated */}
-      <Dialog open={!!newRecoveryCodeModal} onOpenChange={() => setNewRecoveryCodeModal(null)}>
+      <Dialog
+        open={!!newRecoveryCodeModal}
+        onOpenChange={() => setNewRecoveryCodeModal(null)}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold flex items-center gap-2 text-amber-500">
+            <DialogTitle className="text-base font-bold gap-2 flex items-center text-warning-text">
               <ShieldAlert className="size-4" />
               Emergency Break-Glass Recovery Key
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Store this 32-character key in your secure enterprise password vault (e.g. 1Password, Bitwarden).
+              Store this 32-character key in your secure enterprise password
+              vault (e.g. 1Password, Bitwarden).
             </DialogDescription>
           </DialogHeader>
-          <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg font-mono text-sm tracking-wider text-center select-all font-bold">
+          <div className="p-3 text-sm tracking-wider font-bold rounded-lg border border-warning/30 bg-warning/10 text-center font-mono select-all">
             {newRecoveryCodeModal}
           </div>
-          <p className="text-[11px] text-muted-foreground">
-            In the event of an identity provider outage, admins can access the platform at <code>/auth/sso/recovery</code> with this key.
+          <p className="text-meta text-muted-foreground">
+            In the event of an identity provider outage, admins can access the
+            platform at <code>/auth/sso/recovery</code> with this key.
           </p>
           <DialogFooter className="flex items-center justify-between">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => copyToClipboard(newRecoveryCodeModal || '', 'Recovery Key')}
+              onClick={() =>
+                copyToClipboard(newRecoveryCodeModal || '', 'Recovery Key')
+              }
               className="text-xs"
             >
               <Copy className="size-3.5 mr-1.5" /> Copy Key
             </Button>
-            <Button variant="primary" size="sm" onClick={() => setNewRecoveryCodeModal(null)} className="text-xs">
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setNewRecoveryCodeModal(null)}
+              className="text-xs"
+            >
               Done
             </Button>
           </DialogFooter>
@@ -1097,14 +1501,19 @@ export function EnterpriseIdentitySettingsPanel({
       <Dialog open={addMappingModalOpen} onOpenChange={setAddMappingModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold">Add Group-to-Role Mapping</DialogTitle>
+            <DialogTitle className="text-base font-bold">
+              Add Group-to-Role Mapping
+            </DialogTitle>
             <DialogDescription className="text-xs">
-              Users belonging to this IdP security group will automatically receive this workspace role upon sync.
+              Users belonging to this IdP security group will automatically
+              receive this workspace role upon sync.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-foreground">IdP Security Group Name</label>
+              <label className="text-xs font-semibold text-foreground">
+                IdP Security Group Name
+              </label>
               <Input
                 value={newMappingGroupName}
                 onChange={(e) => setNewMappingGroupName(e.target.value)}
@@ -1113,21 +1522,37 @@ export function EnterpriseIdentitySettingsPanel({
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-foreground">Workspace Role</label>
-              <Select value={newMappingRole} onValueChange={(val: any) => setNewMappingRole(val)}>
+              <label className="text-xs font-semibold text-foreground">
+                Workspace Role
+              </label>
+              <Select
+                value={newMappingRole}
+                onValueChange={(val: any) => setNewMappingRole(val)}
+              >
                 <SelectTrigger className="text-xs h-9">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="MEMBER">Member (Standard Access)</SelectItem>
-                  <SelectItem value="ADMIN">Admin (Full Workspace Management)</SelectItem>
-                  <SelectItem value="GUEST">Guest (Restricted Channel Access)</SelectItem>
+                  <SelectItem value="MEMBER">
+                    Member (Standard Access)
+                  </SelectItem>
+                  <SelectItem value="ADMIN">
+                    Admin (Full Workspace Management)
+                  </SelectItem>
+                  <SelectItem value="GUEST">
+                    Guest (Restricted Channel Access)
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setAddMappingModalOpen(false)} className="text-xs">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setAddMappingModalOpen(false)}
+              className="text-xs"
+            >
               Cancel
             </Button>
             <Button

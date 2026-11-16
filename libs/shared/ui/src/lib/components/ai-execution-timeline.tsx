@@ -13,12 +13,9 @@ import {
   Sparkles,
   Terminal,
 } from 'lucide-react';
-import {
-  useState,
-} from 'react';
+import { useState } from 'react';
 import { Badge } from './badge.js';
 import { CodeBlock } from '../code-block/index.js';
-
 
 export type AIExecutionStepType =
   | 'queued'
@@ -32,7 +29,8 @@ export type AIExecutionStepType =
   | 'completed'
   | 'failed';
 
-export type AIExecutionStepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
+export type AIExecutionStepStatus =
+  'pending' | 'running' | 'completed' | 'failed' | 'skipped';
 
 export interface AIExecutionStep {
   id: string;
@@ -61,7 +59,9 @@ export function AIExecutionTimeline({
   totalDurationMs,
   totalTokens,
 }: AIExecutionTimelineProps) {
-  const [expandedStepIds, setExpandedStepIds] = useState<Set<string>>(new Set());
+  const [expandedStepIds, setExpandedStepIds] = useState<Set<string>>(
+    new Set(),
+  );
 
   const toggleExpand = (id: string) => {
     const next = new Set(expandedStepIds);
@@ -70,9 +70,12 @@ export function AIExecutionTimeline({
     setExpandedStepIds(next);
   };
 
-  const getStepIcon = (type: AIExecutionStepType, status: AIExecutionStepStatus) => {
+  const getStepIcon = (
+    type: AIExecutionStepType,
+    status: AIExecutionStepStatus,
+  ) => {
     if (status === 'running') {
-      return <Loader2 className="size-3.5 text-brand-text animate-spin" />;
+      return <Loader2 className="size-3.5 animate-spin text-brand-text" />;
     }
     if (status === 'failed') {
       return <AlertTriangle className="size-3.5 text-destructive" />;
@@ -105,23 +108,33 @@ export function AIExecutionTimeline({
   };
 
   return (
-    <div className={cn('flex flex-col rounded-card border border-border bg-surface p-3.5 shadow-xs text-xs', className)}>
+    <div
+      className={cn(
+        'p-3.5 text-xs flex flex-col rounded-card border border-border bg-surface shadow-xs',
+        className,
+      )}
+    >
       {/* Header bar with summary */}
-      <div className="flex items-center justify-between border-b border-border pb-2.5 mb-3">
-        <div className="flex items-center gap-2">
+      <div className="pb-2.5 mb-3 flex items-center justify-between border-b border-border">
+        <div className="gap-2 flex items-center">
           <Terminal className="size-4 text-brand-text" />
-          <span className="font-semibold text-foreground">Agent Execution Trace</span>
+          <span className="font-semibold text-foreground">
+            Agent Execution Trace
+          </span>
         </div>
 
-        <div className="flex items-center gap-2 text-[11px] text-subtle font-mono">
+        <div className="gap-2 flex items-center font-mono text-meta text-subtle">
           {totalDurationMs !== undefined && (
-            <span className="flex items-center gap-1">
+            <span className="gap-1 flex items-center">
               <Clock className="size-3" />
               {formatDuration(totalDurationMs)}
             </span>
           )}
           {totalTokens !== undefined && (
-            <Badge variant="secondary" className="font-mono text-[10px] h-4.5 px-1.5">
+            <Badge
+              variant="secondary"
+              className="h-4.5 px-1.5 font-mono text-2xs"
+            >
               {totalTokens.toLocaleString()} tokens
             </Badge>
           )}
@@ -129,53 +142,62 @@ export function AIExecutionTimeline({
       </div>
 
       {/* Steps List */}
-      <div className="relative flex flex-col space-y-3 pl-5">
+      <div className="space-y-3 pl-5 relative flex flex-col">
         {/* Spine line */}
-        <div className="absolute bottom-2 left-[9px] top-2 w-px bg-border" />
+        <div className="bottom-2 top-2 absolute left-[9px] w-px bg-border" />
 
         {steps.map((step) => {
           const isExpanded = expandedStepIds.has(step.id);
-          const hasPayload = Boolean(step.inputPayload || step.outputPayload || step.error);
+          const hasPayload = Boolean(
+            step.inputPayload || step.outputPayload || step.error,
+          );
 
           return (
-            <div key={step.id} className="relative flex items-start gap-2.5">
+            <div key={step.id} className="gap-2.5 relative flex items-start">
               {/* Step indicator node */}
-              <div className="absolute -left-5 flex size-5 items-center justify-center rounded-full bg-surface border border-border shadow-xs">
+              <div className="-left-5 size-5 absolute flex items-center justify-center rounded-full border border-border bg-surface shadow-xs">
                 {getStepIcon(step.type, step.status)}
               </div>
 
               {/* Step Content */}
               <div
                 className={cn(
-                  'flex-1 rounded-md border border-border bg-surface-raised/50 p-2.5 transition-all',
+                  'p-2.5 flex-1 rounded-md border border-border bg-surface-raised/50 transition-all',
                   step.status === 'running' && 'border-brand/40 bg-brand/5',
-                  step.status === 'failed' && 'border-destructive/30 bg-destructive/5',
+                  step.status === 'failed' &&
+                    'border-destructive/30 bg-destructive/5',
                 )}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-foreground">{step.name}</span>
+                <div className="gap-2 flex items-center justify-between">
+                  <div className="gap-2 flex items-center">
+                    <span className="font-semibold text-foreground">
+                      {step.name}
+                    </span>
                     {step.toolName && (
-                      <span className="rounded-xs bg-surface px-1.5 py-0.2 font-mono text-[10px] text-muted-foreground border border-border">
+                      <span className="px-1.5 py-0.2 rounded-xs border border-border bg-surface font-mono text-2xs text-muted-foreground">
                         {step.toolName}
                       </span>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-1.5 font-mono text-[10px] text-subtle">
-                    {step.durationMs !== undefined && <span>{formatDuration(step.durationMs)}</span>}
-                    {step.tokensUsed !== undefined && <span>({step.tokensUsed}t)</span>}
+                  <div className="gap-1.5 flex items-center font-mono text-2xs text-subtle">
+                    {step.durationMs !== undefined && (
+                      <span>{formatDuration(step.durationMs)}</span>
+                    )}
+                    {step.tokensUsed !== undefined && (
+                      <span>({step.tokensUsed}t)</span>
+                    )}
                   </div>
                 </div>
 
                 {step.description && (
-                  <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
+                  <p className="mt-1 leading-relaxed text-meta text-muted-foreground">
                     {step.description}
                   </p>
                 )}
 
                 {step.error && (
-                  <div className="mt-1.5 rounded-sm bg-destructive/10 p-2 text-[11px] text-destructive-text font-mono">
+                  <div className="mt-1.5 p-2 rounded-sm bg-destructive/10 font-mono text-meta text-destructive-text">
                     {step.error}
                   </div>
                 )}
@@ -185,17 +207,25 @@ export function AIExecutionTimeline({
                     <button
                       type="button"
                       onClick={() => toggleExpand(step.id)}
-                      className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground font-medium outline-none"
+                      className="gap-1 font-medium flex items-center text-2xs text-muted-foreground outline-none hover:text-foreground"
                     >
-                      {isExpanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
-                      <span>{isExpanded ? 'Hide Payload' : 'View Payload & Result'}</span>
+                      {isExpanded ? (
+                        <ChevronDown className="size-3" />
+                      ) : (
+                        <ChevronRight className="size-3" />
+                      )}
+                      <span>
+                        {isExpanded ? 'Hide Payload' : 'View Payload & Result'}
+                      </span>
                     </button>
 
                     {isExpanded && (
                       <div className="mt-2 space-y-2">
                         {step.inputPayload && (
                           <div>
-                            <div className="text-[10px] font-bold uppercase text-subtle mb-0.5">Input:</div>
+                            <div className="font-bold mb-0.5 text-2xs text-subtle uppercase">
+                              Input:
+                            </div>
                             <CodeBlock
                               variant="compact"
                               language="json"
@@ -209,7 +239,9 @@ export function AIExecutionTimeline({
                         )}
                         {step.outputPayload && (
                           <div>
-                            <div className="text-[10px] font-bold uppercase text-subtle mb-0.5">Output:</div>
+                            <div className="font-bold mb-0.5 text-2xs text-subtle uppercase">
+                              Output:
+                            </div>
                             <CodeBlock
                               variant="compact"
                               language="json"

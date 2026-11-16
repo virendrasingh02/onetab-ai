@@ -182,7 +182,7 @@ export function ProjectSettingsView({
 
             {/* Live Preview Badge */}
             <div className="gap-2 px-3 py-1.5 flex items-center rounded-lg border border-border/80 bg-muted/60">
-              <span className="font-medium text-[11px] text-muted-foreground">
+              <span className="font-medium text-meta text-muted-foreground">
                 Next task:
               </span>
               <span className="text-xs font-bold px-2 py-0.5 rounded border border-brand/30 bg-brand/10 font-mono text-brand-text">
@@ -396,7 +396,7 @@ export function ProjectSettingsView({
               <span className="text-xs font-bold block text-foreground">
                 Delete this project
               </span>
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-meta text-muted-foreground">
                 Permanently delete all tasks, milestones, and cycles associated
                 with this project.
               </span>
@@ -564,7 +564,7 @@ function ProjectCoworkersCard({
                     <span className="text-xs font-medium block truncate">
                       {coworker.name}
                     </span>
-                    <span className="block truncate text-[10px] text-muted-foreground">
+                    <span className="block truncate text-2xs text-muted-foreground">
                       {coworker.role}
                     </span>
                   </span>
@@ -604,7 +604,7 @@ function ProjectCoworkersCard({
                     </span>
                     <CoworkerStatusDot status={link.coworker.status} />
                   </div>
-                  <span className="block truncate text-[10px] text-muted-foreground">
+                  <span className="block truncate text-2xs text-muted-foreground">
                     {link.coworker.role}
                   </span>
                 </div>

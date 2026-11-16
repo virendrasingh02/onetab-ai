@@ -406,7 +406,7 @@ export function WidgetStudioPanel({
           device={device}
           notice={
             originBlocked ? (
-              <div className="mx-5 mb-2.5 space-y-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+              <div className="mx-5 mb-2.5 space-y-1.5 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning-text">
                 <p>This Studio’s address isn’t in the allowed origins, so a preview session was refused, as it would be for any other site.</p>
                 <Button
                   type="button"

@@ -82,7 +82,7 @@ export function DropdownMenuItem({
             <div className="font-medium leading-snug text-xs flex items-center justify-between">
               {restChildren}
             </div>
-            <p className="font-normal leading-normal mt-0.5 pr-1 text-[11px] whitespace-normal text-muted-foreground">
+            <p className="font-normal leading-normal mt-0.5 pr-1 text-meta whitespace-normal text-muted-foreground">
               {description}
             </p>
           </div>
@@ -235,7 +235,10 @@ export function DropdownMenuShortcut({
 }: DropdownMenuShortcutProps) {
   if (keys) {
     return (
-      <span className={cn('pl-3 ml-auto inline-flex items-center', className)} {...props}>
+      <span
+        className={cn('pl-3 ml-auto inline-flex items-center', className)}
+        {...props}
+      >
         <KbdShortcut keys={keys} size="xs" variant="muted" />
       </span>
     );
@@ -244,7 +247,7 @@ export function DropdownMenuShortcut({
   return (
     <span
       className={cn(
-        'pl-3 font-normal tracking-wide ml-auto font-mono text-[10px] text-subtle inline-flex items-center gap-1',
+        'pl-3 font-normal tracking-wide gap-1 ml-auto inline-flex items-center font-mono text-2xs text-subtle',
         className,
       )}
       {...props}

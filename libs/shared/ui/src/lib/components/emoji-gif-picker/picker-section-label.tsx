@@ -19,7 +19,7 @@ export function PickerSectionLabel({
   return (
     <p
       className={cn(
-        'sticky top-0 z-10 -mx-3 flex items-center gap-1.5 bg-popover/95 px-3.5 pb-1.5 pt-2.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground backdrop-blur',
+        'top-0 -mx-3 gap-1.5 px-3.5 pb-1.5 pt-2.5 font-bold tracking-wider backdrop-blur sticky z-10 flex items-center bg-popover/95 text-meta text-muted-foreground uppercase',
         className,
       )}
     >

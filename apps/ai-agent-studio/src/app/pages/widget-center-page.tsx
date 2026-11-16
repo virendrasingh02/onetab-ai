@@ -171,15 +171,15 @@ export function WidgetCenterPage() {
   const getCategoryIcon = (category?: string) => {
     switch (category) {
       case 'DATA_VISUALIZATION':
-        return <BarChart3 className="size-4 text-indigo-400" />;
+        return <BarChart3 className="size-4 text-accent-indigo" />;
       case 'INTERACTIVE_INPUT':
         return <FormInput className="size-4 text-success-text" />;
       case 'AI_POWERED':
-        return <Sparkles className="size-4 text-purple-400" />;
+        return <Sparkles className="size-4 text-accent-violet" />;
       case 'APP_CONNECTOR':
-        return <Zap className="size-4 text-amber-400" />;
+        return <Zap className="size-4 text-warning-text" />;
       case 'PRODUCTIVITY':
-        return <ListTodo className="size-4 text-blue-400" />;
+        return <ListTodo className="size-4 text-accent-blue" />;
       default:
         return <LayoutDashboard className="size-4 text-primary" />;
     }
@@ -506,12 +506,12 @@ export function WidgetCenterPage() {
                       <TableCell className="p-3 font-sans font-medium text-foreground">
                         {ex.widget?.name || ex.widgetId}
                       </TableCell>
-                      <TableCell className="p-3 text-indigo-400">{ex.action}</TableCell>
+                      <TableCell className="p-3 text-accent-indigo">{ex.action}</TableCell>
                       <TableCell className="p-3">
                         <span
                           className={cn(
                             'px-1.5 py-0.5 rounded-md text-2xs font-semibold',
-                            ex.status === 'SUCCESS' ? 'bg-success/10 text-success-text' : 'bg-rose-500/10 text-rose-500'
+                            ex.status === 'SUCCESS' ? 'bg-success/10 text-success-text' : 'bg-destructive/10 text-destructive-text'
                           )}
                         >
                           {ex.status}

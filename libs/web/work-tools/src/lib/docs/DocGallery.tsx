@@ -310,7 +310,7 @@ export function DocGallery({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuLabel className="text-[11px]">
+              <DropdownMenuLabel className="text-meta">
                 Filter by category
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
@@ -360,7 +360,7 @@ export function DocGallery({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuLabel className="text-[11px]">
+              <DropdownMenuLabel className="text-meta">
                 Filter by status
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
@@ -553,7 +553,7 @@ export function DocGallery({
                               {doc.title || 'Untitled Document'}
                             </button>
                           </CardTitle>
-                          <CardDescription className="gap-1.5 mt-0.5 flex items-center truncate text-[11px] text-muted-foreground">
+                          <CardDescription className="gap-1.5 mt-0.5 flex items-center truncate text-meta text-muted-foreground">
                             <Folder className="size-3 text-muted-foreground" />
                             <span>{folderName}</span>
                             {projectName && (
@@ -595,7 +595,7 @@ export function DocGallery({
                       </p>
                     )}
 
-                    <div className="pt-2.5 flex items-center justify-between border-t border-border/60 text-[11px] text-muted-foreground">
+                    <div className="pt-2.5 flex items-center justify-between border-t border-border/60 text-meta text-muted-foreground">
                       <div className="gap-2 flex items-center truncate">
                         {doc.authorName && (
                           <>
@@ -611,11 +611,11 @@ export function DocGallery({
                       <div className="gap-2 flex shrink-0 items-center">
                         <Badge
                           variant="neutral"
-                          className="px-1.5 py-0 text-[10px]"
+                          className="px-1.5 py-0 text-2xs"
                         >
                           {doc.category}
                         </Badge>
-                        <span className="text-[10px] text-muted-foreground">
+                        <span className="text-2xs text-muted-foreground">
                           {readingMinutes(doc.blocks)}m read
                         </span>
                       </div>

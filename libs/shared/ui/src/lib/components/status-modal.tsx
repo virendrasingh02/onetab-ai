@@ -374,7 +374,7 @@ export function StatusModal({
                   {currentUser?.statusText}
                 </span>
                 {currentExpiry && (
-                  <span className="gap-1 flex shrink-0 items-center text-[10px] text-muted-foreground">
+                  <span className="gap-1 flex shrink-0 items-center text-2xs text-muted-foreground">
                     <Clock className="size-3" />
                     until {describeExpiry(currentExpiry)}
                   </span>
@@ -385,7 +385,7 @@ export function StatusModal({
                 size="sm"
                 onClick={handleClearStatus}
                 disabled={isSaving}
-                className="h-6 px-2 gap-1 text-[11px] text-muted-foreground hover:text-destructive"
+                className="h-6 px-2 gap-1 text-meta text-muted-foreground hover:text-destructive"
               >
                 <Trash2 className="size-3" />
                 Clear
@@ -400,7 +400,7 @@ export function StatusModal({
             >
               What's your status?
             </label>
-            <div className="gap-1 pl-1 pr-2 flex h-10 items-center rounded-input border border-input theme-fixed bg-field transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/30">
+            <div className="gap-1 pl-1 pr-2 h-10 theme-fixed flex items-center rounded-input border border-input bg-field transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/30">
               <Popover
                 open={isEmojiPickerOpen}
                 onOpenChange={setIsEmojiPickerOpen}
@@ -417,7 +417,7 @@ export function StatusModal({
                 </PopoverTrigger>
                 <PopoverContent
                   align="start"
-                  className="w-auto overflow-hidden p-0 border-border bg-popover shadow-overlay"
+                  className="p-0 w-auto overflow-hidden border-border bg-popover shadow-overlay"
                 >
                   <div className="w-80 max-w-[calc(100vw-1rem)]">
                     <EmojiPicker
@@ -443,13 +443,13 @@ export function StatusModal({
                 placeholder="In a meeting, working remotely…"
                 maxLength={MAX_STATUS_LENGTH}
                 autoFocus
-                className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-subtle"
+                className="min-w-0 text-sm flex-1 bg-transparent text-foreground outline-none placeholder:text-subtle"
               />
               {statusText && (
                 <>
                   <span
                     className={cn(
-                      'text-[10px] shrink-0 tabular-nums',
+                      'shrink-0 text-2xs tabular-nums',
                       statusText.length > MAX_STATUS_LENGTH - 15
                         ? 'text-warning'
                         : 'text-subtle',
@@ -471,7 +471,7 @@ export function StatusModal({
           </div>
 
           <div className="space-y-2">
-            <span className="font-medium tracking-wider text-[11px] text-subtle uppercase">
+            <span className="font-medium tracking-wider text-meta text-subtle uppercase">
               Suggestions
             </span>
             <div className="gap-1.5 flex flex-wrap">
@@ -528,13 +528,13 @@ export function StatusModal({
               />
             )}
             {customInvalid ? (
-              <p className="gap-1 text-[11px] flex items-center text-muted-foreground">
+              <p className="gap-1 flex items-center text-meta text-muted-foreground">
                 <CalendarClock className="size-3" />
                 Choose a time in the future.
               </p>
             ) : (
               expiryPreview && (
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-meta text-muted-foreground">
                   {expiryPreview}
                 </p>
               )
@@ -550,7 +550,7 @@ export function StatusModal({
                 <span className="font-medium text-foreground">
                   Pause notifications
                 </span>
-                <span className="block text-[11px] text-muted-foreground">
+                <span className="block text-meta text-muted-foreground">
                   Do Not Disturb — you'll show as busy until you turn it off.
                 </span>
               </span>
@@ -567,17 +567,17 @@ export function StatusModal({
                   closeStatusModal();
                   onManageSchedules();
                 }}
-                className="gap-2.5 px-3 py-2.5 text-left text-xs transition-colors hover:bg-accent/50 flex w-full items-center justify-between"
+                className="gap-2.5 px-3 py-2.5 text-xs flex w-full items-center justify-between text-left transition-colors hover:bg-accent/50"
               >
                 <span>
                   <span className="font-medium text-foreground">
                     Scheduled statuses
                   </span>
-                  <span className="block text-[11px] text-muted-foreground">
+                  <span className="block text-meta text-muted-foreground">
                     Set your status automatically on a schedule
                   </span>
                 </span>
-                <span className="text-[11px] font-medium text-primary">
+                <span className="font-medium text-meta text-primary">
                   Manage
                 </span>
               </button>

@@ -1,9 +1,18 @@
-import type { AIExecutionStatus, AIExecutionStep as RecordedStep } from '@org/types';
+import type {
+  AIExecutionStatus,
+  AIExecutionStep as RecordedStep,
+} from '@org/types';
 import { cn } from '@org/utils';
-import type { AIExecutionStep, AIExecutionStepType } from './ai-execution-timeline.js';
+import type {
+  AIExecutionStep,
+  AIExecutionStepType,
+} from './ai-execution-timeline.js';
 import { Badge, type BadgeProps } from './badge.js';
 
-const STATUS: Record<AIExecutionStatus, { label: string; variant: BadgeProps['variant'] }> = {
+const STATUS: Record<
+  AIExecutionStatus,
+  { label: string; variant: BadgeProps['variant'] }
+> = {
   RUNNING: { label: 'Running', variant: 'primary' },
   COMPLETED: { label: 'Completed', variant: 'success' },
   FAILED: { label: 'Failed', variant: 'destructive' },
@@ -26,7 +35,10 @@ export function AIRunStatusBadge({
 }) {
   const known = STATUS[status as AIExecutionStatus];
   return (
-    <Badge variant={known?.variant ?? 'neutral'} className={cn('text-[10px]', className)}>
+    <Badge
+      variant={known?.variant ?? 'neutral'}
+      className={cn('text-2xs', className)}
+    >
       {known?.label ?? status}
     </Badge>
   );
@@ -62,11 +74,16 @@ const STEP_TYPE: Record<string, AIExecutionStepType> = {
 };
 
 /** Recorded run steps (`AIExecutionStep` rows) as the timeline renders them. */
-export function toTimelineSteps(steps: readonly RecordedStep[] | undefined): AIExecutionStep[] {
+export function toTimelineSteps(
+  steps: readonly RecordedStep[] | undefined,
+): AIExecutionStep[] {
   return (steps ?? []).map((step) => ({
     id: step.id,
     name: step.stepId,
-    type: step.status === 'FAILED' ? 'failed' : (STEP_TYPE[step.nodeType] ?? 'tool_call'),
+    type:
+      step.status === 'FAILED'
+        ? 'failed'
+        : (STEP_TYPE[step.nodeType] ?? 'tool_call'),
     status:
       step.status === 'SUCCESS'
         ? 'completed'

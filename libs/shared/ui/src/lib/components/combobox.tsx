@@ -30,8 +30,10 @@ export interface ComboboxGroup {
   options: ComboboxOption[];
 }
 
-export interface ComboboxProps
-  extends Omit<ComponentPropsWithoutRef<'div'>, 'value' | 'defaultValue' | 'onChange'> {
+export interface ComboboxProps extends Omit<
+  ComponentPropsWithoutRef<'div'>,
+  'value' | 'defaultValue' | 'onChange'
+> {
   options: ComboboxOption[];
   value?: string | string[];
   defaultValue?: string | string[];
@@ -96,9 +98,9 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
     const comboboxId = customId || generatedId;
     const listboxId = `${comboboxId}-listbox`;
 
-    const [uncontrolledValue, setUncontrolledValue] = useState<string | string[]>(
-      defaultValue || (multiple ? [] : ''),
-    );
+    const [uncontrolledValue, setUncontrolledValue] = useState<
+      string | string[]
+    >(defaultValue || (multiple ? [] : ''));
     const [isOpen, setIsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
@@ -175,7 +177,10 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
         const highlightedEl = listboxRef.current.querySelector(
           `[data-option-index="${highlightedIndex}"]`,
         ) as HTMLElement | null;
-        if (highlightedEl && typeof highlightedEl.scrollIntoView === 'function') {
+        if (
+          highlightedEl &&
+          typeof highlightedEl.scrollIntoView === 'function'
+        ) {
           highlightedEl.scrollIntoView({ block: 'nearest' });
         }
       }
@@ -194,7 +199,9 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
     const handleSelect = (val: string) => {
       if (multiple) {
         const arr = Array.isArray(value) ? value : [];
-        const next = arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val];
+        const next = arr.includes(val)
+          ? arr.filter((v) => v !== val)
+          : [...arr, val];
         if (!isControlled) setUncontrolledValue(next);
         onChange?.(next);
       } else {
@@ -274,7 +281,12 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
     // Trigger keyboard handler (when popover is closed)
     const handleTriggerKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
       if (disabled) return;
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === ' ' || e.key === 'Enter') {
+      if (
+        e.key === 'ArrowDown' ||
+        e.key === 'ArrowUp' ||
+        e.key === ' ' ||
+        e.key === 'Enter'
+      ) {
         e.preventDefault();
         setIsOpen(true);
       }
@@ -312,27 +324,30 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
           onClick={() => !opt.disabled && handleSelect(opt.value)}
           onMouseEnter={() => setHighlightedIndex(index)}
           className={cn(
-            'group relative flex w-full cursor-pointer select-none items-center rounded-btn px-2 py-1.5 text-xs outline-none transition-colors duration-(--duration-fast) ease-standard text-left',
+            'group px-2 py-1.5 text-xs relative flex w-full cursor-pointer items-center rounded-btn text-left transition-colors duration-(--duration-fast) ease-standard outline-none select-none',
             isHighlighted && 'bg-accent text-accent-foreground',
             checked && 'font-medium',
-            opt.disabled && 'pointer-events-none opacity-40 cursor-not-allowed',
+            opt.disabled && 'pointer-events-none cursor-not-allowed opacity-40',
           )}
         >
           {opt.icon && (
-            <span className="mr-2 size-4 shrink-0 text-muted-foreground [&_svg]:size-4 flex items-center justify-center">
+            <span className="mr-2 size-4 [&_svg]:size-4 flex shrink-0 items-center justify-center text-muted-foreground">
               {opt.icon}
             </span>
           )}
-          <div className="flex-1 min-w-0 pr-2">
-            <div className="truncate font-medium">{opt.label}</div>
+          <div className="min-w-0 pr-2 flex-1">
+            <div className="font-medium truncate">{opt.label}</div>
             {opt.description && (
-              <div className="text-[11px] text-muted-foreground truncate leading-normal">
+              <div className="leading-normal truncate text-meta text-muted-foreground">
                 {opt.description}
               </div>
             )}
           </div>
           {checked && (
-            <Check className="size-3.5 text-brand-text shrink-0 ml-auto" aria-hidden="true" />
+            <Check
+              className="size-3.5 ml-auto shrink-0 text-brand-text"
+              aria-hidden="true"
+            />
           )}
         </button>
       );
@@ -364,22 +379,29 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
               disabled={disabled}
               onKeyDown={handleTriggerKeyDown}
               className={cn(
-                'flex min-h-8 w-full items-center justify-between gap-1.5 rounded-input border border-input theme-fixed bg-field px-2.5 py-1 text-xs text-foreground cursor-pointer',
-                'transition-colors duration-(--duration-fast) ease-standard outline-none text-left',
+                'min-h-8 gap-1.5 theme-fixed px-2.5 py-1 text-xs flex w-full cursor-pointer items-center justify-between rounded-input border border-input bg-field text-foreground',
+                'text-left transition-colors duration-(--duration-fast) ease-standard outline-none',
                 'hover:border-field-border focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25',
-                disabled && 'pointer-events-none opacity-50 bg-surface-muted cursor-not-allowed',
+                disabled &&
+                  'pointer-events-none cursor-not-allowed bg-surface-muted opacity-50',
               )}
             >
-              <div className="flex flex-wrap items-center gap-1 overflow-hidden flex-1 min-w-0">
-                {multiple && Array.isArray(selectedOptions) && selectedOptions.length > 0 ? (
+              <div className="gap-1 min-w-0 flex flex-1 flex-wrap items-center overflow-hidden">
+                {multiple &&
+                Array.isArray(selectedOptions) &&
+                selectedOptions.length > 0 ? (
                   <>
                     {selectedOptions.slice(0, maxSelectedBadges).map((opt) => (
                       <Badge
                         key={opt.value}
                         variant="secondary"
-                        className="h-5 px-1.5 text-[11px] font-normal gap-1 max-w-[140px] truncate"
+                        className="h-5 px-1.5 font-normal gap-1 max-w-[140px] truncate text-meta"
                       >
-                        {opt.icon && <span className="shrink-0 [&_svg]:size-3">{opt.icon}</span>}
+                        {opt.icon && (
+                          <span className="[&_svg]:size-3 shrink-0">
+                            {opt.icon}
+                          </span>
+                        )}
                         <span className="truncate">{opt.label}</span>
                         {!disabled && (
                           <span
@@ -389,10 +411,13 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
                             onClick={(e) => handleRemoveBadge(e, opt.value)}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter' || e.key === ' ') {
-                                handleRemoveBadge(e as unknown as React.MouseEvent, opt.value);
+                                handleRemoveBadge(
+                                  e as unknown as React.MouseEvent,
+                                  opt.value,
+                                );
                               }
                             }}
-                            className="rounded-full hover:bg-foreground/10 text-muted-foreground hover:text-foreground cursor-pointer"
+                            className="cursor-pointer rounded-full text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
                           >
                             <X className="size-3" />
                           </span>
@@ -400,26 +425,33 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
                       </Badge>
                     ))}
                     {selectedOptions.length > maxSelectedBadges && (
-                      <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal">
+                      <Badge
+                        variant="outline"
+                        className="h-5 px-1.5 font-normal text-2xs"
+                      >
                         +{selectedOptions.length - maxSelectedBadges} more
                       </Badge>
                     )}
                   </>
-                ) : !multiple && selectedOptions && !Array.isArray(selectedOptions) ? (
-                  <div className="flex items-center gap-1.5 truncate">
+                ) : !multiple &&
+                  selectedOptions &&
+                  !Array.isArray(selectedOptions) ? (
+                  <div className="gap-1.5 flex items-center truncate">
                     {selectedOptions.icon && (
-                      <span className="shrink-0 text-muted-foreground [&_svg]:size-3.5">
+                      <span className="[&_svg]:size-3.5 shrink-0 text-muted-foreground">
                         {selectedOptions.icon}
                       </span>
                     )}
                     <span className="truncate">{selectedOptions.label}</span>
                   </div>
                 ) : (
-                  <span className="text-subtle select-none truncate">{placeholder}</span>
+                  <span className="truncate text-subtle select-none">
+                    {placeholder}
+                  </span>
                 )}
               </div>
 
-              <div className="flex items-center gap-1 shrink-0 ml-1">
+              <div className="gap-1 ml-1 flex shrink-0 items-center">
                 {clearable && hasSelection && !disabled && (
                   <span
                     role="button"
@@ -431,12 +463,15 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
                         handleClearAll(e as unknown as React.MouseEvent);
                       }
                     }}
-                    className="p-0.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer transition-colors"
+                    className="p-0.5 cursor-pointer rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   >
                     <X className="size-3" />
                   </span>
                 )}
-                <ChevronsUpDown className="size-3.5 text-muted-foreground" aria-hidden="true" />
+                <ChevronsUpDown
+                  className="size-3.5 text-muted-foreground"
+                  aria-hidden="true"
+                />
               </div>
             </button>
           </PopoverPrimitive.Trigger>
@@ -454,14 +489,17 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
                     : popoverWidth,
               }}
               className={cn(
-                'z-50 min-w-44 rounded-popup border border-border bg-popover p-1 shadow-overlay text-popover-foreground outline-none',
+                'min-w-44 p-1 z-50 rounded-popup border border-border bg-popover text-popover-foreground shadow-overlay outline-none',
                 'max-h-(--radix-popover-content-available-height) max-w-[calc(100vw-1rem)]',
                 popoverClassName,
               )}
             >
               {/* Search box */}
-              <div className="flex items-center border-b border-border px-2 pb-1.5 pt-1 gap-1.5">
-                <Search className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <div className="px-2 pb-1.5 pt-1 gap-1.5 flex items-center border-b border-border">
+                <Search
+                  className="size-3.5 shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
                 <input
                   ref={searchInputRef}
                   type="text"
@@ -472,16 +510,18 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
                   aria-autocomplete="list"
                   aria-controls={listboxId}
                   aria-activedescendant={
-                    highlightedIndex >= 0 ? `${comboboxId}-opt-${highlightedIndex}` : undefined
+                    highlightedIndex >= 0
+                      ? `${comboboxId}-opt-${highlightedIndex}`
+                      : undefined
                   }
-                  className="flex h-6 w-full rounded-none bg-transparent text-xs text-foreground placeholder:text-subtle outline-none"
+                  className="h-6 text-xs flex w-full rounded-none bg-transparent text-foreground outline-none placeholder:text-subtle"
                 />
                 {searchQuery && (
                   <button
                     type="button"
                     aria-label="Clear search"
                     onClick={() => setSearchQuery('')}
-                    className="text-muted-foreground hover:text-foreground p-0.5 rounded-full"
+                    className="p-0.5 rounded-full text-muted-foreground hover:text-foreground"
                   >
                     <X className="size-3" />
                   </button>
@@ -494,10 +534,10 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
                 id={listboxId}
                 role="listbox"
                 aria-label="Options"
-                className="max-h-60 overflow-y-auto py-1 overscroll-contain scrollbar-subtle"
+                className="max-h-60 py-1 scrollbar-subtle overflow-y-auto overscroll-contain"
               >
                 {loading ? (
-                  <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">
+                  <div className="gap-2 py-6 text-xs flex items-center justify-center text-muted-foreground">
                     <Loader2 className="size-3.5 animate-spin text-brand-text" />
                     <span>{loadingText}</span>
                   </div>
@@ -505,13 +545,13 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
                   emptySlot ? (
                     emptySlot
                   ) : (
-                    <div className="py-4 px-2 text-center text-xs text-subtle">
+                    <div className="py-4 px-2 text-xs text-center text-subtle">
                       <p>{emptyText}</p>
                       {allowCreate && searchQuery.trim() && (
                         <button
                           type="button"
                           onClick={handleCreate}
-                          className="mt-2 inline-flex items-center gap-1 text-xs text-brand-text font-medium hover:underline cursor-pointer"
+                          className="mt-2 gap-1 text-xs font-medium inline-flex cursor-pointer items-center text-brand-text hover:underline"
                         >
                           <Plus className="size-3.5" />
                           <span>Create &ldquo;{searchQuery}&rdquo;</span>
@@ -520,19 +560,23 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
                     </div>
                   )
                 ) : groupedOptions ? (
-                  Object.entries(groupedOptions).map(([groupName, groupOpts]) => (
-                    <div key={groupName} className="mb-1 last:mb-0">
-                      <div className="px-2 py-1 text-[10px] font-semibold text-subtle uppercase tracking-wider">
-                        {groupName}
+                  Object.entries(groupedOptions).map(
+                    ([groupName, groupOpts]) => (
+                      <div key={groupName} className="mb-1 last:mb-0">
+                        <div className="px-2 py-1 font-semibold tracking-wider text-2xs text-subtle uppercase">
+                          {groupName}
+                        </div>
+                        {groupOpts.map((opt) => {
+                          const globalIndex = filteredOptions.indexOf(opt);
+                          return renderOptionItem(opt, globalIndex);
+                        })}
                       </div>
-                      {groupOpts.map((opt) => {
-                        const globalIndex = filteredOptions.indexOf(opt);
-                        return renderOptionItem(opt, globalIndex);
-                      })}
-                    </div>
-                  ))
+                    ),
+                  )
                 ) : (
-                  filteredOptions.map((opt, index) => renderOptionItem(opt, index))
+                  filteredOptions.map((opt, index) =>
+                    renderOptionItem(opt, index),
+                  )
                 )}
               </div>
             </PopoverPrimitive.Content>

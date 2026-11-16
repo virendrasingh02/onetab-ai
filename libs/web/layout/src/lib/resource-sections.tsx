@@ -128,9 +128,9 @@ const TRIGGER_LABEL: Record<string, string> = {
 
 const TILE_SIZE = {
   /** Sidebar rows. */
-  md: { box: 'size-6 rounded-full text-[10px]', glyph: 'size-3.5' },
+  md: { box: 'size-6 rounded-full text-2xs', glyph: 'size-3.5' },
   /** Compact lists (the Inactive dropdown). */
-  sm: { box: 'size-4 rounded-full text-[8px]', glyph: 'size-2.5' },
+  sm: { box: 'size-4 rounded-full text-3xs', glyph: 'size-2.5' },
 } as const;
 
 const TILE_TONE = {

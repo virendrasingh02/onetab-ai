@@ -347,7 +347,7 @@ export function CallModal() {
               {state === 'ringing' ? 'Ringing…' : 'Connecting…'}
             </Badge>
           </div>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-meta text-muted-foreground">
             {isVideo ? 'Video call' : 'Voice call'}
           </p>
         </div>
@@ -383,12 +383,12 @@ export function CallModal() {
             <span className="text-xs font-semibold text-foreground truncate max-w-[120px]">
               {peer.name}
             </span>
-            <span className="font-mono text-[11px] font-semibold text-success-text tabular-nums">
+            <span className="font-mono text-meta font-semibold text-success-text tabular-nums">
               {formatDuration(duration)}
             </span>
           </div>
           <p
-            className={cn('text-[10px] flex items-center gap-1', QUALITY_TONE[connectionQuality])}
+            className={cn('text-2xs flex items-center gap-1', QUALITY_TONE[connectionQuality])}
           >
             <Signal className="size-2.5" />
             <span>{qualityLabel}</span>
@@ -494,9 +494,9 @@ export function CallModal() {
                   isSpeaking ? 'animate-ping' : 'animate-pulse',
                 )}
               />
-              <span className="font-mono text-[11px] tabular-nums">{formatDuration(duration)}</span>
-              <span className="text-white/40 text-[10px]">·</span>
-              <span className="text-[10px] text-white/70">{qualityLabel}</span>
+              <span className="font-mono text-meta tabular-nums">{formatDuration(duration)}</span>
+              <span className="text-white/40 text-2xs">·</span>
+              <span className="text-2xs text-white/70">{qualityLabel}</span>
             </div>
 
             <div className="absolute top-3 right-32">
@@ -523,7 +523,7 @@ export function CallModal() {
               />
               <div className="min-w-0">
                 <h4 className="text-xs font-semibold text-foreground truncate">{peer.name}</h4>
-                <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                <div className="flex items-center gap-2 text-meta text-muted-foreground">
                   <span className="font-mono tabular-nums">{formatDuration(duration)}</span>
                   <span>·</span>
                   <span className={QUALITY_TONE[connectionQuality]}>{qualityLabel}</span>
@@ -600,7 +600,7 @@ export function CallModal() {
             <DropdownMenuContent align="center" side="top" className="w-64 max-h-72 overflow-y-auto">
               {audioInputDevices.length > 0 && (
                 <>
-                  <DropdownMenuLabel className="text-[11px] text-muted-foreground uppercase flex items-center gap-1.5">
+                  <DropdownMenuLabel className="text-meta text-muted-foreground uppercase flex items-center gap-1.5">
                     <Mic className="size-3" /> Microphone
                   </DropdownMenuLabel>
                   {audioInputDevices.map((d) => (
@@ -621,7 +621,7 @@ export function CallModal() {
               {videoInputDevices.length > 0 && isVideo && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-[11px] text-muted-foreground uppercase flex items-center gap-1.5">
+                  <DropdownMenuLabel className="text-meta text-muted-foreground uppercase flex items-center gap-1.5">
                     <Video className="size-3" /> Camera
                   </DropdownMenuLabel>
                   {videoInputDevices.map((d) => (
@@ -642,7 +642,7 @@ export function CallModal() {
               {audioOutputDevices.length > 0 && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-[11px] text-muted-foreground uppercase flex items-center gap-1.5">
+                  <DropdownMenuLabel className="text-meta text-muted-foreground uppercase flex items-center gap-1.5">
                     <Volume2 className="size-3" /> Speaker
                   </DropdownMenuLabel>
                   {audioOutputDevices.map((d) => (

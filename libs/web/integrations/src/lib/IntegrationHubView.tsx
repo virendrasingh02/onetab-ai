@@ -154,7 +154,7 @@ export function IntegrationAppIcon({ id, name }: { id: string; name: string }) {
     case 'zoom':
       return (
         <div className="size-5 text-white font-bold text-xs flex items-center justify-center rounded-full bg-[#2D8CFF]">
-          <span className="font-black text-white font-sans text-[11px] leading-none">
+          <span className="font-black text-white font-sans text-meta leading-none">
             Z
           </span>
         </div>
@@ -224,7 +224,7 @@ export function IntegrationAppIcon({ id, name }: { id: string; name: string }) {
     case 'linear':
       return (
         <div className="size-5 flex shrink-0 items-center justify-center rounded-full bg-[#5E6AD2]">
-          <span className="font-black text-white text-[11px] leading-none">
+          <span className="font-black text-white text-meta leading-none">
             L
           </span>
         </div>
@@ -233,7 +233,7 @@ export function IntegrationAppIcon({ id, name }: { id: string; name: string }) {
     case 'notion':
       return (
         <div className="size-5 bg-white flex shrink-0 items-center justify-center rounded-md border border-border">
-          <span className="font-black text-black text-[11px] leading-none">
+          <span className="font-black text-black text-meta leading-none">
             N
           </span>
         </div>
@@ -267,7 +267,7 @@ export function IntegrationAppIcon({ id, name }: { id: string; name: string }) {
       return (
         <span
           aria-hidden
-          className="size-5 text-[11px] font-bold flex shrink-0 items-center justify-center rounded-md border border-border bg-surface-raised text-muted-foreground"
+          className="size-5 text-meta font-bold flex shrink-0 items-center justify-center rounded-md border border-border bg-surface-raised text-muted-foreground"
         >
           {name.charAt(0).toUpperCase()}
         </span>

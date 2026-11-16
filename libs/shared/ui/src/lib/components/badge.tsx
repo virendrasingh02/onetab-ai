@@ -14,7 +14,7 @@ import type { ComponentProps } from 'react';
 const badgeVariants = cva(
   [
     'theme-fixed gap-1 inline-flex w-fit shrink-0 items-center justify-center',
-    'px-1.5 py-0.5 font-medium tracking-tight rounded-sm border text-[11px] whitespace-nowrap',
+    'px-1.5 py-0.5 font-medium tracking-tight rounded-sm border text-meta whitespace-nowrap',
     "[&_svg:not([class*='size-'])]:size-3 [&_svg]:pointer-events-none",
   ],
   {
@@ -31,7 +31,7 @@ const badgeVariants = cva(
         info: 'border-info/25 bg-info/10 text-info-text',
         outline: 'border-border-strong bg-transparent text-foreground',
         count:
-          'min-w-4 px-1 rounded-[4px] border-transparent bg-destructive font-mono text-[10px] text-destructive-foreground tabular-nums',
+          'min-w-4 px-1 rounded-xs border-transparent bg-destructive font-mono text-2xs text-destructive-foreground tabular-nums',
       },
     },
     defaultVariants: { variant: 'neutral' },

@@ -1006,9 +1006,7 @@ export function WorkspaceSettingsPage({
                 description={
                   <>
                     Strings like{' '}
-                    <code className="px-1 rounded bg-muted text-[10px]">
-                      :)
-                    </code>{' '}
+                    <code className="px-1 rounded bg-muted text-2xs">:)</code>{' '}
                     will be converted to 😄
                   </>
                 }
@@ -1222,7 +1220,7 @@ export function WorkspaceSettingsPage({
                         <p className="text-xs text-muted-foreground">
                           {user.email}
                         </p>
-                        <span className="px-2.5 py-0.5 font-semibold inline-block rounded-full bg-brand/10 text-[10px] text-brand-text">
+                        <span className="px-2.5 py-0.5 font-semibold inline-block rounded-full bg-brand/10 text-2xs text-brand-text">
                           {workspace.role}
                         </span>
                       </div>
@@ -1255,7 +1253,7 @@ export function WorkspaceSettingsPage({
                             {user.statusText}
                           </span>
                           {user.statusExpiresAt && (
-                            <span className="gap-1 mt-0.5 flex items-center text-[11px] text-muted-foreground">
+                            <span className="gap-1 mt-0.5 flex items-center text-meta text-muted-foreground">
                               <Clock className="size-3" />
                               Clears{' '}
                               {new Date(
@@ -1414,7 +1412,7 @@ export function WorkspaceSettingsPage({
                                 </Button>
                               ) : null}
                             </div>
-                            <FormDescription className="mt-1 text-[11px] text-muted-foreground">
+                            <FormDescription className="mt-1 text-meta text-muted-foreground">
                               Upload an image file or paste an image URL. If
                               removed, fallback displays single letter initial
                               &quot;
@@ -1532,13 +1530,13 @@ export function WorkspaceSettingsPage({
                 description={<>Managed in Permissions & Policies.</>}
               >
                 <div className="gap-2 flex items-center">
-                  <Badge variant="neutral" className="text-[10px]">
+                  <Badge variant="neutral" className="text-2xs">
                     {policySubjectLabel(policiesQuery.data?.whoCanCreateAgents)}
                   </Badge>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 px-2.5 text-[11px]"
+                    className="h-7 px-2.5 text-meta"
                     onClick={() => handleTabChange('permissions')}
                   >
                     Manage
@@ -1551,7 +1549,7 @@ export function WorkspaceSettingsPage({
                 description={<>Managed in Permissions & Policies.</>}
               >
                 <div className="gap-2 flex items-center">
-                  <Badge variant="neutral" className="text-[10px]">
+                  <Badge variant="neutral" className="text-2xs">
                     {policySubjectLabel(
                       policiesQuery.data?.whoCanCreateCoworkers,
                     )}
@@ -1559,7 +1557,7 @@ export function WorkspaceSettingsPage({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 px-2.5 text-[11px]"
+                    className="h-7 px-2.5 text-meta"
                     onClick={() => handleTabChange('permissions')}
                   >
                     Manage
@@ -1583,7 +1581,7 @@ export function WorkspaceSettingsPage({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 px-2.5 text-[11px]"
+                  className="h-7 px-2.5 text-meta"
                   onClick={() =>
                     workspaceSlug && navigate(`/w/${workspaceSlug}/ai/agents`)
                   }
@@ -1601,7 +1599,7 @@ export function WorkspaceSettingsPage({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 px-2.5 text-[11px]"
+                  className="h-7 px-2.5 text-meta"
                   onClick={() =>
                     workspaceSlug &&
                     navigate(`/w/${workspaceSlug}/ai/coworkers`)
@@ -1620,7 +1618,7 @@ export function WorkspaceSettingsPage({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 px-2.5 text-[11px]"
+                  className="h-7 px-2.5 text-meta"
                   onClick={() => handleTabChange('ai-providers')}
                 >
                   Open AI Providers
@@ -1657,7 +1655,7 @@ export function WorkspaceSettingsPage({
               <Button
                 variant="primary"
                 size="sm"
-                className="h-7 px-2.5 text-[11px]"
+                className="h-7 px-2.5 text-meta"
                 onClick={() =>
                   workspaceSlug && navigate(`/w/${workspaceSlug}/marketplace`)
                 }
@@ -1674,7 +1672,7 @@ export function WorkspaceSettingsPage({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 px-2.5 text-[11px]"
+                  className="h-7 px-2.5 text-meta"
                   onClick={() =>
                     workspaceSlug && navigate(`/w/${workspaceSlug}/ai/agents`)
                   }
@@ -1684,7 +1682,7 @@ export function WorkspaceSettingsPage({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 px-2.5 text-[11px]"
+                  className="h-7 px-2.5 text-meta"
                   onClick={() =>
                     workspaceSlug &&
                     navigate(`/w/${workspaceSlug}/ai/coworkers`)
@@ -1761,7 +1759,7 @@ export function WorkspaceSettingsPage({
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="h-7 gap-2 px-2.5 justify-between text-[11px]"
+                      className="h-7 gap-2 px-2.5 justify-between text-meta"
                       onClick={() => {
                         void navigator.clipboard?.writeText(value).then(
                           () => toast.success(`${label} copied`),
@@ -1881,7 +1879,7 @@ export function WorkspaceSettingsPage({
               description={<>Configured in Permissions & Policies.</>}
             >
               <div className="gap-2 flex items-center">
-                <Badge variant="neutral" className="text-[10px]">
+                <Badge variant="neutral" className="text-2xs">
                   {policiesQuery.data?.autoArchiveInactiveDays == null
                     ? 'Never'
                     : `${policiesQuery.data.autoArchiveInactiveDays} days`}
@@ -1889,7 +1887,7 @@ export function WorkspaceSettingsPage({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 px-2.5 text-[11px]"
+                  className="h-7 px-2.5 text-meta"
                   onClick={() => handleTabChange('permissions')}
                 >
                   Manage
@@ -1904,7 +1902,7 @@ export function WorkspaceSettingsPage({
               <Button
                 variant="outline"
                 size="sm"
-                className="h-7 px-2.5 text-[11px]"
+                className="h-7 px-2.5 text-meta"
                 onClick={() => handleTabChange('permissions')}
               >
                 Open Permissions & Policies
@@ -2174,7 +2172,7 @@ export function WorkspaceSettingsPage({
               <Button
                 variant="primary"
                 size="sm"
-                className="h-7 px-2.5 text-[11px]"
+                className="h-7 px-2.5 text-meta"
                 onClick={() =>
                   workspaceSlug && navigate(`/w/${workspaceSlug}/integrations`)
                 }
@@ -2188,13 +2186,13 @@ export function WorkspaceSettingsPage({
               description={<>Configured in Permissions & Policies.</>}
             >
               <div className="gap-2 flex items-center">
-                <Badge variant="neutral" className="text-[10px]">
+                <Badge variant="neutral" className="text-2xs">
                   {policySubjectLabel(policiesQuery.data?.whoCanInstallApps)}
                 </Badge>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 px-2.5 text-[11px]"
+                  className="h-7 px-2.5 text-meta"
                   onClick={() => handleTabChange('permissions')}
                 >
                   Manage
@@ -2517,7 +2515,7 @@ export function WorkspaceSettingsPage({
                         variant="ghost"
                         size="sm"
                         onClick={handleCopySlugUrl}
-                        className="h-6 px-2 gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                        className="h-6 px-2 gap-1 text-meta text-muted-foreground hover:text-foreground"
                       >
                         {copiedSlug ? (
                           <>
@@ -2550,7 +2548,7 @@ export function WorkspaceSettingsPage({
                             className="h-9 text-xs"
                           />
                         </FormControl>
-                        <FormDescription className="text-[11px]">
+                        <FormDescription className="text-meta">
                           Contact address displayed to invited members and
                           helpdesk notifications.
                         </FormDescription>
@@ -2635,7 +2633,7 @@ export function WorkspaceSettingsPage({
                             </SelectItem>
                           </SelectContent>
                         </Select>
-                        <FormDescription className="text-[11px]">
+                        <FormDescription className="text-meta">
                           The initial view members see upon switching to or
                           opening this workspace.
                         </FormDescription>
@@ -2653,7 +2651,7 @@ export function WorkspaceSettingsPage({
                             <FormLabel className="text-xs font-medium cursor-pointer">
                               External Public Sharing
                             </FormLabel>
-                            <FormDescription className="text-[11px]">
+                            <FormDescription className="text-meta">
                               Allow members to create view-only public links for
                               documents, canvases, and roadmaps.
                             </FormDescription>
@@ -2678,7 +2676,7 @@ export function WorkspaceSettingsPage({
                             <FormLabel className="text-xs font-medium cursor-pointer">
                               AI Project Recaps & Activity Digest
                             </FormLabel>
-                            <FormDescription className="text-[11px]">
+                            <FormDescription className="text-meta">
                               Automatically generate weekly AI project progress
                               digests and action item summaries.
                             </FormDescription>
@@ -2866,7 +2864,7 @@ export function WorkspaceSettingsPage({
                     <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                       Security checkup
                     </h3>
-                    <p className="mt-1 text-[11px] text-muted-foreground">
+                    <p className="mt-1 text-meta text-muted-foreground">
                       {allGood
                         ? 'Your account is well protected.'
                         : `${passed} of ${checks.length} protections in place.`}
@@ -2962,7 +2960,7 @@ export function WorkspaceSettingsPage({
                       <Badge
                         variant="outline"
                         className={cn(
-                          'font-medium text-[10px]',
+                          'font-medium text-2xs',
                           securityOverviewQuery.data?.password.hasPassword
                             ? 'border-success/20 bg-success/10 text-success-text'
                             : 'border-border bg-muted/40 text-muted-foreground',
@@ -2973,7 +2971,7 @@ export function WorkspaceSettingsPage({
                           : 'No password set'}
                       </Badge>
                     </div>
-                    <p className="mt-1 max-w-lg text-[11px] text-muted-foreground">
+                    <p className="mt-1 max-w-lg text-meta text-muted-foreground">
                       Sign in using your work email address and secure password.
                     </p>
                   </div>
@@ -3027,7 +3025,7 @@ export function WorkspaceSettingsPage({
                       <Badge
                         variant="outline"
                         className={cn(
-                          'font-medium text-[10px]',
+                          'font-medium text-2xs',
                           securityOverviewQuery.data?.socialProviders?.google
                             .isConnected
                             ? 'border-success/20 bg-success/10 text-success-text'
@@ -3040,7 +3038,7 @@ export function WorkspaceSettingsPage({
                           : 'Not connected'}
                       </Badge>
                     </div>
-                    <p className="mt-1 max-w-lg text-[11px] text-muted-foreground">
+                    <p className="mt-1 max-w-lg text-meta text-muted-foreground">
                       {securityOverviewQuery.data?.socialProviders?.google
                         .isConnected
                         ? `Connected with ${securityOverviewQuery.data.socialProviders.google.email || 'Google account'}.`
@@ -3094,7 +3092,7 @@ export function WorkspaceSettingsPage({
                       <Badge
                         variant="outline"
                         className={cn(
-                          'font-medium text-[10px]',
+                          'font-medium text-2xs',
                           securityOverviewQuery.data?.socialProviders?.apple
                             .isConnected
                             ? 'border-success/20 bg-success/10 text-success-text'
@@ -3107,7 +3105,7 @@ export function WorkspaceSettingsPage({
                           : 'Not connected'}
                       </Badge>
                     </div>
-                    <p className="mt-1 max-w-lg text-[11px] text-muted-foreground">
+                    <p className="mt-1 max-w-lg text-meta text-muted-foreground">
                       {securityOverviewQuery.data?.socialProviders?.apple
                         .isConnected
                         ? `Connected with ${securityOverviewQuery.data.socialProviders.apple.email || 'Apple ID'}.`
@@ -3163,7 +3161,7 @@ export function WorkspaceSettingsPage({
                       <Badge
                         variant="outline"
                         className={cn(
-                          'font-medium text-[10px]',
+                          'font-medium text-2xs',
                           securityOverviewQuery.data?.twoFactor.isEnabled
                             ? 'border-success/20 bg-success/10 text-success-text'
                             : 'border-border bg-muted/40 text-muted-foreground',
@@ -3174,7 +3172,7 @@ export function WorkspaceSettingsPage({
                           : 'Not configured'}
                       </Badge>
                     </div>
-                    <p className="mt-1 max-w-lg text-[11px] text-muted-foreground">
+                    <p className="mt-1 max-w-lg text-meta text-muted-foreground">
                       Use apps like Google Authenticator, 1Password, Authy, or
                       Apple Keychain to generate verification codes.
                     </p>
@@ -3217,12 +3215,12 @@ export function WorkspaceSettingsPage({
                       </h4>
                       <Badge
                         variant="outline"
-                        className="font-medium border-border bg-muted/40 text-[10px] text-muted-foreground"
+                        className="font-medium border-border bg-muted/40 text-2xs text-muted-foreground"
                       >
                         {webAuthnQuery.data?.length ?? 0} registered
                       </Badge>
                     </div>
-                    <p className="mt-1 max-w-lg text-[11px] text-muted-foreground">
+                    <p className="mt-1 max-w-lg text-meta text-muted-foreground">
                       Sign in seamlessly using biometric hardware (Touch ID,
                       Face ID, Windows Hello) or physical FIDO2 keys.
                     </p>
@@ -3239,7 +3237,7 @@ export function WorkspaceSettingsPage({
                               <span className="font-medium text-foreground">
                                 {key.deviceName || 'Security Key'}
                               </span>
-                              <span className="text-[10px] text-muted-foreground">
+                              <span className="text-2xs text-muted-foreground">
                                 • Added{' '}
                                 {new Date(key.createdAt).toLocaleDateString()}
                               </span>
@@ -3301,12 +3299,12 @@ export function WorkspaceSettingsPage({
                       </h4>
                       <Badge
                         variant="outline"
-                        className="font-medium border-border bg-muted/40 text-[10px] text-muted-foreground"
+                        className="font-medium border-border bg-muted/40 text-2xs text-muted-foreground"
                       >
                         Emergency access
                       </Badge>
                     </div>
-                    <p className="mt-1 max-w-lg text-[11px] text-muted-foreground">
+                    <p className="mt-1 max-w-lg text-meta text-muted-foreground">
                       One-time use backup codes for account recovery when your
                       phone or authenticator device is unavailable.
                     </p>
@@ -3337,7 +3335,7 @@ export function WorkspaceSettingsPage({
                   </h2>
                   <Badge
                     variant="outline"
-                    className="font-medium border-brand/20 bg-brand/10 text-[10px] text-brand-text"
+                    className="font-medium border-brand/20 bg-brand/10 text-2xs text-brand-text"
                   >
                     {sessionsQuery.data?.length ?? 1} signed in
                   </Badge>
@@ -3389,12 +3387,12 @@ export function WorkspaceSettingsPage({
                               {sess.browser} on {sess.os}
                             </h4>
                             {sess.isCurrent && (
-                              <Badge className="font-semibold bg-brand text-[10px] text-brand-foreground">
+                              <Badge className="font-semibold bg-brand text-2xs text-brand-foreground">
                                 Current session
                               </Badge>
                             )}
                           </div>
-                          <div className="mt-1 gap-2 flex flex-wrap items-center text-[11px] text-muted-foreground">
+                          <div className="mt-1 gap-2 flex flex-wrap items-center text-meta text-muted-foreground">
                             <span>{sess.location}</span>
                             <span>•</span>
                             <span className="font-mono">

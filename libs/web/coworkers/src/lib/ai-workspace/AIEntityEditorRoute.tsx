@@ -108,7 +108,7 @@ function CoworkerEditorView({ coworkerId }: { coworkerId: string }) {
                 {data.role}
               </span>
             ) : null}
-            <Badge variant="outline" className="shrink-0 text-[10px]">
+            <Badge variant="outline" className="shrink-0 text-2xs">
               Coworker
             </Badge>
           </>

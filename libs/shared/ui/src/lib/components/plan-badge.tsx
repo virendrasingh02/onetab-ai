@@ -2,7 +2,6 @@ import { cn } from '@org/utils';
 import { Bot, Building2, Crown, Sparkles } from 'lucide-react';
 import type { PlanTier } from '@org/types';
 
-
 export interface PlanBadgeProps {
   plan?: PlanTier | string | null;
   size?: 'xs' | 'sm' | 'md';
@@ -24,7 +23,7 @@ export function PlanBadge({
     raw === 'business' ? 'max' : raw === 'starter' ? 'free' : (raw as PlanTier);
 
   const sizeClasses = {
-    xs: 'text-[10px] px-1.5 py-0 gap-1 h-4',
+    xs: 'text-2xs px-1.5 py-0 gap-1 h-4',
     sm: 'text-xs px-2 py-0.5 gap-1.5 h-5',
     md: 'text-xs px-2.5 py-1 gap-1.5 font-semibold h-6',
   }[size];
@@ -45,10 +44,10 @@ export function PlanBadge({
       Icon = Crown;
       styleClasses =
         variant === 'gradient'
-          ? 'bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+          ? 'bg-gradient-to-r from-warning/20 via-accent-orange/20 to-warning/10 text-warning-text border-warning/30'
           : variant === 'solid'
-            ? 'bg-amber-500 text-white border-transparent'
-            : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/25';
+            ? 'bg-warning text-white border-transparent'
+            : 'bg-warning/10 text-warning-text border-warning/25';
       break;
 
     case 'max':
@@ -56,10 +55,10 @@ export function PlanBadge({
       Icon = Building2;
       styleClasses =
         variant === 'gradient'
-          ? 'bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-pink-500/15 text-indigo-600 dark:text-indigo-300 border-indigo-500/30'
+          ? 'bg-gradient-to-r from-accent-indigo/20 via-accent-violet/20 to-accent-pink/15 text-accent-indigo border-accent-indigo/30'
           : variant === 'solid'
-            ? 'bg-indigo-600 text-white border-transparent'
-            : 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/25';
+            ? 'bg-accent-indigo text-white border-transparent'
+            : 'bg-accent-indigo/10 text-accent-indigo border-accent-indigo/25';
       break;
 
     case 'pro':
@@ -84,7 +83,7 @@ export function PlanBadge({
   return (
     <span
       className={cn(
-        'inline-flex items-center justify-center font-medium rounded-md border tracking-wide uppercase',
+        'font-medium tracking-wide inline-flex items-center justify-center rounded-md border uppercase',
         sizeClasses,
         styleClasses,
         className,

@@ -85,7 +85,7 @@ function Row({
         >
           {title}
         </Label>
-        <p className="text-[11px] text-muted-foreground">{description}</p>
+        <p className="text-meta text-muted-foreground">{description}</p>
       </div>
       <Switch
         id={id}
@@ -208,7 +208,7 @@ export function DesktopSettingsCard() {
             disabled={!capabilities.autoLaunch || !startup?.supported}
           />
           {startup && !startup.supported && startup.reason && (
-            <p className="pb-2 text-[11px] text-muted-foreground">
+            <p className="pb-2 text-meta text-muted-foreground">
               {startup.reason}
             </p>
           )}
@@ -244,7 +244,7 @@ export function DesktopSettingsCard() {
                   <p className="text-xs font-medium">
                     Windows Jump List &amp; Tasks
                   </p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-meta text-muted-foreground">
                     Right-click the taskbar icon to jump to any of your
                     workspaces, or to Search and the AI Assistant.
                   </p>
@@ -296,7 +296,7 @@ export function DesktopSettingsCard() {
           <div className="gap-4 pt-2 flex items-center justify-between">
             <div className="min-w-0 space-y-0.5">
               <p className="text-xs font-medium">Test Desktop Notifications</p>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-meta text-muted-foreground">
                 Trigger a sample native toast to verify OS permissions and
                 action handling.
               </p>
@@ -339,15 +339,15 @@ export function DesktopSettingsCard() {
           <div className="gap-4 py-2 flex items-center justify-between">
             <div className="min-w-0 space-y-0.5">
               <p className="text-xs font-medium">Registered Protocols</p>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-meta text-muted-foreground">
                 Active OS scheme handlers for seamless web-to-desktop handoff.
               </p>
             </div>
             <div className="gap-2 flex">
-              <Badge variant="neutral" className="font-mono text-[10px]">
+              <Badge variant="neutral" className="font-mono text-2xs">
                 onetab://
               </Badge>
-              <Badge variant="neutral" className="font-mono text-[10px]">
+              <Badge variant="neutral" className="font-mono text-2xs">
                 mie://
               </Badge>
             </div>
@@ -358,7 +358,7 @@ export function DesktopSettingsCard() {
               <Shield className="size-3.5 text-primary" /> Secure
               Single-Instance Dispatching
             </p>
-            <p className="text-[11px]">
+            <p className="text-meta">
               Deep links authenticate via PKCE verification and restrict
               navigation strictly to allowed in-app workspaces, channels,
               agents, and workflows.
@@ -385,17 +385,17 @@ export function DesktopSettingsCard() {
               <p className="text-xs font-medium gap-2 flex items-center">
                 <span>Version {appMetadata.version}</span>
                 {appInfo && !appInfo.isPackaged && (
-                  <Badge variant="neutral" className="text-[9px] uppercase">
+                  <Badge variant="neutral" className="text-3xs uppercase">
                     Development
                   </Badge>
                 )}
                 {storeLabel && (
-                  <Badge variant="neutral" className="text-[9px] uppercase">
+                  <Badge variant="neutral" className="text-3xs uppercase">
                     {storeLabel}
                   </Badge>
                 )}
               </p>
-              <p className="gap-1.5 flex items-center text-[11px] text-muted-foreground">
+              <p className="gap-1.5 flex items-center text-meta text-muted-foreground">
                 {updateStatus.state === 'error' ? (
                   <AlertCircle className="size-3 text-destructive" />
                 ) : updateStatus.state === 'ready' ||
@@ -502,7 +502,7 @@ export function DesktopSettingsCard() {
 
           {limitedFeatures.length > 0 && (
             <div className="space-y-1 pt-2 border-t border-border/60">
-              <p className="font-medium tracking-wide text-[10px] text-muted-foreground uppercase">
+              <p className="font-medium tracking-wide text-2xs text-muted-foreground uppercase">
                 Limited in this build
               </p>
               {limitedFeatures.map((f) => (
@@ -520,7 +520,7 @@ export function DesktopSettingsCard() {
 
           {webOnlyFeatures.length > 0 && (
             <div className="space-y-1 pt-2 border-t border-border/60">
-              <p className="font-medium tracking-wide text-[10px] text-muted-foreground uppercase">
+              <p className="font-medium tracking-wide text-2xs text-muted-foreground uppercase">
                 Web-only from here
               </p>
               {webOnlyFeatures.map((f) => (
@@ -558,7 +558,7 @@ export function DesktopSettingsCard() {
         <CardContent className="pt-0 space-y-3">
           <div className="sm:grid-cols-2 gap-3 text-xs grid grid-cols-1">
             <div className="space-y-0.5">
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-meta text-muted-foreground">
                 Publisher
               </span>
               <p className="font-medium text-foreground">
@@ -566,15 +566,15 @@ export function DesktopSettingsCard() {
               </p>
             </div>
             <div className="space-y-0.5">
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-meta text-muted-foreground">
                 Build Identifier
               </span>
-              <p className="font-mono text-[11px] text-foreground">
+              <p className="font-mono text-meta text-foreground">
                 {appMetadata.build}
               </p>
             </div>
             <div className="space-y-0.5">
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-meta text-muted-foreground">
                 Runtime Engine
               </span>
               <p className="text-foreground">
@@ -583,7 +583,7 @@ export function DesktopSettingsCard() {
               </p>
             </div>
             <div className="space-y-0.5">
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-meta text-muted-foreground">
                 System Architecture
               </span>
               <p className="text-foreground">
@@ -595,7 +595,7 @@ export function DesktopSettingsCard() {
           <Separator className="my-2" />
 
           <div className="gap-4 pt-1 text-xs flex flex-wrap items-center justify-between">
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-meta text-muted-foreground">
               {appMetadata.copyright}
             </p>
             <div className="gap-3 flex items-center">

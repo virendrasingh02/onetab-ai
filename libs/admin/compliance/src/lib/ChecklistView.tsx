@@ -92,7 +92,7 @@ const STATUS_VARIANTS: Record<
     label: 'Warning',
     variant: 'warning',
     icon: AlertTriangle,
-    color: 'text-amber-600',
+    color: 'text-warning-text',
   },
   SKIPPED: {
     label: 'Skip',
@@ -340,7 +340,7 @@ export function ChecklistView() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <FileCheck2 className="h-4 w-4 text-blue-600" />
+                    <FileCheck2 className="h-4 w-4 text-accent-blue" />
                     Select Review Session
                   </CardTitle>
                   <Badge
@@ -425,7 +425,7 @@ export function ChecklistView() {
                   </Badge>
                 </div>
                 <Progress value={activeReview?.overallScore ?? 0} className="h-2" />
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-meta text-muted-foreground">
                   Minimum 80% with 0 blocking failures required for store distribution.
                 </p>
               </CardContent>
@@ -506,21 +506,21 @@ export function ChecklistView() {
                               <div className="font-medium text-xs text-foreground flex items-center gap-2">
                                 <span>{req?.title ?? 'General Rule'}</span>
                                 {req?.isBlocking && (
-                                  <Badge variant="destructive" className="text-[9px] px-1 py-0">
+                                  <Badge variant="destructive" className="text-3xs px-1 py-0">
                                     BLOCKING
                                   </Badge>
                                 )}
                               </div>
-                              <div className="text-[11px] text-muted-foreground mt-0.5">
+                              <div className="text-meta text-muted-foreground mt-0.5">
                                 {req?.description}
                               </div>
                               {req?.externalUrl && (
-                                <div className="text-[10px] text-blue-600 dark:text-blue-400 mt-1">
+                                <div className="text-2xs text-accent-blue mt-1">
                                   Ref: {req.externalUrl}
                                 </div>
                               )}
                               {item.notes && (
-                                <div className="text-[11px] bg-muted/60 p-1.5 rounded mt-1.5 text-muted-foreground italic">
+                                <div className="text-meta bg-muted/60 p-1.5 rounded mt-1.5 text-muted-foreground italic">
                                   Note: {item.notes}
                                 </div>
                               )}
@@ -532,7 +532,7 @@ export function ChecklistView() {
                                     ? 'destructive'
                                     : 'outline'
                                 }
-                                className="text-[10px]"
+                                className="text-2xs"
                               >
                                 {req?.severity ?? 'MEDIUM'}
                               </Badge>
@@ -576,7 +576,7 @@ export function ChecklistView() {
                                         href={ev.url}
                                         target="_blank"
                                         rel="noreferrer"
-                                        className="inline-flex items-center gap-1 text-[10px] bg-muted px-1.5 py-0.5 rounded border hover:underline"
+                                        className="inline-flex items-center gap-1 text-2xs bg-muted px-1.5 py-0.5 rounded border hover:underline"
                                       >
                                         <Paperclip className="h-3 w-3" />
                                         {ev.title}
@@ -584,14 +584,14 @@ export function ChecklistView() {
                                     ))}
                                   </div>
                                 ) : (
-                                  <span className="text-[11px] text-muted-foreground italic">
+                                  <span className="text-meta text-muted-foreground italic">
                                     No evidence
                                   </span>
                                 )}
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-6 text-[10px] px-1.5 flex items-center gap-1 text-primary"
+                                  className="h-6 text-2xs px-1.5 flex items-center gap-1 text-primary"
                                   onClick={() => setEvidenceItem(item)}
                                 >
                                   <Plus className="h-3 w-3" />

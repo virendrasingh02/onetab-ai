@@ -363,7 +363,7 @@ export const AgentProfileRightPanel: FC<AgentProfileRightPanelProps> = ({
         <AIEntityProfileFact icon={Shield} label="Knowledge Access">
           <Badge
             variant={agent.permissions?.knowledgeAccess ? 'primary' : 'neutral'}
-            className="text-[10px]"
+            className="text-2xs"
           >
             {agent.permissions?.knowledgeAccess ? 'RAG Enabled' : 'Restricted'}
           </Badge>
@@ -459,7 +459,7 @@ export const AgentProfileRightPanel: FC<AgentProfileRightPanelProps> = ({
                       ? entry.key.slice(memoryPrefix.length).trim()
                       : entry.key}
                   </p>
-                  <p className="line-clamp-2 text-[11px] text-muted-foreground">{entry.value}</p>
+                  <p className="line-clamp-2 text-meta text-muted-foreground">{entry.value}</p>
                 </div>
                 <Button
                   variant="ghost"

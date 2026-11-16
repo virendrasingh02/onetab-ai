@@ -216,7 +216,7 @@ export function NotificationDisplaySettingsPanel({
                 <h4 className="text-sm font-semibold text-foreground">
                   Show notification message previews
                 </h4>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                <p className="mt-0.5 text-meta text-muted-foreground">
                   When turned off, notification body contents are redacted to
                   protect sensitive messages from passersby.
                 </p>
@@ -240,7 +240,7 @@ export function NotificationDisplaySettingsPanel({
                 <h4 className="text-sm font-semibold text-foreground">
                   Show notifications during calls & meetings
                 </h4>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                <p className="mt-0.5 text-meta text-muted-foreground">
                   When turned off, non-critical alerts are silenced while you
                   are active in a voice call, huddle, or video meeting.
                 </p>
@@ -266,17 +266,17 @@ export function NotificationDisplaySettingsPanel({
                     Flash taskbar when notification arrives
                   </h4>
                   {capabilities.isDesktop && (
-                    <Badge variant="neutral" className="py-0 px-1.5 text-[9px]">
+                    <Badge variant="neutral" className="py-0 px-1.5 text-3xs">
                       Windows Desktop
                     </Badge>
                   )}
                 </div>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                <p className="mt-0.5 text-meta text-muted-foreground">
                   Flashes the desktop application icon when you receive a
                   message in the background.
                 </p>
                 {!isTaskbarFlashSupported && (
-                  <p className="mt-1 text-[10.5px] text-warning-text italic">
+                  <p className="mt-1 text-meta text-warning-text italic">
                     Note: Taskbar flashing requires the Onetab Windows desktop
                     app.
                   </p>
@@ -336,7 +336,7 @@ export function NotificationDisplaySettingsPanel({
                 <h4 className="text-sm font-semibold text-foreground">
                   Play notification sounds
                 </h4>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                <p className="mt-0.5 text-meta text-muted-foreground">
                   Turn off to silence every notification sound everywhere.
                   Visual notifications keep working.
                 </p>
@@ -370,7 +370,7 @@ export function NotificationDisplaySettingsPanel({
                 <h4 className="text-sm font-semibold text-foreground">
                   Master volume
                 </h4>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                <p className="mt-0.5 text-meta text-muted-foreground">
                   All cues sit deliberately low, under speech.
                 </p>
               </div>
@@ -385,7 +385,7 @@ export function NotificationDisplaySettingsPanel({
                 onValueChange={([value]) => setSoundVolume((value ?? 0) / 100)}
                 aria-label="Master notification volume"
               />
-              <span className="w-8 text-right text-[11px] text-muted-foreground tabular-nums">
+              <span className="w-8 text-right text-meta text-muted-foreground tabular-nums">
                 {Math.round(sound.volume * 100)}%
               </span>
             </div>
@@ -406,7 +406,7 @@ export function NotificationDisplaySettingsPanel({
                 <h4 className="text-sm font-semibold text-foreground">
                   Sound profile
                 </h4>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                <p className="mt-0.5 text-meta text-muted-foreground">
                   {NOTIFICATION_SOUND_PROFILE_OPTIONS.find(
                     (option) => option.id === sound.profile,
                   )?.description ?? 'Choose a tone palette.'}
@@ -465,7 +465,7 @@ export function NotificationDisplaySettingsPanel({
                 <h4 className="text-sm font-semibold text-foreground">
                   Only when I&rsquo;m not viewing the conversation
                 </h4>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                <p className="mt-0.5 text-meta text-muted-foreground">
                   Skip the sound when the relevant channel or DM is already open
                   in front of you. New-message and DM cues are always skipped
                   for the conversation on screen.
@@ -491,11 +491,11 @@ export function NotificationDisplaySettingsPanel({
                   <h4 className="text-sm font-semibold text-foreground">
                     Mute notification sounds in this workspace
                   </h4>
-                  <Badge variant="neutral" className="py-0 px-1.5 text-[9px]">
+                  <Badge variant="neutral" className="py-0 px-1.5 text-3xs">
                     This workspace
                   </Badge>
                 </div>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                <p className="mt-0.5 text-meta text-muted-foreground">
                   Silences sounds for this workspace only. Your other workspaces
                   and their settings are untouched.
                 </p>
@@ -518,7 +518,7 @@ export function NotificationDisplaySettingsPanel({
           )}
         >
           <div className="p-3 px-4">
-            <h4 className="font-semibold tracking-wide text-[11px] text-muted-foreground uppercase">
+            <h4 className="font-semibold tracking-wide text-meta text-muted-foreground uppercase">
               Sounds by type
             </h4>
           </div>
@@ -563,7 +563,7 @@ export function NotificationDisplaySettingsPanel({
           })}
         </div>
 
-        <p className="px-1 leading-relaxed text-[11px] text-muted-foreground">
+        <p className="px-1 leading-relaxed text-meta text-muted-foreground">
           The master switch, volume, profile and per-type choices apply to every
           workspace you&rsquo;re in. Muted channels, muted DMs, &ldquo;mentions
           only&rdquo; and quiet hours are per workspace and already control
@@ -621,7 +621,7 @@ export function NotificationDisplaySettingsPanel({
                 <div className="gap-2 flex items-center">
                   <span className="text-xs">{pos.label}</span>
                   {pos.defaultBadge && (
-                    <Badge variant="neutral" className="py-0 px-1 text-[9px]">
+                    <Badge variant="neutral" className="py-0 px-1 text-3xs">
                       Default
                     </Badge>
                   )}

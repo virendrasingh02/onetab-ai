@@ -16,7 +16,7 @@ export function PlatformDiagnosticsLink() {
   return (
     <Link
       to="/dev/platform-diagnostics"
-      className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+      className="inline-flex items-center gap-1.5 text-meta text-muted-foreground hover:text-foreground"
     >
       <Bug className="size-3.5" />
       Developer diagnostics (platform &amp; features)

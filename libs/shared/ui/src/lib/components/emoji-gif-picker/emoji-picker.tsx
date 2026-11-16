@@ -71,28 +71,28 @@ export function EmojiPicker({
         columns={columns}
         emojibaseUrl={emojibaseUrl ?? defaultEmojibaseUrl}
         className={cn(
-          'isolate flex h-88 w-full flex-col bg-popover text-popover-foreground',
-          '[&_[frimousse-viewport]]:min-h-0 [&_[frimousse-viewport]]:flex-1 [&_[frimousse-viewport]]:overflow-y-auto [&_[frimousse-viewport]]:overscroll-contain [&_[frimousse-viewport]]:scrollbar-subtle',
-          '[&_[frimousse-list]]:select-none [&_[frimousse-list]]:pb-2',
+          'h-88 isolate flex w-full flex-col bg-popover text-popover-foreground',
+          '[&_[frimousse-viewport]]:min-h-0 [&_[frimousse-viewport]]:scrollbar-subtle [&_[frimousse-viewport]]:flex-1 [&_[frimousse-viewport]]:overflow-y-auto [&_[frimousse-viewport]]:overscroll-contain',
+          '[&_[frimousse-list]]:pb-2 [&_[frimousse-list]]:select-none',
           className,
         )}
       >
-        <div className="flex flex-col gap-2 border-b border-border p-3">
+        <div className="gap-2 p-3 flex flex-col border-b border-border">
           <div className="relative flex items-center">
-            <Search className="absolute left-2.5 size-3.5 text-muted-foreground pointer-events-none" />
+            <Search className="left-2.5 size-3.5 pointer-events-none absolute text-muted-foreground" />
             <Frimousse.Search
               autoFocus={autoFocus}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search emoji…"
-              className="h-8 w-full rounded-input border border-border/60 bg-surface-inset pl-8 pr-8 text-xs text-foreground outline-none transition-colors placeholder:text-subtle focus:border-ring"
+              className="h-8 pl-8 pr-8 text-xs w-full rounded-input border border-border/60 bg-surface-inset text-foreground transition-colors outline-none placeholder:text-subtle focus:border-ring"
             />
             {search ? (
               <button
                 type="button"
                 aria-label="Clear search"
                 onClick={() => setSearch('')}
-                className="absolute right-2 text-muted-foreground hover:text-foreground p-0.5 rounded-sm"
+                className="right-2 p-0.5 absolute rounded-sm text-muted-foreground hover:text-foreground"
               >
                 <X className="size-3.5" />
               </button>
@@ -101,21 +101,23 @@ export function EmojiPicker({
 
           {showRecentsStrip ? (
             <div>
-              <p className="px-0.5 pb-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              <p className="px-0.5 pb-1 font-bold tracking-wider text-meta text-muted-foreground uppercase">
                 Frequently used
               </p>
               {/* One row only, sized to the grid's columns — a second row
                 would push the emoji grid below the fold. */}
               <div
-                className="grid gap-0.5"
-                style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+                className="gap-0.5 grid"
+                style={{
+                  gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+                }}
               >
                 {recents.slice(0, columns).map((emoji) => (
                   <button
                     key={emoji}
                     type="button"
                     onClick={() => handleSelect({ emoji, label: emoji })}
-                    className="flex h-9 w-full items-center justify-center rounded-lg text-[22px] transition-transform hover:scale-110 hover:bg-accent focus:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    className="h-9 flex w-full items-center justify-center rounded-lg text-[22px] transition-transform hover:scale-110 hover:bg-accent focus:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   >
                     {emoji}
                   </button>
@@ -126,10 +128,10 @@ export function EmojiPicker({
         </div>
 
         <Frimousse.Viewport>
-          <Frimousse.Loading className="grid flex-1 place-items-center p-6 text-xs text-muted-foreground">
+          <Frimousse.Loading className="p-6 text-xs grid flex-1 place-items-center text-muted-foreground">
             Loading emoji…
           </Frimousse.Loading>
-          <Frimousse.Empty className="grid flex-1 place-items-center p-6 text-xs text-muted-foreground">
+          <Frimousse.Empty className="p-6 text-xs grid flex-1 place-items-center text-muted-foreground">
             {({ search: term }) => <>No emoji for “{term}”</>}
           </Frimousse.Empty>
           <Frimousse.List
@@ -138,13 +140,13 @@ export function EmojiPicker({
                 <div
                   {...props}
                   data-category-label={category.label}
-                  className="bg-popover/95 px-3 pb-1 pt-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground backdrop-blur"
+                  className="px-3 pb-1 pt-2 font-bold tracking-wider backdrop-blur bg-popover/95 text-meta text-muted-foreground uppercase"
                 >
                   {category.label}
                 </div>
               ),
               Row: ({ children, ...props }) => (
-                <div {...props} className="flex gap-0.5 px-2">
+                <div {...props} className="gap-0.5 px-2 flex">
                   {children}
                 </div>
               ),
@@ -152,7 +154,7 @@ export function EmojiPicker({
                 <button
                   {...props}
                   className={cn(
-                    'flex size-9 items-center justify-center rounded-lg text-[22px] transition-transform',
+                    'size-9 flex items-center justify-center rounded-lg text-[22px] transition-transform',
                     emoji.isActive && 'scale-110 bg-accent',
                   )}
                 >
@@ -164,21 +166,21 @@ export function EmojiPicker({
         </Frimousse.Viewport>
 
         {showPreview || showSkinToneSelector ? (
-          <div className="flex h-10 shrink-0 items-center justify-between border-t border-border bg-surface-inset/50 px-3">
+          <div className="h-10 px-3 flex shrink-0 items-center justify-between border-t border-border bg-surface-inset/50">
             {showPreview ? (
               <Frimousse.ActiveEmoji>
                 {({ emoji }) =>
                   emoji ? (
-                    <span className="flex items-center gap-2 text-xs">
-                      <span className="text-xl leading-none">{emoji.emoji}</span>
-                      <span className="truncate font-medium text-foreground">
+                    <span className="gap-2 text-xs flex items-center">
+                      <span className="text-xl leading-none">
+                        {emoji.emoji}
+                      </span>
+                      <span className="font-medium truncate text-foreground">
                         {emoji.label}
                       </span>
                     </span>
                   ) : (
-                    <span className="text-[11px] text-subtle">
-                      Pick an emoji
-                    </span>
+                    <span className="text-meta text-subtle">Pick an emoji</span>
                   )
                 }
               </Frimousse.ActiveEmoji>
@@ -187,7 +189,7 @@ export function EmojiPicker({
             )}
 
             {showSkinToneSelector ? (
-              <Frimousse.SkinToneSelector className="flex size-7 items-center justify-center rounded-md text-base transition-colors hover:bg-accent" />
+              <Frimousse.SkinToneSelector className="size-7 text-base flex items-center justify-center rounded-md transition-colors hover:bg-accent" />
             ) : null}
           </div>
         ) : null}

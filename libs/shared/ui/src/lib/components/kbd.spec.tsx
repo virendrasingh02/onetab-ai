@@ -32,7 +32,7 @@ describe('Kbd Component', () => {
         ESC
       </Kbd>,
     );
-    expect(kbdEl).toHaveClass('text-[9px]', 'bg-muted/60');
+    expect(kbdEl).toHaveClass('text-3xs', 'bg-muted/60');
   });
 
   it('supports disabled appearance', () => {
@@ -63,7 +63,9 @@ describe('KbdGroup Component', () => {
     );
     expect(screen.getByText('⌘')).toBeInTheDocument();
     expect(screen.getByText('K')).toBeInTheDocument();
-    expect(screen.getByText('⌘').closest('[data-slot="kbd-group"]')).toBeInTheDocument();
+    expect(
+      screen.getByText('⌘').closest('[data-slot="kbd-group"]'),
+    ).toBeInTheDocument();
   });
 });
 

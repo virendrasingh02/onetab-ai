@@ -123,13 +123,13 @@ export function GradientEditor({
             <button
               type="button"
               onClick={onReset}
-              className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 cursor-pointer transition-colors px-2 py-0.5"
+              className="text-meta text-muted-foreground hover:text-foreground flex items-center gap-1 cursor-pointer transition-colors px-2 py-0.5"
             >
               <RotateCcw className="size-3" />
               <span>Reset</span>
             </button>
           )}
-          <div className="flex items-center gap-1 bg-surface p-1 rounded-lg border border-border/80 text-[11px]">
+          <div className="flex items-center gap-1 bg-surface p-1 rounded-lg border border-border/80 text-meta">
             <button
               type="button"
               onClick={() => handleTypeChange('linear')}
@@ -175,7 +175,7 @@ export function GradientEditor({
                   title={`Stop ${idx + 1}: ${stop.color} (${stop.position}%)`}
                 >
                   <span
-                    className="w-full h-full rounded-[4px] border border-black/20"
+                    className="w-full h-full rounded-xs border border-black/20"
                     style={{ backgroundColor: formatColorWithOpacity(stop.color, stop.opacity) }}
                   />
                 </button>
@@ -202,7 +202,7 @@ export function GradientEditor({
               variant="ghost"
               size="xs"
               onClick={() => handleRemoveStop(activeStopIndex)}
-              className="text-destructive hover:text-destructive h-7 text-[11px] gap-1 px-2 cursor-pointer"
+              className="text-destructive hover:text-destructive h-7 text-meta gap-1 px-2 cursor-pointer"
             >
               <Trash2 className="size-3" />
               <span>Remove stop</span>
@@ -215,7 +215,7 @@ export function GradientEditor({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-border/50">
         {/* Color picker & hex */}
         <div className="space-y-1.5">
-          <span className="text-[11px] font-semibold text-muted-foreground">
+          <span className="text-meta font-semibold text-muted-foreground">
             Stop {activeStopIndex + 1} Color
           </span>
           <div className="flex items-center gap-2">
@@ -243,7 +243,7 @@ export function GradientEditor({
 
         {/* Stop position slider */}
         <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
+          <div className="flex items-center justify-between text-meta font-semibold text-muted-foreground">
             <span>Stop Position</span>
             <span className="font-mono">{activeStop.position}%</span>
           </div>
@@ -261,7 +261,7 @@ export function GradientEditor({
       {/* Angle Slider (for linear gradients) */}
       {currentGradient.type === 'linear' && (
         <div className="space-y-1.5 pt-2 border-t border-border/50">
-          <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
+          <div className="flex items-center justify-between text-meta font-semibold text-muted-foreground">
             <span className="flex items-center gap-1">
               <RotateCw className="size-3" />
               <span>Gradient Angle</span>
@@ -282,7 +282,7 @@ export function GradientEditor({
 
       {/* Quick Gradient Presets */}
       <div className="space-y-1.5 pt-2 border-t border-border/50">
-        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+        <label className="text-2xs font-bold text-muted-foreground uppercase tracking-wider">
           Curated Gradient Presets
         </label>
         <div className="flex items-center gap-2 overflow-x-auto pb-1">

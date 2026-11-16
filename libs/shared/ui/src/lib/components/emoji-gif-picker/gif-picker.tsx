@@ -45,7 +45,11 @@ function curatedPage(query: string): GifItem[] {
     : CURATED_GIFS;
 }
 
-export function GifPicker({ onGifSelect, className, autoFocus }: GifPickerProps) {
+export function GifPicker({
+  onGifSelect,
+  className,
+  autoFocus,
+}: GifPickerProps) {
   const source = useGifSource();
   const recentGifs = usePickerRecents((s) => s.gifs);
   const pushGif = usePickerRecents((s) => s.pushGif);
@@ -137,11 +141,11 @@ export function GifPicker({ onGifSelect, className, autoFocus }: GifPickerProps)
   return (
     <div
       className={cn(
-        'flex h-88 w-full flex-col bg-popover text-popover-foreground',
+        'h-88 flex w-full flex-col bg-popover text-popover-foreground',
         className,
       )}
     >
-      <div className="border-b border-border p-3">
+      <div className="p-3 border-b border-border">
         {/* The placeholder doubles as the attribution GIPHY's API terms
           require wherever its content is shown. */}
         <PickerSearch
@@ -153,11 +157,11 @@ export function GifPicker({ onGifSelect, className, autoFocus }: GifPickerProps)
         />
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-subtle px-3 pb-3">
+      <div className="min-h-0 scrollbar-subtle px-3 pb-3 flex-1 overflow-y-auto overscroll-contain">
         {showRecents ? (
           <section>
             <PickerSectionLabel>Recent</PickerSectionLabel>
-            <div className="-mx-3 flex gap-2 overflow-x-auto scrollbar-none px-3 pb-1">
+            <div className="-mx-3 gap-2 px-3 pb-1 flex scrollbar-none overflow-x-auto">
               {recentGifs.map((gif) => (
                 <button
                   key={gif.id}
@@ -195,18 +199,22 @@ export function GifPicker({ onGifSelect, className, autoFocus }: GifPickerProps)
             <PickerSkeleton count={6} />
           ) : items.length === 0 && !loading ? (
             <PickerEmptyState
-              title={effectiveQuery ? `No GIFs for “${effectiveQuery}”` : 'No GIFs'}
-              description={effectiveQuery ? 'Try another search term.' : undefined}
+              title={
+                effectiveQuery ? `No GIFs for “${effectiveQuery}”` : 'No GIFs'
+              }
+              description={
+                effectiveQuery ? 'Try another search term.' : undefined
+              }
             />
           ) : (
-            <div className="columns-2 gap-2 [column-fill:_balance]">
+            <div className="gap-2 columns-2 [column-fill:_balance]">
               {items.map((gif) => (
                 <button
                   key={gif.id}
                   type="button"
                   onClick={() => handleSelect(gif)}
                   title={gif.title}
-                  className="group relative mb-2 block w-full overflow-hidden rounded-lg border border-border bg-surface-inset transition-transform hover:z-10 hover:scale-[1.02] hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="group mb-2 relative block w-full overflow-hidden rounded-lg border border-border bg-surface-inset transition-transform hover:z-10 hover:scale-[1.02] hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <img
                     src={gif.previewUrl}
@@ -215,7 +223,7 @@ export function GifPicker({ onGifSelect, className, autoFocus }: GifPickerProps)
                     className="w-full object-cover"
                     style={{ aspectRatio: `${gif.width} / ${gif.height}` }}
                   />
-                  <span className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/70 to-transparent p-1.5 text-left text-[10px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
+                  <span className="inset-x-0 bottom-0 from-black/70 p-1.5 font-medium text-white absolute truncate bg-gradient-to-t to-transparent text-left text-2xs opacity-0 transition-opacity group-hover:opacity-100">
                     {gif.title}
                   </span>
                 </button>
@@ -224,7 +232,7 @@ export function GifPicker({ onGifSelect, className, autoFocus }: GifPickerProps)
           )}
 
           {loading && items.length > 0 ? (
-            <div className="flex items-center justify-center py-3 text-muted-foreground">
+            <div className="py-3 flex items-center justify-center text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
             </div>
           ) : null}

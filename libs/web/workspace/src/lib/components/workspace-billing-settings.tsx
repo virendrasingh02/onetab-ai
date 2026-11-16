@@ -267,20 +267,20 @@ export function WorkspaceBillingSettings({
             </h2>
             <PlanBadge plan={plan} size="md" variant="gradient" />
             {subscription?.status === 'ACTIVE' && (
-              <Badge variant="primary" className="font-semibold text-[10px]">
+              <Badge variant="primary" className="font-semibold text-2xs">
                 ACTIVE
               </Badge>
             )}
             {isTrialing && (
               <Badge
                 variant="secondary"
-                className="font-semibold border border-brand/20 bg-brand/10 text-[10px] text-brand-text"
+                className="font-semibold border border-brand/20 bg-brand/10 text-2xs text-brand-text"
               >
                 FREE TRIAL
               </Badge>
             )}
             {billingMode === 'test' && (
-              <Badge variant="secondary" className="font-semibold text-[10px]">
+              <Badge variant="secondary" className="font-semibold text-2xs">
                 TEST MODE
               </Badge>
             )}
@@ -323,7 +323,7 @@ export function WorkspaceBillingSettings({
                 <p className="text-xs font-bold text-foreground">
                   Free trial active ({trialDaysRemaining ?? 0} days remaining)
                 </p>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-meta text-muted-foreground">
                   You are experiencing the full {planConfig.name} plan. You can
                   cancel or change your plan anytime.
                 </p>
@@ -353,7 +353,7 @@ export function WorkspaceBillingSettings({
               <AlertTriangle className="size-4 shrink-0" />
               <div className="space-y-0.5">
                 <p className="text-xs font-bold">Your last payment failed</p>
-                <p className="text-[11px] opacity-80">
+                <p className="text-meta opacity-80">
                   Update your payment method to keep {planConfig.name}. Paid
                   features pause if payment is not received within the grace
                   period.
@@ -375,8 +375,8 @@ export function WorkspaceBillingSettings({
         )}
 
         {pendingChange && plan !== 'free' && (
-          <div className="border-amber-500/40 bg-amber-500/10 p-4 sm:flex-row sm:items-center gap-3 flex flex-col items-start justify-between rounded-xl border">
-            <p className="text-xs text-amber-800 dark:text-amber-200">
+          <div className="p-4 sm:flex-row sm:items-center gap-3 flex flex-col items-start justify-between rounded-xl border border-warning/40 bg-warning/10">
+            <p className="text-xs text-warning-text">
               <strong>
                 {pendingChange} on{' '}
                 {subscription?.currentPeriodEnd
@@ -402,7 +402,7 @@ export function WorkspaceBillingSettings({
         )}
 
         {!paymentsEnabled && canManageBilling && (
-          <div className="p-3 rounded-xl border border-border bg-surface-muted/40 text-[11px] text-muted-foreground">
+          <div className="p-3 rounded-xl border border-border bg-surface-muted/40 text-meta text-muted-foreground">
             Online payments are not enabled on this deployment, so paid plans
             cannot be purchased yet.
           </div>
@@ -418,7 +418,7 @@ export function WorkspaceBillingSettings({
                 Coupon applied: {subscription.appliedPromotionCode}
               </p>
               {subscription.discountPercent ? (
-                <p className="text-[11px] text-success-text/80">
+                <p className="text-meta text-success-text/80">
                   {subscription.discountPercent}% off your first payment.
                 </p>
               ) : null}
@@ -428,9 +428,9 @@ export function WorkspaceBillingSettings({
 
         {/* Micro-Agent Limit Warning */}
         {microAgentLimit !== -1 && microAgentsUsed >= microAgentLimit && (
-          <div className="border-amber-500/40 bg-amber-500/10 p-4 sm:flex-row sm:items-center gap-3 flex flex-col items-start justify-between rounded-xl border shadow-xs">
-            <div className="gap-3 text-amber-800 dark:text-amber-200 flex items-center">
-              <div className="p-2 bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0 rounded-lg">
+          <div className="p-4 sm:flex-row sm:items-center gap-3 flex flex-col items-start justify-between rounded-xl border border-warning/40 bg-warning/10 shadow-xs">
+            <div className="gap-3 flex items-center text-warning-text">
+              <div className="p-2 shrink-0 rounded-lg bg-warning/20 text-warning-text">
                 <AlertTriangle className="size-4" />
               </div>
               <div className="space-y-0.5">
@@ -438,7 +438,7 @@ export function WorkspaceBillingSettings({
                   Micro-Agent Limit Reached ({microAgentsUsed}/{microAgentLimit}{' '}
                   Agents Active)
                 </p>
-                <p className="text-amber-700/80 dark:text-amber-300/80 text-[11px]">
+                <p className="text-meta text-warning-text/80">
                   Your workspace has deployed all available micro-agents on the{' '}
                   {planConfig.name} plan.
                 </p>
@@ -457,16 +457,16 @@ export function WorkspaceBillingSettings({
 
         {/* Low Shared AI Credits Warning */}
         {creditBalance <= 0.5 && (
-          <div className="border-amber-500/40 bg-amber-500/10 p-4 sm:flex-row sm:items-center gap-3 flex flex-col items-start justify-between rounded-xl border shadow-xs">
-            <div className="gap-3 text-amber-800 dark:text-amber-200 flex items-center">
-              <div className="p-2 bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0 rounded-lg">
+          <div className="p-4 sm:flex-row sm:items-center gap-3 flex flex-col items-start justify-between rounded-xl border border-warning/40 bg-warning/10 shadow-xs">
+            <div className="gap-3 flex items-center text-warning-text">
+              <div className="p-2 shrink-0 rounded-lg bg-warning/20 text-warning-text">
                 <Coins className="size-4" />
               </div>
               <div className="space-y-0.5">
                 <p className="text-xs font-bold">
                   Low Shared AI Credits (${creditBalance.toFixed(2)} Available)
                 </p>
-                <p className="text-amber-700/80 dark:text-amber-300/80 text-[11px]">
+                <p className="text-meta text-warning-text/80">
                   Automated agent runs and workflow executions may pause when
                   credit balance reaches $0.
                 </p>
@@ -547,7 +547,7 @@ export function WorkspaceBillingSettings({
                   <p className="text-xs font-bold text-foreground">
                     Shared AI Credits
                   </p>
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-2xs text-muted-foreground">
                     Allocated: $
                     {planConfig.machineLimits.aiCreditsUsd === -1
                       ? 'Custom'
@@ -570,14 +570,14 @@ export function WorkspaceBillingSettings({
                 <span className="text-xl font-extrabold text-foreground">
                   ${creditBalance.toFixed(2)}
                 </span>
-                <span className="text-[11px] text-muted-foreground">
+                <span className="text-meta text-muted-foreground">
                   balance remaining
                 </span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-surface-muted">
                 <div
                   className={`h-full rounded-full transition-all ${
-                    creditBalance < 1 ? 'bg-amber-500' : 'bg-primary'
+                    creditBalance < 1 ? 'bg-warning' : 'bg-primary'
                   }`}
                   style={{
                     width: `${Math.min(
@@ -643,7 +643,7 @@ export function WorkspaceBillingSettings({
               Annual Billing
               <Badge
                 variant="primary"
-                className="px-1.5 py-0 font-bold border-success/20 bg-success/15 text-[10px] text-success-text"
+                className="px-1.5 py-0 font-bold border-success/20 bg-success/15 text-2xs text-success-text"
               >
                 SAVE 20%
               </Badge>
@@ -780,10 +780,10 @@ export function WorkspaceBillingSettings({
                     <TableCell>
                       <Badge
                         variant="primary"
-                        className={`font-bold text-[10px] ${
+                        className={`font-bold text-2xs ${
                           inv.status === 'PAID'
                             ? 'border-success/20 bg-success/15 text-success-text'
-                            : 'bg-amber-500/15 text-amber-600 border-amber-500/20'
+                            : 'border-warning/20 bg-warning/15 text-warning-text'
                         }`}
                       >
                         {inv.status}

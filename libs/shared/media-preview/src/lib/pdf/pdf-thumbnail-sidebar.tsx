@@ -70,7 +70,7 @@ function PdfThumbnail({
           isActive ? 'border-primary' : 'border-white/10 group-hover:border-white/20',
         )}
       />
-      <span className={cn('text-[11px]', isActive ? 'text-white' : 'text-white/60')}>
+      <span className={cn('text-meta', isActive ? 'text-white' : 'text-white/60')}>
         {pageNumber}
       </span>
     </button>

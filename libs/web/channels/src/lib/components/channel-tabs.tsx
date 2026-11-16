@@ -119,7 +119,7 @@ export function CustomizeChannelTabsDialog({
               <span className="flex-1 text-sm font-medium text-foreground">
                 Messages
               </span>
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-meta text-muted-foreground">
                 Always first
               </span>
             </li>

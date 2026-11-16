@@ -259,7 +259,7 @@ export function SavedView() {
             <h2 className="text-base font-medium truncate tracking-[-0.01em] text-foreground">
               Saved
             </h2>
-            <Badge variant="outline" className="px-1.5 py-0 h-5 text-[11px]">
+            <Badge variant="outline" className="px-1.5 py-0 h-5 text-meta">
               {allItems.length}
             </Badge>
           </div>
@@ -448,7 +448,7 @@ export function SavedView() {
                             {item.bookmark.tags.map((tag) => (
                               <span
                                 key={tag}
-                                className="rounded px-1.5 py-0.5 bg-muted text-[10px]"
+                                className="rounded px-1.5 py-0.5 bg-muted text-2xs"
                               >
                                 #{tag}
                               </span>

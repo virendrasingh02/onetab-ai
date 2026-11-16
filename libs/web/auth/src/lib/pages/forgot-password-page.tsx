@@ -62,12 +62,12 @@ export function ForgotPasswordPage() {
 
           {devToken ? (
             <div className="mt-2 p-3 w-full rounded-lg bg-surface border border-border text-left">
-              <p className="mb-1 text-[11px] font-medium text-muted-foreground">
+              <p className="mb-1 text-meta font-medium text-muted-foreground">
                 Development only:
               </p>
               <Link
                 to={`/reset-password?token=${devToken}`}
-                className="text-[11px] font-mono break-all text-foreground hover:underline"
+                className="text-meta font-mono break-all text-foreground hover:underline"
               >
                 /reset-password?token={devToken}
               </Link>
@@ -110,7 +110,7 @@ export function ForgotPasswordPage() {
                     leadingIcon={<Mail />}
                   />
                 </FormControl>
-                <FormMessage className="text-[11px]" />
+                <FormMessage className="text-meta" />
               </FormItem>
             )}
           />

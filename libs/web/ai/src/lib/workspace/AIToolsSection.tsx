@@ -147,7 +147,7 @@ function BuiltinToolsPanel({ canRun }: { canRun: boolean }) {
                       ? 'neutral'
                       : 'warning'
                   }
-                  className="shrink-0 text-[10px]"
+                  className="shrink-0 text-2xs"
                 >
                   {READ_ONLY_AGENT_TOOLS.includes(t.name) ? 'reads' : 'writes'}
                 </Badge>
@@ -364,12 +364,12 @@ function McpServerCard({
             <p className="text-sm font-semibold truncate text-foreground">
               {conn.name}
             </p>
-            <p className="truncate font-mono text-[11px] text-muted-foreground">
+            <p className="truncate font-mono text-meta text-muted-foreground">
               {conn.serverUrl}
             </p>
           </div>
         </div>
-        <Badge variant={statusVariant} className="shrink-0 text-[10px]">
+        <Badge variant={statusVariant} className="shrink-0 text-2xs">
           {statusLabel}
         </Badge>
       </div>
@@ -387,7 +387,7 @@ function McpServerCard({
             <Badge
               key={tool.name}
               variant="outline"
-              className="font-mono text-[10px]"
+              className="font-mono text-2xs"
               title={tool.description}
             >
               {tool.name}

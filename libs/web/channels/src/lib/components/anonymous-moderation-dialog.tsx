@@ -100,7 +100,7 @@ export function AnonymousModerationDialog({
                 type="button"
                 onClick={() => setTab(t)}
                 className={cn(
-                  'flex-1 rounded-md px-2 py-1 text-[11px] font-medium capitalize transition-colors',
+                  'flex-1 rounded-md px-2 py-1 text-meta font-medium capitalize transition-colors',
                   tab === t
                     ? 'bg-background text-foreground shadow-2xs'
                     : 'text-muted-foreground hover:text-foreground',
@@ -130,16 +130,16 @@ export function AnonymousModerationDialog({
                     className="rounded-xl border border-border bg-surface p-3 text-xs"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-[10px] text-muted-foreground">
+                      <span className="font-mono text-2xs text-muted-foreground">
                         {row.matrixEventId.slice(0, 12)}…
                       </span>
                       {row.isReply && (
-                        <Badge variant="neutral" className="h-4 px-1 text-[9px]">
+                        <Badge variant="neutral" className="h-4 px-1 text-3xs">
                           reply
                         </Badge>
                       )}
                       {row.reportCount > 0 && (
-                        <Badge variant="warning" className="h-4 px-1 text-[9px]">
+                        <Badge variant="warning" className="h-4 px-1 text-3xs">
                           {row.reportCount} report
                           {row.reportCount === 1 ? '' : 's'}
                         </Badge>
@@ -147,22 +147,22 @@ export function AnonymousModerationDialog({
                       {row.removedAt && (
                         <Badge
                           variant="destructive"
-                          className="h-4 px-1 text-[9px]"
+                          className="h-4 px-1 text-3xs"
                         >
                           removed
                         </Badge>
                       )}
-                      <span className="ml-auto text-[10px] text-muted-foreground">
+                      <span className="ml-auto text-2xs text-muted-foreground">
                         {formatRelative(row.createdAt)}
                       </span>
                     </div>
                     {row.lastReportReason && (
-                      <p className="mt-1 text-[11px] text-muted-foreground">
+                      <p className="mt-1 text-meta text-muted-foreground">
                         “{row.lastReportReason}”
                       </p>
                     )}
                     {revealed[row.id] && (
-                      <div className="mt-1.5 flex items-center gap-1.5 text-[11px]">
+                      <div className="mt-1.5 flex items-center gap-1.5 text-meta">
                         <UserAvatar
                           name={
                             revealed[row.id].displayName ??
@@ -186,7 +186,7 @@ export function AnonymousModerationDialog({
                           variant="outline"
                           onClick={() => doReveal(row.id)}
                           disabled={reveal.isPending}
-                          className="h-7 gap-1 text-[11px]"
+                          className="h-7 gap-1 text-meta"
                         >
                           <Eye className="size-3" />
                           Reveal author
@@ -198,7 +198,7 @@ export function AnonymousModerationDialog({
                           variant="ghost"
                           onClick={() => doRemove(row.id)}
                           disabled={remove.isPending}
-                          className="h-7 gap-1 text-[11px] text-destructive"
+                          className="h-7 gap-1 text-meta text-destructive"
                         >
                           <Trash2 className="size-3" />
                           Remove
@@ -218,7 +218,7 @@ export function AnonymousModerationDialog({
               {(audit.data ?? []).map((event) => (
                 <li
                   key={event.id}
-                  className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-[11px]"
+                  className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-meta"
                 >
                   <UserAvatar
                     name={event.actor.displayName ?? event.actor.name}

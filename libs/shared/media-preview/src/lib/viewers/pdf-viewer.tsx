@@ -50,7 +50,7 @@ function PdfPasswordForm({
         aria-label="PDF password"
         className="max-w-56 border-white/15 bg-white/5 text-center text-white"
       />
-      {error ? <p className="text-xs text-red-400">{error}</p> : null}
+      {error ? <p className="text-xs text-destructive-text">{error}</p> : null}
       <Button type="submit" size="sm">
         Unlock
       </Button>

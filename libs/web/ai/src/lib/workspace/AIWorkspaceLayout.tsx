@@ -162,7 +162,7 @@ export function NewAIResourceMenu({
           </div>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel className="font-medium text-[11px] text-muted-foreground">
+        <DropdownMenuLabel className="font-medium text-meta text-muted-foreground">
           Build it yourself
         </DropdownMenuLabel>
         <DropdownMenuItem

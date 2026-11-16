@@ -179,10 +179,10 @@ export function WorkflowStatusesSettings() {
           >
             <header className="px-3.5 py-2 gap-3 flex items-center justify-between bg-muted/30">
               <div className="min-w-0">
-                <p className="font-semibold text-[11px] text-foreground">
+                <p className="font-semibold text-meta text-foreground">
                   {STATUS_CATEGORY_LABELS[group.category]}
                 </p>
-                <p className="truncate text-[11px] text-muted-foreground">
+                <p className="truncate text-meta text-muted-foreground">
                   {CATEGORY_HINTS[group.category]}
                 </p>
               </div>
@@ -347,7 +347,7 @@ function StatusRow({
               {state.name}
             </span>
             {state.builtin && (
-              <span className="px-1.5 py-0.5 rounded border border-border/50 bg-muted/60 text-[10px] text-muted-foreground">
+              <span className="px-1.5 py-0.5 rounded border border-border/50 bg-muted/60 text-2xs text-muted-foreground">
                 Default
               </span>
             )}

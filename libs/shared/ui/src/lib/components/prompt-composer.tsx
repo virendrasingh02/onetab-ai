@@ -56,7 +56,7 @@ function getSpeechRecognition(): (new () => SpeechRecognitionLike) | null {
 
 function Kbd({ children }: { children: ReactNode }) {
   return (
-    <kbd className="h-5 min-w-5 px-1.5 font-medium inline-flex items-center justify-center rounded-md bg-surface-raised text-[11px] text-foreground">
+    <kbd className="h-5 min-w-5 px-1.5 font-medium inline-flex items-center justify-center rounded-md bg-surface-raised text-meta text-foreground">
       {children}
     </kbd>
   );
@@ -337,7 +337,7 @@ export function PromptComposer({
         <form
           onSubmit={submit}
           aria-busy={busy || undefined}
-          className="px-2 py-1.5 rounded-xl border border-input theme-fixed bg-field shadow-sm transition-colors focus-within:border-ring"
+          className="px-2 py-1.5 theme-fixed rounded-xl border border-input bg-field shadow-sm transition-colors focus-within:border-ring"
         >
           <label htmlFor={fieldId} className="sr-only">
             {label}
@@ -523,7 +523,7 @@ export function PromptComposer({
       {footnote ? (
         <p
           id={footnoteId}
-          className="text-center text-[11px] text-muted-foreground"
+          className="text-center text-meta text-muted-foreground"
         >
           {footnote}
         </p>

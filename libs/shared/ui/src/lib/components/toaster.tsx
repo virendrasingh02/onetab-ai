@@ -43,11 +43,10 @@ export function Toaster({
       toastOptions={{
         className:
           size === 'compact'
-            ? 'rounded-lg border shadow-md font-sans text-[11px] py-2 px-3.5 notif-size-compact'
+            ? 'rounded-lg border shadow-md font-sans text-meta py-2 px-3.5 notif-size-compact'
             : 'rounded-xl border shadow-lg font-sans text-xs py-3.5 px-4 notif-size-comfy',
       }}
       {...props}
     />
   );
 }
-

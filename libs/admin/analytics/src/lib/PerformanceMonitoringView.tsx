@@ -176,7 +176,7 @@ export function PerformanceMonitoringView() {
               <DataTable
                 columns={['Route', 'Requests', 'Errors', 'Avg', 'p95', 'Max']}
                 rows={data.slowestRoutes.map((route) => [
-                  <span className="font-mono text-[11px] text-foreground">
+                  <span className="font-mono text-meta text-foreground">
                     {route.route}
                   </span>,
                   formatNumber(route.requests),

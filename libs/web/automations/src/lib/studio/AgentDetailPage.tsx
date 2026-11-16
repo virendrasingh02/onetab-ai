@@ -188,7 +188,7 @@ export function AgentDetailPage() {
             <h1 className="text-sm font-semibold truncate text-foreground">
               {data.name}
             </h1>
-            <p className="gap-1.5 flex items-center truncate text-[11px] text-muted-foreground">
+            <p className="gap-1.5 flex items-center truncate text-meta text-muted-foreground">
               <AgentStateBadge state={data.state} />
               {describeTriggerShort(data.trigger)}
               {data.nextRunAt
@@ -454,7 +454,7 @@ function Overview({
           <Detail label="Runs so far">
             {agent.runCount}{' '}
             {agent.recentFailures ? (
-              <Badge variant="destructive" className="ml-1 text-[10px]">
+              <Badge variant="destructive" className="ml-1 text-2xs">
                 {agent.recentFailures} failed today
               </Badge>
             ) : null}
@@ -708,11 +708,11 @@ function RunsTab({
               <span className="gap-2 flex items-center">
                 <AIRunStatusBadge status={run.status} />
                 {state['__mode'] === 'test' ? (
-                  <Badge variant="info" className="text-[10px]">
+                  <Badge variant="info" className="text-2xs">
                     Test
                   </Badge>
                 ) : null}
-                <span className="ml-auto text-[11px] text-muted-foreground">
+                <span className="ml-auto text-meta text-muted-foreground">
                   {formatRelative(run.startedAt)}
                 </span>
               </span>

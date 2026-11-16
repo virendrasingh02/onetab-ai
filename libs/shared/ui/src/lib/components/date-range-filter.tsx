@@ -190,7 +190,7 @@ export function DateRangeFilter({
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 disabled
-                className="font-normal text-[11px] text-muted-foreground tabular-nums data-[disabled]:opacity-100"
+                className="font-normal text-meta text-muted-foreground tabular-nums data-[disabled]:opacity-100"
               >
                 {formatDateRangeSpan(resolved)}
               </DropdownMenuItem>
@@ -217,7 +217,7 @@ export function DateRangeFilter({
             aria-live="polite"
           >
             <div>
-              <div className="tracking-wider text-[10px] text-subtle uppercase">
+              <div className="tracking-wider text-2xs text-subtle uppercase">
                 Start
               </div>
               <div className="font-medium text-foreground">
@@ -225,7 +225,7 @@ export function DateRangeFilter({
               </div>
             </div>
             <div>
-              <div className="tracking-wider text-[10px] text-subtle uppercase">
+              <div className="tracking-wider text-2xs text-subtle uppercase">
                 End
               </div>
               <div

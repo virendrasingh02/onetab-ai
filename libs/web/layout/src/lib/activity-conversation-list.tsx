@@ -197,7 +197,7 @@ export function SidebarViewSwitch({ className }: { className?: string }) {
               tabIndex={selected ? 0 : -1}
               onClick={(event) => select(option.value, event.detail === 0)}
               className={cn(
-                'h-4.5 w-5 inline-flex items-center justify-center rounded-[5px] transition-colors',
+                'h-4.5 w-5 inline-flex items-center justify-center rounded-sm transition-colors',
                 'outline-none focus-visible:ring-1 focus-visible:ring-ring',
                 'pointer-coarse:size-7',
                 selected
@@ -473,7 +473,7 @@ export function ActivityConversationList({
     <section aria-label="Conversations" className="mt-2.5 mb-1 space-y-1.5">
       {/* Mirrors a sidebar section header, so the switch stays where it was. */}
       <div className="gap-1.5 px-2.5 py-1 flex items-center justify-between select-none">
-        <h3 className="font-semibold tracking-wide truncate text-[11px] text-foreground/75 uppercase">
+        <h3 className="font-semibold tracking-wide truncate text-meta text-foreground/75 uppercase">
           Conversations
         </h3>
         <SidebarViewSwitch />
@@ -494,7 +494,7 @@ export function ActivityConversationList({
                 onClick={() => setFilter(selected ? 'all' : chip.value)}
                 className={cn(
                   // Sized so all three fit one row at the sidebar's default width.
-                  'h-6 px-2 font-medium rounded-full border text-[11px] transition-colors',
+                  'h-6 px-2 font-medium rounded-full border text-meta transition-colors',
                   'outline-none focus-visible:ring-1 focus-visible:ring-ring',
                   'pointer-coarse:h-8',
                   selected

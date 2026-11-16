@@ -175,7 +175,7 @@ export function SidebarFooterActions({
             sideOffset={8}
             className="w-80 p-1.5 shadow-xl border border-border bg-popover"
           >
-            <DropdownMenuLabel className="px-2.5 py-1 font-semibold tracking-wider text-[11px] text-muted-foreground uppercase">
+            <DropdownMenuLabel className="px-2.5 py-1 font-semibold tracking-wider text-meta text-muted-foreground uppercase">
               Communicate
             </DropdownMenuLabel>
             <DropdownMenuGroup>
@@ -209,7 +209,7 @@ export function SidebarFooterActions({
                           />
                         ) : null}
                       </span>
-                      <span className="block truncate text-[11px] text-muted-foreground">
+                      <span className="block truncate text-meta text-muted-foreground">
                         {action.description}
                       </span>
                     </span>
@@ -234,7 +234,7 @@ export function SidebarFooterActions({
                 <span className="text-xs font-medium block text-foreground">
                   Invite Teammates
                 </span>
-                <span className="block truncate text-[11px] text-muted-foreground">
+                <span className="block truncate text-meta text-muted-foreground">
                   Add members to this workspace
                 </span>
               </span>
@@ -301,7 +301,7 @@ export function SidebarFooterActions({
           sideOffset={8}
           className="w-80 p-1.5 shadow-xl border border-border bg-popover"
         >
-          <DropdownMenuLabel className="px-2.5 py-1 font-semibold tracking-wider text-[11px] text-muted-foreground uppercase">
+          <DropdownMenuLabel className="px-2.5 py-1 font-semibold tracking-wider text-meta text-muted-foreground uppercase">
             Communicate
           </DropdownMenuLabel>
           <DropdownMenuGroup>
@@ -335,7 +335,7 @@ export function SidebarFooterActions({
                         />
                       ) : null}
                     </span>
-                    <span className="block truncate text-[11px] text-muted-foreground">
+                    <span className="block truncate text-meta text-muted-foreground">
                       {action.description}
                     </span>
                   </span>
@@ -366,7 +366,7 @@ export function SidebarFooterActions({
               <span className="text-xs font-medium block text-foreground">
                 Invite Teammates
               </span>
-              <span className="block truncate text-[11px] text-muted-foreground">
+              <span className="block truncate text-meta text-muted-foreground">
                 Add members or share invite links
               </span>
             </span>
@@ -389,7 +389,7 @@ export function SidebarFooterActions({
                   <span className="text-xs font-medium block text-foreground">
                     Customize Sidebar
                   </span>
-                  <span className="block truncate text-[11px] text-muted-foreground">
+                  <span className="block truncate text-meta text-muted-foreground">
                     Reorder and toggle navigation items
                   </span>
                 </span>

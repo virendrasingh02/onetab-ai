@@ -27,26 +27,26 @@ const STATUS_CONFIG: Record<
   },
   WORKING: {
     label: 'Working',
-    dotClass: 'bg-amber-500 animate-pulse ring-amber-500/30 shadow-[0_0_8px_rgba(245,158,11,0.5)]',
-    textClass: 'text-amber-700 dark:text-amber-400',
+    dotClass: 'bg-warning animate-pulse ring-warning/30 shadow-[0_0_8px_rgba(245,158,11,0.5)]',
+    textClass: 'text-warning-text',
     description: 'Processing a query, generating code, or synthesizing documents.',
   },
   RUNNING_TASK: {
     label: 'Executing Task',
-    dotClass: 'bg-indigo-500 animate-pulse ring-indigo-500/30 shadow-[0_0_8px_rgba(99,102,241,0.5)]',
-    textClass: 'text-indigo-700 dark:text-indigo-400',
+    dotClass: 'bg-accent-indigo animate-pulse ring-accent-indigo/30 shadow-[0_0_8px_rgba(99,102,241,0.5)]',
+    textClass: 'text-accent-indigo',
     description: 'Delegating actions to sub-agents or executing workflow tools.',
   },
   IDLE: {
     label: 'Idle',
-    dotClass: 'bg-zinc-400 dark:bg-zinc-500 ring-zinc-400/20',
+    dotClass: 'bg-subtle ring-subtle/20',
     textClass: 'text-muted-foreground',
     description: 'Standing by for mentions or direct assignments.',
   },
   ERROR: {
     label: 'Error',
-    dotClass: 'bg-rose-500 ring-rose-500/20 shadow-[0_0_8px_rgba(244,63,94,0.4)]',
-    textClass: 'text-rose-700 dark:text-rose-400',
+    dotClass: 'bg-destructive ring-destructive/20 shadow-[0_0_8px_rgba(244,63,94,0.4)]',
+    textClass: 'text-destructive-text',
     description: 'Encountered an issue during last execution.',
   },
 };
@@ -86,7 +86,7 @@ export const CoworkerStatusDot: FC<CoworkerStatusDotProps> = ({
         </TooltipTrigger>
         <TooltipContent side="top" className="text-xs">
           <p className="font-medium">{config.label}</p>
-          <p className="text-muted-foreground text-[10px]">{config.description}</p>
+          <p className="text-muted-foreground text-2xs">{config.description}</p>
         </TooltipContent>
       </Tooltip>
     );

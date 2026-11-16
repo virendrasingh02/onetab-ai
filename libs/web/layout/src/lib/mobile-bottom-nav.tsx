@@ -58,7 +58,7 @@ type Tab = RouteTab | ActionTab;
 
 const tabBase = cn(
   'group relative flex flex-1 flex-col items-center justify-center gap-0.5',
-  'min-h-11 rounded-lg px-1 pt-1 text-[10px] font-medium',
+  'min-h-11 rounded-lg px-1 pt-1 text-2xs font-medium',
   'text-muted-foreground transition-colors duration-(--duration-fast) ease-standard',
   'outline-none focus-visible:ring-1 focus-visible:ring-ring',
   'active:bg-accent/60',
@@ -135,7 +135,7 @@ export function MobileBottomNav({
                 <span
                   className={cn(
                     'absolute -top-1.5 -right-2 min-w-4 rounded-full px-1',
-                    'bg-destructive text-[9px] leading-4 font-semibold text-destructive-foreground',
+                    'bg-destructive text-3xs leading-4 font-semibold text-destructive-foreground',
                     'text-center tabular-nums',
                   )}
                   aria-hidden

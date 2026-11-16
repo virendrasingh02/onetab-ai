@@ -232,10 +232,10 @@ export function LegalLinksView() {
       </PageHeader>
 
       {/* Statutory Callout */}
-      <Card className="border-amber-200 dark:border-amber-900 bg-amber-50/40 dark:bg-amber-950/20">
+      <Card className="border-warning/30 bg-warning/40">
         <CardContent className="p-4 flex items-center gap-3">
-          <ShieldAlert className="h-6 w-6 text-amber-600 shrink-0" />
-          <div className="text-xs text-amber-900 dark:text-amber-200 space-y-0.5">
+          <ShieldAlert className="h-6 w-6 text-warning-text shrink-0" />
+          <div className="text-xs text-warning-text space-y-0.5">
             <div className="font-semibold">
               Mandatory App Store Rejection Prevention:
             </div>
@@ -251,7 +251,7 @@ export function LegalLinksView() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <LinkIcon className="h-4 w-4 text-blue-600" />
+            <LinkIcon className="h-4 w-4 text-accent-blue" />
             Configured Legal Endpoints ({links.length})
           </CardTitle>
           <CardDescription>
@@ -298,7 +298,7 @@ export function LegalLinksView() {
                           href={link.url}
                           target="_blank"
                           rel="noreferrer"
-                          className="font-mono text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                          className="font-mono text-xs text-accent-blue hover:underline flex items-center gap-1"
                         >
                           <span className="truncate max-w-md">{link.url}</span>
                           <ExternalLink className="h-3 w-3 shrink-0" />
@@ -309,7 +309,7 @@ export function LegalLinksView() {
                       </TableCell>
                       <TableCell>
                         {link.countryCode ? (
-                          <Badge variant="secondary" className="text-[10px]">
+                          <Badge variant="secondary" className="text-2xs">
                             {link.countryCode}
                           </Badge>
                         ) : (

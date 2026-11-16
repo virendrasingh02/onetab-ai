@@ -47,7 +47,10 @@ import {
 } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useWorkflowExecutions, useWorkflowMutations } from './use-automations.js';
+import {
+  useWorkflowExecutions,
+  useWorkflowMutations,
+} from './use-automations.js';
 import {
   loadGraph,
   nodeTypes,
@@ -55,7 +58,10 @@ import {
   WorkflowCanvasControls,
   WorkflowMiniMap,
 } from './WorkflowCanvasView.js';
-import { buildWorkflowActions, downloadWorkflowConfig } from './workflow-actions.js';
+import {
+  buildWorkflowActions,
+  downloadWorkflowConfig,
+} from './workflow-actions.js';
 
 /** Same glyphs and words the sidebar row uses for the trigger. */
 const TRIGGER: Record<string, { label: string; icon: ReactNode }> = {
@@ -65,7 +71,11 @@ const TRIGGER: Record<string, { label: string; icon: ReactNode }> = {
   MANUAL: { label: 'Manual', icon: <Play /> },
 };
 
-export function WorkflowPreviewView({ editUrl }: { editUrl: (workflowId: string) => string }) {
+export function WorkflowPreviewView({
+  editUrl,
+}: {
+  editUrl: (workflowId: string) => string;
+}) {
   const { workflowId } = useParams<{ workflowId: string }>();
   const navigate = useNavigate();
   const { workspaceId, slug } = useCurrentWorkspace();
@@ -77,16 +87,18 @@ export function WorkflowPreviewView({ editUrl }: { editUrl: (workflowId: string)
 
   const detail = useQuery({
     queryKey: queryKeys.automations.detail(workspaceId ?? '', workflowId ?? ''),
-    queryFn: () => automationsApi.get(workspaceId as string, workflowId as string),
+    queryFn: () =>
+      automationsApi.get(workspaceId as string, workflowId as string),
     enabled: Boolean(workspaceId && workflowId),
   });
   const workflow = detail.data ?? null;
   const graph = useMemo(() => loadGraph(workflow), [workflow]);
 
-  if (detail.isLoading) return <LoadingState fullPage label="Opening automation…" />;
+  if (detail.isLoading)
+    return <LoadingState fullPage label="Opening automation…" />;
   if (!workflow) {
     return (
-      <div className="grid flex-1 place-items-center p-6">
+      <div className="p-6 grid flex-1 place-items-center">
         <EmptyState
           icon={<Workflow />}
           title="Automation not found"
@@ -102,14 +114,17 @@ export function WorkflowPreviewView({ editUrl }: { editUrl: (workflowId: string)
   const runs = workflow._count?.executions ?? 0;
   const favorite = isFavorite('workflow', workflow.id);
   const path = `/w/${slug ?? ''}/ai/workflows/${workflow.id}`;
-  const openStudio = () => window.open(editUrl(workflow.id), '_blank', 'noopener');
+  const openStudio = () =>
+    window.open(editUrl(workflow.id), '_blank', 'noopener');
 
   const run = async () => {
     try {
       await start.mutateAsync(workflow.id);
       toast.success(`“${workflow.name}” started`);
     } catch (err) {
-      toast.error('The run could not start', { description: err instanceof Error ? err.message : undefined });
+      toast.error('The run could not start', {
+        description: err instanceof Error ? err.message : undefined,
+      });
     }
   };
 
@@ -120,7 +135,11 @@ export function WorkflowPreviewView({ editUrl }: { editUrl: (workflowId: string)
       onOpen: openStudio,
       onRun: can('create') ? () => start.mutateAsync(workflow.id) : undefined,
       onSetActive: canEdit
-        ? (active) => update.mutateAsync({ workflowId: workflow.id, input: { isActive: active } })
+        ? (active) =>
+            update.mutateAsync({
+              workflowId: workflow.id,
+              input: { isActive: active },
+            })
         : undefined,
       onViewHistory: () => setTab('runs'),
       onExport: () => downloadWorkflowConfig(workflow),
@@ -130,33 +149,49 @@ export function WorkflowPreviewView({ editUrl }: { editUrl: (workflowId: string)
             navigate(`/w/${slug ?? ''}`);
           }
         : undefined,
-    }).map((action) => (action.id === 'open' ? { ...action, label: 'Edit in Studio', icon: ExternalLink } : action));
+    }).map((action) =>
+      action.id === 'open'
+        ? { ...action, label: 'Edit in Studio', icon: ExternalLink }
+        : action,
+    );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background text-foreground">
+    <div className="min-h-0 flex flex-1 flex-col overflow-hidden bg-background text-foreground">
       <PageBar
         hasTabs
         icon={trigger?.icon ?? <Workflow />}
         title={workflow.name}
         meta={
           <>
-            <Badge variant="outline" className="shrink-0 text-[10px]">
+            <Badge variant="outline" className="shrink-0 text-2xs">
               Automation
             </Badge>
-            <Badge variant={workflow.isActive ? 'success' : 'neutral'} className="shrink-0 text-[10px]">
+            <Badge
+              variant={workflow.isActive ? 'success' : 'neutral'}
+              className="shrink-0 text-2xs"
+            >
               {workflow.isActive ? 'On' : 'Paused'}
             </Badge>
-            <div className="flex items-center gap-0.5">
-              <Hint label={favorite ? 'Remove from favorites' : 'Add to favorites'}>
+            <div className="gap-0.5 flex items-center">
+              <Hint
+                label={favorite ? 'Remove from favorites' : 'Add to favorites'}
+              >
                 <Button
                   variant="ghost"
                   size="icon-sm"
                   aria-pressed={favorite}
-                  aria-label={favorite ? 'Remove from favorites' : 'Add to favorites'}
+                  aria-label={
+                    favorite ? 'Remove from favorites' : 'Add to favorites'
+                  }
                   onClick={() => toggleFavorite('workflow', workflow.id)}
                   className={favorite ? 'text-warning' : undefined}
                 >
-                  <Star className={cn('size-4', favorite && 'fill-current text-accent-amber')} />
+                  <Star
+                    className={cn(
+                      'size-4',
+                      favorite && 'fill-current text-accent-amber',
+                    )}
+                  />
                 </Button>
               </Hint>
               <ActionDropdownMenu
@@ -181,12 +216,23 @@ export function WorkflowPreviewView({ editUrl }: { editUrl: (workflowId: string)
         actions={
           <>
             {canEdit ? (
-              <Hint label={workflow.isActive ? 'Pause — schedules and events stop starting it' : 'Switch on'}>
+              <Hint
+                label={
+                  workflow.isActive
+                    ? 'Pause — schedules and events stop starting it'
+                    : 'Switch on'
+                }
+              >
                 <span className="flex items-center">
                   <Switch
                     checked={workflow.isActive}
                     disabled={update.isPending}
-                    onCheckedChange={(on) => update.mutate({ workflowId: workflow.id, input: { isActive: on } })}
+                    onCheckedChange={(on) =>
+                      update.mutate({
+                        workflowId: workflow.id,
+                        input: { isActive: on },
+                      })
+                    }
                     aria-label="Automation on"
                   />
                 </span>
@@ -202,17 +248,25 @@ export function WorkflowPreviewView({ editUrl }: { editUrl: (workflowId: string)
             >
               Run now
             </Button>
-            <Button size="sm" leadingIcon={<ExternalLink />} onClick={openStudio}>
+            <Button
+              size="sm"
+              leadingIcon={<ExternalLink />}
+              onClick={openStudio}
+            >
               {canEdit ? 'Edit in Studio' : 'Open in Studio'}
             </Button>
           </>
         }
       />
 
-      <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
+      <Tabs
+        value={tab}
+        onValueChange={setTab}
+        className="min-h-0 flex flex-1 flex-col"
+      >
         <PageTabBar
           end={
-            <span className="hidden truncate text-xs text-muted-foreground md:inline">
+            <span className="text-xs md:inline hidden truncate text-muted-foreground">
               {[
                 trigger?.label ?? workflow.triggerType,
                 `${steps} ${steps === 1 ? 'step' : 'steps'}`,
@@ -221,16 +275,26 @@ export function WorkflowPreviewView({ editUrl }: { editUrl: (workflowId: string)
             </span>
           }
         >
-          <TabsTrigger value="steps" icon={<Workflow className="size-4" aria-hidden />}>
+          <TabsTrigger
+            value="steps"
+            icon={<Workflow className="size-4" aria-hidden />}
+          >
             Steps
           </TabsTrigger>
-          <TabsTrigger value="runs" icon={<Activity className="size-4" aria-hidden />}>
+          <TabsTrigger
+            value="runs"
+            icon={<Activity className="size-4" aria-hidden />}
+          >
             Runs{runs ? ` · ${runs}` : ''}
           </TabsTrigger>
         </PageTabBar>
 
-        <TabsContent value="steps" className="relative mt-0 min-h-0 flex-1">
-          <div role="region" aria-label="Automation steps" className="absolute inset-0">
+        <TabsContent value="steps" className="mt-0 min-h-0 relative flex-1">
+          <div
+            role="region"
+            aria-label="Automation steps"
+            className="inset-0 absolute"
+          >
             {/* Uncontrolled, so React Flow keeps the measured sizes the minimap needs; a save remounts it */}
             <ReactFlowProvider key={`${workflow.id}:${workflow.updatedAt}`}>
               <ReactFlow
@@ -249,25 +313,37 @@ export function WorkflowPreviewView({ editUrl }: { editUrl: (workflowId: string)
                 fitViewOptions={{
                   maxZoom: 1,
                   minZoom: 0.3,
-                  padding: workflow.description ? { top: '96px', bottom: '72px', x: '48px' } : 0.2,
+                  padding: workflow.description
+                    ? { top: '96px', bottom: '72px', x: '48px' }
+                    : 0.2,
                 }}
               >
                 {workflow.description ? (
-                  <Panel position="top-left" className="!m-0 !left-5 !top-5 max-md:!right-5">
-                    <p className="max-w-sm rounded-[14px] border border-border bg-surface px-3 py-2 text-xs leading-snug text-muted-foreground shadow-sm">
+                  <Panel
+                    position="top-left"
+                    className="!m-0 !left-5 !top-5 max-md:!right-5"
+                  >
+                    <p className="max-w-sm px-3 py-2 text-xs leading-snug rounded-xl border border-border bg-surface text-muted-foreground shadow-sm">
                       {workflow.description}
                     </p>
                   </Panel>
                 ) : null}
                 <WorkflowCanvasControls />
                 <WorkflowMiniMap />
-                <Background gap={18} size={1} color="color-mix(in oklab, var(--color-muted-foreground) 30%, transparent)" />
+                <Background
+                  gap={18}
+                  size={1}
+                  color="color-mix(in oklab, var(--color-muted-foreground) 30%, transparent)"
+                />
               </ReactFlow>
             </ReactFlowProvider>
           </div>
         </TabsContent>
 
-        <TabsContent value="runs" className="mt-0 min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+        <TabsContent
+          value="runs"
+          className="mt-0 min-h-0 p-4 sm:p-6 flex-1 overflow-y-auto"
+        >
           <WorkflowRuns workspaceId={workspaceId} workflowId={workflow.id} />
         </TabsContent>
       </Tabs>
@@ -281,7 +357,13 @@ const EXECUTION_STATUS: Record<string, string> = {
   WAITING: 'WAITING_APPROVAL',
 };
 
-function WorkflowRuns({ workspaceId, workflowId }: { workspaceId: string | undefined; workflowId: string }) {
+function WorkflowRuns({
+  workspaceId,
+  workflowId,
+}: {
+  workspaceId: string | undefined;
+  workflowId: string;
+}) {
   const executions = useWorkflowExecutions(workspaceId, workflowId);
   if (executions.isLoading) return <LoadingState label="Loading runs…" />;
   const rows = executions.data ?? [];
@@ -295,17 +377,26 @@ function WorkflowRuns({ workspaceId, workflowId }: { workspaceId: string | undef
     );
   }
   return (
-    <ul className="mx-auto max-w-3xl divide-y divide-border rounded-lg border border-border bg-surface">
+    <ul className="max-w-3xl mx-auto divide-y divide-border rounded-lg border border-border bg-surface">
       {rows.map((execution) => {
-        const ms = new Date(execution.finishedAt).getTime() - new Date(execution.startedAt).getTime();
+        const ms =
+          new Date(execution.finishedAt).getTime() -
+          new Date(execution.startedAt).getTime();
         return (
-          <li key={execution.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <AIRunStatusBadge status={EXECUTION_STATUS[execution.status] ?? execution.status} />
-              <span className="truncate text-foreground">{formatRelative(execution.startedAt)}</span>
+          <li
+            key={execution.id}
+            className="gap-3 px-4 py-2.5 text-sm flex items-center justify-between"
+          >
+            <div className="min-w-0 gap-2.5 flex items-center">
+              <AIRunStatusBadge
+                status={EXECUTION_STATUS[execution.status] ?? execution.status}
+              />
+              <span className="truncate text-foreground">
+                {formatRelative(execution.startedAt)}
+              </span>
             </div>
             {Number.isFinite(ms) && ms >= 0 ? (
-              <span className="shrink-0 font-mono text-xs text-muted-foreground">
+              <span className="text-xs shrink-0 font-mono text-muted-foreground">
                 {ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`}
               </span>
             ) : null}

@@ -95,7 +95,7 @@ function AttentionCard({
             {item.category === 'URGENT' ? (
               <Flame className="size-4 animate-pulse text-destructive" />
             ) : item.sourceType === 'task' ? (
-              <CheckCircle2 className="size-4 text-amber-500" />
+              <CheckCircle2 className="size-4 text-warning-text" />
             ) : item.sourceType === 'mention' ? (
               <MessageSquare className="size-4 text-primary" />
             ) : (
@@ -109,13 +109,13 @@ function AttentionCard({
               </span>
               <Badge
                 variant={badgeVariant}
-                className="px-1.5 py-0 h-4 text-[10px]"
+                className="px-1.5 py-0 h-4 text-2xs"
               >
                 {item.category}
               </Badge>
             </div>
             {item.description ? (
-              <p className="mt-0.5 line-clamp-2 text-[11px] text-muted-foreground">
+              <p className="mt-0.5 line-clamp-2 text-meta text-muted-foreground">
                 {item.description}
               </p>
             ) : null}
@@ -132,7 +132,7 @@ function AttentionCard({
         </button>
       </div>
 
-      <div className="pt-1 flex items-center justify-between border-t border-border/40 text-[11px]">
+      <div className="pt-1 flex items-center justify-between border-t border-border/40 text-meta">
         <div className="gap-1.5 flex items-center truncate text-muted-foreground">
           <Clock className="size-3" />
           <span>{formatRelative(new Date(item.timestamp).getTime())}</span>
@@ -143,7 +143,7 @@ function AttentionCard({
             <Button
               variant="outline"
               size="sm"
-              className="h-6 px-2 text-[11px]"
+              className="h-6 px-2 text-meta"
               onClick={() => onComplete(item.sourceId)}
             >
               Done
@@ -152,7 +152,7 @@ function AttentionCard({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 px-2 text-[11px]"
+            className="h-6 px-2 text-meta"
             onClick={() => onSnooze(item.itemKey)}
           >
             Snooze
@@ -161,7 +161,7 @@ function AttentionCard({
             asChild
             variant="primary"
             size="sm"
-            className="h-6 px-2.5 text-[11px]"
+            className="h-6 px-2.5 text-meta"
           >
             <Link to={`/w/${slug}/${item.deepLink}`}>Open</Link>
           </Button>
@@ -312,13 +312,13 @@ export function DashboardPage() {
                 {attentionItems.length > 0 ? (
                   <Badge
                     variant="warning"
-                    className="px-1.5 py-0 h-4 text-[10px]"
+                    className="px-1.5 py-0 h-4 text-2xs"
                   >
                     {attentionItems.length} pending
                   </Badge>
                 ) : null}
               </div>
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-meta text-muted-foreground">
                 Priority ranked items requiring action
               </span>
             </div>
@@ -334,7 +334,7 @@ export function DashboardPage() {
                   <p className="text-xs font-semibold text-foreground">
                     You're all caught up!
                   </p>
-                  <p className="max-w-sm mt-0.5 text-[11px] text-muted-foreground">
+                  <p className="max-w-sm mt-0.5 text-meta text-muted-foreground">
                     No urgent tasks, unread mentions, or overdue items need your
                     attention right now.
                   </p>
@@ -375,7 +375,7 @@ export function DashboardPage() {
                   Continue Where You Left Off
                 </h2>
               </div>
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-meta text-muted-foreground">
                 Jump right back into your active context
               </span>
             </div>
@@ -392,7 +392,7 @@ export function DashboardPage() {
               >
                 <div>
                   <div className="mb-2 flex items-center justify-between text-muted-foreground">
-                    <span className="font-semibold tracking-wider text-[10px] uppercase">
+                    <span className="font-semibold tracking-wider text-2xs uppercase">
                       Conversation
                     </span>
                     <Hash className="size-3.5 transition-colors group-hover:text-primary" />
@@ -402,12 +402,12 @@ export function DashboardPage() {
                       ? `#${lastVisitedChannel.name}`
                       : 'Browse Channels'}
                   </p>
-                  <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                  <p className="mt-0.5 truncate text-meta text-muted-foreground">
                     {lastVisitedChannel?.topic ||
                       'Resume discussions in channel'}
                   </p>
                 </div>
-                <div className="mt-3 font-medium flex items-center justify-between text-[11px] text-primary">
+                <div className="mt-3 font-medium flex items-center justify-between text-meta text-primary">
                   <span>Open channel</span>
                   <ArrowRight className="size-3 group-hover:translate-x-0.5 transition-transform" />
                 </div>
@@ -424,10 +424,10 @@ export function DashboardPage() {
               >
                 <div>
                   <div className="mb-2 flex items-center justify-between text-muted-foreground">
-                    <span className="font-semibold tracking-wider text-[10px] uppercase">
+                    <span className="font-semibold tracking-wider text-2xs uppercase">
                       Active Task
                     </span>
-                    <CheckCircle2 className="size-3.5 group-hover:text-amber-500 transition-colors" />
+                    <CheckCircle2 className="size-3.5 group-hover:text-warning-text transition-colors" />
                   </div>
                   <p className="text-xs font-semibold truncate text-foreground group-hover:text-primary">
                     {inProgressTask
@@ -436,13 +436,13 @@ export function DashboardPage() {
                         : inProgressTask.title
                       : 'Kanban Board'}
                   </p>
-                  <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                  <p className="mt-0.5 truncate text-meta text-muted-foreground">
                     {inProgressTask
                       ? `Status: ${inProgressTask.status}`
                       : 'View and create project tasks'}
                   </p>
                 </div>
-                <div className="mt-3 font-medium flex items-center justify-between text-[11px] text-primary">
+                <div className="mt-3 font-medium flex items-center justify-between text-meta text-primary">
                   <span>Resume work</span>
                   <ArrowRight className="size-3 group-hover:translate-x-0.5 transition-transform" />
                 </div>
@@ -459,23 +459,23 @@ export function DashboardPage() {
               >
                 <div>
                   <div className="mb-2 flex items-center justify-between text-muted-foreground">
-                    <span className="font-semibold tracking-wider text-[10px] uppercase">
+                    <span className="font-semibold tracking-wider text-2xs uppercase">
                       Document
                     </span>
-                    <FileText className="size-3.5 group-hover:text-blue-500 transition-colors" />
+                    <FileText className="size-3.5 group-hover:text-accent-blue transition-colors" />
                   </div>
                   <p className="text-xs font-semibold truncate text-foreground group-hover:text-primary">
                     {recentDoc
                       ? recentDoc.title || 'Untitled Document'
                       : 'Workspace Docs'}
                   </p>
-                  <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                  <p className="mt-0.5 truncate text-meta text-muted-foreground">
                     {recentDoc
                       ? `Updated ${formatRelative(new Date(recentDoc.updatedAt).getTime())}`
                       : 'Notion-style notes and specs'}
                   </p>
                 </div>
-                <div className="mt-3 font-medium flex items-center justify-between text-[11px] text-primary">
+                <div className="mt-3 font-medium flex items-center justify-between text-meta text-primary">
                   <span>Continue writing</span>
                   <ArrowRight className="size-3 group-hover:translate-x-0.5 transition-transform" />
                 </div>
@@ -488,7 +488,7 @@ export function DashboardPage() {
               >
                 <div>
                   <div className="mb-2 flex items-center justify-between text-muted-foreground">
-                    <span className="font-semibold tracking-wider text-[10px] uppercase">
+                    <span className="font-semibold tracking-wider text-2xs uppercase">
                       Direct Messages
                     </span>
                     <MessageSquare className="size-3.5 transition-colors group-hover:text-success-text" />
@@ -496,11 +496,11 @@ export function DashboardPage() {
                   <p className="text-xs font-semibold truncate text-foreground group-hover:text-primary">
                     Direct Conversations
                   </p>
-                  <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                  <p className="mt-0.5 truncate text-meta text-muted-foreground">
                     1:1 chats with team members
                   </p>
                 </div>
-                <div className="mt-3 font-medium flex items-center justify-between text-[11px] text-primary">
+                <div className="mt-3 font-medium flex items-center justify-between text-meta text-primary">
                   <span>Open DMs</span>
                   <ArrowRight className="size-3 group-hover:translate-x-0.5 transition-transform" />
                 </div>
@@ -523,7 +523,7 @@ export function DashboardPage() {
                   asChild
                   variant="outline"
                   size="sm"
-                  className="h-6 text-[11px]"
+                  className="h-6 text-meta"
                 >
                   <Link to={`/w/${slug}/inbox`}>View All Inbox</Link>
                 </Button>
@@ -536,7 +536,7 @@ export function DashboardPage() {
                       <div className="text-lg font-bold text-foreground">
                         {catchUp.data?.unreadMentionsCount ?? 0}
                       </div>
-                      <div className="tracking-wide text-[10px] text-muted-foreground uppercase">
+                      <div className="tracking-wide text-2xs text-muted-foreground uppercase">
                         Mentions
                       </div>
                     </div>
@@ -544,7 +544,7 @@ export function DashboardPage() {
                       <div className="text-lg font-bold text-foreground">
                         {catchUp.data?.tasksCompletedCount ?? 0}
                       </div>
-                      <div className="tracking-wide text-[10px] text-muted-foreground uppercase">
+                      <div className="tracking-wide text-2xs text-muted-foreground uppercase">
                         Tasks Done
                       </div>
                     </div>
@@ -552,7 +552,7 @@ export function DashboardPage() {
                       <div className="text-lg font-bold text-foreground">
                         {catchUp.data?.decisionsMadeCount ?? 0}
                       </div>
-                      <div className="tracking-wide text-[10px] text-muted-foreground uppercase">
+                      <div className="tracking-wide text-2xs text-muted-foreground uppercase">
                         Decisions
                       </div>
                     </div>
@@ -560,7 +560,7 @@ export function DashboardPage() {
                       <div className="text-lg font-bold text-foreground">
                         {catchUp.data?.activeHuddlesCount ?? 0}
                       </div>
-                      <div className="tracking-wide text-[10px] text-muted-foreground uppercase">
+                      <div className="tracking-wide text-2xs text-muted-foreground uppercase">
                         Huddles
                       </div>
                     </div>
@@ -583,7 +583,7 @@ export function DashboardPage() {
                               className="size-6"
                             />
                           ) : (
-                            <div className="size-6 font-bold flex items-center justify-center rounded-full bg-primary/10 text-[10px] text-primary">
+                            <div className="size-6 font-bold flex items-center justify-center rounded-full bg-primary/10 text-2xs text-primary">
                               ✓
                             </div>
                           )}
@@ -591,12 +591,12 @@ export function DashboardPage() {
                             <p className="text-xs font-medium truncate text-foreground">
                               {update.title}
                             </p>
-                            <p className="truncate text-[11px] text-muted-foreground">
+                            <p className="truncate text-meta text-muted-foreground">
                               {update.summary}
                             </p>
                           </div>
                         </div>
-                        <span className="ml-2 shrink-0 text-[10px] text-muted-foreground">
+                        <span className="ml-2 shrink-0 text-2xs text-muted-foreground">
                           {formatRelative(new Date(update.timestamp).getTime())}
                         </span>
                       </Link>
@@ -638,7 +638,7 @@ export function DashboardPage() {
                           <span className="text-xs font-medium block truncate text-foreground">
                             {meeting.title}
                           </span>
-                          <span className="block text-[10px] text-muted-foreground">
+                          <span className="block text-2xs text-muted-foreground">
                             {formatRelative(
                               new Date(meeting.startAt).getTime(),
                             )}
@@ -802,7 +802,7 @@ export function DashboardPage() {
                             <p className="text-xs font-medium text-foreground">
                               {step.title}
                             </p>
-                            <p className="truncate text-[11px] text-muted-foreground">
+                            <p className="truncate text-meta text-muted-foreground">
                               {step.desc}
                             </p>
                           </div>
@@ -978,7 +978,7 @@ export function DashboardPage() {
                       ),
                     )}
                   />
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-meta text-muted-foreground">
                     10 GB included in organization plan.
                   </p>
                 </CardContent>

@@ -130,7 +130,7 @@ export function UniversalContextPanel({
         <div className="min-w-0 gap-2 flex items-center">
           <TargetIcon className="size-4 shrink-0 text-primary" />
           <span className="text-sm font-semibold truncate">{displayTitle}</span>
-          <Badge variant="outline" className="font-mono text-[10px] uppercase">
+          <Badge variant="outline" className="font-mono text-2xs uppercase">
             {targetType}
           </Badge>
         </div>
@@ -166,7 +166,7 @@ export function UniversalContextPanel({
           <Plus className="size-3.5" />
           Link Item
         </Button>
-        <div className="ml-auto text-[11px] text-muted-foreground">
+        <div className="ml-auto text-meta text-muted-foreground">
           {totalLinkedItems} linked
         </div>
       </div>
@@ -183,7 +183,7 @@ export function UniversalContextPanel({
           </div>
           <div className="gap-2 grid grid-cols-2">
             <div>
-              <label className="font-semibold text-[10px] text-muted-foreground uppercase">
+              <label className="font-semibold text-2xs text-muted-foreground uppercase">
                 Type
               </label>
               <AppSelect
@@ -200,7 +200,7 @@ export function UniversalContextPanel({
               />
             </div>
             <div>
-              <label className="font-semibold text-[10px] text-muted-foreground uppercase">
+              <label className="font-semibold text-2xs text-muted-foreground uppercase">
                 Relation
               </label>
               <AppSelect
@@ -218,7 +218,7 @@ export function UniversalContextPanel({
             </div>
           </div>
           <div>
-            <label className="font-semibold text-[10px] text-muted-foreground uppercase">
+            <label className="font-semibold text-2xs text-muted-foreground uppercase">
               Item ID or Reference
             </label>
             <Input
@@ -229,7 +229,7 @@ export function UniversalContextPanel({
             />
           </div>
           {linkError && (
-            <p className="text-[11px] text-destructive">{linkError}</p>
+            <p className="text-meta text-destructive">{linkError}</p>
           )}
           <div className="gap-1.5 pt-1 flex justify-end">
             <Button
@@ -307,7 +307,7 @@ export function UniversalContextPanel({
                       className="p-2 text-xs flex items-center justify-between rounded-lg border border-border/50 bg-card transition-colors hover:bg-muted/40"
                     >
                       <div className="gap-2 min-w-0 flex items-center">
-                        <div className="size-6 font-medium flex shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] text-primary">
+                        <div className="size-6 font-medium flex shrink-0 items-center justify-center rounded-full bg-primary/10 text-meta text-primary">
                           {person.name.charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0 truncate">
@@ -315,7 +315,7 @@ export function UniversalContextPanel({
                             {person.name}
                           </p>
                           {person.role && (
-                            <p className="truncate text-[10px] text-muted-foreground">
+                            <p className="truncate text-2xs text-muted-foreground">
                               {person.role}
                             </p>
                           )}
@@ -324,7 +324,7 @@ export function UniversalContextPanel({
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-6 px-2 text-[11px]"
+                        className="h-6 px-2 text-meta"
                         onClick={() =>
                           navigate(`/w/${workspaceSlug}/dms/${person.id}`)
                         }
@@ -355,14 +355,14 @@ export function UniversalContextPanel({
                       className="p-2 text-xs group block w-full rounded-lg border border-border/50 bg-card text-left transition-colors hover:border-primary/40 hover:bg-muted/40"
                     >
                       <div className="gap-1 mb-1 flex items-center justify-between">
-                        <span className="font-mono text-[10px] text-muted-foreground">
+                        <span className="font-mono text-2xs text-muted-foreground">
                           {task.identifier || task.id.slice(0, 7)}
                         </span>
                         <Badge
                           variant={
                             task.status === 'DONE' ? 'outline' : 'secondary'
                           }
-                          className="px-1 py-0 text-[9px] uppercase"
+                          className="px-1 py-0 text-3xs uppercase"
                         >
                           {task.status}
                         </Badge>
@@ -393,7 +393,7 @@ export function UniversalContextPanel({
                       onClick={() => navigate(msg.href)}
                       className="p-2 text-xs group block w-full rounded-lg border border-border/50 bg-card text-left transition-colors hover:border-primary/40 hover:bg-muted/40"
                     >
-                      <div className="gap-1 mb-1 flex items-center justify-between text-[10px] text-muted-foreground">
+                      <div className="gap-1 mb-1 flex items-center justify-between text-2xs text-muted-foreground">
                         <span className="font-medium text-foreground">
                           {msg.senderName}
                         </span>
@@ -401,7 +401,7 @@ export function UniversalContextPanel({
                           {msg.channelName ? `#${msg.channelName}` : ''}
                         </span>
                       </div>
-                      <p className="line-clamp-2 text-[11px] text-muted-foreground group-hover:text-foreground">
+                      <p className="line-clamp-2 text-meta text-muted-foreground group-hover:text-foreground">
                         <MessagePreview text={msg.body} />
                       </p>
                     </button>
@@ -459,7 +459,7 @@ export function UniversalContextPanel({
                         <p className="font-medium truncate text-foreground group-hover:text-primary">
                           {file.filename}
                         </p>
-                        <p className="text-[10px] text-muted-foreground">
+                        <p className="text-2xs text-muted-foreground">
                           {formatBytes(file.size)}
                         </p>
                       </div>
@@ -491,7 +491,7 @@ export function UniversalContextPanel({
                           {agent.name}
                         </span>
                       </div>
-                      <Badge variant="outline" className="text-[10px]">
+                      <Badge variant="outline" className="text-2xs">
                         {agent.model}
                       </Badge>
                     </div>

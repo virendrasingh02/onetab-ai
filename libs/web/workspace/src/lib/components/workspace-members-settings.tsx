@@ -344,7 +344,7 @@ export function WorkspaceMembersSettings({
         className={`gap-3.5 grid grid-cols-2 ${isAdmin ? 'sm:grid-cols-4' : 'sm:grid-cols-3'}`}
       >
         <div className="p-3.5 space-y-1 rounded-xl border border-border bg-surface">
-          <span className="font-medium gap-1.5 flex items-center text-[11px] text-muted-foreground">
+          <span className="font-medium gap-1.5 flex items-center text-meta text-muted-foreground">
             <Users className="size-3.5 text-primary" />
             Total Members
           </span>
@@ -352,7 +352,7 @@ export function WorkspaceMembersSettings({
         </div>
 
         <div className="p-3.5 space-y-1 rounded-xl border border-border bg-surface">
-          <span className="font-medium gap-1.5 flex items-center text-[11px] text-muted-foreground">
+          <span className="font-medium gap-1.5 flex items-center text-meta text-muted-foreground">
             <span className="size-2 animate-pulse rounded-full bg-success" />
             Active Online
           </span>
@@ -360,7 +360,7 @@ export function WorkspaceMembersSettings({
         </div>
 
         <div className="p-3.5 space-y-1 rounded-xl border border-border bg-surface">
-          <span className="font-medium gap-1.5 flex items-center text-[11px] text-muted-foreground">
+          <span className="font-medium gap-1.5 flex items-center text-meta text-muted-foreground">
             <Shield className="size-3.5 text-accent-indigo" />
             Admins & Owners
           </span>
@@ -369,7 +369,7 @@ export function WorkspaceMembersSettings({
 
         {isAdmin ? (
           <div className="p-3.5 space-y-1 rounded-xl border border-border bg-surface">
-            <span className="font-medium gap-1.5 flex items-center text-[11px] text-muted-foreground">
+            <span className="font-medium gap-1.5 flex items-center text-meta text-muted-foreground">
               <Mail className="size-3.5 text-accent-amber" />
               Pending Invites
             </span>
@@ -406,7 +406,7 @@ export function WorkspaceMembersSettings({
             >
               <span>Pending Invitations</span>
               {invitationsList.length > 0 ? (
-                <Badge variant="info" className="px-1.5 py-0 text-[10px]">
+                <Badge variant="info" className="px-1.5 py-0 text-2xs">
                   {invitationsList.length}
                 </Badge>
               ) : null}
@@ -494,13 +494,13 @@ export function WorkspaceMembersSettings({
                           {isSelf ? (
                             <Badge
                               variant="neutral"
-                              className="px-1.5 py-0 font-medium text-[10px]"
+                              className="px-1.5 py-0 font-medium text-2xs"
                             >
                               You
                             </Badge>
                           ) : null}
                         </div>
-                        <div className="gap-x-2 gap-y-0.5 mt-0.5 flex flex-wrap items-center text-[11px] text-muted-foreground">
+                        <div className="gap-x-2 gap-y-0.5 mt-0.5 flex flex-wrap items-center text-meta text-muted-foreground">
                           <span>@{member.user.name}</span>
                           {member.email ? (
                             <>
@@ -539,7 +539,7 @@ export function WorkspaceMembersSettings({
                               ? 'destructive'
                               : 'neutral'
                           }
-                          className="font-semibold px-2 py-0.5 text-[10px] capitalize"
+                          className="font-semibold px-2 py-0.5 text-2xs capitalize"
                         >
                           {member.status === 'SUSPENDED'
                             ? 'Suspended'
@@ -548,7 +548,7 @@ export function WorkspaceMembersSettings({
                       ) : null}
                       <Badge
                         variant={badgeConfig.variant}
-                        className="font-semibold px-2 py-0.5 text-[11px] capitalize"
+                        className="font-semibold px-2 py-0.5 text-meta capitalize"
                       >
                         {isMemberOwner ? (
                           <span className="gap-1 flex items-center">
@@ -716,7 +716,7 @@ export function WorkspaceMembersSettings({
                               })
                             }
                           >
-                            <SelectTrigger className="h-6 px-1.5 py-0 w-[88px] bg-surface text-[10px]">
+                            <SelectTrigger className="h-6 px-1.5 py-0 w-[88px] bg-surface text-2xs">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -734,13 +734,13 @@ export function WorkspaceMembersSettings({
                         ) : (
                           <Badge
                             variant="neutral"
-                            className="px-1.5 py-0 font-medium text-[10px] capitalize"
+                            className="px-1.5 py-0 font-medium text-2xs capitalize"
                           >
                             {invitation.role.toLowerCase()}
                           </Badge>
                         )}
                       </div>
-                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      <p className="mt-0.5 text-meta text-muted-foreground">
                         Sent {formatRelative(invitation.createdAt)}
                       </p>
                     </div>

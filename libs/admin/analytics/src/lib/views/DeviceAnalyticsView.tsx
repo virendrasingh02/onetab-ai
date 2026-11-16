@@ -152,10 +152,10 @@ export function DeviceAnalyticsView() {
                   <span className="font-semibold flex items-center gap-1.5">
                     {v.version}
                     {v.isLatest && (
-                      <span className="text-[10px] text-success font-medium">(Latest)</span>
+                      <span className="text-2xs text-success font-medium">(Latest)</span>
                     )}
                     {v.isOutdated && (
-                      <span className="text-[10px] text-destructive font-medium">(Outdated)</span>
+                      <span className="text-2xs text-destructive font-medium">(Outdated)</span>
                     )}
                   </span>
                   <span className="text-muted-foreground">

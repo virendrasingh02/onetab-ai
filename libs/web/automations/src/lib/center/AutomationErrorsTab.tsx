@@ -31,7 +31,8 @@ export function AutomationErrorsTab() {
   const { workspaceId, slug } = useCurrentWorkspace();
   const errorsQuery = useAutomationErrors(workspaceId);
 
-  const [selectedError, setSelectedError] = useState<AutomationErrorGroup | null>(null);
+  const [selectedError, setSelectedError] =
+    useState<AutomationErrorGroup | null>(null);
 
   if (errorsQuery.isLoading) {
     return <LoadingState label="Loading error diagnostics…" />;
@@ -51,14 +52,15 @@ export function AutomationErrorsTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="sm:flex-row sm:items-center gap-4 flex flex-col items-start justify-between">
         <div>
-          <h3 className="font-semibold text-lg text-foreground flex items-center gap-2">
-            <Bug className="h-5 w-5 text-rose-500" />
+          <h3 className="font-semibold text-lg gap-2 flex items-center text-foreground">
+            <Bug className="h-5 w-5 text-destructive-text" />
             Error Monitoring & Failure Classification ({totalErrors})
           </h3>
           <p className="text-sm text-muted-foreground">
-            Automatically classified failure patterns, timeout root causes, and connector rate limits across your workspace.
+            Automatically classified failure patterns, timeout root causes, and
+            connector rate limits across your workspace.
           </p>
         </div>
 
@@ -68,25 +70,28 @@ export function AutomationErrorsTab() {
           onClick={() => errorsQuery.refetch()}
           disabled={errorsQuery.isFetching}
         >
-          <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${errorsQuery.isFetching ? 'animate-spin' : ''}`} />
+          <RefreshCw
+            className={`h-3.5 w-3.5 mr-1.5 ${errorsQuery.isFetching ? 'animate-spin' : ''}`}
+          />
           Refresh
         </Button>
       </div>
 
       {errorGroups.length === 0 ? (
-        <Card className="p-8 text-center bg-success/5 border-success/20">
-          <div className="mx-auto w-12 h-12 rounded-full bg-success/10 text-success-text flex items-center justify-center mb-3">
+        <Card className="p-8 border-success/20 bg-success/5 text-center">
+          <div className="w-12 h-12 mb-3 mx-auto flex items-center justify-center rounded-full bg-success/10 text-success-text">
             <CheckCircle2 className="h-6 w-6" />
           </div>
-          <h4 className="font-semibold text-base text-foreground mb-1">
+          <h4 className="font-semibold text-base mb-1 text-foreground">
             Zero Failures Detected
           </h4>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            All recent workflow executions have completed cleanly without any uncaught exceptions or timeouts.
+          <p className="text-sm max-w-md mx-auto text-muted-foreground">
+            All recent workflow executions have completed cleanly without any
+            uncaught exceptions or timeouts.
           </p>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="md:grid-cols-2 lg:grid-cols-3 gap-4 grid grid-cols-1">
           {errorGroups.map((group) => {
             const lastTime = group.latestOccurredAt
               ? formatRelative(group.latestOccurredAt)
@@ -95,41 +100,43 @@ export function AutomationErrorsTab() {
             return (
               <Card
                 key={group.classification}
-                className="p-5 flex flex-col justify-between hover:border-rose-500/40 transition-colors"
+                className="p-5 flex flex-col justify-between transition-colors hover:border-destructive/40"
               >
                 <div>
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <Badge variant="destructive" className="font-mono text-[10px]">
+                  <div className="gap-2 mb-2 flex items-start justify-between">
+                    <Badge variant="destructive" className="font-mono text-2xs">
                       {group.classification}
                     </Badge>
-                    <span className="font-semibold text-xs text-rose-600 dark:text-rose-400">
+                    <span className="font-semibold text-xs text-destructive-text">
                       {group.count} {group.count === 1 ? 'failure' : 'failures'}
                     </span>
                   </div>
 
-                  <h4 className="font-semibold text-sm text-foreground mb-1.5">
+                  <h4 className="font-semibold text-sm mb-1.5 text-foreground">
                     {group.classification.replace(/_/g, ' ')}
                   </h4>
 
-                  <p className="text-xs text-muted-foreground font-mono bg-muted/40 p-2 rounded line-clamp-3 mb-3">
+                  <p className="text-xs p-2 rounded mb-3 line-clamp-3 bg-muted/40 font-mono text-muted-foreground">
                     {group.latestError}
                   </p>
                 </div>
 
                 <div className="pt-3 border-t border-border/50">
-                  <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-3">
-                    <span>{group.affectedWorkflows.length} workflows affected</span>
-                    <span className="flex items-center gap-1">
+                  <div className="mb-3 flex items-center justify-between text-meta text-muted-foreground">
+                    <span>
+                      {group.affectedWorkflows.length} workflows affected
+                    </span>
+                    <span className="gap-1 flex items-center">
                       <Clock className="h-3 w-3" />
                       {lastTime}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="gap-2 flex items-center">
                     <Button
                       size="sm"
                       variant="outline"
-                      className="w-full text-xs"
+                      className="text-xs w-full"
                       onClick={() => setSelectedError(group)}
                     >
                       Inspect Root Cause
@@ -137,8 +144,12 @@ export function AutomationErrorsTab() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="w-full text-xs"
-                      onClick={() => navigate(`/w/${slug}/automations?tab=runs&status=FAILED`)}
+                      className="text-xs w-full"
+                      onClick={() =>
+                        navigate(
+                          `/w/${slug}/automations?tab=runs&status=FAILED`,
+                        )
+                      }
                     >
                       View Runs
                       <ExternalLink className="h-3 w-3 ml-1" />
@@ -153,40 +164,45 @@ export function AutomationErrorsTab() {
 
       {/* Inspect Error Modal */}
       {selectedError && (
-        <Dialog open={!!selectedError} onOpenChange={(open) => !open && setSelectedError(null)}>
+        <Dialog
+          open={!!selectedError}
+          onOpenChange={(open) => !open && setSelectedError(null)}
+        >
           <DialogContent className="max-w-lg">
             <DialogHeader>
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-5 w-5 text-rose-500" />
+              <div className="gap-2 flex items-center">
+                <AlertCircle className="h-5 w-5 text-destructive-text" />
                 <DialogTitle>{selectedError.classification}</DialogTitle>
               </div>
             </DialogHeader>
 
             <DialogBody className="space-y-4 py-2">
               <div>
-                <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                <h5 className="text-xs font-semibold tracking-wider mb-1 text-muted-foreground uppercase">
                   Latest Error Message
                 </h5>
-                <pre className="font-mono text-xs bg-muted/60 p-3 rounded-lg overflow-x-auto text-foreground whitespace-pre-wrap">
+                <pre className="text-xs p-3 overflow-x-auto rounded-lg bg-muted/60 font-mono whitespace-pre-wrap text-foreground">
                   {selectedError.latestError}
                 </pre>
               </div>
 
               <div>
-                <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                <h5 className="text-xs font-semibold tracking-wider mb-2 text-muted-foreground uppercase">
                   Affected Workflows ({selectedError.affectedWorkflows.length})
                 </h5>
                 <div className="space-y-1.5 max-h-48 overflow-y-auto">
                   {selectedError.affectedWorkflows.map((w) => (
                     <div
                       key={w.id}
-                      className="p-2 rounded bg-muted/30 border border-border/40 text-xs flex items-center justify-between"
+                      className="p-2 rounded text-xs flex items-center justify-between border border-border/40 bg-muted/30"
                     >
-                      <span className="font-medium text-foreground">{w.name}</span>
+                      <span className="font-medium text-foreground">
+                        {w.name}
+                      </span>
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-6 text-[11px]"
+                        className="h-6 text-meta"
                         onClick={() => {
                           setSelectedError(null);
                           navigate(`/w/${slug}/automations/builder/${w.id}`);

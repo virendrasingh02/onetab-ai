@@ -210,7 +210,7 @@ export function ProjectListView({
                 <table className="text-xs w-full min-w-[720px] border-collapse text-left">
                   {/* Headers only label rows; an empty section has none. */}
                   <thead className={cn(totalCount === 0 && 'sr-only')}>
-                    <tr className="font-medium border-b border-border/40 text-[11px] text-muted-foreground">
+                    <tr className="font-medium border-b border-border/40 text-meta text-muted-foreground">
                       <th className="py-2 px-4 w-[40%]">Task</th>
                       <th className="py-2 px-3 w-[15%]">Assignee</th>
                       <th className="py-2 px-3 w-[15%]">Due date</th>
@@ -292,10 +292,10 @@ export function ProjectListView({
                                       toIndex: 0,
                                     })
                                   }
-                                  className="shrink-0 text-muted-foreground transition-colors hover:text-[#10b981]"
+                                  className="shrink-0 text-muted-foreground transition-colors hover:text-success-text"
                                 >
                                   {isDone ? (
-                                    <CheckCircle2 className="size-4 text-white fill-[#10b981]" />
+                                    <CheckCircle2 className="size-4 text-white fill-success" />
                                   ) : (
                                     <Circle className="size-4" />
                                   )}

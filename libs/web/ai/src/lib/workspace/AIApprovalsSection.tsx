@@ -149,7 +149,7 @@ function ApprovalCard({
           {pending ? (
             <AIRunStatusBadge status="WAITING_APPROVAL" />
           ) : (
-            <Badge variant={approval.state === 'APPROVED' ? 'success' : 'neutral'} className="text-[10px]">
+            <Badge variant={approval.state === 'APPROVED' ? 'success' : 'neutral'} className="text-2xs">
               {approval.state.toLowerCase()}
               {approval.approver ? ` by ${approval.approver.name}` : ''}
             </Badge>

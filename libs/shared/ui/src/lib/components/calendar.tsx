@@ -132,7 +132,7 @@ export function Calendar({
         {weekDays.map((day) => (
           <span
             key={day}
-            className="font-medium text-[11px] text-muted-foreground"
+            className="font-medium text-meta text-muted-foreground"
           >
             {day}
           </span>
@@ -171,8 +171,7 @@ export function Calendar({
               className={cn(
                 'size-8 text-xs font-normal flex items-center justify-center rounded-md transition-colors focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none',
                 !isCurrentMonth && 'text-muted-foreground/40',
-                isInRange &&
-                  'bg-brand/15 text-foreground hover:bg-brand/25',
+                isInRange && 'bg-brand/15 text-foreground hover:bg-brand/25',
                 isCurrentMonth &&
                   !isSelected &&
                   !isInRange &&
@@ -181,7 +180,7 @@ export function Calendar({
                   !isSelected &&
                   'font-semibold text-brand-text ring-1 ring-brand/40',
                 isSelected &&
-                  'font-semibold shadow-xs bg-brand text-brand-foreground hover:bg-brand/90',
+                  'font-semibold bg-brand text-brand-foreground shadow-xs hover:bg-brand/90',
                 isDisabled &&
                   'cursor-not-allowed opacity-30 hover:bg-transparent hover:text-inherit',
               )}

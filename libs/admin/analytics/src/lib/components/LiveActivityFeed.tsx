@@ -120,18 +120,18 @@ export function LiveActivityFeed({
                       <span className="font-semibold text-foreground truncate">
                         {item.title}
                       </span>
-                      <span className="text-[10px] text-muted-foreground shrink-0">
+                      <span className="text-2xs text-muted-foreground shrink-0">
                         {timeString}
                       </span>
                     </div>
 
                     {item.description && (
-                      <p className="text-muted-foreground truncate text-[11px]">
+                      <p className="text-muted-foreground truncate text-meta">
                         {item.description}
                       </p>
                     )}
 
-                    <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-[10px]">
+                    <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-2xs">
                       {userEmail && (
                         <span className="flex items-center gap-1 text-muted-foreground">
                           <User className="size-2.5" />
@@ -153,7 +153,7 @@ export function LiveActivityFeed({
                       {platform && platform !== 'UNKNOWN' && (
                         <Badge
                           variant="outline"
-                          className="text-[9px] py-0 px-1 font-normal h-4 gap-0.5"
+                          className="text-3xs py-0 px-1 font-normal h-4 gap-0.5"
                         >
                           <Laptop className="size-2" />
                           {platform}
@@ -163,7 +163,7 @@ export function LiveActivityFeed({
                       {item.severity === 'critical' && (
                         <Badge
                           variant="destructive"
-                          className="text-[9px] py-0 px-1 h-4 gap-0.5"
+                          className="text-3xs py-0 px-1 h-4 gap-0.5"
                         >
                           <AlertTriangle className="size-2" />
                           Alert

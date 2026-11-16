@@ -137,7 +137,7 @@ export function AuditLogView() {
                       {log.actorEmail}
                     </TableCell>
                     <TableCell className="py-3.5 px-5">
-                      <span className="inline-flex items-center rounded-full border border-blue-500/25 bg-blue-500/15 text-blue-400 px-2.5 py-0.5 text-[10px] font-mono uppercase tracking-wider">
+                      <span className="inline-flex items-center rounded-full border border-accent-blue/25 bg-accent-blue/15 text-accent-blue px-2.5 py-0.5 text-2xs font-mono uppercase tracking-wider">
                         {log.action}
                       </span>
                     </TableCell>

@@ -118,7 +118,7 @@ export function RunDetailPanel({ workspaceId, slug, runId, graph, permissionsHre
       <div className="flex flex-wrap items-center gap-2">
         <AIRunStatusBadge status={data.status} />
         {isTest ? (
-          <Badge variant="info" className="text-[10px]">
+          <Badge variant="info" className="text-2xs">
             {active ? 'Test run — changes are only simulated' : 'Test run — nothing was changed'}
           </Badge>
         ) : null}

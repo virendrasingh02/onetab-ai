@@ -25,7 +25,14 @@ import { useState } from 'react';
 export interface PaletteItem {
   type: CardComponentType;
   label: string;
-  category: 'layout' | 'typography' | 'media' | 'elements' | 'data' | 'forms' | 'feedback';
+  category:
+    | 'layout'
+    | 'typography'
+    | 'media'
+    | 'elements'
+    | 'data'
+    | 'forms'
+    | 'feedback';
   icon: React.ElementType;
   description: string;
   createDefaultNode: () => CardComponentNode;
@@ -42,7 +49,12 @@ export const COMPONENT_CATALOG: PaletteItem[] = [
     createDefaultNode: () => ({
       id: `container-${generateShortId()}`,
       type: 'container',
-      style: { padding: '12px', borderRadius: '12px', background: 'surface', border: '1px solid border' },
+      style: {
+        padding: '12px',
+        borderRadius: '12px',
+        background: 'surface',
+        border: '1px solid border',
+      },
       children: [],
     }),
   },
@@ -158,7 +170,10 @@ export const COMPONENT_CATALOG: PaletteItem[] = [
     createDefaultNode: () => ({
       id: `image-${generateShortId()}`,
       type: 'image',
-      props: { src: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=60', alt: 'Image' },
+      props: {
+        src: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=60',
+        alt: 'Image',
+      },
     }),
   },
 
@@ -248,7 +263,11 @@ export const COMPONENT_CATALOG: PaletteItem[] = [
     createDefaultNode: () => ({
       id: `input-${generateShortId()}`,
       type: 'input',
-      props: { label: 'Field Label', name: 'fieldName', placeholder: 'Enter value…' },
+      props: {
+        label: 'Field Label',
+        name: 'fieldName',
+        placeholder: 'Enter value…',
+      },
     }),
   },
   {
@@ -274,7 +293,11 @@ export const COMPONENT_CATALOG: PaletteItem[] = [
     createDefaultNode: () => ({
       id: `alert-${generateShortId()}`,
       type: 'alert',
-      props: { title: 'Attention Required', description: 'Important message details here.', variant: 'default' },
+      props: {
+        title: 'Attention Required',
+        description: 'Important message details here.',
+        variant: 'default',
+      },
     }),
   },
 ];
@@ -301,22 +324,26 @@ export function ComponentPalette({ onAddComponent }: ComponentPaletteProps) {
   );
 
   return (
-    <div className="flex flex-col h-full bg-surface border-r border-border/60">
+    <div className="flex h-full flex-col border-r border-border/60 bg-surface">
       {/* Header */}
       <div className="p-3 border-b border-border/60">
-        <span className="text-xs font-bold text-foreground block">Component Palette</span>
-        <span className="text-[10px] text-muted-foreground">Click to add to selected container</span>
+        <span className="text-xs font-bold block text-foreground">
+          Component Palette
+        </span>
+        <span className="text-2xs text-muted-foreground">
+          Click to add to selected container
+        </span>
       </div>
 
       {/* Category Pills */}
-      <div className="p-2 border-b border-border/60 flex items-center gap-1 overflow-x-auto">
+      <div className="p-2 gap-1 flex items-center overflow-x-auto border-b border-border/60">
         {categories.map((c) => (
           <button
             key={c.id}
             type="button"
             onClick={() => setActiveCategory(c.id)}
             className={cn(
-              'px-2 py-0.5 rounded text-[11px] font-semibold transition-colors shrink-0',
+              'px-2 py-0.5 rounded font-semibold shrink-0 text-meta transition-colors',
               activeCategory === c.id
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:bg-accent hover:text-foreground',
@@ -328,7 +355,7 @@ export function ComponentPalette({ onAddComponent }: ComponentPaletteProps) {
       </div>
 
       {/* Components List */}
-      <div className="p-2 overflow-y-auto space-y-1.5 flex-1">
+      <div className="p-2 space-y-1.5 flex-1 overflow-y-auto">
         {filteredItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -336,17 +363,19 @@ export function ComponentPalette({ onAddComponent }: ComponentPaletteProps) {
               key={item.type}
               type="button"
               onClick={() => onAddComponent(item.createDefaultNode())}
-              className="w-full p-2 rounded-xl border border-border/60 bg-surface-raised hover:bg-accent/80 hover:border-primary/50 text-left transition-all group flex items-start gap-2.5 cursor-pointer shadow-2xs"
+              className="p-2 group gap-2.5 shadow-2xs flex w-full cursor-pointer items-start rounded-xl border border-border/60 bg-surface-raised text-left transition-all hover:border-primary/50 hover:bg-accent/80"
             >
-              <div className="size-7 rounded-lg bg-surface border border-border/60 flex items-center justify-center text-primary shrink-0 group-hover:scale-105 transition-transform">
+              <div className="size-7 flex shrink-0 items-center justify-center rounded-lg border border-border/60 bg-surface text-primary transition-transform group-hover:scale-105">
                 <Icon className="size-3.5" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-xs text-foreground block">{item.label}</span>
-                  <Plus className="size-3 text-muted-foreground group-hover:text-primary transition-colors opacity-0 group-hover:opacity-100" />
+                  <span className="font-semibold text-xs block text-foreground">
+                    {item.label}
+                  </span>
+                  <Plus className="size-3 text-muted-foreground opacity-0 transition-colors group-hover:text-primary group-hover:opacity-100" />
                 </div>
-                <p className="text-[10px] text-muted-foreground leading-tight truncate">
+                <p className="leading-tight truncate text-2xs text-muted-foreground">
                   {item.description}
                 </p>
               </div>

@@ -105,7 +105,7 @@ function RailLink({
         <span
           aria-hidden
           className={cn(
-            'px-0.5 leading-tight max-w-full truncate text-[10px]',
+            'px-0.5 leading-tight max-w-full truncate text-2xs',
             'transition-colors duration-(--duration-fast) ease-standard',
             active
               ? 'font-semibold text-foreground'

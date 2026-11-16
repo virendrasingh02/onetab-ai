@@ -147,7 +147,7 @@ export function DesktopBrowserSignIn({
           </Button>
         ) : null}
 
-        <p className="gap-1.5 pt-1 flex items-center justify-center text-[11px] text-muted-foreground">
+        <p className="gap-1.5 pt-1 flex items-center justify-center text-meta text-muted-foreground">
           <ShieldCheck aria-hidden className="size-3.5" />
           Your password is never entered in this app.
         </p>

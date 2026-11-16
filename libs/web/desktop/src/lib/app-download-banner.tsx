@@ -98,7 +98,7 @@ export function AppDownloadBanner({
           <h4 className="text-sm font-semibold tracking-tight text-foreground">
             {isMobile ? 'Get the mobile app' : 'Get the desktop app'}
           </h4>
-          <p className="truncate text-[11px] text-muted-foreground">
+          <p className="truncate text-meta text-muted-foreground">
             {isMobile
               ? 'Faster, focused mobile experience'
               : 'Native notifications and a faster app'}
@@ -143,7 +143,7 @@ export function AppDownloadBanner({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuLabel className="text-[11px] text-muted-foreground">
+            <DropdownMenuLabel className="text-meta text-muted-foreground">
               Remind Me Later
             </DropdownMenuLabel>
 

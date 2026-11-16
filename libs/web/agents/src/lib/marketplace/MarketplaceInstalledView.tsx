@@ -222,7 +222,7 @@ export const MarketplaceInstalledView: React.FC<MarketplaceInstalledViewProps> =
 
                   {scopes.length > 0 && (
                     <div className="mb-4">
-                      <p className="mb-1.5 text-[11px] font-medium text-muted-foreground">
+                      <p className="mb-1.5 text-meta font-medium text-muted-foreground">
                         Granted scopes
                       </p>
                       <div className="gap-1 flex flex-wrap items-center">
@@ -232,7 +232,7 @@ export const MarketplaceInstalledView: React.FC<MarketplaceInstalledViewProps> =
                           </Badge>
                         ))}
                         {scopes.length > 3 && (
-                          <span className="text-[11px] text-muted-foreground">
+                          <span className="text-meta text-muted-foreground">
                             +{scopes.length - 3} more
                           </span>
                         )}

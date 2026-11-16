@@ -129,12 +129,12 @@ function DetailRow({
         {icon}
       </span>
       <div className="min-w-0 flex-1">
-        <dt className="text-[11px] text-muted-foreground">{label}</dt>
+        <dt className="text-meta text-muted-foreground">{label}</dt>
         <dd className="text-sm font-medium truncate text-foreground">
           {children}
         </dd>
         {hint && (
-          <p className="mt-0.5 leading-snug text-[11px] text-muted-foreground">
+          <p className="mt-0.5 leading-snug text-meta text-muted-foreground">
             {hint}
           </p>
         )}
@@ -163,7 +163,7 @@ function InvitationCard({ preview }: { preview: InvitationPublicPreview }) {
             className="shrink-0"
           />
           <div className="min-w-0">
-            <figcaption className="font-medium text-[11px] text-foreground">
+            <figcaption className="font-medium text-meta text-foreground">
               {name}
             </figcaption>
             <blockquote className="mt-0.5 text-xs leading-relaxed break-words text-muted-foreground">
@@ -213,7 +213,7 @@ function InvitationCard({ preview }: { preview: InvitationPublicPreview }) {
       </dl>
 
       <p
-        className={`gap-1.5 px-4 py-2 flex items-center border-t border-border/60 bg-muted/40 text-[11px] ${
+        className={`gap-1.5 px-4 py-2 flex items-center border-t border-border/60 bg-muted/40 text-meta ${
           expiresSoon ? 'text-accent-amber' : 'text-muted-foreground'
         }`}
       >
@@ -518,7 +518,7 @@ export function AcceptInvitationPage() {
               <AlertTriangle className="size-4 mt-0.5 shrink-0" />
               <span>Wrong account</span>
             </div>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-meta text-muted-foreground">
               You're signed in as{' '}
               <strong className="text-foreground">{currentUser?.email}</strong>.
               Switch to{' '}
@@ -664,7 +664,7 @@ export function AcceptInvitationPage() {
             </Button>
             {/* An emailed invite already names the account in the card. */}
             {currentUser?.email && !preview.email && (
-              <p className="text-center text-[11px] text-muted-foreground">
+              <p className="text-center text-meta text-muted-foreground">
                 Joining as{' '}
                 <span className="font-medium text-foreground">
                   {currentUser.email}
@@ -694,7 +694,7 @@ export function AcceptInvitationPage() {
                 Sign in to join
               </Button>
             </div>
-            <p className="leading-relaxed text-center text-[11px] text-balance text-muted-foreground">
+            <p className="leading-relaxed text-center text-meta text-balance text-muted-foreground">
               {preview.email ? (
                 <>
                   Use{' '}

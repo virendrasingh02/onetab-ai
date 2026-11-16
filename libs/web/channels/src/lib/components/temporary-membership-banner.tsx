@@ -62,7 +62,7 @@ export function TemporaryMembershipBanner({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            <DropdownMenuLabel className="text-meta uppercase tracking-wide text-muted-foreground">
               Extend by
             </DropdownMenuLabel>
             {TEMP_MEMBERSHIP_PRESETS.map((preset) => (

@@ -146,7 +146,7 @@ export function TimezoneSelect({
                   <span className="min-w-0 flex-1 truncate">
                     {describeTimezone(zone)}
                   </span>
-                  <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
+                  <span className="shrink-0 text-meta text-muted-foreground tabular-nums">
                     {formatTimeInZone(now, zone)} ·{' '}
                     {formatZoneOffset(zone, now)}
                   </span>

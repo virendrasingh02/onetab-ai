@@ -13,12 +13,12 @@ function WorkflowOutline({ listing }: { listing: MarketplaceListing }) {
   return (
     <div className="p-2.5 rounded-lg border border-border bg-background">
       {payload.trigger?.type ? (
-        <div className="gap-1.5 mb-1.5 flex items-center text-[11px] text-warning">
+        <div className="gap-1.5 mb-1.5 flex items-center text-meta text-warning">
           <Zap className="w-3 h-3" />
           <span className="font-medium">on {payload.trigger.type}</span>
         </div>
       ) : null}
-      <div className="gap-1 flex flex-wrap items-center text-[10px] text-muted-foreground">
+      <div className="gap-1 flex flex-wrap items-center text-2xs text-muted-foreground">
         {steps.slice(0, 3).map((step, index) => (
           <span
             key={`${step.type}-${index}`}

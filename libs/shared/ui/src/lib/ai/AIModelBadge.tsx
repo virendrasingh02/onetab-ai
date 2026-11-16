@@ -4,13 +4,18 @@ import { AIModelIcon } from './AIModelIcon.js';
 import type { AIIconVariant } from './model-icon-map.js';
 import { normalizeModel, type ModelInput } from './model-normalizer.js';
 
-export type AIModelBadgeVariant = 'subtle' | 'compact' | 'outline' | 'filled' | 'ghost';
+export type AIModelBadgeVariant =
+  'subtle' | 'compact' | 'outline' | 'filled' | 'ghost';
 
 const VARIANT_STYLES: Record<AIModelBadgeVariant, string> = {
-  subtle: 'bg-surface-raised border border-border/80 text-foreground hover:bg-accent/60',
-  compact: 'bg-surface-inset border border-border/60 text-foreground text-[10px] py-0 px-1.5 h-5 gap-1',
-  outline: 'border border-border text-foreground bg-transparent hover:bg-surface-raised',
-  filled: 'bg-brand/10 border border-brand/20 text-brand-text font-medium hover:bg-brand/15',
+  subtle:
+    'bg-surface-raised border border-border/80 text-foreground hover:bg-accent/60',
+  compact:
+    'bg-surface-inset border border-border/60 text-foreground text-2xs py-0 px-1.5 h-5 gap-1',
+  outline:
+    'border border-border text-foreground bg-transparent hover:bg-surface-raised',
+  filled:
+    'bg-brand/10 border border-brand/20 text-brand-text font-medium hover:bg-brand/15',
   ghost: 'bg-transparent text-foreground hover:bg-accent/50',
 };
 
@@ -54,10 +59,10 @@ export const AIModelBadge = memo(function AIModelBadge({
   return (
     <span
       className={cn(
-        'inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium leading-none select-none transition-colors',
+        'gap-1.5 px-2 py-0.5 text-xs font-medium inline-flex shrink-0 items-center rounded-md leading-none transition-colors select-none',
         VARIANT_STYLES[variant] || VARIANT_STYLES.subtle,
-        size === 'xs' && 'h-5 gap-1 px-1.5 py-0 text-[10px]',
-        className
+        size === 'xs' && 'h-5 gap-1 px-1.5 py-0 text-2xs',
+        className,
       )}
       {...props}
     >
@@ -69,7 +74,7 @@ export const AIModelBadge = memo(function AIModelBadge({
       />
       <span className="truncate">{meta.displayName}</span>
       {showProvider && (
-        <span className="text-[10px] text-muted-foreground font-normal">
+        <span className="font-normal text-2xs text-muted-foreground">
           · {meta.providerName}
         </span>
       )}

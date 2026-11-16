@@ -7,7 +7,10 @@ import {
   LoadingState,
   toast,
 } from '@org/ui';
-import { useCurrentWorkspace, useWorkspacePermission } from '@org/web-workspace';
+import {
+  useCurrentWorkspace,
+  useWorkspacePermission,
+} from '@org/web-workspace';
 import {
   CalendarClock,
   Clock,
@@ -49,7 +52,11 @@ export function AutomationSchedulesTab() {
     );
   };
 
-  const handleToggleActive = (workflowId: string, currentActive: boolean, name: string) => {
+  const handleToggleActive = (
+    workflowId: string,
+    currentActive: boolean,
+    name: string,
+  ) => {
     update.mutate(
       {
         workflowId,
@@ -58,7 +65,9 @@ export function AutomationSchedulesTab() {
       {
         onSuccess: () => {
           schedulesQuery.refetch();
-          toast.success(`${currentActive ? 'Paused' : 'Activated'} schedule for “${name}”`);
+          toast.success(
+            `${currentActive ? 'Paused' : 'Activated'} schedule for “${name}”`,
+          );
         },
         onError: () => {
           toast.error(`Could not update “${name}”`);
@@ -83,31 +92,36 @@ export function AutomationSchedulesTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="sm:flex-row sm:items-center gap-4 flex flex-col items-start justify-between">
         <div>
-          <h3 className="font-semibold text-lg text-foreground flex items-center gap-2">
+          <h3 className="font-semibold text-lg gap-2 flex items-center text-foreground">
             <CalendarClock className="h-5 w-5 text-primary" />
             Scheduled Automations ({schedules.length})
           </h3>
           <p className="text-sm text-muted-foreground">
-            All cron jobs, interval timers, and business-hour automations scheduled to run automatically.
+            All cron jobs, interval timers, and business-hour automations
+            scheduled to run automatically.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="gap-2 flex items-center">
           <Button
             variant="outline"
             size="sm"
             onClick={() => schedulesQuery.refetch()}
             disabled={schedulesQuery.isFetching}
           >
-            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${schedulesQuery.isFetching ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`h-3.5 w-3.5 mr-1.5 ${schedulesQuery.isFetching ? 'animate-spin' : ''}`}
+            />
             Refresh
           </Button>
           {can('create') && (
             <Button
               size="sm"
-              onClick={() => navigate(`/w/${slug}/automations/builder/new?trigger=CRON`)}
+              onClick={() =>
+                navigate(`/w/${slug}/automations/builder/new?trigger=CRON`)
+              }
             >
               <Plus className="h-4 w-4 mr-1.5" />
               New Scheduled Automation
@@ -125,7 +139,9 @@ export function AutomationSchedulesTab() {
             can('create') ? (
               <Button
                 size="sm"
-                onClick={() => navigate(`/w/${slug}/automations/builder/new?trigger=CRON`)}
+                onClick={() =>
+                  navigate(`/w/${slug}/automations/builder/new?trigger=CRON`)
+                }
               >
                 Schedule an Automation
               </Button>
@@ -133,7 +149,7 @@ export function AutomationSchedulesTab() {
           }
         />
       ) : (
-        <div className="border rounded-lg overflow-hidden bg-card divide-y divide-border/60">
+        <div className="divide-y divide-border/60 overflow-hidden rounded-lg border bg-card">
           {schedules.map((item) => {
             const nextRunFormatted = item.nextRunAt
               ? new Date(item.nextRunAt).toLocaleString(undefined, {
@@ -145,34 +161,34 @@ export function AutomationSchedulesTab() {
             return (
               <div
                 key={item.workflowId}
-                className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-muted/30 transition-colors"
+                className="p-4 md:flex-row md:items-center gap-4 flex flex-col justify-between transition-colors hover:bg-muted/30"
               >
                 <div className="space-y-1">
-                  <div className="flex items-center gap-2.5">
+                  <div className="gap-2.5 flex items-center">
                     <span className="font-semibold text-sm text-foreground">
                       {item.name}
                     </span>
                     <Badge
                       variant={item.isActive ? 'success' : 'secondary'}
-                      className="text-[10px]"
+                      className="text-2xs"
                     >
                       {item.isActive ? 'Active' : 'Paused'}
                     </Badge>
                   </div>
 
-                  <p className="text-xs text-muted-foreground flex items-center gap-2">
+                  <p className="text-xs gap-2 flex items-center text-muted-foreground">
                     <Clock className="h-3.5 w-3.5 text-primary" />
                     <span>{item.humanSchedule}</span>
-                    <span className="font-mono text-[11px] bg-muted px-1.5 py-0.5 rounded text-foreground/80">
+                    <span className="px-1.5 py-0.5 rounded bg-muted font-mono text-meta text-foreground/80">
                       {item.cron}
                     </span>
-                    <span className="text-[11px]">({item.timezone})</span>
+                    <span className="text-meta">({item.timezone})</span>
                   </p>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="gap-4 flex items-center">
                   <div className="text-right">
-                    <span className="text-[11px] uppercase tracking-wider text-muted-foreground block">
+                    <span className="tracking-wider block text-meta text-muted-foreground uppercase">
                       Next Scheduled Run
                     </span>
                     <span className="text-xs font-medium text-foreground">
@@ -180,19 +196,29 @@ export function AutomationSchedulesTab() {
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1.5">
+                  <div className="gap-1.5 flex items-center">
                     {can('create') && (
                       <>
                         <Button
                           size="sm"
                           variant="ghost"
                           className="h-8 px-2 text-xs"
-                          onClick={() => handleToggleActive(item.workflowId, item.isActive, item.name)}
-                          title={item.isActive ? 'Pause automation' : 'Resume automation'}
+                          onClick={() =>
+                            handleToggleActive(
+                              item.workflowId,
+                              item.isActive,
+                              item.name,
+                            )
+                          }
+                          title={
+                            item.isActive
+                              ? 'Pause automation'
+                              : 'Resume automation'
+                          }
                         >
                           {item.isActive ? (
                             <>
-                              <Pause className="h-3.5 w-3.5 mr-1 text-amber-500" />
+                              <Pause className="h-3.5 w-3.5 mr-1 text-warning-text" />
                               Pause
                             </>
                           ) : (
@@ -206,7 +232,9 @@ export function AutomationSchedulesTab() {
                           size="sm"
                           variant="outline"
                           className="h-8 px-2.5 text-xs"
-                          onClick={() => handleRunNow(item.workflowId, item.name)}
+                          onClick={() =>
+                            handleRunNow(item.workflowId, item.name)
+                          }
                           disabled={trigger.isPending}
                         >
                           Run Now
@@ -218,7 +246,11 @@ export function AutomationSchedulesTab() {
                       size="sm"
                       variant="ghost"
                       className="h-8 px-2 text-xs"
-                      onClick={() => navigate(`/w/${slug}/automations/builder/${item.workflowId}`)}
+                      onClick={() =>
+                        navigate(
+                          `/w/${slug}/automations/builder/${item.workflowId}`,
+                        )
+                      }
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
                     </Button>

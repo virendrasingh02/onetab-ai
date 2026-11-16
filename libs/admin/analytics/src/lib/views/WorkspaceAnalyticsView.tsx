@@ -54,7 +54,7 @@ export function WorkspaceAnalyticsView() {
           <span className="font-semibold text-foreground truncate max-w-[180px]">
             {row.name}
           </span>
-          <span className="text-[11px] text-muted-foreground truncate max-w-[180px]">
+          <span className="text-meta text-muted-foreground truncate max-w-[180px]">
             /{row.slug}
           </span>
         </div>
@@ -114,7 +114,7 @@ export function WorkspaceAnalyticsView() {
       sortable: true,
       align: 'right',
       cell: (row) => (
-        <span className="text-muted-foreground text-[11px]">
+        <span className="text-muted-foreground text-meta">
           {row.lastActivityAt
             ? new Date(row.lastActivityAt).toLocaleDateString()
             : '—'}

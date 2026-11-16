@@ -47,14 +47,14 @@ export function AIUsageWidget({
           <Sparkles className="size-3.5 text-primary" />
           <span>AI Usage &amp; Credits</span>
         </div>
-        <Badge variant="secondary" className="font-mono text-[10px]">
+        <Badge variant="secondary" className="font-mono text-2xs">
           {billingPeriod}
         </Badge>
       </div>
 
       {/* Token Progress */}
       <div className="space-y-1.5">
-        <div className="flex items-center justify-between text-[11px]">
+        <div className="flex items-center justify-between text-meta">
           <span className="text-muted-foreground">Token Quota</span>
           <span className="font-medium font-mono text-foreground">
             {usedTokens.toLocaleString()} / {maxTokens.toLocaleString()} (
@@ -66,7 +66,7 @@ export function AIUsageWidget({
 
       {/* Credit Progress */}
       <div className="space-y-1.5">
-        <div className="flex items-center justify-between text-[11px]">
+        <div className="flex items-center justify-between text-meta">
           <span className="text-muted-foreground">Credits Balance</span>
           <span className="font-medium font-mono text-foreground">
             ${(totalCredits - usedCredits).toFixed(2)} remaining
@@ -76,7 +76,7 @@ export function AIUsageWidget({
       </div>
 
       {tokenPercentage >= 85 && (
-        <div className="gap-1.5 p-2 flex items-center rounded-sm bg-warning/10 text-[11px] text-warning-text">
+        <div className="gap-1.5 p-2 flex items-center rounded-sm bg-warning/10 text-meta text-warning-text">
           <AlertCircle className="size-3.5 shrink-0" />
           <span>Approaching plan quota limit for this cycle.</span>
         </div>

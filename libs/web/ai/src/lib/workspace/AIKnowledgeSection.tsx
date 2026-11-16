@@ -106,7 +106,7 @@ export function AIKnowledgeSection() {
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate text-sm font-semibold text-foreground">{kb.name}</span>
-                  <Badge variant="neutral" className="shrink-0 text-[10px]">
+                  <Badge variant="neutral" className="shrink-0 text-2xs">
                     {kb._count?.documents ?? 0} docs
                   </Badge>
                 </div>
@@ -231,7 +231,7 @@ function KnowledgeBaseDetail({
                   <span className="truncate text-foreground">{doc.name}</span>
                   <Badge
                     variant={doc.status === 'INDEXED' ? 'success' : doc.status === 'FAILED' ? 'destructive' : 'neutral'}
-                    className="shrink-0 text-[10px]"
+                    className="shrink-0 text-2xs"
                   >
                     {doc.status.toLowerCase()}
                   </Badge>

@@ -53,7 +53,7 @@ export function ActivityDot({
       className={cn(
         'shrink-0 rounded-full',
         showCount
-          ? 'min-w-4 h-4 px-1 font-semibold grid place-items-center bg-destructive text-[10px] leading-none text-destructive-foreground'
+          ? 'min-w-4 h-4 px-1 font-semibold grid place-items-center bg-destructive text-2xs leading-none text-destructive-foreground'
           : 'size-2',
         !showCount && (isMention ? 'bg-destructive' : 'bg-muted-foreground/60'),
         className,

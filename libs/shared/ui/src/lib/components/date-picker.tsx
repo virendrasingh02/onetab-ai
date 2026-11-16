@@ -114,7 +114,7 @@ export function DatePicker({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-7 px-2 text-[11px]"
+                className="h-7 px-2 text-meta"
                 onClick={() => handlePreset(new Date())}
               >
                 Today
@@ -123,7 +123,7 @@ export function DatePicker({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-7 px-2 text-[11px]"
+                className="h-7 px-2 text-meta"
                 onClick={() => handlePreset(addDays(new Date(), 1))}
               >
                 Tomorrow
@@ -132,7 +132,7 @@ export function DatePicker({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-7 px-2 text-[11px]"
+                className="h-7 px-2 text-meta"
                 onClick={() => handlePreset(addWeeks(new Date(), 1))}
               >
                 Next week
@@ -142,7 +142,7 @@ export function DatePicker({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-7 px-2 text-[11px] text-destructive hover:text-destructive"
+                  className="h-7 px-2 text-meta text-destructive hover:text-destructive"
                   onClick={() => handleSelect(undefined)}
                 >
                   Clear

@@ -292,7 +292,7 @@ export function ProfileSettingsPanel() {
                       className="inset-0 bg-black/60 backdrop-blur-2xs gap-1 text-white absolute flex cursor-pointer flex-col items-center justify-center opacity-0 transition-opacity group-hover/edit:opacity-100"
                     >
                       <Camera className="size-5 text-white" />
-                      <span className="font-bold tracking-wider text-[9px] uppercase">
+                      <span className="font-bold tracking-wider text-3xs uppercase">
                         Change
                       </span>
                     </button>
@@ -500,7 +500,7 @@ export function ProfileSettingsPanel() {
                         <FormLabel className="text-xs font-semibold">
                           About / Bio
                         </FormLabel>
-                        <span className="font-mono text-[10px] text-muted-foreground">
+                        <span className="font-mono text-2xs text-muted-foreground">
                           {(field.value || '').length}/280
                         </span>
                       </div>

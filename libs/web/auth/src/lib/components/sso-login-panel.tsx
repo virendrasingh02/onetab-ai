@@ -155,7 +155,7 @@ export function SSOLoginPanel({
                   setIsOpen(false);
                   setIsRecoveryOpen(true);
                 }}
-                className="text-[11px] text-muted-foreground hover:text-foreground underline decoration-dotted text-left"
+                className="text-meta text-muted-foreground hover:text-foreground underline decoration-dotted text-left"
               >
                 Emergency Admin Break-Glass?
               </button>
@@ -186,7 +186,7 @@ export function SSOLoginPanel({
       <Dialog open={isRecoveryOpen} onOpenChange={setIsRecoveryOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold flex items-center gap-2 text-amber-500">
+            <DialogTitle className="text-base font-bold flex items-center gap-2 text-warning-text">
               <KeyRound className="size-4" />
               Emergency Break-Glass Recovery Login
             </DialogTitle>
@@ -231,7 +231,7 @@ export function SSOLoginPanel({
                 variant="primary"
                 size="sm"
                 disabled={isSubmittingRecovery}
-                className="text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white"
+                className="text-xs font-semibold bg-warning hover:bg-warning text-white"
               >
                 {isSubmittingRecovery ? 'Verifying...' : 'Authenticate'}
               </Button>

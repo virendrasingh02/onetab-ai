@@ -140,7 +140,7 @@ export function CardDescription({
             >
               Cancel
             </Button>
-            <span className="ml-auto text-[11px] text-muted-foreground">
+            <span className="ml-auto text-meta text-muted-foreground">
               Saves when you click away
             </span>
           </div>

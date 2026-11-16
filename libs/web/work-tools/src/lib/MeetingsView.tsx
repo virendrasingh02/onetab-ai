@@ -366,7 +366,7 @@ function MeetingCard({
               </Badge>
             ) : null}
             {meeting._count.notes > 0 ? (
-              <Badge variant="neutral" className="gap-1 text-[10px]">
+              <Badge variant="neutral" className="gap-1 text-2xs">
                 <FileText className="size-3" />
                 {meeting._count.notes} note
                 {meeting._count.notes === 1 ? '' : 's'}
@@ -376,7 +376,7 @@ function MeetingCard({
               <UserAvatarGroup users={attendees} size="xs" max={5} />
             ) : null}
             {meeting._count.actionItems > 0 ? (
-              <span className="gap-1 flex items-center text-[11px] text-muted-foreground">
+              <span className="gap-1 flex items-center text-meta text-muted-foreground">
                 <span className="size-1 rounded-full bg-primary" />
                 {meeting._count.actionItems} action item
                 {meeting._count.actionItems === 1 ? '' : 's'}

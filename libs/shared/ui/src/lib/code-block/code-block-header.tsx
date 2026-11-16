@@ -1,11 +1,6 @@
 import { Badge } from '../components/badge.js';
 import { cn } from '@org/utils';
-import {
-  Code2,
-  FileCode,
-  GitCompare,
-  Terminal,
-} from 'lucide-react';
+import { Code2, FileCode, GitCompare, Terminal } from 'lucide-react';
 import React from 'react';
 import { getLanguageName, normalizeLanguage } from './code-block.utils.js';
 import { TERMINAL_LANGUAGES } from './code-block.constants.js';
@@ -36,21 +31,22 @@ export function CodeBlockHeader({
 }: CodeBlockHeaderProps) {
   const normalized = normalizeLanguage(language);
   const displayLang = getLanguageName(language);
-  const isTerminal = variant === 'terminal' || TERMINAL_LANGUAGES.has(normalized);
+  const isTerminal =
+    variant === 'terminal' || TERMINAL_LANGUAGES.has(normalized);
   const isDiff = variant === 'diff';
 
   return (
     <div
       className={cn(
-        'flex items-center justify-between border-b border-border/70 bg-surface-raised/80 px-3 text-xs backdrop-blur-xs select-none',
+        'px-3 text-xs backdrop-blur-xs flex items-center justify-between border-b border-border/70 bg-surface-raised/80 select-none',
         variant === 'compact' ? 'h-7 px-2.5' : 'h-8 px-3',
         className,
       )}
     >
       {/* Left side: Terminal dots or Language / Filename Info */}
-      <div className="flex items-center gap-2 min-w-0">
+      <div className="gap-2 min-w-0 flex items-center">
         {/* Icon */}
-        <div className="text-muted-foreground shrink-0">
+        <div className="shrink-0 text-muted-foreground">
           {isTerminal ? (
             <Terminal className="size-3.5 text-muted-foreground" />
           ) : isDiff ? (
@@ -63,21 +59,23 @@ export function CodeBlockHeader({
         </div>
 
         {/* Filename or Language Name */}
-        <div className="flex items-center gap-2 truncate font-mono text-[11px]">
+        <div className="gap-2 flex items-center truncate font-mono text-meta">
           {filename ? (
-            <span className="font-semibold text-foreground truncate">{filename}</span>
+            <span className="font-semibold truncate text-foreground">
+              {filename}
+            </span>
           ) : null}
 
           {/* Language tag */}
           {(!filename || isTerminal) && (
-            <span className="font-medium text-muted-foreground tracking-wide">
+            <span className="font-medium tracking-wide text-muted-foreground">
               {displayLang}
             </span>
           )}
 
           {/* Title description if present */}
           {title ? (
-            <span className="hidden md:inline font-sans text-muted-foreground/80 truncate">
+            <span className="md:inline hidden truncate font-sans text-muted-foreground/80">
               — {title}
             </span>
           ) : null}
@@ -87,7 +85,7 @@ export function CodeBlockHeader({
         {isEditing && isDirty ? (
           <Badge
             variant="outline"
-            className="h-4 px-1.5 text-[10px] text-amber-500 border-amber-500/30 bg-amber-500/10 font-sans"
+            className="h-4 px-1.5 border-warning/30 bg-warning/10 font-sans text-2xs text-warning-text"
           >
             Modified
           </Badge>
@@ -95,14 +93,14 @@ export function CodeBlockHeader({
 
         {/* Line count */}
         {typeof lineCount === 'number' && lineCount > 0 ? (
-          <span className="hidden lg:inline text-[11px] text-muted-foreground/60 font-sans">
+          <span className="lg:inline hidden font-sans text-meta text-muted-foreground/60">
             ({lineCount} {lineCount === 1 ? 'line' : 'lines'})
           </span>
         ) : null}
       </div>
 
       {/* Right side: Toolbar Actions */}
-      {actionsSlot ? <div className="shrink-0 ml-2">{actionsSlot}</div> : null}
+      {actionsSlot ? <div className="ml-2 shrink-0">{actionsSlot}</div> : null}
     </div>
   );
 }

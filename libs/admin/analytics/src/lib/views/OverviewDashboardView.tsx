@@ -132,7 +132,7 @@ function SystemInfrastructureCard() {
             <h3 className="text-sm sm:text-base font-semibold text-foreground tracking-tight">
               Platform Infrastructure & Probes
             </h3>
-            <span className={cn('size-2 rounded-full', isHealthyOverall ? 'bg-success animate-pulse' : 'bg-amber-500')} />
+            <span className={cn('size-2 rounded-full', isHealthyOverall ? 'bg-success animate-pulse' : 'bg-warning')} />
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
             Realtime database, cache, storage, and API latency telemetry
@@ -149,7 +149,7 @@ function SystemInfrastructureCard() {
               'rounded-full px-2.5 py-0.5 text-xs font-semibold border',
               isHealthyOverall
                 ? 'border-success/25 bg-success/15 text-success-text'
-                : 'border-amber-500/25 bg-amber-500/15 text-amber-500',
+                : 'border-warning/25 bg-warning/15 text-warning-text',
             )}
           >
             {isHealthLoading ? 'Probing…' : `${healthyCount}/${services.length || 5} Healthy`}
@@ -192,14 +192,14 @@ function SystemInfrastructureCard() {
                   <span
                     className={cn(
                       'size-2 rounded-full shrink-0',
-                      isOk ? 'bg-success' : isDegraded ? 'bg-amber-500' : 'bg-rose-500',
+                      isOk ? 'bg-success' : isDegraded ? 'bg-warning' : 'bg-destructive',
                     )}
                   />
                   <div className="min-w-0">
                     <span className="font-semibold text-foreground block truncate capitalize">
                       {svc.name}
                     </span>
-                    <span className="text-[10px] text-muted-foreground truncate block">
+                    <span className="text-2xs text-muted-foreground truncate block">
                       {svc.detail ? svc.detail : 'Live component'}
                     </span>
                   </div>
@@ -211,8 +211,8 @@ function SystemInfrastructureCard() {
                   </span>
                   <span
                     className={cn(
-                      'block text-[9px] uppercase font-semibold font-mono',
-                      isOk ? 'text-success-text' : isDegraded ? 'text-amber-500' : 'text-rose-500',
+                      'block text-3xs uppercase font-semibold font-mono',
+                      isOk ? 'text-success-text' : isDegraded ? 'text-warning-text' : 'text-destructive-text',
                     )}
                   >
                     {svc.status}
@@ -234,12 +234,12 @@ function SystemInfrastructureCard() {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <Activity className="size-3.5 text-emerald-500" />
+          <Activity className="size-3.5 text-success-text" />
           <span>Avg Latency:</span>
           <span className="font-bold text-foreground">
             {performance?.latency?.avgMs != null ? `${performance.latency.avgMs}ms` : isHealthLoading ? 'Probing…' : '—'}
           </span>
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-2xs text-muted-foreground">
             (p95: {performance?.latency?.p95Ms != null ? `${performance.latency.p95Ms}ms` : '—'})
           </span>
         </div>
@@ -265,7 +265,7 @@ function TopApiRoutesCard() {
           <h3 className="text-sm sm:text-base font-semibold text-foreground tracking-tight">
             Top Active API Routes
           </h3>
-          <Badge variant="outline" className="font-mono text-[10px] uppercase">
+          <Badge variant="outline" className="font-mono text-2xs uppercase">
             Live Telemetry
           </Badge>
         </div>
@@ -292,7 +292,7 @@ function TopApiRoutesCard() {
             const errorRate = route.errorRate ?? 0;
             const pct = Math.min(100, Math.max(8, Math.round((route.p95Ms / 200) * 100)));
             const color =
-              errorRate > 5 ? 'bg-rose-500' : route.avgMs > 100 ? 'bg-amber-500' : 'bg-primary';
+              errorRate > 5 ? 'bg-destructive' : route.avgMs > 100 ? 'bg-warning' : 'bg-primary';
 
             return (
               <div key={route.route + idx} className="space-y-1">
@@ -301,7 +301,7 @@ function TopApiRoutesCard() {
                     {route.route}
                   </span>
                   <div className="flex items-center gap-2 font-mono">
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-meta text-muted-foreground">
                       {route.requests} req
                     </span>
                     <span className="font-bold text-foreground text-xs">
@@ -317,7 +317,7 @@ function TopApiRoutesCard() {
                       className={cn('h-full rounded-full transition-all duration-500', color)}
                     />
                   </div>
-                  <span className="text-[10px] font-mono text-muted-foreground w-12 text-right">
+                  <span className="text-2xs font-mono text-muted-foreground w-12 text-right">
                     p95: {route.p95Ms}ms
                   </span>
                 </div>
@@ -656,7 +656,7 @@ export function OverviewDashboardView() {
               <h2 className="text-base sm:text-lg font-semibold tracking-tight text-foreground">
                 Platform Traffic & Client Activity
               </h2>
-              <Badge variant="outline" className="font-mono text-[10px]">
+              <Badge variant="outline" className="font-mono text-2xs">
                 Web vs Desktop
               </Badge>
             </div>
@@ -854,7 +854,7 @@ export function OverviewDashboardView() {
               <h2 className="text-base sm:text-lg font-semibold tracking-tight text-foreground">
                 Platform Operations & Directory
               </h2>
-              <Badge variant="outline" className="font-mono text-[10px] uppercase">
+              <Badge variant="outline" className="font-mono text-2xs uppercase">
                 {activeTab}
               </Badge>
             </div>
@@ -988,7 +988,7 @@ export function OverviewDashboardView() {
                             >
                               {ws.name}
                             </Link>
-                            <span className="text-[10px] text-muted-foreground font-mono block">
+                            <span className="text-2xs text-muted-foreground font-mono block">
                               ID: {ws.id.slice(0, 8)}…
                             </span>
                           </div>
@@ -1006,7 +1006,7 @@ export function OverviewDashboardView() {
                       <TableCell className="px-4 py-3.5">
                         <span
                           className={cn(
-                            'inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase font-mono',
+                            'inline-flex items-center rounded-full border px-2 py-0.5 text-2xs font-semibold tracking-wider uppercase font-mono',
                             ws.status === 'ACTIVE'
                               ? 'border-success/25 bg-success/15 text-success-text'
                               : 'border-muted bg-muted text-muted-foreground',
@@ -1090,7 +1090,7 @@ export function OverviewDashboardView() {
                             <span className="font-semibold text-foreground text-xs block truncate">
                               {user.name || user.displayName || 'Unnamed User'}
                             </span>
-                            <span className="text-[11px] text-muted-foreground font-mono block truncate">
+                            <span className="text-meta text-muted-foreground font-mono block truncate">
                               {user.email}
                             </span>
                           </div>
@@ -1100,11 +1100,11 @@ export function OverviewDashboardView() {
                       <TableCell className="px-4 py-3.5">
                         <span
                           className={cn(
-                            'inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase font-mono',
+                            'inline-flex items-center rounded-full border px-2.5 py-0.5 text-2xs font-semibold tracking-wider uppercase font-mono',
                             user.systemRole === SystemRole.SUPERADMIN
-                              ? 'border-purple-500/25 bg-purple-500/15 text-purple-400'
+                              ? 'border-accent-violet/25 bg-accent-violet/15 text-accent-violet'
                               : user.systemRole === SystemRole.SUPPORT
-                              ? 'border-blue-500/25 bg-blue-500/15 text-blue-400'
+                              ? 'border-accent-blue/25 bg-accent-blue/15 text-accent-blue'
                               : 'border-border/80 bg-muted/60 text-muted-foreground',
                           )}
                         >
@@ -1227,7 +1227,7 @@ export function OverviewDashboardView() {
                   overview.recentEvents.map((act: AdminLiveActivityItem) => (
                     <TableRow key={act.id} className="border-b border-border/40 hover:bg-muted/30 transition-colors">
                       <TableCell className="px-6 py-3.5">
-                        <span className="inline-flex items-center gap-1 rounded-full border border-brand/20 bg-brand/10 px-2 py-0.5 text-[10px] font-semibold text-brand-text font-mono uppercase">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-brand/20 bg-brand/10 px-2 py-0.5 text-2xs font-semibold text-brand-text font-mono uppercase">
                           <Radio className="size-2.5 animate-pulse" />
                           {act.type}
                         </span>

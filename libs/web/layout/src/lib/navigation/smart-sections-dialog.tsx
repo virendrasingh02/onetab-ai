@@ -104,7 +104,7 @@ function SortableSectionRow({
           aria-label={`Section name for ${def.label}`}
           className="h-7 border-transparent bg-transparent px-1 text-xs font-medium focus:border-border focus:bg-surface-muted"
         />
-        <span className="px-1 text-[11px] text-muted-foreground">
+        <span className="px-1 text-meta text-muted-foreground">
           {def.kind === 'smart' && def.rule
             ? describeRule(def.rule)
             : `${def.channelIds?.length ?? 0} channel${
@@ -115,7 +115,7 @@ function SortableSectionRow({
 
       <Badge
         variant="neutral"
-        className="h-4 shrink-0 px-1 text-[9px] font-medium uppercase"
+        className="h-4 shrink-0 px-1 text-3xs font-medium uppercase"
       >
         {def.kind}
       </Badge>
@@ -272,7 +272,7 @@ export function SmartSectionsDialog({
                   onClick={() => setDraftKind(kind)}
                   aria-pressed={draftKind === kind}
                   className={cn(
-                    'rounded-md px-2.5 py-1 text-[11px] font-medium capitalize transition-colors',
+                    'rounded-md px-2.5 py-1 text-meta font-medium capitalize transition-colors',
                     draftKind === kind
                       ? 'bg-background text-foreground shadow-2xs'
                       : 'text-muted-foreground hover:text-foreground',
@@ -325,7 +325,7 @@ export function SmartSectionsDialog({
           )}
 
           {draftKind === 'smart' && (
-            <p className="px-0.5 text-[11px] text-muted-foreground">
+            <p className="px-0.5 text-meta text-muted-foreground">
               {SMART_RULES.find((r) => r.type === draftRule)?.description}
             </p>
           )}

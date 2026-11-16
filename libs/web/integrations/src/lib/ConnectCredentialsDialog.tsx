@@ -121,7 +121,7 @@ export function ConnectCredentialsDialog({
                     }
                   />
                   {f.help ? (
-                    <p className="text-[11px] text-muted-foreground">{f.help}</p>
+                    <p className="text-meta text-muted-foreground">{f.help}</p>
                   ) : null}
                 </div>
               ))}
@@ -146,7 +146,7 @@ export function ConnectCredentialsDialog({
               </div>
             ) : null}
 
-            <p className="gap-1.5 text-[11px] flex items-start text-muted-foreground">
+            <p className="gap-1.5 text-meta flex items-start text-muted-foreground">
               <KeyRound className="mt-0.5 size-3 shrink-0" aria-hidden />
               Credentials are encrypted at rest and never sent back to the
               browser.

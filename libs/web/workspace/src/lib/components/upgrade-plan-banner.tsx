@@ -45,23 +45,23 @@ export function UpgradePlanBanner({
 
     return (
       <div
-        className={`relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-surface p-5 text-card-foreground shadow-xs ${className}`}
+        className={`p-5 relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-surface text-card-foreground shadow-xs ${className}`}
       >
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/20 text-primary ring-1 ring-primary/30">
+        <div className="sm:flex-row sm:items-center gap-4 flex flex-col items-start justify-between">
+          <div className="gap-3.5 flex items-center">
+            <div className="size-11 flex shrink-0 items-center justify-center rounded-xl bg-primary/20 text-primary ring-1 ring-primary/30">
               <Icon className="size-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="gap-2 flex items-center">
                 <h3 className="text-sm font-semibold text-foreground">
                   {PLANS_CONFIG[normalizedPlan]?.name || 'Pro'} Plan Active
                 </h3>
-                <Badge variant="primary" className="text-[10px] font-bold">
+                <Badge variant="primary" className="font-bold text-2xs">
                   ACTIVE
                 </Badge>
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <p className="text-xs mt-0.5 text-muted-foreground">
                 {isEnterprise
                   ? 'Your workspace has custom private LLM integration, dedicated support, and enterprise governance.'
                   : isMax
@@ -88,16 +88,14 @@ export function UpgradePlanBanner({
   if (variant === 'compact') {
     return (
       <div
-        className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-border bg-surface-inset/60 p-3.5 text-xs ${className}`}
+        className={`sm:flex-row sm:items-center gap-3 p-3.5 text-xs flex flex-col items-start justify-between rounded-xl border border-border bg-surface-inset/60 ${className}`}
       >
-        <div className="flex items-center gap-2.5">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <div className="gap-2.5 flex items-center">
+          <div className="size-8 flex shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <Sparkles className="size-4" />
           </div>
           <div>
-            <span className="font-medium text-foreground">
-              Free Tier:
-            </span>{' '}
+            <span className="font-medium text-foreground">Free Tier:</span>{' '}
             <span className="text-muted-foreground">
               {totalMembers} of {maxSeats} seats used ({seatsRemaining} left)
             </span>
@@ -118,17 +116,17 @@ export function UpgradePlanBanner({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 via-surface to-surface-inset/80 p-5 md:p-6 shadow-xs transition-all ${className}`}
+      className={`p-5 md:p-6 relative overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 via-surface to-surface-inset/80 shadow-xs transition-all ${className}`}
     >
       {/* Background ambient decoration */}
       <div
-        className="pointer-events-none absolute -right-12 -top-12 size-48 rounded-full bg-primary/10 blur-3xl"
+        className="-right-12 -top-12 size-48 blur-3xl pointer-events-none absolute rounded-full bg-primary/10"
         aria-hidden="true"
       />
 
-      <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+      <div className="lg:flex-row lg:items-center gap-5 relative flex flex-col justify-between">
         <div className="space-y-3.5 max-w-xl">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="gap-2 flex flex-wrap items-center">
             <Badge
               variant="primary"
               className="gap-1.5 px-2.5 py-0.5 text-xs font-semibold"
@@ -137,10 +135,7 @@ export function UpgradePlanBanner({
               UPGRADE YOUR WORKSPACE
             </Badge>
             {isNearLimit ? (
-              <Badge
-                variant="destructive"
-                className="text-[11px] font-medium"
-              >
+              <Badge variant="destructive" className="font-medium text-meta">
                 Seat limit almost reached ({totalMembers}/{maxSeats})
               </Badge>
             ) : (
@@ -154,28 +149,29 @@ export function UpgradePlanBanner({
             <h3 className="text-base md:text-lg font-semibold tracking-tight text-foreground">
               Supercharge your team with unlimited projects & AI power
             </h3>
-            <p className="text-xs md:text-sm text-muted-foreground leading-relaxed">
-              Unlock unlimited projects, Gantt/Timeline views, AI agent builder, 100GB cloud storage, and priority support.
+            <p className="text-xs md:text-sm leading-relaxed text-muted-foreground">
+              Unlock unlimited projects, Gantt/Timeline views, AI agent builder,
+              100GB cloud storage, and priority support.
             </p>
           </div>
 
           {/* Seat Quota Meter */}
           <div className="space-y-1.5 pt-1">
-            <div className="flex items-center justify-between text-xs">
-              <span className="flex items-center gap-1.5 font-medium text-foreground">
+            <div className="text-xs flex items-center justify-between">
+              <span className="gap-1.5 font-medium flex items-center text-foreground">
                 <Users className="size-3.5 text-muted-foreground" />
                 Member Seats Utilization
               </span>
               <span className="font-semibold text-foreground">
                 {totalMembers} / {maxSeats} seats used
-                <span className="text-muted-foreground font-normal ml-1">
+                <span className="font-normal ml-1 text-muted-foreground">
                   ({seatsRemaining} remaining)
                 </span>
               </span>
             </div>
             <div className="h-2 w-full overflow-hidden rounded-full bg-muted/60">
               <div
-                className={`h-full transition-all duration-500 rounded-full ${
+                className={`h-full rounded-full transition-all duration-500 ${
                   isNearLimit ? 'bg-warning' : 'bg-primary'
                 }`}
                 style={{ width: `${percentUsed}%` }}
@@ -184,16 +180,16 @@ export function UpgradePlanBanner({
           </div>
 
           {/* Benefit Chips */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground pt-1">
-            <div className="flex items-center gap-1">
+          <div className="gap-x-4 gap-y-1.5 text-xs pt-1 flex flex-wrap items-center text-muted-foreground">
+            <div className="gap-1 flex items-center">
               <CheckCircle2 className="size-3.5 text-primary" />
               <span>Unlimited active projects</span>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="gap-1 flex items-center">
               <CheckCircle2 className="size-3.5 text-primary" />
               <span>Timeline & Gantt views</span>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="gap-1 flex items-center">
               <CheckCircle2 className="size-3.5 text-primary" />
               <span>10,000 monthly AI requests</span>
             </div>
@@ -201,18 +197,18 @@ export function UpgradePlanBanner({
         </div>
 
         {/* CTA Button Block */}
-        <div className="flex flex-col sm:flex-row lg:flex-col items-stretch sm:items-center lg:items-end justify-center gap-2.5 shrink-0">
+        <div className="sm:flex-row lg:flex-col sm:items-center lg:items-end gap-2.5 flex shrink-0 flex-col items-stretch justify-center">
           <Button
             variant="primary"
             size="md"
             onClick={onUpgradeClick}
-            className="font-semibold text-xs md:text-sm px-5 py-2.5 shadow-md shadow-primary/20 group"
+            className="font-semibold text-xs md:text-sm px-5 py-2.5 group shadow-md shadow-primary/20"
           >
             <Zap className="size-4 mr-1.5 fill-current" />
             <span>Upgrade to Pro — $12/mo</span>
-            <ArrowRight className="size-4 ml-1.5 transition-transform group-hover:translate-x-0.5" />
+            <ArrowRight className="size-4 ml-1.5 group-hover:translate-x-0.5 transition-transform" />
           </Button>
-          <span className="text-center text-[11px] text-muted-foreground">
+          <span className="text-center text-meta text-muted-foreground">
             Cancel anytime · Save 20% on annual plans
           </span>
         </div>

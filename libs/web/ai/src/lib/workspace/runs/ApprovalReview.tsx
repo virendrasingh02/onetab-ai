@@ -84,7 +84,7 @@ export function ApprovalReview({
             {approval.actionType} · asked {formatRelative(approval.createdAt)}
           </p>
         </div>
-        {edited ? <Badge variant="info" className="text-[10px]">Edited</Badge> : null}
+        {edited ? <Badge variant="info" className="text-2xs">Edited</Badge> : null}
       </div>
 
       {review && !compact ? (

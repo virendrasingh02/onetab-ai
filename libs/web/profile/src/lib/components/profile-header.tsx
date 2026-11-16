@@ -226,7 +226,7 @@ export function ProfileHeader({
             </span>
             <Badge
               variant="neutral"
-              className="font-semibold border-border bg-surface-raised text-[10px] uppercase"
+              className="font-semibold border-border bg-surface-raised text-2xs uppercase"
             >
               {workspaceRole}
             </Badge>
@@ -296,7 +296,7 @@ export function ProfileHeader({
                   {user.statusText}
                 </span>
                 {user.statusExpiresAt && (
-                  <span className="gap-1 mt-0.5 flex items-center text-[11px] text-muted-foreground">
+                  <span className="gap-1 mt-0.5 flex items-center text-meta text-muted-foreground">
                     <Clock className="size-3" />
                     <span>
                       Clears{' '}

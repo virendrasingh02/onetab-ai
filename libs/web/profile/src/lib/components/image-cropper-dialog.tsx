@@ -448,7 +448,7 @@ export function ImageCropperDialog({
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-foreground">Click to upload an image</p>
-                  <p className="text-[11px] text-muted-foreground">JPG, PNG or WebP up to 15MB</p>
+                  <p className="text-meta text-muted-foreground">JPG, PNG or WebP up to 15MB</p>
                 </div>
               </div>
             )}
@@ -480,7 +480,7 @@ export function ImageCropperDialog({
                   className="flex-1"
                 />
                 <ZoomIn className="size-4 text-muted-foreground shrink-0" />
-                <span className="text-[11px] font-mono text-muted-foreground w-10 text-right">
+                <span className="text-meta font-mono text-muted-foreground w-10 text-right">
                   {Math.round(zoom * 100)}%
                 </span>
               </div>
@@ -520,7 +520,7 @@ export function ImageCropperDialog({
                   title="Rotate 90° counter-clockwise"
                 >
                   <RotateCcw className="size-3" />
-                  <span className="text-[11px]">Rotate -90°</span>
+                  <span className="text-meta">Rotate -90°</span>
                 </Button>
                 <Button
                   type="button"
@@ -531,7 +531,7 @@ export function ImageCropperDialog({
                   title="Rotate 90° clockwise"
                 >
                   <RotateCw className="size-3" />
-                  <span className="text-[11px]">Rotate +90°</span>
+                  <span className="text-meta">Rotate +90°</span>
                 </Button>
                 <Button
                   type="button"
@@ -542,7 +542,7 @@ export function ImageCropperDialog({
                   title="Flip horizontally"
                 >
                   <FlipHorizontal className="size-3" />
-                  <span className="text-[11px]">Flip H</span>
+                  <span className="text-meta">Flip H</span>
                 </Button>
                 <Button
                   type="button"
@@ -553,11 +553,11 @@ export function ImageCropperDialog({
                   title="Flip vertically"
                 >
                   <FlipVertical className="size-3" />
-                  <span className="text-[11px]">Flip V</span>
+                  <span className="text-meta">Flip V</span>
                 </Button>
               </div>
 
-              <p className="text-[11px] text-muted-foreground text-center">
+              <p className="text-meta text-muted-foreground text-center">
                 Drag to reposition · scroll or use the slider to zoom
               </p>
             </div>

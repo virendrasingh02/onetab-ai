@@ -97,7 +97,7 @@ export function ChartLegendContent({ payload, className }: ChartLegendContentPro
   return (
     <ul
       className={cn(
-        'gap-x-4 gap-y-1 pt-2 text-[11px] flex flex-wrap items-center justify-center text-muted-foreground',
+        'gap-x-4 gap-y-1 pt-2 text-meta flex flex-wrap items-center justify-center text-muted-foreground',
         className,
       )}
     >

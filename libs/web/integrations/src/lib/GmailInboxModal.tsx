@@ -155,7 +155,7 @@ export function GmailInboxModal({
             <div>
               <DialogTitle className="text-base font-semibold flex items-center gap-2">
                 Gmail Inbox
-                <Badge variant="success" className="text-[10px] px-1.5 py-0">
+                <Badge variant="success" className="text-2xs px-1.5 py-0">
                   Connected
                 </Badge>
               </DialogTitle>
@@ -240,7 +240,7 @@ export function GmailInboxModal({
                         <span className="text-xs truncate text-foreground font-medium">
                           {msg.from.name || msg.from.email}
                         </span>
-                        <span className="text-[10px] text-muted-foreground shrink-0">
+                        <span className="text-2xs text-muted-foreground shrink-0">
                           {new Date(msg.date).toLocaleDateString(undefined, {
                             month: 'short',
                             day: 'numeric',
@@ -248,7 +248,7 @@ export function GmailInboxModal({
                         </span>
                       </div>
                       <div className="text-xs text-foreground truncate">{msg.subject}</div>
-                      <div className="text-[11px] text-muted-foreground line-clamp-1">
+                      <div className="text-meta text-muted-foreground line-clamp-1">
                         {msg.snippet}
                       </div>
                     </button>
@@ -395,7 +395,7 @@ export function GmailInboxModal({
                         size="sm"
                         variant="ghost"
                         onClick={() => setIsReplying(false)}
-                        className="h-6 text-[11px]"
+                        className="h-6 text-meta"
                       >
                         Cancel
                       </Button>

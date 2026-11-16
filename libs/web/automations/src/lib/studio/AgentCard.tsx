@@ -76,7 +76,7 @@ export function AgentCard({
             <span className="text-xs text-muted-foreground">{kindLabel}</span>
             <AgentStateBadge state={agent.state} />
             {agent.recentFailures > 0 && agent.lastRun?.status === 'FAILED' ? (
-              <Badge variant="destructive" className="text-[10px]">
+              <Badge variant="destructive" className="text-2xs">
                 Failing
               </Badge>
             ) : null}
@@ -127,7 +127,7 @@ export function AgentCard({
         {agent.description || 'No description yet'}
       </p>
 
-      <div className="space-y-1.5 pt-3 mt-auto border-t border-border/60 text-[11px] text-muted-foreground">
+      <div className="space-y-1.5 pt-3 mt-auto border-t border-border/60 text-meta text-muted-foreground">
         <p className="gap-1.5 flex items-center">
           <TriggerIcon className="size-3.5 shrink-0" aria-hidden />
           <span className="truncate">

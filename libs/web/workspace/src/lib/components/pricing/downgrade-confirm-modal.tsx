@@ -49,7 +49,10 @@ export function DowngradeConfirmModal({
         targetPlan ?? '',
       ),
       queryFn: () =>
-        billingApi.downgradeImpact(workspaceId as string, targetPlan as PlanTier),
+        billingApi.downgradeImpact(
+          workspaceId as string,
+          targetPlan as PlanTier,
+        ),
       enabled: Boolean(open && workspaceId && targetPlan),
     });
 
@@ -92,9 +95,9 @@ export function DowngradeConfirmModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md p-0 overflow-hidden">
-        <div className="bg-amber-500/10 p-6 border-b border-amber-500/20">
+        <div className="p-6 border-b border-warning/20 bg-warning/10">
           <DialogHeader>
-            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-xs font-bold uppercase tracking-wider mb-1">
+            <div className="gap-2 text-xs font-bold tracking-wider mb-1 flex items-center text-warning-text uppercase">
               <AlertTriangle className="size-4" />
               Confirm Plan Downgrade
             </div>
@@ -118,14 +121,14 @@ export function DowngradeConfirmModal({
             <>
               {/* Warnings List */}
               {impact?.warnings && impact.warnings.length > 0 && (
-                <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-2">
-                  <p className="text-xs font-bold text-amber-700 dark:text-amber-300">
+                <div className="p-4 space-y-2 rounded-xl border border-warning/30 bg-warning/5">
+                  <p className="text-xs font-bold text-warning-text">
                     Important Changes to Your Workspace:
                   </p>
                   <ul className="space-y-1.5 text-xs text-muted-foreground">
                     {impact.warnings.map((warning, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <AlertTriangle className="size-3.5 mt-0.5 text-amber-500 shrink-0" />
+                      <li key={idx} className="gap-2 flex items-start">
+                        <AlertTriangle className="size-3.5 mt-0.5 shrink-0 text-warning-text" />
                         <span>{warning.impactDescription}</span>
                       </li>
                     ))}
@@ -134,38 +137,40 @@ export function DowngradeConfirmModal({
               )}
 
               {/* Disabled / Lost Features */}
-              {impact?.restrictedFeatures && impact.restrictedFeatures.length > 0 && (
-                <div className="space-y-2 text-xs">
-                  <p className="font-semibold text-foreground">
-                    Features no longer available on {plan.name}:
-                  </p>
-                  <div className="grid grid-cols-2 gap-1.5 text-muted-foreground">
-                    {impact.restrictedFeatures.map((feat) => (
-                      <div
-                        key={feat}
-                        className="rounded-md border border-border/80 bg-surface-muted/30 px-2.5 py-1.5 font-mono text-[11px] truncate"
-                      >
-                        {feat}
-                      </div>
-                    ))}
+              {impact?.restrictedFeatures &&
+                impact.restrictedFeatures.length > 0 && (
+                  <div className="space-y-2 text-xs">
+                    <p className="font-semibold text-foreground">
+                      Features no longer available on {plan.name}:
+                    </p>
+                    <div className="gap-1.5 grid grid-cols-2 text-muted-foreground">
+                      {impact.restrictedFeatures.map((feat) => (
+                        <div
+                          key={feat}
+                          className="px-2.5 py-1.5 truncate rounded-md border border-border/80 bg-surface-muted/30 font-mono text-meta"
+                        >
+                          {feat}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
               {/* Micro Agents Impact Notice */}
-              <div className="rounded-xl border border-border bg-surface-muted/40 p-3.5 space-y-1 text-xs">
-                <p className="font-semibold text-foreground flex items-center gap-1.5">
+              <div className="p-3.5 space-y-1 text-xs rounded-xl border border-border bg-surface-muted/40">
+                <p className="font-semibold gap-1.5 flex items-center text-foreground">
                   <Bot className="size-3.5 text-primary" />
                   Micro Agent Limit
                 </p>
-                <p className="text-muted-foreground text-[11px]">
-                  {plan.name} provides {plan.machineLimits.microAgents} Micro Agents.
-                  Agents beyond this limit stay saved, but you cannot create more until you are under the limit.
+                <p className="text-meta text-muted-foreground">
+                  {plan.name} provides {plan.machineLimits.microAgents} Micro
+                  Agents. Agents beyond this limit stay saved, but you cannot
+                  create more until you are under the limit.
                 </p>
               </div>
 
               {/* Overages Acknowledgment */}
-              <div className="flex items-start gap-3 rounded-xl border border-border p-3.5 bg-surface-muted/20">
+              <div className="gap-3 p-3.5 flex items-start rounded-xl border border-border bg-surface-muted/20">
                 <Switch
                   id="acknowledge-downgrade"
                   checked={acknowledged}
@@ -174,16 +179,18 @@ export function DowngradeConfirmModal({
                 />
                 <label
                   htmlFor="acknowledge-downgrade"
-                  className="text-xs text-muted-foreground leading-tight cursor-pointer select-none"
+                  className="text-xs leading-tight cursor-pointer text-muted-foreground select-none"
                 >
-                  I understand this takes effect at the end of my current billing period. My data is kept, but anything over the new plan's limits is locked for new activity.
+                  I understand this takes effect at the end of my current
+                  billing period. My data is kept, but anything over the new
+                  plan's limits is locked for new activity.
                 </label>
               </div>
             </>
           )}
         </div>
 
-        <DialogFooter className="p-4 border-t border-border bg-surface-muted/30 flex justify-end gap-2">
+        <DialogFooter className="p-4 gap-2 flex justify-end border-t border-border bg-surface-muted/30">
           <Button
             type="button"
             variant="outline"

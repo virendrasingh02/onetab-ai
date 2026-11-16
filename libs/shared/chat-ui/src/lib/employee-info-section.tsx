@@ -138,7 +138,7 @@ function EmployeeInfoBody({ userId, source }: { userId: string; source: Employee
             <Button
               variant="link"
               size="xs"
-              className="mt-0.5 h-auto gap-1 px-0 text-[11px]"
+              className="mt-0.5 h-auto gap-1 px-0 text-meta"
               onClick={() => source.onEditEmployment?.(info)}
             >
               <Pencil className="size-3" aria-hidden /> Edit employment
@@ -210,7 +210,7 @@ function EmployeeInfoBody({ userId, source }: { userId: string; source: Employee
         <Button
           variant="link"
           size="xs"
-          className="h-auto gap-1 px-0 text-[11px]"
+          className="h-auto gap-1 px-0 text-meta"
           onClick={() => source.onEditSelf?.()}
         >
           <Pencil className="size-3" aria-hidden /> Edit work profile
