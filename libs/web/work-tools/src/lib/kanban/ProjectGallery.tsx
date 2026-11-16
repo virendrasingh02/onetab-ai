@@ -164,7 +164,7 @@ export function ProjectGallery({
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => setStatusFilter('all')}
-                className="gap-2 text-xs"
+                className="gap-2"
               >
                 <Check
                   className={cn(
@@ -178,7 +178,7 @@ export function ProjectGallery({
                 <DropdownMenuItem
                   key={status}
                   onClick={() => setStatusFilter(status)}
-                  className="gap-2 text-xs"
+                  className="gap-2"
                 >
                   <Check
                     className={cn(

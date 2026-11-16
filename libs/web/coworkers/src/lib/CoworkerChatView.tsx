@@ -214,7 +214,7 @@ function CoworkerMessageHeader({
 
                 <DropdownMenuItem
                   onClick={handleOpenProfile}
-                  className="gap-2.5 cursor-pointer"
+                  className="gap-2.5"
                 >
                   <UserRound className="size-4" />
                   <span>Open coworker details</span>
@@ -222,7 +222,7 @@ function CoworkerMessageHeader({
 
                 <DropdownMenuItem
                   onClick={onEdit}
-                  className="gap-2.5 cursor-pointer"
+                  className="gap-2.5"
                 >
                   <Brain className="size-4 text-primary" />
                   <span>Edit Settings &amp; Prompt</span>
@@ -232,7 +232,7 @@ function CoworkerMessageHeader({
 
                 <DropdownMenuItem
                   onClick={handleDelete}
-                  className="gap-2.5 cursor-pointer text-destructive focus:text-destructive"
+                  className="gap-2.5 text-destructive focus:text-destructive"
                 >
                   <Trash2 className="size-4" />
                   <span>Delete coworker</span>

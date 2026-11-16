@@ -911,7 +911,7 @@ export function AttachmentGrid({ items }: AttachmentGridProps) {
                 <DropdownMenuItem
                   key={`${it.attachment.url}-${idx}`}
                   onClick={it.onOpen ?? (() => downloadAttachment(it.attachment))}
-                  className="flex items-center justify-between gap-2 text-xs py-1.5 cursor-pointer"
+                  className="flex items-center justify-between gap-2"
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <Icon className="size-3.5 text-muted-foreground shrink-0" />
@@ -926,7 +926,7 @@ export function AttachmentGrid({ items }: AttachmentGridProps) {
               );
             })}
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={downloadAll} className="gap-2 text-xs cursor-pointer">
+            <DropdownMenuItem onClick={downloadAll} className="gap-2">
               <CloudDownload className="size-3.5" />
               <span>Download all</span>
             </DropdownMenuItem>

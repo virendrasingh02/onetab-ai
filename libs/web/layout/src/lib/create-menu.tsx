@@ -173,9 +173,9 @@ export function SidebarFooterActions({
             align="start"
             side="right"
             sideOffset={8}
-            className="w-80 p-1.5 shadow-xl border border-border bg-popover"
+            className="w-80"
           >
-            <DropdownMenuLabel className="px-2.5 py-1 font-semibold tracking-wider text-meta text-muted-foreground uppercase">
+            <DropdownMenuLabel className="px-2.5 text-meta text-muted-foreground">
               Communicate
             </DropdownMenuLabel>
             <DropdownMenuGroup>
@@ -185,7 +185,7 @@ export function SidebarFooterActions({
                   <DropdownMenuItem
                     key={action.label}
                     onSelect={() => run(action)}
-                    className="gap-3 px-2.5 py-2 flex cursor-pointer items-center"
+                    className="gap-3 flex items-center"
                   >
                     <span
                       aria-hidden
@@ -222,7 +222,7 @@ export function SidebarFooterActions({
 
             <DropdownMenuItem
               onSelect={() => navigate(`/w/${workspaceSlug}/directory`)}
-              className="gap-3 px-2.5 py-2 flex cursor-pointer items-center"
+              className="gap-3 flex items-center"
             >
               <span
                 aria-hidden
@@ -299,9 +299,9 @@ export function SidebarFooterActions({
           align="end"
           side="top"
           sideOffset={8}
-          className="w-80 p-1.5 shadow-xl border border-border bg-popover"
+          className="w-80"
         >
-          <DropdownMenuLabel className="px-2.5 py-1 font-semibold tracking-wider text-meta text-muted-foreground uppercase">
+          <DropdownMenuLabel className="px-2.5 text-meta text-muted-foreground">
             Communicate
           </DropdownMenuLabel>
           <DropdownMenuGroup>
@@ -311,7 +311,7 @@ export function SidebarFooterActions({
                 <DropdownMenuItem
                   key={action.label}
                   onSelect={() => run(action)}
-                  className="gap-3 px-2.5 py-2 flex cursor-pointer items-center"
+                  className="gap-3 flex items-center"
                 >
                   <span
                     aria-hidden
@@ -354,7 +354,7 @@ export function SidebarFooterActions({
                 navigate(`/w/${workspaceSlug}/settings/invitations`);
               }
             }}
-            className="gap-3 px-2.5 py-2 flex cursor-pointer items-center"
+            className="gap-3 flex items-center"
           >
             <span
               aria-hidden
@@ -377,7 +377,7 @@ export function SidebarFooterActions({
               <DropdownMenuSeparator className="my-1" />
               <DropdownMenuItem
                 onSelect={onOpenCustomizer}
-                className="gap-3 px-2.5 py-2 flex cursor-pointer items-center"
+                className="gap-3 flex items-center"
               >
                 <span
                   aria-hidden

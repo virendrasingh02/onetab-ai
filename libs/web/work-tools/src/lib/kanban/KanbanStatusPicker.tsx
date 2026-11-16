@@ -13,10 +13,12 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
   toast,
+  menuSearchClasses,
+  menuSearchInputClasses,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useWorkspacePermission } from '@org/web-workspace';
-import { Check, ChevronDown, Plus, Search, Settings2 } from 'lucide-react';
+import { Check, ChevronDown, Plus, Settings2 } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -154,10 +156,9 @@ export function KanbanStatusPicker({
       <DropdownMenuContent
         {...searchField.contentProps}
         align={align}
-        className="w-60 p-1.5 shadow-xl rounded-xl border border-border bg-popover text-popover-foreground"
+        className="w-60"
       >
-        <div className="gap-2 px-2 py-1.5 mb-1 flex items-center rounded-lg border border-border/60 bg-muted/30">
-          <Search className="size-3.5 shrink-0 text-muted-foreground" />
+        <div className={menuSearchClasses}>
           <input
             type="text"
             value={search}
@@ -182,7 +183,7 @@ export function KanbanStatusPicker({
             }}
             placeholder="Change status…"
             aria-label="Search statuses"
-            className="text-xs w-full bg-transparent text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
+            className={menuSearchInputClasses}
           />
         </div>
 
@@ -195,10 +196,7 @@ export function KanbanStatusPicker({
                 key={state.id}
                 onSelect={() => pick(state.id)}
                 className={cn(
-                  'px-2.5 py-1.5 text-xs font-medium flex cursor-pointer items-center justify-between rounded-lg transition-colors',
-                  isSelected
-                    ? 'bg-accent text-foreground'
-                    : 'text-foreground/85 hover:bg-accent/60',
+                  'flex items-center justify-between',
                 )}
               >
                 <div className="gap-2.5 min-w-0 flex items-center">
@@ -232,11 +230,11 @@ export function KanbanStatusPicker({
 
         {canManage && query && !exactMatch && (
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="gap-2 px-2.5 py-1.5 mt-1 text-xs font-medium rounded-lg text-primary">
+            <DropdownMenuSubTrigger className="gap-2 mt-1 text-primary">
               <Plus className="size-3.5" />
               <span className="truncate">Create “{query.slice(0, 40)}”</span>
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="w-52 p-1.5 rounded-xl">
+            <DropdownMenuSubContent className="w-52">
               <p className="px-2 pt-0.5 pb-1.5 text-meta text-muted-foreground">
                 Works like…
               </p>
@@ -248,7 +246,7 @@ export function KanbanStatusPicker({
                     event.preventDefault();
                     void createAndPick(category);
                   }}
-                  className="gap-2.5 px-2 py-1.5 text-xs cursor-pointer rounded-lg"
+                  className="gap-2.5"
                 >
                   <StatusIcon
                     status={category}
@@ -270,7 +268,7 @@ export function KanbanStatusPicker({
               onSelect={() =>
                 navigate(`/w/${slug}/settings/kanban-tasks#statuses`)
               }
-              className="gap-2 px-2.5 py-1.5 text-xs cursor-pointer rounded-lg text-muted-foreground"
+              className="gap-2 text-muted-foreground"
             >
               <Settings2 className="size-3.5" />
               <span>Manage statuses</span>

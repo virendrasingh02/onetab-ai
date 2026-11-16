@@ -621,7 +621,7 @@ function ConnectorsSection({ coworker: c, connectable, workspaceId }: { coworker
                     <p className="px-2 py-1.5 text-xs text-muted-foreground">Every connected app is already on {c.name}.</p>
                   ) : (
                     addable.map((x) => (
-                      <DropdownMenuItem key={x.provider} onSelect={() => void attach([x])} className="gap-2 text-xs">
+                      <DropdownMenuItem key={x.provider} onSelect={() => void attach([x])} className="gap-2">
                         <AppConnectorIcon connectorId={x.provider.toLowerCase()} name={x.name} category={x.category ?? ''} size={15} />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate font-medium text-foreground">{x.name}</span>
@@ -636,7 +636,7 @@ function ConnectorsSection({ coworker: c, connectable, workspaceId }: { coworker
                   {can('update') ? (
                     <>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onSelect={() => navigate('/connectors')} className="gap-2 text-xs">
+                      <DropdownMenuItem onSelect={() => navigate('/connectors')} className="gap-2">
                         <Plug className="size-3.5" /> Connect another app…
                       </DropdownMenuItem>
                     </>

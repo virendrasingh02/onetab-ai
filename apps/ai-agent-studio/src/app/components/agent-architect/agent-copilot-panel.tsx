@@ -1254,13 +1254,13 @@ export function AgentCopilotPanel({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" side="top" className="w-48">
                     <DropdownMenuLabel className="text-xs text-muted-foreground">Download as</DropdownMenuLabel>
-                    <DropdownMenuItem onSelect={() => downloadMessage(m, 'pdf')} className="gap-2 text-xs">
+                    <DropdownMenuItem onSelect={() => downloadMessage(m, 'pdf')} className="gap-2">
                       <FileText className="size-3.5" /> PDF
                     </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => downloadMessage(m, 'md')} className="gap-2 text-xs">
+                    <DropdownMenuItem onSelect={() => downloadMessage(m, 'md')} className="gap-2">
                       <FileText className="size-3.5" /> Markdown (.md)
                     </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => downloadMessage(m, 'txt')} className="gap-2 text-xs">
+                    <DropdownMenuItem onSelect={() => downloadMessage(m, 'txt')} className="gap-2">
                       <FileText className="size-3.5" /> Plain text (.txt)
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -1318,18 +1318,18 @@ export function AgentCopilotPanel({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" side="top" className="w-56">
-                  <DropdownMenuItem onSelect={() => void handle('', 'check')} className="gap-2 text-xs">
+                  <DropdownMenuItem onSelect={() => void handle('', 'check')} className="gap-2">
                     <ScanSearch className="size-3.5" /> Check every step
                   </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => void handle('', 'test')} className="gap-2 text-xs">
+                  <DropdownMenuItem onSelect={() => void handle('', 'test')} className="gap-2">
                     <Play className="size-3.5" /> Run a test
                   </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={onRunTest} className="gap-2 text-xs">
+                  <DropdownMenuItem onSelect={onRunTest} className="gap-2">
                     <ExternalLink className="size-3.5" /> Open the full run console
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   {QUICK_ACTIONS.map(({ label, prompt, Icon }) => (
-                    <DropdownMenuItem key={label} onSelect={() => void handle(prompt)} className="gap-2 text-xs">
+                    <DropdownMenuItem key={label} onSelect={() => void handle(prompt)} className="gap-2">
                       <Icon className="size-3.5" /> {label}
                     </DropdownMenuItem>
                   ))}
@@ -1410,7 +1410,7 @@ export function AgentCopilotPanel({
                     setMode(id);
                     inputRef.current?.focus();
                   }}
-                  className="gap-2 text-xs"
+                  className="gap-2"
                 >
                   <Icon className="size-3.5" /> {label}
                   {mode === id && <Check className="ml-auto size-3.5" aria-hidden />}

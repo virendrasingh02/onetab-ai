@@ -1,6 +1,6 @@
 import { cn } from '@org/utils';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
-import { Check, ChevronsUpDown, Loader2, Plus, Search, X } from 'lucide-react';
+import { Check, ChevronsUpDown, Loader2, Plus, X } from 'lucide-react';
 import {
   forwardRef,
   useCallback,
@@ -15,6 +15,14 @@ import {
   type ReactNode,
 } from 'react';
 import { Badge } from './badge.js';
+import {
+  menuCheckClasses,
+  menuItemClasses,
+  menuLabelClasses,
+  menuSearchClasses,
+  menuSearchInputClasses,
+  menuSurfaceBase,
+} from './menu-styles.js';
 
 export interface ComboboxOption {
   value: string;
@@ -324,19 +332,19 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
           onClick={() => !opt.disabled && handleSelect(opt.value)}
           onMouseEnter={() => setHighlightedIndex(index)}
           className={cn(
-            'group px-2 py-1.5 text-xs relative flex w-full cursor-pointer items-center rounded-btn text-left transition-colors duration-(--duration-fast) ease-standard outline-none select-none',
+            menuItemClasses,
+            'w-full text-left',
             isHighlighted && 'bg-accent text-accent-foreground',
-            checked && 'font-medium',
             opt.disabled && 'pointer-events-none cursor-not-allowed opacity-40',
           )}
         >
           {opt.icon && (
-            <span className="mr-2 size-4 [&_svg]:size-4 flex shrink-0 items-center justify-center text-muted-foreground">
+            <span className="size-4 [&_svg]:size-4 flex shrink-0 items-center justify-center text-muted-foreground">
               {opt.icon}
             </span>
           )}
           <div className="min-w-0 pr-2 flex-1">
-            <div className="font-medium truncate">{opt.label}</div>
+            <div className="truncate">{opt.label}</div>
             {opt.description && (
               <div className="leading-normal truncate text-meta text-muted-foreground">
                 {opt.description}
@@ -345,7 +353,7 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
           </div>
           {checked && (
             <Check
-              className="size-3.5 ml-auto shrink-0 text-brand-text"
+              className={cn(menuCheckClasses, 'ml-auto shrink-0')}
               aria-hidden="true"
             />
           )}
@@ -489,17 +497,13 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
                     : popoverWidth,
               }}
               className={cn(
-                'min-w-44 p-1 z-50 rounded-popup border border-border bg-popover text-popover-foreground shadow-overlay outline-none',
-                'max-h-(--radix-popover-content-available-height) max-w-[calc(100vw-1rem)]',
+                menuSurfaceBase,
+                'overflow-hidden max-h-(--radix-popover-content-available-height)',
                 popoverClassName,
               )}
             >
               {/* Search box */}
-              <div className="px-2 pb-1.5 pt-1 gap-1.5 flex items-center border-b border-border">
-                <Search
-                  className="size-3.5 shrink-0 text-muted-foreground"
-                  aria-hidden="true"
-                />
+              <div className={menuSearchClasses}>
                 <input
                   ref={searchInputRef}
                   type="text"
@@ -514,7 +518,7 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
                       ? `${comboboxId}-opt-${highlightedIndex}`
                       : undefined
                   }
-                  className="h-6 text-xs flex w-full rounded-none bg-transparent text-foreground outline-none placeholder:text-subtle"
+                  className={menuSearchInputClasses}
                 />
                 {searchQuery && (
                   <button
@@ -534,7 +538,7 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
                 id={listboxId}
                 role="listbox"
                 aria-label="Options"
-                className="max-h-60 py-1 scrollbar-subtle overflow-y-auto overscroll-contain"
+                className="max-h-60 scrollbar-subtle overflow-y-auto overscroll-contain"
               >
                 {loading ? (
                   <div className="gap-2 py-6 text-xs flex items-center justify-center text-muted-foreground">
@@ -563,7 +567,7 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
                   Object.entries(groupedOptions).map(
                     ([groupName, groupOpts]) => (
                       <div key={groupName} className="mb-1 last:mb-0">
-                        <div className="px-2 py-1 font-semibold tracking-wider text-2xs text-subtle uppercase">
+                        <div className={menuLabelClasses}>
                           {groupName}
                         </div>
                         {groupOpts.map((opt) => {

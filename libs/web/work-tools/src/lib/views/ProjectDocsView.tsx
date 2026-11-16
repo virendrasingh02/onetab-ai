@@ -157,7 +157,7 @@ function LinkDocMenu({
             <DropdownMenuItem
               key={d.id}
               onClick={() => onLinkDoc(d.id)}
-              className="text-xs gap-2 flex items-center justify-between"
+              className="gap-2 flex items-center justify-between"
             >
               <div className="gap-2 min-w-0 flex items-center">
                 <span className="shrink-0">
@@ -178,7 +178,7 @@ function LinkDocMenu({
             </DropdownMenuItem>
           ))
         ) : (
-          <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+          <DropdownMenuItem disabled className="text-muted-foreground">
             No other documents to link
           </DropdownMenuItem>
         )}
@@ -274,28 +274,28 @@ export function ProjectDocsView({
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuItem
                 onClick={() => onCreateProjectDoc('prd')}
-                className="gap-2 text-xs"
+                className="gap-2"
               >
                 <Zap className="size-3.5 text-accent-amber" />
                 <span>Product Requirements (PRD)</span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => onCreateProjectDoc('meeting')}
-                className="gap-2 text-xs"
+                className="gap-2"
               >
                 <BookOpen className="size-3.5 text-accent-blue" />
                 <span>Sprint Planning & Notes</span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => onCreateProjectDoc('spec')}
-                className="gap-2 text-xs"
+                className="gap-2"
               >
                 <Settings2 className="size-3.5 text-muted-foreground" />
                 <span>Technical Architecture Spec</span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => onCreateProjectDoc('checklist')}
-                className="gap-2 text-xs"
+                className="gap-2"
               >
                 <ClipboardCheck className="size-3.5 text-muted-foreground" />
                 <span>Launch Readiness Checklist</span>
@@ -303,7 +303,7 @@ export function ProjectDocsView({
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => onCreateProjectDoc()}
-                className="gap-2 text-xs"
+                className="gap-2"
               >
                 <FilePlus2 className="size-3.5 text-muted-foreground" />
                 <span>Blank Document</span>

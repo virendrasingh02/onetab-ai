@@ -3,9 +3,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
+  menuSearchClasses,
+  menuSearchInputClasses,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { Search, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { StatusIcon } from './kanban-icons.js';
 import { useMenuSearchField } from './menu-search-field.js';
@@ -79,17 +81,16 @@ export function KanbanTaskLinkPicker({
       <DropdownMenuContent
         {...searchField.contentProps}
         align={align}
-        className="w-72 p-1.5 shadow-xl rounded-xl border border-border bg-popover text-popover-foreground"
+        className="w-72"
       >
         {header}
-        <div className="px-2 py-1 mb-1 relative flex items-center border-b border-border/60">
-          <Search className="size-3.5 mr-2 shrink-0 text-muted-foreground" />
+        <div className={menuSearchClasses}>
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={placeholder}
-            className="text-xs p-0 w-full border-none bg-transparent text-foreground outline-none placeholder:text-muted-foreground focus:ring-0"
+            className={menuSearchInputClasses}
             {...searchField.inputProps}
           />
           {query && (

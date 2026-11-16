@@ -109,14 +109,13 @@ export function JoinChannelControl({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuLabel className="gap-1.5 flex items-center text-meta uppercase tracking-wide text-muted-foreground">
+            <DropdownMenuLabel className="gap-1.5 flex items-center text-meta text-muted-foreground">
               <Clock className="size-3" />
               Join temporarily
             </DropdownMenuLabel>
             {TEMP_MEMBERSHIP_PRESETS.map((preset) => (
               <DropdownMenuItem
                 key={preset.hours}
-                className="text-xs"
                 onSelect={() => doJoin(preset.hours)}
               >
                 For {preset.label}
@@ -124,7 +123,6 @@ export function JoinChannelControl({
             ))}
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              className="text-xs"
               onSelect={() => setCustomOpen(true)}
             >
               Custom…

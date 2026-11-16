@@ -164,7 +164,7 @@ export function AppResponseCard({
               side="bottom"
               sideOffset={4}
               collisionPadding={8}
-              className="w-48 text-xs z-50 border-border bg-popover text-popover-foreground shadow-overlay"
+              className="w-48 text-xs z-50"
             >
               {event.url && (
                 <DropdownMenuItem

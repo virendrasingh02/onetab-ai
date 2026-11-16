@@ -105,7 +105,7 @@ export function AnalyticsHeader({
                 onClick={() =>
                   exportMutation.mutate({ type: exportType, format: 'csv', filter })
                 }
-                className="gap-2 cursor-pointer text-xs"
+                className="gap-2"
               >
                 <FileDown className="size-3.5 text-success" />
                 Export CSV
@@ -114,7 +114,7 @@ export function AnalyticsHeader({
                 onClick={() =>
                   exportMutation.mutate({ type: exportType, format: 'json', filter })
                 }
-                className="gap-2 cursor-pointer text-xs"
+                className="gap-2"
               >
                 <FileJson className="size-3.5 text-accent-blue" />
                 Export JSON

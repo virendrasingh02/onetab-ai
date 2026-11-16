@@ -2,7 +2,14 @@ import { WORLD_REGIONS, cn, type RegionInfo } from '@org/utils';
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from './button.js';
-import { fieldBoxClass, Input } from './input.js';
+import { fieldBoxClass } from './input.js';
+import {
+  menuCheckClasses,
+  menuItemClasses,
+  menuSearchClasses,
+  menuSearchInputClasses,
+  menuSurfaceBase,
+} from './menu-styles.js';
 import { Popover, PopoverContent, PopoverTrigger } from './popover.js';
 import { ScrollArea } from './scroll-area.js';
 
@@ -78,20 +85,21 @@ export function RegionSelect({
 
       <PopoverContent
         align="start"
-        className="w-72 p-0 border-border bg-popover text-foreground shadow-overlay"
+        className={cn(menuSurfaceBase, 'w-72 overflow-hidden')}
       >
-        <div className="p-2 border-b border-border">
-          <Input
+        <div className={menuSearchClasses}>
+          <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search country or region…"
-            className="h-8 text-xs"
+            aria-label="Search regions"
+            className={menuSearchInputClasses}
             autoFocus
           />
         </div>
 
-        <ScrollArea className="max-h-60 p-1">
-          <div className="space-y-0.5">
+        <ScrollArea className="max-h-60">
+          <div>
             {matches.map((region) => {
               const isSelected = region.code === currentRegion.code;
               return (
@@ -100,10 +108,8 @@ export function RegionSelect({
                   type="button"
                   onClick={() => handleSelect(region)}
                   className={cn(
-                    'px-2.5 py-1.5 text-xs flex w-full items-center justify-between rounded-md text-left transition-colors',
-                    isSelected
-                      ? 'font-medium bg-brand/10 text-brand-text'
-                      : 'text-foreground hover:bg-accent',
+                    menuItemClasses,
+                    'w-full justify-between text-left hover:bg-accent',
                   )}
                 >
                   <span className="gap-2 flex items-center truncate">
@@ -116,7 +122,7 @@ export function RegionSelect({
                     </span>
                   </span>
                   {isSelected && (
-                    <Check className="size-3.5 shrink-0 text-brand-text" />
+                    <Check className={menuCheckClasses} />
                   )}
                 </button>
               );

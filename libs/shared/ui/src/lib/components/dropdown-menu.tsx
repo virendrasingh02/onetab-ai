@@ -7,9 +7,12 @@ import {
   menuIndicator,
   menuIndicatorInset,
   menuItemClasses,
+  menuCheckClasses,
   menuLabelClasses,
   menuSeparatorClasses,
   menuSurfaceBase,
+  menuTrailingIndicator,
+  menuTrailingInset,
 } from './menu-styles.js';
 
 export const DropdownMenu = DropdownMenuPrimitive.Root;
@@ -69,7 +72,7 @@ export function DropdownMenuItem({
       className={cn(
         menuItemClasses,
         inset && menuIndicatorInset,
-        description && 'py-1.5 items-start',
+        description && 'items-start',
         variant === 'destructive' && menuDestructiveClasses,
         className,
       )}
@@ -79,7 +82,7 @@ export function DropdownMenuItem({
         <>
           {icon}
           <div className="min-w-0 flex flex-1 flex-col">
-            <div className="font-medium leading-snug text-xs flex items-center justify-between">
+            <div className="flex items-center justify-between">
               {restChildren}
             </div>
             <p className="font-normal leading-normal mt-0.5 pr-1 text-meta whitespace-normal text-muted-foreground">
@@ -108,7 +111,7 @@ export function DropdownMenuCheckboxItem({
     >
       <span className={menuIndicator}>
         <DropdownMenuPrimitive.ItemIndicator>
-          <Check className="size-3.5 text-foreground" />
+          <Check className={menuCheckClasses} />
         </DropdownMenuPrimitive.ItemIndicator>
       </span>
       {children}
@@ -119,26 +122,26 @@ export function DropdownMenuCheckboxItem({
 export function DropdownMenuRadioItem({
   className,
   children,
-  indicator = 'dot',
+  indicator = 'check',
   ...props
 }: ComponentProps<typeof DropdownMenuPrimitive.RadioItem> & {
   /**
-   * `dot` (default) sits in the left gutter like a radio; `check` trails the
-   * label, for single-select pickers (date range, sort order) where the row
-   * reads as "this one is active" rather than as one of a radio set.
+   * `check` (default) trails the label — the house style for every
+   * single-select menu (size, sort order, fiscal month…), where the row reads
+   * as "this one is active". `dot` sits in the left gutter like a radio.
    */
   indicator?: 'dot' | 'check';
 }) {
   if (indicator === 'check') {
     return (
       <DropdownMenuPrimitive.RadioItem
-        className={cn(menuItemClasses, 'pr-8', className)}
+        className={cn(menuItemClasses, menuTrailingInset, className)}
         {...props}
       >
         {children}
-        <span className="right-2 size-3.5 absolute flex items-center justify-center">
+        <span className={menuTrailingIndicator}>
           <DropdownMenuPrimitive.ItemIndicator>
-            <Check className="size-3.5 text-primary" />
+            <Check className={menuCheckClasses} />
           </DropdownMenuPrimitive.ItemIndicator>
         </span>
       </DropdownMenuPrimitive.RadioItem>
@@ -247,7 +250,7 @@ export function DropdownMenuShortcut({
   return (
     <span
       className={cn(
-        'pl-3 font-normal tracking-wide gap-1 ml-auto inline-flex items-center font-mono text-2xs text-subtle',
+        'pl-3 font-normal gap-1 ml-auto inline-flex items-center text-xs text-subtle tabular-nums',
         className,
       )}
       {...props}
@@ -280,7 +283,7 @@ export function DropdownMenuSubTrigger({
       {...props}
     >
       {children}
-      <ChevronRight className="size-3.5 ml-auto shrink-0 text-subtle" />
+      <ChevronRight className="size-4 ml-auto shrink-0 text-subtle" />
     </DropdownMenuPrimitive.SubTrigger>
   );
 }

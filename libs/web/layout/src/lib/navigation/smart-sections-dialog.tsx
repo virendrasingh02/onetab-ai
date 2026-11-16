@@ -306,7 +306,6 @@ export function SmartSectionsDialog({
                     <SelectItem
                       key={rule.type}
                       value={rule.type}
-                      className="text-xs"
                     >
                       {rule.label}
                     </SelectItem>

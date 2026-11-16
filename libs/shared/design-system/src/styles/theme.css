@@ -289,14 +289,18 @@
    *   card   — panels, tiles, list containers    (md)
    *   btn    — buttons, toggles, segmented tabs  (lg)
    *   input  — text fields, selects, composers   (lg)
-   *   popup  — menus, popovers, tooltips         (md)
+   *   popup  — popovers, hover cards, tooltips   (md)
    *   dialog — dialogs, sheets, drawers          (xl)
+   *   menu      — dropdowns, selects, comboboxes (xl)
+   *   menu-item — a row inside a menu            (md)
    */
   --radius-card: var(--radius-md);
   --radius-btn: var(--radius-lg);
   --radius-input: var(--radius-lg);
   --radius-popup: var(--radius-md);
   --radius-dialog: var(--radius-xl);
+  --radius-menu: var(--radius-xl);
+  --radius-menu-item: var(--radius-md);
 }
 
 /*
@@ -703,6 +707,8 @@
   --radius-input: var(--radius-lg);
   --radius-popup: var(--radius-md);
   --radius-dialog: var(--radius-xl);
+  --radius-menu: var(--radius-xl);
+  --radius-menu-item: var(--radius-md);
 }
 
 [data-radius='xs'] {

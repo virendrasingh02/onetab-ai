@@ -7,7 +7,7 @@
  * `min-w-48` here, a missing `outline-none` there).
  *
  * Menus are built from the same tokens as everything else on the page:
- * `rounded-popup` for the surface, `rounded-btn` for the rows, `shadow-overlay`
+ * `rounded-menu` for the surface, `rounded-menu-item` for the rows, `shadow-overlay`
  * for the lift. They used to carry a hand-picked `rounded-2xl` / `shadow-2xl`
  * of their own, so a menu opened from an 8px-cornered button dropped a 16px
  * pill under it and read as a different design system.
@@ -19,41 +19,60 @@
  * as a literal class so the Tailwind scanner can see it. Radix reports the room
  * it has in that variable, so a menu taller than the screen scrolls its
  * overflow instead of clipping rows off the bottom where they can't be clicked.
+ *
+ * `rounded-menu` (12px) wraps `rounded-menu-item` (8px) rows inset by `p-1`, so
+ * the row corners sit concentric with the surface's.
  */
 export const menuSurfaceBase = [
   'z-50 min-w-44 max-w-[calc(100vw-1rem)] bg-popover text-popover-foreground',
   'overflow-y-auto overflow-x-hidden overscroll-contain scrollbar-subtle',
-  'rounded-popup border border-border p-1 shadow-overlay outline-none',
+  'rounded-menu border border-border p-1 shadow-overlay outline-none',
 ];
 
 /**
- * One row is 28px — the same box a `size="sm"` Button occupies, and the same
- * `text-xs` the command palette, composer and every toolbar already use. Leading
- * icons stay 16px: that is what call sites pass explicitly almost everywhere, so
- * a smaller default would only mismatch its own neighbours.
+ * One row is 32px of 13px regular-weight text — every dropdown, select,
+ * combobox and context menu in the app uses this exact row, so a status picker,
+ * a "⋯" menu and a settings select read as the same object. Leading icons are
+ * 16px and muted; the selected value is marked by a trailing check.
  */
 export const menuItemClasses = [
-  'group relative flex cursor-pointer select-none items-center gap-2 rounded-btn px-2 py-1.5 text-xs font-medium outline-none',
+  'group relative flex min-h-8 cursor-pointer select-none items-center gap-2 rounded-menu-item px-2.5 py-1.5 text-body-sm font-normal text-foreground outline-none',
   // Roomier rows under a coarse pointer so a menu item is a comfortable tap.
-  'pointer-coarse:py-2.5',
+  'pointer-coarse:min-h-10',
   'transition-colors duration-(--duration-fast) ease-standard',
-  'focus:bg-accent focus:text-accent-foreground',
+  'focus:bg-accent focus:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground',
   'data-[disabled]:pointer-events-none data-[disabled]:opacity-40',
   "[&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted-foreground focus:[&_svg]:text-accent-foreground",
 ];
 
 /** Left gutter reserved for a check/dot indicator, and the indicator itself. */
-export const menuIndicatorInset = 'pl-7';
+export const menuIndicatorInset = 'pl-8';
 export const menuIndicator =
-  'absolute left-2 flex size-3.5 items-center justify-center';
+  'absolute left-2.5 flex size-4 items-center justify-center';
 
-/** Section heading above a group of items. */
+/** Right gutter for a trailing check, and the check's slot. */
+export const menuTrailingInset = 'pr-8';
+export const menuTrailingIndicator =
+  'absolute right-2.5 flex size-4 items-center justify-center';
+/** The trailing selected-value check itself. */
+export const menuCheckClasses = 'size-4 text-foreground';
+
+/** Section heading above a group of items — sentence case, quiet. */
 export const menuLabelClasses =
-  'px-2 py-1 font-semibold tracking-wider text-2xs text-subtle uppercase';
+  'px-2.5 pt-2 pb-1 text-xs font-medium text-muted-foreground';
 
 /** Hairline rule between groups. */
 export const menuSeparatorClasses = '-mx-1 my-1 h-px bg-border';
 
+/**
+ * Inline search/filter row pinned to the top of a menu: borderless input,
+ * hairline underneath, bleeding to the surface edges.
+ */
+export const menuSearchClasses =
+  '-mx-1 -mt-1 mb-1 flex h-10 items-center gap-2 border-b border-border px-3.5';
+export const menuSearchInputClasses =
+  'w-full min-w-0 bg-transparent text-body-sm text-foreground outline-none placeholder:text-subtle';
+
 /** Layered onto {@link menuItemClasses} for a destructive action. */
 export const menuDestructiveClasses =
-  'text-destructive focus:bg-destructive/10 focus:text-destructive [&_svg]:text-destructive focus:[&_svg]:text-destructive';
+  'text-destructive focus:bg-destructive/10 focus:text-destructive data-[highlighted]:bg-destructive/10 data-[highlighted]:text-destructive [&_svg]:text-destructive focus:[&_svg]:text-destructive';

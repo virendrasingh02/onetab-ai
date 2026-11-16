@@ -1,8 +1,18 @@
 import { cn } from '@org/utils';
 import * as MenubarPrimitive from '@radix-ui/react-menubar';
-import { Check, ChevronRight, Circle } from 'lucide-react';
+import { Check, ChevronRight } from 'lucide-react';
 import type { ComponentProps } from 'react';
 import { KbdShortcut } from './kbd.js';
+import {
+  menuCheckClasses,
+  menuIndicator,
+  menuIndicatorInset,
+  menuItemClasses,
+  menuLabelClasses,
+  menuSurfaceBase,
+  menuTrailingIndicator,
+  menuTrailingInset,
+} from './menu-styles.js';
 
 export const MenubarMenu = MenubarPrimitive.Menu;
 export const MenubarGroup = MenubarPrimitive.Group;
@@ -55,14 +65,15 @@ export function MenubarSubTrigger({
     <MenubarPrimitive.SubTrigger
       data-slot="menubar-sub-trigger"
       className={cn(
-        'px-2 py-1.5 text-xs flex cursor-pointer items-center rounded-btn outline-none select-none focus:bg-accent focus:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground',
-        inset && 'pl-8',
+        menuItemClasses,
+        'data-[state=open]:bg-accent',
+        inset && menuIndicatorInset,
         className,
       )}
       {...props}
     >
       {children}
-      <ChevronRight className="size-4 ml-auto" />
+      <ChevronRight className="size-4 ml-auto text-subtle" />
     </MenubarPrimitive.SubTrigger>
   );
 }
@@ -77,7 +88,8 @@ export function MenubarSubContent({
       data-slot="menubar-sub-content"
       collisionPadding={collisionPadding}
       className={cn(
-        'scrollbar-subtle p-1 z-50 max-h-(--radix-menubar-content-available-height) min-w-[8rem] overflow-x-hidden overflow-y-auto overscroll-contain rounded-popup border border-border bg-popover text-popover-foreground shadow-elevated',
+        menuSurfaceBase,
+          'max-h-(--radix-menubar-content-available-height)',
         className,
       )}
       {...props}
@@ -102,7 +114,8 @@ export function MenubarContent({
         sideOffset={sideOffset}
         collisionPadding={collisionPadding}
         className={cn(
-          'scrollbar-subtle p-1 z-50 max-h-(--radix-menubar-content-available-height) min-w-[12rem] overflow-x-hidden overflow-y-auto overscroll-contain rounded-popup border border-border bg-popover text-popover-foreground shadow-elevated',
+          menuSurfaceBase,
+          'max-h-(--radix-menubar-content-available-height)',
           className,
         )}
         {...props}
@@ -122,7 +135,7 @@ export function MenubarItem({
     <MenubarPrimitive.Item
       data-slot="menubar-item"
       className={cn(
-        'px-2 py-1.5 text-xs relative flex cursor-pointer items-center rounded-btn outline-none select-none focus:bg-accent focus:text-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+        menuItemClasses,
         inset && 'pl-8',
         className,
       )}
@@ -141,15 +154,16 @@ export function MenubarCheckboxItem({
     <MenubarPrimitive.CheckboxItem
       data-slot="menubar-checkbox-item"
       className={cn(
-        'py-1.5 pl-8 pr-2 text-xs relative flex cursor-pointer items-center rounded-btn outline-none select-none focus:bg-accent focus:text-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+        menuItemClasses,
+        menuIndicatorInset,
         className,
       )}
       checked={checked}
       {...props}
     >
-      <span className="left-2 size-3.5 absolute flex items-center justify-center">
+      <span className={menuIndicator}>
         <MenubarPrimitive.ItemIndicator>
-          <Check className="size-4" />
+          <Check className={menuCheckClasses} />
         </MenubarPrimitive.ItemIndicator>
       </span>
       {children}
@@ -166,17 +180,18 @@ export function MenubarRadioItem({
     <MenubarPrimitive.RadioItem
       data-slot="menubar-radio-item"
       className={cn(
-        'py-1.5 pl-8 pr-2 text-xs relative flex cursor-pointer items-center rounded-btn outline-none select-none focus:bg-accent focus:text-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+        menuItemClasses,
+        menuTrailingInset,
         className,
       )}
       {...props}
     >
-      <span className="left-2 size-3.5 absolute flex items-center justify-center">
+      {children}
+      <span className={menuTrailingIndicator}>
         <MenubarPrimitive.ItemIndicator>
-          <Circle className="size-2 fill-current" />
+          <Check className={menuCheckClasses} />
         </MenubarPrimitive.ItemIndicator>
       </span>
-      {children}
     </MenubarPrimitive.RadioItem>
   );
 }
@@ -192,8 +207,8 @@ export function MenubarLabel({
     <MenubarPrimitive.Label
       data-slot="menubar-label"
       className={cn(
-        'px-2 py-1.5 text-xs font-semibold text-foreground',
-        inset && 'pl-8',
+        menuLabelClasses,
+        inset && menuIndicatorInset,
         className,
       )}
       {...props}

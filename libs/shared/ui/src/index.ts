@@ -205,6 +205,16 @@ export {
   DropdownMenuTrigger,
   type DropdownMenuItemProps,
 } from './lib/components/dropdown-menu.js';
+// Shared menu recipe — for hand-built pickers that can't use the primitives.
+export {
+  menuCheckClasses,
+  menuItemClasses,
+  menuLabelClasses,
+  menuSearchClasses,
+  menuSearchInputClasses,
+  menuSeparatorClasses,
+  menuSurfaceBase,
+} from './lib/components/menu-styles.js';
 
 export {
   Collapsible,

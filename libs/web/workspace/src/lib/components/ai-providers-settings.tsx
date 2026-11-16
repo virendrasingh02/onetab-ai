@@ -666,7 +666,6 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
                       <SelectItem
                         key={m.model}
                         value={m.model}
-                        className="text-xs"
                       >
                         <div className="gap-2 flex items-center">
                           <AIModelIcon

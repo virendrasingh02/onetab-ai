@@ -683,7 +683,7 @@ function AppMessageHeader({ app }: { app: AppModelItem }) {
 
                 <DropdownMenuItem
                   onClick={handleOpenProfile}
-                  className="gap-2.5 cursor-pointer"
+                  className="gap-2.5"
                 >
                   <UserRound className="size-4" />
                   <span>Open app details</span>
@@ -695,7 +695,7 @@ function AppMessageHeader({ app }: { app: AppModelItem }) {
                   onClick={() =>
                     navigate(`/w/${slug}/integrations?app=${app.id}`)
                   }
-                  className="gap-2.5 cursor-pointer"
+                  className="gap-2.5"
                 >
                   <Settings className="size-4" />
                   <span>Manage integration & scopes</span>
@@ -758,7 +758,7 @@ function AppMessageHeader({ app }: { app: AppModelItem }) {
                             );
                         });
                       }}
-                      className="gap-2.5 cursor-pointer text-destructive focus:text-destructive"
+                      className="gap-2.5 text-destructive focus:text-destructive"
                     >
                       <Unplug className="size-4" />
                       <span>Disconnect app</span>

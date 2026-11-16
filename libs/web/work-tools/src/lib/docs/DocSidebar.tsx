@@ -394,7 +394,7 @@ export function DocSidebar({
                       <DropdownMenuContent align="end" className="w-48">
                         <DropdownMenuItem
                           onClick={() => onCreateDoc(company.id)}
-                          className="text-xs gap-2"
+                          className="gap-2"
                         >
                           <Plus className="size-3.5 text-accent-blue" />
                           Add Doc inside {company.name}
@@ -404,7 +404,7 @@ export function DocSidebar({
                             onClick={() =>
                               onRenameCompany(company.id, company.name)
                             }
-                            className="text-xs gap-2"
+                            className="gap-2"
                           >
                             <Pencil className="size-3 text-primary" />
                             Rename Folder
@@ -429,7 +429,7 @@ export function DocSidebar({
                                 if (ok) onDeleteCompany(company.id);
                               });
                             }}
-                            className="text-xs gap-2 text-destructive focus:text-destructive"
+                            className="gap-2 text-destructive focus:text-destructive"
                           >
                             <Trash2 className="size-3" />
                             Delete Folder

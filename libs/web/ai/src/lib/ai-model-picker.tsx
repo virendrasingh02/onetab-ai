@@ -48,7 +48,7 @@ export function AIModelPicker({ model, onModelChange }: AIModelPickerProps) {
           <ChevronDown className="size-3 shrink-0" aria-hidden />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-64 p-1">
+      <DropdownMenuContent align="start" className="w-64">
         <DropdownMenuRadioGroup
           value={model}
           onValueChange={(next) => onModelChange(next as AIModelValue)}
@@ -59,7 +59,7 @@ export function AIModelPicker({ model, onModelChange }: AIModelPickerProps) {
               <DropdownMenuRadioItem
                 key={option.value}
                 value={option.value}
-                className="gap-2.5 py-2 cursor-pointer"
+                className="gap-2.5"
               >
                 <div className="flex shrink-0 items-center justify-center">
                   {isAuto ? (

@@ -2,9 +2,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
+  menuSearchClasses,
+  menuSearchInputClasses,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { Check, Plus, Search, Settings2, X } from 'lucide-react';
+import { Check, Plus, Settings2, X } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { useMenuSearchField } from './menu-search-field.js';
 
@@ -95,11 +97,10 @@ export function KanbanRefPicker({
       <DropdownMenuContent
         {...searchField.contentProps}
         align={align}
-        className="w-56 p-1.5 shadow-xl rounded-xl border border-border bg-popover text-popover-foreground"
+        className="w-56"
       >
         {showSearch && (
-          <div className="px-2 py-1 mb-1 relative flex items-center border-b border-border/60">
-            <Search className="size-3.5 mr-2 shrink-0 text-muted-foreground" />
+          <div className={menuSearchClasses}>
             <input
               type="text"
               value={query}
@@ -111,7 +112,7 @@ export function KanbanRefPicker({
                     : `Name a new ${itemNoun}...`
                   : 'Search...'
               }
-              className="text-xs p-0 w-full border-none bg-transparent text-foreground outline-none placeholder:text-muted-foreground focus:ring-0"
+              className={menuSearchInputClasses}
               {...searchField.inputProps}
               onKeyDown={(event) => {
                 searchField.inputProps.onKeyDown(event);
@@ -173,9 +174,6 @@ export function KanbanRefPicker({
                   }}
                   className={cn(
                     'px-2.5 py-1.5 text-xs flex w-full cursor-pointer items-center justify-between rounded-lg transition-colors',
-                    isSelected
-                      ? 'bg-accent/40 text-foreground hover:bg-accent/70'
-                      : 'text-foreground/90 hover:bg-accent/60',
                   )}
                 >
                   <span className="gap-2.5 min-w-0 flex items-center">

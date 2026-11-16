@@ -714,7 +714,7 @@ export function PinnedMessageCard({
             {onJump ? (
               <DropdownMenuItem
                 onClick={() => onJump(message.id)}
-                className="gap-2 text-xs cursor-pointer"
+                className="gap-2"
               >
                 <ArrowUpRight className="size-3.5" />
                 <span>Jump to message</span>
@@ -722,14 +722,14 @@ export function PinnedMessageCard({
             ) : null}
             <DropdownMenuItem
               onClick={handleCopyText}
-              className="gap-2 text-xs cursor-pointer"
+              className="gap-2"
             >
               <Copy className="size-3.5" />
               <span>Copy text</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={handleCopyLink}
-              className="gap-2 text-xs cursor-pointer"
+              className="gap-2"
             >
               <Link2 className="size-3.5" />
               <span>Copy link to message</span>
@@ -739,7 +739,7 @@ export function PinnedMessageCard({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => onUnpin(message.id)}
-                  className="gap-2 text-xs cursor-pointer text-destructive hover:bg-destructive/10"
+                  className="gap-2 text-destructive hover:bg-destructive/10"
                 >
                   <PinOff className="size-3.5" />
                   <span>Unpin from channel</span>

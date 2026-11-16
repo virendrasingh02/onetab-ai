@@ -598,7 +598,7 @@ function FavoriteMenu({
 
       <DropdownMenuContent align="start" className="w-56">
         <DropdownMenuItem
-          className="gap-2 text-xs"
+          className="gap-2"
           onSelect={() =>
             preferences.mutate({
               channelId: channel.id,
@@ -674,7 +674,7 @@ function NotificationMenu({
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="start" className="w-64">
-        <DropdownMenuLabel className="tracking-wide text-meta text-subtle uppercase">
+        <DropdownMenuLabel className="text-meta">
           Notify me about
         </DropdownMenuLabel>
 
@@ -683,14 +683,13 @@ function NotificationMenu({
             key={value}
             checked={level === value}
             onSelect={() => setLevel(value)}
-            className="text-xs"
           >
             {CHANNEL_NOTIFICATION_LEVEL_LABELS[value]}
           </DropdownMenuCheckboxItem>
         ))}
 
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild className="gap-2 text-xs">
+        <DropdownMenuItem asChild className="gap-2">
           <Link to={`/w/${workspaceSlug}/settings`}>
             <Settings className="size-3.5" />
             <span>Notification preferences</span>
@@ -1431,7 +1430,7 @@ function MembersTab({
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-48">
                                 <DropdownMenuItem
-                                  className="gap-2 text-xs"
+                                  className="gap-2"
                                   onClick={() =>
                                     openProfilePanel({
                                       userId: member.user.id,
@@ -1451,7 +1450,7 @@ function MembersTab({
                                   <span>View profile</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
-                                  className="gap-2 text-xs"
+                                  className="gap-2"
                                   onClick={() => {
                                     void navigator.clipboard?.writeText(
                                       displayName,
@@ -1466,7 +1465,7 @@ function MembersTab({
                                   <>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem
-                                      className="gap-2 text-xs text-destructive focus:text-destructive"
+                                      className="gap-2 text-destructive focus:text-destructive"
                                       onClick={() =>
                                         void handleRemoveMember(member)
                                       }
@@ -1643,12 +1642,12 @@ function ChannelSettingsDropdown({
 
       <DropdownMenuContent
         align="end"
-        className="w-64 p-1.5 shadow-2xl rounded-xl border-border bg-surface text-foreground"
+        className="w-64 bg-surface text-foreground"
       >
         {canManage && (
           <DropdownMenuItem
             onSelect={onEditDetails}
-            className="gap-2.5 px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent"
+            className="gap-2.5 hover:bg-accent"
           >
             <Settings className="size-4 shrink-0 text-muted-foreground" />
             <div className="min-w-0 flex flex-col">
@@ -1686,7 +1685,7 @@ function ChannelSettingsDropdown({
 
         <DropdownMenuItem
           onSelect={handleExport}
-          className="gap-2.5 px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent"
+          className="gap-2.5 hover:bg-accent"
         >
           <Download className="size-4 shrink-0 text-muted-foreground" />
           <div className="min-w-0 flex flex-col">
@@ -1702,7 +1701,7 @@ function ChannelSettingsDropdown({
         {canManage && !isGeneral && (
           <DropdownMenuItem
             onSelect={() => void toggleArchive()}
-            className="gap-2.5 px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent"
+            className="gap-2.5 hover:bg-accent"
           >
             {channel.isArchived ? (
               <ArchiveRestore className="size-4 shrink-0 text-muted-foreground" />
@@ -1727,7 +1726,7 @@ function ChannelSettingsDropdown({
             <DropdownMenuSeparator className="my-1 bg-border/60" />
             <DropdownMenuItem
               onSelect={() => void handleLeave()}
-              className="gap-2.5 px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg text-destructive hover:bg-destructive/10 hover:text-destructive"
+              className="gap-2.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
             >
               <LogOut className="size-4 shrink-0 text-destructive" />
               <div className="min-w-0 flex flex-col">

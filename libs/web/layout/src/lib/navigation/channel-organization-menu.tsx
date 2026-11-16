@@ -71,7 +71,7 @@ export function ChannelOrganizationMenu({
       </Hint>
 
       <DropdownMenuContent align="end" side="bottom" className="w-60">
-        <DropdownMenuLabel className="text-meta uppercase tracking-wide text-muted-foreground">
+        <DropdownMenuLabel className="text-meta text-muted-foreground">
           Sort channels by
         </DropdownMenuLabel>
         <DropdownMenuRadioGroup value={sort.mode} onValueChange={handleMode}>
@@ -79,7 +79,6 @@ export function ChannelOrganizationMenu({
             <DropdownMenuRadioItem
               key={mode.value}
               value={mode.value}
-              className="text-xs"
             >
               {mode.label}
             </DropdownMenuRadioItem>
@@ -89,7 +88,7 @@ export function ChannelOrganizationMenu({
         {directionMatters && activeMode ? (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-meta uppercase tracking-wide text-muted-foreground">
+            <DropdownMenuLabel className="text-meta text-muted-foreground">
               Direction
             </DropdownMenuLabel>
             <DropdownMenuRadioGroup
@@ -102,11 +101,11 @@ export function ChannelOrganizationMenu({
                 )
               }
             >
-              <DropdownMenuRadioItem value="asc" className="gap-2 text-xs">
+              <DropdownMenuRadioItem value="asc" className="gap-2">
                 <ArrowUpNarrowWide className="size-3.5" />
                 {activeMode.asc}
               </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="desc" className="gap-2 text-xs">
+              <DropdownMenuRadioItem value="desc" className="gap-2">
                 <ArrowDownWideNarrow className="size-3.5" />
                 {activeMode.desc}
               </DropdownMenuRadioItem>
@@ -117,7 +116,7 @@ export function ChannelOrganizationMenu({
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onSelect={onManageSections}
-          className="gap-2 text-xs"
+          className="gap-2"
         >
           <FolderTree className="size-3.5" />
           Manage sections…

@@ -225,10 +225,10 @@ export function WorkspaceAnalyticsView() {
               <SelectValue placeholder="Tier Filter" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL" className="text-xs">All Tiers</SelectItem>
-              <SelectItem value="FREE" className="text-xs">Free</SelectItem>
-              <SelectItem value="PRO" className="text-xs">Pro</SelectItem>
-              <SelectItem value="ENTERPRISE" className="text-xs">Enterprise</SelectItem>
+              <SelectItem value="ALL">All Tiers</SelectItem>
+              <SelectItem value="FREE">Free</SelectItem>
+              <SelectItem value="PRO">Pro</SelectItem>
+              <SelectItem value="ENTERPRISE">Enterprise</SelectItem>
             </SelectContent>
           </Select>
         </div>

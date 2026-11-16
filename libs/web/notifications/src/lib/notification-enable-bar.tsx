@@ -469,7 +469,7 @@ export function NotificationEnableBar({
               </DropdownMenuLabel>
               <DropdownMenuItem
                 onClick={() => update.mutate({ mentionsOnly: false })}
-                className="gap-2 text-xs"
+                className="gap-2"
               >
                 <Sparkles className="size-3.5 text-primary" />
                 <div className="flex flex-col">
@@ -484,7 +484,7 @@ export function NotificationEnableBar({
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => update.mutate({ mentionsOnly: true })}
-                className="gap-2 text-xs"
+                className="gap-2"
               >
                 <BellRing className="size-3.5 text-warning-text" />
                 <div className="flex flex-col">
@@ -519,19 +519,19 @@ export function NotificationEnableBar({
               Snooze Notification Bar
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => snooze(24)} className="text-xs">
+            <DropdownMenuItem onClick={() => snooze(24)}>
               In 24 hours
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => snooze(72)} className="text-xs">
+            <DropdownMenuItem onClick={() => snooze(72)}>
               In 3 days
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => snooze(168)} className="text-xs">
+            <DropdownMenuItem onClick={() => snooze(168)}>
               In 1 week
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={dismissPermanently}
-              className="text-xs text-destructive focus:text-destructive"
+              className="text-destructive focus:text-destructive"
             >
               Don&apos;t ask again
             </DropdownMenuItem>

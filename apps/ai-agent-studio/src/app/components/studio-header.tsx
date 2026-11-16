@@ -126,9 +126,9 @@ export function StudioHeader({
           <DropdownMenuContent
             align="start"
             sideOffset={6}
-            className="w-68 p-1.5 space-y-1 shadow-2xl rounded-xl border border-border bg-popover text-foreground select-none"
+            className="w-68 space-y-1 text-foreground select-none"
           >
-            <DropdownMenuLabel className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground px-2 py-1">
+            <DropdownMenuLabel className="text-muted-foreground">
               Workspaces
             </DropdownMenuLabel>
             <div className="space-y-0.5 max-h-60 overflow-y-auto pr-0.5">
@@ -136,7 +136,7 @@ export function StudioHeader({
                 <DropdownMenuItem
                   key={ws.id}
                   onClick={() => switchWorkspace(ws)}
-                  className="gap-2.5 px-2 py-1.5 rounded-lg text-xs cursor-pointer"
+                  className="gap-2.5"
                 >
                   <WorkspaceAvatar
                     name={ws.name || 'Workspace'}
@@ -153,7 +153,7 @@ export function StudioHeader({
               ))}
             </div>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild className="gap-2 px-2 py-1.5 text-xs cursor-pointer">
+            <DropdownMenuItem asChild className="gap-2">
               <a href={`${WEB_APP_URL}/w/${activeWorkspace.slug}`}>
                 <ExternalLink className="size-3.5 text-muted-foreground" />
                 <span>Open main platform</span>
@@ -334,20 +334,20 @@ export function StudioHeader({
                     </p>
                   ) : null}
                 </div>
-                <DropdownMenuItem asChild className="gap-2.5 text-xs">
+                <DropdownMenuItem asChild className="gap-2.5">
                   <Link to="/settings?tab=usage">Usage & limits</Link>
                 </DropdownMenuItem>
                 {canManageBilling ? (
                   <>
-                    <DropdownMenuItem asChild className="gap-2.5 text-xs">
+                    <DropdownMenuItem asChild className="gap-2.5">
                       <a href={billingUrl()}>{isFree ? 'Upgrade plan' : 'Manage plan & billing'}</a>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild className="gap-2.5 text-xs">
+                    <DropdownMenuItem asChild className="gap-2.5">
                       <a href={billingUrl({ topUp: true })}>Top up credits</a>
                     </DropdownMenuItem>
                   </>
                 ) : (
-                  <DropdownMenuItem asChild className="gap-2.5 text-xs">
+                  <DropdownMenuItem asChild className="gap-2.5">
                     <a href={billingUrl()}>View plans</a>
                   </DropdownMenuItem>
                 )}
@@ -355,11 +355,11 @@ export function StudioHeader({
             ) : null}
 
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => navigate('/settings')} className="gap-2.5 text-xs">
+            <DropdownMenuItem onSelect={() => navigate('/settings')} className="gap-2.5">
               <Settings className="size-3.5 text-muted-foreground" />
               <span>Studio Settings</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => navigate('/developer')} className="gap-2.5 text-xs">
+            <DropdownMenuItem onSelect={() => navigate('/developer')} className="gap-2.5">
               <HelpCircle className="size-3.5 text-muted-foreground" />
               <span>Documentation</span>
             </DropdownMenuItem>
@@ -368,7 +368,7 @@ export function StudioHeader({
             <DropdownMenuLabel>Theme</DropdownMenuLabel>
             <DropdownMenuRadioGroup value={theme} onValueChange={(v) => setTheme(v as typeof theme)}>
               {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
-                <DropdownMenuRadioItem key={value} value={value} className="gap-2 text-xs">
+                <DropdownMenuRadioItem key={value} value={value} className="gap-2">
                   <Icon className="size-3.5 text-muted-foreground" />
                   {label}
                 </DropdownMenuRadioItem>
@@ -379,7 +379,7 @@ export function StudioHeader({
             <DropdownMenuItem
               variant="destructive"
               onSelect={() => void signOut()}
-              className="gap-2.5 text-xs"
+              className="gap-2.5"
             >
               <LogOut className="size-3.5" />
               <span>Sign out</span>

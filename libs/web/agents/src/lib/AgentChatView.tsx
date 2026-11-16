@@ -402,7 +402,7 @@ function AgentMessageHeader({ agent }: { agent: AgentModelItem }) {
 
                 <DropdownMenuItem
                   onClick={handleOpenProfile}
-                  className="gap-2.5 cursor-pointer"
+                  className="gap-2.5"
                 >
                   <UserRound className="size-4" />
                   <span>Open agent details</span>
@@ -412,7 +412,7 @@ function AgentMessageHeader({ agent }: { agent: AgentModelItem }) {
 
                 <DropdownMenuItem
                   onClick={() => navigate(`/w/${slug}/ai/agents/${agent.id}`)}
-                  className="gap-2.5 cursor-pointer"
+                  className="gap-2.5"
                 >
                   <Wrench className="size-4 text-accent-violet" />
                   <span>Open in Visual Builder</span>
@@ -422,7 +422,7 @@ function AgentMessageHeader({ agent }: { agent: AgentModelItem }) {
                   onClick={() =>
                     navigate(`/w/${slug}/ai/runs?type=AGENT&entity=${agent.id}`)
                   }
-                  className="gap-2.5 cursor-pointer"
+                  className="gap-2.5"
                 >
                   <Activity className="size-4 text-primary" />
                   <span>Activity logs</span>

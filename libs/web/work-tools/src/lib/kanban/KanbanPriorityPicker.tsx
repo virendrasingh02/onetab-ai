@@ -70,7 +70,7 @@ export function KanbanPriorityPicker({
 
       <DropdownMenuContent
         align={align}
-        className="w-56 p-1.5 shadow-xl rounded-xl border border-border bg-popover text-popover-foreground"
+        className="w-56"
       >
         {/* Header */}
         <div className="px-2.5 py-1.5 mb-1 text-xs flex items-center justify-between text-muted-foreground">
@@ -87,10 +87,7 @@ export function KanbanPriorityPicker({
                 key={item.id}
                 onSelect={() => onPriorityChange(item.id as PriorityOption)}
                 className={cn(
-                  'px-2.5 py-1.5 text-xs font-medium flex cursor-pointer items-center justify-between rounded-lg transition-colors',
-                  isSelected
-                    ? 'bg-accent text-foreground'
-                    : 'text-foreground/85 hover:bg-accent/60',
+                  'flex items-center justify-between',
                 )}
               >
                 <div className="gap-2.5 min-w-0 flex items-center">

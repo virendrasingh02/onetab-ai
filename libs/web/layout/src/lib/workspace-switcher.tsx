@@ -312,7 +312,7 @@ export function WorkspaceMenu({
         <DropdownMenuContent
           align="start"
           sideOffset={6}
-          className="w-72 sm:w-80 p-1.5 shadow-2xl space-y-1.5 rounded-xl border border-border bg-popover text-foreground select-none"
+          className="w-72 sm:w-80 space-y-1.5 text-foreground select-none"
         >
           {/* Quick Search once there are more than 5 workspaces */}
           {linkedWorkspaceCount > 5 && (
@@ -451,7 +451,7 @@ export function WorkspaceMenu({
                               <DropdownMenuItem
                                 asChild
                                 aria-current={isSelected ? 'true' : undefined}
-                                className="p-0 flex-1 cursor-pointer hover:bg-transparent focus:bg-transparent"
+                                className="p-0 flex-1 hover:bg-transparent focus:bg-transparent"
                               >
                                 {isActive ? (
                                   <Link
@@ -532,7 +532,7 @@ export function WorkspaceMenu({
               setMenuOpen(false);
               setInviteMembersOpen(true, current);
             }}
-            className="gap-2.5 px-2 py-1.5 text-sm flex cursor-pointer items-center rounded-lg hover:bg-accent/60"
+            className="gap-2.5 flex items-center hover:bg-accent/60"
           >
             <span className={ACTION_ICON_TILE}>
               <MailPlus className="size-3.5" />
@@ -545,7 +545,7 @@ export function WorkspaceMenu({
           {/* Action: Add another account — the only account-level action here */}
           <DropdownMenuItem
             onClick={handleOpenAddAccount}
-            className="gap-2.5 px-2 py-1.5 text-sm flex cursor-pointer items-center rounded-lg hover:bg-accent/60"
+            className="gap-2.5 flex items-center hover:bg-accent/60"
           >
             <span className={ACTION_ICON_TILE}>
               <UserPlus className="size-3.5" />
@@ -558,7 +558,7 @@ export function WorkspaceMenu({
           {/* Action: Workspace Settings */}
           <DropdownMenuItem
             asChild
-            className="gap-2.5 px-2 py-1.5 text-sm flex cursor-pointer items-center rounded-lg hover:bg-accent/60"
+            className="gap-2.5 flex items-center hover:bg-accent/60"
           >
             <Link
               to={`/w/${current.slug}/settings`}
@@ -575,7 +575,7 @@ export function WorkspaceMenu({
               since the create request rides the signed-in account's token. */}
           <DropdownMenuItem
             asChild
-            className="gap-2.5 px-2 py-1.5 text-sm flex cursor-pointer items-center rounded-lg hover:bg-accent/60"
+            className="gap-2.5 flex items-center hover:bg-accent/60"
           >
             <Link to="/workspaces/new" onClick={() => setMenuOpen(false)}>
               <span className={ACTION_ICON_TILE}>

@@ -6,11 +6,18 @@ import {
   getSystemTimezone,
   listTimezones,
 } from '@org/utils';
-import { Check, ChevronsUpDown, Globe, Search } from 'lucide-react';
+import { Check, ChevronsUpDown, Globe } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from './button.js';
-import { fieldBoxClass, Input } from './input.js';
+import { fieldBoxClass } from './input.js';
 import { useMinuteTick } from './local-time.js';
+import {
+  menuCheckClasses,
+  menuItemClasses,
+  menuSearchClasses,
+  menuSearchInputClasses,
+  menuSurfaceBase,
+} from './menu-styles.js';
 import { Popover, PopoverContent, PopoverTrigger } from './popover.js';
 import { ScrollArea } from './scroll-area.js';
 
@@ -87,20 +94,19 @@ export function TimezoneSelect({
 
       <PopoverContent
         align="start"
-        className="p-0 w-(--radix-popover-trigger-width)"
+        className={cn(
+          menuSurfaceBase,
+          'overflow-hidden w-(--radix-popover-trigger-width)',
+        )}
       >
-        <div className="p-2 relative border-b border-border">
-          <Search
-            className="left-4 size-3.5 absolute top-1/2 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
+        <div className={menuSearchClasses}>
+          <input
             autoFocus
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search city or region…"
             aria-label="Search timezones"
-            className="h-8 pl-8 text-xs"
+            className={menuSearchInputClasses}
           />
         </div>
 
@@ -108,16 +114,16 @@ export function TimezoneSelect({
           <button
             type="button"
             onClick={() => select(systemZone)}
-            className="gap-2 px-3 py-2 text-xs flex w-full items-center border-b border-border text-left text-brand-text hover:bg-accent"
+            className={cn(menuItemClasses, 'w-full text-left hover:bg-accent')}
           >
-            <Globe className="size-3.5 shrink-0" aria-hidden />
+            <Globe aria-hidden />
             <span className="truncate">
               Use this device&apos;s timezone — {describeTimezone(systemZone)}
             </span>
           </button>
         ) : null}
 
-        <ScrollArea className="max-h-64" contentClassName="p-1">
+        <ScrollArea className="max-h-64">
           {matches.length === 0 ? (
             <p className="p-4 text-xs text-center text-muted-foreground">
               No timezone matches “{query}”.
@@ -132,25 +138,24 @@ export function TimezoneSelect({
                   onClick={() => select(zone)}
                   aria-selected={isSelected}
                   className={cn(
-                    'gap-2 px-2 py-1.5 text-xs flex w-full items-center rounded-md text-left',
-                    'hover:bg-accent focus-visible:bg-accent focus-visible:outline-none',
-                    isSelected && 'font-medium bg-selected/70',
+                    menuItemClasses,
+                    'w-full text-left hover:bg-accent focus-visible:bg-accent',
                   )}
                 >
+                  <span className="min-w-0 flex-1 truncate">
+                    {describeTimezone(zone)}
+                  </span>
+                  <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                    {formatTimeInZone(now, zone)} ·{' '}
+                    {formatZoneOffset(zone, now)}
+                  </span>
                   <Check
                     className={cn(
-                      'size-3.5 shrink-0 text-brand-text',
+                      menuCheckClasses,
                       isSelected ? 'opacity-100' : 'opacity-0',
                     )}
                     aria-hidden
                   />
-                  <span className="min-w-0 flex-1 truncate">
-                    {describeTimezone(zone)}
-                  </span>
-                  <span className="shrink-0 text-meta text-muted-foreground tabular-nums">
-                    {formatTimeInZone(now, zone)} ·{' '}
-                    {formatZoneOffset(zone, now)}
-                  </span>
                 </button>
               );
             })

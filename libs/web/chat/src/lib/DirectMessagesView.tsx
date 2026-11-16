@@ -954,7 +954,7 @@ function DirectMessageHeader({
 
                 <DropdownMenuItem
                   onClick={handleOpenProfile}
-                  className="gap-2.5 cursor-pointer"
+                  className="gap-2.5"
                 >
                   <UserRound className="size-4" />
                   <span>Open profile & details</span>

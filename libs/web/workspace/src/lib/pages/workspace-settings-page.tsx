@@ -944,16 +944,16 @@ export function WorkspaceSettingsPage({
                     <SelectValue placeholder="Select view" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="agent" className="text-xs">
+                    <SelectItem value="agent">
                       AI Chat & Agent (default)
                     </SelectItem>
-                    <SelectItem value="dashboard" className="text-xs">
+                    <SelectItem value="dashboard">
                       Dashboard Overview
                     </SelectItem>
-                    <SelectItem value="kanban" className="text-xs">
+                    <SelectItem value="kanban">
                       Tasks & Kanban
                     </SelectItem>
-                    <SelectItem value="docs" className="text-xs">
+                    <SelectItem value="docs">
                       Notes & Documents
                     </SelectItem>
                   </SelectContent>
@@ -974,13 +974,13 @@ export function WorkspaceSettingsPage({
                     <SelectValue placeholder="Username" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="username" className="text-xs">
+                    <SelectItem value="username">
                       Username
                     </SelectItem>
-                    <SelectItem value="fullname" className="text-xs">
+                    <SelectItem value="fullname">
                       Full name
                     </SelectItem>
-                    <SelectItem value="displayname" className="text-xs">
+                    <SelectItem value="displayname">
                       Display name
                     </SelectItem>
                   </SelectContent>
@@ -996,13 +996,13 @@ export function WorkspaceSettingsPage({
                     <SelectValue placeholder="Monday" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="monday" className="text-xs">
+                    <SelectItem value="monday">
                       Monday
                     </SelectItem>
-                    <SelectItem value="sunday" className="text-xs">
+                    <SelectItem value="sunday">
                       Sunday
                     </SelectItem>
-                    <SelectItem value="saturday" className="text-xs">
+                    <SelectItem value="saturday">
                       Saturday
                     </SelectItem>
                   </SelectContent>
@@ -1039,13 +1039,13 @@ export function WorkspaceSettingsPage({
                     <SelectValue placeholder="Ctrl+Enter" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ctrl-enter" className="text-xs">
+                    <SelectItem value="ctrl-enter">
                       Ctrl+Enter
                     </SelectItem>
-                    <SelectItem value="enter" className="text-xs">
+                    <SelectItem value="enter">
                       Enter
                     </SelectItem>
-                    <SelectItem value="cmd-enter" className="text-xs">
+                    <SelectItem value="cmd-enter">
                       Cmd+Enter
                     </SelectItem>
                   </SelectContent>
@@ -1106,13 +1106,13 @@ export function WorkspaceSettingsPage({
                     <SelectValue placeholder="Default" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="default" className="text-xs">
+                    <SelectItem value="default">
                       Default
                     </SelectItem>
-                    <SelectItem value="compact" className="text-xs">
+                    <SelectItem value="compact">
                       Compact
                     </SelectItem>
-                    <SelectItem value="large" className="text-xs">
+                    <SelectItem value="large">
                       Large
                     </SelectItem>
                   </SelectContent>
@@ -1622,13 +1622,13 @@ export function WorkspaceSettingsPage({
                     <SelectValue placeholder="Forever" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="forever" className="text-xs">
+                    <SelectItem value="forever">
                       Forever
                     </SelectItem>
-                    <SelectItem value="1year" className="text-xs">
+                    <SelectItem value="1year">
                       1 Year
                     </SelectItem>
-                    <SelectItem value="90days" className="text-xs">
+                    <SelectItem value="90days">
                       90 Days
                     </SelectItem>
                   </SelectContent>
@@ -1953,13 +1953,13 @@ export function WorkspaceSettingsPage({
                   <SelectValue placeholder="5 runs" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="5" className="text-xs">
+                  <SelectItem value="5">
                     5 parallel runs
                   </SelectItem>
-                  <SelectItem value="10" className="text-xs">
+                  <SelectItem value="10">
                     10 parallel runs
                   </SelectItem>
-                  <SelectItem value="1" className="text-xs">
+                  <SelectItem value="1">
                     1 parallel run
                   </SelectItem>
                 </SelectContent>
@@ -2016,11 +2016,11 @@ export function WorkspaceSettingsPage({
                   <SelectValue placeholder="None" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none" className="text-xs">
+                  <SelectItem value="none">
                     None
                   </SelectItem>
                   {(channelsListQuery.data ?? []).map((c) => (
-                    <SelectItem key={c.id} value={c.id} className="text-xs">
+                    <SelectItem key={c.id} value={c.id}>
                       #{c.slug ?? c.name}
                     </SelectItem>
                   ))}
@@ -2127,16 +2127,16 @@ export function WorkspaceSettingsPage({
                   <SelectValue placeholder="Github Dark" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="github-dark" className="text-xs">
+                  <SelectItem value="github-dark">
                     Github Dark
                   </SelectItem>
-                  <SelectItem value="one-dark" className="text-xs">
+                  <SelectItem value="one-dark">
                     One Dark
                   </SelectItem>
-                  <SelectItem value="dracula" className="text-xs">
+                  <SelectItem value="dracula">
                     Dracula
                   </SelectItem>
-                  <SelectItem value="vs-light" className="text-xs">
+                  <SelectItem value="vs-light">
                     VS Light
                   </SelectItem>
                 </SelectContent>
@@ -2198,13 +2198,13 @@ export function WorkspaceSettingsPage({
                   <SelectValue placeholder="Forever" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="forever" className="text-xs">
+                  <SelectItem value="forever">
                     Forever
                   </SelectItem>
-                  <SelectItem value="1year" className="text-xs">
+                  <SelectItem value="1year">
                     1 Year
                   </SelectItem>
-                  <SelectItem value="6months" className="text-xs">
+                  <SelectItem value="6months">
                     6 Months
                   </SelectItem>
                 </SelectContent>
@@ -2269,13 +2269,13 @@ export function WorkspaceSettingsPage({
                   <SelectValue placeholder="Onetab Meet" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="onetab-meet" className="text-xs">
+                  <SelectItem value="onetab-meet">
                     Onetab Native Meet
                   </SelectItem>
-                  <SelectItem value="google-meet" className="text-xs">
+                  <SelectItem value="google-meet">
                     Google Meet
                   </SelectItem>
-                  <SelectItem value="zoom" className="text-xs">
+                  <SelectItem value="zoom">
                     Zoom Meetings
                   </SelectItem>
                 </SelectContent>

@@ -100,12 +100,12 @@ export function LiveActivityView() {
               <SelectValue placeholder="Activity Type" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL" className="text-xs">All Types</SelectItem>
-              <SelectItem value="USER_ACTIVE" className="text-xs">User Activity</SelectItem>
-              <SelectItem value="WORKSPACE_CREATED" className="text-xs">Workspaces Created</SelectItem>
-              <SelectItem value="FILE_UPLOADED" className="text-xs">File Uploads</SelectItem>
-              <SelectItem value="MESSAGE_POSTED" className="text-xs">Messages Posted</SelectItem>
-              <SelectItem value="PAYMENT_SUCCESS" className="text-xs">Billing & Payments</SelectItem>
+              <SelectItem value="ALL">All Types</SelectItem>
+              <SelectItem value="USER_ACTIVE">User Activity</SelectItem>
+              <SelectItem value="WORKSPACE_CREATED">Workspaces Created</SelectItem>
+              <SelectItem value="FILE_UPLOADED">File Uploads</SelectItem>
+              <SelectItem value="MESSAGE_POSTED">Messages Posted</SelectItem>
+              <SelectItem value="PAYMENT_SUCCESS">Billing & Payments</SelectItem>
             </SelectContent>
           </Select>
         </div>

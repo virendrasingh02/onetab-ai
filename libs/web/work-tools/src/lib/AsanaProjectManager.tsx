@@ -998,7 +998,7 @@ export function AsanaProjectManager() {
                     <DropdownMenuItem
                       key={p.id}
                       onClick={() => openProject(p.id)}
-                      className="text-xs flex items-center justify-between"
+                      className="flex items-center justify-between"
                     >
                       <div className="gap-2 min-w-0 flex items-center">
                         <ProjectGlyph
@@ -1017,14 +1017,14 @@ export function AsanaProjectManager() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => setViewMode('projects')}
-                    className="text-xs gap-2"
+                    className="gap-2"
                   >
                     <FolderKanban className="size-3.5 text-muted-foreground" />
                     <span>View all projects</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={openNewProject}
-                    className="text-xs gap-2"
+                    className="gap-2"
                   >
                     <Plus className="size-3.5 text-muted-foreground" />
                     <span>New project</span>
@@ -1049,13 +1049,13 @@ export function AsanaProjectManager() {
               <DropdownMenuContent align="start" className="w-48">
                 <DropdownMenuItem
                   onClick={openEditProject}
-                  className="text-xs gap-2"
+                  className="gap-2"
                 >
                   <Pencil className="size-3.5 text-primary" />
                   Edit project details
                 </DropdownMenuItem>
                 <DropdownMenuSub>
-                  <DropdownMenuSubTrigger className="text-xs gap-2">
+                  <DropdownMenuSubTrigger className="gap-2">
                     <CircleDot className="size-3.5 text-muted-foreground" />
                     <span className="flex-1">Status</span>
                     <span className="text-muted-foreground">
@@ -1072,7 +1072,7 @@ export function AsanaProjectManager() {
                             input: { status: st },
                           })
                         }
-                        className="text-xs justify-between"
+                        className="justify-between"
                       >
                         {STATUS_LABELS[st]}
                         {activeProject.status === st && (
@@ -1092,7 +1092,7 @@ export function AsanaProjectManager() {
                         `Copied prefix ${activeProject.ticketPrefix}`,
                       );
                     }}
-                    className="text-xs gap-2"
+                    className="gap-2"
                   >
                     <Hash className="size-3.5 text-muted-foreground" />
                     <span className="flex-1">Copy ticket prefix</span>
@@ -1103,28 +1103,28 @@ export function AsanaProjectManager() {
                 )}
                 <DropdownMenuItem
                   onClick={() => shareProject(activeProject)}
-                  className="text-xs gap-2"
+                  className="gap-2"
                 >
                   <Send className="size-3.5 text-muted-foreground" />
                   Share in chat…
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => openProjectSettings(activeProject.id)}
-                  className="text-xs gap-2"
+                  className="gap-2"
                 >
                   <Settings className="size-3.5 text-muted-foreground" />
                   Project settings
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => setViewMode('projects')}
-                  className="text-xs gap-2"
+                  className="gap-2"
                 >
                   <FolderKanban className="size-3.5 text-muted-foreground" />
                   All projects
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => setIsShortcutsOpen(true)}
-                  className="text-xs gap-2"
+                  className="gap-2"
                 >
                   <Keyboard className="size-3.5 text-muted-foreground" />
                   Keyboard shortcuts
@@ -1134,7 +1134,7 @@ export function AsanaProjectManager() {
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={() => handleDeleteProject(activeProject.id)}
-                      className="text-xs gap-2 text-destructive focus:text-destructive"
+                      className="gap-2 text-destructive focus:text-destructive"
                     >
                       <Trash2 className="size-3.5" />
                       Delete project
@@ -1622,7 +1622,6 @@ function ProjectDialog({
                       <SelectItem
                         key={status}
                         value={status}
-                        className="text-xs"
                       >
                         {STATUS_LABELS[status]}
                       </SelectItem>

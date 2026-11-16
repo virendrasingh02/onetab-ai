@@ -4646,14 +4646,13 @@ export function AgentDetailPage() {
                   <DropdownMenuCheckboxItem
                     checked={autoSaveEnabled}
                     onCheckedChange={(v) => toggleAutoSave(!!v)}
-                    className="text-xs"
                   >
                     Auto-save draft
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuItem
                     disabled={!isDirty || saveMutation.isPending}
                     onSelect={() => saveMutation.mutate()}
-                    className="gap-2 text-xs"
+                    className="gap-2"
                   >
                     <Save className="h-3.5 w-3.5" />{' '}
                     {saveFailed ? 'Try saving again' : 'Save now'}
@@ -4661,7 +4660,7 @@ export function AgentDetailPage() {
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onSelect={() => setActiveTab('versions')}
-                    className="gap-2 text-xs"
+                    className="gap-2"
                   >
                     <Clock className="h-3.5 w-3.5" /> Version history
                   </DropdownMenuItem>
@@ -4739,7 +4738,7 @@ export function AgentDetailPage() {
                           key={id}
                           onSelect={() => setActiveTab(id)}
                           className={cn(
-                            'gap-2 text-xs',
+                            'gap-2',
                             activeTab === id && 'font-semibold text-foreground',
                           )}
                         >
@@ -5064,21 +5063,21 @@ export function AgentDetailPage() {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuItem
                   onSelect={() => void handleValidateGraph()}
-                  className="gap-2 text-xs"
+                  className="gap-2"
                 >
                   <ShieldCheck className="h-3.5 w-3.5 text-primary" />
                   Validate workflow
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={() => setIsTemplateExportOpen(true)}
-                  className="gap-2 text-xs"
+                  className="gap-2"
                 >
                   <Layers className="h-3.5 w-3.5 text-primary" />
                   Export as template
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={() => setIsPresentationMode(true)}
-                  className="gap-2 text-xs"
+                  className="gap-2"
                 >
                   <Eye className="h-3.5 w-3.5" />
                   Presentation mode

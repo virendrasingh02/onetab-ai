@@ -600,14 +600,14 @@ export function CallModal() {
             <DropdownMenuContent align="center" side="top" className="w-64 max-h-72 overflow-y-auto">
               {audioInputDevices.length > 0 && (
                 <>
-                  <DropdownMenuLabel className="text-meta text-muted-foreground uppercase flex items-center gap-1.5">
+                  <DropdownMenuLabel className="text-meta text-muted-foreground flex items-center gap-1.5">
                     <Mic className="size-3" /> Microphone
                   </DropdownMenuLabel>
                   {audioInputDevices.map((d) => (
                     <DropdownMenuItem
                       key={d.deviceId}
                       onSelect={() => void selectAudioInput(d.deviceId)}
-                      className="text-xs justify-between"
+                      className="justify-between"
                     >
                       <span className="truncate">{d.label}</span>
                       {selectedAudioInput === d.deviceId && (
@@ -621,14 +621,14 @@ export function CallModal() {
               {videoInputDevices.length > 0 && isVideo && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-meta text-muted-foreground uppercase flex items-center gap-1.5">
+                  <DropdownMenuLabel className="text-meta text-muted-foreground flex items-center gap-1.5">
                     <Video className="size-3" /> Camera
                   </DropdownMenuLabel>
                   {videoInputDevices.map((d) => (
                     <DropdownMenuItem
                       key={d.deviceId}
                       onSelect={() => void selectVideoInput(d.deviceId)}
-                      className="text-xs justify-between"
+                      className="justify-between"
                     >
                       <span className="truncate">{d.label}</span>
                       {selectedVideoInput === d.deviceId && (
@@ -642,7 +642,7 @@ export function CallModal() {
               {audioOutputDevices.length > 0 && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-meta text-muted-foreground uppercase flex items-center gap-1.5">
+                  <DropdownMenuLabel className="text-meta text-muted-foreground flex items-center gap-1.5">
                     <Volume2 className="size-3" /> Speaker
                   </DropdownMenuLabel>
                   {audioOutputDevices.map((d) => (
@@ -653,7 +653,7 @@ export function CallModal() {
                           void selectAudioOutput(remoteAudioRef.current, d.deviceId);
                         }
                       }}
-                      className="text-xs justify-between"
+                      className="justify-between"
                     >
                       <span className="truncate">{d.label}</span>
                       {selectedAudioOutput === d.deviceId && (

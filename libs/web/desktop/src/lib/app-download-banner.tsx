@@ -149,26 +149,23 @@ export function AppDownloadBanner({
 
             <DropdownMenuItem
               onClick={() => handleSnooze(24)}
-              className="text-xs cursor-pointer"
             >
               In 24 hours
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => handleSnooze(72)}
-              className="text-xs cursor-pointer"
             >
               In 3 days
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => handleSnooze(168)}
-              className="text-xs cursor-pointer"
             >
               In 1 week
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={handleDismiss}
-              className="text-xs cursor-pointer text-destructive focus:text-destructive"
+              className="text-destructive focus:text-destructive"
             >
               Don&apos;t ask again
             </DropdownMenuItem>

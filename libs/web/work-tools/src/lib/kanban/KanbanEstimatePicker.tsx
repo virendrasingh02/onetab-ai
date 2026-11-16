@@ -35,7 +35,7 @@ export function KanbanEstimatePicker({
 
       <DropdownMenuContent
         align={align}
-        className="w-44 p-1.5 rounded-xl border border-border bg-popover text-popover-foreground shadow-xl"
+        className="w-44"
       >
         <div className="space-y-0.5">
           <button
@@ -67,9 +67,6 @@ export function KanbanEstimatePicker({
                 }}
                 className={cn(
                   'w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer font-mono font-medium transition-colors',
-                  isSelected
-                    ? 'bg-accent/40 text-foreground hover:bg-accent/70'
-                    : 'text-foreground/90 hover:bg-accent/60',
                 )}
               >
                 <span>{points} pts</span>

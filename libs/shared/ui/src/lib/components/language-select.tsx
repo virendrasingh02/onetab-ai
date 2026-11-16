@@ -5,10 +5,17 @@ import {
   type SupportedLanguageCode,
 } from '@org/i18n';
 import { cn } from '@org/utils';
-import { Check, ChevronsUpDown, Globe, Search } from 'lucide-react';
+import { Check, ChevronsUpDown, Globe } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from './button.js';
-import { fieldBoxClass, Input } from './input.js';
+import { fieldBoxClass } from './input.js';
+import {
+  menuCheckClasses,
+  menuItemClasses,
+  menuSearchClasses,
+  menuSearchInputClasses,
+  menuSurfaceBase,
+} from './menu-styles.js';
 import { Popover, PopoverContent, PopoverTrigger } from './popover.js';
 import { ScrollArea } from './scroll-area.js';
 
@@ -108,33 +115,27 @@ export function LanguageSelect({
 
       <PopoverContent
         align={compact ? 'end' : 'start'}
-        className="p-0 w-72 shadow-md"
-        sideOffset={4}
+        className={cn(menuSurfaceBase, 'w-72 overflow-hidden')}
+        sideOffset={6}
       >
-        <div className="p-2 border-b">
-          <div className="relative">
-            <Search
-              className="size-3.5 left-2.5 pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted-foreground"
-              aria-hidden
-            />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={searchPlaceholder}
-              aria-label="Filter languages"
-              className="h-8 pl-8 text-xs"
-              autoFocus
-            />
-          </div>
+        <div className={menuSearchClasses}>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={searchPlaceholder}
+            aria-label="Filter languages"
+            className={menuSearchInputClasses}
+            autoFocus
+          />
         </div>
 
-        <ScrollArea className="max-h-64 p-1 overflow-y-auto">
+        <ScrollArea className="max-h-64 overflow-y-auto">
           {matches.length === 0 ? (
             <div className="px-3 py-4 text-xs text-center text-muted-foreground">
               No languages found
             </div>
           ) : (
-            <div className="gap-0.5 flex flex-col" role="listbox">
+            <div className="flex flex-col" role="listbox">
               {matches.map((lang: LanguageConfig) => {
                 const isSelected = lang.code === currentLang.code;
 
@@ -146,14 +147,13 @@ export function LanguageSelect({
                     aria-selected={isSelected}
                     onClick={() => select(lang.code)}
                     className={cn(
-                      'px-2.5 py-1.5 text-xs flex w-full items-center justify-between rounded-sm text-left transition-colors',
-                      'cursor-pointer hover:bg-accent hover:text-accent-foreground',
-                      isSelected && 'font-medium bg-accent/60',
+                      menuItemClasses,
+                      'w-full justify-between text-left hover:bg-accent hover:text-accent-foreground',
                     )}
                   >
                     <div className="gap-2.5 min-w-0 flex items-center">
                       <div className="min-w-0 flex flex-col">
-                        <span className="font-medium truncate">
+                        <span className="truncate">
                           {lang.nativeName}
                         </span>
                         <span className="truncate text-meta text-muted-foreground">
@@ -168,7 +168,7 @@ export function LanguageSelect({
                     </div>
                     {isSelected && (
                       <Check
-                        className="size-3.5 ml-2 shrink-0 text-brand-text"
+                        className={cn(menuCheckClasses, 'ml-2 shrink-0')}
                         aria-hidden
                       />
                     )}

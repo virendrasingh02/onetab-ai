@@ -4,9 +4,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   toast,
+  menuSearchClasses,
+  menuSearchInputClasses,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { Check, Plus, Search, Tag } from 'lucide-react';
+import { Check, Plus, Tag } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { useKanbanLabels } from './kanban-custom-store.js';
 import { useMenuSearchField } from './menu-search-field.js';
@@ -72,11 +74,10 @@ export function KanbanLabelPicker({
       <DropdownMenuContent
         {...searchField.contentProps}
         align={align}
-        className="w-56 p-1.5 shadow-xl rounded-xl border border-border bg-popover text-popover-foreground"
+        className="w-56"
       >
         {/* Search input */}
-        <div className="gap-2 px-2 py-1.5 mb-1 flex items-center rounded-lg border border-border/60 bg-muted/30">
-          <Search className="size-3.5 shrink-0 text-muted-foreground" />
+        <div className={menuSearchClasses}>
           <input
             type="text"
             value={search}
@@ -90,7 +91,7 @@ export function KanbanLabelPicker({
               }
             }}
             placeholder="Search or create label..."
-            className="text-xs w-full bg-transparent text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
+            className={menuSearchInputClasses}
           />
         </div>
 
@@ -106,10 +107,7 @@ export function KanbanLabelPicker({
                   onToggleLabel(item.name);
                 }}
                 className={cn(
-                  'px-2 py-1 text-xs flex cursor-pointer items-center justify-between rounded-md transition-colors',
-                  isSelected
-                    ? 'font-semibold bg-accent text-foreground'
-                    : 'text-foreground/80 hover:bg-accent/60',
+                  'flex items-center justify-between',
                 )}
               >
                 <div className="gap-2 min-w-0 flex items-center">
@@ -130,7 +128,7 @@ export function KanbanLabelPicker({
           {filteredLabels.length === 0 && search.trim() && (
             <DropdownMenuItem
               onSelect={handleCreateLabel}
-              className="gap-2 px-2 py-1.5 text-xs font-medium flex cursor-pointer items-center rounded-md text-primary hover:bg-primary/10"
+              className="gap-2 flex items-center text-primary hover:bg-primary/10"
             >
               <Plus className="size-3.5" />
               <span>Create "{search.trim()}"</span>

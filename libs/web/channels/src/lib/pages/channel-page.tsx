@@ -914,11 +914,11 @@ export function ChannelPage({
                 </Hint>
                 <DropdownMenuContent
                   align="start"
-                  className="w-60 p-1.5 space-y-0.5"
+                  className="w-60 space-y-0.5"
                 >
                   <DropdownMenuItem
                     onClick={() => setAddAgentOpen(true)}
-                    className="gap-2.5 text-xs font-medium cursor-pointer"
+                    className="gap-2.5"
                   >
                     <Bot className="size-4 shrink-0 text-primary" />
                     <div className="min-w-0 flex-1">
@@ -931,7 +931,7 @@ export function ChannelPage({
 
                   <DropdownMenuItem
                     onClick={() => setAddAppOpen(true)}
-                    className="gap-2.5 text-xs font-medium cursor-pointer"
+                    className="gap-2.5"
                   >
                     <Blocks className="size-4 shrink-0 text-accent-violet" />
                     <div className="min-w-0 flex-1">
@@ -946,7 +946,7 @@ export function ChannelPage({
 
                   <DropdownMenuItem
                     onClick={() => setWorkflowsOpen(true)}
-                    className="gap-2.5 text-xs font-medium cursor-pointer"
+                    className="gap-2.5"
                   >
                     <Workflow className="size-4 shrink-0 text-accent-violet" />
                     <div className="min-w-0 flex-1">
@@ -959,7 +959,7 @@ export function ChannelPage({
 
                   <DropdownMenuItem
                     onClick={() => setTemplatesOpen(true)}
-                    className="gap-2.5 text-xs font-medium cursor-pointer"
+                    className="gap-2.5"
                   >
                     <LayoutTemplate className="size-4 shrink-0 text-accent-amber" />
                     <div className="min-w-0 flex-1">
@@ -975,7 +975,7 @@ export function ChannelPage({
                   {canManageTabs ? (
                     <DropdownMenuItem
                       onClick={() => setTabsDialogOpen(true)}
-                      className="gap-2.5 text-xs cursor-pointer"
+                      className="gap-2.5"
                     >
                       <PanelsTopLeft className="size-4 shrink-0 text-muted-foreground" />
                       <span>Customize Tabs</span>
@@ -984,7 +984,7 @@ export function ChannelPage({
 
                   <DropdownMenuItem
                     onClick={() => setAddBookmarkOpen(true)}
-                    className="gap-2.5 text-xs cursor-pointer"
+                    className="gap-2.5"
                   >
                     <Bookmark className="size-4 shrink-0 text-muted-foreground" />
                     <span>Add Bookmark / Link</span>
@@ -992,7 +992,7 @@ export function ChannelPage({
 
                   <DropdownMenuItem
                     onClick={() => setAddPeopleOpen(true)}
-                    className="gap-2.5 text-xs cursor-pointer"
+                    className="gap-2.5"
                   >
                     <Users className="size-4 shrink-0 text-muted-foreground" />
                     <span>Add People to Channel</span>

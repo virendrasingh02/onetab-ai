@@ -256,13 +256,13 @@ export function LanguageRegionSettings() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={AUTO} className="text-xs">
+                <SelectItem value={AUTO}>
                   Match language
                 </SelectItem>
-                <SelectItem value="12h" className="text-xs">
+                <SelectItem value="12h">
                   12-hour (2:30 PM)
                 </SelectItem>
-                <SelectItem value="24h" className="text-xs">
+                <SelectItem value="24h">
                   24-hour (14:30)
                 </SelectItem>
               </SelectContent>
@@ -285,16 +285,16 @@ export function LanguageRegionSettings() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={AUTO} className="text-xs">
+                <SelectItem value={AUTO}>
                   Match language
                 </SelectItem>
-                <SelectItem value="MM/DD/YYYY" className="text-xs">
+                <SelectItem value="MM/DD/YYYY">
                   MM/DD/YYYY
                 </SelectItem>
-                <SelectItem value="DD/MM/YYYY" className="text-xs">
+                <SelectItem value="DD/MM/YYYY">
                   DD/MM/YYYY
                 </SelectItem>
-                <SelectItem value="YYYY-MM-DD" className="text-xs">
+                <SelectItem value="YYYY-MM-DD">
                   YYYY-MM-DD
                 </SelectItem>
               </SelectContent>
@@ -326,7 +326,7 @@ export function LanguageRegionSettings() {
               </SelectTrigger>
               <SelectContent className="max-h-72">
                 {HALF_HOURS.map((hhmm) => (
-                  <SelectItem key={hhmm} value={hhmm} className="text-xs">
+                  <SelectItem key={hhmm} value={hhmm}>
                     {clock(hhmm)}
                   </SelectItem>
                 ))}
@@ -342,7 +342,7 @@ export function LanguageRegionSettings() {
               </SelectTrigger>
               <SelectContent className="max-h-72">
                 {HALF_HOURS.map((hhmm) => (
-                  <SelectItem key={hhmm} value={hhmm} className="text-xs">
+                  <SelectItem key={hhmm} value={hhmm}>
                     {clock(hhmm)}
                   </SelectItem>
                 ))}

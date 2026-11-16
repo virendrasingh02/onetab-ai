@@ -275,20 +275,18 @@ export function NotionBlockEditor({
                   <DropdownMenuItem
                     onClick={() => handleMoveBlock(index, 'up')}
                     disabled={index === 0}
-                    className="text-xs"
                   >
                     Move up
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => handleMoveBlock(index, 'down')}
                     disabled={index === blocks.length - 1}
-                    className="text-xs"
                   >
                     Move down
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => handleDeleteBlock(block.id)}
-                    className="text-xs text-destructive focus:text-destructive"
+                    className="text-destructive focus:text-destructive"
                   >
                     Delete block
                   </DropdownMenuItem>

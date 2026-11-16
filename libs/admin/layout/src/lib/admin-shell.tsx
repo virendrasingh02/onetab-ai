@@ -1100,7 +1100,7 @@ export function AdminShell() {
                     onCloseMobile?.();
                     navigate(`/analytics/workspaces/${ws.id}`);
                   }}
-                  className="gap-2 cursor-pointer text-sm"
+                  className="gap-2"
                 >
                   <span
                     className={cn(
@@ -1122,7 +1122,7 @@ export function AdminShell() {
                   onCloseMobile?.();
                   navigate('/analytics/workspaces');
                 }}
-                className="gap-2 text-muted-foreground text-sm"
+                className="gap-2 text-muted-foreground"
               >
                 <Building2 className="size-4" />
                 <span>View all workspaces</span>
@@ -1134,19 +1134,19 @@ export function AdminShell() {
                 onCloseMobile?.();
                 navigate('/enterprise');
               }}
-              className="gap-2 text-sm"
+              className="gap-2"
             >
               <Shield className="size-4 text-muted-foreground" />
               <span>Enterprise Governance ({adminOverview?.organizations ?? 0})</span>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild className="gap-2 text-sm">
+            <DropdownMenuItem asChild className="gap-2">
               <a href={STUDIO_APP_URL}>
                 <Sparkles className="size-4 text-primary" />
                 <span className="flex-1">Open AI Agent Studio</span>
                 <ExternalLink className="size-3.5 text-muted-foreground" />
               </a>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild className="gap-2 text-sm">
+            <DropdownMenuItem asChild className="gap-2">
               <a href={WEB_APP_URL}>
                 <Laptop className="size-4 text-muted-foreground" />
                 <span className="flex-1">Open Main Platform</span>
@@ -1418,7 +1418,7 @@ export function AdminShell() {
                   onCloseMobile?.();
                   navigate('/analytics/users');
                 }}
-                className="gap-2 text-sm"
+                className="gap-2"
               >
                 <Users className="size-4 text-muted-foreground" />
                 <span>Operator Accounts</span>
@@ -1428,12 +1428,12 @@ export function AdminShell() {
                   onCloseMobile?.();
                   navigate('/plans');
                 }}
-                className="gap-2 text-sm"
+                className="gap-2"
               >
                 <Settings className="size-4 text-muted-foreground" />
                 <span>Platform Settings</span>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild className="gap-2 text-sm">
+              <DropdownMenuItem asChild className="gap-2">
                 <a href="https://github.com" target="_blank" rel="noreferrer">
                   <BookOpen className="size-4 text-muted-foreground" />
                   <span>Documentation</span>
@@ -1443,7 +1443,7 @@ export function AdminShell() {
               <DropdownMenuItem
                 variant="destructive"
                 onSelect={handleSignOut}
-                className="gap-2 text-sm cursor-pointer"
+                className="gap-2"
               >
                 <LogOut className="size-4" />
                 <span>Sign out</span>

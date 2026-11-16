@@ -51,7 +51,7 @@ export function EntityActions({
         side="bottom"
         sideOffset={4}
         collisionPadding={8}
-        className="w-52 text-xs border-border bg-popover text-popover-foreground z-50 shadow-overlay"
+        className="w-52 text-xs z-50"
         onClick={(e) => e.stopPropagation()}
       >
         {handlers?.onPreview && (

@@ -439,7 +439,7 @@ export function DocumentEditor() {
                     <DropdownMenuItem
                       key={d.id}
                       onClick={() => openDoc(d.id)}
-                      className="text-xs flex items-center justify-between"
+                      className="flex items-center justify-between"
                     >
                       <div className="gap-2 min-w-0 flex items-center">
                         <span className="shrink-0">
@@ -530,14 +530,14 @@ export function DocumentEditor() {
               <DropdownMenuContent align="end" className="w-52">
                 <DropdownMenuItem
                   onClick={handleNewDoc}
-                  className="gap-2 text-xs"
+                  className="gap-2"
                 >
                   <Plus className="size-3.5 text-muted-foreground" />
                   <span>Create new document</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={handleNewFolder}
-                  className="gap-2 text-xs"
+                  className="gap-2"
                 >
                   <FolderPlus className="size-3.5 text-muted-foreground" />
                   <span>Create new folder</span>
@@ -545,7 +545,7 @@ export function DocumentEditor() {
                 <DropdownMenuItem
                   onClick={flush}
                   disabled={!currentDoc || !pendingBlocks}
-                  className="gap-2 text-xs"
+                  className="gap-2"
                 >
                   <FileText className="size-3.5 text-muted-foreground" />
                   <span>Save changes</span>
@@ -553,7 +553,7 @@ export function DocumentEditor() {
                 {currentDoc && (
                   <DropdownMenuItem
                     onClick={() => downloadDocAsMarkdown(currentDoc)}
-                    className="gap-2 text-xs"
+                    className="gap-2"
                   >
                     <Download className="size-3.5 text-muted-foreground" />
                     <span>Export markdown</span>
@@ -562,14 +562,14 @@ export function DocumentEditor() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => setTab('gallery')}
-                  className="gap-2 text-xs"
+                  className="gap-2"
                 >
                   <LayoutGrid className="size-3.5 text-muted-foreground" />
                   <span>View in gallery</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => setTab('templates')}
-                  className="gap-2 text-xs"
+                  className="gap-2"
                 >
                   <Zap className="size-3.5 text-accent-amber" />
                   <span>Browse templates</span>

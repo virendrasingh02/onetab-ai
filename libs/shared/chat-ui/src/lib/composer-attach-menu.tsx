@@ -149,7 +149,7 @@ export function ComposerAttachMenu({
       <DropdownMenuContent
         side="top"
         align="start"
-        className="w-72 p-1"
+        className="w-72"
         onCloseAutoFocus={(event) => event.preventDefault()}
       >
         {onUpload ? (
@@ -198,7 +198,7 @@ export function ComposerAttachMenu({
                         {group.length}
                       </span>
                     </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="w-64 p-1 max-h-72 overflow-y-auto">
+                    <DropdownMenuSubContent className="w-64 max-h-72 overflow-y-auto">
                       <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
                         Mention in message
                       </DropdownMenuLabel>

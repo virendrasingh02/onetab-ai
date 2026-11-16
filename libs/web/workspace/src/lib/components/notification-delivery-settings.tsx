@@ -167,7 +167,7 @@ export function NotificationDeliverySettings({
                       </SelectTrigger>
                       <SelectContent className="max-h-72">
                         {HOURS.map((hhmm) => (
-                          <SelectItem key={hhmm} value={hhmm} className="text-xs">
+                          <SelectItem key={hhmm} value={hhmm}>
                             {hourLabel(hhmm)}
                           </SelectItem>
                         ))}

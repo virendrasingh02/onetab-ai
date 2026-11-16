@@ -11,7 +11,7 @@ const twMerge = extendTailwindMerge({
   extend: {
     theme: {
       text: ['message', 'meta', '2xs', '3xs', 'body-sm', 'body-lg', 'stat'],
-      radius: ['3xl', 'card', 'btn', 'input', 'popup', 'dialog'],
+      radius: ['3xl', 'card', 'btn', 'input', 'popup', 'dialog', 'menu', 'menu-item'],
     },
   },
 });

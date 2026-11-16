@@ -219,7 +219,7 @@ export function DocHeader({
                   <DropdownMenuItem
                     key={st}
                     onClick={() => onUpdateStatus(st)}
-                    className="text-xs justify-between"
+                    className="justify-between"
                   >
                     {st}
                     {doc.status === st ? '✓' : ''}
@@ -258,7 +258,7 @@ export function DocHeader({
                   <DropdownMenuItem
                     key={cat}
                     onClick={() => onUpdateCategory(cat)}
-                    className="text-xs justify-between"
+                    className="justify-between"
                   >
                     {cat}
                     {doc.category === cat ? '✓' : ''}
@@ -308,7 +308,7 @@ export function DocHeader({
                       <DropdownMenuItem
                         key={p.id}
                         onClick={() => onUpdateProject(p.id, p.name)}
-                        className="text-xs justify-between"
+                        className="justify-between"
                       >
                         <span className="gap-2 min-w-0 flex items-center">
                           <ProjectGlyph
@@ -327,7 +327,7 @@ export function DocHeader({
                   ) : (
                     <DropdownMenuItem
                       disabled
-                      className="text-xs text-muted-foreground"
+                      className="text-muted-foreground"
                     >
                       No projects available
                     </DropdownMenuItem>
@@ -337,7 +337,7 @@ export function DocHeader({
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         onClick={() => onUpdateProject(undefined, undefined)}
-                        className="text-xs text-destructive focus:text-destructive"
+                        className="text-destructive focus:text-destructive"
                       >
                         Unlink project
                       </DropdownMenuItem>

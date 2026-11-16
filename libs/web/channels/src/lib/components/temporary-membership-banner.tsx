@@ -62,13 +62,12 @@ export function TemporaryMembershipBanner({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuLabel className="text-meta uppercase tracking-wide text-muted-foreground">
+            <DropdownMenuLabel className="text-meta text-muted-foreground">
               Extend by
             </DropdownMenuLabel>
             {TEMP_MEMBERSHIP_PRESETS.map((preset) => (
               <DropdownMenuItem
                 key={preset.hours}
-                className="text-xs"
                 onSelect={() =>
                   extend.mutate({ channelId, durationHours: preset.hours })
                 }

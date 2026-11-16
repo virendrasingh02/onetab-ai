@@ -1,7 +1,7 @@
 import { cn } from '@org/utils';
 import * as MenuPrimitive from '@radix-ui/react-menu';
 import { Slot } from '@radix-ui/react-slot';
-import { Check, ChevronRight, Circle } from 'lucide-react';
+import { Check, ChevronRight } from 'lucide-react';
 import {
   createContext,
   forwardRef,
@@ -20,6 +20,8 @@ import {
   menuDestructiveClasses,
   menuIndicator,
   menuIndicatorInset,
+  menuTrailingIndicator,
+  menuTrailingInset,
   menuItemClasses,
   menuLabelClasses,
   menuSeparatorClasses,
@@ -309,7 +311,7 @@ export const ContextMenuCheckboxItem = forwardRef<
     >
       <span className={menuIndicator}>
         <MenuPrimitive.ItemIndicator>
-          <Check className="size-3.5 text-foreground" />
+          <Check className="size-4 text-foreground" />
         </MenuPrimitive.ItemIndicator>
       </span>
       {children}
@@ -331,15 +333,15 @@ export const ContextMenuRadioItem = forwardRef<
     <MenuPrimitive.RadioItem
       ref={ref}
       data-slot="context-menu-radio-item"
-      className={cn(menuItemClasses, menuIndicatorInset, className)}
+      className={cn(menuItemClasses, menuTrailingInset, className)}
       {...props}
     >
-      <span className={menuIndicator}>
+      {children}
+      <span className={menuTrailingIndicator}>
         <MenuPrimitive.ItemIndicator>
-          <Circle className="size-1.5 fill-current text-foreground" />
+          <Check className="size-4 text-foreground" />
         </MenuPrimitive.ItemIndicator>
       </span>
-      {children}
     </MenuPrimitive.RadioItem>
   );
 });
@@ -449,7 +451,7 @@ export const ContextMenuSubTrigger = forwardRef<
       {...props}
     >
       {children}
-      <ChevronRight className="size-3.5 ml-auto shrink-0 text-subtle" />
+      <ChevronRight className="size-4 ml-auto shrink-0 text-subtle" />
     </MenuPrimitive.SubTrigger>
   );
 });

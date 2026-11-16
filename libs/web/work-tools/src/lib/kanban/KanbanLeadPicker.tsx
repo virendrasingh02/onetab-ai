@@ -6,9 +6,11 @@ import {
   DropdownMenuTrigger,
   UserAvatar,
   UserAvatarGroup,
+  menuSearchClasses,
+  menuSearchInputClasses,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { Check, Search, Send, X } from 'lucide-react';
+import { Check, Send, X } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { UnassignedLeadIcon } from './kanban-icons.js';
 import type { BoardMember } from './types.js';
@@ -142,17 +144,16 @@ export function KanbanLeadPicker({
       <DropdownMenuContent
         {...searchField.contentProps}
         align={align}
-        className="w-56 p-1.5 shadow-xl rounded-xl border border-border bg-popover text-popover-foreground"
+        className="w-56"
       >
         {/* Search Input Box */}
-        <div className="px-2 py-1 mb-1 relative flex items-center border-b border-border/60">
-          <Search className="size-3.5 mr-2 shrink-0 text-muted-foreground" />
+        <div className={menuSearchClasses}>
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search users..."
-            className="text-xs p-0 w-full border-none bg-transparent text-foreground outline-none placeholder:text-muted-foreground focus:ring-0"
+            className={menuSearchInputClasses}
             {...searchField.inputProps}
           />
           {query && (
@@ -171,7 +172,7 @@ export function KanbanLeadPicker({
           <DropdownMenuItem
             onSelect={handleClear}
             className={cn(
-              'px-2.5 py-1.5 text-xs font-medium flex cursor-pointer items-center justify-between rounded-lg transition-colors',
+              'flex items-center justify-between',
               activeIds.length === 0
                 ? 'bg-accent text-foreground'
                 : 'text-foreground/85 hover:bg-accent/60',
@@ -211,10 +212,7 @@ export function KanbanLeadPicker({
                       toggleMember(member.id);
                     }}
                     className={cn(
-                      'px-3 py-2 text-xs flex cursor-pointer items-center justify-between rounded-xl transition-colors duration-150',
-                      isSelected
-                        ? 'bg-accent/40 text-foreground hover:bg-accent/70'
-                        : 'text-foreground/90 hover:bg-accent/60',
+                      'flex items-center justify-between duration-150',
                     )}
                   >
                     <div className="gap-3 min-w-0 flex flex-1 items-center">
@@ -255,7 +253,7 @@ export function KanbanLeadPicker({
 
             <DropdownMenuItem
               onSelect={() => onInvite?.()}
-              className="gap-2.5 px-2.5 py-1.5 text-xs font-medium flex cursor-pointer items-center rounded-lg text-foreground/85 hover:bg-accent/60"
+              className="gap-2.5 flex items-center text-foreground/85 hover:bg-accent/60"
             >
               <Send className="size-3.5 shrink-0 text-muted-foreground" />
               <span>Invite and add...</span>

@@ -146,7 +146,7 @@ function DocCardActions({
         >
           <DropdownMenuItem
             onClick={() => onSelectDoc(doc.id)}
-            className="gap-2 text-xs"
+            className="gap-2"
           >
             <BookOpen className="size-3.5 text-muted-foreground" />
             Open editor
@@ -154,7 +154,7 @@ function DocCardActions({
           {onDuplicateDoc && (
             <DropdownMenuItem
               onClick={() => onDuplicateDoc(doc.id)}
-              className="gap-2 text-xs"
+              className="gap-2"
             >
               <CopyPlus className="size-3.5 text-muted-foreground" />
               Duplicate
@@ -162,7 +162,7 @@ function DocCardActions({
           )}
           <DropdownMenuItem
             onClick={() => downloadDocAsMarkdown(doc)}
-            className="gap-2 text-xs"
+            className="gap-2"
           >
             <Download className="size-3.5 text-muted-foreground" />
             Export markdown
@@ -172,7 +172,7 @@ function DocCardActions({
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => onDeleteDoc(doc.id)}
-                className="gap-2 text-xs text-destructive focus:text-destructive"
+                className="gap-2 text-destructive focus:text-destructive"
               >
                 <Trash2 className="size-3.5" />
                 Delete
@@ -316,7 +316,7 @@ export function DocGallery({
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => setCategoryFilter('all')}
-                className="gap-2 text-xs"
+                className="gap-2"
               >
                 <Check
                   className={cn(
@@ -330,7 +330,7 @@ export function DocGallery({
                 <DropdownMenuItem
                   key={cat}
                   onClick={() => setCategoryFilter(cat)}
-                  className="gap-2 text-xs"
+                  className="gap-2"
                 >
                   <Check
                     className={cn(
@@ -366,7 +366,7 @@ export function DocGallery({
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => setStatusFilter('all')}
-                className="gap-2 text-xs"
+                className="gap-2"
               >
                 <Check
                   className={cn(
@@ -380,7 +380,7 @@ export function DocGallery({
                 <DropdownMenuItem
                   key={st}
                   onClick={() => setStatusFilter(st)}
-                  className="gap-2 text-xs"
+                  className="gap-2"
                 >
                   <Check
                     className={cn(

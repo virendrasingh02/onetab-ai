@@ -550,7 +550,7 @@ export function AgentsListPage() {
               <DropdownMenuContent align="end" className="w-44">
                 <DropdownMenuItem
                   onSelect={() => setIsImportOpen(true)}
-                  className="gap-2 text-xs"
+                  className="gap-2"
                 >
                   <Upload className="size-3.5" /> Import JSON
                 </DropdownMenuItem>

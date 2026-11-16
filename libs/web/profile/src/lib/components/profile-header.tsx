@@ -148,11 +148,11 @@ export function ProfileHeader({
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                className="w-52 p-1.5 shadow-xl rounded-xl border border-border bg-popover text-foreground"
+                className="w-52 text-foreground"
               >
                 <DropdownMenuItem
                   onClick={handleCopyProfileLink}
-                  className="text-xs font-medium gap-2 cursor-pointer rounded-lg hover:bg-accent"
+                  className="gap-2 hover:bg-accent"
                 >
                   {copiedLink ? (
                     <Check className="size-3.5 text-success" />
@@ -164,7 +164,7 @@ export function ProfileHeader({
 
                 <DropdownMenuItem
                   onClick={handleCopyUsername}
-                  className="text-xs font-medium gap-2 cursor-pointer rounded-lg hover:bg-accent"
+                  className="gap-2 hover:bg-accent"
                 >
                   <Copy className="size-3.5" />
                   <span>Copy Username Handle</span>
@@ -176,7 +176,7 @@ export function ProfileHeader({
                   <>
                     <DropdownMenuItem
                       onClick={onOpenAvatarCrop}
-                      className="text-xs font-medium gap-2 cursor-pointer rounded-lg hover:bg-accent"
+                      className="gap-2 hover:bg-accent"
                     >
                       <Edit3 className="size-3.5" />
                       <span>Change Avatar</span>
@@ -184,7 +184,7 @@ export function ProfileHeader({
 
                     <DropdownMenuItem
                       onClick={onOpenCoverCrop}
-                      className="text-xs font-medium gap-2 cursor-pointer rounded-lg hover:bg-accent"
+                      className="gap-2 hover:bg-accent"
                     >
                       <Edit3 className="size-3.5" />
                       <span>Change Header Cover</span>
@@ -205,7 +205,7 @@ export function ProfileHeader({
                       handleCopyProfileLink();
                     }
                   }}
-                  className="text-xs font-medium gap-2 cursor-pointer rounded-lg hover:bg-accent"
+                  className="gap-2 hover:bg-accent"
                 >
                   <Share2 className="size-3.5" />
                   <span>Share Profile</span>

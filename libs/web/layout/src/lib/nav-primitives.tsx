@@ -420,7 +420,7 @@ export function NavMoreMenu({
         align="start"
         side={collapsed ? 'right' : 'bottom'}
         sideOffset={collapsed ? 8 : 4}
-        className="w-56 p-1.5"
+        className="w-56"
       >
         {items.map((item) => {
           const Icon = item.icon;
@@ -430,7 +430,7 @@ export function NavMoreMenu({
               key={item.id}
               asChild
               className={cn(
-                'gap-2.5 px-2.5 py-1.5 text-sm flex cursor-pointer items-center rounded-lg',
+                'gap-2.5 flex items-center',
                 isActive && 'font-semibold bg-primary/10 text-primary-text',
               )}
             >
@@ -463,7 +463,7 @@ export function NavMoreMenu({
             <DropdownMenuSeparator className="my-1" />
             <DropdownMenuItem
               onSelect={onCustomize}
-              className="gap-2.5 px-2.5 py-1.5 text-sm flex cursor-pointer items-center rounded-lg"
+              className="gap-2.5 flex items-center"
             >
               <SlidersHorizontal
                 className="size-4 shrink-0 text-muted-foreground"

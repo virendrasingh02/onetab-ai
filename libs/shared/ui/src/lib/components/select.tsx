@@ -2,6 +2,15 @@ import { cn } from '@org/utils';
 import * as SelectPrimitive from '@radix-ui/react-select';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 import type { ComponentProps } from 'react';
+import {
+  menuCheckClasses,
+  menuItemClasses,
+  menuLabelClasses,
+  menuSeparatorClasses,
+  menuSurfaceBase,
+  menuTrailingIndicator,
+  menuTrailingInset,
+} from './menu-styles.js';
 
 /**
  * Radix Select. Replaces the native `<select>` elements that could not be
@@ -62,10 +71,11 @@ export function SelectContent({
         data-slot="select-content"
         position={position}
         /* Same surface recipe as `DropdownMenuContent` — a listbox and a menu
-           are the same object to the eye, so they share radius and lift. */
+           are the same object to the eye, so they share radius and lift. The
+           viewport scrolls, not the surface, so the scroll buttons stay put. */
         className={cn(
-          'relative z-50 max-h-(--radix-select-content-available-height) bg-popover text-popover-foreground',
-          'min-w-44 p-1 max-w-[calc(100vw-1rem)] overflow-hidden rounded-popup border border-border shadow-overlay',
+          menuSurfaceBase,
+          'relative overflow-hidden max-h-(--radix-select-content-available-height)',
           position === 'popper' &&
             'data-[side=bottom]:translate-y-1.5 data-[side=top]:-translate-y-1.5',
           className,
@@ -75,7 +85,6 @@ export function SelectContent({
         <SelectScrollUpButton />
         <SelectPrimitive.Viewport
           className={cn(
-            'space-y-0.5',
             position === 'popper' &&
               'scroll-my-1 h-(--radix-select-trigger-height) w-full min-w-(--radix-select-trigger-width)',
           )}
@@ -95,10 +104,7 @@ export function SelectLabel({
   return (
     <SelectPrimitive.Label
       data-slot="select-label"
-      className={cn(
-        'px-2 py-1 font-semibold tracking-wider text-2xs text-subtle uppercase',
-        className,
-      )}
+      className={cn(menuLabelClasses, className)}
       {...props}
     />
   );
@@ -112,22 +118,13 @@ export function SelectItem({
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
-      className={cn(
-        'gap-2 py-1.5 pr-7 pl-2 relative flex w-full cursor-pointer items-center rounded-btn',
-        'pointer-coarse:py-2.5',
-        'text-xs font-medium outline-none select-none',
-        'transition-colors duration-(--duration-fast) ease-standard',
-        'focus:bg-accent focus:text-accent-foreground',
-        'data-[disabled]:pointer-events-none data-[disabled]:opacity-40',
-        "[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:text-muted-foreground focus:[&_svg]:text-accent-foreground",
-        className,
-      )}
+      className={cn(menuItemClasses, menuTrailingInset, 'w-full', className)}
       {...props}
     >
       <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
-      <span className="right-2 size-3.5 absolute flex items-center justify-center">
+      <span className={menuTrailingIndicator}>
         <SelectPrimitive.ItemIndicator>
-          <Check className="size-3.5 text-foreground" />
+          <Check className={menuCheckClasses} />
         </SelectPrimitive.ItemIndicator>
       </span>
     </SelectPrimitive.Item>
@@ -141,7 +138,7 @@ export function SelectSeparator({
   return (
     <SelectPrimitive.Separator
       data-slot="select-separator"
-      className={cn('-mx-1 my-1 h-px shrink-0 bg-border', className)}
+      className={cn(menuSeparatorClasses, 'shrink-0', className)}
       {...props}
     />
   );

@@ -276,7 +276,7 @@ export function AccountMenu({
       <DropdownMenuContent
         side={side}
         align="end"
-        className="w-72 p-1.5 select-none"
+        className="w-72 select-none"
       >
         {/* Identity row — opens the profile settings page. */}
         <DropdownMenuItem

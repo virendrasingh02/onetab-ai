@@ -440,7 +440,6 @@ export function NotificationDisplaySettingsPanel({
                     <SelectItem
                       key={option.id}
                       value={option.id}
-                      className="text-xs"
                     >
                       {option.name}
                     </SelectItem>
@@ -730,22 +729,22 @@ export function NotificationDisplaySettingsPanel({
                 </div>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="3000" className="text-xs">
+                <SelectItem value="3000">
                   3 seconds (Fast)
                 </SelectItem>
-                <SelectItem value="5000" className="text-xs">
+                <SelectItem value="5000">
                   5 seconds (Default)
                 </SelectItem>
-                <SelectItem value="10000" className="text-xs">
+                <SelectItem value="10000">
                   10 seconds
                 </SelectItem>
-                <SelectItem value="15000" className="text-xs">
+                <SelectItem value="15000">
                   15 seconds
                 </SelectItem>
-                <SelectItem value="30000" className="text-xs">
+                <SelectItem value="30000">
                   30 seconds
                 </SelectItem>
-                <SelectItem value="never" className="text-xs">
+                <SelectItem value="never">
                   Never (Sticky until closed)
                 </SelectItem>
               </SelectContent>

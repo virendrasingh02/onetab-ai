@@ -256,7 +256,7 @@ export function InitiativesView({
                             projectIds: (init.projects ?? []).map((p) => p.id),
                           })
                         }
-                        className="gap-2 text-xs"
+                        className="gap-2"
                       >
                         <Pencil className="size-3.5" />
                         Edit
@@ -265,7 +265,7 @@ export function InitiativesView({
                         <DropdownMenuItem
                           variant="destructive"
                           onSelect={() => void handleDelete(init)}
-                          className="gap-2 text-xs"
+                          className="gap-2"
                         >
                           <Trash2 className="size-3.5" />
                           Delete

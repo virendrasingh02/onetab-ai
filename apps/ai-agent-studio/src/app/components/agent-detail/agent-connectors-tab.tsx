@@ -255,14 +255,14 @@ export function AgentConnectorsTab({ agent, onChanged }: { agent: AgentWithApps;
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenuItem disabled={c.status !== 'connected'} onSelect={() => setAdding(c)} className="gap-2 text-xs">
+                        <DropdownMenuItem disabled={c.status !== 'connected'} onSelect={() => setAdding(c)} className="gap-2">
                           <SlidersHorizontal className="size-3.5" /> Change actions
                         </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => navigate(`/connectors/${c.slug}`)} className="gap-2 text-xs">
+                        <DropdownMenuItem onSelect={() => navigate(`/connectors/${c.slug}`)} className="gap-2">
                           <ExternalLink className="size-3.5" /> Open connector
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={() => void remove(c)} className="gap-2 text-xs text-destructive focus:text-destructive">
+                        <DropdownMenuItem onSelect={() => void remove(c)} className="gap-2 text-destructive focus:text-destructive">
                           <Trash2 className="size-3.5" /> Remove from agent
                         </DropdownMenuItem>
                       </DropdownMenuContent>

@@ -268,7 +268,7 @@ export function GroupMembersPanel({
                       <DropdownMenuContent align="end" side="bottom" className="w-48">
                         <DropdownMenuItem
                           onClick={() => handleOpenProfile(member)}
-                          className="gap-2 text-xs"
+                          className="gap-2"
                         >
                           <UserRound className="size-3.5" />
                           <span>View profile</span>
@@ -276,7 +276,7 @@ export function GroupMembersPanel({
                         {!isSelf ? (
                           <DropdownMenuItem
                             onClick={() => handleStartDM(member)}
-                            className="gap-2 text-xs"
+                            className="gap-2"
                           >
                             <MessageSquare className="size-3.5" />
                             <span>Direct message</span>
@@ -285,7 +285,7 @@ export function GroupMembersPanel({
                         {onMention ? (
                           <DropdownMenuItem
                             onClick={() => onMention(member)}
-                            className="gap-2 text-xs"
+                            className="gap-2"
                           >
                             <AtSign className="size-3.5" />
                             <span>Mention</span>
@@ -296,7 +296,7 @@ export function GroupMembersPanel({
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               onClick={() => handleRemoveMember(member)}
-                              className="gap-2 text-xs text-destructive focus:text-destructive"
+                              className="gap-2 text-destructive focus:text-destructive"
                             >
                               <UserMinus className="size-3.5" />
                               <span>Remove from group</span>

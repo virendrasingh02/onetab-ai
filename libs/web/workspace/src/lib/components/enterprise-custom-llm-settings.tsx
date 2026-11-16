@@ -223,16 +223,16 @@ export function EnterpriseCustomLLMSettings({
                 <SelectValue placeholder="Select provider" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="custom" className="text-xs">
+                <SelectItem value="custom">
                   OpenAI Compatible (Generic / vLLM / LocalAI)
                 </SelectItem>
-                <SelectItem value="vllm" className="text-xs">
+                <SelectItem value="vllm">
                   vLLM Inference Server
                 </SelectItem>
-                <SelectItem value="azure_openai" className="text-xs">
+                <SelectItem value="azure_openai">
                   Azure OpenAI Service
                 </SelectItem>
-                <SelectItem value="ollama_remote" className="text-xs">
+                <SelectItem value="ollama_remote">
                   Ollama Remote Host
                 </SelectItem>
               </SelectContent>
