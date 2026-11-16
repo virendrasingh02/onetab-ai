@@ -99,3 +99,41 @@ export function useRegisterSettingsDirty(
     return () => unregister(key);
   }, [key, dirty, stableSave, stableReset, register, unregister]);
 }
+
+/** How many registered settings forms currently have unsaved edits. */
+export function useSettingsDirtyCount(): number {
+  return useSettingsDirtyStore(
+    (state) => Object.values(state.entries).filter((entry) => entry.dirty).length,
+  );
+}
+
+export interface SaveDirtySettingsResult {
+  /** At least one form's save threw (that form reports its own error). */
+  failed: boolean;
+  /** Forms still dirty afterwards — failed, or blocked by validation. */
+  remaining: number;
+}
+
+/**
+ * Saves every dirty settings form in turn. One failing form never stops the
+ * others; each form surfaces its own errors (toast or inline field message).
+ */
+export async function saveDirtySettings(): Promise<SaveDirtySettingsResult> {
+  let failed = false;
+  for (const entry of getDirtySettingsEntries()) {
+    if (!entry.save) continue;
+    try {
+      await entry.save();
+    } catch {
+      failed = true;
+    }
+  }
+  // Let forms re-baseline (React state / RHF reset) before counting.
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  return { failed, remaining: getDirtySettingsEntries().length };
+}
+
+/** Rolls every dirty settings form back to its last-saved values. */
+export function discardDirtySettings(): void {
+  for (const entry of getDirtySettingsEntries()) entry.reset?.();
+}

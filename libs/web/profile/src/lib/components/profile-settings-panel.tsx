@@ -557,40 +557,6 @@ export function ProfileSettingsPanel() {
                   />
                 </div>
 
-                {/* Action Buttons */}
-                <div className="gap-3 pt-4 flex items-center justify-end border-t border-border/40">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    disabled={
-                      !form.formState.isDirty &&
-                      firstName === initialFirstName &&
-                      lastName === initialLastName
-                    }
-                    onClick={() => {
-                      form.reset();
-                      setFirstName(initialFirstName);
-                      setLastName(initialLastName);
-                    }}
-                    className="text-xs"
-                  >
-                    Reset
-                  </Button>
-                  <Button
-                    type="submit"
-                    size="sm"
-                    loading={updateMutation.isPending}
-                    disabled={
-                      !form.formState.isDirty &&
-                      firstName === initialFirstName &&
-                      lastName === initialLastName
-                    }
-                    className="text-xs px-5 shadow-xs"
-                  >
-                    Save Changes
-                  </Button>
-                </div>
               </form>
             </Form>
           </div>

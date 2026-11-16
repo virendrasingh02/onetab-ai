@@ -11,19 +11,18 @@ import {
   validateAndParseThemeConfig,
 } from '@org/design-system';
 import type { GradientConfig, ThemeColorsConfig, ThemeConfig } from '@org/types';
-import { Button, toast } from '@org/ui';
+import { Button, Switch, toast } from '@org/ui';
+import { useRegisterSettingsDirty } from '@org/web-workspace';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Check,
   Download,
   Eye,
-  Loader2,
   Moon,
   Palette,
   RotateCcw,
   Sparkles,
   Sun,
-  Undo2,
   Upload,
 } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
@@ -114,8 +113,21 @@ function migrateLegacyPalette(config: ThemeConfig): ThemeConfig {
 }
 
 /** Comparison key — the painted mode is the user's Color Mode, not part of the palette. */
+/** Key-order independent: the server (jsonb) returns keys in its own order. */
 function fingerprint(config: ThemeConfig): string {
-  return JSON.stringify({ ...config, mode: undefined });
+  const sortKeys = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(sortKeys);
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(
+        Object.entries(value as Record<string, unknown>)
+          .filter(([, v]) => v !== undefined && v !== null)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([k, v]) => [k, sortKeys(v)]),
+      );
+    }
+    return value;
+  };
+  return JSON.stringify(sortKeys({ ...config, mode: undefined }));
 }
 
 function readActiveWorkspaceId(): string | null {
@@ -281,6 +293,22 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
 
   const saving = saveMine.isPending || saveDefault.isPending;
 
+  // Admins choose where the one Save lands: just their view, or the default
+  // every member without their own theme sees.
+  const [publishAsDefault, setPublishAsDefault] = useState(false);
+
+  // The settings footer owns Save / Discard for this draft.
+  useRegisterSettingsDirty(
+    'settings.theme',
+    dirty,
+    async () => {
+      const target = buildSaveTarget();
+      if (canManageDefault && publishAsDefault) await saveDefault.mutateAsync(target);
+      else await saveMine.mutateAsync(target);
+    },
+    discard,
+  );
+
   const handleExport = () => {
     downloadThemeConfigFile({ ...draft, mode: theme }, 'platform-color-theme.json');
     toast.success('Exported platform-color-theme.json');
@@ -336,7 +364,7 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
             <span>Platform color &amp; gradient customizer</span>
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Tune colors per mode and see the result live. Nothing is saved until you press Save.
+            Tune colors per mode and see the result live. Nothing is saved until you save changes below.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -628,38 +656,17 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
           <span>Reset everything</span>
         </Button>
 
-        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-          {dirty && (
-            <Button type="button" variant="ghost" size="sm" onClick={discard} disabled={saving} className="text-xs gap-1.5">
-              <Undo2 className="size-3.5" />
-              <span>Discard</span>
-            </Button>
-          )}
-          {canManageDefault && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={saving || !dirty}
-              onClick={() => saveDefault.mutate(buildSaveTarget())}
-              className="text-xs gap-1.5"
-            >
-              {saveDefault.isPending && <Loader2 className="size-3.5 animate-spin" />}
-              <span>Save as workspace default</span>
-            </Button>
-          )}
-          <Button
-            type="button"
-            variant="primary"
-            size="sm"
-            disabled={saving || !dirty}
-            onClick={() => saveMine.mutate(buildSaveTarget())}
-            className="text-xs font-semibold px-5 gap-1.5"
-          >
-            {saveMine.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
-            <span>{canManageDefault ? 'Save for me' : 'Save changes'}</span>
-          </Button>
-        </div>
+        {canManageDefault && (
+          <label className="flex items-center gap-2.5 text-xs text-muted-foreground cursor-pointer sm:justify-end">
+            <span>Also set as the workspace default for members</span>
+            <Switch
+              checked={publishAsDefault}
+              onCheckedChange={setPublishAsDefault}
+              disabled={saving}
+              aria-label="Also set as the workspace default for members"
+            />
+          </label>
+        )}
       </div>
     </div>
   );

@@ -689,8 +689,6 @@ export function WorkspaceSettingsPage({
   const isLogoChanged =
     logoFile !== null || (isLogoRemoved && Boolean(workspace?.avatarUrl));
   const isWorkspaceDirty = workspaceForm.formState.isDirty || isLogoChanged;
-  const isSavingWorkspace =
-    updateWorkspace.isPending || uploadLogo.isPending || removeLogo.isPending;
 
   const onWorkspaceSubmit = workspaceForm.handleSubmit(async (values) => {
     if (!workspace) return;
@@ -1422,17 +1420,6 @@ export function WorkspaceSettingsPage({
                         moved to Settings → Language & Region. The `timezone`
                         field still rides this form; it's edited there. */}
 
-                      <div className="pt-2">
-                        <Button
-                          type="submit"
-                          size="sm"
-                          loading={updateProfile.isPending}
-                          disabled={!profileForm.formState.isDirty}
-                          className="text-xs"
-                        >
-                          Save profile
-                        </Button>
-                      </div>
                     </form>
                   </Form>
                 </SettingsCard>
@@ -2832,36 +2819,7 @@ export function WorkspaceSettingsPage({
                 </div>
               </SettingsCard>
 
-              {isAdmin ? (
-                <div className="bottom-4 gap-3 px-4 py-3 backdrop-blur sticky z-10 flex items-center justify-between rounded-xl border border-border bg-background/95 shadow-sm">
-                  <p className="text-xs text-muted-foreground">
-                    {isWorkspaceDirty
-                      ? 'You have unsaved changes.'
-                      : 'All changes saved.'}
-                  </p>
-                  <div className="gap-2 flex items-center">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={discardWorkspaceChanges}
-                      disabled={!isWorkspaceDirty || isSavingWorkspace}
-                      className="text-xs"
-                    >
-                      Discard
-                    </Button>
-                    <Button
-                      type="submit"
-                      size="sm"
-                      loading={isSavingWorkspace}
-                      disabled={!isWorkspaceDirty}
-                      className="text-xs font-medium"
-                    >
-                      Save changes
-                    </Button>
-                  </div>
-                </div>
-              ) : (
+              {!isAdmin && (
                 <p className="text-xs text-muted-foreground">
                   Only workspace admins can change these settings.
                 </p>

@@ -77,9 +77,12 @@ import {
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
+  discardDirtySettings,
   getDirtySettingsEntries,
+  saveDirtySettings,
   useSettingsDirty,
 } from './settings-dirty.store.js';
+import { SettingsSaveBar } from './settings-save-bar.js';
 import {
   WorkspaceMemberPreferencesSync,
   WorkspacePreferencesEffects,
@@ -532,7 +535,7 @@ export function SettingsLayout({
   const keepEditing = () => setPendingLeave(null);
 
   const discardAndLeave = () => {
-    for (const entry of getDirtySettingsEntries()) entry.reset?.();
+    discardDirtySettings();
     const proceed = pendingLeave;
     setPendingLeave(null);
     proceed?.();
@@ -541,19 +544,13 @@ export function SettingsLayout({
   const saveAndLeave = async () => {
     const proceed = pendingLeave;
     setSaving(true);
-    try {
-      for (const entry of getDirtySettingsEntries()) {
-        if (entry.save) await entry.save();
-      }
-    } catch {
-      toast.error(
-        'Could not save your changes — check the highlighted fields.',
-      );
+    const { failed, remaining } = await saveDirtySettings();
+    if (failed) {
       setSaving(false);
       return;
     }
     setSaving(false);
-    if (getDirtySettingsEntries().length > 0) {
+    if (remaining > 0) {
       // A form blocked its own save (validation) — surface it, don't leave.
       toast.error('Some changes still need attention before you can leave.');
       setPendingLeave(null);
@@ -838,6 +835,7 @@ export function SettingsLayout({
               <div className="max-w-4xl space-y-8 mx-auto w-full">
                 {children}
               </div>
+              <SettingsSaveBar />
             </main>
           </div>
         </div>

@@ -33,6 +33,7 @@ import {
   useCurrentWorkspace,
   useEmployeeProfile,
   usePeopleMutations,
+  useRegisterSettingsDirty,
 } from '@org/web-workspace';
 import { useMutation } from '@tanstack/react-query';
 import { CheckCircle2, Circle, UserRound } from 'lucide-react';
@@ -219,24 +220,6 @@ export function EmployeeProfileCompletion() {
 
 // --- contact, skills, links ---------------------------------------------------------
 
-function SaveRow({
-  pending,
-  dirty,
-  label = 'Save changes',
-}: {
-  pending: boolean;
-  dirty: boolean;
-  label?: string;
-}) {
-  return (
-    <div className="flex justify-end">
-      <Button type="submit" loading={pending} disabled={!dirty || pending}>
-        {label}
-      </Button>
-    </div>
-  );
-}
-
 function TagField({
   label,
   values,
@@ -330,11 +313,11 @@ function ContactSection({ data }: { data: EmployeeProfileView }) {
   const phoneInvalid = !!phone && !isValidPhone(phone);
   const linksInvalid = links.some((l) => linkError(l));
 
-  const submit = () =>
-    !phoneInvalid &&
-    !linksInvalid &&
-    updateProfile.mutate(
-      {
+  const submit = async () => {
+    // Inline field errors explain why; the save bar keeps showing.
+    if (phoneInvalid || linksInvalid) return;
+    try {
+      await updateProfile.mutateAsync({
         preferredName: preferredName.trim() || null,
         phone: phone.trim() || null,
         skills,
@@ -342,13 +325,26 @@ function ContactSection({ data }: { data: EmployeeProfileView }) {
         links: links
           .filter((l) => l.label.trim() && l.url.trim())
           .map((l) => ({ label: l.label.trim(), url: l.url.trim() })),
-      },
-      {
-        onSuccess: () => toast.success('Work profile saved'),
-        onError: (err) =>
-          toast.error(errorMessage(err, 'Could not save your work profile')),
-      },
-    );
+      });
+      toast.success('Work profile saved');
+    } catch (err) {
+      toast.error(errorMessage(err, 'Could not save your work profile'));
+      throw err;
+    }
+  };
+
+  // PhoneInput keeps its own display state from mount — remount it on discard.
+  const [phoneKey, setPhoneKey] = useState(0);
+  const reset = () => {
+    setPreferredName(data.preferredName ?? '');
+    setPhone(data.phone ?? '');
+    setPhoneKey((k) => k + 1);
+    setSkills(data.skills);
+    setInterests(data.interests ?? []);
+    setLinks(data.links ?? []);
+  };
+
+  useRegisterSettingsDirty('settings.work-profile.contact', dirty, submit, reset);
 
   return (
     <SettingsGroup
@@ -359,7 +355,7 @@ function ContactSection({ data }: { data: EmployeeProfileView }) {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          submit();
+          void submit().catch(() => undefined);
         }}
       >
         <SettingsCard>
@@ -386,6 +382,7 @@ function ContactSection({ data }: { data: EmployeeProfileView }) {
               }
             >
               <PhoneInput
+                key={phoneKey}
                 value={phone}
                 onChange={setPhone}
                 invalid={phoneInvalid}
@@ -469,10 +466,6 @@ function ContactSection({ data }: { data: EmployeeProfileView }) {
               )}
             </div>
           </Field>
-          <SaveRow
-            pending={updateProfile.isPending}
-            dirty={dirty && !phoneInvalid && !linksInvalid}
-          />
         </SettingsCard>
       </form>
     </SettingsGroup>
@@ -580,6 +573,24 @@ function PrivacySection({ data }: { data: EmployeeProfileView }) {
     onSuccess: () => toast.success('Privacy & notification settings saved'),
     onError: (err) => toast.error(errorMessage(err, 'Could not save settings')),
   });
+
+  const reset = () => {
+    setMonth(data.birthday ? String(data.birthday.month) : '');
+    setDay(data.birthday ? String(data.birthday.day) : '');
+    setYear(data.birthday?.year ? String(data.birthday.year) : '');
+    setPrivacy(initialPrivacy);
+    setPrefs(initialPrefs);
+  };
+
+  useRegisterSettingsDirty(
+    'settings.work-profile.privacy',
+    dirty,
+    async () => {
+      if (invalid) return;
+      await save.mutateAsync();
+    },
+    reset,
+  );
 
   const visibility = (key: 'birthday' | 'anniversary' | 'contact') => (
     <AppSelect
@@ -752,12 +763,6 @@ function PrivacySection({ data }: { data: EmployeeProfileView }) {
           )}
         </SettingsCard>
       </SettingsGroup>
-
-      <SaveRow
-        pending={save.isPending}
-        dirty={dirty && !invalid}
-        label="Save privacy & notifications"
-      />
     </form>
   );
 }

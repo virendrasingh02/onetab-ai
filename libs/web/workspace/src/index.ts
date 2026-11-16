@@ -73,8 +73,12 @@ export {
   useSettingsDirty,
   useRegisterSettingsDirty,
   getDirtySettingsEntries,
+  useSettingsDirtyCount,
+  saveDirtySettings,
+  discardDirtySettings,
   type SettingsDirtyEntry,
 } from './lib/settings-dirty.store.js';
+export { SettingsSaveBar } from './lib/settings-save-bar.js';
 
 export {
   useWorkspaceStore,
