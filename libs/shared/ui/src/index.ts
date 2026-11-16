@@ -225,6 +225,7 @@ export {
   Hint,
   Tooltip,
   TooltipContent,
+  TooltipLabel,
   TooltipProvider,
   TooltipTrigger,
   renderShortcut,

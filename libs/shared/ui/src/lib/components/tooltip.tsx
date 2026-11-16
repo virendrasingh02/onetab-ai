@@ -71,7 +71,7 @@ export function TooltipContent({
         collisionPadding={collisionPadding}
         className={cn(
           'z-(--z-tooltip) origin-(--radix-tooltip-content-transform-origin)',
-          'max-w-72 px-2 py-1 font-normal w-fit rounded-popup border border-border bg-popover text-meta text-popover-foreground shadow-elevated',
+          'max-w-72 w-fit rounded-popup border border-border/70 bg-popover px-2.5 py-1.5 text-xs font-medium leading-4 text-popover-foreground shadow-elevated',
           className,
         )}
         {...props}
@@ -110,7 +110,26 @@ export function renderShortcut(shortcut: ReactNode): ReactNode {
   const trimmed = shortcut.trim();
   if (!trimmed) return null;
 
-  return <KbdShortcut shortcut={trimmed} />;
+  return <KbdShortcut shortcut={trimmed} size="md" variant="soft" />;
+}
+
+/**
+ * Label + shortcut row used inside every tooltip: "Change priority  P then P".
+ */
+export function TooltipLabel({
+  label,
+  shortcut,
+}: {
+  label: ReactNode;
+  shortcut?: ReactNode;
+}) {
+  if (!shortcut) return <>{label}</>;
+  return (
+    <span className="gap-3 inline-flex items-center">
+      <span>{label}</span>
+      {renderShortcut(shortcut)}
+    </span>
+  );
 }
 
 export interface HintProps extends Omit<
@@ -147,14 +166,7 @@ export function Hint({
     >
       <TooltipTrigger asChild>{children}</TooltipTrigger>
       <TooltipContent side={side} showArrow={showArrow} {...props}>
-        {shortcut ? (
-          <span className="gap-2 inline-flex items-center">
-            <span>{label}</span>
-            {renderShortcut(shortcut)}
-          </span>
-        ) : (
-          label
-        )}
+        <TooltipLabel label={label} shortcut={shortcut} />
       </TooltipContent>
     </Tooltip>
   );

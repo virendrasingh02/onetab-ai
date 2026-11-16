@@ -230,6 +230,8 @@ export const kbdVariants = cva(
         muted: 'border border-border/50 bg-muted/60 text-muted-foreground',
         ghost: 'border-transparent bg-transparent text-muted-foreground',
         elevated: 'border border-border bg-surface text-foreground shadow-xs',
+        /** Borderless filled key — used inside tooltips. */
+        soft: 'border-0 bg-foreground/8 text-foreground/70',
       },
       size: {
         xs: 'h-4 min-w-4 px-1 text-3xs',
@@ -251,7 +253,13 @@ export const kbdVariants = cva(
 );
 
 export type KbdSize = 'xs' | 'sm' | 'md' | 'lg';
-export type KbdVariant = 'default' | 'outline' | 'muted' | 'ghost' | 'elevated';
+export type KbdVariant =
+  | 'default'
+  | 'outline'
+  | 'muted'
+  | 'ghost'
+  | 'elevated'
+  | 'soft';
 
 export interface KbdProps
   extends ComponentPropsWithoutRef<'kbd'>, VariantProps<typeof kbdVariants> {
@@ -406,7 +414,10 @@ export const KbdShortcut = forwardRef<ElementRef<'span'>, KbdShortcutProps>(
             return (
               <span
                 key={index}
-                className="font-normal px-0.5 text-2xs text-muted-foreground/70 select-none"
+                className={cn(
+                  'font-normal px-0.5 text-muted-foreground select-none',
+                  size === 'md' || size === 'lg' ? 'text-meta' : 'text-2xs',
+                )}
                 aria-hidden
               >
                 {separator ?? token.value}

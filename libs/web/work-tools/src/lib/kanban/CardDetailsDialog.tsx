@@ -168,7 +168,7 @@ export function CardDetailsDialog({
         className={cn(
           'p-0 shadow-2xl rounded-2xl border border-border bg-card text-card-foreground transition-all duration-200',
           mode === 'full'
-            ? 'max-h-[96dvh] w-[98vw] max-w-none'
+            ? 'max-h-[calc(100dvh-4rem)] sm:w-[calc(100vw-4rem)] max-w-none'
             : 'max-w-304 w-[94vw]',
         )}
         onOpenAutoFocus={(event) => {
@@ -188,7 +188,7 @@ export function CardDetailsDialog({
          * `DialogContent` scrolls its children, which leaves `h-full` nothing to
          * resolve against, so the body states its height outright.
          */}
-        {body(mode === 'full' ? 'h-[96dvh]' : 'h-[90dvh] max-sm:h-dvh')}
+        {body(mode === 'full' ? 'h-[calc(100dvh-4rem)]' : 'h-[90dvh] max-sm:h-dvh')}
       </DialogContent>
     </Dialog>
   );

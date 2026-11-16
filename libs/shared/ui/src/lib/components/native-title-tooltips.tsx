@@ -1,11 +1,17 @@
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import { useEffect, useRef, useState } from 'react';
-import { TooltipContent, TooltipTrigger, Tooltip } from './tooltip.js';
+import {
+  TooltipContent,
+  TooltipLabel,
+  TooltipTrigger,
+  Tooltip,
+} from './tooltip.js';
 
 const SHOW_DELAY_MS = 350;
 
 interface ActiveTip {
   text: string;
+  shortcut?: string;
   rect: { top: number; left: number; width: number; height: number };
 }
 
@@ -20,7 +26,7 @@ function findTitled(target: EventTarget | null): HTMLElement | null {
  * Upgrades native `title="…"` browser tooltips to the shared <Tooltip> look.
  * Mount once inside <TooltipProvider> in every app so hints on plain DOM
  * elements match the ones rendered through <Hint>. Opt out per element with
- * `data-native-title`.
+ * `data-native-title`. Add `data-shortcut="P then P"` to show key badges.
  */
 export function NativeTitleTooltips() {
   const [tip, setTip] = useState<ActiveTip | null>(null);
@@ -56,6 +62,7 @@ export function NativeTitleTooltips() {
         const r = el.getBoundingClientRect();
         setTip({
           text: title,
+          shortcut: el.dataset['shortcut'] || undefined,
           rect: { top: r.top, left: r.left, width: r.width, height: r.height },
         });
       }, SHOW_DELAY_MS);
@@ -107,7 +114,9 @@ export function NativeTitleTooltips() {
             }}
           />
         </TooltipTrigger>
-        <TooltipContent side="top">{tip?.text}</TooltipContent>
+        <TooltipContent side="top">
+          <TooltipLabel label={tip?.text} shortcut={tip?.shortcut} />
+        </TooltipContent>
       </Tooltip>
     </TooltipPrimitive.Provider>
   );
