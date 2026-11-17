@@ -17,7 +17,6 @@ import {
   TooltipProvider,
   useCommandPalette,
   useRightPanelStore,
-  useWorkspaceTint,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { CreateChannelDialog, useChannels } from '@org/web-channels';
@@ -90,7 +89,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type ReactNode,
 } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -200,13 +198,6 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
   // Windows taskbar right-click → "Workspaces" (Slack-style Jump List).
   useDesktopJumpList(workspacesQuery.data);
   const { slug, workspace, workspaceId, isLoading } = useCurrentWorkspace();
-  // Identity colour behind the switcher/rail: a chosen icon's tint when the
-  // workspace shows an icon, else its avatar tile colour.
-  const avatarTint = useWorkspaceTint(workspaceId, workspace?.name);
-  const workspaceTint =
-    workspace?.icon && !workspace.avatarUrl && workspace.iconColor
-      ? workspace.iconColor
-      : avatarTint;
   const splitChannel = useSplitViewChannel(workspaceId);
   const split = useSplitViewWidth();
   const closeSplit = useSplitViewStore((s) => s.close);
@@ -713,10 +704,7 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
             channelRoutes={chatSoundGate.channelRoutes}
             onNavigate={navigate}
           />
-          <div
-            className="flex h-full flex-col overflow-hidden bg-background workspace-glow font-sans text-foreground"
-            style={{ '--workspace-tint': workspaceTint } as CSSProperties}
-          >
+          <div className="flex h-full flex-col overflow-hidden bg-background bg-app-gradient font-sans text-foreground">
             {/* Top Header Bar spanning full width */}
             <OfflineSyncBanner />
             <AppHeader
@@ -766,7 +754,7 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
               {sidebarOpen && !isMobile ? (
                 <>
                   <aside
-                    className="group/sidebar flex h-full shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-surface-muted workspace-glow-panel text-sidebar-foreground transition-[width] duration-150"
+                    className="group/sidebar flex h-full shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-surface-muted text-sidebar-foreground transition-[width] duration-150"
                     style={{ width: `${effectiveLeftWidth}px` }}
                     aria-label="Sidebar navigation"
                   >

@@ -325,20 +325,6 @@ export function WorkspaceColorProvider({
 }
 
 /**
- * The workspace's identity colour — the deep stop of the same swatch its
- * `WorkspaceAvatar` tile paints — for tinting chrome around the workspace
- * (e.g. the shell glow behind the switcher). Falls back to the seed hash.
- */
-export function useWorkspaceTint(
-  workspaceId: string | null | undefined,
-  name = '',
-): string {
-  const resolveColor = useContext(WorkspaceColorContext);
-  const id = workspaceId?.trim();
-  return avatarTint(id || name, id ? resolveColor(id) : undefined);
-}
-
-/**
  * How many of `userIds` are online right now, from the same live presence the
  * avatars draw. Ids may be platform or Matrix spellings.
  */
