@@ -66,8 +66,8 @@ const PRESET_SEEDS: PresetSeed[] = [
     name: 'Default',
     description: 'Fresh mint green primary on the platform canvas.',
     brandColor: '#60c686',
-    neutralColor: '#fcfbf8',
-    previewColors: ['#60c686', '#037152', '#fcfbf8', '#11271f'],
+    neutralColor: '#f7f7f7',
+    previewColors: ['#60c686', '#037152', '#f7f7f7', '#1a1a1a'],
     gradients: {
       primary: {
         type: 'linear',

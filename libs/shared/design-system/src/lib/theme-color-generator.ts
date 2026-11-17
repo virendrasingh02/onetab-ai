@@ -258,7 +258,7 @@ export function generateThemeVariables(
       ? config.neutralColor!
       : mode === 'dark'
         ? '#0a0a0a'
-        : '#fcfbf8';
+        : '#f7f7f7';
 
   const brandRgb = hexToRgb(safeBrand);
   const brandHsl = rgbToHsl(brandRgb);

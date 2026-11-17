@@ -356,24 +356,24 @@
     'Liberation Mono', monospace;
 
   /*
-   * Light theme — the default. marketer.com's canvas is a warm off-white
-   * (#fcfbf8), not a cool grey, and its text is green-ink (#11271f) rather
-   * than black. The ramp steps #11271f → #33473f → #67766f → #8a958f so dense
-   * lists stay readable without borders doing the work.
+   * Light theme — the default. A neutral grey chrome (#f7f7f7) with near-black
+   * ink (#1a1a1a); the ramp steps #1a1a1a → #3d3d3d → #6b6b6b → #8f8f8f so
+   * dense lists stay readable without borders doing the work. Selection is a
+   * plain grey step (#e8e8e8), not a brand tint — the mint is kept for actions.
    *
    * `background` is the chrome (sidebar, rails, page gutter); `card`/`popover`
    * are the white panels that sit on it. That one step of contrast is what
    * gives light mode depth without shadows — marketer runs the same warm
    * canvas / white panel split on its platform surfaces.
    */
-  --background: #fcfbf8;
-  --foreground: #11271f;
+  --background: #f7f7f7;
+  --foreground: #1a1a1a;
 
   --card: #ffffff;
-  --card-foreground: #11271f;
+  --card-foreground: #1a1a1a;
 
   --popover: #ffffff;
-  --popover-foreground: #11271f;
+  --popover-foreground: #1a1a1a;
 
   /*
    * marketer's mint. Unusually for a primary this is a *light* fill, so its
@@ -400,24 +400,24 @@
 
   /* Input fill, and the stronger edge used on hover and around the composer. */
   --field: #ffffff;
-  --field-border: #ddd9cf;
+  --field-border: #dcdcdc;
 
   --secondary: #f5f5f5;
-  --secondary-foreground: #33473f;
+  --secondary-foreground: #3d3d3d;
 
-  --muted: #f8f8f8;
-  --muted-foreground: #67766f;
+  --muted: #f4f4f4;
+  --muted-foreground: #6b6b6b;
 
   /* `accent` is hover, `selected` the resting state — one step apart, so a
      selected row still visibly responds to the pointer. Both are warmed to sit
      on the #fcfbf8 canvas rather than reading as a cool grey patch. */
-  --accent: #f1f0ec;
-  --accent-foreground: #11271f;
+  --accent: #efefef;
+  --accent-foreground: #1a1a1a;
 
-  --selected: #e6ede8;
+  --selected: #e8e8e8;
 
-  --subtle: #8a958f;
-  --disabled: #b4bcb7;
+  --subtle: #8f8f8f;
+  --disabled: #b8b8b8;
 
   --destructive: #e40014;
   --destructive-foreground: #ffffff;
@@ -445,8 +445,8 @@
    * surface they divide — the separation comes from the surface step above, so
    * a heavier border just makes a dense list look ruled.
    */
-  --border: #eeece6;
-  --border-strong: #ddd9cf;
+  --border: #ebebeb;
+  --border-strong: #dcdcdc;
   --input: #e5e5e5;
   /* Deep forest, not the mint: a #60c686 ring is invisible on a white panel. */
   --ring: #037152;
@@ -458,9 +458,9 @@
    * on, so it has to stay visibly off-white against a white card.
    */
   --surface: #ffffff;
-  --surface-muted: #faf9f6;
-  --surface-raised: #f4f2ec;
-  --surface-inset: #eeece5;
+  --surface-muted: #fafafa;
+  --surface-raised: #f3f3f3;
+  --surface-inset: #ececec;
 
   /*
    * Categorical ramp, rebuilt around marketer's three brand families — the
@@ -493,15 +493,15 @@
    * only the hairline where the white content panel begins. Giving it its own
    * grey produced a third tone and made the seam read as a seam.
    */
-  --sidebar: #fcfbf8;
-  --sidebar-foreground: #11271f;
-  --sidebar-muted: #67766f;
-  --sidebar-accent: #f1f0ec;
-  --sidebar-accent-foreground: #11271f;
-  --sidebar-active: #e6ede8;
-  --sidebar-active-foreground: #11271f;
-  --sidebar-hover: #f1f0ec;
-  --sidebar-border: #eeece6;
+  --sidebar: #f7f7f7;
+  --sidebar-foreground: #1a1a1a;
+  --sidebar-muted: #6b6b6b;
+  --sidebar-accent: #ececec;
+  --sidebar-accent-foreground: #1a1a1a;
+  --sidebar-active: #e8e8e8;
+  --sidebar-active-foreground: #1a1a1a;
+  --sidebar-hover: #efefef;
+  --sidebar-border: #e8e8e8;
   --sidebar-ring: #037152;
 
   --app-gradient:
