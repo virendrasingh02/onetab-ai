@@ -627,15 +627,22 @@ export function SystemEventCard({
               weight="semibold"
               className="text-message text-foreground"
             />
-            <span
-              title={
-                primaryEntity.accountLabel
-                  ? `Connected as ${primaryEntity.accountLabel}`
-                  : undefined
-              }
-            >
-              <SystemEventEntityBadge kind={primaryEntity.kind} />
-            </span>
+            {/* Only users/channels have no badge — skip the wrapper then, or the
+                empty flex item doubles the name→time gap vs. message rows. */}
+            {primaryEntity.kind === 'app' ||
+            primaryEntity.kind === 'agent' ||
+            primaryEntity.kind === 'coworker' ? (
+              <span
+                className="inline-flex items-center"
+                title={
+                  primaryEntity.accountLabel
+                    ? `Connected as ${primaryEntity.accountLabel}`
+                    : undefined
+                }
+              >
+                <SystemEventEntityBadge kind={primaryEntity.kind} />
+              </span>
+            ) : null}
             <SystemEventTimestamp
               timestamp={event.occurredAt || message.timestamp}
             />
