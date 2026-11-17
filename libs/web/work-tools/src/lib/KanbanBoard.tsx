@@ -1,5 +1,8 @@
-import { Input, SkeletonList } from '@org/ui';
+import { Button, SkeletonList } from '@org/ui';
+import { cn } from '@org/utils';
 import { Sparkles, X } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { SmartFilterBar } from './kanban/SmartFilterBar.js';
 import { useCurrentUser } from '@org/auth';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -50,6 +53,57 @@ export interface KanbanBoardProps {
   setShowAIFilterInput?: (show: boolean) => void;
 }
 
+const DUE_LABELS: Record<Exclude<BoardFilter['due'], 'any'>, string> = {
+  overdue: 'Overdue',
+  today: 'Due today',
+  week: 'Due this week',
+  none: 'No due date',
+};
+
+function namesFor(ids: string[], items: Array<{ id: string; name: string }>) {
+  return ids
+    .map((id) => items.find((item) => item.id === id)?.name ?? id)
+    .join(', ');
+}
+
+/** One active-filter chip: label plus a clear button. */
+function FilterChip({
+  label,
+  icon,
+  title,
+  tone = 'default',
+  onClear,
+}: {
+  label: string;
+  icon?: ReactNode;
+  title?: string;
+  tone?: 'default' | 'smart';
+  onClear: () => void;
+}) {
+  return (
+    <span
+      title={title}
+      className={cn(
+        'gap-1 pl-2 pr-0.5 inline-flex h-6 max-w-80 items-center rounded-md border text-xs',
+        tone === 'smart'
+          ? 'border-accent-violet/30 bg-accent-violet-soft text-accent-violet'
+          : 'border-border bg-surface text-foreground',
+      )}
+    >
+      {icon}
+      <span className="truncate">{label}</span>
+      <button
+        type="button"
+        onClick={onClear}
+        aria-label={`Remove filter: ${label}`}
+        className="size-5 inline-flex shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+      >
+        <X className="size-3" />
+      </button>
+    </span>
+  );
+}
+
 /**
  * The board.
  *
@@ -98,7 +152,15 @@ export function KanbanBoard({
   const setShowAIFilterInput =
     externalSetShowAIFilterInput ?? setInternalShowAIFilterInput;
 
-  const [aiPromptInput, setAiPromptInput] = useState('');
+  const smartStatuses = useMemo(
+    () => board.lists.map((list) => ({ id: list.id, name: list.title })),
+    [board.lists],
+  );
+  const smartMembers = useMemo(
+    () =>
+      board.members.map((m) => ({ id: m.id, name: m.displayName || m.name })),
+    [board.members],
+  );
   const [openCardId, setOpenCardId] = useState<string | null>(null);
 
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -183,128 +245,89 @@ export function KanbanBoard({
       <div className="mb-2 px-4 sm:px-6 space-y-2 empty:mb-0 relative shrink-0">
         {/* AI Filter Input Prompt Overlay Bar */}
         {showAIFilterInput && (
-          <div className="gap-2 p-2 text-xs animate-in fade-in flex items-center rounded-xl border border-accent-violet/40 bg-accent-violet-soft">
-            <Sparkles className="size-4 shrink-0 text-accent-violet" />
-            <Input
-              autoFocus
-              value={aiPromptInput}
-              onChange={(e) => {
-                setAiPromptInput(e.target.value);
-                setFilter((prev) => ({ ...prev, aiQuery: e.target.value }));
-              }}
-              placeholder='Describe what to show, e.g. "urgent", "overdue" or a word from the title'
-              className="text-xs h-7 flex-1 border-none bg-transparent shadow-none placeholder:text-muted-foreground/70 focus-visible:ring-0"
-            />
-            {aiPromptInput && (
-              <button
-                onClick={() => {
-                  setAiPromptInput('');
-                  setFilter((prev) => ({ ...prev, aiQuery: '' }));
-                }}
-                className="p-1 text-muted-foreground hover:text-foreground"
-              >
-                <X className="size-3.5" />
-              </button>
-            )}
-          </div>
+          <SmartFilterBar
+            workspaceId={workspaceId}
+            filter={filter}
+            setFilter={setFilter}
+            statuses={smartStatuses}
+            members={smartMembers}
+            milestones={milestones}
+            onClose={() => setShowAIFilterInput(false)}
+          />
         )}
 
-        {/* Active Filter Chips Pill Bar */}
-        {filterCount > 0 && (
-          <div className="gap-1.5 text-xs pt-1 flex flex-wrap items-center">
-            <span className="font-medium text-meta text-muted-foreground">
-              Active filters:
-            </span>
-
-            {filter.query && (
-              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent text-meta">
-                Query: "{filter.query}"
-                <X
-                  className="size-3 cursor-pointer hover:text-foreground"
-                  onClick={() => setFilter((prev) => ({ ...prev, query: '' }))}
-                />
-              </span>
-            )}
-
-            {filter.aiQuery && (
-              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent-violet-soft text-meta text-accent-violet">
-                Smart filter: "{filter.aiQuery}"
-                <X
-                  className="size-3 cursor-pointer hover:text-foreground"
-                  onClick={() =>
-                    setFilter((prev) => ({ ...prev, aiQuery: '' }))
-                  }
-                />
-              </span>
-            )}
-
-            {filter.status.length > 0 && (
-              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent text-meta">
-                Status ({filter.status.length})
-                <X
-                  className="size-3 cursor-pointer hover:text-foreground"
-                  onClick={() => setFilter((prev) => ({ ...prev, status: [] }))}
-                />
-              </span>
-            )}
-
-            {filter.priorities.length > 0 && (
-              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent text-meta">
-                Priority ({filter.priorities.length})
-                <X
-                  className="size-3 cursor-pointer hover:text-foreground"
-                  onClick={() =>
-                    setFilter((prev) => ({ ...prev, priorities: [] }))
-                  }
-                />
-              </span>
-            )}
-
-            {filter.memberIds.length > 0 && (
-              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent text-meta">
-                Assignee ({filter.memberIds.length})
-                <X
-                  className="size-3 cursor-pointer hover:text-foreground"
-                  onClick={() =>
-                    setFilter((prev) => ({ ...prev, memberIds: [] }))
-                  }
-                />
-              </span>
-            )}
-
-            {filter.milestones.length > 0 && (
-              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent text-meta">
-                Milestones ({filter.milestones.length})
-                <X
-                  className="size-3 cursor-pointer hover:text-foreground"
-                  onClick={() =>
-                    setFilter((prev) => ({ ...prev, milestones: [] }))
-                  }
-                />
-              </span>
-            )}
-
-            {filter.due !== 'any' && (
-              <span className="gap-1 px-2 py-0.5 font-medium inline-flex items-center rounded-full bg-accent text-meta capitalize">
-                Due: {filter.due}
-                <X
-                  className="size-3 cursor-pointer hover:text-foreground"
-                  onClick={() => setFilter((prev) => ({ ...prev, due: 'any' }))}
-                />
-              </span>
-            )}
-
-            <button
-              onClick={() => {
-                setFilter(EMPTY_FILTER);
-                setAiPromptInput('');
-              }}
-              className="ml-1 text-meta text-muted-foreground underline hover:text-foreground"
+        {/* Active filters — one chip per facet, each clearable on its own. */}
+        {filterCount > 0 || filter.aiSummary ? (
+          <div className="gap-1.5 flex flex-wrap items-center">
+            {filter.aiSummary ? (
+              <FilterChip
+                tone="smart"
+                icon={<Sparkles className="size-3.5" />}
+                title={filter.aiPrompt}
+                label={filter.aiSummary}
+                onClear={() =>
+                  setFilter((prev) => ({ ...EMPTY_FILTER, query: prev.query }))
+                }
+              />
+            ) : null}
+            {filter.query ? (
+              <FilterChip
+                label={`Search: “${filter.query}”`}
+                onClear={() => setFilter((prev) => ({ ...prev, query: '' }))}
+              />
+            ) : null}
+            {filter.aiQuery ? (
+              <FilterChip
+                label={`Mentions: ${filter.aiQuery.split(/\s+/).join(', ')}`}
+                onClear={() => setFilter((prev) => ({ ...prev, aiQuery: '' }))}
+              />
+            ) : null}
+            {filter.status.length > 0 ? (
+              <FilterChip
+                label={`Status: ${namesFor(filter.status, smartStatuses)}`}
+                onClear={() => setFilter((prev) => ({ ...prev, status: [] }))}
+              />
+            ) : null}
+            {filter.priorities.length > 0 ? (
+              <FilterChip
+                label={`Priority: ${filter.priorities
+                  .map((p) => p.charAt(0) + p.slice(1).toLowerCase())
+                  .join(', ')}`}
+                onClear={() =>
+                  setFilter((prev) => ({ ...prev, priorities: [] }))
+                }
+              />
+            ) : null}
+            {filter.memberIds.length > 0 ? (
+              <FilterChip
+                label={`Assignee: ${namesFor(filter.memberIds, smartMembers)}`}
+                onClear={() => setFilter((prev) => ({ ...prev, memberIds: [] }))}
+              />
+            ) : null}
+            {filter.milestones.length > 0 ? (
+              <FilterChip
+                label={`Milestone: ${filter.milestones.join(', ')}`}
+                onClear={() =>
+                  setFilter((prev) => ({ ...prev, milestones: [] }))
+                }
+              />
+            ) : null}
+            {filter.due !== 'any' ? (
+              <FilterChip
+                label={DUE_LABELS[filter.due]}
+                onClear={() => setFilter((prev) => ({ ...prev, due: 'any' }))}
+              />
+            ) : null}
+            <Button
+              variant="ghost"
+              size="xs"
+              className="text-muted-foreground"
+              onClick={() => setFilter(EMPTY_FILTER)}
             >
               Clear all
-            </button>
+            </Button>
           </div>
-        )}
+        ) : null}
 
         {/* Floating Linear Filter Popover Menu */}
         <LinearFilterMenu

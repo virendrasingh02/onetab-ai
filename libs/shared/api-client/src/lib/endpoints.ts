@@ -4820,6 +4820,24 @@ export const uploadApi = {
  * Every route is a POST — these are actions with a cost, not cacheable reads —
  * and each is rate limited well below the global default on the API side.
  */
+export interface AITaskFilterRequest {
+  prompt: string;
+  statuses: Array<{ id: string; name: string }>;
+  members: Array<{ id: string; name: string }>;
+  milestones: string[];
+}
+
+export interface AITaskFilterResult {
+  status: string[];
+  priorities: Array<'URGENT' | 'HIGH' | 'MEDIUM' | 'LOW'>;
+  memberIds: string[];
+  due: 'any' | 'overdue' | 'today' | 'week' | 'none';
+  milestones: string[];
+  keywords: string[];
+  summary: string;
+  source: 'ai' | 'rules';
+}
+
 export const aiApi = {
   getProviders: (workspaceId: string) =>
     request<AIProviderMetadata[]>(
@@ -4895,6 +4913,19 @@ export const aiApi = {
       http.post(`/workspaces/${workspaceId}/ai/chat`, input, {
         // Generation is slow; the instance-wide 15 s timeout would cut it off.
         timeout: 120_000,
+        signal,
+      }),
+    ),
+
+  /** Board smart filter: a sentence → the Filter menu's facets. */
+  taskFilter: (
+    workspaceId: string,
+    input: AITaskFilterRequest,
+    signal?: AbortSignal,
+  ) =>
+    request<AITaskFilterResult>(
+      http.post(`/workspaces/${workspaceId}/ai/task-filter`, input, {
+        timeout: 20_000,
         signal,
       }),
     ),

@@ -30,6 +30,25 @@ import {
   updateModelSettingsSchema,
 } from '@org/validation';
 import type { Response } from 'express';
+import { z } from 'zod';
+import {
+  parseTaskFilterRules,
+  sanitizeTaskFilterReply,
+  taskFilterSystemPrompt,
+  type TaskFilterContext,
+  type TaskFilterResult,
+} from './task-filter-parse.js';
+
+const taskFilterSchema = z.object({
+  prompt: z.string().trim().min(1).max(300),
+  statuses: z
+    .array(z.object({ id: z.string().max(100), name: z.string().max(100) }))
+    .max(50),
+  members: z
+    .array(z.object({ id: z.string().max(100), name: z.string().max(200) }))
+    .max(500),
+  milestones: z.array(z.string().max(200)).max(200),
+});
 import { AICredentialService } from './ai-credential.service.js';
 import {
   AIInfrastructureService,
@@ -247,6 +266,38 @@ export class AIPlatformController {
   ) {
     await this.moderation.assertTextAllowed(body.text);
     return this.aiService.summarizeThread(body.text);
+  }
+
+  /**
+   * Board smart filter: a sentence in, the Filter menu's facets out. Uses the
+   * workspace's model when one answers in time, else the rule parser, so the
+   * bar always returns something real rather than an error.
+   */
+  @Post('task-filter')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  async taskFilter(
+    @WorkspaceId() _workspaceId: string,
+    @CurrentUser() user: AuthenticatedUser | undefined,
+    @Body(zodBody(taskFilterSchema)) body: z.infer<typeof taskFilterSchema>,
+  ): Promise<TaskFilterResult> {
+    const ctx: TaskFilterContext = { ...body, currentUserId: user?.id };
+    await this.moderation.assertTextAllowed(body.prompt);
+    try {
+      const res = await this.aiService.chat({
+        messages: [
+          { role: 'system', content: taskFilterSystemPrompt(ctx) },
+          { role: 'user', content: body.prompt },
+        ],
+        temperature: 0,
+        maxTokens: 400,
+        signal: AbortSignal.timeout(12_000),
+      });
+      const parsed = sanitizeTaskFilterReply(res.message.content ?? '', ctx);
+      if (parsed) return parsed;
+    } catch {
+      // No provider, a timeout or a bad reply: the rule parser still answers.
+    }
+    return parseTaskFilterRules(ctx);
   }
 
   @Post('translate')

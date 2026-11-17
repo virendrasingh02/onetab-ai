@@ -1153,39 +1153,39 @@ export function AsanaProjectManager() {
                 />
               </div>
 
-              <div className="relative">
-                <Button
-                  variant={
-                    isFilterMenuOpen || filterCount > 0
-                      ? 'secondary'
-                      : 'outline'
-                  }
-                  size="sm"
-                  onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
-                  className="gap-1.5 text-xs h-7 font-medium cursor-pointer"
-                >
-                  <Filter className="size-3.5" />
-                  <span>Filter</span>
-                  {filterCount > 0 ? (
-                    <Badge
-                      variant="count"
-                      className="bg-brand/20 text-brand-text"
-                    >
-                      {filterCount}
-                    </Badge>
-                  ) : null}
-                </Button>
-
-                <LinearFilterMenu
-                  filter={filter}
-                  setFilter={setFilter}
-                  members={members}
-                  milestones={milestones}
-                  isOpen={isFilterMenuOpen}
-                  onClose={() => setIsFilterMenuOpen(false)}
-                  onActivateAIFilter={() => setShowAIFilterInput(true)}
-                />
-              </div>
+              <LinearFilterMenu
+                filter={filter}
+                setFilter={setFilter}
+                members={members}
+                milestones={milestones}
+                isOpen={isFilterMenuOpen}
+                onClose={() => setIsFilterMenuOpen(false)}
+                onOpenChange={setIsFilterMenuOpen}
+                onActivateAIFilter={() => setShowAIFilterInput(true)}
+                trigger={
+                  <Button
+                    variant={
+                      isFilterMenuOpen || filterCount > 0
+                        ? 'secondary'
+                        : 'outline'
+                    }
+                    size="sm"
+                    className="gap-1.5 text-xs h-7 font-medium cursor-pointer"
+                    title="Filter (F)"
+                  >
+                    <Filter className="size-3.5" />
+                    <span>Filter</span>
+                    {filterCount > 0 ? (
+                      <Badge
+                        variant="count"
+                        className="bg-brand/20 text-brand-text"
+                      >
+                        {filterCount}
+                      </Badge>
+                    ) : null}
+                  </Button>
+                }
+              />
             </>
           ) : null}
 

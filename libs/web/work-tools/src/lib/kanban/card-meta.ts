@@ -151,7 +151,11 @@ export type DueFilter = 'any' | 'overdue' | 'today' | 'week' | 'none';
  */
 export interface BoardFilter {
   query: string;
+  /** Smart-filter keywords (space separated) matched in title/description. */
   aiQuery?: string;
+  /** The sentence the smart filter was given, and what the API made of it. */
+  aiPrompt?: string;
+  aiSummary?: string;
   /** Workflow state ids (columns) to keep. Empty means all of them. */
   status: string[];
   priorities: Priority[];
@@ -165,6 +169,8 @@ export interface BoardFilter {
 export const EMPTY_FILTER: BoardFilter = {
   query: '',
   aiQuery: '',
+  aiPrompt: '',
+  aiSummary: '',
   status: [],
   priorities: [],
   memberIds: [],
@@ -201,43 +207,16 @@ export function matchesFilter(
     if (!haystack.includes(query)) return false;
   }
 
-  // AI Prompt Natural Language Filter
-  if (filter.aiQuery?.trim()) {
-    const aiText = filter.aiQuery.trim().toLowerCase();
-    const fullContent =
-      `${card.title} ${card.description} ${card.priority} ${card.milestone || ''}`.toLowerCase();
-
-    // Check key phrases
-    if (aiText.includes('urgent') && card.priority !== 'URGENT') return false;
-    if (aiText.includes('high') && card.priority !== 'HIGH') return false;
-    if (
-      aiText.includes('overdue') &&
-      (!card.dueDate || daysUntil(card.dueDate) >= 0 || card.dueComplete)
-    )
-      return false;
-
-    // General fallback token match
-    const tokens = aiText
-      .split(/\s+/)
-      .filter(
-        (t) =>
-          ![
-            'show',
-            'me',
-            'all',
-            'tasks',
-            'projects',
-            'with',
-            'the',
-            'and',
-            'for',
-            'in',
-          ].includes(t),
-      );
-    if (tokens.length > 0) {
-      const matchesAnyToken = tokens.some((t) => fullContent.includes(t));
-      if (!matchesAnyToken) return false;
-    }
+  /*
+   * Smart filter keywords. The API has already turned priority, status,
+   * assignee, due and milestone words into the facets below; what is left
+   * here are content words, and a card matches if it mentions any of them.
+   */
+  const keywords = filter.aiQuery?.trim().toLowerCase().split(/\s+/) ?? [];
+  if (keywords.length > 0 && keywords[0]) {
+    const haystack =
+      `${card.ticketId ?? ''} ${card.title} ${card.description} ${card.milestone ?? ''}`.toLowerCase();
+    if (!keywords.some((word) => haystack.includes(word))) return false;
   }
 
   if (filter.status.length > 0 && listId) {

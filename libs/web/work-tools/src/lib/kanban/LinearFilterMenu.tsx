@@ -1,33 +1,89 @@
-import { KbdShortcut } from '@org/ui';
-import { cn } from '@org/utils';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+  menuListClasses,
+  menuSearchClasses,
+  menuSearchInputClasses,
+  UserAvatar,
+} from '@org/ui';
 import {
   Calendar,
-  Check,
-  ChevronRight,
   CircleDot,
   Diamond,
-  Search,
   Signal,
   Sparkles,
   Users,
 } from 'lucide-react';
-import React, { useEffect, useRef, useState } from 'react';
-import { StatusIcon } from './kanban-icons.js';
+import {
+  Fragment,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentType,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from 'react';
+import { PriorityIcon, StatusIcon } from './kanban-icons.js';
 import { useWorkflowStates } from './task-states.js';
 import type { BoardFilter, DueFilter } from './card-meta.js';
 import type { BoardMember, Priority } from './types.js';
 
 export interface LinearFilterMenuProps {
   filter: BoardFilter;
-  setFilter: React.Dispatch<React.SetStateAction<BoardFilter>>;
+  setFilter: Dispatch<SetStateAction<BoardFilter>>;
   members: BoardMember[];
   /** Milestone titles on the open project. */
   milestones: string[];
   isOpen: boolean;
   onClose: () => void;
+  /** Opens/closes the menu from its trigger. Defaults to closing only. */
+  onOpenChange?: (open: boolean) => void;
+  /** The button the menu drops from. Without one it anchors top-right. */
+  trigger?: ReactNode;
   onActivateAIFilter: () => void;
 }
 
+interface FilterOption {
+  key: string;
+  label: string;
+  icon: ReactNode;
+  checked: boolean;
+  toggle: () => void;
+}
+
+interface FilterCategory {
+  id: string;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+  activeCount: number;
+  options: FilterOption[];
+  empty: string;
+}
+
+const PRIORITIES: Priority[] = ['URGENT', 'HIGH', 'MEDIUM', 'LOW'];
+const DUE_OPTIONS: Array<{ value: DueFilter; label: string }> = [
+  { value: 'today', label: 'Due today' },
+  { value: 'overdue', label: 'Overdue' },
+  { value: 'week', label: 'Due this week' },
+  { value: 'none', label: 'No due date' },
+];
+
+function toggleIn<T>(list: T[], value: T): T[] {
+  return list.includes(value)
+    ? list.filter((item) => item !== value)
+    : [...list, value];
+}
+
+/** Board filter menu, built on the shared dropdown so it matches every menu. */
 export function LinearFilterMenu({
   filter,
   setFilter,
@@ -35,302 +91,249 @@ export function LinearFilterMenu({
   milestones,
   isOpen,
   onClose,
+  onOpenChange,
+  trigger,
   onActivateAIFilter,
 }: LinearFilterMenuProps) {
   const { states } = useWorkflowStates();
-  const [menuSearch, setMenuSearch] = useState('');
-  const [activeSubMenu, setActiveSubMenu] = useState<string | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const [query, setQuery] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
+  const smartPickedRef = useRef(false);
 
-  // Close on outside click
+  // Radix focuses the menu surface on open; hand focus to the search box.
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        onClose();
-      }
+    if (!isOpen) {
+      setQuery('');
+      return;
     }
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen, onClose]);
-
-  // Keyboard shortcut listener ('F' key)
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key.toLowerCase() === 'f' && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        onClose();
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
-
-  if (!isOpen) return null;
-
-  const toggleStatus = (status: string) => {
-    setFilter((prev) => ({
-      ...prev,
-      status: prev.status.includes(status)
-        ? prev.status.filter((s) => s !== status)
-        : [...prev.status, status],
-    }));
-  };
-
-  const togglePriority = (p: Priority) => {
-    setFilter((prev) => ({
-      ...prev,
-      priorities: prev.priorities.includes(p)
-        ? prev.priorities.filter((item) => item !== p)
-        : [...prev.priorities, p],
-    }));
-  };
-
-  const toggleMember = (id: string) => {
-    setFilter((prev) => ({
-      ...prev,
-      memberIds: prev.memberIds.includes(id)
-        ? prev.memberIds.filter((m) => m !== id)
-        : [...prev.memberIds, id],
-    }));
-  };
-
-  const toggleMilestone = (title: string) => {
-    setFilter((prev) => ({
-      ...prev,
-      milestones: prev.milestones.includes(title)
-        ? prev.milestones.filter((item) => item !== title)
-        : [...prev.milestones, title],
-    }));
-  };
-
-  const setDue = (d: DueFilter) => {
-    setFilter((prev) => ({ ...prev, due: prev.due === d ? 'any' : d }));
-  };
+    const id = window.setTimeout(() => searchRef.current?.focus(), 0);
+    return () => window.clearTimeout(id);
+  }, [isOpen]);
 
   /*
    * Only facets the tasks API stores. A filter the server cannot honour would
    * hide cards on a rule nothing else in the product knows about.
    */
-  const filterCategories = [
+  const categories: FilterCategory[] = [
     {
       id: 'status',
       label: 'Status',
       icon: CircleDot,
       activeCount: filter.status.length,
+      empty: 'No statuses',
+      options: states.map(({ id, name }) => ({
+        key: id,
+        label: name,
+        icon: <StatusIcon status={id} showTooltip={false} />,
+        checked: filter.status.includes(id),
+        toggle: () =>
+          setFilter((prev) => ({ ...prev, status: toggleIn(prev.status, id) })),
+      })),
     },
     {
       id: 'priority',
       label: 'Priority',
       icon: Signal,
       activeCount: filter.priorities.length,
+      empty: 'No priorities',
+      options: PRIORITIES.map((p) => ({
+        key: p,
+        label: p.charAt(0) + p.slice(1).toLowerCase(),
+        icon: <PriorityIcon priority={p} />,
+        checked: filter.priorities.includes(p),
+        toggle: () =>
+          setFilter((prev) => ({
+            ...prev,
+            priorities: toggleIn(prev.priorities, p),
+          })),
+      })),
     },
     {
       id: 'assignee',
       label: 'Assignee',
       icon: Users,
       activeCount: filter.memberIds.length,
+      empty: 'No workspace members',
+      options: members.map((m) => ({
+        key: m.id,
+        label: m.displayName || m.name,
+        icon: (
+          <UserAvatar
+            name={m.displayName || m.name}
+            seed={m.id}
+            src={m.avatarUrl}
+            size="xs"
+          />
+        ),
+        checked: filter.memberIds.includes(m.id),
+        toggle: () =>
+          setFilter((prev) => ({
+            ...prev,
+            memberIds: toggleIn(prev.memberIds, m.id),
+          })),
+      })),
     },
     {
       id: 'dates',
-      label: 'Dates',
+      label: 'Due date',
       icon: Calendar,
       activeCount: filter.due !== 'any' ? 1 : 0,
+      empty: '',
+      options: DUE_OPTIONS.map(({ value, label }) => ({
+        key: value,
+        label,
+        icon: null,
+        checked: filter.due === value,
+        toggle: () =>
+          setFilter((prev) => ({
+            ...prev,
+            due: prev.due === value ? 'any' : value,
+          })),
+      })),
     },
     {
       id: 'milestones',
-      label: 'Milestones',
+      label: 'Milestone',
       icon: Diamond,
       activeCount: filter.milestones.length,
+      empty: 'This project has no milestones',
+      options: milestones.map((title) => ({
+        key: title,
+        label: title,
+        icon: null,
+        checked: filter.milestones.includes(title),
+        toggle: () =>
+          setFilter((prev) => ({
+            ...prev,
+            milestones: toggleIn(prev.milestones, title),
+          })),
+      })),
     },
   ];
 
-  const filteredCategories = filterCategories.filter((cat) =>
-    cat.label.toLowerCase().includes(menuSearch.toLowerCase()),
+  const needle = query.trim().toLowerCase();
+  // Searching flattens the menu: matching values from every facet, grouped.
+  const matches = needle
+    ? categories
+        .map((cat) => ({
+          ...cat,
+          options: cat.label.toLowerCase().includes(needle)
+            ? cat.options
+            : cat.options.filter((o) => o.label.toLowerCase().includes(needle)),
+        }))
+        .filter((cat) => cat.options.length > 0)
+    : [];
+
+  const renderOption = (option: FilterOption) => (
+    <DropdownMenuCheckboxItem
+      key={option.key}
+      checked={option.checked}
+      // Keep the menu open so several values can be picked in one go.
+      onSelect={(event) => event.preventDefault()}
+      onCheckedChange={option.toggle}
+    >
+      {option.icon}
+      <span className="truncate">{option.label}</span>
+    </DropdownMenuCheckboxItem>
   );
 
   return (
-    <div
-      ref={menuRef}
-      className={cn(
-        'right-4 top-14 w-72 backdrop-blur-md shadow-2xl p-1.5 text-xs absolute z-50 rounded-xl border border-border bg-popover/95 font-sans text-popover-foreground transition-all duration-200',
-      )}
+    <DropdownMenu
+      open={isOpen}
+      onOpenChange={(open) => (onOpenChange ? onOpenChange(open) : !open && onClose())}
     >
-      {/* Search Header */}
-      <div className="mb-1 px-1.5 py-1 relative">
-        <div className="gap-2 px-2 py-1.5 flex items-center rounded-md border border-border/60 bg-muted/40 focus-within:border-ring focus-within:ring-1 focus-within:ring-ring/20">
-          <Search className="size-3.5 shrink-0 text-muted-foreground" />
+      <DropdownMenuTrigger asChild>
+        {trigger ?? (
+          <span aria-hidden className="right-4 top-12 pointer-events-none absolute" />
+        )}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        className="w-64"
+        // Smart filter opens its own input; don't pull focus back to the trigger.
+        onCloseAutoFocus={(event) => {
+          if (smartPickedRef.current) {
+            smartPickedRef.current = false;
+            event.preventDefault();
+          }
+        }}
+      >
+        <div className={menuSearchClasses}>
           <input
+            ref={searchRef}
             type="text"
-            value={menuSearch}
-            onChange={(e) => setMenuSearch(e.target.value)}
-            placeholder="Add Filter..."
-            className="text-xs w-full bg-transparent text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
-            autoFocus
-          />
-          <KbdShortcut
-            keys={['F']}
-            size="xs"
-            variant="muted"
-            className="pointer-events-none shrink-0"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            // Typing belongs to the input, not the menu's typeahead.
+            onKeyDown={(e) => {
+              if (e.key !== 'Escape' && e.key !== 'ArrowDown') {
+                e.stopPropagation();
+              }
+            }}
+            placeholder="Filter by…"
+            aria-label="Search filters"
+            className={menuSearchInputClasses}
           />
         </div>
-      </div>
 
-      <div className="space-y-0.5 px-1">
-        <button
-          onClick={() => {
-            onActivateAIFilter();
-            onClose();
-          }}
-          className="px-2.5 py-1.5 text-xs font-medium flex w-full items-center justify-between rounded-lg text-left text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-        >
-          <div className="gap-2.5 flex items-center">
-            <Sparkles className="size-3.5 shrink-0 text-accent-violet" />
-            <span>Smart filter</span>
-          </div>
-          <ChevronRight className="size-3 text-muted-foreground/60" />
-        </button>
-      </div>
-
-      <div className="my-1.5 border-t border-border/50" />
-
-      {/* Filter Categories List */}
-      <div className="max-h-64 space-y-0.5 px-1 no-scrollbar overflow-y-auto">
-        {filteredCategories.map((cat) => {
-          const IconComponent = cat.icon;
-          const isSubOpen = activeSubMenu === cat.id;
-
-          return (
-            <div key={cat.id} className="group relative">
-              <button
-                onClick={() => setActiveSubMenu(isSubOpen ? null : cat.id)}
-                className={cn(
-                  'px-2.5 py-1.5 text-xs flex w-full items-center justify-between rounded-lg text-left text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
-                  (isSubOpen || cat.activeCount > 0) &&
-                    'font-medium bg-accent/60 text-foreground',
-                )}
-              >
-                <div className="gap-2.5 flex items-center">
-                  <IconComponent className="size-3.5 shrink-0 text-muted-foreground/80" />
-                  <span>{cat.label}</span>
-                </div>
-
-                <div className="gap-1 flex items-center">
-                  {cat.activeCount > 0 && (
-                    <span className="px-1.5 py-0.2 font-semibold rounded-full bg-brand/20 text-2xs text-brand-text">
-                      {cat.activeCount}
-                    </span>
-                  )}
-                  <ChevronRight className="size-3 text-muted-foreground/60 transition-transform duration-150" />
-                </div>
-              </button>
-
-              {/* Submenu Dropdown Popover */}
-              {isSubOpen && (
-                <div className="mt-1 ml-4 p-1.5 space-y-0.5 text-xs rounded-lg border border-border/80 bg-surface/95 shadow-lg">
-                  {cat.id === 'status' &&
-                    states.map(({ id: status, name }) => (
-                      <button
-                        key={status}
-                        onClick={() => toggleStatus(status)}
-                        className="px-2 py-1 text-xs flex w-full items-center justify-between rounded-md text-left hover:bg-accent hover:text-foreground"
-                      >
-                        <span className="gap-2 min-w-0 flex items-center">
-                          <StatusIcon status={status} showTooltip={false} />
-                          <span className="truncate">{name}</span>
-                        </span>
-                        {filter.status.includes(status) && (
-                          <Check className="size-3 text-primary" />
-                        )}
-                      </button>
-                    ))}
-
-                  {cat.id === 'priority' &&
-                    (['URGENT', 'HIGH', 'MEDIUM', 'LOW'] as Priority[]).map(
-                      (p) => (
-                        <button
-                          key={p}
-                          onClick={() => togglePriority(p)}
-                          className="px-2 py-1 text-xs flex w-full items-center justify-between rounded-md text-left hover:bg-accent hover:text-foreground"
-                        >
-                          <span className="capitalize">{p.toLowerCase()}</span>
-                          {filter.priorities.includes(p) && (
-                            <Check className="size-3 text-primary" />
-                          )}
-                        </button>
-                      ),
-                    )}
-
-                  {cat.id === 'assignee' &&
-                    (members.length === 0 ? (
-                      <p className="px-2 py-1 text-muted-foreground">
-                        No workspace members
-                      </p>
-                    ) : (
-                      members.map((m) => (
-                        <button
-                          key={m.id}
-                          onClick={() => toggleMember(m.id)}
-                          className="px-2 py-1 text-xs flex w-full items-center justify-between rounded-md text-left hover:bg-accent hover:text-foreground"
-                        >
-                          <span>{m.name}</span>
-                          {filter.memberIds.includes(m.id) && (
-                            <Check className="size-3 text-primary" />
-                          )}
-                        </button>
-                      ))
-                    ))}
-
-                  {cat.id === 'dates' && (
-                    <React.Fragment>
-                      {(
-                        ['today', 'overdue', 'week', 'none'] as DueFilter[]
-                      ).map((d) => (
-                        <button
-                          key={d}
-                          onClick={() => setDue(d)}
-                          className="px-2 py-1 text-xs flex w-full items-center justify-between rounded-md text-left hover:bg-accent hover:text-foreground"
-                        >
-                          <span className="capitalize">
-                            {d === 'none' ? 'No due date' : d}
-                          </span>
-                          {filter.due === d && (
-                            <Check className="size-3 text-primary" />
-                          )}
-                        </button>
-                      ))}
-                    </React.Fragment>
-                  )}
-
-                  {cat.id === 'milestones' &&
-                    (milestones.length === 0 ? (
-                      <p className="px-2 py-1 text-muted-foreground">
-                        This project has no milestones
-                      </p>
-                    ) : (
-                      milestones.map((ms) => (
-                        <button
-                          key={ms}
-                          onClick={() => toggleMilestone(ms)}
-                          className="px-2 py-1 text-xs flex w-full items-center justify-between rounded-md text-left hover:bg-accent hover:text-foreground"
-                        >
-                          <span>{ms}</span>
-                          {filter.milestones.includes(ms) && (
-                            <Check className="size-3 text-primary" />
-                          )}
-                        </button>
-                      ))
-                    ))}
-                </div>
-              )}
+        {needle ? (
+          matches.length === 0 ? (
+            <p className="px-2.5 py-1.5 text-body-sm text-muted-foreground">
+              No matching filters
+            </p>
+          ) : (
+            <div className={menuListClasses}>
+              {matches.map((cat, index) => (
+                <Fragment key={cat.id}>
+                  {index > 0 ? <DropdownMenuSeparator /> : null}
+                  <DropdownMenuLabel>{cat.label}</DropdownMenuLabel>
+                  {cat.options.map(renderOption)}
+                </Fragment>
+              ))}
             </div>
-          );
-        })}
-      </div>
-    </div>
+          )
+        ) : (
+          <>
+            <DropdownMenuItem
+              onSelect={() => {
+                smartPickedRef.current = true;
+                onActivateAIFilter();
+              }}
+            >
+              <Sparkles className="text-accent-violet" />
+              Smart filter
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {categories.map((cat) => {
+              const Icon = cat.icon;
+              return (
+                <DropdownMenuSub key={cat.id}>
+                  <DropdownMenuSubTrigger>
+                    <Icon />
+                    <span className="flex-1">{cat.label}</span>
+                    {cat.activeCount > 0 ? (
+                      <span className="px-1.5 min-w-5 rounded-full bg-brand/20 text-center text-xs font-medium text-brand-text tabular-nums">
+                        {cat.activeCount}
+                      </span>
+                    ) : null}
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-56">
+                    {cat.options.length === 0 ? (
+                      <p className="px-2.5 py-1.5 text-body-sm text-muted-foreground">
+                        {cat.empty}
+                      </p>
+                    ) : (
+                      <div className={menuListClasses}>
+                        {cat.options.map(renderOption)}
+                      </div>
+                    )}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              );
+            })}
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

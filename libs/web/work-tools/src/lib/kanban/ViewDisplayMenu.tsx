@@ -1,10 +1,13 @@
 import {
   AppSelect,
+  menuLabelClasses,
+  menuSeparatorClasses,
   Popover,
   PopoverContent,
   PopoverTrigger,
   Switch,
 } from '@org/ui';
+import { cn } from '@org/utils';
 import {
   FileText,
   FolderGit2,
@@ -81,6 +84,10 @@ const ORDER_OPTIONS: Array<{ value: BoardOrder; label: string }> = [
   { value: 'created', label: 'Newest first' },
 ];
 
+/** A menu-height row: label left, control right. */
+const menuRowClasses =
+  'flex min-h-7 cursor-pointer select-none items-center justify-between gap-3 rounded-menu-item px-2.5 py-1 text-body-sm text-foreground transition-colors hover:bg-accent';
+
 /** Board and list display options. They apply to this viewer only. */
 export function ViewDisplayMenu({
   open,
@@ -97,35 +104,31 @@ export function ViewDisplayMenu({
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-      <PopoverContent align="end" className="w-72 space-y-3 p-3 text-xs">
-        <div className="space-y-1.5">
-          <div className="gap-3 flex items-center justify-between">
-            <span className="font-medium text-foreground">Order by</span>
-            <AppSelect
-              size="sm"
-              className="w-36"
-              value={orderBy}
-              onValueChange={(value) => setOrderBy(value as BoardOrder)}
-              aria-label="Order by"
-              options={ORDER_OPTIONS}
-            />
-          </div>
-          {orderBy !== 'manual' ? (
-            <p className="text-meta text-muted-foreground">
-              Only changes your view. The team's manual order is kept.
-            </p>
-          ) : null}
+      {/* Same surface, labels and 28px rows as every menu (menu-styles.ts). */}
+      <PopoverContent align="end" className="w-64 rounded-menu p-1">
+        <div className={cn(menuRowClasses, 'cursor-default hover:bg-transparent')}>
+          <span>Order by</span>
+          <AppSelect
+            size="sm"
+            className="w-32"
+            value={orderBy}
+            onValueChange={(value) => setOrderBy(value as BoardOrder)}
+            aria-label="Order by"
+            options={ORDER_OPTIONS}
+          />
         </div>
+        {orderBy !== 'manual' ? (
+          <p className="px-2.5 pb-1.5 text-xs text-muted-foreground">
+            Only changes your view. The team's manual order is kept.
+          </p>
+        ) : null}
 
-        <div className="space-y-1 pt-3 border-t border-border/60">
-          <p className="mb-1.5 font-medium text-foreground">Show on cards</p>
-          {(
-            Object.keys(CARD_PROPERTY_LABELS) as Array<keyof CardProperties>
-          ).map((key) => (
-            <label
-              key={key}
-              className="gap-3 py-1 flex cursor-pointer items-center justify-between rounded-md text-muted-foreground hover:text-foreground"
-            >
+        <div className={menuSeparatorClasses} />
+
+        <p className={menuLabelClasses}>Show on cards</p>
+        {(Object.keys(CARD_PROPERTY_LABELS) as Array<keyof CardProperties>).map(
+          (key) => (
+            <label key={key} className={menuRowClasses}>
               <span>{CARD_PROPERTY_LABELS[key]}</span>
               <Switch
                 checked={card[key]}
@@ -133,8 +136,8 @@ export function ViewDisplayMenu({
                 aria-label={CARD_PROPERTY_LABELS[key]}
               />
             </label>
-          ))}
-        </div>
+          ),
+        )}
       </PopoverContent>
     </Popover>
   );

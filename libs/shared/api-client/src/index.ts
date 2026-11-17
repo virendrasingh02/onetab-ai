@@ -93,6 +93,8 @@ export {
   agentApiKeysApi,
   agentDeploymentsApi,
   publicAgentApi,
+  type AITaskFilterRequest,
+  type AITaskFilterResult,
   type AuthResponse,
   type SignInResponse,
   isTwoFactorChallenge,
