@@ -80,7 +80,11 @@ export function toSidebarActivityConfig(
 export type SidebarLayoutMode = 'sections' | 'activity';
 
 /** What the desktop app rail shows under each icon. */
-export type AppRailDisplay = 'icons-text' | 'icons';
+/**
+ * `labels` shows captions under the icons. `icons-text` is the pre-2026-11-17
+ * default and is read as icons-only, so the compact rail reaches everyone.
+ */
+export type AppRailDisplay = 'icons' | 'labels' | 'icons-text';
 
 /** The filter chips above the activity list. */
 export type ActivityListFilter = 'all' | 'unreads' | 'dms' | 'channels';
@@ -436,7 +440,7 @@ export const useSidebarStore = create<SidebarState>()(
       activityIndicators: { ...DEFAULT_ACTIVITY_INDICATORS },
       layoutMode: 'sections',
       activityFilter: 'all',
-      railDisplay: 'icons-text',
+      railDisplay: 'icons',
       channelSort: {},
       sectionDefs: {},
       channelMeta: {},
@@ -962,7 +966,7 @@ export const useSidebarStore = create<SidebarState>()(
           activityIndicators: { ...DEFAULT_ACTIVITY_INDICATORS },
           layoutMode: 'sections',
           activityFilter: 'all',
-          railDisplay: 'icons-text',
+          railDisplay: 'icons',
           channelSort: {},
           sectionDefs: {},
           channelMeta: {},

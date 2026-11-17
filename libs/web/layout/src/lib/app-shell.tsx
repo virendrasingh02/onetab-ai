@@ -737,38 +737,39 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
                   'cursor-col-resize select-none',
               )}
             >
-              {/* App rail: sits on the shell background, outside the three boxes,
-              and stays visible when the sidebar is collapsed or hidden. */}
-              {!isMobile ? (
-                <AppRail workspaceSlug={slug} inboxUnread={totalUnreadBadge} />
-              ) : null}
-
               {/*
-            Column 1 / Box 1: navigation rail.
-            Both rails sit one step *below* the editor panel — `surface-muted`
-            against the panel's `card` — which is the only tonal difference in
-            the shell. Everything else is carried by the 1px border and the 6px
-            gutter, so the three panes read as one flat surface set rather than
-            three floating cards.
+            Column 1 / Box 1: app rail + channels sidebar in one box.
+            The rail is the box's first column and stays when the sidebar is
+            collapsed or hidden (the box then holds the rail alone). Both sit
+            one step *below* the editor panel — `surface-muted` against the
+            panel's `card` — which is the only tonal difference in the shell.
           */}
-              {sidebarOpen && !isMobile ? (
+              {!isMobile ? (
                 <>
-                  <aside
-                    className="group/sidebar flex h-full shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-surface-muted text-sidebar-foreground transition-[width] duration-150"
-                    style={{ width: `${effectiveLeftWidth}px` }}
-                    aria-label="Sidebar navigation"
-                  >
-                    <div className="min-h-0 flex flex-1 flex-col">
-                      {channelNav}
-                    </div>
-                    {/* Desktop app prompt lives at the foot of the sidebar so it
-                    never takes a full-width row from the page. */}
-                    {!isSidebarCollapsed ? (
-                      <AppDownloadBanner workspaceId={workspaceId} />
+                  <div className="flex h-full shrink-0 overflow-hidden rounded-xl border border-border bg-surface-muted">
+                    <AppRail
+                      workspaceSlug={slug}
+                      inboxUnread={totalUnreadBadge}
+                    />
+                    {sidebarOpen ? (
+                      <aside
+                        className="group/sidebar flex h-full shrink-0 flex-col overflow-hidden border-l border-border text-sidebar-foreground transition-[width] duration-150"
+                        style={{ width: `${effectiveLeftWidth}px` }}
+                        aria-label="Sidebar navigation"
+                      >
+                        <div className="min-h-0 flex flex-1 flex-col">
+                          {channelNav}
+                        </div>
+                        {/* Desktop app prompt lives at the foot of the sidebar so it
+                        never takes a full-width row from the page. */}
+                        {!isSidebarCollapsed ? (
+                          <AppDownloadBanner workspaceId={workspaceId} />
+                        ) : null}
+                      </aside>
                     ) : null}
-                  </aside>
+                  </div>
 
-                  {!isSidebarCollapsed && (
+                  {sidebarOpen && !isSidebarCollapsed && (
                     <ResizeHandle
                       side="left"
                       isResizing={isResizing === 'left'}

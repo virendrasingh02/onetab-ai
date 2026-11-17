@@ -30,7 +30,7 @@ import { useSplitViewAction } from './split-view/use-split-view-action.js';
  * keeps working for them. Phones have no rail: `MobileBottomNav` and the
  * navigation drawer cover the same destinations.
  *
- * Labels sit under the icons by default; right-clicking anywhere on the rail
+ * Icons only by default (tooltips name them); right-clicking anywhere on the rail
  * switches between "Icons and text" and "Icons only" (`railDisplay`, synced
  * with the rest of the sidebar preferences).
  */
@@ -66,28 +66,21 @@ function RailLink({
   const count = activity?.unreadCount ?? 0;
   const caption = shortLabel ?? label;
   const className = cn(
-    'group/rail relative flex flex-col items-center rounded-xl',
+    'group/rail relative flex flex-col items-center rounded-lg',
     'outline-none focus-visible:ring-1 focus-visible:ring-ring',
-    showLabel ? 'gap-0.5 py-0.5 w-14' : 'size-10 justify-center',
+    showLabel ? 'gap-0.5 py-0.5 w-12' : 'size-8 justify-center',
   );
   const iconWrap = (
     <span
       className={cn(
-        'relative flex items-center justify-center rounded-xl',
+        'relative flex size-8 items-center justify-center rounded-lg',
         'transition-colors duration-(--duration-fast) ease-standard',
-        showLabel ? 'h-8 w-9' : 'size-10',
         active
-          ? [
-              'bg-primary/12 text-primary-text',
-              // The marker on the rail's edge that says "you are here".
-              'before:h-5 before:w-0.75 before:absolute',
-              'before:rounded-full before:bg-primary',
-              showLabel ? 'before:-left-3.5' : 'before:-left-1',
-            ]
-          : 'text-muted-foreground group-hover/rail:bg-accent/70 group-hover/rail:text-foreground',
+          ? 'bg-accent text-foreground'
+          : 'text-foreground group-hover/rail:bg-accent/70',
       )}
     >
-      <Icon className="size-5 shrink-0" aria-hidden />
+      <Icon className="size-4.5 shrink-0" strokeWidth={1.75} aria-hidden />
       {external ? null : (
         <SidebarActivityIndicator
           state={activity}
@@ -109,7 +102,7 @@ function RailLink({
             'transition-colors duration-(--duration-fast) ease-standard',
             active
               ? 'font-semibold text-foreground'
-              : 'font-medium text-muted-foreground group-hover/rail:text-foreground',
+              : 'font-medium text-foreground',
           )}
         >
           {caption}
@@ -165,14 +158,14 @@ function railDisplayActions(
       id: 'rail-show-icons-text',
       label: 'Icons and text',
       group: 'rail-show',
-      checked: current === 'icons-text',
-      run: () => set('icons-text'),
+      checked: current === 'labels',
+      run: () => set('labels'),
     },
     {
       id: 'rail-show-icons',
       label: 'Icons only',
       group: 'rail-show',
-      checked: current === 'icons',
+      checked: current !== 'labels',
       run: () => set('icons'),
     },
   ];
@@ -182,9 +175,9 @@ export function AppRail({ workspaceSlug, inboxUnread = 0 }: AppRailProps) {
   const { pathname } = useLocation();
   const itemsPrefs = useSidebarStore((s) => s.items);
   const splitAction = useSplitViewAction();
-  const railDisplay = useSidebarStore((s) => s.railDisplay) ?? 'icons-text';
+  const railDisplay = useSidebarStore((s) => s.railDisplay) ?? 'icons';
   const setRailDisplay = useSidebarStore((s) => s.setRailDisplay);
-  const showLabel = railDisplay !== 'icons';
+  const showLabel = railDisplay === 'labels';
   const displayActions = useMemo(
     () => railDisplayActions(railDisplay, setRailDisplay),
     [railDisplay, setRailDisplay],
@@ -216,15 +209,15 @@ export function AppRail({ workspaceSlug, inboxUnread = 0 }: AppRailProps) {
       <nav
         aria-label="App"
         className={cn(
-          'py-1 flex h-full shrink-0 flex-col items-center justify-between',
+          'py-2 flex h-full shrink-0 flex-col items-center justify-between',
           'transition-[width] duration-(--duration-fast) ease-standard',
-          showLabel ? 'w-16' : 'w-12',
+          showLabel ? 'w-14' : 'w-11',
         )}
       >
         <ul
           className={cn(
             'flex flex-col items-center',
-            showLabel ? 'gap-1.5' : 'gap-1',
+            showLabel ? 'gap-1' : 'gap-0.5',
           )}
         >
           {items.map((item) => (
@@ -249,6 +242,7 @@ export function AppRail({ workspaceSlug, inboxUnread = 0 }: AppRailProps) {
               </EntityContextMenu>
             </li>
           ))}
+          <li aria-hidden className="my-1.5 h-px w-5 bg-border" />
           <li>
             <RailLink
               to={studioAppUrl(studioWorkspacePath(workspaceSlug))}
