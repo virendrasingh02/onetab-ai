@@ -380,7 +380,7 @@ export function SkillBuilderPage() {
             rows={8}
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
-            className="w-full rounded-md border border-input bg-accent/20 p-3 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full rounded-md border border-input bg-accent/20 p-3 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-ring"
             placeholder="Write skill execution guidance here..."
           />
         </Card>
@@ -398,7 +398,7 @@ export function SkillBuilderPage() {
             rows={5}
             value={voiceTemplate}
             onChange={(e) => setVoiceTemplate(e.target.value)}
-            className="w-full rounded-md border border-input bg-accent/20 p-3 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full rounded-md border border-input bg-accent/20 p-3 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-ring"
             placeholder="Voice & style constraints..."
           />
         </Card>

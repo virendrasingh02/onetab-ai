@@ -191,7 +191,7 @@ function StagedAttachmentChip({
 const ACTION_BUTTON_CLASS =
   'size-8 flex touch-target shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40';
 const ACTION_BUTTON_ACTIVE_CLASS =
-  'bg-brand/15 text-brand-text hover:bg-brand/20 hover:text-brand-text';
+  'bg-selected text-foreground hover:bg-selected hover:text-foreground';
 
 function ActionDivider() {
   return (
@@ -1106,8 +1106,8 @@ export function Composer({
           className={cn(
             // Raised card with a soft brand halo on focus, so the composer
             // reads as the page's main input rather than one more bordered box.
-            'relative flex flex-col rounded-2xl border border-field-border theme-fixed bg-field shadow-elevated transition-[border-color,box-shadow] duration-200 focus-within:border-brand/70 focus-within:ring-4 focus-within:ring-brand/15 hover:border-brand/40',
-            isDraggingOver && 'border-brand ring-4 ring-brand/25',
+            'relative flex flex-col rounded-2xl border border-field-border theme-fixed bg-field shadow-elevated transition-[border-color,box-shadow] duration-200 focus-within:border-ring/60 focus-within:ring-4 focus-within:ring-ring/10 hover:border-ring/40',
+            isDraggingOver && 'border-ring ring-4 ring-ring/15',
             disabled && 'pointer-events-none opacity-60',
           )}
           onPaste={(event) => {

@@ -106,7 +106,7 @@ export function KnowledgeSourcePicker({
                       checked={isChecked}
                       disabled={disabled}
                       onChange={() => toggleSource(source.id)}
-                      className="size-3.5 rounded border-input text-primary focus:ring-primary"
+                      className="size-3.5 rounded border-input text-primary focus:ring-ring"
                     />
                   </div>
                   <p className="text-[11px] text-muted-foreground leading-snug">

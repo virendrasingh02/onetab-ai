@@ -54,7 +54,7 @@ export function GraphSearch({
           value={localVal}
           onChange={handleInputChange}
           placeholder={placeholder}
-          className="w-full pl-9 pr-9 py-2 text-xs rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all"
+          className="w-full pl-9 pr-9 py-2 text-xs rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring focus:border-ring transition-all"
         />
         {localVal && (
           <button
