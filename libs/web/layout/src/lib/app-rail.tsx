@@ -74,13 +74,22 @@ function RailLink({
     <span
       className={cn(
         'relative flex size-8 items-center justify-center rounded-lg',
-        'transition-colors duration-(--duration-fast) ease-standard',
+        'transition-[background-color,box-shadow,color] duration-(--duration-fast) ease-standard',
         active
-          ? 'bg-accent text-foreground'
+          ? [
+              // Selected: a raised white tile, plus a marker on the rail edge.
+              'bg-card text-foreground shadow-xs ring-1 ring-border',
+              'before:absolute before:h-4 before:w-0.75 before:rounded-full before:bg-foreground',
+              showLabel ? 'before:-left-3' : 'before:-left-1.5',
+            ]
           : 'text-foreground group-hover/rail:bg-accent/70',
       )}
     >
-      <Icon className="size-4.5 shrink-0" strokeWidth={1.75} aria-hidden />
+      <Icon
+        className="size-4.5 shrink-0"
+        strokeWidth={active ? 2.25 : 1.75}
+        aria-hidden
+      />
       {external ? null : (
         <SidebarActivityIndicator
           state={activity}
