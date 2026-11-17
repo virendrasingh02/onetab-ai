@@ -66,7 +66,8 @@ export function AIMessage({
     <div
       title={title}
       className={cn(
-        'gap-3 flex items-start',
+        'flex items-start',
+        isCompact ? 'gap-2' : 'gap-3',
         isUser ? 'flex-row-reverse' : 'flex-row',
       )}
     >
@@ -99,8 +100,11 @@ export function AIMessage({
           'min-w-0 leading-relaxed',
           isCompact ? 'text-xs' : 'text-sm',
           isUser
-            ? 'max-w-[80%] rounded-2xl bg-muted px-4 py-2.5 text-foreground'
-            : 'max-w-full flex-1 pt-1 text-foreground',
+            ? cn(
+                'max-w-[80%] rounded-2xl bg-muted text-foreground',
+                isCompact ? 'px-3 py-1.5' : 'px-4 py-2.5',
+              )
+            : cn('max-w-full flex-1 text-foreground', isCompact ? 'pt-0.5' : 'pt-1'),
         )}
       >
         <MarkdownMessage
