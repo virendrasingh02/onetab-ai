@@ -118,6 +118,16 @@ const WidgetBuilderPage = lazy(() =>
     default: module.WidgetBuilderPage,
   })),
 );
+const SkillsPage = lazy(() =>
+  import('./pages/skills-page.js').then((module) => ({
+    default: module.SkillsPage,
+  })),
+);
+const SkillBuilderPage = lazy(() =>
+  import('./pages/skill-builder-page.js').then((module) => ({
+    default: module.SkillBuilderPage,
+  })),
+);
 
 const BREADCRUMB_MAP: Record<string, { section: string; page: string }> = {
   '/create': { section: 'Build & Orchestrate', page: 'Create with AI' },
@@ -129,6 +139,8 @@ const BREADCRUMB_MAP: Record<string, { section: string; page: string }> = {
   '/coworkers': { section: 'Agents & Workflows', page: 'AI Coworkers' },
   '/workflows': { section: 'Agents & Workflows', page: 'Workflows' },
   '/templates': { section: 'Build & Orchestrate', page: 'Templates' },
+  '/skills/builder': { section: 'Build & Orchestrate', page: 'Skill Builder' },
+  '/skills': { section: 'Intelligence & Tools', page: 'AI Skills' },
   '/connectors': { section: 'Intelligence & Tools', page: 'App Connectors' },
   '/widgets': { section: 'Intelligence & Tools', page: 'Widget Center' },
   '/widgets/new': { section: 'Intelligence & Tools', page: 'Widget Builder' },
@@ -369,6 +381,11 @@ function StudioShell() {
                       <Route
                         path="widgets/:widgetId"
                         element={<WidgetBuilderPage />}
+                      />
+                      <Route path="skills" element={<SkillsPage />} />
+                      <Route
+                        path="skills/builder"
+                        element={<SkillBuilderPage />}
                       />
                       <Route path="tools" element={<ToolsPage />} />
                       <Route path="tool-access" element={<ToolAccessPage />} />

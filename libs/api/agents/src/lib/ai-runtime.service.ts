@@ -1703,9 +1703,16 @@ export class AIRuntimeService {
       : '';
 
     const rulesAndAutonomy = buildRulesAndAutonomyPrompt(runtime);
+    const skillsList = Array.isArray((entity.configuration as any)?.skills)
+      ? (entity.configuration as any).skills
+      : [];
+    const skillsNote =
+      skillsList.length > 0
+        ? `\n\n## Assigned Skills\nYou have ${skillsList.length} specialized skills assigned (${skillsList.map((s: any) => s.skillId).join(', ')}). When handling domain-specific tasks matching these skills, invoke them using the 'execute_skill' tool with the corresponding skillId and inputs.`
+        : '';
     const plan: TurnPlan = {
       kind: 'agent',
-      systemPrompt: `${entity.systemPrompt}${format}${teamGuidance}${rulesAndAutonomy}${connectionNote}\n\nWorkspace ID: ${workspaceId}${memoryContext}${knowledgeContext}`,
+      systemPrompt: `${entity.systemPrompt}${skillsNote}${format}${teamGuidance}${rulesAndAutonomy}${connectionNote}\n\nWorkspace ID: ${workspaceId}${memoryContext}${knowledgeContext}`,
       toolSchemas: [
         ...builtinSchemas,
         ...memberSchemas,
@@ -2733,6 +2740,14 @@ export class AIRuntimeService {
     if (context.projectName) {
       lines.push(
         `This conversation concerns the "${context.projectName}" project.`,
+      );
+    }
+    const coworkerSkills = Array.isArray((coworker.configuration as any)?.skills)
+      ? (coworker.configuration as any).skills
+      : [];
+    if (coworkerSkills.length > 0) {
+      lines.push(
+        `Assigned Skills: You have access to ${coworkerSkills.length} specialized skills (${coworkerSkills.map((s: any) => s.skillId).join(', ')}). Invoke them using the 'execute_skill' tool when a request matches their capabilities.`,
       );
     }
     lines.push(

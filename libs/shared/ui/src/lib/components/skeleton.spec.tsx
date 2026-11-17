@@ -88,11 +88,11 @@ describe('Skeleton primitives', () => {
     expect(nav).toHaveAttribute('aria-busy', 'true');
   });
 
-  it('renders ChatHeaderSkeleton preserving min-h-12 and sticky positioning', () => {
+  it('renders ChatHeaderSkeleton preserving min-h-11 and sticky positioning', () => {
     const { container } = render(<ChatHeaderSkeleton avatarShape="circle" />);
     const header = container.querySelector('[data-slot="chat-header-skeleton"]');
     expect(header).not.toBeNull();
-    expect(header?.querySelector('.min-h-12')).not.toBeNull();
+    expect(header?.querySelector('.min-h-11')).not.toBeNull();
     expect(header?.className).toContain('sticky');
   });
 

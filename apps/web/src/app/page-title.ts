@@ -116,6 +116,7 @@ const ROOT_STATIC_TITLES: Record<string, string> = {
   '/reset-password': 'Reset your password',
   '/workspaces/new': 'Create a workspace',
   '/settings': 'Settings',
+  '/search': 'Search',
   '/404': 'Page not found',
 };
 

@@ -677,9 +677,9 @@ export function MessageList({
         // Tell the virtualizer where we put the bar. Its own size-change
         // corrections (ResizeObserver, later this frame) are relative to the
         // offset it last saw — left stale, they would undo this write and the
-        // rows would visibly hop for a frame.
+        // rows would visibly hop for a frame. (virtual-core folds corrections
+        // into `scrollOffset` now, so there is no separate adjustment to reset.)
         virtualizer.scrollOffset = element.scrollTop - getListOffset();
-        virtualizer.scrollAdjustments = 0;
         anchor.lastHeight = height;
       }
     }

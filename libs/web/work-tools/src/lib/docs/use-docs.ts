@@ -174,15 +174,12 @@ function starterBlocks(title: string, template?: string): NotionBlock[] {
     ];
   }
 
-  return [
-    { id: blockId(), type: 'h1', content: title },
-    {
-      id: blockId(),
-      type: 'paragraph',
-      content:
-        'Press / to insert blocks (Headings, Checklists, Callouts, Code, Tables, AI Copilot)…',
-    },
-  ];
+  // A blank doc starts with one empty paragraph. `DocHeader` already shows the
+  // editable title, so an h1 block repeating it looked like the title but was
+  // not — edits to it never reached the doc list, the tab title or search. The
+  // block's own placeholder carries the "/" hint.
+  void title;
+  return [{ id: blockId(), type: 'paragraph', content: '' }];
 }
 
 const TEMPLATE_META: Record<string, Pick<DocMeta, 'icon' | 'cover'>> = {

@@ -1549,7 +1549,7 @@ export class OneTabMatrixClient {
     await withRetry(() =>
       sdk.sendMessage(
         roomId,
-        options.threadRootId ?? null,
+        this.threadTarget(sdk, roomId, options.threadRootId),
         content as never,
         transactionId,
       ),
@@ -1811,7 +1811,7 @@ export class OneTabMatrixClient {
     withRetry(() =>
       sdk.sendMessage(
         roomId,
-        options.threadRootId ?? null,
+        this.threadTarget(sdk, roomId, options.threadRootId),
         content as never,
         transactionId,
       ),
@@ -1927,7 +1927,7 @@ export class OneTabMatrixClient {
     withRetry(() =>
       sdk.sendMessage(
         roomId,
-        retriedMessage.threadRootId ?? null,
+        this.threadTarget(sdk, roomId, retriedMessage.threadRootId),
         content as never,
         newTxnId,
       ),
@@ -2244,6 +2244,29 @@ export class OneTabMatrixClient {
   }
 
   // --- threads -------------------------------------------------------------
+
+  /**
+   * The thread id to send into, making sure the SDK has a `Thread` for it.
+   *
+   * The SDK creates a thread when a reply arrives from someone else, but it
+   * short-circuits the echo of a reply we sent ourselves — so the first reply
+   * to a message never got a thread, and dropped out of "N replies", the
+   * panel and the Threads page as soon as the room view was rebuilt (until a
+   * reload fetched it from the server). Creating it up front fixes that.
+   */
+  private threadTarget(
+    sdk: SdkClient,
+    roomId: RoomId,
+    rootId: EventId | null | undefined,
+  ): EventId | null {
+    if (!rootId) return null;
+    const room = sdk.getRoom(roomId);
+    if (room && !room.getThread(rootId)) {
+      const rootEvent = room.findEventById(rootId);
+      if (rootEvent) room.createThread(rootId, rootEvent, [], false);
+    }
+    return rootId;
+  }
 
   getThreads(roomId: RoomId): Thread[] {
     const sdk = this.require();
@@ -2759,7 +2782,11 @@ export class OneTabMatrixClient {
     const content = fileMessageContent(file, contentUri, options.voice, size);
 
     await withRetry(() =>
-      sdk.sendMessage(roomId, options.threadRootId ?? null, content as never),
+      sdk.sendMessage(
+        roomId,
+        this.threadTarget(sdk, roomId, options.threadRootId),
+        content as never,
+      ),
     );
   }
 
@@ -2843,7 +2870,11 @@ export class OneTabMatrixClient {
           : {}),
       };
       await withRetry(() =>
-        sdk.sendMessage(roomId, options.threadRootId ?? null, content as never),
+        sdk.sendMessage(
+          roomId,
+          this.threadTarget(sdk, roomId, options.threadRootId),
+          content as never,
+        ),
       );
     }
 

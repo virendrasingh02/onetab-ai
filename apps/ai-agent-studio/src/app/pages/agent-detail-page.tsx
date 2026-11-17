@@ -168,6 +168,7 @@ import {
   type CanvasNodeStatus,
 } from '../components/workflow-canvas/run-console-drawer.js';
 import { AgentCopilotPanel } from '../components/agent-architect/agent-copilot-panel.js';
+import { AgentSkillsTab } from '../components/agent-detail/agent-skills-tab.js';
 import { AgentConnectorsTab } from '../components/agent-detail/agent-connectors-tab.js';
 import { MemoryTab } from '../components/agent-detail/memory-tab.jsx';
 import { VariablesTab } from '../components/agent-detail/variables-tab.jsx';
@@ -442,6 +443,7 @@ function slotRowLabel(slotId: string, n: Node): string {
 
 const AGENT_TABS = [
   { id: 'build', label: 'Canvas', icon: GitBranch },
+  { id: 'skills', label: 'Skills', icon: Sparkles },
   { id: 'connectors', label: 'Connectors', icon: Plug },
   { id: 'memory', label: 'Memory', icon: Brain },
   { id: 'variables', label: 'Secrets', icon: KeyRound },
@@ -460,7 +462,7 @@ const AGENT_TAB_GROUPS: readonly {
   tabs: readonly AgentTab[];
 }[] = [
   { label: 'Canvas', icon: GitBranch, tabs: ['build'] },
-  { label: 'Setup', icon: Plug, tabs: ['connectors', 'memory', 'variables'] },
+  { label: 'Setup', icon: Plug, tabs: ['skills', 'connectors', 'memory', 'variables'] },
   { label: 'Runs', icon: Activity, tabs: ['executions', 'evaluations'] },
   { label: 'Deploy', icon: Rocket, tabs: ['deploy'] },
   { label: 'Release', icon: Clock, tabs: ['versions', 'marketplace'] },
@@ -5348,6 +5350,16 @@ export function AgentDetailPage() {
               />
             )}
           </div>
+        )}
+
+        {/* TAB: UNIVERSAL AI SKILLS */}
+        {activeTab === 'skills' && (
+          <AgentSkillsTab
+            agent={agent}
+            onChanged={() =>
+              queryClient.invalidateQueries({ queryKey: agentQueryKey })
+            }
+          />
         )}
 
         {/* TAB: APP CONNECTORS & TOOLS */}

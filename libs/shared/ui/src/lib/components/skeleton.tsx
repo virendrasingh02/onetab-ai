@@ -342,7 +342,7 @@ export interface ChatHeaderSkeletonProps extends ComponentProps<'div'> {
 
 /**
  * Sticky chat header skeleton matching channels, DMs, agents, coworkers, and apps.
- * Preserves the exact min-h-12 and sticky layout to eliminate layout shifting.
+ * Mirrors `PageBar` (min-h-11, same padding) and the sticky layout so nothing shifts on load.
  */
 export function ChatHeaderSkeleton({
   avatarShape = 'circle',
@@ -364,7 +364,12 @@ export function ChatHeaderSkeleton({
       {...props}
     >
       <span className="sr-only">Loading conversation header…</span>
-      <div className="gap-2.5 px-3 sm:px-6 py-1.5 min-h-12 flex flex-wrap items-center justify-between">
+      <div
+        className={cn(
+          'gap-2.5 px-3 sm:px-6 min-h-11 flex flex-wrap items-center justify-between',
+          hasTabs ? 'pt-2 pb-1' : 'py-1.5',
+        )}
+      >
         {/* Left Side: Avatar/Icon + Title + Status/Badge */}
         <div className="min-w-0 gap-2.5 flex items-center">
           <SkeletonAvatar
@@ -388,7 +393,7 @@ export function ChatHeaderSkeleton({
 
       {/* Tabs strip */}
       {hasTabs ? (
-        <div className="px-3 sm:px-6 h-9 gap-4 flex items-center border-t border-border/40">
+        <div className="px-3 sm:px-6 h-9 gap-4 flex items-center">
           <Skeleton className="h-4 w-12 rounded" />
           <Skeleton className="h-4 w-20 rounded" />
           <Skeleton className="h-4 w-12 rounded" />

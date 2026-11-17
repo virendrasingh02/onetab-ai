@@ -30,6 +30,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SettingsSectionHeader,
   SkeletonList,
   UserAvatar,
 } from '@org/ui';
@@ -277,53 +278,52 @@ export function WorkspaceMembersSettings({
   return (
     <div className="space-y-6">
       {/* Header & Quick Actions */}
-      <div className="sm:flex-row sm:items-center gap-4 flex flex-col justify-between">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight gap-2 flex items-center text-foreground">
-            <span>Members & Team Directory</span>
-            <Badge variant="neutral" className="text-xs px-2 font-semibold">
-              {totalCount} {totalCount === 1 ? 'member' : 'members'}
-            </Badge>
-          </h2>
-          <p className="text-xs sm:text-sm mt-0.5 text-muted-foreground">
-            {isAdmin
-              ? `Manage who has access to ${workspaceName}, assign administrative roles, and send invitations.`
-              : `Everyone who has access to ${workspaceName}.`}
-          </p>
-        </div>
-
-        {isAdmin ? (
-          <div className="gap-2.5 sm:self-auto flex shrink-0 items-center self-start">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleCopyInviteLink}
-              className="text-xs font-medium"
-            >
-              {copiedLink ? (
-                <>
-                  <Check className="size-3.5 mr-1 text-success-text" />
-                  <span>Link Copied!</span>
-                </>
-              ) : (
-                <>
-                  <LinkIcon className="size-3.5 mr-1" />
-                  <span>Copy Invite Link</span>
-                </>
-              )}
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => setInviteMembersOpen(true)}
-              className="text-xs font-semibold shadow-xs"
-            >
-              <UserPlus className="size-3.5 mr-1.5" />
-              <span>Invite Members</span>
-            </Button>
-          </div>
-        ) : null}
-      </div>
+      <SettingsSectionHeader
+        title="Members & Team Directory"
+        badge={
+          <Badge variant="neutral" className="text-xs px-2 font-semibold">
+            {totalCount} {totalCount === 1 ? 'member' : 'members'}
+          </Badge>
+        }
+        description={
+          isAdmin
+            ? `Manage who has access to ${workspaceName}, assign administrative roles, and send invitations.`
+            : `Everyone who has access to ${workspaceName}.`
+        }
+        actions={
+          isAdmin ? (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCopyInviteLink}
+                className="text-xs font-medium"
+              >
+                {copiedLink ? (
+                  <>
+                    <Check className="size-3.5 mr-1 text-success-text" />
+                    <span>Link Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <LinkIcon className="size-3.5 mr-1" />
+                    <span>Copy Invite Link</span>
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setInviteMembersOpen(true)}
+                className="text-xs font-semibold shadow-xs"
+              >
+                <UserPlus className="size-3.5 mr-1.5" />
+                <span>Invite Members</span>
+              </Button>
+            </>
+          ) : null
+        }
+      />
 
       {/* Upgrade Plan Hero Banner — only for people who can act on it */}
       {canManageBilling ? (

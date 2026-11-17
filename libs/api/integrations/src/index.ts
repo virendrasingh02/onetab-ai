@@ -23,6 +23,9 @@ export { MicrosoftTeamsProvider } from './lib/providers/microsoft-teams.provider
 export { CustomApiProvider } from './lib/providers/custom-api.provider.js';
 export { OneTabAppProvider } from './lib/providers/onetab-app.provider.js';
 export { AttendanceProvider } from './lib/providers/attendance.provider.js';
+export { YouTubeProvider } from './lib/providers/youtube.provider.js';
+export { LinkedInProvider } from './lib/providers/linkedin.provider.js';
+export { InstagramProvider } from './lib/providers/instagram.provider.js';
 
 export type {
   ActionContext,

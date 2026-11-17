@@ -36,3 +36,21 @@ export { AgentRuntimeBridgeService } from './lib/deployments/agent-runtime-bridg
 export { AgentDeploymentController } from './lib/deployments/agent-deployment.controller.js';
 export { AgentApiKeysController } from './lib/deployments/agent-api-keys.controller.js';
 export { AgentPublicController } from './lib/deployments/agent-public.controller.js';
+export { SkillSandboxService } from './lib/skills/skill-sandbox.service.js';
+export { SkillRegistryService } from './lib/skills/skill-registry.service.js';
+export { SkillRuntimeService } from './lib/skills/skill-runtime.service.js';
+export { SkillImporterService } from './lib/skills/skill-importer.service.js';
+export { SkillBuilderService } from './lib/skills/skill-builder.service.js';
+export { AgentSkillCompositionService } from './lib/skills/agent-skill-composition.service.js';
+export { SkillsController, AgentSkillsController } from './lib/skills/skills.controller.js';
+export {
+  YOUTUBE_AGENT_PROFILE,
+  LINKEDIN_AGENT_PROFILE,
+  INSTAGRAM_AGENT_PROFILE,
+} from './lib/skills/agent-skill-composition.service.js';
+export {
+  YOUTUBE_SKILLS,
+  LINKEDIN_SKILLS,
+  INSTAGRAM_SKILLS,
+  ALL_SEEDED_SKILLS,
+} from './lib/skills/social/social-skills.seeds.js';

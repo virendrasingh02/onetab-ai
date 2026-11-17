@@ -626,3 +626,4 @@ export type {
   AiEntityIdentity,
 } from './lib/ai-entity-identity.js';
 export * from './lib/knowledge-graph.js';
+export * from './lib/skill-package.js';

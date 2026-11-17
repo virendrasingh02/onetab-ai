@@ -1,4 +1,11 @@
-import { Badge, Button, EmptyState, SearchInput, SkeletonList } from '@org/ui';
+import {
+  Badge,
+  Button,
+  EmptyState,
+  PageBar,
+  SearchInput,
+  SkeletonList,
+} from '@org/ui';
 import { formatCount } from '@org/utils';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import { Hash, Lock, Plus, Search } from 'lucide-react';
@@ -28,34 +35,16 @@ export function BrowseChannelsPage() {
 
   return (
     <div className="min-h-0 flex flex-1 flex-col">
-      {/* Channel-style Header */}
-      <div className="border-b border-border bg-background">
-        <div className="gap-2.5 px-3 sm:px-6 py-1.5 min-h-12 flex flex-wrap items-center justify-between">
-          <div className="min-w-0 gap-2 flex items-center">
-            <div className="min-w-0 gap-1.5 flex items-center">
-              <Hash
-                className="size-4 shrink-0 text-muted-foreground"
-                aria-hidden
-              />
-              <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
-                Browse channels
-              </h2>
-              <Badge
-                variant="neutral"
-                className="px-1.5 py-0 h-4.5 text-meta"
-              >
-                {formatCount(filtered.length)}
-              </Badge>
-            </div>
-
-            {/* <div className="h-4 mx-1 sm:block hidden w-px bg-border" />
-
-            <p className="min-w-0 text-xs sm:block hidden max-w-[48ch] truncate text-muted-foreground">
-              Discover and join public or private channels in this workspace
-            </p> */}
-          </div>
-
-          <div className="gap-2 flex items-center">
+      <PageBar
+        icon={<Hash />}
+        title="Browse channels"
+        meta={
+          <Badge variant="neutral" className="px-1.5 py-0 h-4.5 text-meta">
+            {formatCount(filtered.length)}
+          </Badge>
+        }
+        actions={
+          <>
             <SearchInput
               value={query}
               onValueChange={setQuery}
@@ -80,9 +69,9 @@ export function BrowseChannelsPage() {
             >
               Create channel
             </Button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <div className="min-h-0 p-4 sm:p-6 flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto">

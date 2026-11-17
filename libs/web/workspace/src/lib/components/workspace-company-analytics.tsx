@@ -22,6 +22,7 @@ import {
   TabsContent,
   TabsTrigger,
   ResponsiveTabsList,
+  SettingsSectionHeader,
   toast,
 } from '@org/ui';
 import {
@@ -126,25 +127,19 @@ export function WorkspaceCompanyAnalytics({
 
   return (
     <div className="space-y-6">
-      <div className="gap-4 sm:flex-row sm:items-center flex flex-col justify-between">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight gap-2 flex items-center text-foreground">
-            <BarChart3 className="size-5 text-primary" aria-hidden />
-            <span>Company Analytics & Usage</span>
-          </h2>
-          <p className="text-xs sm:text-sm mt-0.5 text-muted-foreground">
-            Activity trends, engagement and resource quotas for {workspaceName}.
-          </p>
-        </div>
-
-        <div className="gap-2 flex shrink-0 flex-wrap items-center">
-          <DateRangeFilter value={range} onChange={setRange} />
-          <RefreshButton
-            onClick={() => void active.refetch()}
-            busy={active.isFetching}
-          />
-        </div>
-      </div>
+      <SettingsSectionHeader
+        title="Company Analytics & Usage"
+        description={`Activity trends, engagement and resource quotas for ${workspaceName}.`}
+        actions={
+          <>
+            <DateRangeFilter value={range} onChange={setRange} />
+            <RefreshButton
+              onClick={() => void active.refetch()}
+              busy={active.isFetching}
+            />
+          </>
+        }
+      />
 
       <Tabs
         value={tab}

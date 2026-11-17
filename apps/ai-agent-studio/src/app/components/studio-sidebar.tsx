@@ -24,6 +24,7 @@ import {
   MessageSquare,
   Settings,
   ShieldAlert,
+  Sparkles,
   UserPlus,
   Wand2,
   Wrench,
@@ -104,12 +105,22 @@ export function buildNavGroups(slug: string): NavGroup[] {
           label: 'Templates',
           icon: Layers,
         },
+        {
+          to: '/skills/builder',
+          label: 'Skill Builder',
+          icon: Wand2,
+        },
       ],
     },
     {
       id: 'intelligence-tools',
       title: 'Intelligence & Tools',
       items: [
+        {
+          to: '/skills',
+          label: 'AI Skills',
+          icon: Sparkles,
+        },
         {
           to: '/connectors',
           label: 'App Connectors',

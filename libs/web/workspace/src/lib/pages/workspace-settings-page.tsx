@@ -3618,16 +3618,20 @@ export function WorkspaceSettingsPage({
         </div>
       )}
 
+      {/* Reached by URL only (the nav hides it): say why instead of a blank page. */}
+      {currentTab === 'danger' && !isOwner && (
+        <SettingsSectionHeader
+          title="Danger Zone"
+          description="Only the workspace owner can archive or delete this workspace."
+        />
+      )}
+
       {currentTab === 'danger' && isOwner && (
         <div className="space-y-8">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-destructive">
-              Danger Zone
-            </h1>
-            <p className="text-xs mt-1 text-muted-foreground">
-              Archiving is reversible. Deletion is not.
-            </p>
-          </div>
+          <SettingsSectionHeader
+            title="Danger Zone"
+            description="Archiving is reversible. Deletion is not."
+          />
 
           {/*
             Archive sits above delete deliberately: it answers most of the same

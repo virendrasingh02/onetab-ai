@@ -25,3 +25,4 @@ export * from './lib/widget-system.schema.js';
 export * from './lib/agent-deployment.schema.js';
 export * from './lib/enterprise-sso.schema.js';
 export * from './lib/people.schema.js';
+export * from './lib/skill-package.schema.js';

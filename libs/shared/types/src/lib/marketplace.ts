@@ -14,6 +14,7 @@ export const MARKETPLACE_KINDS = [
   'COMPONENT',
   'INTEGRATION',
   'TEMPLATE',
+  'SKILL',
 ] as const;
 
 export type MarketplaceKind = (typeof MARKETPLACE_KINDS)[number];

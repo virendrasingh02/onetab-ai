@@ -37,6 +37,23 @@ import { AgentDeploymentController } from './deployments/agent-deployment.contro
 import { AgentApiKeysController } from './deployments/agent-api-keys.controller.js';
 import { AgentPublicController } from './deployments/agent-public.controller.js';
 
+import { SkillSandboxService } from './skills/skill-sandbox.service.js';
+import { SkillRegistryService } from './skills/skill-registry.service.js';
+import { SkillRuntimeService } from './skills/skill-runtime.service.js';
+import { SkillImporterService } from './skills/skill-importer.service.js';
+import { SkillBuilderService } from './skills/skill-builder.service.js';
+import { AgentSkillCompositionService } from './skills/agent-skill-composition.service.js';
+import { ScriptSkillAdapter } from './skills/adapters/script-skill.adapter.js';
+import { InstructionSkillAdapter } from './skills/adapters/instruction-skill.adapter.js';
+import { ToolCallingSkillAdapter } from './skills/adapters/tool-calling-skill.adapter.js';
+import { ApiSkillAdapter } from './skills/adapters/api-skill.adapter.js';
+import { DataTransformationSkillAdapter } from './skills/adapters/data-transformation-skill.adapter.js';
+import { CompositeSkillAdapter } from './skills/adapters/composite-skill.adapter.js';
+import {
+  AgentSkillsController,
+  SkillsController,
+} from './skills/skills.controller.js';
+
 @Module({
   imports: [
     ConfigModule,
@@ -60,6 +77,8 @@ import { AgentPublicController } from './deployments/agent-public.controller.js'
     AgentDeploymentController,
     AgentApiKeysController,
     AgentPublicController,
+    SkillsController,
+    AgentSkillsController,
   ],
   providers: [
     AgentsService,
@@ -80,6 +99,18 @@ import { AgentPublicController } from './deployments/agent-public.controller.js'
     AgentSessionService,
     AgentDeploymentWebhookService,
     AgentRuntimeBridgeService,
+    SkillSandboxService,
+    SkillRegistryService,
+    SkillRuntimeService,
+    SkillImporterService,
+    SkillBuilderService,
+    AgentSkillCompositionService,
+    ScriptSkillAdapter,
+    InstructionSkillAdapter,
+    ToolCallingSkillAdapter,
+    ApiSkillAdapter,
+    DataTransformationSkillAdapter,
+    CompositeSkillAdapter,
   ],
   exports: [
     AIResourceManageGuard,
@@ -93,6 +124,12 @@ import { AgentPublicController } from './deployments/agent-public.controller.js'
     AgentSessionService,
     AgentDeploymentWebhookService,
     AgentRuntimeBridgeService,
+    SkillSandboxService,
+    SkillRegistryService,
+    SkillRuntimeService,
+    SkillImporterService,
+    SkillBuilderService,
+    AgentSkillCompositionService,
   ],
 })
 export class AgentsModule {}

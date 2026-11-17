@@ -48,6 +48,9 @@ import { BambooHRProvider } from '../providers/bamboohr.provider.js';
 import { ZohoPeopleProvider } from '../providers/zoho-people.provider.js';
 import { MicrosoftTeamsProvider } from '../providers/microsoft-teams.provider.js';
 import { AttendanceProvider } from '../providers/attendance.provider.js';
+import { YouTubeProvider } from '../providers/youtube.provider.js';
+import { LinkedInProvider } from '../providers/linkedin.provider.js';
+import { InstagramProvider } from '../providers/instagram.provider.js';
 import { IntegrationEncryptionService } from './integration-encryption.service.js';
 import { OAuthAppCredentialsService } from './oauth-app-credentials.service.js';
 import type { ProviderAdapter, ResolvedCredential } from './provider-adapter.interface.js';
@@ -102,6 +105,9 @@ export class IntegrationManagerService implements OnModuleInit {
     @Optional() private readonly sendGridProvider?: SendGridProvider,
     @Optional() private readonly bambooHRProvider?: BambooHRProvider,
     @Optional() private readonly zohoPeopleProvider?: ZohoPeopleProvider,
+    @Optional() private readonly youtubeProvider?: YouTubeProvider,
+    @Optional() private readonly linkedinProvider?: LinkedInProvider,
+    @Optional() private readonly instagramProvider?: InstagramProvider,
     @Optional() private readonly oauthApps?: OAuthAppCredentialsService,
   ) {}
 
@@ -124,7 +130,7 @@ export class IntegrationManagerService implements OnModuleInit {
     if (this.attendanceProvider) {
       this.registerAdapter(this.attendanceProvider);
     }
-    for (const adapter of [this.shopifyProvider, this.whatsappProvider, this.wordpressProvider, this.vercelProvider, this.hubspotProvider, this.jiraProvider, this.clickupProvider, this.asanaProvider, this.zendeskProvider, this.intercomProvider, this.airtableProvider, this.stripeProvider, this.razorpayProvider, this.woocommerceProvider, this.telegramProvider, this.salesforceProvider, this.quickBooksProvider, this.xeroProvider, this.docuSignProvider, this.gitLabProvider, this.bitbucketProvider, this.circleCiProvider, this.sendGridProvider, this.bambooHRProvider, this.zohoPeopleProvider]) {
+    for (const adapter of [this.shopifyProvider, this.whatsappProvider, this.wordpressProvider, this.vercelProvider, this.hubspotProvider, this.jiraProvider, this.clickupProvider, this.asanaProvider, this.zendeskProvider, this.intercomProvider, this.airtableProvider, this.stripeProvider, this.razorpayProvider, this.woocommerceProvider, this.telegramProvider, this.salesforceProvider, this.quickBooksProvider, this.xeroProvider, this.docuSignProvider, this.gitLabProvider, this.bitbucketProvider, this.circleCiProvider, this.sendGridProvider, this.bambooHRProvider, this.zohoPeopleProvider, this.youtubeProvider, this.linkedinProvider, this.instagramProvider]) {
       if (adapter) this.registerAdapter(adapter);
     }
     this.logger.log(`Initialized IntegrationManager with ${this.adapters.size} providers.`);

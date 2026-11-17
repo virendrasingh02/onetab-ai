@@ -13,6 +13,7 @@ import {
   TableRow,
   UsageMeter,
   confirm,
+  SettingsSectionHeader,
   toast,
 } from '@org/ui';
 import { billingApi, queryKeys } from '@org/api-client';
@@ -259,12 +260,10 @@ export function WorkspaceBillingSettings({
       )}
 
       {/* 1. Header & Active Plan Overview */}
-      <div className="sm:flex-row sm:items-center gap-4 p-6 flex flex-col items-start justify-between rounded-xl border border-border bg-gradient-to-br from-card via-card to-surface-muted/40 shadow-xs">
-        <div className="space-y-1.5">
-          <div className="gap-3 flex items-center">
-            <h2 className="text-xl font-bold tracking-tight text-foreground">
-              Plans & Billing
-            </h2>
+      <SettingsSectionHeader
+        title="Plans & Billing"
+        badge={
+          <>
             <PlanBadge plan={plan} size="md" variant="gradient" />
             {subscription?.status === 'ACTIVE' && (
               <Badge variant="primary" className="font-semibold text-2xs">
@@ -284,31 +283,34 @@ export function WorkspaceBillingSettings({
                 TEST MODE
               </Badge>
             )}
-          </div>
-          <p className="text-xs md:text-sm text-muted-foreground">
+          </>
+        }
+        description={
+          <>
             Manage your subscription tier, micro-agent compute limits, shared AI
             credits, and billing settings for{' '}
             <strong className="text-foreground">{currentWorkspaceName}</strong>.
-          </p>
-        </div>
-
-        {subscription?.renewAt && plan !== 'free' && (
-          <div className="gap-2 text-xs px-3 py-1.5 flex shrink-0 items-center rounded-lg border border-border bg-surface-muted text-muted-foreground">
-            <Calendar className="size-3.5 text-primary" />
-            <span>
-              {pendingChange
-                ? `${pendingChange} on`
-                : subscription.source === 'PROMOTION'
-                  ? 'Coupon plan ends'
-                  : 'Renews'}{' '}
-              {new Date(
-                subscription.currentPeriodEnd ?? subscription.renewAt,
-              ).toLocaleDateString()}{' '}
-              ({subscription.billingInterval})
-            </span>
-          </div>
-        )}
-      </div>
+          </>
+        }
+        actions={
+          subscription?.renewAt && plan !== 'free' ? (
+            <div className="gap-2 text-xs px-3 py-1.5 flex shrink-0 items-center rounded-lg border border-border bg-surface-muted text-muted-foreground">
+              <Calendar className="size-3.5 text-primary" />
+              <span>
+                {pendingChange
+                  ? `${pendingChange} on`
+                  : subscription.source === 'PROMOTION'
+                    ? 'Coupon plan ends'
+                    : 'Renews'}{' '}
+                {new Date(
+                  subscription.currentPeriodEnd ?? subscription.renewAt,
+                ).toLocaleDateString()}{' '}
+                ({subscription.billingInterval})
+              </span>
+            </div>
+          ) : undefined
+        }
+      />
 
       {/* 2. Active Trial & Promo Alerts */}
       <div className="space-y-3">

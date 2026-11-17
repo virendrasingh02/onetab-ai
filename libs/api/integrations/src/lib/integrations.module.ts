@@ -69,6 +69,9 @@ import { SendGridProvider } from './providers/sendgrid.provider.js';
 import { BambooHRProvider } from './providers/bamboohr.provider.js';
 import { ZohoPeopleProvider } from './providers/zoho-people.provider.js';
 import { WordPressProvider } from './providers/wordpress.provider.js';
+import { YouTubeProvider } from './providers/youtube.provider.js';
+import { LinkedInProvider } from './providers/linkedin.provider.js';
+import { InstagramProvider } from './providers/instagram.provider.js';
 import { SlackImporterService } from './slack-importer.service.js';
 import { WebhooksController } from './webhooks.controller.js';
 import { MigrationController } from './migration/migration.controller.js';
@@ -166,6 +169,9 @@ import { MigrationEngineService } from './migration/migration-engine.service.js'
     SendGridProvider,
     BambooHRProvider,
     ZohoPeopleProvider,
+    YouTubeProvider,
+    LinkedInProvider,
+    InstagramProvider,
 
     // Importers
     SlackImporterService,
@@ -197,6 +203,9 @@ import { MigrationEngineService } from './migration/migration-engine.service.js'
     TrelloProvider,
     CustomApiProvider,
     AttendanceProvider,
+    YouTubeProvider,
+    LinkedInProvider,
+    InstagramProvider,
     SlackImporterService,
     NotionImporterService,
     SlackCapabilityChecker,
