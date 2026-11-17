@@ -3,6 +3,7 @@ import type {
   AICoworkerDetail,
   ChannelSummary,
   ExternalIntegration,
+  ProjectDetail,
   WorkspaceMember,
 } from '@org/types';
 import type { ActivityIndicator } from '@org/notifications';
@@ -21,7 +22,8 @@ export const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
  */
 export function toEpoch(value: string | number | null | undefined): number {
   if (value === null || value === undefined) return 0;
-  if (typeof value === 'number') return Number.isFinite(value) && value > 0 ? value : 0;
+  if (typeof value === 'number')
+    return Number.isFinite(value) && value > 0 ? value : 0;
   const parsed = Date.parse(value);
   return Number.isNaN(parsed) ? 0 : parsed;
 }
@@ -30,7 +32,10 @@ export function toEpoch(value: string | number | null | undefined): number {
  * Inactive = a *known* last activity more than 30 days before `now`. An
  * unknown timestamp (0) is never inactive: we only hide what we can date.
  */
-export function is30DaysInactive(latestActivityAt: number, now = Date.now()): boolean {
+export function is30DaysInactive(
+  latestActivityAt: number,
+  now = Date.now(),
+): boolean {
   if (latestActivityAt <= 0) return false;
   return now - latestActivityAt > THIRTY_DAYS_MS;
 }
@@ -173,7 +178,8 @@ export function partitionChannelsByInactivity({
   if (hidden.length === 0) return partition;
 
   const lastActiveAt = { ...partition.lastActiveAt };
-  for (const channel of hidden) lastActiveAt[channel.id] = latestActivity(channel);
+  for (const channel of hidden)
+    lastActiveAt[channel.id] = latestActivity(channel);
   const inactive = [...partition.inactive, ...hidden].sort(
     (a, b) => lastActiveAt[b.id] - lastActiveAt[a.id],
   );
@@ -241,6 +247,23 @@ export function partitionGroupDMsByInactivity(
 /* -------------------------------------------------------------------------- */
 /* AI agents, AI coworkers, apps                                              */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * A project's `updatedAt` moves with every new task (the ticket counter lives
+ * on the project), so it doubles as "last activity".
+ */
+export function partitionProjectsByInactivity(
+  projects: ProjectDetail[],
+  options: PartitionOptions = {},
+): InactivityPartition<ProjectDetail> {
+  return partitionByInactivity(
+    projects,
+    (project) => project.id,
+    (project) =>
+      Math.max(toEpoch(project.updatedAt), toEpoch(project.createdAt)),
+    options,
+  );
+}
 
 export function partitionAgentsByInactivity(
   agents: AIAgent[],

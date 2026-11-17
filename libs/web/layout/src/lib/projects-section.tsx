@@ -50,6 +50,11 @@ import {
   isOnPath,
 } from './nav-primitives.js';
 import { useSidebarStore } from './navigation/sidebar-store.js';
+import {
+  InactiveItemsDropdown,
+  type InactiveDropdownItem,
+} from './inactive-items-dropdown.js';
+import { partitionProjectsByInactivity } from './inactivity-utils.js';
 import { useSidebarFavorites } from './use-sidebar-favorites.js';
 
 export function ProjectNavRow({
@@ -251,6 +256,45 @@ export function ProjectsTreeSection({
     return result;
   }, [query.data, customOrder]);
 
+  const projectsRoot = `/w/${workspaceSlug}/projects`;
+  const {
+    active: activeProjects,
+    inactive: inactiveProjects,
+    lastActiveAt: inactiveLastActive,
+  } = useMemo(
+    () =>
+      partitionProjectsByInactivity(projects, {
+        keepActive: (id) => {
+          if (isFavorite('project', id)) return true;
+          const slug = projects.find((p) => p.id === id)?.slug;
+          return (
+            !!slug && isOnPath(location.pathname, `${projectsRoot}/${slug}`)
+          );
+        },
+      }),
+    [projects, isFavorite, location.pathname, projectsRoot],
+  );
+
+  const inactiveItems = useMemo<InactiveDropdownItem[]>(
+    () =>
+      inactiveProjects.map((project) => ({
+        id: project.id,
+        name: project.name,
+        to: `${projectsRoot}/${project.slug}`,
+        lastActiveAt: inactiveLastActive[project.id],
+        icon: (
+          <ProjectGlyph
+            icon={project.icon}
+            iconColor={project.iconColor}
+            color={project.color}
+            size="sm"
+            className="shrink-0"
+          />
+        ),
+      })),
+    [inactiveProjects, inactiveLastActive, projectsRoot],
+  );
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -278,8 +322,23 @@ export function ProjectsTreeSection({
   return (
     <Section
       title="Projects"
-      count={projects.length}
-      emptyLabel={query.isLoading ? 'Loading projects…' : undefined}
+      count={activeProjects.length}
+      emptyLabel={
+        query.isLoading
+          ? 'Loading projects…'
+          : inactiveProjects.length > 0
+            ? 'No recent activity — quieter projects are under Inactive.'
+            : undefined
+      }
+      inactiveTrigger={
+        inactiveItems.length > 0 ? (
+          <InactiveItemsDropdown
+            category="projects"
+            categoryLabel="projects"
+            items={inactiveItems}
+          />
+        ) : undefined
+      }
       action={
         <Hint label="New project">
           <Button
@@ -303,11 +362,10 @@ export function ProjectsTreeSection({
         onDragEnd={handleDragEnd}
       >
         <SortableContext
-          items={projects.map((p) => p.id)}
+          items={activeProjects.map((p) => p.id)}
           strategy={verticalListSortingStrategy}
         >
-          {projects.map((project, index) => {
-            const projectsRoot = `/w/${workspaceSlug}/projects`;
+          {activeProjects.map((project, index) => {
             const isSelected =
               isOnPath(location.pathname, `${projectsRoot}/${project.slug}`) ||
               (location.pathname === projectsRoot && index === 0);

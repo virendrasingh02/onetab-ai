@@ -7,6 +7,7 @@ import {
   SidebarActivityIndicator,
   SkeletonList,
   ChannelNavSkeleton,
+  SIDEBAR_VIEW_OPTIONS,
   usePromptDialog,
   useSidebarCustomizerStore,
   type PromptDialog,
@@ -53,11 +54,16 @@ import {
   type WorkspaceState,
 } from '@org/web-workspace';
 import {
+  ArrowDownUp,
+  ArrowDownWideNarrow,
+  ArrowUpNarrowWide,
   BellOff,
   Clock,
   Flag,
   FolderTree,
   Hash,
+  History,
+  LayoutList,
   Lock,
   Plus,
 } from 'lucide-react';
@@ -88,11 +94,7 @@ import {
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { SidebarFooterActions } from './create-menu.js';
 import { DirectMessagesSection } from './direct-messages-section.js';
-import {
-  activeDocId,
-  DocNavRow,
-  DocsTreeSection,
-} from './docs-section.js';
+import { activeDocId, DocNavRow, DocsTreeSection } from './docs-section.js';
 import {
   FavoriteToggle,
   IconOnlyNavRow,
@@ -114,22 +116,19 @@ import {
   type InactiveDropdownItem,
 } from './inactive-items-dropdown.js';
 import { partitionChannelsByInactivity } from './inactivity-utils.js';
-import {
-  ActivityConversationList,
-  SidebarViewSwitch,
-} from './activity-conversation-list.js';
+import { ActivityConversationList } from './activity-conversation-list.js';
 import {
   ACTIVITY_ROW_ACTIONS_CLASS,
   ActivityRowLink,
   type ActivityRowContent,
 } from './activity-row-link.js';
 import type { LiveRoomActivity } from '@org/web-chat';
-import { ChannelOrganizationMenu } from './navigation/channel-organization-menu.js';
 import { resolveNavigation } from './navigation/navigation-resolver.js';
 import { APP_RAIL_NAV_ITEM_IDS } from './navigation/navigation.config.js';
 import {
   buildChannelSignals,
   CHANNEL_PRIORITY_LABELS,
+  CHANNEL_SORT_MODES,
   DEFAULT_CHANNEL_SORT,
   resolveSidebarLayout,
   sortChannels,
@@ -841,20 +840,80 @@ export function ChannelNav({
   const shiftSectionDef = useSidebarStore((s) => s.shiftSectionDef);
   const createSection = useCreateSection(workspaceId);
 
-  /* The Channels header keeps its name; its menu is where sections start. */
-  const channelsHeaderMenu = useMemo<EntityAction[]>(
-    () => [
+  const setChannelSort = useSidebarStore((s) => s.setChannelSort);
+  const setLayoutMode = useSidebarStore((s) => s.setLayoutMode);
+
+  /*
+   * The Channels header's ⋮ menu holds everything that isn't "+" or
+   * "Inactive": sections, sort order and the sidebar view.
+   */
+  const channelsHeaderMenu = useMemo<EntityAction[]>(() => {
+    const activeMode = CHANNEL_SORT_MODES.find(
+      (m) => m.value === channelSort.mode,
+    );
+    const directionMatters =
+      channelSort.mode !== 'manual' && !!activeMode?.asc && !!activeMode?.desc;
+    return [
       createSection.action,
       {
         id: 'section-manage-all',
         group: 'section-create',
-        label: 'Smart sections & sorting…',
+        label: 'Manage sections…',
         icon: FolderTree,
         run: () => setSectionsDialogOpen(true),
       },
-    ],
-    [createSection.action],
-  );
+      {
+        id: 'channels-sort',
+        group: 'channels-view',
+        label: 'Sort channels',
+        icon: ArrowDownUp,
+        hint: activeMode?.label,
+        children: [
+          ...CHANNEL_SORT_MODES.map((mode) => ({
+            id: `channels-sort-${mode.value}`,
+            group: 'sort-mode',
+            label: mode.label,
+            checked: channelSort.mode === mode.value,
+            run: () => setChannelSort(workspaceId, mode.value),
+          })),
+          ...(directionMatters && activeMode
+            ? (['asc', 'desc'] as const).map((direction) => ({
+                id: `channels-sort-${direction}`,
+                group: 'sort-direction',
+                label: activeMode[direction],
+                icon:
+                  direction === 'asc' ? ArrowUpNarrowWide : ArrowDownWideNarrow,
+                checked: channelSort.direction === direction,
+                run: () =>
+                  setChannelSort(workspaceId, channelSort.mode, direction),
+              }))
+            : []),
+        ],
+      },
+      {
+        id: 'sidebar-view',
+        group: 'channels-view',
+        label: 'Sidebar view',
+        icon: LayoutList,
+        hint: SIDEBAR_VIEW_OPTIONS.find((o) => o.value === layoutMode)?.label,
+        children: SIDEBAR_VIEW_OPTIONS.map((option) => ({
+          id: `sidebar-view-${option.value}`,
+          label: option.label,
+          description: option.description,
+          icon: option.value === 'activity' ? History : LayoutList,
+          checked: layoutMode === option.value,
+          run: () => setLayoutMode(option.value),
+        })),
+      },
+    ];
+  }, [
+    createSection.action,
+    channelSort,
+    layoutMode,
+    setChannelSort,
+    setLayoutMode,
+    workspaceId,
+  ]);
 
   const isManualSort = channelSort.mode === 'manual';
 
@@ -1790,27 +1849,17 @@ export function ChannelNav({
                               : 'Every joined channel is filed in a section above.'
                         }
                         action={
-                          <div className="gap-0.5 flex items-center">
-                            <ChannelOrganizationMenu
-                              workspaceId={workspaceId}
-                              onManageSections={() =>
-                                setSectionsDialogOpen(true)
-                              }
-                            />
-                            <Hint label="Create a channel">
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                onClick={onCreateChannel}
-                                aria-label="Create a channel"
-                                className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
-                              >
-                                <Plus className="size-3.5" />
-                              </Button>
-                            </Hint>
-                            {/* Last, so it sits on the same edge in both views. */}
-                            <SidebarViewSwitch className="ml-0.5" />
-                          </div>
+                          <Hint label="Create a channel">
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={onCreateChannel}
+                              aria-label="Create a channel"
+                              className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
+                            >
+                              <Plus className="size-3.5" />
+                            </Button>
+                          </Hint>
                         }
                       >
                         {showChannelsSkeleton ? (

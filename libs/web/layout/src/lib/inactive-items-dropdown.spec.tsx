@@ -374,10 +374,10 @@ describe('InactiveItemsDropdown', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('labels the trigger "Inactive" without a count', () => {
+  it('is an icon button named "Inactive …" without a count', () => {
     renderDropdown();
     const trigger = screen.getByRole('button', { name: /inactive/i });
-    expect(trigger).toHaveTextContent('Inactive');
+    expect(trigger).toHaveTextContent('');
     expect(trigger).not.toHaveTextContent('2');
   });
 

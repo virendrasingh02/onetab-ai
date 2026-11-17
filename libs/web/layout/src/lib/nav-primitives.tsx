@@ -20,6 +20,7 @@ import {
 import { cn } from '@org/utils';
 import {
   ChevronDown,
+  EllipsisVertical,
   MoreHorizontal,
   Pencil,
   PinOff,
@@ -647,10 +648,13 @@ export function Section({
             />
           </CollapsibleTrigger>
         )}
-        {editing ? null : inactiveTrigger}
       </div>
       {editing ? null : (
+        // Always the same three slots, in the same order: create (+),
+        // inactive, then the section's ⋮ menu.
         <div className="gap-0.5 flex shrink-0 items-center">
+          {action}
+          {inactiveTrigger}
           {actions ? (
             <ActionDropdownMenu
               modal={false}
@@ -664,12 +668,11 @@ export function Section({
                   aria-label={`${title} section options`}
                   className="size-5 p-0 text-muted-foreground opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 hover:text-foreground focus-visible:opacity-100 data-[state=open]:opacity-100 pointer-coarse:opacity-100"
                 >
-                  <MoreHorizontal className="size-3.5" />
+                  <EllipsisVertical className="size-3.5" />
                 </Button>
               }
             />
           ) : null}
-          {action}
         </div>
       )}
     </div>
