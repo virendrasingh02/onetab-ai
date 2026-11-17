@@ -865,8 +865,8 @@ function DirectMessageHeader({
             ) : null}
             {member.user.id.startsWith('agent-') ? (
               <Badge
-                variant="primary"
-                className="gap-0.5 py-0 h-4 font-bold tracking-wider text-3xs uppercase"
+                variant="neutral"
+                className="gap-0.5 py-0 h-4 font-bold tracking-wider text-3xs uppercase text-foreground/80"
               >
                 <Bot className="size-2.5 mr-0.5 inline-block" />
                 <span>AI AGENT</span>

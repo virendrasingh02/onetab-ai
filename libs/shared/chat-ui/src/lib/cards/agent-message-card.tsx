@@ -1062,7 +1062,7 @@ export function AgentMessageCard({
                         setFollowUpSent(true);
                         onFollowUp(prompt);
                       }}
-                      className="group/fu gap-1.5 px-3 py-1 text-xs font-medium shadow-2xs active:translate-y-0 inline-flex max-w-full items-center rounded-full border border-brand/30 bg-brand/10 text-brand-text transition-all hover:-translate-y-px hover:border-brand hover:bg-brand hover:text-brand-foreground hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+                      className="group/fu gap-1.5 px-3 py-1 text-xs font-medium shadow-2xs active:translate-y-0 inline-flex max-w-full items-center rounded-full border border-border bg-background text-foreground/80 transition-all hover:-translate-y-px hover:border-border-strong hover:bg-muted hover:text-foreground hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
                     >
                       <CornerDownRight
                         className="size-3 shrink-0 opacity-70 group-hover/fu:opacity-100"

@@ -14,7 +14,7 @@ const KIND_LABEL: Record<EntityBadgeKind, string> = {
 };
 
 const KIND_CLASS: Record<EntityBadgeKind, string> = {
-  agent: '',
+  agent: 'text-foreground/80',
   coworker: 'border-accent-violet/30 bg-accent-violet/15 text-accent-violet',
   app: 'border-accent-violet/20 bg-accent-violet-soft text-accent-violet',
   doc: 'border-info/30 bg-info/15 text-info-text',
@@ -43,7 +43,7 @@ export function EntityKindBadge({
 }) {
   return (
     <Badge
-      variant={kind === 'agent' ? 'primary' : 'neutral'}
+      variant="neutral"
       className={cn(
         'gap-1 py-0 font-bold tracking-wider text-2xs uppercase',
         size === 'sm' ? 'h-4' : 'h-[18px]',

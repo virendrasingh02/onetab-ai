@@ -322,8 +322,8 @@ function AgentMessageHeader({ agent }: { agent: AgentModelItem }) {
             </button>
 
             <Badge
-              variant="primary"
-              className="gap-0.5 py-0 h-5 font-bold tracking-wider text-2xs uppercase"
+              variant="neutral"
+              className="gap-0.5 py-0 h-5 font-bold tracking-wider text-2xs uppercase text-foreground/80"
             >
               <span>AI AGENT</span>
             </Badge>
