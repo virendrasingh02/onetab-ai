@@ -25,7 +25,10 @@ export function useIsWideViewport(): boolean {
   );
 }
 
-/** A titled block of property rows; every block after the first gets a rule. */
+/**
+ * A titled block of property rows that folds away from its heading, the same
+ * way the main column's sections do. Every block after the first gets a rule.
+ */
 export function PropertyGroup({
   title,
   children,
@@ -33,15 +36,32 @@ export function PropertyGroup({
   title: string;
   children: ReactNode;
 }) {
+  const [open, setOpen] = useState(true);
+
   return (
     <section
       aria-label={title}
-      className="pt-4 first:pt-0 border-t border-border/60 first:border-t-0"
+      className="pt-3 first:pt-0 border-t border-border/60 first:border-t-0"
     >
-      <h3 className="mb-1 text-xs font-semibold text-muted-foreground">
-        {title}
+      <h3>
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          aria-expanded={open}
+          className="group/heading h-6 gap-1 -ml-1 px-1 text-xs font-semibold inline-flex items-center rounded-md text-muted-foreground outline-none hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
+        >
+          {title}
+          <ChevronRight
+            aria-hidden
+            className={cn(
+              'size-3 shrink-0 opacity-0 transition-[opacity,transform] duration-(--duration-fast) group-hover/heading:opacity-100 group-focus-visible/heading:opacity-100',
+              open && 'rotate-90',
+              !open && 'opacity-100',
+            )}
+          />
+        </button>
       </h3>
-      <div className="space-y-0.5">{children}</div>
+      {open ? <div className="mt-1 pb-1">{children}</div> : null}
     </section>
   );
 }
@@ -62,12 +82,16 @@ export function PropertyRow({
   children: ReactNode;
 }) {
   return (
-    <div className="gap-2 grid grid-cols-[7.25rem_minmax(0,1fr)] items-start @max-[18rem]:grid-cols-[5.25rem_minmax(0,1fr)] @max-[18rem]:gap-1">
-      <span className="h-9 gap-2 text-sm flex items-center text-muted-foreground">
+    <div className="gap-2 grid grid-cols-[6.75rem_minmax(0,1fr)] items-start @max-[18rem]:grid-cols-[5.25rem_minmax(0,1fr)] @max-[18rem]:gap-1">
+      <span className="h-8 gap-2 text-sm flex items-center text-muted-foreground">
         <Icon className="size-4 shrink-0 @max-[18rem]:hidden" aria-hidden />
         <span className="truncate">{label}</span>
       </span>
-      <div className="min-h-9 min-w-0 gap-1 flex items-center">{children}</div>
+      {/* The value's own padding sits in the gutter, so its text lines up
+          with the other values and its hover fills the column. */}
+      <div className="min-h-8 min-w-0 gap-1 -ml-2 flex items-center @max-[18rem]:-ml-1">
+        {children}
+      </div>
     </div>
   );
 }

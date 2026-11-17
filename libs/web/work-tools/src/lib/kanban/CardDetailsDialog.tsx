@@ -4,7 +4,6 @@ import {
   type RelationType,
   type Task,
   type TaskChecklistItem,
-  type WorkItemType,
 } from '@org/types';
 import { ShareToChatDialog } from '@org/web-chat';
 import { useSaveForLater } from '@org/web-chat/bookmarks';
@@ -19,10 +18,9 @@ import {
   Textarea,
   toast,
   useRightPanelStore,
-  RelatedKnowledgePanel,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { AlertTriangle, CornerLeftUp } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
@@ -186,9 +184,16 @@ export function CardDetailsDialog({
       >
         {/*
          * `DialogContent` scrolls its children, which leaves `h-full` nothing to
-         * resolve against, so the body states its height outright.
+         * resolve against, so the body states its height outright. The 2px is
+         * the dialog's own top and bottom border, which its max height counts:
+         * without it the dialog's scroll area overflows by 2px and keeps a
+         * scrollbar up the whole time.
          */}
-        {body(mode === 'full' ? 'h-[calc(100dvh-4rem)]' : 'h-[90dvh] max-sm:h-dvh')}
+        {body(
+          mode === 'full'
+            ? 'h-[calc(100dvh-4rem-2px)]'
+            : 'h-[calc(90dvh-2px)] max-sm:h-[calc(100dvh-2px)]',
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -556,6 +561,7 @@ function CardDetailsBody({
       linkableTasks={linkableTasks}
       parentExcludeIds={parentExcludeIds}
       canEdit={canEdit}
+      currentUserId={currentUser?.id}
       onStatusChange={(status: string) =>
         dispatch({
           type: 'card/move',
@@ -567,7 +573,6 @@ function CardDetailsBody({
       onPriorityChange={(priority: Priority | null) =>
         updateCard({ priority })
       }
-      onTypeChange={(type: WorkItemType) => updateTask({ type })}
       onAssigneesChange={(memberIds) => updateCard({ memberIds })}
       onStartDateChange={(startDate) => updateCard({ startDate })}
       onDueDateChange={(dueDate) => updateCard({ dueDate })}
@@ -637,32 +642,14 @@ function CardDetailsBody({
 
       <div className="min-h-0 flex flex-1">
         {/* The composer is sticky, so this column is its own scroll area. */}
-        <div className="min-w-0 flex-1 overflow-y-auto">
+        <div className="min-w-0 flex-1 overflow-y-auto scrollbar-on-hover">
           <div
             className={cn(
               'max-w-3xl gap-6 pt-5 mx-auto flex min-h-full flex-col',
               compact ? 'px-4' : 'px-6 sm:px-8',
             )}
           >
-            <div className="space-y-2">
-              {detail?.parent ? (
-                <button
-                  type="button"
-                  disabled={!canOpen(detail.parent.id)}
-                  onClick={() => detail.parent && onOpenCard(detail.parent.id)}
-                  className="gap-1 text-xs flex max-w-full items-center text-muted-foreground enabled:hover:text-foreground enabled:hover:underline"
-                >
-                  <CornerLeftUp className="size-3 shrink-0" aria-hidden />
-                  <span className="truncate">
-                    Sub-issue of{' '}
-                    {detail.parent.identifier
-                      ? `${detail.parent.identifier} `
-                      : ''}
-                    {detail.parent.title}
-                  </span>
-                </button>
-              ) : null}
-
+            <div>
               {/* `DialogTitle` reads Radix's dialog context, so it only exists
                   in the two dialog modes; in the rail there is no dialog to
                   label and a plain heading is the accessible equivalent. */}
@@ -776,26 +763,6 @@ function CardDetailsBody({
               }
             />
 
-            {relations.length > 0 && (
-              <RelatedKnowledgePanel
-                title="Knowledge Graph Links"
-                items={relations.map((rel) => ({
-                  id: rel.id,
-                  name: rel.otherTask.title,
-                  entityType: 'TASK' as const,
-                  relation: rel.type.toLowerCase(),
-                }))}
-                onItemClick={(item) => {
-                  const target = relations.find(
-                    (r) => r.id === item.id,
-                  )?.otherTask;
-                  if (target && canOpen(target.id)) {
-                    onOpenCard(target.id);
-                  }
-                }}
-              />
-            )}
-
             {/* Real Upload rows filed against this issue; they also surface in
                 the workspace Files hub. */}
             <FiledFilesSection
@@ -852,7 +819,7 @@ function CardDetailsBody({
         {singleColumn ? null : (
           <aside
             aria-label="Task properties"
-            className="w-88 px-5 py-5 shrink-0 overflow-y-auto border-l border-border/60 bg-surface-inset/30"
+            className="w-88 px-4 py-4 shrink-0 overflow-y-auto scrollbar-on-hover border-l border-border/60 bg-surface-inset/30"
           >
             {properties}
           </aside>

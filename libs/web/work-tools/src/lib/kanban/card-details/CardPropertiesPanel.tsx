@@ -1,4 +1,4 @@
-import type { Task, WorkItemType } from '@org/types';
+import type { Task } from '@org/types';
 import {
   Button,
   DatePicker,
@@ -19,9 +19,9 @@ import {
   ExternalLink,
   Flag,
   Gauge,
-  Shapes,
   Tag,
   Timer,
+  UserPlus,
   UserRound,
   Users,
   UsersRound,
@@ -55,7 +55,6 @@ import { PriorityIcon, StatusIcon } from '../kanban-icons.js';
 import { useKanbanLabels } from '../kanban-custom-store.js';
 import { formatMinutes, parseDuration } from '../relation-meta.js';
 import type { BoardMember, KanbanCard, Priority } from '../types.js';
-import { CardTypePicker } from './CardTypePicker.js';
 import {
   PropertyGroup,
   PropertyRow,
@@ -70,6 +69,14 @@ function formatDay(day: string): string {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
+  });
+}
+
+/** The full timestamp, for hovering a relative "11 days ago". */
+function formatExact(value: string | Date): string {
+  return new Date(value).toLocaleString('en-US', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
   });
 }
 
@@ -166,9 +173,10 @@ export interface CardPropertiesPanelProps {
   linkableTasks: KanbanTaskLinkOption[];
   parentExcludeIds: string[];
   canEdit: boolean;
+  /** The viewer, for the one-click "Assign to me". */
+  currentUserId?: string;
   onStatusChange: (stateId: string) => void;
   onPriorityChange: (priority: Priority | null) => void;
-  onTypeChange: (type: WorkItemType) => void;
   onAssigneesChange: (memberIds: string[]) => void;
   onStartDateChange: (day: string | null) => void;
   onDueDateChange: (day: string | null) => void;
@@ -194,9 +202,9 @@ export function CardPropertiesPanel({
   linkableTasks,
   parentExcludeIds,
   canEdit,
+  currentUserId,
   onStatusChange,
   onPriorityChange,
-  onTypeChange,
   onAssigneesChange,
   onStartDateChange,
   onDueDateChange,
@@ -219,6 +227,11 @@ export function CardPropertiesPanel({
     assignees.length === 1
       ? (assignees[0].displayName ?? assignees[0].name)
       : `${assignees.length} people`;
+  const canAssignSelf =
+    canEdit &&
+    Boolean(currentUserId) &&
+    !card.memberIds.includes(currentUserId ?? '') &&
+    members.some((member) => member.id === currentUserId);
 
   /* The member list answers first, so a new pick shows before the refetch. */
   const reporter =
@@ -241,8 +254,11 @@ export function CardPropertiesPanel({
     onSelect,
     noneLabel,
     emptyMessage,
+    placeholder,
     ...picker
   }: {
+    /** What an unset value reads as, phrased as the action. */
+    placeholder: string;
     label: string;
     icon: typeof UsersRound;
     items: KanbanRefPickerItem[];
@@ -274,7 +290,9 @@ export function CardPropertiesPanel({
                     style={{ backgroundColor: selected.color }}
                   />
                 ) : null}
-                <span className="truncate">{selected?.label ?? 'None'}</span>
+                <span className="truncate">
+                  {selected?.label ?? placeholder}
+                </span>
               </ValueButton>
             }
           />,
@@ -286,6 +304,8 @@ export function CardPropertiesPanel({
   const parent = detail?.parentId
     ? linkableTasks.find((task) => task.id === detail.parentId)
     : undefined;
+  const parentIdentifier = parent?.identifier ?? detail?.parent?.identifier;
+  const parentTitle = parent?.title ?? detail?.parent?.title;
 
   return (
     <div className="space-y-4 @container">
@@ -307,14 +327,6 @@ export function CardPropertiesPanel({
           />
         </PropertyRow>
 
-        <PropertyRow label="Type" icon={Shapes}>
-          <CardTypePicker
-            type={detail?.type ?? card.type}
-            disabled={!canEdit}
-            onChange={onTypeChange}
-          />
-        </PropertyRow>
-
         <PropertyRow label="Priority" icon={Flag}>
           <KanbanPriorityPicker
             priority={card.priority}
@@ -324,14 +336,13 @@ export function CardPropertiesPanel({
             trigger={
               <ValueButton disabled={!canEdit}>
                 <PriorityIcon priority={card.priority} className="size-4" />
-                <span
-                  className={cn(
-                    'capitalize',
-                    !card.priority && 'text-muted-foreground',
-                  )}
-                >
-                  {card.priority?.toLowerCase() ?? 'No priority'}
-                </span>
+                {card.priority ? (
+                  <span className="capitalize">
+                    {card.priority.toLowerCase()}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">Set priority</span>
+                )}
               </ValueButton>
             }
           />
@@ -353,11 +364,19 @@ export function CardPropertiesPanel({
                     <span className="truncate">{assigneeLabel}</span>
                   </>
                 ) : (
-                  'Unassigned'
+                  'Assign'
                 )}
               </ValueButton>
             }
           />
+          {canAssignSelf && currentUserId ? (
+            <ValueAction
+              icon={UserPlus}
+              onClick={() => onAssigneesChange([...card.memberIds, currentUserId])}
+              aria-label="Assign to me"
+              title="Assign to me"
+            />
+          ) : null}
         </PropertyRow>
 
         <PropertyRow label="Reporter" icon={UserRound}>
@@ -384,7 +403,7 @@ export function CardPropertiesPanel({
                       </span>
                     </>
                   ) : (
-                    'None'
+                    'Set reporter'
                   )}
                 </ValueButton>
               }
@@ -449,7 +468,7 @@ export function CardPropertiesPanel({
             trigger={
               <ValueButton empty={!card.startDate} disabled={!canEdit}>
                 <span className="truncate">
-                  {card.startDate ? formatDay(card.startDate) : 'None'}
+                  {card.startDate ? formatDay(card.startDate) : 'Set date'}
                 </span>
               </ValueButton>
             }
@@ -471,7 +490,7 @@ export function CardPropertiesPanel({
                 className={cn(due && DUE_TEXT_CLASSES[due.tone])}
               >
                 <span className="truncate">
-                  {card.dueDate && due ? formatDay(card.dueDate) : 'None'}
+                  {card.dueDate && due ? formatDay(card.dueDate) : 'Set date'}
                 </span>
               </ValueButton>
             }
@@ -498,7 +517,9 @@ export function CardPropertiesPanel({
                   empty={detail?.estimate == null}
                   disabled={!canEdit}
                 >
-                  {detail?.estimate != null ? `${detail.estimate} pts` : 'None'}
+                  {detail?.estimate != null
+                    ? `${detail.estimate} ${detail.estimate === 1 ? 'point' : 'points'}`
+                    : 'Set estimate'}
                 </ValueButton>
               }
             />,
@@ -524,6 +545,7 @@ export function CardPropertiesPanel({
           selectedId: detail?.teamId,
           onSelect: onTeamChange,
           noneLabel: 'No team',
+          placeholder: 'Add to team',
           emptyMessage: 'No teams in this workspace yet',
           manage: { label: 'Manage teams', onSelect: onManageTeams },
         })}
@@ -538,14 +560,27 @@ export function CardPropertiesPanel({
                 placeholder="Search tasks..."
                 emptyMessage="No other tasks in this project"
                 trigger={
-                  <ValueButton empty={!detail?.parentId} disabled={!canEdit}>
+                  <ValueButton
+                    empty={!detail?.parentId}
+                    disabled={!canEdit}
+                    title={parentTitle}
+                  >
+                    {parent?.status ? (
+                      <StatusIcon
+                        status={parent.status}
+                        className="size-3.5 shrink-0"
+                        showTooltip={false}
+                      />
+                    ) : null}
+                    {parentIdentifier ? (
+                      <span className="shrink-0 text-muted-foreground tabular-nums">
+                        {parentIdentifier}
+                      </span>
+                    ) : null}
                     <span className="truncate">
                       {detail?.parentId
-                        ? (parent?.identifier ??
-                          parent?.title ??
-                          detail.parent?.title ??
-                          'Parent task')
-                        : 'None'}
+                        ? (parentTitle ?? 'Parent task')
+                        : 'Set parent'}
                     </span>
                   </ValueButton>
                 }
@@ -572,10 +607,18 @@ export function CardPropertiesPanel({
       </PropertyGroup>
 
       <div className="space-y-0.5 pt-3 text-meta border-t border-border/60 text-muted-foreground/80">
-        <p>Created {formatRelative(card.createdAt)}</p>
-        {detail ? <p>Updated {formatRelative(detail.updatedAt)}</p> : null}
+        <p title={formatExact(card.createdAt)}>
+          Created {formatRelative(card.createdAt)}
+        </p>
+        {detail ? (
+          <p title={formatExact(detail.updatedAt)}>
+            Updated {formatRelative(detail.updatedAt)}
+          </p>
+        ) : null}
         {detail?.completedAt ? (
-          <p>Completed {formatRelative(detail.completedAt)}</p>
+          <p title={formatExact(detail.completedAt)}>
+            Completed {formatRelative(detail.completedAt)}
+          </p>
         ) : null}
         {detail?.meeting ? (
           <p>
