@@ -44,7 +44,7 @@ export function SignedOutScreen({ cameBackSignedOut, onSignIn, onRetry }: Signed
           <Sparkles className="size-7" />
         </div>
 
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
           {cameBackSignedOut ? 'We couldn’t pick up your sign-in' : 'Sign in to continue'}
         </h1>
         <p className="mt-2 text-balance text-sm leading-relaxed text-muted-foreground">

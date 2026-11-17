@@ -178,7 +178,7 @@ export function ProfileEditModal({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-3xl p-0 shadow-2xl flex max-h-[90vh] flex-col overflow-hidden rounded-2xl border-border bg-card">
           <DialogHeader className="p-6 pb-4 shrink-0 border-b border-border/60">
-            <DialogTitle className="text-lg font-bold text-foreground">
+            <DialogTitle className="text-lg font-semibold text-foreground">
               Edit Profile
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">

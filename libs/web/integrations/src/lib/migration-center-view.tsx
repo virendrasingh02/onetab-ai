@@ -135,7 +135,7 @@ export function MigrationCenterView({ embedded = false }: MigrationCenterViewPro
                   {currentStatus.replace('_', ' ')}
                 </Badge>
               </div>
-              <h2 className="text-xl font-bold text-foreground">
+              <h2 className="text-xl font-semibold text-foreground">
                 Slack → Onetab Enterprise Migration
               </h2>
               <p className="text-xs text-muted-foreground mt-1 max-w-xl leading-relaxed">

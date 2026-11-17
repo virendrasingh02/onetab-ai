@@ -367,7 +367,7 @@ export function DesignSystemStudio() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-base font-bold tracking-tight text-foreground">
+              <h1 className="text-base font-semibold tracking-tight text-foreground">
                 Platform Design System Studio
               </h1>
               <Badge variant="secondary" className="font-mono text-2xs">
@@ -492,7 +492,7 @@ export function DesignSystemStudio() {
             <section className="space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-base font-bold text-foreground">Color System &amp; Palette Ramp</h2>
+                  <h2 className="text-base font-semibold text-foreground">Color System &amp; Palette Ramp</h2>
                   <p className="text-xs text-muted-foreground">
                     Theme-responsive tokens using semantic CSS variables with zero hard-coded colors.
                   </p>
@@ -534,7 +534,7 @@ export function DesignSystemStudio() {
 
             {/* Categorical Accent System */}
             <section className="space-y-3">
-              <h2 className="text-base font-bold text-foreground">Categorical Accent System</h2>
+              <h2 className="text-base font-semibold text-foreground">Categorical Accent System</h2>
               <p className="text-xs text-muted-foreground">
                 Harmonized accents for chart series, badges, agent tags, and classification.
               </p>
@@ -562,7 +562,7 @@ export function DesignSystemStudio() {
 
             {/* Typography Hierarchy */}
             <section className="space-y-3">
-              <h2 className="text-base font-bold text-foreground">Typography Scale</h2>
+              <h2 className="text-base font-semibold text-foreground">Typography Scale</h2>
               <div className="rounded-card border border-border bg-surface p-4 shadow-xs divide-y divide-border/60">
                 <div className="py-2.5 flex items-center justify-between">
                   <span className="text-2xl font-bold tracking-tight">Display — 32px Bold</span>
@@ -598,7 +598,7 @@ export function DesignSystemStudio() {
           <TabsContent value="primitives" className="space-y-8 pt-6">
             {/* Buttons Showcase */}
             <section className="space-y-3">
-              <h2 className="text-base font-bold text-foreground">Buttons &amp; Button Groups</h2>
+              <h2 className="text-base font-semibold text-foreground">Buttons &amp; Button Groups</h2>
               <div className="rounded-card border border-border bg-surface p-4 shadow-xs space-y-4">
                 <div className="flex flex-wrap items-center gap-2.5">
                   <Button variant="primary">Primary Button</Button>
@@ -637,7 +637,7 @@ export function DesignSystemStudio() {
 
             {/* Inputs & Form Controls */}
             <section className="space-y-3">
-              <h2 className="text-base font-bold text-foreground">Form Controls &amp; Inputs</h2>
+              <h2 className="text-base font-semibold text-foreground">Form Controls &amp; Inputs</h2>
               <div className="rounded-card border border-border bg-surface p-4 shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-foreground">Standard Input</label>
@@ -734,7 +734,7 @@ export function DesignSystemStudio() {
 
             {/* Dropdown Menus & Selects */}
             <section className="space-y-3">
-              <h2 className="text-base font-bold text-foreground">Dropdown Menus &amp; Selects</h2>
+              <h2 className="text-base font-semibold text-foreground">Dropdown Menus &amp; Selects</h2>
               <p className="text-xs text-muted-foreground">
                 One dropdown language across the app: the same surface, radius, row
                 height, hover/focus/selected/disabled treatment in both themes.
@@ -869,7 +869,7 @@ export function DesignSystemStudio() {
 
             {/* Accordions & Drawers */}
             <section className="space-y-3">
-              <h2 className="text-base font-bold text-foreground">Accordions &amp; Drawers</h2>
+              <h2 className="text-base font-semibold text-foreground">Accordions &amp; Drawers</h2>
               <div className="rounded-card border border-border bg-surface p-4 shadow-xs space-y-4">
                 <Accordion type="single" collapsible defaultValue="item-1">
                   <AccordionItem value="item-1">
@@ -921,7 +921,7 @@ export function DesignSystemStudio() {
 
             {/* ReUI / c-tabs-7 Styled Tabs Showcase */}
             <section className="space-y-3">
-              <h2 className="text-base font-bold text-foreground">Tabs &amp; Navigation (c-tabs-7 Experience)</h2>
+              <h2 className="text-base font-semibold text-foreground">Tabs &amp; Navigation (c-tabs-7 Experience)</h2>
               <p className="text-xs text-muted-foreground">
                 Accessible Radix tabs supporting animated sliding indicators, counter badges, leading icons, horizontal overflow scrolling, and multiple visual variants.
               </p>
@@ -992,7 +992,7 @@ export function DesignSystemStudio() {
 
             {/* Contextual Hover Cards Showcase */}
             <section className="space-y-3">
-              <h2 className="text-base font-bold text-foreground">Contextual Hover Cards</h2>
+              <h2 className="text-base font-semibold text-foreground">Contextual Hover Cards</h2>
               <p className="text-xs text-muted-foreground">
                 Lightweight popover previews for users, projects, kanban cards, and channels with calibrated open/close delays (300ms/150ms) to eliminate flickering.
               </p>
@@ -1083,7 +1083,7 @@ export function DesignSystemStudio() {
 
             {/* Keyboard Shortcuts & Kbd Showcase */}
             <section className="space-y-3">
-              <h2 className="text-base font-bold text-foreground">Kbd &amp; Keyboard Shortcuts</h2>
+              <h2 className="text-base font-semibold text-foreground">Kbd &amp; Keyboard Shortcuts</h2>
               <p className="text-xs text-muted-foreground">
                 Platform-aware keyboard glyphs (⌘ on macOS, Ctrl on Windows/Linux), standardized sizes, and design token borders.
               </p>
@@ -1129,7 +1129,7 @@ export function DesignSystemStudio() {
           <TabsContent value="advanced" className="space-y-8 pt-6">
             {/* Live Data Grid */}
             <section className="space-y-3">
-              <h2 className="text-base font-bold text-foreground">Interactive Developer Data Grid</h2>
+              <h2 className="text-base font-semibold text-foreground">Interactive Developer Data Grid</h2>
               <p className="text-xs text-muted-foreground">
                 Features multi-column sorting, column filtering, search, column visibility toggle, bulk actions, and pagination.
               </p>
@@ -1153,26 +1153,26 @@ export function DesignSystemStudio() {
 
             {/* Kanban Board */}
             <section className="space-y-3">
-              <h2 className="text-base font-bold text-foreground">Modular Kanban Board</h2>
+              <h2 className="text-base font-semibold text-foreground">Modular Kanban Board</h2>
               <KanbanBoard columns={mockKanbanCols} />
             </section>
 
             {/* Timeline & Tree View */}
             <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="space-y-3">
-                <h2 className="text-base font-bold text-foreground">Interactive Timeline</h2>
+                <h2 className="text-base font-semibold text-foreground">Interactive Timeline</h2>
                 <Timeline items={mockTimelineItems} />
               </div>
 
               <div className="space-y-3">
-                <h2 className="text-base font-bold text-foreground">Hierarchical Tree Explorer</h2>
+                <h2 className="text-base font-semibold text-foreground">Hierarchical Tree Explorer</h2>
                 <TreeView data={mockTreeData} defaultExpandedIds={['root-src', 'components']} />
               </div>
             </section>
 
             {/* Filter Builder & Resizable Panels */}
             <section className="space-y-3">
-              <h2 className="text-base font-bold text-foreground">Visual Query Filter Builder</h2>
+              <h2 className="text-base font-semibold text-foreground">Visual Query Filter Builder</h2>
               <FilterBuilder
                 fields={[
                   { id: 'name', label: 'Agent Name', type: 'text' },
@@ -1191,7 +1191,7 @@ export function DesignSystemStudio() {
           <TabsContent value="ai-native" className="space-y-8 pt-6">
             {/* Model Selector & Thinking State */}
             <section className="space-y-3">
-              <h2 className="text-base font-bold text-foreground">AI Model Selector &amp; Thinking State</h2>
+              <h2 className="text-base font-semibold text-foreground">AI Model Selector &amp; Thinking State</h2>
               <div className="rounded-card border border-border bg-surface p-4 shadow-xs space-y-4">
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="text-xs font-semibold text-foreground">Active Model:</span>
@@ -1208,7 +1208,7 @@ export function DesignSystemStudio() {
 
             {/* AI Agent Cards */}
             <section className="space-y-3">
-              <h2 className="text-base font-bold text-foreground">AI Agent Cards (Variants)</h2>
+              <h2 className="text-base font-semibold text-foreground">AI Agent Cards (Variants)</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <AIAgentCard
                   id="ag-1"
@@ -1255,7 +1255,7 @@ export function DesignSystemStudio() {
             {/* AI Execution Trace & Citations & Usage */}
             <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="space-y-3">
-                <h2 className="text-base font-bold text-foreground">Execution Trace Timeline</h2>
+                <h2 className="text-base font-semibold text-foreground">Execution Trace Timeline</h2>
                 <AIExecutionTimeline
                   totalDurationMs={1420}
                   totalTokens={1240}
@@ -1270,7 +1270,7 @@ export function DesignSystemStudio() {
 
               <div className="space-y-6">
                 <div className="space-y-3">
-                  <h2 className="text-base font-bold text-foreground">Citations &amp; Sources Viewer</h2>
+                  <h2 className="text-base font-semibold text-foreground">Citations &amp; Sources Viewer</h2>
                   <div className="rounded-card border border-border bg-surface p-4 shadow-xs">
                     <AICitationViewer
                       citations={[
@@ -1282,7 +1282,7 @@ export function DesignSystemStudio() {
                 </div>
 
                 <div className="space-y-3">
-                  <h2 className="text-base font-bold text-foreground">AI Quota &amp; Usage Widget</h2>
+                  <h2 className="text-base font-semibold text-foreground">AI Quota &amp; Usage Widget</h2>
                   <AIUsageWidget
                     usedTokens={684000}
                     maxTokens={1000000}
@@ -1301,7 +1301,7 @@ export function DesignSystemStudio() {
           <TabsContent value="blocks-cards" className="space-y-8 pt-6">
             {/* Universal Card Sandbox */}
             <section className="space-y-3">
-              <h2 className="text-base font-bold text-foreground">Universal Dynamic Card Sandbox</h2>
+              <h2 className="text-base font-semibold text-foreground">Universal Dynamic Card Sandbox</h2>
               <p className="text-xs text-muted-foreground">
                 JSON-driven universal card renderer capable of rendering 16+ card types across Dashboards, Chat, and Feeds.
               </p>
@@ -1338,7 +1338,7 @@ export function DesignSystemStudio() {
 
             {/* Modular Page Blocks */}
             <section className="space-y-4">
-              <h2 className="text-base font-bold text-foreground">Modular Page Blocks System</h2>
+              <h2 className="text-base font-semibold text-foreground">Modular Page Blocks System</h2>
               <p className="text-xs text-muted-foreground">
                 JSON-configurable page blocks for composition in Dashboards, Landing pages, and Apps.
               </p>

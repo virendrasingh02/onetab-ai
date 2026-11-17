@@ -80,7 +80,7 @@ export function AgentsView({ agents, onOpenExecution }: AgentsViewProps) {
             <span>Most Active Agent</span>
             <Bot className="size-4 text-primary" />
           </div>
-          <div className="mt-2 font-bold text-base text-foreground truncate">
+          <div className="mt-2 font-semibold text-base text-foreground truncate">
             {mostActive?.name || 'None'}
           </div>
           <div className="text-xs text-muted-foreground mt-0.5">
@@ -93,7 +93,7 @@ export function AgentsView({ agents, onOpenExecution }: AgentsViewProps) {
             <span>Most Reliable</span>
             <CheckCircle2 className="size-4 text-success-text" />
           </div>
-          <div className="mt-2 font-bold text-base text-foreground truncate">
+          <div className="mt-2 font-semibold text-base text-foreground truncate">
             {mostReliable?.name || 'None'}
           </div>
           <div className="text-xs text-success-text mt-0.5 font-medium">
@@ -106,7 +106,7 @@ export function AgentsView({ agents, onOpenExecution }: AgentsViewProps) {
             <span>Highest Spend</span>
             <Coins className="size-4 text-warning-text" />
           </div>
-          <div className="mt-2 font-bold text-base text-foreground truncate">
+          <div className="mt-2 font-semibold text-base text-foreground truncate">
             {mostExpensive?.name || 'None'}
           </div>
           <div className="text-xs text-muted-foreground mt-0.5">
@@ -119,7 +119,7 @@ export function AgentsView({ agents, onOpenExecution }: AgentsViewProps) {
             <span>Highest Latency</span>
             <Clock className="size-4 text-destructive-text" />
           </div>
-          <div className="mt-2 font-bold text-base text-foreground truncate">
+          <div className="mt-2 font-semibold text-base text-foreground truncate">
             {slowest?.name || 'None'}
           </div>
           <div className="text-xs text-muted-foreground mt-0.5">

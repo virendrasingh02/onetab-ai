@@ -1427,7 +1427,7 @@ function ProjectDialog({
       <DialogContent className="sm:max-w-[460px]">
         <form onSubmit={onSubmit}>
           <DialogHeader>
-            <DialogTitle className="gap-2 text-base font-bold flex items-center">
+            <DialogTitle className="gap-2 text-base font-semibold flex items-center">
               {icon}
               {title}
             </DialogTitle>
@@ -1546,7 +1546,7 @@ function ProjectDialog({
                           : 'border-border/60 hover:bg-muted/40',
                       )}
                     >
-                      <span className="font-bold text-xs text-foreground">
+                      <span className="font-semibold text-xs text-foreground">
                         {tmpl.name}
                       </span>
                       <span className="line-clamp-2 text-2xs text-muted-foreground">

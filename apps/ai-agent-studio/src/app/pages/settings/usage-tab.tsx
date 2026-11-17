@@ -98,7 +98,7 @@ export function UsageTab() {
         <div className="rounded-xl border border-border bg-surface p-4">
           <div className="text-xs text-muted-foreground">Plan</div>
           <div className="mt-1 flex flex-wrap items-center gap-2">
-            <span className="text-xl font-bold text-foreground">{planName}</span>
+            <span className="text-xl font-semibold text-foreground">{planName}</span>
           </div>
           {plan !== 'free' && endsOn ? (
             <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">

@@ -138,7 +138,7 @@ export function SchemaEditor({ schema, onChange }: SchemaEditorProps) {
             className="p-3 space-y-2 rounded-xl border border-border/60 bg-surface-raised"
           >
             <div className="flex items-center justify-between">
-              <div className="gap-1.5 text-xs font-bold flex items-center font-mono text-foreground">
+              <div className="gap-1.5 text-xs font-semibold flex items-center font-mono text-foreground">
                 <span>{field.name}</span>
                 <span className="px-1.5 py-0.5 rounded bg-brand/10 text-2xs text-brand-text uppercase">
                   {field.type}

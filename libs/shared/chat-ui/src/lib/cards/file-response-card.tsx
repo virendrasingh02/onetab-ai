@@ -44,7 +44,7 @@ export function FileResponseCard({
       )}
     >
       <header className="border-b border-border/60 pb-2.5">
-        <h3 className="text-sm font-bold text-foreground">{event.title || 'Generated Outputs & Files'}</h3>
+        <h3 className="text-sm font-semibold text-foreground">{event.title || 'Generated Outputs & Files'}</h3>
         {event.description && (
           <p className="text-xs text-muted-foreground mt-0.5">{event.description}</p>
         )}
@@ -61,7 +61,7 @@ export function FileResponseCard({
                 {getFileIcon(file)}
               </div>
               <div className="min-w-0">
-                <span className="font-bold text-foreground truncate block">{file.name}</span>
+                <span className="font-semibold text-foreground truncate block">{file.name}</span>
                 <span className="text-2xs text-muted-foreground block">
                   {file.mimeType} {file.size ? `· ${(file.size / 1024).toFixed(1)} KB` : ''}
                 </span>

@@ -280,7 +280,7 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
       {/* Header */}
       <div className="sm:flex-row sm:items-center gap-4 flex flex-col justify-between">
         <div>
-          <h1 className="text-xl font-bold tracking-tight gap-2 flex items-center text-foreground">
+          <h1 className="text-xl font-semibold tracking-tight gap-2 flex items-center text-foreground">
             <span>AI Providers & API Keys</span>
             <Badge
               variant="neutral"
@@ -347,7 +347,7 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
                     </div>
                     <div>
                       <div className="gap-2 flex items-center">
-                        <h3 className="text-sm font-bold text-foreground">
+                        <h3 className="text-sm font-semibold text-foreground">
                           {provider.name}
                         </h3>
                         {isDefault && (
@@ -458,7 +458,7 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
       {/* Model Catalog & Management Section */}
       <div className="space-y-4 pt-6 border-t border-border/60">
         <div>
-          <h2 className="text-base font-bold text-foreground">
+          <h2 className="text-base font-semibold text-foreground">
             Model Catalog & Defaults
           </h2>
           <p className="text-xs mt-0.5 text-muted-foreground">
@@ -484,7 +484,7 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
                 >
                   <div className="space-y-1 min-w-0">
                     <div className="gap-2 flex items-center">
-                      <span className="text-xs font-bold text-foreground">
+                      <span className="text-xs font-semibold text-foreground">
                         {model.name}
                       </span>
                       <Badge

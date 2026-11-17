@@ -591,7 +591,7 @@ export function AgentMessageCard({
               )}
               <div className="min-w-0">
                 <div className="gap-1.5 flex flex-wrap items-center">
-                  <span className="text-xs font-bold truncate text-foreground">
+                  <span className="text-xs font-semibold truncate text-foreground">
                     {agentName}
                   </span>
                   <span className="font-mono text-2xs text-muted-foreground">
@@ -685,7 +685,7 @@ export function AgentMessageCard({
               <div className="min-w-0">
                 <div className="gap-2 flex flex-wrap items-baseline">
                   {profileCard(
-                    <span className="font-bold text-message text-foreground hover:underline">
+                    <span className="font-semibold text-message text-foreground hover:underline">
                       {agentName}
                     </span>,
                   )}

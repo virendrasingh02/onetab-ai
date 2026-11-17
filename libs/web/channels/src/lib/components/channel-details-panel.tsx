@@ -364,7 +364,7 @@ export function ChannelDetailsPanel({
                   <div className="min-w-0 flex-1">
                     <div className="gap-1 flex items-center justify-between">
                       <div className="gap-1.5 min-w-0 flex items-center">
-                        <span className="text-xs font-bold truncate text-foreground">
+                        <span className="text-xs font-semibold truncate text-foreground">
                           {link.agent.name}
                         </span>
                       </div>
@@ -1033,7 +1033,7 @@ function ChannelCoworkersTab({
                 className="min-w-0 flex-1"
               >
                 <div className="gap-1.5 flex items-center">
-                  <span className="text-xs font-bold truncate text-foreground">
+                  <span className="text-xs font-semibold truncate text-foreground">
                     {link.coworker.name}
                   </span>
                   <CoworkerStatusDot status={link.coworker.status} />

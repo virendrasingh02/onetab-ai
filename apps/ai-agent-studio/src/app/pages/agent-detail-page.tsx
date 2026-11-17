@@ -5886,7 +5886,7 @@ export function AgentDetailPage() {
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-sm font-bold gap-2 flex items-center">
+            <DialogTitle className="text-sm font-semibold gap-2 flex items-center">
               <Clock className="h-4 w-4 text-primary" />
               Create Version Snapshot
             </DialogTitle>
@@ -5935,7 +5935,7 @@ export function AgentDetailPage() {
       >
         <DialogContent className="max-w-2xl flex max-h-[85vh] flex-col">
           <DialogHeader>
-            <DialogTitle className="text-sm font-bold gap-2 flex items-center">
+            <DialogTitle className="text-sm font-semibold gap-2 flex items-center">
               <GitBranch className="h-4 w-4 text-primary" />
               Graph Diff: Current vs{' '}
               {diffModalTarget ? agentVersionLabel(diffModalTarget) : ''}

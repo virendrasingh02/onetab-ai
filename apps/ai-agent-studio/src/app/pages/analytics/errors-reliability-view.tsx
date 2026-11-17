@@ -161,7 +161,7 @@ export function ErrorsReliabilityView({ errors }: ErrorsReliabilityViewProps) {
         <Card className="p-5 shadow-2xs border-destructive/40 space-y-3">
           <div className="flex items-center gap-2">
             <Wrench className="size-4 text-destructive-text" />
-            <h4 className="font-bold text-sm text-foreground">
+            <h4 className="font-semibold text-sm text-foreground">
               Diagnostic & Remediation Playbook: {selectedError.category}
             </h4>
           </div>

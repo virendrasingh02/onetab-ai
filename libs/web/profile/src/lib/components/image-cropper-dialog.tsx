@@ -365,7 +365,7 @@ export function ImageCropperDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl p-0 overflow-hidden bg-card border-border shadow-2xl rounded-2xl">
         <DialogHeader className="p-5 pb-3 border-b border-border/60">
-          <DialogTitle className="text-base font-bold text-foreground">
+          <DialogTitle className="text-base font-semibold text-foreground">
             {title || (isAvatar ? 'Customize Avatar' : 'Customize Header Cover')}
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">

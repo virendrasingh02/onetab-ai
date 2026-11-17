@@ -7,6 +7,7 @@ import {
 } from '@org/types';
 import {
   ActionDropdownMenu,
+  AiEntityAvatar,
   type EntityAction,
   UserAvatar,
   toast,
@@ -327,16 +328,26 @@ export function SystemEventEntityAvatar({
   if (entity.kind === 'app') {
     return <AppLogoAvatar logoUrl={entity.avatarUrl} />;
   }
+  // Same avatar a message row draws for this sender, so an activity row and
+  // the entity's own messages look identical.
+  if (entity.kind === 'agent' || entity.kind === 'coworker') {
+    return (
+      <AiEntityAvatar
+        name={entity.name}
+        kind={entity.kind}
+        avatarUrl={entity.avatarUrl}
+        size="md"
+        className="size-10"
+      />
+    );
+  }
   return (
     <UserAvatar
       name={entity.name}
       src={entity.avatarUrl}
       seed={entity.id ?? entity.name}
       size="md"
-      className={cn(
-        'size-10 rounded-full shadow-xs',
-        entity.kind === 'agent' && 'ring-2 ring-brand/40',
-      )}
+      className="size-10 rounded-full shadow-xs"
       indicator={false}
     />
   );
@@ -593,13 +604,13 @@ export function SystemEventCard({
       data-message-id={message.id}
       aria-label={message.body}
       className={cn(
-        'group/message min-h-11 gap-4 py-1.5 text-sm relative flex items-center transition-colors',
+        'group/message gap-x-4 pt-2.5 pb-0.5 text-sm relative flex transition-colors',
         CHAT_ROW_INSET,
         CHAT_ROW_HOVER,
         isHighlighted && CHAT_ROW_HIGHLIGHT,
       )}
     >
-      <div className="w-10 flex shrink-0 justify-center self-start">
+      <div className="w-10 flex shrink-0 justify-center">
         {primaryEntity ? (
           <SystemEventEntityAvatar entity={primaryEntity} />
         ) : (
@@ -613,7 +624,7 @@ export function SystemEventCard({
             <SystemEventEntityName
               entity={primaryEntity}
               onClick={onViewEntity}
-              weight="bold"
+              weight="semibold"
               className="text-message text-foreground"
             />
             <span

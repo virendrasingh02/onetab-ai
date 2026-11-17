@@ -35,7 +35,7 @@ export function SettingsSectionHeader({
     <div className="gap-4 flex flex-wrap items-start justify-between">
       <div className="min-w-0 basis-72 flex-1">
         <div className="gap-2 flex flex-wrap items-center">
-          <h1 className="text-xl font-bold tracking-tight text-foreground">
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">
             {title}
           </h1>
           {badge}

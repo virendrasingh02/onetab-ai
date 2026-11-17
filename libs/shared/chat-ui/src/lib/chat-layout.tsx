@@ -104,7 +104,7 @@ export function ChatHeader({
       <div className="flex min-w-0 items-center gap-2">
         <Hash className="size-5 shrink-0 text-muted-foreground" />
         <div className="min-w-0 flex-1">
-          <h2 className="flex items-center gap-1.5 text-sm font-bold text-foreground truncate">
+          <h2 className="flex items-center gap-1.5 text-sm font-semibold text-foreground truncate">
             <span className="truncate">{title}</span>
             {isEncrypted ? (
               <Hint label="End-to-end encrypted">

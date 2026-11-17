@@ -151,7 +151,7 @@ export function KnowledgeExplorer({
                 <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-primary/10 text-primary font-bold">
                   {selectedNode.entityType}
                 </span>
-                <h4 className="text-sm font-bold text-foreground">
+                <h4 className="text-sm font-semibold text-foreground">
                   {selectedNode.name}
                 </h4>
                 {selectedNode.identifier && (

@@ -51,7 +51,7 @@ export function WorkspaceProjectSettings() {
 
   const header = (
     <div>
-      <h1 className="text-xl font-bold tracking-tight text-foreground">
+      <h1 className="text-xl font-semibold tracking-tight text-foreground">
         Projects
       </h1>
       <p className="text-xs text-muted-foreground mt-1">

@@ -941,7 +941,7 @@ export function AgentsListPage() {
                     <Bot className="size-5" />
                   </div>
                   <div>
-                    <DialogTitle className="text-base font-bold tracking-tight text-foreground">
+                    <DialogTitle className="text-base font-semibold tracking-tight text-foreground">
                       Create New AI Agent
                     </DialogTitle>
                     <DialogDescription className="text-xs mt-0.5 text-muted-foreground">
@@ -1185,7 +1185,7 @@ export function AgentsListPage() {
               }}
             >
               <DialogHeader>
-                <DialogTitle className="text-sm font-bold gap-2 flex items-center">
+                <DialogTitle className="text-sm font-semibold gap-2 flex items-center">
                   <Tag className="size-4 text-primary" /> Rename Agent
                 </DialogTitle>
                 <DialogDescription className="text-xs">

@@ -60,7 +60,7 @@ export function KnowledgeGraphAdminView() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground flex items-center gap-2.5">
             <Network className="size-6 text-primary" />
             Knowledge Graph & Context Governance
           </h1>
@@ -124,7 +124,7 @@ export function KnowledgeGraphAdminView() {
               Total Graph Nodes
               <Database className="size-4 text-blue-500" />
             </CardDescription>
-            <CardTitle className="text-2xl font-bold font-mono">
+            <CardTitle className="text-2xl font-semibold font-mono">
               {health?.totalNodes?.toLocaleString() ?? 0}
             </CardTitle>
           </CardHeader>
@@ -141,7 +141,7 @@ export function KnowledgeGraphAdminView() {
               Total Graph Edges
               <Network className="size-4 text-emerald-500" />
             </CardDescription>
-            <CardTitle className="text-2xl font-bold font-mono">
+            <CardTitle className="text-2xl font-semibold font-mono">
               {health?.totalEdges?.toLocaleString() ?? 0}
             </CardTitle>
           </CardHeader>
@@ -158,7 +158,7 @@ export function KnowledgeGraphAdminView() {
               Connected Sources
               <HardDrive className="size-4 text-violet-500" />
             </CardDescription>
-            <CardTitle className="text-2xl font-bold font-mono">
+            <CardTitle className="text-2xl font-semibold font-mono">
               {health?.totalSources ?? 0}
             </CardTitle>
           </CardHeader>
@@ -175,7 +175,7 @@ export function KnowledgeGraphAdminView() {
               Avg Traversal Latency
               <Zap className="size-4 text-amber-500" />
             </CardDescription>
-            <CardTitle className="text-2xl font-bold font-mono">
+            <CardTitle className="text-2xl font-semibold font-mono">
               ~2.4 ms
             </CardTitle>
           </CardHeader>

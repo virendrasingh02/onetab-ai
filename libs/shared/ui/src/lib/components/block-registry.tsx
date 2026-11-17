@@ -38,7 +38,7 @@ export function BlockRenderer({ block }: { block: PageBlockConfig }) {
                 {block.badge}
               </Badge>
             )}
-            <h1 className="text-2xl sm:text-4xl font-bold tracking-tight text-foreground">
+            <h1 className="text-2xl sm:text-4xl font-semibold tracking-tight text-foreground">
               {block.title}
             </h1>
             {block.description && (
@@ -85,7 +85,7 @@ export function BlockRenderer({ block }: { block: PageBlockConfig }) {
           {(block.title || block.description) && (
             <div className="text-center max-w-xl mx-auto space-y-2">
               {block.badge && <Badge variant="secondary">{block.badge}</Badge>}
-              <h2 className="text-xl font-bold text-foreground">{block.title}</h2>
+              <h2 className="text-xl font-semibold text-foreground">{block.title}</h2>
               <p className="text-xs text-muted-foreground">{block.description}</p>
             </div>
           )}
@@ -129,7 +129,7 @@ export function BlockRenderer({ block }: { block: PageBlockConfig }) {
     case 'cta':
       return (
         <div className="rounded-card border border-primary/30 bg-primary/10 p-6 text-center space-y-3">
-          <h3 className="text-lg font-bold text-foreground">{block.title}</h3>
+          <h3 className="text-lg font-semibold text-foreground">{block.title}</h3>
           <p className="text-xs text-muted-foreground max-w-md mx-auto">{block.description}</p>
           {block.actions && block.actions.length > 0 && (
             <div className="pt-2">

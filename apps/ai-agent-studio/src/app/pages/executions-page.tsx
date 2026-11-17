@@ -300,7 +300,7 @@ export function ExecutionsPage() {
       >
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="text-sm font-bold flex items-center gap-2">
+            <DialogTitle className="text-sm font-semibold flex items-center gap-2">
               <Activity className="size-4 text-primary" />
               <span>
                 Execution Trace:{' '}

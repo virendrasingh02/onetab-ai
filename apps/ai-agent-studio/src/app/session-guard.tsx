@@ -241,7 +241,7 @@ export function SessionGuard({ children }: { children: ReactNode }) {
         <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
           <ShieldAlert className="size-6" />
         </div>
-        <h2 className="text-xl font-bold">No workspace yet</h2>
+        <h2 className="text-xl font-semibold">No workspace yet</h2>
         <p className="mt-2 max-w-md text-sm text-muted-foreground">
           You are signed in as <span className="font-semibold text-foreground">{phase.user.email}</span>, but you are
           not a member of any workspace.

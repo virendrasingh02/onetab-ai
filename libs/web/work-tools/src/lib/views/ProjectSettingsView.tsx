@@ -171,7 +171,7 @@ export function ProjectSettingsView({
                 <Hash className="size-4" />
               </div>
               <div>
-                <CardTitle className="text-base font-bold text-foreground">
+                <CardTitle className="text-base font-semibold text-foreground">
                   Task IDs
                 </CardTitle>
                 <CardDescription className="text-xs">
@@ -267,7 +267,7 @@ export function ProjectSettingsView({
       {/* 2. General Project Settings */}
       <Card className="border border-border/60 bg-card/80 shadow-xs">
         <CardHeader className="p-5 pb-3">
-          <CardTitle className="text-base font-bold text-foreground">
+          <CardTitle className="text-base font-semibold text-foreground">
             Project Information
           </CardTitle>
           <CardDescription className="text-xs">
@@ -382,7 +382,7 @@ export function ProjectSettingsView({
       {canDelete ? (
         <Card className="border border-destructive/30 bg-destructive/5 shadow-xs">
           <CardHeader className="p-5 pb-2">
-            <CardTitle className="text-sm font-bold gap-1.5 flex items-center text-destructive">
+            <CardTitle className="text-sm font-semibold gap-1.5 flex items-center text-destructive">
               <AlertTriangle className="size-4" />
               Danger Zone
             </CardTitle>
@@ -526,7 +526,7 @@ function ProjectCoworkersCard({
     <Card className="shadow-xs">
       <CardHeader className="p-5 pb-2 space-y-0 flex flex-row items-center justify-between">
         <div>
-          <CardTitle className="text-sm font-bold gap-1.5 flex items-center">
+          <CardTitle className="text-sm font-semibold gap-1.5 flex items-center">
             <Sparkles className="size-4 text-primary" />
             AI Coworkers
           </CardTitle>
@@ -599,7 +599,7 @@ function ProjectCoworkersCard({
                 />
                 <div className="min-w-0 flex-1">
                   <div className="gap-1.5 flex items-center">
-                    <span className="text-xs font-bold truncate text-foreground">
+                    <span className="text-xs font-semibold truncate text-foreground">
                       {link.coworker.name}
                     </span>
                     <CoworkerStatusDot status={link.coworker.status} />

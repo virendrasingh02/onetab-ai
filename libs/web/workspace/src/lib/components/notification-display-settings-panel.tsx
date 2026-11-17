@@ -152,7 +152,7 @@ export function NotificationDisplaySettingsPanel({
       {/* Top Heading & Test Trigger */}
       <div className="sm:flex-row sm:items-center gap-4 flex flex-col justify-between">
         <div>
-          <h2 className="text-lg font-bold tracking-tight gap-2 flex items-center text-foreground">
+          <h2 className="text-lg font-semibold tracking-tight gap-2 flex items-center text-foreground">
             <Bell className="size-4.5 text-primary" />
             <span>Notification Display</span>
           </h2>

@@ -490,7 +490,7 @@ export function WorkspaceBillingSettings({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
-            <h3 className="text-sm font-bold gap-2 flex items-center text-foreground">
+            <h3 className="text-sm font-semibold gap-2 flex items-center text-foreground">
               <Zap className="size-4 text-primary" />
               Real-Time Resource Quotas & AI Credits
             </h3>
@@ -618,7 +618,7 @@ export function WorkspaceBillingSettings({
       <div className="space-y-6">
         <div className="sm:flex-row sm:items-center gap-4 flex flex-col justify-between">
           <div>
-            <h3 className="text-base font-bold text-foreground">
+            <h3 className="text-base font-semibold text-foreground">
               Workspace Plans & Upgrades
             </h3>
             <p className="text-xs text-muted-foreground">
@@ -732,7 +732,7 @@ export function WorkspaceBillingSettings({
       {/* 6. Invoices & Billing History */}
       <div className="space-y-4 pt-4 border-t border-border">
         <div className="space-y-0.5">
-          <h3 className="text-base font-bold gap-2 flex items-center text-foreground">
+          <h3 className="text-base font-semibold gap-2 flex items-center text-foreground">
             <FileText className="size-4 text-primary" />
             Invoices & Payment Receipts
           </h3>
@@ -814,7 +814,7 @@ export function WorkspaceBillingSettings({
       {/* 7. Coupon history */}
       {redemptions.length > 0 && (
         <div className="space-y-3">
-          <h3 className="text-sm font-bold gap-2 flex items-center text-foreground">
+          <h3 className="text-sm font-semibold gap-2 flex items-center text-foreground">
             <Tag className="size-4 text-primary" />
             Coupon history
           </h3>

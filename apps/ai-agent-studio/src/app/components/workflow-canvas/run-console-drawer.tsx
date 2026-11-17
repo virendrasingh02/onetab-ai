@@ -665,7 +665,7 @@ export function RunConsoleDrawer({
             <Play className="size-4" />
           </div>
           <div className="min-w-0">
-            <div className="text-sm font-bold truncate text-foreground">
+            <div className="text-sm font-semibold truncate text-foreground">
               Run {agentName}
             </div>
             <div className="text-xs text-muted-foreground">
@@ -931,7 +931,7 @@ export function RunConsoleDrawer({
 
             {/* Steps */}
             <section className="space-y-1.5" aria-label="Steps">
-              <h3 className="text-xs font-bold text-foreground">Steps</h3>
+              <h3 className="text-xs font-semibold text-foreground">Steps</h3>
               <ol className="space-y-1">
                 {run.steps.map((step: CanvasRunStep) => (
                   <li key={step.id}>
@@ -970,7 +970,7 @@ export function RunConsoleDrawer({
             {/* Team */}
             {tasks.length > 0 && (
               <section className="space-y-1.5" aria-label="Agent team">
-                <h3 className="gap-1.5 text-xs font-bold flex items-center text-foreground">
+                <h3 className="gap-1.5 text-xs font-semibold flex items-center text-foreground">
                   <Users className="size-3.5" /> What the team did
                 </h3>
                 <ul className="space-y-1">
@@ -1022,7 +1022,7 @@ export function RunConsoleDrawer({
               ) : (
                 <>
                   <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-bold text-foreground">
+                    <h3 className="text-xs font-semibold text-foreground">
                       {selectedStep
                         ? (labels.get(selectedStep.stepId) ??
                           selectedStep.stepId)
@@ -1105,7 +1105,7 @@ function TaskDetail({
   return (
     <div className="space-y-3">
       <div className="gap-2 flex items-center justify-between">
-        <h3 className="text-xs font-bold text-foreground">
+        <h3 className="text-xs font-semibold text-foreground">
           {task.agentName}
           <Badge variant="neutral" className="ml-2 text-2xs">
             {task.status.toLowerCase().replace('_', ' ')}

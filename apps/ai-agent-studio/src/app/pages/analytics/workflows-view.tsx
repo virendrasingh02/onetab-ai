@@ -244,7 +244,7 @@ export function WorkflowsView({ workflows }: WorkflowsViewProps) {
             <div className="flex items-center gap-2">
               <Layers className="size-5 text-primary" />
               <div>
-                <h4 className="font-bold text-foreground text-sm">
+                <h4 className="font-semibold text-foreground text-sm">
                   {selectedWf.workflowName} — Node Performance Breakdown
                 </h4>
                 <p className="text-xs text-muted-foreground">

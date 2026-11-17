@@ -74,7 +74,7 @@ export function SystemMessageCard({
         {style.icon}
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
-            <span className="font-bold text-foreground">{event.title}</span>
+            <span className="font-semibold text-foreground">{event.title}</span>
             {event.code && (
               <span className="font-mono text-2xs text-muted-foreground">{event.code}</span>
             )}

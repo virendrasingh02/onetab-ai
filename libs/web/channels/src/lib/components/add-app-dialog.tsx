@@ -92,7 +92,7 @@ export function AddAppDialog({
               <Blocks className="size-5" />
             </div>
             <div>
-              <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <DialogTitle className="text-base font-semibold flex items-center gap-2">
                 <span>Add App to #{channel.name}</span>
                 <Badge variant="neutral" className="text-2xs py-0 h-4 font-mono">
                   Integration
@@ -164,7 +164,7 @@ export function AddAppDialog({
                         <UserAvatar name={name} seed={integration.id} size="sm" />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-bold text-foreground">
+                            <span className="text-xs font-semibold text-foreground">
                               {name}
                             </span>
                             <Badge

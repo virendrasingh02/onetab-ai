@@ -57,7 +57,7 @@ export function WorkflowCard({
 
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-sm font-bold text-foreground tracking-tight">
+              <h3 className="text-sm font-semibold text-foreground tracking-tight">
                 {event.title}
               </h3>
               <Badge
@@ -128,7 +128,7 @@ export function WorkflowCard({
                       )}
                     </div>
                     <div className="min-w-0">
-                      <span className="font-bold text-foreground truncate block">
+                      <span className="font-semibold text-foreground truncate block">
                         {step.name}
                       </span>
                       {step.agentName && (

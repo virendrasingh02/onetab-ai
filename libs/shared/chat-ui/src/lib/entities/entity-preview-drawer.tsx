@@ -69,7 +69,7 @@ export function EntityPreviewDrawer({
             )}
           </div>
 
-          <DialogTitle className="text-lg sm:text-xl font-bold text-foreground">
+          <DialogTitle className="text-lg sm:text-xl font-semibold text-foreground">
             {entity.title}
           </DialogTitle>
           {entity.subtitle && (

@@ -97,7 +97,7 @@ export function EmptyState({
         </div>
       ) : null}
 
-      <h3 className="text-base sm:text-lg font-bold tracking-tight text-foreground text-center">
+      <h3 className="text-base sm:text-lg font-semibold tracking-tight text-foreground text-center">
         {title}
       </h3>
 

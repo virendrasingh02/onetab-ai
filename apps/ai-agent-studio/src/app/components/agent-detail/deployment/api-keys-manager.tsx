@@ -89,7 +89,7 @@ function KeyRow({
     <Card className="gap-3 p-4 shadow-2xs flex-row flex-wrap items-center justify-between">
       <div className="min-w-0 space-y-1.5">
         <div className="gap-2 flex flex-wrap items-center">
-          <span className="text-xs font-bold text-foreground">{k.name}</span>
+          <span className="text-xs font-semibold text-foreground">{k.name}</span>
           <code className="px-2 py-0.5 text-xs font-bold rounded-md bg-brand/10 font-mono text-brand-text">
             {k.keyPrefix}••••••••
           </code>
@@ -246,7 +246,7 @@ export function ApiKeysManager({
           className="space-y-2 p-4 rounded-xl border border-success/40 bg-success/10"
           role="status"
         >
-          <div className="gap-1.5 text-xs font-bold flex items-center text-success">
+          <div className="gap-1.5 text-xs font-semibold flex items-center text-success">
             <CheckCircle2 className="size-4" /> “{created.name}” is ready
           </div>
           <p className="text-xs text-foreground">

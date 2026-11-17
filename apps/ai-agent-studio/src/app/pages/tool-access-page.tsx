@@ -259,7 +259,7 @@ export function ToolAccessPage() {
                       </button>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <p className="truncate text-xs font-bold text-foreground">{c.name}</p>
+                          <p className="truncate text-xs font-semibold text-foreground">{c.name}</p>
                           <Badge variant={connected ? 'success' : 'neutral'} className="text-2xs">
                             {connected ? 'Connected' : 'Not connected'}
                           </Badge>
@@ -322,7 +322,7 @@ export function ToolAccessPage() {
               {builtinTools.map((tool) => (
                 <li key={tool.name} className="flex items-center gap-3 px-4 py-3">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-mono text-xs font-bold text-foreground">{tool.name}</p>
+                    <p className="truncate font-mono text-xs font-semibold text-foreground">{tool.name}</p>
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">{tool.description}</p>
                   </div>
                   <ModeSelect

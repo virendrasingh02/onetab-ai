@@ -100,7 +100,7 @@ export function PricingCard({
         {/* Tier Name & Tagline */}
         <div className="space-y-1.5">
           <div className="gap-2 flex items-center">
-            <CardTitle className="text-xl font-bold tracking-tight text-foreground">
+            <CardTitle className="text-xl font-semibold tracking-tight text-foreground">
               {plan.name}
             </CardTitle>
             {plan.trialDays ? (

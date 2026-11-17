@@ -211,7 +211,7 @@ export function TracesTimelineView({
           <div>
             <Card className="p-5 shadow-2xs space-y-4 sticky top-4">
               <div className="flex items-center justify-between border-b border-border pb-3">
-                <h4 className="font-bold text-foreground text-xs flex items-center gap-2">
+                <h4 className="font-semibold text-foreground text-xs flex items-center gap-2">
                   <Cpu className="size-4 text-primary" />
                   Span Telemetry Inspector
                 </h4>

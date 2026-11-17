@@ -136,7 +136,7 @@ export function HealthDashboardView() {
                       ) : (
                         <CheckCircle className="w-4 h-4 shrink-0 text-success" />
                       )}
-                      <h3 className="font-bold text-sm truncate text-foreground">
+                      <h3 className="font-semibold text-sm truncate text-foreground">
                         {service.name}
                       </h3>
                     </div>

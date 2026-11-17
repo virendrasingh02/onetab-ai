@@ -654,7 +654,7 @@ export const CoworkerProfileDetails: FC<CoworkerProfileDetailsProps> = ({
 
               <div className="space-y-1 pb-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+                  <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
                     {coworker.name}
                   </h2>
                   <Badge variant="primary" className="text-2xs uppercase font-bold tracking-wider">

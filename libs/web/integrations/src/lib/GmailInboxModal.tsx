@@ -337,7 +337,7 @@ export function GmailInboxModal({
 
                 <div className="flex items-start justify-between gap-4 pb-4 border-b border-border">
                   <div>
-                    <h2 className="text-lg font-bold text-foreground">{selectedMessage.subject}</h2>
+                    <h2 className="text-lg font-semibold text-foreground">{selectedMessage.subject}</h2>
                     <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                       <span className="font-medium text-foreground">
                         {selectedMessage.from.name || selectedMessage.from.email}

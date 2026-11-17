@@ -1359,7 +1359,7 @@ export function ChatBubble({
                 entityKind={profileEntityKind}
                 entityId={profileEntityId}
               >
-                <span className="font-bold cursor-pointer text-message text-foreground hover:underline">
+                <span className="font-semibold cursor-pointer text-message text-foreground hover:underline">
                   {senderName}
                 </span>
               </UserProfileCard>

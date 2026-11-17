@@ -153,7 +153,7 @@ export function ProjectUpdatesView({
                         })}
                       </span>
                     </div>
-                    <CardTitle className="text-sm font-bold mt-0.5 text-foreground">
+                    <CardTitle className="text-sm font-semibold mt-0.5 text-foreground">
                       {up.title}
                     </CardTitle>
                   </div>

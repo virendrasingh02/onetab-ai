@@ -54,7 +54,7 @@ export function ValidationModal({
               )}
             </div>
             <div>
-              <DialogTitle className="text-sm font-bold">
+              <DialogTitle className="text-sm font-semibold">
                 {valid ? 'Workflow Validation Passed' : 'Workflow Has Issues'}
               </DialogTitle>
               <DialogDescription className="text-xs">

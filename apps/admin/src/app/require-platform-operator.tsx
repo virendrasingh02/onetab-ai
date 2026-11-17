@@ -227,7 +227,7 @@ export function RequirePlatformOperator({ children }: { children: ReactNode }) {
         {/* Main Content Area */}
         <main className="py-8 my-auto flex w-full max-w-[380px] flex-col items-center">
           <div className="w-full">
-            <h1 className="text-2xl sm:text-stat font-bold tracking-tight leading-tight text-center text-foreground">
+            <h1 className="text-2xl sm:text-stat font-semibold tracking-tight leading-tight text-center text-foreground">
               Sign in to Admin
             </h1>
 
@@ -499,7 +499,7 @@ export function RequirePlatformOperator({ children }: { children: ReactNode }) {
               <ShieldAlert className="size-6" />
             </div>
 
-            <h1 className="text-2xl sm:text-stat font-bold tracking-tight leading-tight text-center text-foreground">
+            <h1 className="text-2xl sm:text-stat font-semibold tracking-tight leading-tight text-center text-foreground">
               Access Denied
             </h1>
 

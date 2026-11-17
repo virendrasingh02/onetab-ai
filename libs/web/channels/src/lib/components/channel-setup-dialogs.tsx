@@ -950,7 +950,7 @@ export function AddAgentToChannelDialog({
               <Bot className="size-5" />
             </div>
             <div>
-              <DialogTitle className="text-base font-bold gap-2 flex items-center">
+              <DialogTitle className="text-base font-semibold gap-2 flex items-center">
                 <span>Add AI Agent to #{channel.name}</span>
                 <Badge variant="primary" className="py-0 h-4 text-2xs">
                   AI Powered
@@ -1011,7 +1011,7 @@ export function AddAgentToChannelDialog({
                       />
                       <div className="min-w-0 flex-1">
                         <div className="gap-2 flex flex-wrap items-center">
-                          <span className="text-xs font-bold text-foreground">
+                          <span className="text-xs font-semibold text-foreground">
                             {agent.name}
                           </span>
                           <span className="font-mono text-meta text-brand-text">
@@ -1193,7 +1193,7 @@ export function ChannelTemplatesDialog({
               <LayoutTemplate className="size-5" />
             </div>
             <div>
-              <DialogTitle className="text-base font-bold">
+              <DialogTitle className="text-base font-semibold">
                 Channel Templates
               </DialogTitle>
               <DialogDescription className="text-xs">
@@ -1226,7 +1226,7 @@ export function ChannelTemplatesDialog({
                       {tpl.category}
                     </Badge>
                   </div>
-                  <h4 className="font-bold text-xs mt-2 text-foreground">
+                  <h4 className="font-semibold text-xs mt-2 text-foreground">
                     {tpl.name}
                   </h4>
                   <p className="mt-1 leading-relaxed line-clamp-2 text-meta text-muted-foreground">
@@ -1347,7 +1347,7 @@ export function ChannelWorkflowsDialog({
               <Workflow className="size-5" />
             </div>
             <div>
-              <DialogTitle className="text-base font-bold">
+              <DialogTitle className="text-base font-semibold">
                 Workflows &amp; Automations
               </DialogTitle>
               <DialogDescription className="text-xs">
@@ -1365,7 +1365,7 @@ export function ChannelWorkflowsDialog({
             >
               <div className="min-w-0 flex-1">
                 <div className="gap-2 flex flex-wrap items-center">
-                  <h4 className="text-xs font-bold text-foreground">
+                  <h4 className="text-xs font-semibold text-foreground">
                     {wf.title}
                   </h4>
                   <Badge

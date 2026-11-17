@@ -73,7 +73,7 @@ export function PlanComparisonTable({
     <div className="space-y-6">
       <div className="sm:flex-row sm:items-center gap-4 flex flex-col justify-between">
         <div>
-          <h3 className="text-xl font-bold tracking-tight text-foreground">
+          <h3 className="text-xl font-semibold tracking-tight text-foreground">
             Compare Plan Features & Entitlements
           </h3>
           <p className="text-sm mt-1 text-muted-foreground">
@@ -103,7 +103,7 @@ export function PlanComparisonTable({
                   >
                     <div className="gap-1 flex flex-col items-center">
                       <div className="gap-1.5 flex items-center">
-                        <span className="font-bold text-sm md:text-base text-foreground">
+                        <span className="font-semibold text-sm md:text-base text-foreground">
                           {plan.name}
                         </span>
                         {plan.isPopular && (

@@ -97,7 +97,7 @@ export function AgentDetailDrawer({
                 <Bot className="size-5" />
               </div>
               <div>
-                <DialogTitle className="text-base font-bold text-foreground flex items-center gap-2">
+                <DialogTitle className="text-base font-semibold text-foreground flex items-center gap-2">
                   {agent.agentName}
                   <Badge variant="outline" className="text-2xs">
                     v{agent.version}

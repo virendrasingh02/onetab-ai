@@ -70,7 +70,7 @@ export function ProfileSummaryCard({
 
         {/* Identity */}
         <div className="space-y-0.5 mb-4">
-          <h3 className="text-base font-bold tracking-tight text-foreground">
+          <h3 className="text-base font-semibold tracking-tight text-foreground">
             {displayName}
           </h3>
           <p className="text-xs font-mono text-muted-foreground">{handle}</p>

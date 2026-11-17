@@ -155,7 +155,7 @@ export function CardRegistryView() {
               <div className="size-8 flex items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
                 <LayoutGrid className="size-4" />
               </div>
-              <h1 className="text-xl font-bold tracking-tight text-foreground">
+              <h1 className="text-xl font-semibold tracking-tight text-foreground">
                 Universal Card Registry
               </h1>
             </div>
@@ -247,7 +247,7 @@ export function CardRegistryView() {
                       {getCardIcon(card.icon)}
                     </div>
                     <div>
-                      <h3 className="font-bold text-sm tracking-tight text-foreground">
+                      <h3 className="font-semibold text-sm tracking-tight text-foreground">
                         {card.name}
                       </h3>
                       <div className="gap-1.5 mt-0.5 flex items-center font-mono text-2xs text-muted-foreground">
@@ -374,7 +374,7 @@ export function CardRegistryView() {
         <Dialog open={!!previewCard} onOpenChange={() => setPreviewCard(null)}>
           <DialogContent className="max-w-xl border-border bg-surface text-foreground">
             <DialogHeader>
-              <DialogTitle className="gap-2 text-sm font-bold flex items-center">
+              <DialogTitle className="gap-2 text-sm font-semibold flex items-center">
                 <Eye className="size-4 text-primary" />
                 <span>
                   Card Preview: {previewCard.name} (v{previewCard.version})
@@ -424,7 +424,7 @@ export function CardRegistryView() {
         <Dialog open={importOpen} onOpenChange={setImportOpen}>
           <DialogContent className="max-w-lg border-border bg-surface text-foreground">
             <DialogHeader>
-              <DialogTitle className="gap-2 text-sm font-bold flex items-center">
+              <DialogTitle className="gap-2 text-sm font-semibold flex items-center">
                 <Upload className="size-4 text-primary" />
                 <span>Import Card JSON</span>
               </DialogTitle>

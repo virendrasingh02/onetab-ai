@@ -428,7 +428,7 @@ export function DocHeader({
                 if (e.key === 'Enter') handleTitleSubmit();
               }}
               autoFocus
-              className="text-2xl md:text-3xl font-extrabold tracking-tight py-1 px-2 h-auto border-primary bg-surface-raised text-foreground"
+              className="text-2xl md:text-3xl font-semibold tracking-tight py-1 px-2 h-auto border-primary bg-surface-raised text-foreground"
             />
           ) : (
             <h1
@@ -436,7 +436,7 @@ export function DocHeader({
                 setTitleInput(doc.title);
                 setIsEditingTitle(true);
               }}
-              className="text-2xl md:text-3xl font-extrabold tracking-tight rounded px-1 -ml-1 py-0.5 group/title flex cursor-pointer items-center justify-between text-foreground transition-colors hover:bg-accent/40"
+              className="text-2xl md:text-3xl font-semibold tracking-tight rounded px-1 -ml-1 py-0.5 group/title flex cursor-pointer items-center justify-between text-foreground transition-colors hover:bg-accent/40"
               title="Click to edit document title"
             >
               <span>{doc.title}</span>

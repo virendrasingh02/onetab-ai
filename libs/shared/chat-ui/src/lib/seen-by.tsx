@@ -4,15 +4,14 @@ import {
   PopoverContent,
   PopoverTrigger,
   ScrollArea,
-  SkeletonAvatar,
+  SearchInput,
   SkeletonText,
   UserAvatar,
-  UserAvatarGroup,
   useResolvedPresence,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { CheckCheck } from 'lucide-react';
-import { useState, useTransition, type KeyboardEvent } from 'react';
+import { useMemo, useState } from 'react';
 
 export interface SeenByProps {
   readers?: MessageReader[];
@@ -22,7 +21,10 @@ export interface SeenByProps {
   isOwn?: boolean;
   /** Whether detailed reader data is currently being fetched or synced. */
   isLoading?: boolean;
-  /** Presentation variant: 'auto' adapts based on screen size and reader count. */
+  /**
+   * @deprecated The trigger is always the compact "✓✓ Seen" label now; who
+   * read it lives in the popover. Kept so existing callers still type-check.
+   */
   variant?: 'auto' | 'compact' | 'avatars' | 'text';
   className?: string;
 }
@@ -50,117 +52,60 @@ export function readerSeenTime(reader: MessageReader | undefined): string {
   return formatReaderTime(reader.seenAt);
 }
 
+/** Row label: "2:31 PM" today, "Yesterday 2:31 PM", else "Nov 12, 2:31 PM". */
+function readerSeenLabel(reader: MessageReader): string {
+  if (reader.seenAtExact === false || !reader.seenAt) return '';
+  const time = formatReaderTime(reader.seenAt);
+  if (!time) return '';
+  const seen = new Date(reader.seenAt);
+  const today = new Date();
+  const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const dayDiff = Math.round((startOf(today) - startOf(seen)) / 86_400_000);
+  if (dayDiff <= 0) return time;
+  if (dayDiff === 1) return `Yesterday ${time}`;
+  try {
+    const date = seen.toLocaleDateString([], {
+      month: 'short',
+      day: 'numeric',
+      ...(seen.getFullYear() !== today.getFullYear() ? { year: 'numeric' } : {}),
+    });
+    return `${date}, ${time}`;
+  } catch {
+    return time;
+  }
+}
+
+/** Show the filter field once the list is long enough to need it. */
+const SEARCH_THRESHOLD = 8;
+
 /**
- * Slack-style Seen By / Read Receipt component.
+ * Read receipt under the viewer's own message.
  *
- * Supports:
- * - Direct Messages: "Seen" or "Seen 2:31 PM" with checkmark indication.
- * - Group DMs & Channels: "Seen by Alex, Sarah", "Seen by 3", or avatar stack.
- * - Keyboard-accessible popover with presence, avatar, reader name, and time.
- * - Graceful fallback / skeleton states.
+ * The trigger is always a compact "✓✓ Seen" — no avatars or names inline, so
+ * it never crowds the message. Clicking it opens the reader list: everyone who
+ * has seen the message, most recent first, with presence and seen time.
  */
-export function SeenBy({
-  readers = [],
-  roomKind = 'channel',
-  isOwn = false,
-  isLoading = false,
-  variant = 'auto',
-  className,
-}: SeenByProps) {
+export function SeenBy({ readers = [], isLoading = false, className }: SeenByProps) {
   const [open, setOpen] = useState(false);
-  const [, startTransition] = useTransition();
 
   if (isLoading) {
     return (
       <div
-        className={cn('inline-flex items-center gap-1.5 py-0.5 text-xs text-muted-foreground', className)}
+        className={cn('inline-flex items-center gap-1 py-0.5 text-xs text-muted-foreground', className)}
         aria-hidden="true"
       >
-        <SkeletonAvatar size="xs" shape="circle" className="size-3.5" />
-        <SkeletonText size="xs" className="w-12 h-3" />
+        <SkeletonText size="xs" className="w-10 h-3" />
       </div>
     );
   }
 
-  if (!readers || readers.length === 0) {
-    // For sent messages with no external readers yet, optionally show single check or nothing
-    if (isOwn) {
-      return null;
-    }
-    return null;
-  }
+  if (!readers || readers.length === 0) return null;
 
   const readerCount = readers.length;
-  // A single reader renders like a DM ("Seen 4:38 PM" + details popover), in any room.
-  const isDirect = roomKind === 'direct' || readerCount === 1;
-
-  // 1. Direct Message representation
-  if (isDirect) {
-    const firstReader = readers[0];
-    const timeLabel = readerSeenTime(firstReader);
-    const labelText = timeLabel ? `Seen ${timeLabel}` : 'Seen';
-
-    return (
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            aria-label={
-              firstReader
-                ? `Seen by ${firstReader.displayName}${timeLabel ? ` at ${timeLabel}` : ''}`
-                : 'Seen'
-            }
-            className={cn(
-              'group/seen inline-flex items-center gap-1 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring rounded-md',
-              className,
-            )}
-          >
-            <CheckCheck className="size-3 text-brand-text shrink-0" aria-hidden="true" />
-            <span>{labelText}</span>
-          </button>
-        </PopoverTrigger>
-        <PopoverContent
-          align="start"
-          side="top"
-          sideOffset={6}
-          className="w-64 p-0 shadow-overlay border-border"
-        >
-          <SeenByPopoverContent readers={readers} />
-        </PopoverContent>
-      </Popover>
-    );
-  }
-
-  // 2. Channels & Group DMs representation
-  // Text label logic
-  const summaryText =
-    variant === 'compact'
-      ? `Seen by ${readerCount}`
-      : readerCount === 1
-        ? `Seen by ${readers[0].displayName}`
-        : readerCount === 2
-          ? `Seen by ${readers[0].displayName}, ${readers[1].displayName}`
-          : readerCount === 3
-            ? `Seen by ${readers[0].displayName}, ${readers[1].displayName} +1`
-            : `Seen by ${readerCount}`;
-
-  const avatarUsers = readers.slice(0, 3).map((r) => ({
-    id: r.userId,
-    name: r.displayName,
-    displayName: r.displayName,
-    avatarUrl: r.avatarUrl,
-  }));
-
-  const accessibleLabel = `Seen by ${readerCount} ${readerCount === 1 ? 'person' : 'people'}: ${readers
-    .map((r) => r.displayName)
-    .join(', ')}`;
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      startTransition(() => setOpen((prev) => !prev));
-    }
-  };
+  const accessibleLabel =
+    readerCount === 1
+      ? `Seen by ${readers[0].displayName}${readerSeenTime(readers[0]) ? ` at ${readerSeenTime(readers[0])}` : ''}`
+      : `Seen by ${readerCount} people: ${readers.map((r) => r.displayName).join(', ')}`;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -168,22 +113,15 @@ export function SeenBy({
         <button
           type="button"
           aria-label={accessibleLabel}
-          onKeyDown={handleKeyDown}
           className={cn(
-            'group/seen inline-flex items-center gap-1.5 py-0.5 px-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-accent/40 rounded-md focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring select-none cursor-pointer',
+            'inline-flex items-center gap-1 rounded-md px-1 -mx-1 py-0.5 text-xs font-medium text-muted-foreground transition-colors select-none',
+            'hover:text-foreground hover:bg-accent/40 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring',
+            open && 'text-foreground bg-accent/40',
             className,
           )}
         >
-          <CheckCheck className="size-3 text-brand-text shrink-0" aria-hidden="true" />
-          {variant !== 'text' && (
-            <UserAvatarGroup
-              users={avatarUsers}
-              max={3}
-              size="xs"
-              className="shrink-0 -space-x-1"
-            />
-          )}
-          <span className="truncate max-w-[180px] sm:max-w-none">{summaryText}</span>
+          <CheckCheck className="size-3.5 shrink-0 text-brand-text" aria-hidden="true" />
+          <span>Seen</span>
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -199,41 +137,64 @@ export function SeenBy({
 }
 
 /**
- * Popover content displaying full reader list with presence, avatar, name, and seen time.
+ * The reader list: header with count, optional filter, then one row per
+ * reader (avatar + presence, name, seen time), most recent first.
  */
 export function SeenByPopoverContent({ readers }: { readers: MessageReader[] }) {
-  const [showAll, setShowAll] = useState(false);
+  const [query, setQuery] = useState('');
   const count = readers.length;
-  const initialLimit = 25;
-  const visibleReaders = showAll ? readers : readers.slice(0, initialLimit);
-  const hasMore = count > initialLimit && !showAll;
+
+  const sorted = useMemo(
+    () =>
+      [...readers].sort((a, b) => {
+        // Exact times first (newest on top); upper-bound-only readers after, by name.
+        const ax = a.seenAtExact === false ? 0 : a.seenAt || 0;
+        const bx = b.seenAtExact === false ? 0 : b.seenAt || 0;
+        if (ax !== bx) return bx - ax;
+        return a.displayName.localeCompare(b.displayName);
+      }),
+    [readers],
+  );
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return sorted;
+    return sorted.filter((r) => r.displayName.toLowerCase().includes(q));
+  }, [sorted, query]);
 
   return (
     <div className="flex flex-col text-popover-foreground">
-      <div className="px-3 py-2 border-b border-border/80 flex items-center justify-between">
-        <span className="text-xs font-semibold">
+      <div className="flex items-center gap-1.5 px-3 py-2">
+        <CheckCheck className="size-3.5 shrink-0 text-brand-text" aria-hidden="true" />
+        <span className="text-xs font-medium text-muted-foreground">
           Seen by {count} {count === 1 ? 'person' : 'people'}
         </span>
       </div>
 
-      <ScrollArea className="max-h-60 overflow-y-auto overscroll-contain">
-        <div className="p-1 space-y-0.5">
-          {visibleReaders.map((reader) => (
+      {count > SEARCH_THRESHOLD && (
+        <div className="px-2 pb-2">
+          <SearchInput
+            value={query}
+            onValueChange={setQuery}
+            placeholder="Search people"
+            className="h-7 text-xs"
+          />
+        </div>
+      )}
+
+      <div className="border-t border-border/80" />
+
+      <ScrollArea className="max-h-64 overscroll-contain">
+        <ul className="p-1" aria-label="People who have seen this message">
+          {visible.map((reader) => (
             <ReaderItem key={reader.userId} reader={reader} />
           ))}
-
-          {hasMore && (
-            <div className="p-1 text-center">
-              <button
-                type="button"
-                onClick={() => setShowAll(true)}
-                className="w-full py-1 text-xs font-medium text-brand-text hover:underline"
-              >
-                View all {count} readers
-              </button>
-            </div>
+          {visible.length === 0 && (
+            <li className="px-2 py-4 text-center text-xs text-muted-foreground">
+              No one matches “{query.trim()}”
+            </li>
           )}
-        </div>
+        </ul>
       </ScrollArea>
     </div>
   );
@@ -241,28 +202,24 @@ export function SeenByPopoverContent({ readers }: { readers: MessageReader[] }) 
 
 function ReaderItem({ reader }: { reader: MessageReader }) {
   const livePresence = useResolvedPresence(reader.userId);
-  const timeStr = readerSeenTime(reader);
+  const seenLabel = readerSeenLabel(reader);
 
   return (
-    <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-accent/50 transition-colors">
+    <li className="flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-accent/50">
       <UserAvatar
         name={reader.displayName}
         src={reader.avatarUrl}
         seed={reader.userId}
         presence={livePresence}
         size="xs"
-        className="shrink-0 size-6"
+        className="shrink-0"
       />
-      <div className="flex flex-1 items-baseline justify-between gap-2 min-w-0">
-        <span className="text-xs font-medium truncate text-foreground">
-          {reader.displayName}
-        </span>
-        {timeStr && (
-          <span className="text-2xs text-muted-foreground shrink-0 tabular-nums">
-            {timeStr}
-          </span>
-        )}
-      </div>
-    </div>
+      <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">
+        {reader.displayName}
+      </span>
+      {seenLabel && (
+        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{seenLabel}</span>
+      )}
+    </li>
   );
 }

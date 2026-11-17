@@ -123,7 +123,7 @@ export function SSOLoginPanel({
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold flex items-center gap-2">
+            <DialogTitle className="text-base font-semibold flex items-center gap-2">
               <Building2 className="size-4 text-primary" />
               Enterprise Single Sign-On
             </DialogTitle>
@@ -186,7 +186,7 @@ export function SSOLoginPanel({
       <Dialog open={isRecoveryOpen} onOpenChange={setIsRecoveryOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold flex items-center gap-2 text-warning-text">
+            <DialogTitle className="text-base font-semibold flex items-center gap-2 text-warning-text">
               <KeyRound className="size-4" />
               Emergency Break-Glass Recovery Login
             </DialogTitle>

@@ -201,7 +201,7 @@ export function AddAiEntityToChannelDialog({
               <Bot className="size-5" />
             </div>
             <div>
-              <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <DialogTitle className="text-base font-semibold flex items-center gap-2">
                 <span>Add AI to #{channel.name}</span>
                 <Badge variant="primary" className="text-2xs py-0 h-4">
                   AI Powered
@@ -280,7 +280,7 @@ export function AddAiEntityToChannelDialog({
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-bold text-foreground">
+                          <span className="text-xs font-semibold text-foreground">
                             {item.name}
                           </span>
                           <span className="text-meta font-mono text-brand-text">

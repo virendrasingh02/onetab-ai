@@ -128,7 +128,7 @@ export function ChatSettingsPanel() {
       <div>
         <div className="gap-4 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold tracking-tight gap-2 flex items-center text-foreground">
+            <h1 className="text-xl font-semibold tracking-tight gap-2 flex items-center text-foreground">
               <MessageSquare className="size-5 text-primary" />
               <span>Chat & Messaging</span>
             </h1>

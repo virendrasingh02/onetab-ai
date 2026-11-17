@@ -135,7 +135,7 @@ export function PricingPage({ embedded = false }: PricingPageProps) {
           <Sparkles className="size-3.5" />
           Predictable, Transparent AI Pricing
         </div>
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-foreground">
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-foreground">
           Scale AI Micro-Agents With Zero Guesswork
         </h1>
         <p className="text-sm sm:text-base text-muted-foreground">
@@ -195,7 +195,7 @@ export function PricingPage({ embedded = false }: PricingPageProps) {
       {/* 5. Frequently Asked Questions (FAQ) */}
       <div className="pt-8 max-w-4xl space-y-6 mx-auto">
         <div className="space-y-1.5 text-center">
-          <h3 className="text-2xl font-bold tracking-tight gap-2 flex items-center justify-center text-foreground">
+          <h3 className="text-2xl font-semibold tracking-tight gap-2 flex items-center justify-center text-foreground">
             <HelpCircle className="size-5 text-primary" />
             Frequently Asked Questions
           </h3>
@@ -210,7 +210,7 @@ export function PricingPage({ embedded = false }: PricingPageProps) {
               key={idx}
               className="p-4 space-y-1.5 border-border bg-card/60"
             >
-              <h4 className="text-xs font-bold gap-2 flex items-start text-foreground">
+              <h4 className="text-xs font-semibold gap-2 flex items-start text-foreground">
                 <CheckCircle2 className="size-3.5 mt-0.5 shrink-0 text-primary" />
                 {faq.q}
               </h4>
@@ -225,7 +225,7 @@ export function PricingPage({ embedded = false }: PricingPageProps) {
       {/* 6. Enterprise Bottom Banner */}
       <div className="p-8 space-y-3 max-w-4xl mx-auto rounded-2xl border border-border bg-gradient-to-b from-surface-muted/60 to-surface-muted/20 text-center">
         <ShieldCheck className="size-8 mx-auto text-primary" />
-        <h4 className="text-lg font-bold text-foreground">
+        <h4 className="text-lg font-semibold text-foreground">
           Need Custom On-Premises or Private Cloud LLMs?
         </h4>
         <p className="text-xs max-w-xl mx-auto text-muted-foreground">

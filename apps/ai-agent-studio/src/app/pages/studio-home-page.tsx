@@ -635,7 +635,7 @@ function StudioInsights({ home }: { home: React.ReactNode }) {
                                 <Bot className="size-4" />
                               </div>
                               <div>
-                                <h3 className="gap-1.5 text-xs font-bold flex items-center text-foreground transition-colors group-hover:text-primary">
+                                <h3 className="gap-1.5 text-xs font-semibold flex items-center text-foreground transition-colors group-hover:text-primary">
                                   <Link
                                     id={`agent-card-${agent.id}`}
                                     to={`/agents/${agent.id}`}

@@ -117,7 +117,7 @@ export function AppResponseCard({
           <div className="gap-3 min-w-0 flex items-start">
             <div className="min-w-0">
               <div className="gap-2 flex flex-wrap items-center">
-                <span className="font-bold text-message text-foreground">
+                <span className="font-semibold text-message text-foreground">
                   {event.appName || message.senderName}
                 </span>
 
@@ -200,7 +200,7 @@ export function AppResponseCard({
         {/* 2. CARD TITLE & SUBTITLE */}
         <div className="mt-3">
           <div className="gap-2 flex items-start justify-between">
-            <h3 className="text-sm font-bold gap-2 flex items-center text-foreground transition-colors hover:text-brand-text">
+            <h3 className="text-sm font-semibold gap-2 flex items-center text-foreground transition-colors hover:text-brand-text">
               {getCardIcon()}
               <span>{event.title}</span>
             </h3>

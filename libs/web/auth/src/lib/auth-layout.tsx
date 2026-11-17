@@ -66,7 +66,7 @@ export function AuthLayout({
       <main className="py-6 my-auto flex w-full max-w-[360px] flex-col items-center">
         <div className={cn('w-full', className)}>
           {hero ? <div className="mb-5 flex justify-center">{hero}</div> : null}
-          <h1 className="text-2xl sm:text-stat font-bold tracking-tight leading-tight text-center text-foreground">
+          <h1 className="text-2xl sm:text-stat font-semibold tracking-tight leading-tight text-center text-foreground">
             {title}
           </h1>
 

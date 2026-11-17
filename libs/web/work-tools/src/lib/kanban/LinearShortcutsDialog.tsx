@@ -55,7 +55,7 @@ export function LinearShortcutsDialog({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-2xl overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-2xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base font-bold text-foreground">
+          <DialogTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
             <Keyboard className="size-4 text-primary" />
             <span>Linear Keyboard Shortcuts</span>
           </DialogTitle>

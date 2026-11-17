@@ -113,7 +113,7 @@ function StorefrontTile({
         ) : null}
       </div>
       <div>
-        <h3 className="font-bold text-sm text-foreground group-hover:text-foreground">
+        <h3 className="font-semibold text-sm text-foreground group-hover:text-foreground">
           {KIND_LABEL[kind]}s
         </h3>
         <p className="mt-0.5 text-meta text-muted-foreground">{blurb}</p>
@@ -180,7 +180,7 @@ export function MarketplaceHomeView() {
       </QueryState>
 
       <section className="mb-8">
-        <h2 className="text-sm font-bold gap-2 mb-3 flex items-center text-foreground">
+        <h2 className="text-sm font-semibold gap-2 mb-3 flex items-center text-foreground">
           <Sparkles className="w-4 h-4 text-warning" /> Featured
         </h2>
         <QueryState
@@ -205,7 +205,7 @@ export function MarketplaceHomeView() {
       </section>
 
       <section>
-        <h2 className="text-sm font-bold gap-2 mb-3 flex items-center text-foreground">
+        <h2 className="text-sm font-semibold gap-2 mb-3 flex items-center text-foreground">
           <Download className="w-4 h-4 text-success" /> Adoption by storefront
         </h2>
         <Panel>

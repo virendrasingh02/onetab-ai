@@ -308,7 +308,7 @@ export function UserProfileCard({
           {/* Display Name & Handle */}
           <div className="space-y-0.5">
             <div className="gap-2 flex items-center">
-              <h3 className="text-base font-extrabold tracking-tight text-foreground">
+              <h3 className="text-base font-semibold tracking-tight text-foreground">
                 {name}
               </h3>
               {statusEmoji && (
@@ -538,7 +538,7 @@ export function UserProfileRightPanel({
           {/* Name, Title, Handle & Status */}
           <div className="space-y-1">
             <div className="gap-2 flex items-center">
-              <h2 className="text-lg font-extrabold tracking-tight text-foreground">
+              <h2 className="text-lg font-semibold tracking-tight text-foreground">
                 {name}
               </h2>
               {member ? (

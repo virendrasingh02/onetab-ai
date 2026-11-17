@@ -262,7 +262,7 @@ export const AppProfileRightPanel: FC<AppProfileRightPanelProps> = ({
 
           <div className="mb-4">
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold tracking-tight text-foreground truncate">{app.name}</h2>
+              <h2 className="text-lg font-semibold tracking-tight text-foreground truncate">{app.name}</h2>
               <Badge
                 variant="neutral"
                 className="text-2xs font-bold uppercase tracking-wider border-accent-violet/30 bg-accent-violet/10 text-accent-violet"

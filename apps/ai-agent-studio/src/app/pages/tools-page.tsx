@@ -410,7 +410,7 @@ export function ToolsPage() {
                         >
                           {firecrawl ? <Flame className="size-3.5" /> : <Wrench className="size-3.5" />}
                         </span>
-                        <span className="truncate font-mono text-xs font-bold text-foreground">{t.name}</span>
+                        <span className="truncate font-mono text-xs font-semibold text-foreground">{t.name}</span>
                       </span>
                       <Badge variant={t.readOnly ? 'outline' : 'warning'} className="shrink-0 text-2xs">
                         {t.readOnly ? 'Read' : 'Write'}

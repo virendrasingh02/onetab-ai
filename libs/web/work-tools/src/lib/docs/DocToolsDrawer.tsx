@@ -219,7 +219,7 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
         </SheetTrigger>
         <SheetContent className="w-80 sm:w-96 p-4">
           <SheetHeader className="pb-3 border-b border-border">
-            <SheetTitle className="text-sm font-bold gap-2 flex items-center">
+            <SheetTitle className="text-sm font-semibold gap-2 flex items-center">
               <Sparkles className="size-4 text-accent-blue" />
               Page Tools & Discussions
             </SheetTitle>

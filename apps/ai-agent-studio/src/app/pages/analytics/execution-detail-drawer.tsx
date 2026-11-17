@@ -63,7 +63,7 @@ export function ExecutionDetailDrawer({
                 <Activity className="size-5" />
               </div>
               <div>
-                <DialogTitle className="text-base font-bold gap-2 flex items-center text-foreground">
+                <DialogTitle className="text-base font-semibold gap-2 flex items-center text-foreground">
                   Run: <span className="text-sm font-mono">{execution.id}</span>
                   <Badge
                     variant={

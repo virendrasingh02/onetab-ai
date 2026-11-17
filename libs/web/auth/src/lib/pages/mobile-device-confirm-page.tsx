@@ -80,7 +80,7 @@ export function MobileDeviceConfirmPage() {
             <Laptop className="size-6 text-foreground" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-foreground">Sign in to Desktop</h1>
+            <h1 className="text-lg font-semibold text-foreground">Sign in to Desktop</h1>
             <p className="text-xs text-muted-foreground mt-1">
               Please sign in on your mobile device to authorize this desktop connection.
             </p>
@@ -150,7 +150,7 @@ export function MobileDeviceConfirmPage() {
             <CheckCircle2 className="size-8" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-foreground">Desktop Signed In</h1>
+            <h1 className="text-xl font-semibold text-foreground">Desktop Signed In</h1>
             <p className="text-xs text-muted-foreground mt-1">
               You&apos;re now signed in to Onetab AI Desktop.
             </p>
@@ -191,7 +191,7 @@ export function MobileDeviceConfirmPage() {
             <XCircle className="size-6" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-foreground">Sign In Cancelled</h1>
+            <h1 className="text-lg font-semibold text-foreground">Sign In Cancelled</h1>
             <p className="text-xs text-muted-foreground mt-1">
               The desktop authentication request was cancelled.
             </p>
@@ -217,7 +217,7 @@ export function MobileDeviceConfirmPage() {
             <AlertCircle className="size-6" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-foreground">Sign-In Request Unavailable</h1>
+            <h1 className="text-lg font-semibold text-foreground">Sign-In Request Unavailable</h1>
             <p className="text-xs text-destructive mt-1">
               {error || 'This device sign-in request is invalid or has expired.'}
             </p>
@@ -253,7 +253,7 @@ export function MobileDeviceConfirmPage() {
           <div className="mx-auto size-14 rounded-full bg-surface-raised border border-border flex items-center justify-center mb-3 text-foreground">
             <Monitor className="size-7 text-foreground" />
           </div>
-          <h1 className="text-xl font-bold text-foreground">Sign in to Desktop</h1>
+          <h1 className="text-xl font-semibold text-foreground">Sign in to Desktop</h1>
           <p className="text-xs text-muted-foreground mt-1">
             You&apos;re authorizing a sign-in session for Onetab AI Desktop.
           </p>

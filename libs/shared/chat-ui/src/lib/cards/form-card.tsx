@@ -123,7 +123,7 @@ export function FormCard({
             <FileText className="size-4" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-foreground">{event.title}</h3>
+            <h3 className="text-sm font-semibold text-foreground">{event.title}</h3>
             {event.description && (
               <p className="text-xs text-muted-foreground mt-0.5">{event.description}</p>
             )}

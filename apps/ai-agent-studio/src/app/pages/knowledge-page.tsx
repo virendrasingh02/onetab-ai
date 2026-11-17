@@ -658,7 +658,7 @@ export function KnowledgePage() {
                           <BookOpen className="size-4" />
                         </div>
                         <div>
-                          <div className="text-xs font-bold text-foreground">{kb.name}</div>
+                          <div className="text-xs font-semibold text-foreground">{kb.name}</div>
                           <div className="text-xs text-muted-foreground">
                             {kb._count?.documents ?? 0} document{(kb._count?.documents ?? 0) === 1 ? '' : 's'}
                           </div>
@@ -1019,7 +1019,7 @@ export function KnowledgePage() {
             }}
           >
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-sm font-bold">
+              <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
                 <BookOpen className="size-4 text-primary" /> Create Knowledge Base
               </DialogTitle>
               <DialogDescription className="text-xs">A collection of documents your agents can search.</DialogDescription>
@@ -1088,7 +1088,7 @@ export function KnowledgePage() {
       <Dialog open={isReindexOpen} onOpenChange={setIsReindexOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-sm font-bold">
+            <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
               <DatabaseZap className="size-4 text-primary" /> Re-index {activeKb?.name}
             </DialogTitle>
             <DialogDescription className="text-xs">
@@ -1124,7 +1124,7 @@ export function KnowledgePage() {
       <Dialog open={!!previewDocId} onOpenChange={(open) => !open && setPreviewDocId(null)}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-sm font-bold">
+            <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
               <FileText className="size-4 text-primary" /> {previewQuery.data?.name ?? 'Document'}
             </DialogTitle>
             <DialogDescription className="text-xs">
@@ -1159,7 +1159,7 @@ export function KnowledgePage() {
             }}
           >
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-sm font-bold">
+              <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
                 <Upload className="size-4 text-primary" /> Add Document Source
               </DialogTitle>
               <DialogDescription className="text-xs">Index content into {activeKb?.name}.</DialogDescription>
@@ -1349,7 +1349,7 @@ export function KnowledgePage() {
       <Dialog open={isIndexSourceOpen} onOpenChange={setIsIndexSourceOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-sm font-bold">
+            <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
               <Network className="size-4 text-primary" /> Index Knowledge Source
             </DialogTitle>
             <DialogDescription className="text-xs">

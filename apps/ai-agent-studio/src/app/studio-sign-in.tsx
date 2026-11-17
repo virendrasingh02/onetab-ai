@@ -61,7 +61,7 @@ export function StudioSignIn({ onSignedIn }: StudioSignInProps) {
 
       <form onSubmit={submit} className="w-full max-w-[380px] space-y-4" aria-label="Sign in">
         <div className="text-center">
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-2xl font-semibold tracking-tight">
             {challengeToken ? 'Two-factor code' : 'Sign in to Agent Studio'}
           </h1>
           <p className="mt-1.5 text-sm text-muted-foreground">

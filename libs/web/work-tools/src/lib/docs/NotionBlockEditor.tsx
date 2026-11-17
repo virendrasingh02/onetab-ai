@@ -365,7 +365,7 @@ export function NotionBlockEditor({
                   }
                   placeholder="Heading 1..."
                   rows={1}
-                  className="text-2xl font-extrabold tracking-tight p-0 min-h-9 h-auto resize-none overflow-hidden border-none bg-transparent text-foreground shadow-none focus-visible:ring-0"
+                  className="text-2xl font-semibold tracking-tight p-0 min-h-9 h-auto resize-none overflow-hidden border-none bg-transparent text-foreground shadow-none focus-visible:ring-0"
                 />
               )}
 

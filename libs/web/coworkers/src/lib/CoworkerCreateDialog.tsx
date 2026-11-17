@@ -213,7 +213,7 @@ export const CoworkerCreateDialog: FC<CoworkerCreateDialogProps> = ({
       <AgentBuilderOptionsProvider workspaceId={open ? workspaceId : undefined}>
       <DialogContent className="max-w-2xl p-0 overflow-hidden bg-surface border-border rounded-2xl">
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/60">
-          <DialogTitle className="text-lg font-bold">
+          <DialogTitle className="text-lg font-semibold">
             {isEditing ? `Edit Coworker: ${coworker?.name}` : 'Create AI Coworker'}
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">

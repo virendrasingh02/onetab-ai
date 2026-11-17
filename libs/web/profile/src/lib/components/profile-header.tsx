@@ -93,7 +93,7 @@ export function ProfileHeader({
 
             {/* Identity details (Mobile Stack) */}
             <div className="sm:hidden space-y-1 pb-1">
-              <h2 className="text-xl font-bold tracking-tight text-foreground">
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">
                 {displayName}
               </h2>
               <p className="text-xs font-mono text-muted-foreground">
@@ -218,7 +218,7 @@ export function ProfileHeader({
         {/* Identity & Metadata Row (Desktop) */}
         <div className="pt-3 space-y-2">
           <div className="gap-3 flex flex-wrap items-center">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
               {displayName}
             </h1>
             <span className="text-sm font-mono text-muted-foreground">

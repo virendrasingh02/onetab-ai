@@ -81,7 +81,7 @@ export function AdminPlansView() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
               Plans & Entitlements Management
             </h1>
             <Badge variant="primary" className="text-xs uppercase font-mono">
@@ -190,7 +190,7 @@ export function AdminPlansView() {
               <Tag className="size-5" />
             </div>
             <div className="space-y-0.5">
-              <h3 className="text-sm font-bold text-foreground">Coupons & promotions</h3>
+              <h3 className="text-sm font-semibold text-foreground">Coupons & promotions</h3>
               <p className="text-xs text-muted-foreground">
                 Create, edit, disable and audit coupons (including the DEMO test coupon) in Billing & Coupons.
               </p>
@@ -221,7 +221,7 @@ export function AdminPlansView() {
             >
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-base text-foreground">
+                  <span className="font-semibold text-base text-foreground">
                     {plan.name}
                   </span>
                   {plan.isPopular && (
@@ -294,7 +294,7 @@ export function AdminPlansView() {
         <CardHeader className="p-6 border-b border-border">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
                 <Layers className="size-5 text-primary" />
                 {selectedPlan.name} Specification & Quotas
               </CardTitle>

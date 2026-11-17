@@ -101,7 +101,7 @@ export function DowngradeConfirmModal({
               <AlertTriangle className="size-4" />
               Confirm Plan Downgrade
             </div>
-            <DialogTitle className="text-xl font-bold text-foreground">
+            <DialogTitle className="text-xl font-semibold text-foreground">
               Downgrade to {plan.name}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">

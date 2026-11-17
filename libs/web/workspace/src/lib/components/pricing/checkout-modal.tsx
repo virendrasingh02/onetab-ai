@@ -197,7 +197,7 @@ export function CheckoutModal({
                 </Badge>
               )}
             </div>
-            <DialogTitle className="text-xl font-bold text-foreground">
+            <DialogTitle className="text-xl font-semibold text-foreground">
               Subscribe to {plan.name}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">

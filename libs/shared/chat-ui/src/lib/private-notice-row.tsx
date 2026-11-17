@@ -68,7 +68,7 @@ export function PrivateNoticeRow({
 
       <div className="min-w-0 flex-1">
         <header className="gap-2 flex items-baseline">
-          <span className="font-bold text-message text-foreground">{name}</span>
+          <span className="font-semibold text-message text-foreground">{name}</span>
           {badge}
           <SystemEventTimestamp timestamp={timestamp} />
         </header>

@@ -359,7 +359,7 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/60">
         <div>
-          <h3 className="text-sm font-bold flex items-center gap-2">
+          <h3 className="text-sm font-semibold flex items-center gap-2">
             <Palette className="size-4 text-primary" />
             <span>Platform color &amp; gradient customizer</span>
           </h3>
@@ -413,7 +413,7 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
                 }`}
               >
                 <div className="flex items-center justify-between w-full">
-                  <span className="text-meta font-bold truncate">{preset.name}</span>
+                  <span className="text-meta font-semibold truncate">{preset.name}</span>
                   {active && <Check className="size-3 text-primary shrink-0" />}
                 </div>
                 <div className="flex items-center gap-1">
@@ -600,7 +600,7 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
                 AI
               </div>
               <div>
-                <h4 className="text-xs font-bold">OneTab color engine</h4>
+                <h4 className="text-xs font-semibold">OneTab color engine</h4>
                 <p className="text-meta text-muted-foreground">Tokens rendered live</p>
               </div>
             </div>

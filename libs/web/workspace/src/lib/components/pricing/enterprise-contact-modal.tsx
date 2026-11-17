@@ -118,7 +118,7 @@ export function EnterpriseContactModal({
                 <Sparkles className="size-4" />
                 Custom Solutions
               </div>
-              <DialogTitle className="text-xl font-bold text-foreground">
+              <DialogTitle className="text-xl font-semibold text-foreground">
                 Connect with Enterprise Sales
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">

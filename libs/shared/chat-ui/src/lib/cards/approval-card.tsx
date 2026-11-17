@@ -114,7 +114,7 @@ export function ApprovalCard({
 
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-sm font-bold text-foreground tracking-tight">
+              <h3 className="text-sm font-semibold text-foreground tracking-tight">
                 {event.title}
               </h3>
               <Badge variant={riskBadgeConfig.variant} className="text-2xs py-0 h-4 font-semibold">

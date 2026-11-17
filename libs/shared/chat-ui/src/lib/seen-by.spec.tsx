@@ -71,41 +71,28 @@ describe('SeenBy', () => {
     expect(time.length).toBeGreaterThan(0);
   });
 
-  it('renders a single reader DM-style ("Seen <time>") in channels/groups', () => {
-    renderWithProviders(
-      <SeenBy
-        readers={[sampleReaders[0]]}
-        roomKind="channel"
-      />,
-    );
+  it('shows only the compact "Seen" label in channels — no names or avatars', () => {
+    renderWithProviders(<SeenBy readers={sampleReaders} roomKind="channel" />);
 
     const button = screen.getByRole('button');
-    expect(button).toHaveTextContent(/^Seen/);
-    expect(button).not.toHaveTextContent('Seen by');
+    expect(button).toHaveTextContent(/^Seen$/);
+    expect(button).not.toHaveTextContent('Alice');
+    expect(button).toHaveAttribute('aria-label', 'Seen by 4 people: Alice, Bob, Charlie, David');
   });
 
-  it('renders two readers in channels/groups', () => {
-    renderWithProviders(
-      <SeenBy
-        readers={[sampleReaders[0], sampleReaders[1]]}
-        roomKind="channel"
-      />,
-    );
+  it('lists readers most recent first', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<SeenBy readers={sampleReaders} roomKind="channel" />);
 
-    const button = screen.getByRole('button');
-    expect(button).toHaveTextContent('Seen by Alice, Bob');
-  });
-
-  it('renders compact count when 4 or more readers', () => {
-    renderWithProviders(
-      <SeenBy
-        readers={sampleReaders}
-        roomKind="channel"
-      />,
-    );
-
-    const button = screen.getByRole('button');
-    expect(button).toHaveTextContent('Seen by 4');
+    await user.click(screen.getByRole('button'));
+    const items = await screen.findAllByRole('listitem');
+    const names = ['Alice', 'Bob', 'Charlie', 'David'];
+    expect(items.map((li) => names.find((n) => li.textContent?.includes(n)))).toEqual([
+      'David',
+      'Charlie',
+      'Bob',
+      'Alice',
+    ]);
   });
 
   it('opens popover on click and shows all readers with names', async () => {

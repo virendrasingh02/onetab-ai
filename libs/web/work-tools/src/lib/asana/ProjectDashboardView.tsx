@@ -196,7 +196,7 @@ export function ProjectDashboardView({
           </div>
           <div>
             <div className="gap-2 flex items-center">
-              <h2 className="text-base font-bold text-foreground">
+              <h2 className="text-base font-semibold text-foreground">
                 {board.title}
               </h2>
               <DropdownMenu>

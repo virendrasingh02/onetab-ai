@@ -253,7 +253,7 @@ export function IntakeTriageView({
                     </span>
                   </div>
 
-                  <h3 className="text-sm font-bold text-foreground">
+                  <h3 className="text-sm font-semibold text-foreground">
                     {item.title}
                   </h3>
 

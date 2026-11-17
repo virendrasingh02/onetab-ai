@@ -51,7 +51,7 @@ export function FeatureGateDialog({
           </div>
 
           <DialogHeader className="space-y-1.5 text-left">
-            <DialogTitle className="text-lg font-bold text-foreground">
+            <DialogTitle className="text-lg font-semibold text-foreground">
               Unlock {featureName}
             </DialogTitle>
             <DialogDescription className="text-xs md:text-sm text-muted-foreground leading-relaxed">

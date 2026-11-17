@@ -138,7 +138,7 @@ export function SendCardDialog({ open, onOpenChange, onSendCard }: SendCardDialo
         {/* Header */}
         <DialogHeader className="p-4 border-b border-border/60">
           <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center gap-2 text-base font-bold">
+            <DialogTitle className="flex items-center gap-2 text-base font-semibold">
               <LayoutGrid className="size-4 text-brand-text" />
               <span>Send Universal Card</span>
             </DialogTitle>
@@ -225,7 +225,7 @@ export function SendCardDialog({ open, onOpenChange, onSendCard }: SendCardDialo
                           {getCardIcon(c.icon)}
                         </div>
                         <div>
-                          <span className="font-bold text-xs text-foreground block">{c.name}</span>
+                          <span className="font-semibold text-xs text-foreground block">{c.name}</span>
                           <span className="text-2xs text-muted-foreground uppercase font-mono">{c.category} · v{c.version}</span>
                         </div>
                       </div>

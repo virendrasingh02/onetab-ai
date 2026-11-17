@@ -212,7 +212,7 @@ export function WorkspaceKanbanSettings() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-foreground">
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">
           Tasks & Kanban
         </h1>
         <p className="text-xs mt-1 text-muted-foreground">
@@ -387,7 +387,7 @@ export function WorkspaceKanbanSettings() {
         <DialogContent className="sm:max-w-md">
           <form onSubmit={handleSaveLabel}>
             <DialogHeader>
-              <DialogTitle className="text-sm font-bold">
+              <DialogTitle className="text-sm font-semibold">
                 {editingLabel ? 'Edit label' : 'Add label'}
               </DialogTitle>
             </DialogHeader>
@@ -447,7 +447,7 @@ export function WorkspaceKanbanSettings() {
         <DialogContent className="sm:max-w-md">
           <form onSubmit={handleAddTeam}>
             <DialogHeader>
-              <DialogTitle className="text-sm font-bold">Add team</DialogTitle>
+              <DialogTitle className="text-sm font-semibold">Add team</DialogTitle>
             </DialogHeader>
             <DialogBody className="space-y-4">
               <div>

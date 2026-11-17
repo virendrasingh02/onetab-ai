@@ -25,7 +25,7 @@ export function CardSettingsDialog({ open, onOpenChange }: CardSettingsDialogPro
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md bg-surface text-foreground border-border">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base font-bold">
+          <DialogTitle className="flex items-center gap-2 text-base font-semibold">
             <Sliders className="size-4 text-brand-text" />
             <span>AI &amp; App Card Display Settings</span>
           </DialogTitle>

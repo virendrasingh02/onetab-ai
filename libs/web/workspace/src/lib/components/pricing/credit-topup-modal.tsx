@@ -87,7 +87,7 @@ export function CreditTopupModal({
               <Coins className="size-4" />
               AI Credits Balance
             </div>
-            <DialogTitle className="text-lg font-bold text-foreground">
+            <DialogTitle className="text-lg font-semibold text-foreground">
               Top Up Shared AI Credits
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">

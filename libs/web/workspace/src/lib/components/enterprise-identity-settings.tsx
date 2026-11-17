@@ -335,7 +335,7 @@ export function EnterpriseIdentitySettingsPanel({
           <div className="flex items-center justify-between">
             <div className="gap-2 flex items-center">
               <Crown className="size-5 text-accent-indigo" />
-              <CardTitle className="text-base font-bold">
+              <CardTitle className="text-base font-semibold">
                 Enterprise SSO & Automated SCIM Provisioning
               </CardTitle>
             </div>
@@ -1384,7 +1384,7 @@ export function EnterpriseIdentitySettingsPanel({
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold gap-2 flex items-center">
+            <DialogTitle className="text-base font-semibold gap-2 flex items-center">
               <KeyRound className="size-4 text-success-text" />
               New SCIM 2.0 Bearer Token
             </DialogTitle>
@@ -1426,7 +1426,7 @@ export function EnterpriseIdentitySettingsPanel({
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold gap-2 flex items-center text-warning-text">
+            <DialogTitle className="text-base font-semibold gap-2 flex items-center text-warning-text">
               <ShieldAlert className="size-4" />
               Emergency Break-Glass Recovery Key
             </DialogTitle>
@@ -1469,7 +1469,7 @@ export function EnterpriseIdentitySettingsPanel({
       <Dialog open={addMappingModalOpen} onOpenChange={setAddMappingModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold">
+            <DialogTitle className="text-base font-semibold">
               Add Group-to-Role Mapping
             </DialogTitle>
             <DialogDescription className="text-xs">

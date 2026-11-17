@@ -520,7 +520,7 @@ export function WorkspaceCompanyAnalytics({
                 <Panel>
                   <div className="gap-3 mb-4 flex flex-wrap items-end justify-between">
                     <div>
-                      <h3 className="text-sm font-bold text-foreground">
+                      <h3 className="text-sm font-semibold text-foreground">
                         Total storage capacity & usage
                       </h3>
                       <p className="text-xs mt-0.5 text-muted-foreground">

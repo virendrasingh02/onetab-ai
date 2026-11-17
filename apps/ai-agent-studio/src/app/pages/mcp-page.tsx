@@ -221,7 +221,7 @@ function ToolTestDialog({
     <Dialog open={!!tool} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-sm font-bold font-mono">
+          <DialogTitle className="text-sm font-semibold font-mono">
             {tool?.name}
           </DialogTitle>
           <DialogDescription className="text-xs">
@@ -710,7 +710,7 @@ export function McpPage() {
                             <Plug className="size-3.5" />
                           </div>
                           <div className="min-w-0">
-                            <div className="text-xs font-bold truncate text-foreground">
+                            <div className="text-xs font-semibold truncate text-foreground">
                               {conn.name}
                             </div>
                             <span
@@ -912,7 +912,7 @@ export function McpPage() {
                     <Plug className="size-4" />
                   </div>
                   <div>
-                    <DialogTitle className="text-sm font-bold">
+                    <DialogTitle className="text-sm font-semibold">
                       {editing ? `Edit ${editing.name}` : 'Connect MCP Server'}
                     </DialogTitle>
                     <DialogDescription className="text-xs">
