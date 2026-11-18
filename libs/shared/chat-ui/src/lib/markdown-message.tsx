@@ -72,8 +72,12 @@ const INLINE_PATTERN_SOURCE = [
   // The target may be empty (`[label]()`) — pastes carry those too.
   '(?<link>\\[[^\\]]*\\]\\([^\\s)]*\\))',
   '(?<bolditalic>\\*\\*\\*[^*\\n]+\\*\\*\\*)',
-  '(?<bold>\\*\\*[^*\\n]+\\*\\*|__[^_\\n]+__)',
-  '(?<italic>\\*[^*\\n]+\\*|_[^_\\n]+_)',
+  // Bold may hold an italic run and italic a bold one, so the composer's
+  // nested output — `**bold *then italic***`, `*italic **then bold***` — reads
+  // as formatting instead of leaking its stars. Each nested run is bounded by
+  // its own markers, so the scan stays linear.
+  '(?<bold>\\*\\*(?:[^*\\n]|\\*[^*\\n]+\\*)+\\*\\*|__(?:[^_\\n]|_[^_\\n]+_)+__)',
+  '(?<italic>\\*(?:[^*\\n]|\\*\\*[^*\\n]+\\*\\*)+\\*|_(?:[^_\\n]|__[^_\\n]+__)+_)',
   '(?<strike>~~[^~\\n]+~~)',
   '(?<highlight>==[^=\\n]+==)',
   '(?<url>(?:https?://|www\\.|meet\\.google\\.com/)[^\\s<>()]+)',

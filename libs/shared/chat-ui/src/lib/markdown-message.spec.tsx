@@ -232,6 +232,35 @@ describe('MarkdownMessage', () => {
     expect(container.querySelector('strong')).toHaveTextContent('that');
   });
 
+  it.each([
+    [
+      '**Put an engineer *inside your business.***',
+      'strong',
+      'em',
+      'inside your business.',
+    ],
+    [
+      '**Build the agent. *Follow every step.***',
+      'strong',
+      'em',
+      'Follow every step.',
+    ],
+    ['***Lead in* and the rest**', 'strong', 'em', 'Lead in'],
+    ['*Italic with **bold tail***', 'em', 'strong', 'bold tail'],
+    ['**a *b* c**', 'strong', 'em', 'b'],
+    ['__Bold _then italic___', 'strong', 'em', 'then italic'],
+  ])(
+    'renders nested emphasis %s without stray markers',
+    (text, outer, inner, innerText) => {
+      const { container } = render(<MarkdownMessage text={text} />);
+
+      expect(container.textContent).not.toMatch(/[*_]/);
+      const outerNode = container.querySelector(outer);
+      expect(outerNode).not.toBeNull();
+      expect(outerNode?.querySelector(inner)).toHaveTextContent(innerText);
+    },
+  );
+
   it('folds a legacy "@App · account" mention into one app chip', () => {
     const { container } = render(
       <MarkdownMessage
