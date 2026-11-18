@@ -153,6 +153,9 @@ describe('routeForDeepLink', () => {
     expect(routeForDeepLink('admin')).toEqual({
       pathname: '/admin',
     });
+    expect(routeForDeepLink('more')).toEqual({
+      pathname: '/more',
+    });
   });
 
   it('strips the workspace prefix from absolute and scheme links', () => {

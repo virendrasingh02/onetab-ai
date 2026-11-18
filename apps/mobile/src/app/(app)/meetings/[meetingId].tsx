@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { Alert } from '../../../lib/alert';
+import { copyToClipboard } from '../../../lib/clipboard';
 import { useKeyboardAvoidingProps } from '../../../components/navigation';
 import {
   AppText,
@@ -98,7 +99,10 @@ export default function MeetingDetailScreen() {
 
   const handleOpenLocation = () => {
     if (meeting.location) {
-      if (meeting.location.startsWith('http://') || meeting.location.startsWith('https://')) {
+      if (
+        meeting.location.startsWith('http://') ||
+        meeting.location.startsWith('https://')
+      ) {
         void WebBrowser.openBrowserAsync(meeting.location);
       } else {
         Alert.alert('Meeting Location', meeting.location);
@@ -127,14 +131,32 @@ export default function MeetingDetailScreen() {
       <Stack.Screen
         options={{
           title: meeting.title || 'Meeting Detail',
-          headerRight: () =>
-            meeting.status === 'SCHEDULED' ? (
+          headerRight: () => (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: spacing.xs,
+              }}
+            >
               <IconButton
-                icon="close-circle-outline"
-                label="Cancel meeting"
-                onPress={confirmCancel}
+                icon="share-outline"
+                label="Copy meeting details"
+                onPress={() => {
+                  haptics.selection();
+                  const shareText = `Meeting: ${meeting.title}\nWhen: ${dateString} (${timeString})\nLocation: ${meeting.location ?? 'Online'}\nAgenda: ${meeting.agenda ?? 'None'}`;
+                  void copyToClipboard(shareText, { label: 'Meeting details' });
+                }}
               />
-            ) : null,
+              {meeting.status === 'SCHEDULED' ? (
+                <IconButton
+                  icon="close-circle-outline"
+                  label="Cancel meeting"
+                  onPress={confirmCancel}
+                />
+              ) : null}
+            </View>
+          ),
         }}
       />
 
@@ -145,10 +167,7 @@ export default function MeetingDetailScreen() {
         {/* Main Header Card */}
         <Card style={styles.headerCard}>
           <View style={styles.badgeRow}>
-            <Badge
-              label={meeting.status}
-              tone={statusTone(meeting.status)}
-            />
+            <Badge label={meeting.status} tone={statusTone(meeting.status)} />
           </View>
 
           <AppText style={[styles.title, { color: colors.foreground }]}>
@@ -156,7 +175,11 @@ export default function MeetingDetailScreen() {
           </AppText>
 
           <View style={styles.timeInfoRow}>
-            <Ionicons name="calendar-outline" size={18} color={colors.primary} />
+            <Ionicons
+              name="calendar-outline"
+              size={18}
+              color={colors.primary}
+            />
             <View>
               <AppText style={[styles.dateText, { color: colors.foreground }]}>
                 {dateString}
@@ -168,9 +191,18 @@ export default function MeetingDetailScreen() {
           </View>
 
           {meeting.location ? (
-            <Pressable style={styles.locationBlock} onPress={handleOpenLocation}>
-              <Ionicons name="videocam-outline" size={18} color={colors.primary} />
-              <AppText style={[styles.locationLink, { color: colors.primaryText }]}>
+            <Pressable
+              style={styles.locationBlock}
+              onPress={handleOpenLocation}
+            >
+              <Ionicons
+                name="videocam-outline"
+                size={18}
+                color={colors.primary}
+              />
+              <AppText
+                style={[styles.locationLink, { color: colors.primaryText }]}
+              >
                 {meeting.location}
               </AppText>
             </Pressable>
@@ -217,7 +249,9 @@ export default function MeetingDetailScreen() {
             <SectionHeader title="Agenda & Description" />
             <Card style={styles.agendaCard}>
               {meeting.agenda ? (
-                <AppText style={[styles.agendaBody, { color: colors.foreground }]}>
+                <AppText
+                  style={[styles.agendaBody, { color: colors.foreground }]}
+                >
                   {meeting.agenda}
                 </AppText>
               ) : null}
@@ -246,7 +280,10 @@ export default function MeetingDetailScreen() {
               <View key={p.userId}>
                 {idx > 0 ? <Divider inset={rowDividerInset} /> : null}
                 <ListRow
-                  avatar={{ name: p.user?.displayName ?? 'User', uri: p.user?.avatarUrl }}
+                  avatar={{
+                    name: p.user?.displayName ?? 'User',
+                    uri: p.user?.avatarUrl,
+                  }}
                   title={p.user?.displayName ?? 'Participant'}
                   subtitle={p.role ? `Role: ${p.role}` : undefined}
                   right={
@@ -270,7 +307,9 @@ export default function MeetingDetailScreen() {
         {/* Action Items if present */}
         {meeting.actionItems && meeting.actionItems.length > 0 ? (
           <>
-            <SectionHeader title={`Action Items (${meeting.actionItems.length})`} />
+            <SectionHeader
+              title={`Action Items (${meeting.actionItems.length})`}
+            />
             <Card>
               {meeting.actionItems.map((item, idx) => (
                 <View key={item.id}>

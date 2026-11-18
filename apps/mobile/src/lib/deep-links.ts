@@ -191,6 +191,8 @@ export function routeForDeepLink(link: string | null | undefined): MobileRoute {
       return { pathname: '/analytics' };
     case 'files':
       return { pathname: '/files' };
+    case 'more':
+      return { pathname: '/more' };
     case 'inbox':
     case 'notifications':
       return FALLBACK;

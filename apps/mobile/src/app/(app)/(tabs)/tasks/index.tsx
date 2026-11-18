@@ -12,8 +12,8 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { Alert } from '../../../lib/alert';
-import { showActionSheet } from '../../../components/action-sheet';
+import { Alert } from '../../../../lib/alert';
+import { showActionSheet } from '../../../../components/action-sheet';
 import {
   AppText,
   Badge,
@@ -28,15 +28,19 @@ import {
   rowDividerInset,
   Screen,
   TextField,
-} from '../../../components/ui';
-import { relativeTime, statusTone } from '../../../lib/format';
-import { haptics } from '../../../lib/haptics';
-import { useSession } from '../../../lib/session';
-import { useWorkspace } from '../../../lib/workspace';
-import { useTheme } from '../../../theme/theme';
-import { radius, spacing } from '../../../theme/tokens';
+} from '../../../../components/ui';
+import { humanize, relativeTime, statusTone } from '../../../../lib/format';
+import { haptics } from '../../../../lib/haptics';
+import { useSession } from '../../../../lib/session';
+import { useWorkspace } from '../../../../lib/workspace';
+import { useTheme } from '../../../../theme/theme';
+import { radius, spacing } from '../../../../theme/tokens';
 
-const STATUS_COLUMNS: Array<{ key: TaskStatus; label: string; icon: IconName }> = [
+const STATUS_COLUMNS: Array<{
+  key: TaskStatus;
+  label: string;
+  icon: IconName;
+}> = [
   { key: 'TODO', label: 'To Do', icon: 'radio-button-off-outline' },
   { key: 'IN_PROGRESS', label: 'In Progress', icon: 'sync-outline' },
   { key: 'IN_REVIEW', label: 'In Review', icon: 'eye-outline' },
@@ -53,8 +57,10 @@ export default function TasksScreen() {
   const { workspaceId } = useWorkspace();
   const { colors } = useTheme();
 
-  const [viewMode, setViewMode] = useState<'board' | 'list'>('board');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'mine' | 'urgent'>('all');
+  const [viewMode, setViewMode] = useState<'board' | 'list'>('list');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'mine' | 'urgent'>(
+    'all',
+  );
   const [search, setSearch] = useState('');
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
@@ -116,7 +122,9 @@ export default function TasksScreen() {
     if (activeFilter === 'mine' && user?.id) {
       list = list.filter((t) => t.assigneeId === user.id);
     } else if (activeFilter === 'urgent') {
-      list = list.filter((t) => t.priority === 'URGENT' || t.priority === 'HIGH');
+      list = list.filter(
+        (t) => t.priority === 'URGENT' || t.priority === 'HIGH',
+      );
     }
     if (search.trim()) {
       const q = search.trim().toLowerCase();
@@ -143,13 +151,15 @@ export default function TasksScreen() {
   const handleStatusChangePrompt = (task: Task) => {
     haptics.selection();
     showActionSheet({
-      options: STATUS_COLUMNS.filter((col) => col.key !== task.status).map((col) => ({
-        label: col.label,
-        icon: col.icon,
-        onPress: () => {
-          updateStatusMutation.mutate({ taskId: task.id, status: col.key });
-        },
-      })),
+      options: STATUS_COLUMNS.filter((col) => col.key !== task.status).map(
+        (col) => ({
+          label: col.label,
+          icon: col.icon,
+          onPress: () => {
+            updateStatusMutation.mutate({ taskId: task.id, status: col.key });
+          },
+        }),
+      ),
     });
   };
 
@@ -183,7 +193,10 @@ export default function TasksScreen() {
             <AppText
               style={[
                 styles.modePillText,
-                { color: viewMode === 'board' ? colors.primaryText : colors.subtle },
+                {
+                  color:
+                    viewMode === 'board' ? colors.primaryText : colors.subtle,
+                },
               ]}
             >
               Board
@@ -210,7 +223,10 @@ export default function TasksScreen() {
             <AppText
               style={[
                 styles.modePillText,
-                { color: viewMode === 'list' ? colors.primaryText : colors.subtle },
+                {
+                  color:
+                    viewMode === 'list' ? colors.primaryText : colors.subtle,
+                },
               ]}
             >
               List
@@ -248,7 +264,10 @@ export default function TasksScreen() {
             <AppText
               style={[
                 styles.filterChipText,
-                { color: activeFilter === 'all' ? colors.primaryText : colors.subtle },
+                {
+                  color:
+                    activeFilter === 'all' ? colors.primaryText : colors.subtle,
+                },
               ]}
             >
               All ({tasksQuery.data?.length ?? 0})
@@ -271,7 +290,12 @@ export default function TasksScreen() {
             <AppText
               style={[
                 styles.filterChipText,
-                { color: activeFilter === 'mine' ? colors.primaryText : colors.subtle },
+                {
+                  color:
+                    activeFilter === 'mine'
+                      ? colors.primaryText
+                      : colors.subtle,
+                },
               ]}
             >
               Assigned to me
@@ -294,7 +318,12 @@ export default function TasksScreen() {
             <AppText
               style={[
                 styles.filterChipText,
-                { color: activeFilter === 'urgent' ? colors.primaryText : colors.subtle },
+                {
+                  color:
+                    activeFilter === 'urgent'
+                      ? colors.primaryText
+                      : colors.subtle,
+                },
               ]}
             >
               Urgent & High
@@ -329,15 +358,18 @@ export default function TasksScreen() {
             return (
               <View
                 key={column.key}
-                style={[
-                  styles.kanbanColumn,
-                  { backgroundColor: colors.muted },
-                ]}
+                style={[styles.kanbanColumn, { backgroundColor: colors.muted }]}
               >
                 <View style={styles.columnHeader}>
                   <View style={styles.columnTitleWrap}>
-                    <Ionicons name={column.icon} size={16} color={colors.primary} />
-                    <AppText style={[styles.columnTitle, { color: colors.foreground }]}>
+                    <Ionicons
+                      name={column.icon}
+                      size={16}
+                      color={colors.primary}
+                    />
+                    <AppText
+                      style={[styles.columnTitle, { color: colors.foreground }]}
+                    >
                       {column.label}
                     </AppText>
                   </View>
@@ -351,7 +383,12 @@ export default function TasksScreen() {
                   contentContainerStyle={styles.columnTaskList}
                   ListEmptyComponent={
                     <View style={styles.emptyColumn}>
-                      <AppText style={[styles.emptyColumnText, { color: colors.subtle }]}>
+                      <AppText
+                        style={[
+                          styles.emptyColumnText,
+                          { color: colors.subtle },
+                        ]}
+                      >
                         No tasks
                       </AppText>
                     </View>
@@ -376,7 +413,9 @@ export default function TasksScreen() {
                     >
                       <View style={styles.cardHeader}>
                         {item.identifier ? (
-                          <AppText style={[styles.ticketId, { color: colors.subtle }]}>
+                          <AppText
+                            style={[styles.ticketId, { color: colors.subtle }]}
+                          >
                             {item.identifier}
                           </AppText>
                         ) : null}
@@ -391,29 +430,51 @@ export default function TasksScreen() {
                           }
                         />
                       </View>
-                      <AppText style={[styles.taskTitle, { color: colors.foreground }]}>
+                      <AppText
+                        style={[styles.taskTitle, { color: colors.foreground }]}
+                      >
                         {item.title}
                       </AppText>
                       {item.description ? (
                         <AppText
                           numberOfLines={2}
-                          style={[styles.taskDescription, { color: colors.subtle }]}
+                          style={[
+                            styles.taskDescription,
+                            { color: colors.subtle },
+                          ]}
                         >
                           {item.description}
                         </AppText>
                       ) : null}
                       <View style={styles.cardFooter}>
                         <Pressable
-                          style={[styles.statusChangeBtn, { backgroundColor: colors.selected }]}
+                          style={[
+                            styles.statusChangeBtn,
+                            { backgroundColor: colors.selected },
+                          ]}
                           onPress={() => handleStatusChangePrompt(item)}
                         >
-                          <AppText style={[styles.statusChangeText, { color: colors.primaryText }]}>
+                          <AppText
+                            style={[
+                              styles.statusChangeText,
+                              { color: colors.primaryText },
+                            ]}
+                          >
                             Move status
                           </AppText>
-                          <Ionicons name="swap-horizontal" size={14} color={colors.primary} />
+                          <Ionicons
+                            name="swap-horizontal"
+                            size={14}
+                            color={colors.primary}
+                          />
                         </Pressable>
                         {item.dueDate ? (
-                          <AppText style={[styles.dueDateText, { color: colors.subtle }]}>
+                          <AppText
+                            style={[
+                              styles.dueDateText,
+                              { color: colors.subtle },
+                            ]}
+                          >
                             {relativeTime(item.dueDate)}
                           </AppText>
                         ) : null}
@@ -440,16 +501,16 @@ export default function TasksScreen() {
                   {idx > 0 ? <Divider inset={rowDividerInset} /> : null}
                   <ListRow
                     title={task.title}
-                    subtitle={
-                      [
-                        task.identifier ?? null,
-                        `Status: ${task.status.replace(/_/g, ' ')}`,
-                        `Priority: ${task.priority}`,
-                        task.dueDate ? `Due: ${relativeTime(task.dueDate)}` : null,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')
-                    }
+                    subtitle={[
+                      task.identifier ?? null,
+                      // Status is already the badge on the right.
+                      task.priority
+                        ? `${humanize(task.priority)} priority`
+                        : null,
+                      task.dueDate ? `Due ${relativeTime(task.dueDate)}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
                     right={
                       <Badge
                         label={task.status.replace(/_/g, ' ')}
@@ -508,7 +569,9 @@ export default function TasksScreen() {
               numberOfLines={4}
             />
 
-            <AppText style={[styles.fieldLabel, { color: colors.subtle }]}>Initial Status</AppText>
+            <AppText style={[styles.fieldLabel, { color: colors.subtle }]}>
+              Initial Status
+            </AppText>
             <View style={styles.prioritySelector}>
               {STATUS_COLUMNS.map((col) => (
                 <Pressable
@@ -525,7 +588,12 @@ export default function TasksScreen() {
                   <AppText
                     style={[
                       styles.priorityPillText,
-                      { color: newStatus === col.key ? colors.primaryText : colors.subtle },
+                      {
+                        color:
+                          newStatus === col.key
+                            ? colors.primaryText
+                            : colors.subtle,
+                      },
                     ]}
                   >
                     {col.label}
@@ -534,7 +602,9 @@ export default function TasksScreen() {
               ))}
             </View>
 
-            <AppText style={[styles.fieldLabel, { color: colors.subtle }]}>Priority</AppText>
+            <AppText style={[styles.fieldLabel, { color: colors.subtle }]}>
+              Priority
+            </AppText>
             <View style={styles.prioritySelector}>
               {PRIORITIES.map((p) => (
                 <Pressable
@@ -551,7 +621,12 @@ export default function TasksScreen() {
                   <AppText
                     style={[
                       styles.priorityPillText,
-                      { color: newPriority === p ? colors.primaryText : colors.subtle },
+                      {
+                        color:
+                          newPriority === p
+                            ? colors.primaryText
+                            : colors.subtle,
+                      },
                     ]}
                   >
                     {p}

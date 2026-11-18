@@ -3,17 +3,16 @@ import { peopleApi } from '@org/api-client';
 import { useQuery } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import {
-  StyleSheet,
-  View,
-} from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Alert } from '../../../lib/alert';
+import { copyToClipboard } from '../../../lib/clipboard';
 import {
   AppText,
   Badge,
   Button,
   Card,
   Divider,
+  IconButton,
   ListRow,
   rowDividerInset,
   Screen,
@@ -73,7 +72,9 @@ export default function TimesheetScreen() {
 
   const handlePunch = async () => {
     haptics.medium();
-    const nextType: 'CHECK_IN' | 'CHECK_OUT' = isCheckedIn ? 'CHECK_OUT' : 'CHECK_IN';
+    const nextType: 'CHECK_IN' | 'CHECK_OUT' = isCheckedIn
+      ? 'CHECK_OUT'
+      : 'CHECK_IN';
     const newRecord: PunchRecord = {
       type: nextType,
       timestamp: new Date().toISOString(),
@@ -112,14 +113,38 @@ export default function TimesheetScreen() {
   const employee = profileQuery.data;
 
   return (
-    <Screen scroll refreshing={profileQuery.isRefetching} onRefresh={() => void profileQuery.refetch()}>
-      <Stack.Screen options={{ title: 'Timesheet & Attendance' }} />
+    <Screen
+      scroll
+      refreshing={profileQuery.isRefetching}
+      onRefresh={() => void profileQuery.refetch()}
+    >
+      <Stack.Screen
+        options={{
+          title: 'Timesheet & Attendance',
+          headerRight: () => (
+            <IconButton
+              icon="share-outline"
+              label="Copy daily log"
+              onPress={() => {
+                haptics.selection();
+                const summary = `Timesheet (${todayKey}): ${hoursWorked} hrs worked. ${punches.length} punch records.`;
+                void copyToClipboard(summary, { label: 'Timesheet log' });
+              }}
+            />
+          ),
+        }}
+      />
 
       {/* Main Punch Clock Card */}
       <Card style={styles.clockCard}>
         <View style={styles.clockHeader}>
           <AppText style={[styles.dateHeading, { color: colors.subtle }]}>
-            Today · {new Date().toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
+            Today ·{' '}
+            {new Date().toLocaleDateString([], {
+              weekday: 'long',
+              month: 'short',
+              day: 'numeric',
+            })}
           </AppText>
           <Badge
             label={isCheckedIn ? 'Checked In' : 'Checked Out'}
@@ -166,7 +191,9 @@ export default function TimesheetScreen() {
               <View key={idx}>
                 {idx > 0 ? <Divider inset={rowDividerInset} /> : null}
                 <ListRow
-                  icon={p.type === 'CHECK_IN' ? 'enter-outline' : 'exit-outline'}
+                  icon={
+                    p.type === 'CHECK_IN' ? 'enter-outline' : 'exit-outline'
+                  }
                   title={p.type === 'CHECK_IN' ? 'Check In' : 'Check Out'}
                   subtitle={time}
                   right={
@@ -186,8 +213,11 @@ export default function TimesheetScreen() {
       <SectionHeader title="Employee Information" />
       <Card>
         <ListRow
-          avatar={{ name: user?.displayName ?? 'You', uri: user?.avatarUrl }}
-          title={user?.displayName ?? 'Team Member'}
+          avatar={{
+            name: user?.displayName || user?.name || 'You',
+            uri: user?.avatarUrl,
+          }}
+          title={user?.displayName || user?.name || 'Team Member'}
           subtitle={user?.email ?? undefined}
         />
         {employee?.jobTitle ? (
@@ -224,9 +254,14 @@ export default function TimesheetScreen() {
 
       {/* Workspace Timesheet Policy Note */}
       <View style={styles.policyCard}>
-        <Ionicons name="information-circle-outline" size={16} color={colors.subtle} />
+        <Ionicons
+          name="information-circle-outline"
+          size={16}
+          color={colors.subtle}
+        />
         <AppText style={[styles.policyText, { color: colors.subtle }]}>
-          Punches are recorded locally and synchronized with the workspace ledger. For time corrections, contact your workspace administrator.
+          Punches are recorded locally and synchronized with the workspace
+          ledger. For time corrections, contact your workspace administrator.
         </AppText>
       </View>
     </Screen>

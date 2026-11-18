@@ -74,27 +74,34 @@ export default function TabsLayout() {
           ionicon="chatbubbles-outline"
         />
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="agents">
-        <NativeTabs.Trigger.Label>Coworkers</NativeTabs.Trigger.Label>
-        <TabIcon sf="sparkles" sfSelected="sparkles" ionicon="sparkles-outline" />
+      <NativeTabs.Trigger name="tasks">
+        <NativeTabs.Trigger.Label>Tasks</NativeTabs.Trigger.Label>
+        <TabIcon
+          sf="checkmark.circle"
+          sfSelected="checkmark.circle.fill"
+          ionicon="checkbox-outline"
+        />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="updates">
-        <NativeTabs.Trigger.Label>Activity</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>Inbox</NativeTabs.Trigger.Label>
         <TabIcon
           sf="bell"
           sfSelected="bell.fill"
           ionicon="notifications-outline"
         />
-        <NativeTabs.Trigger.Badge hidden={pendingApprovals === 0}>
-          {pendingApprovals > 99 ? '99+' : String(pendingApprovals)}
-        </NativeTabs.Trigger.Badge>
+        {/* Rendered only when non-zero: the web tab bar ignores `hidden`. */}
+        {pendingApprovals > 0 ? (
+          <NativeTabs.Trigger.Badge>
+            {pendingApprovals > 99 ? '99+' : String(pendingApprovals)}
+          </NativeTabs.Trigger.Badge>
+        ) : null}
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="settings">
-        <NativeTabs.Trigger.Label>You</NativeTabs.Trigger.Label>
+      <NativeTabs.Trigger name="more">
+        <NativeTabs.Trigger.Label>More</NativeTabs.Trigger.Label>
         <TabIcon
-          sf="person.crop.circle"
-          sfSelected="person.crop.circle.fill"
-          ionicon="person-circle-outline"
+          sf="square.grid.2x2"
+          sfSelected="square.grid.2x2.fill"
+          ionicon="grid-outline"
         />
       </NativeTabs.Trigger>
     </NativeTabs>

@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { Alert } from '../../../lib/alert';
+import { copyToClipboard } from '../../../lib/clipboard';
 import { useKeyboardAvoidingProps } from '../../../components/navigation';
 import {
   AppText,
@@ -147,6 +148,16 @@ export default function DocumentDetailScreen() {
               ) : (
                 <>
                   <IconButton
+                    icon="share-outline"
+                    label="Copy / Share"
+                    onPress={() => {
+                      haptics.selection();
+                      void copyToClipboard(doc.content ?? '', {
+                        label: 'Document content',
+                      });
+                    }}
+                  />
+                  <IconButton
                     icon="create-outline"
                     label="Edit"
                     onPress={() => {
@@ -174,7 +185,10 @@ export default function DocumentDetailScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={[
               styles.toolbar,
-              { backgroundColor: colors.card, borderBottomColor: colors.border },
+              {
+                backgroundColor: colors.card,
+                borderBottomColor: colors.border,
+              },
             ]}
           >
             <IconButton
@@ -289,7 +303,9 @@ export default function DocumentDetailScreen() {
                 {content}
               </AppText>
             ) : (
-              <AppText style={[styles.emptyContentText, { color: colors.subtle }]}>
+              <AppText
+                style={[styles.emptyContentText, { color: colors.subtle }]}
+              >
                 This document is empty. Tap Edit to add content.
               </AppText>
             )}

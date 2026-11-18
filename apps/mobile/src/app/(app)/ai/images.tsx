@@ -23,6 +23,7 @@ import {
 } from '../../../components/ui';
 import { downloadAndShare } from '../../../lib/files';
 import { haptics } from '../../../lib/haptics';
+import { useAndroidBackHandler } from '../../../lib/use-back-handler';
 import { secureStore } from '../../../lib/secure-store';
 import { useWorkspace } from '../../../lib/workspace';
 import { useTheme } from '../../../theme/theme';
@@ -83,6 +84,14 @@ function AIImageStudioScreen() {
   const [selectedRatio, setSelectedRatio] = useState('1:1');
   const [history, setHistory] = useState<ImageRecord[]>([]);
   const [activePreview, setActivePreview] = useState<ImageRecord | null>(null);
+
+  useAndroidBackHandler(() => {
+    if (activePreview) {
+      setActivePreview(null);
+      return true;
+    }
+    return false;
+  }, [activePreview]);
 
   const storageKey = `ai_images_history:${workspaceId}`;
 

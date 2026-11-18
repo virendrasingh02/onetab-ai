@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { Alert } from '../../../lib/alert';
+import { copyToClipboard } from '../../../lib/clipboard';
 import { showActionSheet } from '../../../components/action-sheet';
 import { useKeyboardAvoidingProps } from '../../../components/navigation';
 import {
@@ -155,11 +156,33 @@ export default function TaskDetailScreen() {
         options={{
           title: task.identifier ?? 'Task Detail',
           headerRight: () => (
-            <IconButton
-              icon="trash-outline"
-              label="Delete task"
-              onPress={confirmDelete}
-            />
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: spacing.xs,
+              }}
+            >
+              <IconButton
+                icon="share-outline"
+                label="Copy / Share task"
+                onPress={() => {
+                  haptics.selection();
+                  const shareText = [
+                    `${task.identifier ?? 'Task'}: ${task.title}`,
+                    task.description,
+                  ]
+                    .filter(Boolean)
+                    .join('\n\n');
+                  void copyToClipboard(shareText, { label: 'Task details' });
+                }}
+              />
+              <IconButton
+                icon="trash-outline"
+                label="Delete task"
+                onPress={confirmDelete}
+              />
+            </View>
           ),
         }}
       />
@@ -175,9 +198,14 @@ export default function TaskDetailScreen() {
               accessibilityRole="button"
               accessibilityLabel="Change status"
               onPress={handleChangeStatus}
-              style={[styles.statusButton, { backgroundColor: colors.selected }]}
+              style={[
+                styles.statusButton,
+                { backgroundColor: colors.selected },
+              ]}
             >
-              <AppText style={[styles.statusButtonText, { color: colors.primaryText }]}>
+              <AppText
+                style={[styles.statusButtonText, { color: colors.primaryText }]}
+              >
                 {task.status.replace(/_/g, ' ')}
               </AppText>
               <Ionicons name="chevron-down" size={14} color={colors.primary} />
@@ -233,7 +261,9 @@ export default function TaskDetailScreen() {
         </Card>
 
         {/* Comments Section */}
-        <SectionHeader title={`Comments (${commentsQuery.data?.length ?? 0})`} />
+        <SectionHeader
+          title={`Comments (${commentsQuery.data?.length ?? 0})`}
+        />
         {commentsQuery.error ? (
           <ErrorState
             error={commentsQuery.error}
@@ -241,7 +271,9 @@ export default function TaskDetailScreen() {
           />
         ) : (commentsQuery.data ?? []).length === 0 ? (
           <Card style={styles.emptyCommentsCard}>
-            <AppText style={[styles.emptyCommentsText, { color: colors.subtle }]}>
+            <AppText
+              style={[styles.emptyCommentsText, { color: colors.subtle }]}
+            >
               No comments yet. Start the discussion below.
             </AppText>
           </Card>
@@ -258,15 +290,24 @@ export default function TaskDetailScreen() {
                       size={28}
                     />
                     <View style={styles.commentMeta}>
-                      <AppText style={[styles.commentAuthor, { color: colors.foreground }]}>
+                      <AppText
+                        style={[
+                          styles.commentAuthor,
+                          { color: colors.foreground },
+                        ]}
+                      >
                         {comment.author?.displayName ?? 'Team member'}
                       </AppText>
-                      <AppText style={[styles.commentTime, { color: colors.subtle }]}>
+                      <AppText
+                        style={[styles.commentTime, { color: colors.subtle }]}
+                      >
                         {relativeTime(comment.createdAt)}
                       </AppText>
                     </View>
                   </View>
-                  <AppText style={[styles.commentBody, { color: colors.foreground }]}>
+                  <AppText
+                    style={[styles.commentBody, { color: colors.foreground }]}
+                  >
                     {comment.content}
                   </AppText>
                 </View>

@@ -126,7 +126,6 @@ function WorkspaceGate() {
       />
       <Stack.Screen name="executions" options={{ title: 'Executions' }} />
       <Stack.Screen name="approvals" options={{ title: 'Approvals' }} />
-      <Stack.Screen name="tasks/index" options={{ title: 'Tasks & Kanban' }} />
       <Stack.Screen name="tasks/[taskId]" options={{ title: 'Task' }} />
       <Stack.Screen name="documents/index" options={{ title: 'Documents' }} />
       <Stack.Screen name="documents/[docId]" options={{ title: 'Document' }} />
@@ -149,7 +148,12 @@ function WorkspaceGate() {
       <Stack.Screen name="billing" options={{ title: 'Plan & usage' }} />
       <Stack.Screen name="files" options={{ title: 'Files' }} />
       <Stack.Screen name="profile" options={{ title: 'Profile' }} />
-      <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+      <Stack.Screen name="account" options={{ title: 'Settings' }} />
+      <Stack.Screen name="agents" options={{ title: 'Coworkers' }} />
+      <Stack.Screen
+        name="settings"
+        options={{ title: 'Security & notifications' }}
+      />
       <Stack.Screen
         name="delete-account"
         options={{ title: 'Delete account' }}

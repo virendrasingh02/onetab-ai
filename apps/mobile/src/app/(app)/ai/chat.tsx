@@ -15,6 +15,7 @@ import {
   Image,
   KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -22,18 +23,26 @@ import {
   View,
 } from 'react-native';
 import { Alert } from '../../../lib/alert';
+import { copyToClipboard } from '../../../lib/clipboard';
+import { AttachmentPreview } from '../../../components/mobile-ui';
+import {
+  showActionSheet,
+  type ActionSheetOption,
+} from '../../../components/action-sheet';
 import {
   AppText,
+  Badge,
   EmptyState,
   IconButton,
   ListRow,
+  type IconName,
   Screen,
 } from '../../../components/ui';
 import { useKeyboardAvoidingProps } from '../../../components/navigation';
 import { haptics } from '../../../lib/haptics';
 import { secureStore } from '../../../lib/secure-store';
 import { useWorkspace } from '../../../lib/workspace';
-import { useTheme } from '../../../theme/theme';
+import { useTheme, type Theme } from '../../../theme/theme';
 import { radius, spacing } from '../../../theme/tokens';
 import { withAiConsent } from '../../../components/ai-consent';
 import { showReportSheet } from '../../../components/report';
@@ -49,6 +58,47 @@ interface ChatItem {
   feedbackGiven?: 'up' | 'down';
 }
 
+interface Persona {
+  id: string;
+  name: string;
+  role: string;
+  icon: IconName;
+  systemPrompt?: string;
+}
+
+const DEFAULT_PERSONAS: Persona[] = [
+  {
+    id: 'general',
+    name: 'General Assistant',
+    role: 'Helpful AI for everyday workspace queries',
+    icon: 'sparkles',
+  },
+  {
+    id: 'architect',
+    name: 'Code Architect',
+    role: 'Fullstack engineering, system design, and debugging',
+    icon: 'code-slash',
+    systemPrompt:
+      'You are a Senior Software Architect. Provide clean, production-ready code with explanations.',
+  },
+  {
+    id: 'writer',
+    name: 'Technical Writer',
+    role: 'Documentation, specs, concise executive summaries',
+    icon: 'document-text',
+    systemPrompt:
+      'You are an Expert Technical Writer. Write structured, concise, and clear prose.',
+  },
+  {
+    id: 'analyst',
+    name: 'Research Analyst',
+    role: 'Data synthesis, competitive analysis, and knowledge search',
+    icon: 'analytics',
+    systemPrompt:
+      'You are a Senior Research Analyst. Synthesize information with clear bullet points and citations.',
+  },
+];
+
 const DEFAULT_MODELS = [
   { id: 'gpt-4o', name: 'GPT-4o', provider: 'openai' },
   { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'anthropic' },
@@ -56,18 +106,135 @@ const DEFAULT_MODELS = [
   { id: 'llama3:latest', name: 'Llama 3 (Ollama)', provider: 'ollama' },
 ];
 
+/**
+ * Parses assistant messages for markdown code fences (```lang ... ```)
+ * and renders syntax-highlighted code blocks with 1-tap copy!
+ */
+function FormattedMessageContent({
+  content,
+  isUser,
+  colors,
+}: {
+  content: string;
+  isUser: boolean;
+  colors: Theme['colors'];
+}) {
+  const parts = useMemo(() => {
+    const codeBlockRegex = /```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g;
+    const segments: Array<{
+      type: 'text' | 'code';
+      text: string;
+      lang?: string;
+    }> = [];
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = codeBlockRegex.exec(content)) !== null) {
+      if (match.index > lastIndex) {
+        segments.push({
+          type: 'text',
+          text: content.slice(lastIndex, match.index),
+        });
+      }
+      segments.push({
+        type: 'code',
+        lang: match[1]?.trim() || 'code',
+        text: match[2]?.trimEnd() || '',
+      });
+      lastIndex = match.index + match[0].length;
+    }
+
+    if (lastIndex < content.length) {
+      segments.push({
+        type: 'text',
+        text: content.slice(lastIndex),
+      });
+    }
+
+    return segments;
+  }, [content]);
+
+  if (isUser || parts.length === 0) {
+    return (
+      <AppText
+        variant="body"
+        selectable
+        style={{
+          color: isUser ? colors.primaryForeground : colors.foreground,
+          lineHeight: 22,
+        }}
+      >
+        {content}
+      </AppText>
+    );
+  }
+
+  return (
+    <View style={{ gap: spacing.xs }}>
+      {parts.map((part, index) => {
+        if (part.type === 'text') {
+          return (
+            <AppText
+              key={index}
+              variant="body"
+              selectable
+              style={{ color: colors.foreground, lineHeight: 22 }}
+            >
+              {part.text}
+            </AppText>
+          );
+        }
+
+        return (
+          <View key={index} style={styles.codeBlockCard}>
+            <View style={styles.codeBlockHeader}>
+              <Badge
+                label={part.lang?.toUpperCase() || 'CODE'}
+                tone="neutral"
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Copy code to clipboard"
+                onPress={() => {
+                  haptics.selection();
+                  void copyToClipboard(part.text, { label: 'Code snippet' });
+                }}
+                hitSlop={8}
+                style={styles.copyCodeBtn}
+              >
+                <Ionicons name="copy-outline" size={14} color="#9ca3af" />
+                <AppText style={styles.copyCodeLabel}>Copy</AppText>
+              </Pressable>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <AppText selectable style={styles.codeBlockText}>
+                {part.text}
+              </AppText>
+            </ScrollView>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 function AIChatScreen() {
   const { workspaceId } = useWorkspace();
   const { colors } = useTheme();
   const keyboardAvoiding = useKeyboardAvoidingProps();
   const flatListRef = useRef<FlatList>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ChatItem[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>('gpt-4o');
+  const [selectedPersona, setSelectedPersona] = useState<Persona>(
+    DEFAULT_PERSONAS[0],
+  );
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
+  const [personaPickerOpen, setPersonaPickerOpen] = useState(false);
   const [promptsOpen, setPromptsOpen] = useState(false);
 
   const storageKey = `ai_chat_history:${workspaceId}`;
@@ -114,7 +281,7 @@ function AIChatScreen() {
     enabled: Boolean(workspaceId && promptsOpen),
   });
 
-  // Chat mutation
+  // Chat mutation with abort controller support
   const chatMutation = useMutation({
     mutationFn: async ({
       userText,
@@ -123,12 +290,26 @@ function AIChatScreen() {
       userText: string;
       imageUri?: string | null;
     }) => {
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+      const { signal } = controller;
+      // ragSearch / analyzeVision take no signal, so a Stop pressed while they
+      // run is honoured as soon as they return.
+      const throwIfAborted = () => {
+        if (signal.aborted) {
+          const err = new Error('Request aborted');
+          err.name = 'AbortError';
+          throw err;
+        }
+      };
+
       // 1. If web search or RAG is enabled, query sources
       let sources: Array<{ title?: string; text: string; score?: number }> = [];
       if (webSearchEnabled) {
         const ragResults = await aiApi
           .ragSearch(workspaceId, userText, 3)
           .catch(() => []);
+        throwIfAborted();
         sources = ragResults.map((r) => ({
           text: r.text,
           score: r.score,
@@ -143,6 +324,7 @@ function AIChatScreen() {
           imageUri,
           userText,
         );
+        throwIfAborted();
         return {
           reply: visionRes.analysis,
           tokens: 150,
@@ -150,23 +332,34 @@ function AIChatScreen() {
         };
       }
 
-      // 3. Otherwise standard chat API
-      const conversationPayload: AIChatMessage[] = messages
-        .slice(-8)
-        .map((m) => ({
+      // 3. Otherwise standard chat API with system prompt persona
+      const conversationPayload: AIChatMessage[] = [];
+
+      if (selectedPersona.systemPrompt) {
+        conversationPayload.push({
+          role: 'system',
+          content: selectedPersona.systemPrompt,
+        });
+      }
+
+      messages.slice(-8).forEach((m) => {
+        conversationPayload.push({
           role: m.role,
           content: m.content,
-        }));
+        });
+      });
 
       conversationPayload.push({
         role: 'user',
         content: userText,
       });
 
-      const res = await aiApi.chat(workspaceId, {
-        messages: conversationPayload,
-        model: selectedModel,
-      });
+      const res = await aiApi.chat(
+        workspaceId,
+        { messages: conversationPayload, model: selectedModel },
+        signal,
+      );
+      throwIfAborted();
 
       return {
         reply: res.message.content,
@@ -190,12 +383,19 @@ function AIChatScreen() {
         100,
       );
     },
-    onError: (err) => {
+    onError: (err: Error) => {
+      if (err.name === 'AbortError' || err.message?.includes('aborted')) {
+        haptics.selection();
+        return;
+      }
       haptics.warning();
       Alert.alert(
         'AI Request Failed',
         err.message || 'Could not complete request.',
       );
+    },
+    onSettled: () => {
+      abortControllerRef.current = null;
     },
   });
 
@@ -220,6 +420,11 @@ function AIChatScreen() {
 
     chatMutation.mutate({ userText: text, imageUri: imgToSend });
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+  };
+
+  const handleStopGeneration = () => {
+    haptics.light();
+    abortControllerRef.current?.abort();
   };
 
   const handlePickImage = async () => {
@@ -268,19 +473,109 @@ function AIChatScreen() {
       .catch(() => undefined);
   };
 
+  const handleMessageLongPress = (item: ChatItem) => {
+    haptics.medium();
+    const options: ActionSheetOption[] = [
+      {
+        label: 'Copy message',
+        icon: 'copy-outline',
+        onPress: () => {
+          void copyToClipboard(item.content, { label: 'Message' });
+        },
+      },
+    ];
+
+    if (item.role === 'user') {
+      options.push({
+        label: 'Edit prompt',
+        icon: 'pencil-outline',
+        onPress: () => {
+          setInput(item.content);
+        },
+      });
+    }
+
+    if (item.role === 'assistant') {
+      options.push({
+        label: 'Regenerate answer',
+        icon: 'refresh-outline',
+        onPress: () => {
+          // Find preceding user prompt
+          const idx = messages.findIndex((m) => m.id === item.id);
+          const userPrompt = messages
+            .slice(0, idx)
+            .reverse()
+            .find((m) => m.role === 'user');
+          if (userPrompt) {
+            chatMutation.mutate({ userText: userPrompt.content });
+          }
+        },
+      });
+    }
+
+    options.push({
+      label: 'Report response',
+      icon: 'flag-outline',
+      destructive: true,
+      onPress: () => {
+        showReportSheet({
+          targetType: 'AI_OUTPUT',
+          targetId: item.id,
+          workspaceId,
+          excerpt: item.content.slice(0, 4000),
+        });
+      },
+    });
+
+    showActionSheet({
+      title: item.role === 'user' ? 'Your message' : 'AI Response',
+      options,
+    });
+  };
+
   const activeModelObj = availableModels.find((m) => m.id === selectedModel);
 
   return (
     <Screen edges={['bottom']}>
       <Stack.Screen
         options={{
-          title: 'AI Assistant',
+          title: selectedPersona.name,
           headerRight: () => (
             <View style={styles.headerRight}>
+              {/* Persona selector */}
               <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Switch AI Persona"
+                onPress={() => setPersonaPickerOpen(true)}
+                style={[
+                  styles.headerPill,
+                  {
+                    backgroundColor: colors.selected,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="person-outline"
+                  size={13}
+                  color={colors.primaryText}
+                />
+                <AppText
+                  variant="caption"
+                  style={{ fontWeight: '600', color: colors.primaryText }}
+                  numberOfLines={1}
+                >
+                  {selectedPersona.name.split(' ')[0]}
+                </AppText>
+              </Pressable>
+
+              {/* Model selector */}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Switch AI model"
                 onPress={() => setModelPickerOpen(true)}
                 style={[
-                  styles.modelPill,
+                  styles.headerPill,
                   { backgroundColor: colors.card, borderColor: colors.border },
                 ]}
               >
@@ -293,6 +588,7 @@ function AIChatScreen() {
                 </AppText>
                 <Ionicons name="chevron-down" size={12} color={colors.subtle} />
               </Pressable>
+
               <IconButton
                 icon="trash-outline"
                 label="Clear chat"
@@ -313,14 +609,14 @@ function AIChatScreen() {
           <View style={styles.emptyWrap}>
             <EmptyState
               icon="sparkles"
-              title="How can I help you today?"
-              description="Ask questions, summarize documents, brainstorm ideas, analyze images, or browse your workspace knowledge base."
+              title={`How can ${selectedPersona.name} help?`}
+              description={selectedPersona.role}
             />
             {/* Prompt Starter Chips */}
             <View style={styles.starterWrap}>
               {[
                 'Draft a weekly status update',
-                'Explain our system architecture',
+                'Explain system architecture',
                 'Write an announcement email',
                 'Summarize recent decisions',
               ].map((starter) => (
@@ -371,7 +667,8 @@ function AIChatScreen() {
                     isUser ? styles.userBubbleWrap : styles.assistantBubbleWrap,
                   ]}
                 >
-                  <View
+                  <Pressable
+                    onLongPress={() => handleMessageLongPress(item)}
                     style={[
                       styles.bubble,
                       isUser
@@ -395,17 +692,13 @@ function AIChatScreen() {
                         resizeMode="cover"
                       />
                     ) : null}
-                    <AppText
-                      variant="body"
-                      selectable
-                      style={{
-                        color: isUser
-                          ? colors.primaryForeground
-                          : colors.foreground,
-                      }}
-                    >
-                      {item.content}
-                    </AppText>
+
+                    {/* Formatted Content with Code Block Support */}
+                    <FormattedMessageContent
+                      content={item.content}
+                      isUser={isUser}
+                      colors={colors}
+                    />
 
                     {/* Citations if available */}
                     {item.sources && item.sources.length > 0 ? (
@@ -440,15 +733,46 @@ function AIChatScreen() {
                     {/* Metadata & Actions for Assistant */}
                     {!isUser ? (
                       <View style={styles.bubbleFooter}>
-                        {item.tokensUsed ? (
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 6,
+                          }}
+                        >
+                          {item.tokensUsed ? (
+                            <AppText
+                              variant="caption"
+                              style={{ color: colors.subtle, fontSize: 11 }}
+                            >
+                              {item.tokensUsed} tokens
+                            </AppText>
+                          ) : null}
                           <AppText
                             variant="caption"
-                            style={{ color: colors.subtle }}
+                            style={{ color: colors.subtle, fontSize: 11 }}
                           >
-                            {item.tokensUsed} tokens
+                            · Hold for actions
                           </AppText>
-                        ) : null}
+                        </View>
+
                         <View style={styles.feedbackRow}>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel="Copy response"
+                            onPress={() =>
+                              void copyToClipboard(item.content, {
+                                label: 'Response',
+                              })
+                            }
+                            hitSlop={8}
+                          >
+                            <Ionicons
+                              name="copy-outline"
+                              size={14}
+                              color={colors.subtle}
+                            />
+                          </Pressable>
                           <Pressable
                             accessibilityRole="button"
                             accessibilityLabel="Good response"
@@ -511,7 +835,7 @@ function AIChatScreen() {
                         </View>
                       </View>
                     ) : null}
-                  </View>
+                  </Pressable>
                 </View>
               );
             }}
@@ -523,27 +847,21 @@ function AIChatScreen() {
           <View style={styles.thinkingRow}>
             <ActivityIndicator size="small" color={colors.primaryText} />
             <AppText variant="caption" style={{ color: colors.subtle }}>
-              {activeModelObj?.name || 'AI'} is thinking…
+              {selectedPersona.name} is thinking…
             </AppText>
           </View>
         ) : null}
 
-        {/* Attached image preview banner */}
+        {/* Attached image preview banner using AttachmentPreview */}
         {attachedImage ? (
           <View
-            style={[styles.attachedBanner, { backgroundColor: colors.card }]}
+            style={{ paddingHorizontal: spacing.md, paddingTop: spacing.xs }}
           >
-            <Image
-              source={{ uri: attachedImage }}
-              style={styles.attachedThumbnail}
-            />
-            <AppText variant="caption" style={{ flex: 1 }}>
-              Image attached for multimodal vision
-            </AppText>
-            <IconButton
-              icon="close"
-              label="Remove image"
-              onPress={() => setAttachedImage(null)}
+            <AttachmentPreview
+              uri={attachedImage}
+              name="Image for vision analysis"
+              mimeType="image/*"
+              onRemove={() => setAttachedImage(null)}
             />
           </View>
         ) : null}
@@ -639,33 +957,46 @@ function AIChatScreen() {
                 },
               ]}
             />
-            <Pressable
-              disabled={
-                (!input.trim() && !attachedImage) || chatMutation.isPending
-              }
-              onPress={handleSend}
-              accessibilityRole="button"
-              accessibilityLabel="Send message"
-              style={[
-                styles.sendBtn,
-                {
-                  backgroundColor:
+
+            {chatMutation.isPending ? (
+              <Pressable
+                onPress={handleStopGeneration}
+                accessibilityRole="button"
+                accessibilityLabel="Stop generating"
+                style={[
+                  styles.stopBtn,
+                  { backgroundColor: colors.destructive },
+                ]}
+              >
+                <Ionicons name="square" size={14} color="#fff" />
+              </Pressable>
+            ) : (
+              <Pressable
+                disabled={!input.trim() && !attachedImage}
+                onPress={handleSend}
+                accessibilityRole="button"
+                accessibilityLabel="Send message"
+                style={[
+                  styles.sendBtn,
+                  {
+                    backgroundColor:
+                      input.trim() || attachedImage
+                        ? colors.primaryText
+                        : colors.border,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="arrow-up"
+                  size={20}
+                  color={
                     input.trim() || attachedImage
-                      ? colors.primaryText
-                      : colors.border,
-                },
-              ]}
-            >
-              <Ionicons
-                name="arrow-up"
-                size={20}
-                color={
-                  input.trim() || attachedImage
-                    ? colors.background
-                    : colors.subtle
-                }
-              />
-            </Pressable>
+                      ? colors.background
+                      : colors.subtle
+                  }
+                />
+              </Pressable>
+            )}
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -714,6 +1045,57 @@ function AIChatScreen() {
                       haptics.selection();
                       setSelectedModel(m.id);
                       setModelPickerOpen(false);
+                    }}
+                  />
+                );
+              })}
+            </ScrollView>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Persona Picker Modal */}
+      <Modal
+        visible={personaPickerOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setPersonaPickerOpen(false)}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setPersonaPickerOpen(false)}
+        >
+          <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
+            <View style={styles.sheetHeader}>
+              <AppText variant="heading">Select Persona</AppText>
+              <IconButton
+                icon="close"
+                label="Close"
+                onPress={() => setPersonaPickerOpen(false)}
+              />
+            </View>
+            <ScrollView style={styles.modelList}>
+              {DEFAULT_PERSONAS.map((p) => {
+                const isSelected = p.id === selectedPersona.id;
+                return (
+                  <ListRow
+                    key={p.id}
+                    icon={p.icon}
+                    title={p.name}
+                    subtitle={p.role}
+                    right={
+                      isSelected ? (
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={20}
+                          color={colors.primaryText}
+                        />
+                      ) : null
+                    }
+                    onPress={() => {
+                      haptics.selection();
+                      setSelectedPersona(p);
+                      setPersonaPickerOpen(false);
                     }}
                   />
                 );
@@ -782,15 +1164,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
   },
-  modelPill: {
+  headerPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: radius.full,
-    borderWidth: 1,
-    maxWidth: 140,
+    borderWidth: StyleSheet.hairlineWidth,
+    maxWidth: 120,
   },
   emptyWrap: {
     flex: 1,
@@ -831,7 +1213,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   bubble: {
-    maxWidth: '85%',
+    maxWidth: '88%',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
     borderRadius: radius.lg,
@@ -844,8 +1226,8 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: radius.sm,
   },
   bubbleImage: {
-    width: 200,
-    height: 140,
+    width: 220,
+    height: 150,
     borderRadius: radius.md,
     marginBottom: spacing.xs,
   },
@@ -863,10 +1245,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.xs,
     paddingTop: 4,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#8882',
   },
   feedbackRow: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    alignItems: 'center',
+    gap: spacing.md,
   },
   thinkingRow: {
     flexDirection: 'row',
@@ -874,20 +1259,6 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: spacing.md,
     paddingVertical: 4,
-  },
-  attachedBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderTopWidth: 1,
-    borderColor: 'transparent',
-  },
-  attachedThumbnail: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.sm,
   },
   composerContainer: {
     paddingHorizontal: spacing.md,
@@ -911,6 +1282,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   sendBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stopBtn: {
     width: 38,
     height: 38,
     borderRadius: 19,
@@ -956,6 +1334,41 @@ const styles = StyleSheet.create({
   emptyPrompts: {
     padding: spacing.xl,
     alignItems: 'center',
+  },
+  codeBlockCard: {
+    backgroundColor: '#18181b',
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    marginVertical: 4,
+  },
+  codeBlockHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    backgroundColor: '#27272a',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#3f3f46',
+  },
+  copyCodeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  copyCodeLabel: {
+    color: '#9ca3af',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  codeBlockText: {
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 13,
+    color: '#f4f4f5',
+    padding: spacing.sm,
+    lineHeight: 18,
   },
 });
 

@@ -10,12 +10,7 @@ import type { Task, AIApprovalRequest, NotificationView } from '@org/types';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import {
   AppText,
   Avatar,
@@ -28,7 +23,7 @@ import {
   Screen,
   SectionHeader,
 } from '../../../../components/ui';
-import { relativeTime, statusTone } from '../../../../lib/format';
+import { humanize, relativeTime, statusTone } from '../../../../lib/format';
 import { haptics } from '../../../../lib/haptics';
 import { useSession } from '../../../../lib/session';
 import { useWorkspace } from '../../../../lib/workspace';
@@ -58,7 +53,9 @@ export default function HomeScreen() {
   const approvalsQuery = useQuery({
     queryKey: queryKeys.approvals.list(workspaceId, 'PENDING'),
     queryFn: () =>
-      approvalsApi.list(workspaceId, 'PENDING').catch(() => [] as AIApprovalRequest[]),
+      approvalsApi
+        .list(workspaceId, 'PENDING')
+        .catch(() => [] as AIApprovalRequest[]),
     enabled: Boolean(workspaceId),
     refetchInterval: 30_000,
   });
@@ -115,7 +112,8 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View style={styles.headerTextContainer}>
           <AppText style={[styles.greeting, { color: colors.subtle }]}>
-            {greeting}, {user?.displayName?.split(' ')[0] ?? 'there'}
+            {greeting},{' '}
+            {(user?.displayName || user?.name)?.split(' ')[0] || 'there'}
           </AppText>
           <Pressable
             accessibilityRole="button"
@@ -126,7 +124,9 @@ export default function HomeScreen() {
             }}
             style={styles.workspacePill}
           >
-            <AppText style={[styles.workspaceName, { color: colors.foreground }]}>
+            <AppText
+              style={[styles.workspaceName, { color: colors.foreground }]}
+            >
               {workspace?.name ?? 'Workspace'}
             </AppText>
             <Ionicons name="chevron-down" size={16} color={colors.subtle} />
@@ -153,7 +153,7 @@ export default function HomeScreen() {
             onPress={() => router.push('/profile')}
           >
             <Avatar
-              name={user?.displayName ?? 'You'}
+              name={user?.displayName || user?.name || 'You'}
               uri={user?.avatarUrl}
               size={44}
             />
@@ -176,12 +176,16 @@ export default function HomeScreen() {
           <View style={styles.bannerAlertContent}>
             <Ionicons name="hand-left" size={20} color={colors.primary} />
             <View style={{ flex: 1 }}>
-              <AppText style={[styles.bannerAlertTitle, { color: colors.primaryText }]}>
+              <AppText
+                style={[styles.bannerAlertTitle, { color: colors.primaryText }]}
+              >
                 {pendingApprovalsCount === 1
                   ? '1 action waiting for your approval'
                   : `${pendingApprovalsCount} actions waiting for your approval`}
               </AppText>
-              <AppText style={[styles.bannerAlertDesc, { color: colors.subtle }]}>
+              <AppText
+                style={[styles.bannerAlertDesc, { color: colors.subtle }]}
+              >
                 AI coworkers and automations require your sign-off
               </AppText>
             </View>
@@ -196,160 +200,220 @@ export default function HomeScreen() {
       </View>
       <View style={styles.quickActionsGrid}>
         <Pressable
-          style={[styles.quickActionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          style={[
+            styles.quickActionCard,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
           onPress={() => {
             haptics.selection();
             router.push('/ai/chat');
           }}
         >
-          <View style={[styles.actionIconWrap, { backgroundColor: colors.selected }]}>
+          <View
+            style={[
+              styles.actionIconWrap,
+              { backgroundColor: colors.selected },
+            ]}
+          >
             <Ionicons name="sparkles" size={20} color={colors.primary} />
           </View>
-          <AppText style={[styles.actionCardLabel, { color: colors.foreground }]}>AI Chat</AppText>
+          <AppText
+            style={[styles.actionCardLabel, { color: colors.foreground }]}
+          >
+            AI Chat
+          </AppText>
         </Pressable>
 
         <Pressable
-          style={[styles.quickActionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          style={[
+            styles.quickActionCard,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
           onPress={() => {
             haptics.selection();
             router.push('/ai/writer');
           }}
         >
-          <View style={[styles.actionIconWrap, { backgroundColor: colors.selected }]}>
+          <View
+            style={[
+              styles.actionIconWrap,
+              { backgroundColor: colors.selected },
+            ]}
+          >
             <Ionicons name="create-outline" size={20} color={colors.primary} />
           </View>
-          <AppText style={[styles.actionCardLabel, { color: colors.foreground }]}>AI Writer</AppText>
+          <AppText
+            style={[styles.actionCardLabel, { color: colors.foreground }]}
+          >
+            AI Writer
+          </AppText>
         </Pressable>
 
         <Pressable
-          style={[styles.quickActionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          style={[
+            styles.quickActionCard,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
           onPress={() => {
             haptics.selection();
             router.push('/ai/images');
           }}
         >
-          <View style={[styles.actionIconWrap, { backgroundColor: colors.selected }]}>
+          <View
+            style={[
+              styles.actionIconWrap,
+              { backgroundColor: colors.selected },
+            ]}
+          >
             <Ionicons name="image-outline" size={20} color={colors.primary} />
           </View>
-          <AppText style={[styles.actionCardLabel, { color: colors.foreground }]}>Images</AppText>
+          <AppText
+            style={[styles.actionCardLabel, { color: colors.foreground }]}
+          >
+            Images
+          </AppText>
         </Pressable>
 
         <Pressable
-          style={[styles.quickActionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          style={[
+            styles.quickActionCard,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
           onPress={() => {
             haptics.selection();
             router.push('/automation/studio');
           }}
         >
-          <View style={[styles.actionIconWrap, { backgroundColor: colors.selected }]}>
-            <Ionicons name="git-network-outline" size={20} color={colors.primary} />
+          <View
+            style={[
+              styles.actionIconWrap,
+              { backgroundColor: colors.selected },
+            ]}
+          >
+            <Ionicons
+              name="git-network-outline"
+              size={20}
+              color={colors.primary}
+            />
           </View>
-          <AppText style={[styles.actionCardLabel, { color: colors.foreground }]}>Studio</AppText>
+          <AppText
+            style={[styles.actionCardLabel, { color: colors.foreground }]}
+          >
+            Studio
+          </AppText>
         </Pressable>
       </View>
 
       {/* Quick Actions Grid — Productivity Suite */}
       <View style={styles.quickActionsGrid}>
         <Pressable
-          style={[styles.quickActionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          style={[
+            styles.quickActionCard,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
           onPress={() => {
             haptics.selection();
-            router.push('/tasks');
+            router.push('/timesheet');
           }}
         >
-          <View style={[styles.actionIconWrap, { backgroundColor: colors.selected }]}>
-            <Ionicons name="checkbox-outline" size={20} color={colors.primary} />
+          <View
+            style={[
+              styles.actionIconWrap,
+              { backgroundColor: colors.selected },
+            ]}
+          >
+            <Ionicons name="time-outline" size={20} color={colors.primary} />
           </View>
-          <AppText style={[styles.actionCardLabel, { color: colors.foreground }]}>Tasks</AppText>
+          <AppText
+            style={[styles.actionCardLabel, { color: colors.foreground }]}
+          >
+            Timesheet
+          </AppText>
         </Pressable>
 
         <Pressable
-          style={[styles.quickActionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          style={[
+            styles.quickActionCard,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
           onPress={() => {
             haptics.selection();
             router.push('/documents');
           }}
         >
-          <View style={[styles.actionIconWrap, { backgroundColor: colors.selected }]}>
-            <Ionicons name="document-text-outline" size={20} color={colors.primary} />
+          <View
+            style={[
+              styles.actionIconWrap,
+              { backgroundColor: colors.selected },
+            ]}
+          >
+            <Ionicons
+              name="document-text-outline"
+              size={20}
+              color={colors.primary}
+            />
           </View>
-          <AppText style={[styles.actionCardLabel, { color: colors.foreground }]}>Docs</AppText>
+          <AppText
+            style={[styles.actionCardLabel, { color: colors.foreground }]}
+          >
+            Docs
+          </AppText>
         </Pressable>
 
         <Pressable
-          style={[styles.quickActionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          style={[
+            styles.quickActionCard,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
           onPress={() => {
             haptics.selection();
             router.push('/knowledge');
           }}
         >
-          <View style={[styles.actionIconWrap, { backgroundColor: colors.selected }]}>
+          <View
+            style={[
+              styles.actionIconWrap,
+              { backgroundColor: colors.selected },
+            ]}
+          >
             <Ionicons name="library-outline" size={20} color={colors.primary} />
           </View>
-          <AppText style={[styles.actionCardLabel, { color: colors.foreground }]}>Knowledge</AppText>
+          <AppText
+            style={[styles.actionCardLabel, { color: colors.foreground }]}
+          >
+            Knowledge
+          </AppText>
         </Pressable>
 
         <Pressable
-          style={[styles.quickActionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          style={[
+            styles.quickActionCard,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
           onPress={() => {
             haptics.selection();
             router.push('/meetings');
           }}
         >
-          <View style={[styles.actionIconWrap, { backgroundColor: colors.selected }]}>
-            <Ionicons name="calendar-outline" size={20} color={colors.primary} />
+          <View
+            style={[
+              styles.actionIconWrap,
+              { backgroundColor: colors.selected },
+            ]}
+          >
+            <Ionicons
+              name="calendar-outline"
+              size={20}
+              color={colors.primary}
+            />
           </View>
-          <AppText style={[styles.actionCardLabel, { color: colors.foreground }]}>Meetings</AppText>
+          <AppText
+            style={[styles.actionCardLabel, { color: colors.foreground }]}
+          >
+            Meetings
+          </AppText>
         </Pressable>
       </View>
-
-      {/* Quick Jump Shortcuts */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.quickJumpRow}
-      >
-        <Pressable
-          onPress={() => {
-            haptics.selection();
-            router.push('/timesheet');
-          }}
-          style={[styles.quickJumpPill, { backgroundColor: colors.card, borderColor: colors.border }]}
-        >
-          <Ionicons name="time-outline" size={14} color={colors.foreground} />
-          <AppText variant="caption">Timesheet</AppText>
-        </Pressable>
-        <Pressable
-          onPress={() => {
-            haptics.selection();
-            router.push('/admin');
-          }}
-          style={[styles.quickJumpPill, { backgroundColor: colors.card, borderColor: colors.border }]}
-        >
-          <Ionicons name="shield-outline" size={14} color={colors.foreground} />
-          <AppText variant="caption">Admin & Roles</AppText>
-        </Pressable>
-        <Pressable
-          onPress={() => {
-            haptics.selection();
-            router.push('/integrations');
-          }}
-          style={[styles.quickJumpPill, { backgroundColor: colors.card, borderColor: colors.border }]}
-        >
-          <Ionicons name="extension-puzzle-outline" size={14} color={colors.foreground} />
-          <AppText variant="caption">Connectors</AppText>
-        </Pressable>
-        <Pressable
-          onPress={() => {
-            haptics.selection();
-            router.push('/files');
-          }}
-          style={[styles.quickJumpPill, { backgroundColor: colors.card, borderColor: colors.border }]}
-        >
-          <Ionicons name="folder-outline" size={14} color={colors.foreground} />
-          <AppText variant="caption">Storage & Files</AppText>
-        </Pressable>
-      </ScrollView>
 
       {/* AI Daily Catch-Up / Briefing */}
       {catchUpQuery.data ? (
@@ -358,7 +422,7 @@ export default function HomeScreen() {
             title="Daily AI Catch-Up"
             action={
               <Button
-                label="Activity"
+                label="Inbox"
                 variant="ghost"
                 onPress={() => router.push('/updates')}
               />
@@ -366,10 +430,17 @@ export default function HomeScreen() {
           />
           <Card style={[styles.catchUpCard, { borderColor: colors.border }]}>
             <View style={styles.catchUpHeader}>
-              <View style={[styles.sparkleWrap, { backgroundColor: colors.selected }]}>
+              <View
+                style={[
+                  styles.sparkleWrap,
+                  { backgroundColor: colors.selected },
+                ]}
+              >
                 <Ionicons name="sparkles" size={16} color={colors.primary} />
               </View>
-              <AppText style={[styles.catchUpTitle, { color: colors.primaryText }]}>
+              <AppText
+                style={[styles.catchUpTitle, { color: colors.primaryText }]}
+              >
                 {catchUpQuery.data.greeting || 'Workspace Briefing'}
               </AppText>
             </View>
@@ -391,12 +462,20 @@ export default function HomeScreen() {
                 .filter(Boolean)
                 .join(' · ') || 'You are up to date on workspace activity.'}
             </AppText>
-            {catchUpQuery.data.keyUpdates && catchUpQuery.data.keyUpdates.length > 0 ? (
+            {catchUpQuery.data.keyUpdates &&
+            catchUpQuery.data.keyUpdates.length > 0 ? (
               <View style={styles.highlightsContainer}>
                 {catchUpQuery.data.keyUpdates.slice(0, 3).map((item) => (
                   <View key={item.id} style={styles.highlightRow}>
-                    <Ionicons name="ellipse" size={6} color={colors.primary} style={{ marginTop: 6 }} />
-                    <AppText style={[styles.highlightText, { color: colors.subtle }]}>
+                    <Ionicons
+                      name="ellipse"
+                      size={6}
+                      color={colors.primary}
+                      style={{ marginTop: 6 }}
+                    />
+                    <AppText
+                      style={[styles.highlightText, { color: colors.subtle }]}
+                    >
                       {item.title}: {item.summary}
                     </AppText>
                   </View>
@@ -421,8 +500,14 @@ export default function HomeScreen() {
         />
         {openTasks.length === 0 ? (
           <Card style={styles.emptyCard}>
-            <Ionicons name="checkmark-circle-outline" size={32} color={colors.primary} />
-            <AppText style={[styles.emptyCardTitle, { color: colors.foreground }]}>
+            <Ionicons
+              name="checkmark-circle-outline"
+              size={32}
+              color={colors.primary}
+            />
+            <AppText
+              style={[styles.emptyCardTitle, { color: colors.foreground }]}
+            >
               All caught up!
             </AppText>
             <AppText style={[styles.emptyCardDesc, { color: colors.subtle }]}>
@@ -444,7 +529,9 @@ export default function HomeScreen() {
                   title={task.title}
                   subtitle={
                     [
-                      task.priority ? `Priority: ${task.priority}` : null,
+                      task.priority
+                        ? `${humanize(task.priority)} priority`
+                        : null,
                       task.dueDate ? `Due ${relativeTime(task.dueDate)}` : null,
                     ]
                       .filter(Boolean)
@@ -484,8 +571,14 @@ export default function HomeScreen() {
         />
         {(notificationsQuery.data ?? []).length === 0 ? (
           <Card style={styles.emptyCard}>
-            <Ionicons name="notifications-outline" size={28} color={colors.subtle} />
-            <AppText style={[styles.emptyCardTitle, { color: colors.foreground }]}>
+            <Ionicons
+              name="notifications-outline"
+              size={28}
+              color={colors.subtle}
+            />
+            <AppText
+              style={[styles.emptyCardTitle, { color: colors.foreground }]}
+            >
               No recent notifications
             </AppText>
           </Card>
@@ -498,7 +591,9 @@ export default function HomeScreen() {
                   title={item.title}
                   subtitle={item.body ?? relativeTime(item.createdAt)}
                   right={
-                    <AppText style={[styles.timeText, { color: colors.subtle }]}>
+                    <AppText
+                      style={[styles.timeText, { color: colors.subtle }]}
+                    >
                       {relativeTime(item.createdAt)}
                     </AppText>
                   }
@@ -511,42 +606,6 @@ export default function HomeScreen() {
             ))}
           </Card>
         )}
-      </View>
-
-      {/* Productivity Modules Shortcuts Bar */}
-      <View style={[styles.section, { marginBottom: spacing.xl }]}>
-        <SectionHeader title="Workspace Productivity" />
-        <Card>
-          <ListRow
-            icon="time-outline"
-            title="Timesheet & Attendance"
-            subtitle="Punch in/out, view working hours and daily logs"
-            onPress={() => {
-              haptics.selection();
-              router.push('/timesheet');
-            }}
-          />
-          <Divider inset={rowDividerInset} />
-          <ListRow
-            icon="people-outline"
-            title="Team & AI Coworkers"
-            subtitle="Browse directory, coworkers roster and installed agents"
-            onPress={() => {
-              haptics.selection();
-              router.push('/team');
-            }}
-          />
-          <Divider inset={rowDividerInset} />
-          <ListRow
-            icon="pie-chart-outline"
-            title="Workspace Analytics"
-            subtitle="AI usage, workflow runs and health metrics"
-            onPress={() => {
-              haptics.selection();
-              router.push('/analytics');
-            }}
-          />
-        </Card>
       </View>
     </Screen>
   );
@@ -578,20 +637,6 @@ const styles = StyleSheet.create({
   },
   sectionHeaderWrap: {
     marginBottom: spacing.xs,
-  },
-  quickJumpRow: {
-    gap: spacing.xs,
-    paddingBottom: spacing.sm,
-    marginBottom: spacing.xs,
-  },
-  quickJumpPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: radius.full,
-    borderWidth: 1,
   },
   greeting: {
     fontSize: 14,

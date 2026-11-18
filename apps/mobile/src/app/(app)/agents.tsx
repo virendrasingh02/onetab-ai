@@ -10,12 +10,8 @@ import type { CoworkerRoster, MarketplaceListing } from '@org/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import {
-  Pressable,
-  StyleSheet,
-  View,
-} from 'react-native';
-import { Alert } from '../../../../lib/alert';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Alert } from '../../lib/alert';
 import {
   AppText,
   Badge,
@@ -27,12 +23,12 @@ import {
   rowDividerInset,
   Screen,
   TextField,
-} from '../../../../components/ui';
-import { humanize, relativeTime } from '../../../../lib/format';
-import { haptics } from '../../../../lib/haptics';
-import { useWorkspace } from '../../../../lib/workspace';
-import { useTheme } from '../../../../theme/theme';
-import { radius, spacing } from '../../../../theme/tokens';
+} from '../../components/ui';
+import { humanize, relativeTime } from '../../lib/format';
+import { haptics } from '../../lib/haptics';
+import { useWorkspace } from '../../lib/workspace';
+import { useTheme } from '../../theme/theme';
+import { radius, spacing } from '../../theme/tokens';
 
 type AgentSegment = 'coworkers' | 'agents' | 'marketplace';
 
@@ -49,23 +45,24 @@ export default function AgentsTab() {
   const rosterQuery = useQuery({
     queryKey: ['mobile', 'coworkers-roster', workspaceId],
     queryFn: () =>
-      coworkersApi
-        .roster(workspaceId)
-        .catch(() => ({
-          coworkers: [],
-          connectableApps: [],
-          plan: {
-            name: 'Free',
-            requestsPerMonth: 0,
-            aiRunsThisMonth: 0,
-            concurrentExecutions: 1,
-            runningNow: 0,
-            cpu: 1,
-            ramGb: 2,
-            maxExecutionTimeMs: 60000,
-          },
-          generatedAt: new Date().toISOString(),
-        } as CoworkerRoster)),
+      coworkersApi.roster(workspaceId).catch(
+        () =>
+          ({
+            coworkers: [],
+            connectableApps: [],
+            plan: {
+              name: 'Free',
+              requestsPerMonth: 0,
+              aiRunsThisMonth: 0,
+              concurrentExecutions: 1,
+              runningNow: 0,
+              cpu: 1,
+              ramGb: 2,
+              maxExecutionTimeMs: 60000,
+            },
+            generatedAt: new Date().toISOString(),
+          }) as CoworkerRoster,
+      ),
     enabled: Boolean(workspaceId && segment === 'coworkers'),
   });
 
@@ -90,10 +87,15 @@ export default function AgentsTab() {
   // Install Agent Mutation
   const installMutation = useMutation({
     mutationFn: (listing: MarketplaceListing) =>
-      agentInstallApi.install(workspaceId, listing.slug, { approvedPermissions: [] }),
+      agentInstallApi.install(workspaceId, listing.slug, {
+        approvedPermissions: [],
+      }),
     onSuccess: () => {
       haptics.success();
-      Alert.alert('Agent installed', 'The agent has been added to your workspace.');
+      Alert.alert(
+        'Agent installed',
+        'The agent has been added to your workspace.',
+      );
       void queryClient.invalidateQueries({
         queryKey: queryKeys.agents.list(workspaceId),
       });
@@ -188,7 +190,12 @@ export default function AgentsTab() {
       </View>
 
       {/* Segmented Control */}
-      <View style={[styles.segmentedBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View
+        style={[
+          styles.segmentedBar,
+          { backgroundColor: colors.card, borderColor: colors.border },
+        ]}
+      >
         <Pressable
           style={[
             styles.segmentPill,
@@ -207,7 +214,10 @@ export default function AgentsTab() {
           <AppText
             style={[
               styles.segmentText,
-              { color: segment === 'coworkers' ? colors.primaryText : colors.subtle },
+              {
+                color:
+                  segment === 'coworkers' ? colors.primaryText : colors.subtle,
+              },
             ]}
           >
             Coworkers
@@ -232,7 +242,10 @@ export default function AgentsTab() {
           <AppText
             style={[
               styles.segmentText,
-              { color: segment === 'agents' ? colors.primaryText : colors.subtle },
+              {
+                color:
+                  segment === 'agents' ? colors.primaryText : colors.subtle,
+              },
             ]}
           >
             Custom Agents
@@ -257,7 +270,12 @@ export default function AgentsTab() {
           <AppText
             style={[
               styles.segmentText,
-              { color: segment === 'marketplace' ? colors.primaryText : colors.subtle },
+              {
+                color:
+                  segment === 'marketplace'
+                    ? colors.primaryText
+                    : colors.subtle,
+              },
             ]}
           >
             Marketplace
@@ -278,7 +296,11 @@ export default function AgentsTab() {
       {/* Segment 1: AI Coworkers */}
       {segment === 'coworkers' ? (
         rosterQuery.isPending ? (
-          <EmptyState icon="hourglass-outline" title="Loading coworkers…" description="" />
+          <EmptyState
+            icon="hourglass-outline"
+            title="Loading coworkers…"
+            description=""
+          />
         ) : coworkers.length === 0 ? (
           <EmptyState
             icon="people-outline"
@@ -295,15 +317,23 @@ export default function AgentsTab() {
                   title={c.name}
                   subtitle={[
                     c.role,
-                    c.specialists?.length ? `${c.specialists.length} specialists` : null,
-                    c.activity?.runsThisMonth ? `${c.activity.runsThisMonth} runs this mo` : null,
+                    c.specialists?.length
+                      ? `${c.specialists.length} specialists`
+                      : null,
+                    c.activity?.runsThisMonth
+                      ? `${c.activity.runsThisMonth} runs this mo`
+                      : null,
                   ]
                     .filter(Boolean)
                     .join(' · ')}
                   right={
                     <Badge
                       label={c.status ? humanize(c.status) : 'Available'}
-                      tone={c.status === 'AVAILABLE' || !c.status ? 'success' : 'neutral'}
+                      tone={
+                        c.status === 'AVAILABLE' || !c.status
+                          ? 'success'
+                          : 'neutral'
+                      }
                     />
                   }
                   onPress={() => {
@@ -323,7 +353,11 @@ export default function AgentsTab() {
       {/* Segment 2: Custom Agents */}
       {segment === 'agents' ? (
         agentsQuery.isPending ? (
-          <EmptyState icon="hourglass-outline" title="Loading agents…" description="" />
+          <EmptyState
+            icon="hourglass-outline"
+            title="Loading agents…"
+            description=""
+          />
         ) : agents.length === 0 ? (
           <EmptyState
             icon="sparkles-outline"
@@ -348,7 +382,9 @@ export default function AgentsTab() {
                   subtitle={[
                     agent.role,
                     `${agent._count?.logs ?? 0} runs`,
-                    agent.lastActiveAt ? `active ${relativeTime(agent.lastActiveAt)}` : null,
+                    agent.lastActiveAt
+                      ? `active ${relativeTime(agent.lastActiveAt)}`
+                      : null,
                   ]
                     .filter(Boolean)
                     .join(' · ')}
@@ -375,7 +411,11 @@ export default function AgentsTab() {
       {/* Segment 3: Marketplace Discover */}
       {segment === 'marketplace' ? (
         marketplaceQuery.isPending ? (
-          <EmptyState icon="hourglass-outline" title="Loading Marketplace…" description="" />
+          <EmptyState
+            icon="hourglass-outline"
+            title="Loading Marketplace…"
+            description=""
+          />
         ) : marketplace.length === 0 ? (
           <EmptyState
             icon="compass-outline"
