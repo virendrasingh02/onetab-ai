@@ -30,7 +30,7 @@ import {
   CHAT_ROW_HOVER,
   CHAT_ROW_INSET,
 } from '../chat-row.js';
-import { MessageTime } from '../message-time.js';
+import { MessageHeader, SenderName } from '../message-header.js';
 import { EntityKindBadge } from '../entity-kind-badge.js';
 import { AppLogoAvatar } from '../app-logo-avatar.js';
 import {
@@ -683,30 +683,25 @@ export function AgentMessageCard({
           <header className="gap-3 flex items-baseline justify-between">
             <div className="gap-3 min-w-0 flex items-baseline">
               <div className="min-w-0">
-                <div className="gap-2 flex flex-wrap items-baseline">
-                  {profileCard(
-                    <span className="font-semibold text-message text-foreground hover:underline">
-                      {agentName}
-                    </span>,
+                <MessageHeader
+                  name={profileCard(
+                    <SenderName interactive>{agentName}</SenderName>,
                   )}
-
-                  {/* The connected account is detail, not identity: it lives in
-                  the badge's tooltip and the profile card, not on every reply. */}
-                  <span
-                    title={
-                      appAccountLabel
-                        ? `Connected as ${appAccountLabel}`
-                        : undefined
-                    }
-                  >
-                    <EntityKindBadge kind={badgeKind} />
-                  </span>
-
-                  <MessageTime
-                    timestamp={message.timestamp}
-                    className="font-medium text-xs cursor-pointer text-muted-foreground hover:underline"
-                  />
-                </div>
+                  // The connected account is detail, not identity: it lives in
+                  // the badge's tooltip and the profile card, not on every reply.
+                  badge={
+                    <span
+                      title={
+                        appAccountLabel
+                          ? `Connected as ${appAccountLabel}`
+                          : undefined
+                      }
+                    >
+                      <EntityKindBadge kind={badgeKind} />
+                    </span>
+                  }
+                  timestamp={message.timestamp}
+                />
               </div>
             </div>
           </header>

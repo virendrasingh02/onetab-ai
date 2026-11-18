@@ -19,7 +19,7 @@ import {
   CHAT_ROW_HOVER,
   CHAT_ROW_INSET,
 } from '../chat-row.js';
-import { MessageTime } from '../message-time.js';
+import { MessageHeader } from '../message-header.js';
 import { EntityKindBadge } from '../entity-kind-badge.js';
 import {
   AlertTriangle,
@@ -116,16 +116,17 @@ export function AppResponseCard({
         <header className="gap-3 flex items-start justify-between">
           <div className="gap-3 min-w-0 flex items-start">
             <div className="min-w-0">
-              <div className="gap-2 flex flex-wrap items-center">
-                <span className="font-semibold text-message text-foreground">
-                  {event.appName || message.senderName}
-                </span>
-
-                <EntityKindBadge
-                  kind="app"
-                  icon={<Blocks className="size-2.5" />}
-                  label={event.category || 'App'}
-                />
+              <MessageHeader
+                name={event.appName || message.senderName}
+                badge={
+                  <EntityKindBadge
+                    kind="app"
+                    icon={<Blocks className="size-2.5" />}
+                    label={event.category || 'App'}
+                  />
+                }
+                timestamp={message.timestamp}
+              >
 
                 {event.badge && (
                   <Badge
@@ -139,11 +140,7 @@ export function AppResponseCard({
                     {event.badge.label}
                   </Badge>
                 )}
-                <MessageTime
-                  timestamp={message.timestamp}
-                  className="font-medium text-xs cursor-pointer text-muted-foreground hover:underline"
-                />
-              </div>
+              </MessageHeader>
             </div>
           </div>
 

@@ -15,6 +15,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useState } from 'react';
+import { formatClock } from '../message-time.js';
 
 export interface ApprovalCardProps {
   message: Message;
@@ -144,7 +145,7 @@ export function ApprovalCard({
         {event.expiresAt && isPending && (
           <div className="flex items-center gap-1 text-xs font-mono text-muted-foreground shrink-0">
             <Clock className="size-3" />
-            <span>Expires {new Date(event.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            <span>Expires {formatClock(event.expiresAt)}</span>
           </div>
         )}
       </header>
@@ -237,7 +238,7 @@ export function ApprovalCard({
           </span>
           {event.decidedAt && (
             <time className="text-xs">
-              {new Date(event.decidedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {formatClock(event.decidedAt)}
             </time>
           )}
         </div>

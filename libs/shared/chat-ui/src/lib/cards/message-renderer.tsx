@@ -55,6 +55,8 @@ export interface MessageRendererProps {
   onJumpToReply?: () => void;
   /** The thread root of a reply also sent to the channel — see `ChatBubble`. */
   threadRoot?: ReplyPreview | null;
+  /** Opens the thread on this reply — see `ChatBubble`. */
+  onOpenThreadReply?: () => void;
   onEdit?: () => void;
   /** Inline edit box that replaces the body — see `ChatBubble`. */
   editSlot?: ReactNode;

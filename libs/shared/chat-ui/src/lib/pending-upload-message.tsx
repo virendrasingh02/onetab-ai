@@ -11,6 +11,7 @@ import {
 import { useState, type CSSProperties } from 'react';
 import { MediaMosaic } from './media-mosaic.js';
 import { CHAT_ROW_INSET, CHAT_ROW_INSET_COMPACT } from './chat-row.js';
+import { MessageHeader } from './message-header.js';
 
 export interface PendingUploadMessageFile {
   name: string;
@@ -231,11 +232,10 @@ export function PendingUploadMessage({
       />
 
       <div className="min-w-0 flex-1 space-y-1.5">
-        <div className="flex flex-wrap items-baseline gap-x-2">
-          <span className="text-sm font-semibold">{senderName}</span>
+        <MessageHeader name={senderName}>
           <span
             className={cn(
-              'inline-flex items-center gap-1 text-xs',
+              'inline-flex items-center gap-1 text-xs font-medium',
               status === 'failed' ? 'text-destructive' : 'text-muted-foreground',
             )}
             aria-live="polite"
@@ -259,7 +259,7 @@ export function PendingUploadMessage({
               </>
             )}
           </span>
-        </div>
+        </MessageHeader>
 
         {media.length > 0 ? (
           <div className="w-full max-w-xl">

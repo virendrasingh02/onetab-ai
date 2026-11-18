@@ -14,6 +14,7 @@ import {
   CHAT_ROW_INSET_COMPACT,
 } from './chat-row.js';
 import { SeenBy } from './seen-by.js';
+import { formatClock, formatFull } from './message-time.js';
 import {
   ActionDropdownMenu,
   EmojiPicker,
@@ -29,8 +30,8 @@ import {
 } from '@org/ui';
 import { useAiEntity, useAppEntity } from './cards/agent-avatar-context.js';
 import { AppLogoAvatar } from './app-logo-avatar.js';
-import { cn } from '@org/utils';
-import { MessageTime } from './message-time.js';
+import { cn, formatRelative } from '@org/utils';
+import { MessageHeader, SenderName } from './message-header.js';
 import { countEmojiOnly } from './emoji-only.js';
 import { EntityKindBadge } from './entity-kind-badge.js';
 import {
@@ -164,6 +165,11 @@ export interface ChatBubbleProps {
    * "replied to a thread: …". `null` means the root is not loaded yet.
    */
   threadRoot?: ReplyPreview | null;
+  /**
+   * The "replied to a thread" link's click: opens the thread scrolled to and
+   * highlighting this reply. Falls back to `onOpenThread`.
+   */
+  onOpenThreadReply?: () => void;
   onEdit?: () => void;
   /** When set, replaces the message body in place — the inline edit box. */
   editSlot?: ReactNode;
@@ -248,14 +254,8 @@ export interface ChatBubbleProps {
   resolvePollVoterName?: (userId: string) => string;
 }
 
-export function formatShortTimestamp(timestamp: number): string {
-  const date = new Date(timestamp);
-  return date.toLocaleTimeString(undefined, {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  });
-}
+/** Same "4:28 PM" clock as `MessageTime`. */
+export const formatShortTimestamp = formatClock;
 
 /**
  * The label a day divider carries — "Today", "Yesterday", or a full weekday
@@ -273,19 +273,8 @@ export function formatDaySeparatorLabel(timestamp: number): string {
   );
 }
 
-export function formatFullTimestamp(timestamp: number): string {
-  const date = new Date(timestamp);
-  return date.toLocaleDateString(undefined, {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: true,
-  });
-}
+/** Same compact label as the `MessageTime` hover ("Today at 4:23 PM"). */
+export const formatFullTimestamp = formatFull;
 
 function GifMessage({
   url,
@@ -476,6 +465,14 @@ function useThreadConnector(
   return style;
 }
 
+/** "just now" / "5 minutes ago" within a day, then the short timestamp. */
+function formatLastReply(timestamp: number): string {
+  const elapsed = Date.now() - timestamp;
+  if (elapsed < 60_000) return 'just now';
+  if (elapsed < 86_400_000) return formatRelative(timestamp);
+  return formatShortTimestamp(timestamp);
+}
+
 export function ThreadRepliesButton({
   count,
   hasUnread,
@@ -493,17 +490,9 @@ export function ThreadRepliesButton({
     <button
       type="button"
       onClick={onOpen}
-      className={cn(
-        'group mt-1.5 gap-2 px-2.5 py-1 font-medium flex items-center rounded-md bg-surface text-body-sm text-info-text no-underline transition-colors hover:bg-accent hover:no-underline',
-        hasUnread && 'ring-1 ring-info-text/30',
-      )}
+      aria-label={hasUnread ? `${count} replies, unread` : undefined}
+      className="group mt-1 -ml-1 gap-2 py-0.5 pr-2 pl-1 font-medium flex w-fit items-center rounded-md text-body-sm text-info-text no-underline transition-colors hover:bg-accent hover:no-underline"
     >
-      {hasUnread ? (
-        <span
-          className="size-1.5 shrink-0 rounded-full bg-info-text"
-          aria-label="Unread replies"
-        />
-      ) : null}
       {participants && participants.length > 0 ? (
         // Who replied, not who is online: no presence dots in this stack
         // (same as the channel thread list and Threads tab).
@@ -516,12 +505,12 @@ export function ThreadRepliesButton({
               seed={participant.userId}
               size="xs"
               indicator={false}
-              className="ring-[1.5px] ring-surface transition-shadow group-hover:ring-accent"
+              className="ring-[1.5px] ring-background transition-shadow group-hover:ring-accent"
             />
           ))}
           {participants.length > 3 ? (
             <span
-              className="size-5 font-semibold relative flex shrink-0 items-center justify-center rounded-full bg-muted text-2xs text-muted-foreground tabular-nums ring-[1.5px] ring-surface transition-shadow group-hover:ring-accent"
+              className="size-5 font-semibold relative flex shrink-0 items-center justify-center rounded-full bg-muted text-2xs text-muted-foreground tabular-nums ring-[1.5px] ring-background transition-shadow group-hover:ring-accent"
               aria-label={`${participants.length - 3} more`}
             >
               +{participants.length - 3}
@@ -529,13 +518,18 @@ export function ThreadRepliesButton({
           ) : null}
         </span>
       ) : null}
-      <span>
+      <span
+        className={cn(
+          'group-hover:underline',
+          hasUnread && 'font-semibold',
+        )}
+      >
         {count} {count === 1 ? 'reply' : 'replies'}
       </span>
       {lastReplyAt ? (
         <Hint label={formatFullTimestamp(lastReplyAt)}>
           <span className="text-xs font-normal text-muted-foreground no-underline">
-            Last reply {formatShortTimestamp(lastReplyAt)}
+            Last reply {formatLastReply(lastReplyAt)}
           </span>
         </Hint>
       ) : null}
@@ -570,6 +564,7 @@ export function ChatBubble({
   replyTo,
   onJumpToReply,
   threadRoot,
+  onOpenThreadReply,
   onEdit,
   editSlot,
   onDelete,
@@ -1292,11 +1287,7 @@ export function ChatBubble({
                   isCompact ? 'mt-0.5 text-2xs' : 'mt-1 text-2xs',
                 )}
               >
-                {new Date(message.timestamp).toLocaleTimeString(undefined, {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12: true,
-                })}
+                {formatClock(message.timestamp)}
               </time>
             </Hint>
           ) : avatarSlot ? (
@@ -1351,29 +1342,21 @@ export function ChatBubble({
         {/* Main Content Area */}
         <div className="min-w-0 flex-1">
           {!isGrouped ? (
-            <header className="gap-2 flex items-baseline">
-              <UserProfileCard
-                userId={message.senderId}
-                name={senderName}
-                avatarUrl={senderAvatarUrl}
-                entityKind={profileEntityKind}
-                entityId={profileEntityId}
-              >
-                <span className="font-semibold cursor-pointer text-message text-foreground hover:underline">
-                  {senderName}
-                </span>
-              </UserProfileCard>
-
-              {effectiveBadge ? (
-                <span className="inline-flex items-center">
-                  {effectiveBadge}
-                </span>
-              ) : null}
-
-              <MessageTime
-                timestamp={message.timestamp}
-                className="font-medium text-xs cursor-pointer text-muted-foreground hover:underline"
-              />
+            <MessageHeader
+              name={
+                <UserProfileCard
+                  userId={message.senderId}
+                  name={senderName}
+                  avatarUrl={senderAvatarUrl}
+                  entityKind={profileEntityKind}
+                  entityId={profileEntityId}
+                >
+                  <SenderName interactive>{senderName}</SenderName>
+                </UserProfileCard>
+              }
+              badge={effectiveBadge}
+              timestamp={message.timestamp}
+            >
 
               {showSending ? (
                 <SendingIndicator className="self-center" />
@@ -1392,7 +1375,7 @@ export function ChatBubble({
                   />
                 </Hint>
               ) : null}
-            </header>
+            </MessageHeader>
           ) : null}
 
           {replyTo !== undefined ? (
@@ -1402,11 +1385,14 @@ export function ChatBubble({
           {message.alsoSentToChannel && showThreadConnector && onOpenThread ? (
             <button
               type="button"
-              onClick={onOpenThread}
+              onClick={onOpenThreadReply ?? onOpenThread}
               className="gap-1 mb-0.5 -ml-1 px-1 py-0.5 min-w-0 text-xs flex w-fit max-w-full items-center rounded-md text-left text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
-              <MessageSquare className="size-3 shrink-0" aria-hidden />
-              <span className="shrink-0">
+              <MessageSquare
+                className="size-3 shrink-0 text-mention-foreground"
+                aria-hidden
+              />
+              <span className="shrink-0 text-mention-foreground">
                 Replied to a thread{threadRoot ? ':' : ''}
               </span>
               {threadRoot ? (

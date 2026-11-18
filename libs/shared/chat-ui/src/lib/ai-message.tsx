@@ -3,6 +3,7 @@ import { Button, AIModelIcon, UserAvatar, ContextIndicator } from '@org/ui';
 import { cn } from '@org/utils';
 import { Sparkles, TriangleAlert } from 'lucide-react';
 import { MarkdownMessage } from './markdown-message.js';
+import { formatClock } from './message-time.js';
 
 /**
  * One turn in an assistant transcript.
@@ -30,8 +31,7 @@ export interface AITranscriptMessage {
  */
 export type AIDensity = 'comfortable' | 'compact';
 
-const timeLabel = (iso: string) =>
-  new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const timeLabel = (iso: string) => formatClock(iso);
 
 export interface AIMessageProps {
   message: AITranscriptMessage;

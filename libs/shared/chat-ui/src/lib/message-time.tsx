@@ -1,27 +1,32 @@
 import { Hint } from '@org/ui';
 import { serverNow, subscribeServerClock } from '@org/utils';
+import { format, isSameYear, isToday, isYesterday } from 'date-fns';
 import { useEffect, useState } from 'react';
 
 const JUST_NOW_MS = 60_000;
 
-function formatClock(timestamp: number): string {
-  return new Date(timestamp).toLocaleTimeString(undefined, {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  });
+/**
+ * The one clock label every message surface shows: "4:28 PM" (no leading
+ * zero), matching the hover label ("Today at 4:28 PM") and "Last reply".
+ */
+export function formatClock(timestamp: number | string | Date): string {
+  return format(new Date(timestamp), 'h:mm a');
 }
 
-function formatFull(timestamp: number): string {
-  return new Date(timestamp).toLocaleDateString(undefined, {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  });
+/**
+ * Compact hover label for a message time: "Today at 4:23 PM",
+ * "Yesterday at 4:23 PM", "Tue, Nov 17 at 4:23 PM", and the year only once it
+ * isn't this one ("Nov 17, 2025 at 4:23 PM").
+ */
+export function formatFull(timestamp: number): string {
+  const date = new Date(timestamp);
+  const time = format(date, 'h:mm a');
+  if (isToday(date)) return `Today at ${time}`;
+  if (isYesterday(date)) return `Yesterday at ${time}`;
+  const day = isSameYear(date, new Date())
+    ? format(date, 'EEE, MMM d')
+    : format(date, 'MMM d, yyyy');
+  return `${day} at ${time}`;
 }
 
 /**

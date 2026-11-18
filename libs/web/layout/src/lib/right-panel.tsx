@@ -228,7 +228,7 @@ function HostedSlot({
   return (
     <div
       ref={slotRef}
-      className="min-h-0 flex h-full flex-1 flex-col overflow-hidden"
+      className="min-h-0 flex h-full flex-1 flex-col overflow-clip"
     />
   );
 }
@@ -259,9 +259,14 @@ function PanelFrame({
 }) {
   return (
     <div
-      className={cn('min-h-0 flex h-full flex-col', surface && 'bg-surface')}
+      className={cn(
+        'min-h-0 flex h-full flex-col overflow-clip',
+        surface && 'bg-surface',
+      )}
     >
-      <div className="h-12 px-3 flex shrink-0 items-center justify-between border-b border-border">
+      {/* Opaque and above the body: whatever the body does, it never paints
+          through or over the header. */}
+      <div className="h-12 px-3 relative z-10 flex shrink-0 items-center justify-between border-b border-border bg-surface">
         <div className="min-w-0 gap-2 flex items-center text-foreground">
           <div className="min-w-0">
             <h2 className="text-base font-semibold tracking-tight leading-tight truncate">
@@ -287,7 +292,11 @@ function PanelFrame({
         </Hint>
       </div>
 
-      <div className="min-h-0 flex flex-1 flex-col overflow-hidden">
+      {/* `overflow-clip`, not `hidden`: a hidden box is still scrollable from
+          script, so `scrollIntoView`/focus inside the thread could shift the
+          whole body up under the header and leave a gap below the composer.
+          A clip box cannot scroll at all, at any height. */}
+      <div className="min-h-0 flex flex-1 flex-col overflow-clip">
         {children}
       </div>
     </div>

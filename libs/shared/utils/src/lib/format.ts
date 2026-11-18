@@ -22,7 +22,7 @@ export function formatDate(value: Date | string | number): string {
  */
 export function formatListTimestamp(value: Date | string | number): string {
   const date = new Date(value);
-  if (isToday(date)) return format(date, 'HH:mm');
+  if (isToday(date)) return format(date, 'h:mm a');
   if (isYesterday(date)) return 'Yesterday';
   if (isThisYear(date)) return format(date, 'd MMM');
   return format(date, 'd MMM yyyy');

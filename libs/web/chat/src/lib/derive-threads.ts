@@ -12,6 +12,44 @@ export function threadReplyCount(loaded: number, summary?: Thread): number {
   return Math.max(loaded, summary.replyCount);
 }
 
+/**
+ * Who replied in a thread, newest replier first, for the "N replies" avatars.
+ *
+ * The loaded replies can be partial (or none, before the thread is opened), so
+ * the server summary's participant list fills the gap. Someone who is no longer
+ * a room member — or an agent posting under its own identity — still gets an
+ * avatar from the reply itself, or from their Matrix id as a last resort.
+ */
+export function threadParticipantsFor(
+  replies: readonly Message[],
+  summary: Thread | undefined,
+  memberById: ReadonlyMap<string, RoomMember>,
+): RoomMember[] {
+  const latestReplyBy = new Map<string, Message>();
+  for (const reply of replies) latestReplyBy.set(reply.senderId, reply);
+
+  const ids = [
+    ...[...latestReplyBy.values()]
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .map((reply) => reply.senderId),
+    ...(summary?.participantIds ?? []),
+  ];
+
+  return [...new Set(ids)].map((userId): RoomMember => {
+    const member = memberById.get(userId);
+    if (member) return member;
+    const reply = latestReplyBy.get(userId);
+    return {
+      userId,
+      displayName:
+        reply?.senderName || userId.replace(/^@/, '').split(':')[0] || userId,
+      avatarUrl: reply?.senderAvatarUrl,
+      powerLevel: 0,
+      membership: 'leave',
+    };
+  });
+}
+
 /** Words that address the reader or the whole channel. */
 const MENTION_TRIGGERS = ['@here', '@channel', '@everyone'];
 

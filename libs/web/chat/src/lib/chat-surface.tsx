@@ -86,7 +86,7 @@ import {
   useRightPanelStore,
   type RightPanelProfile,
 } from '@org/ui';
-import { Hash, Lock, Pin, Search, Users } from 'lucide-react';
+import { Hash, Loader2, Lock, Pin, Search, Users } from 'lucide-react';
 import {
   useCallback,
   useEffect,
@@ -115,6 +115,7 @@ import {
   deriveThreads,
   groupReplies,
   placeBroadcastReplies,
+  threadParticipantsFor,
   threadReplyCount,
 } from './derive-threads.js';
 import { useHuddleSession } from './use-huddle.js';
@@ -122,6 +123,8 @@ import { ConversationCallControl } from './conversation-call-control.js';
 import { useMentionNavigation } from './use-mention-navigation.js';
 import { useMessageScrollTarget } from './use-message-scroll-target.js';
 import { useMatrix } from './matrix-provider.js';
+import { useThreadConversation } from './use-thread-conversation.js';
+import { useThreadRootsOutsideTimeline } from './use-thread-roots-outside-timeline.js';
 import { CallSummaryMessageCard } from './call-summary-message-card.js';
 
 const ForwardMessageDialog = lazy(() =>
@@ -670,6 +673,13 @@ export function ChatSurface({
     [messages],
   );
 
+  // Thread roots older than the loaded page, for "Replied to a thread: …".
+  const outsideThreadRoots = useThreadRootsOutsideTimeline(
+    messages[0]?.roomId ?? conversationId ?? undefined,
+    messages,
+    byId,
+  );
+
   // Slack-style: only the latest of my messages that others have seen carries
   // the "Seen" receipt (per timeline — main list or each thread).
   const receiptMessageIds = useMemo(() => {
@@ -946,10 +956,38 @@ export function ChatSurface({
     [unreadThreadRootIds],
   );
 
-  const threadRoot = threadRootId ? (byId.get(threadRootId) ?? null) : null;
-  const threadReplies = threadRootId
-    ? (repliesByRoot.get(threadRootId) ?? [])
+  /*
+   * A thread can be opened from a reply whose root is older than the loaded
+   * page of the timeline ("Replied to a thread" on an also-sent-to-channel
+   * reply, a notification). The root isn't in `messages` then, so the thread
+   * is read straight from the SDK's own copy instead.
+   */
+  const rootNotLoaded =
+    panel === 'thread' && !!threadRootId && !byId.has(threadRootId);
+  const detachedThread = useThreadConversation(
+    messages[0]?.roomId ?? conversationId ?? undefined,
+    threadRootId ?? undefined,
+    { enabled: rootNotLoaded },
+  );
+  const threadRoot = threadRootId
+    ? (byId.get(threadRootId) ??
+      outsideThreadRoots.get(threadRootId) ??
+      (rootNotLoaded
+        ? (detachedThread.messages.find((m) => m.id === threadRootId) ??
+          null)
+        : null))
+    : null;
+  const detachedReplies = rootNotLoaded
+    ? detachedThread.messages.filter(
+        (m) => m.threadRootId === threadRootId && m.id !== threadRootId,
+      )
     : [];
+  const threadReplies = threadRootId
+    ? detachedReplies.length > 0
+      ? detachedReplies
+      : (repliesByRoot.get(threadRootId) ?? [])
+    : [];
+  const threadLoading = rootNotLoaded && detachedThread.isLoading;
 
   // The client only holds a thread's newest replies until it is opened; this
   // pages in the rest, which reach `messages` through `thread.updated`.
@@ -960,6 +998,40 @@ export function ChatSurface({
       .getThreadMessages(threadRoomId, threadRootId)
       .catch(() => undefined);
   }, [panel, client, threadRoomId, threadRootId]);
+
+  /*
+   * "Replied to a thread" on an also-sent-to-channel reply opens the thread
+   * on that exact reply: once the panel has rendered it (older replies may
+   * still be paging in), scroll it to the middle of the thread viewport and
+   * flash the row highlight.
+   */
+  const [threadFocusId, setThreadFocusId] = useState<string | null>(null);
+  const threadFocusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const threadReplyCountLoaded = threadReplies.length;
+  useEffect(() => {
+    if (!threadFocusId || panel !== 'thread' || !threadScrollEl) return;
+    const frame = requestAnimationFrame(() => {
+      const row = threadScrollEl.querySelector<HTMLElement>(
+        `[data-message-id="${CSS.escape(threadFocusId)}"]`,
+      );
+      if (!row) return;
+      row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      setHighlightId(threadFocusId);
+      setThreadFocusId(null);
+      if (threadFocusTimer.current) clearTimeout(threadFocusTimer.current);
+      threadFocusTimer.current = setTimeout(
+        () => setHighlightId((id) => (id === threadFocusId ? null : id)),
+        2200,
+      );
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [threadFocusId, panel, threadScrollEl, threadReplyCountLoaded]);
+  useEffect(
+    () => () => {
+      if (threadFocusTimer.current) clearTimeout(threadFocusTimer.current);
+    },
+    [],
+  );
 
   const { slug: workspaceSlug } = useCurrentWorkspace();
   const navigate = useNavigate();
@@ -1598,7 +1670,9 @@ export function ChatSurface({
             ) {
               return undefined;
             }
-            const root = byId.get(message.threadRootId);
+            const root =
+              byId.get(message.threadRootId) ??
+              outsideThreadRoots.get(message.threadRootId);
             return root ? toReplyPreview(root) : null;
           })()}
           density={messageDensity}
@@ -1623,15 +1697,19 @@ export function ChatSurface({
           threadHasUnread={unreadThreadRoots.has(
             message.threadRootId ?? message.id,
           )}
-          threadParticipants={[
-            ...new Set(replies.map((reply) => reply.senderId)),
-          ]
-            .map((userId) => memberById.get(userId))
-            .filter((member): member is RoomMember => !!member)}
+          threadParticipants={
+            inThread
+              ? undefined
+              : threadParticipantsFor(
+                  replies,
+                  threadSummaryById.get(message.id),
+                  memberById,
+                )
+          }
           lastReplyAt={
             replies.length > 0
               ? Math.max(...replies.map((reply) => reply.timestamp))
-              : undefined
+              : threadSummaryById.get(message.id)?.latestReplyAt
           }
           onReact={
             onReact
@@ -1678,6 +1756,14 @@ export function ChatSurface({
           editWindowMinutes={editWindowMinutes}
           onOpenThread={() =>
             openThreadPanel(message.threadRootId ?? message.id)
+          }
+          onOpenThreadReply={
+            !inThread && message.alsoSentToChannel && message.threadRootId
+              ? () => {
+                  openThreadPanel(message.threadRootId as string);
+                  setThreadFocusId(message.id);
+                }
+              : undefined
           }
           // Thread messages already live in a thread, so "Reply" there keeps
           // its fallback of opening it; main-timeline messages get a real
@@ -1942,6 +2028,7 @@ export function ChatSurface({
       myUserId,
       messageDensity,
       highlightId,
+      outsideThreadRoots,
       mentionNames,
       handleMentionClick,
       mentionProfiles,
@@ -2483,6 +2570,11 @@ export function ChatSurface({
                         />
                       }
                     />
+                  ) : panel === 'thread' && threadLoading ? (
+                    <div className="gap-2 p-6 text-sm flex items-center justify-center text-muted-foreground">
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                      Loading thread…
+                    </div>
                   ) : (
                     <ThreadListPanel
                       threads={threads}

@@ -51,6 +51,8 @@ import { ReactionPicker } from './chat-bubble.js';
 import { ReactionBar, reactionAddButtonClass } from './reaction-bar.js';
 import { MarkdownMessage } from './markdown-message.js';
 import { MessagePreview as MessageText } from './message-preview.js';
+import { formatClock } from './message-time.js';
+import { MessageHeader, SenderName } from './message-header.js';
 
 /* --- channel bookmarks ---------------------------------------------------- */
 
@@ -330,10 +332,7 @@ export function HuddleBar({
             <span className="text-subtle">
               {' '}
               · you joined{' '}
-              {new Date(viewerJoinedAt).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
+              {formatClock(viewerJoinedAt)}
             </span>
           ) : null}
         </span>
@@ -604,17 +603,14 @@ export function PinnedMessageCard({
         />
 
         <div className="min-w-0 pr-24 flex-1">
-          <div className="gap-x-2 gap-y-0.5 flex flex-wrap items-baseline">
-            <span
-              onClick={() => onJump?.(message.id)}
-              className="text-xs sm:text-sm font-semibold cursor-pointer truncate text-foreground hover:underline"
-            >
-              {message.senderName}
-            </span>
-            <span className="text-xs font-normal shrink-0 text-muted-foreground">
-              {formatPinnedTimestamp(message.timestamp)}
-            </span>
-          </div>
+          <MessageHeader
+            name={
+              <SenderName interactive onClick={() => onJump?.(message.id)}>
+                {message.senderName}
+              </SenderName>
+            }
+            time={formatPinnedTimestamp(message.timestamp)}
+          />
         </div>
       </div>
 
@@ -1030,19 +1026,17 @@ export function ThreadListPanel({
             />
 
             <span className="min-w-0 flex-1">
-              <span className="gap-2 flex items-baseline">
-                <span className="text-sm font-semibold truncate">
-                  {thread.root.senderName}
-                </span>
-                <span className="text-xs shrink-0 text-subtle">
-                  {formatListTimestamp(thread.root.timestamp)}
-                </span>
+              <MessageHeader
+                as="span"
+                name={thread.root.senderName}
+                time={formatListTimestamp(thread.root.timestamp)}
+              >
                 {thread.hasUnread ? (
                   <Badge variant="primary" className="ml-auto shrink-0">
                     New
                   </Badge>
                 ) : null}
-              </span>
+              </MessageHeader>
 
               <span className="mt-0.5 text-sm line-clamp-2 block text-muted-foreground">
                 <MessageText text={thread.root.body} />

@@ -991,10 +991,13 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
                       minSize={bounds.rightMin}
                       maxSize={bounds.rightMax}
                       groupResizeBehavior="preserve-pixel-size"
-                      className="h-full overflow-hidden rounded-xl border border-border bg-surface-muted text-foreground"
+                      className="h-full overflow-clip rounded-xl border border-border bg-surface-muted text-foreground"
                     >
+                      {/* `overflow-clip` (not `hidden`) so nothing inside can
+                          scroll the rail itself and slide a panel under its
+                          header. */}
                       <aside
-                        className="flex h-full flex-col overflow-hidden"
+                        className="min-h-0 flex h-full flex-col overflow-clip"
                         aria-label="Side panel"
                       >
                         <RightPanel

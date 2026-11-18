@@ -491,3 +491,11 @@ export {
 } from './lib/entity-kind-badge.js';
 
 export { CommandChips, MessagePreview } from './lib/message-preview.js';
+
+export {
+  MessageHeader,
+  SenderName,
+  MESSAGE_SENDER_NAME_CLASS,
+  MESSAGE_TIME_CLASS,
+} from './lib/message-header.js';
+export { formatClock } from './lib/message-time.js';
