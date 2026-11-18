@@ -20,6 +20,8 @@ import {
 } from '../../components/ui';
 import { biometricSupport, type BiometricSupport } from '../../lib/biometrics';
 import { appConfig } from '../../lib/config';
+import { pendingOfflineCount } from '../../lib/offline-queue';
+import { signOutMessage } from '../../lib/offline-queue-core';
 import { registerForPush, unregisterForPush } from '../../lib/push';
 import { useSession } from '../../lib/session';
 import { useWorkspace } from '../../lib/workspace';
@@ -84,21 +86,17 @@ export default function AccountSettingsScreen() {
   };
 
   const confirmSignOut = () =>
-    Alert.alert(
-      'Sign out?',
-      'This device stops receiving notifications for your account.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign out',
-          style: 'destructive',
-          onPress: () => {
-            setSigningOut(true);
-            void signOut().finally(() => setSigningOut(false));
-          },
+    Alert.alert('Sign out?', signOutMessage(pendingOfflineCount()), [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign out',
+        style: 'destructive',
+        onPress: () => {
+          setSigningOut(true);
+          void signOut().finally(() => setSigningOut(false));
         },
-      ],
-    );
+      },
+    ]);
 
   return (
     <Screen>

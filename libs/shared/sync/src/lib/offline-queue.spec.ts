@@ -38,9 +38,24 @@ describe('OfflineActionQueue', () => {
   });
 
   it('enqueues, dedupes by key, and reports pending count', () => {
-    queue.enqueue({ kind: 'mark', workspaceId: WS, dedupeKey: 'n1', payload: { v: 1 } });
-    queue.enqueue({ kind: 'mark', workspaceId: WS, dedupeKey: 'n2', payload: { v: 1 } });
-    queue.enqueue({ kind: 'mark', workspaceId: WS, dedupeKey: 'n1', payload: { v: 2 } });
+    queue.enqueue({
+      kind: 'mark',
+      workspaceId: WS,
+      dedupeKey: 'n1',
+      payload: { v: 1 },
+    });
+    queue.enqueue({
+      kind: 'mark',
+      workspaceId: WS,
+      dedupeKey: 'n2',
+      payload: { v: 1 },
+    });
+    queue.enqueue({
+      kind: 'mark',
+      workspaceId: WS,
+      dedupeKey: 'n1',
+      payload: { v: 2 },
+    });
     expect(queue.pending(WS)).toBe(2);
     expect(onChange).toHaveBeenLastCalledWith(WS, 2);
   });
@@ -50,8 +65,18 @@ describe('OfflineActionQueue', () => {
     queue.registerExecutor('mark', async (payload) => {
       seen.push(payload);
     });
-    queue.enqueue({ kind: 'mark', workspaceId: WS, dedupeKey: 'a', payload: 1 });
-    queue.enqueue({ kind: 'mark', workspaceId: WS, dedupeKey: 'b', payload: 2 });
+    queue.enqueue({
+      kind: 'mark',
+      workspaceId: WS,
+      dedupeKey: 'a',
+      payload: 1,
+    });
+    queue.enqueue({
+      kind: 'mark',
+      workspaceId: WS,
+      dedupeKey: 'b',
+      payload: 2,
+    });
 
     await queue.replay(WS);
     expect(seen).toEqual([1, 2]);
@@ -64,8 +89,18 @@ describe('OfflineActionQueue', () => {
       if (payload === 'bad') throw apiError(409); // conflict → terminal
       seen.push(payload);
     });
-    queue.enqueue({ kind: 'mark', workspaceId: WS, dedupeKey: 'a', payload: 'bad' });
-    queue.enqueue({ kind: 'mark', workspaceId: WS, dedupeKey: 'b', payload: 'ok' });
+    queue.enqueue({
+      kind: 'mark',
+      workspaceId: WS,
+      dedupeKey: 'a',
+      payload: 'bad',
+    });
+    queue.enqueue({
+      kind: 'mark',
+      workspaceId: WS,
+      dedupeKey: 'b',
+      payload: 'ok',
+    });
 
     await queue.replay(WS);
     expect(seen).toEqual(['ok']);
@@ -79,8 +114,18 @@ describe('OfflineActionQueue', () => {
       if (payload === 'first' && failNext) throw apiError(0); // network → retry
       seen.push(payload);
     });
-    queue.enqueue({ kind: 'mark', workspaceId: WS, dedupeKey: 'a', payload: 'first' });
-    queue.enqueue({ kind: 'mark', workspaceId: WS, dedupeKey: 'b', payload: 'second' });
+    queue.enqueue({
+      kind: 'mark',
+      workspaceId: WS,
+      dedupeKey: 'a',
+      payload: 'first',
+    });
+    queue.enqueue({
+      kind: 'mark',
+      workspaceId: WS,
+      dedupeKey: 'b',
+      payload: 'second',
+    });
 
     await queue.replay(WS);
     // Stopped at the first entry — nothing applied, both still queued.
@@ -93,15 +138,47 @@ describe('OfflineActionQueue', () => {
     expect(queue.pending(WS)).toBe(0);
   });
 
+  it('never drops an entry just because the network stayed down', async () => {
+    const onDropped = vi.fn();
+    queue = new OfflineActionQueue(memoryPersistence(), onChange, onDropped);
+    queue.registerExecutor('mark', async () => {
+      throw apiError(0);
+    });
+    queue.enqueue({
+      kind: 'mark',
+      workspaceId: WS,
+      dedupeKey: 'a',
+      payload: 1,
+    });
+    for (let i = 0; i < 10; i += 1) await queue.replay(WS);
+    expect(queue.pending(WS)).toBe(1);
+    expect(onDropped).not.toHaveBeenCalled();
+  });
+
   it('drops an entry whose kind has no registered executor', async () => {
-    queue.enqueue({ kind: 'gone', workspaceId: WS, dedupeKey: 'a', payload: 1 });
+    queue.enqueue({
+      kind: 'gone',
+      workspaceId: WS,
+      dedupeKey: 'a',
+      payload: 1,
+    });
     await queue.replay(WS);
     expect(queue.pending(WS)).toBe(0);
   });
 
   it('keeps queues for different workspaces isolated', () => {
-    queue.enqueue({ kind: 'mark', workspaceId: 'ws_a', dedupeKey: 'x', payload: 1 });
-    queue.enqueue({ kind: 'mark', workspaceId: 'ws_b', dedupeKey: 'x', payload: 1 });
+    queue.enqueue({
+      kind: 'mark',
+      workspaceId: 'ws_a',
+      dedupeKey: 'x',
+      payload: 1,
+    });
+    queue.enqueue({
+      kind: 'mark',
+      workspaceId: 'ws_b',
+      dedupeKey: 'x',
+      payload: 1,
+    });
     expect(queue.pending('ws_a')).toBe(1);
     expect(queue.pending('ws_b')).toBe(1);
     queue.clear('ws_a');

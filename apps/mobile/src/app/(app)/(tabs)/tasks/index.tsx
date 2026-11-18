@@ -31,6 +31,11 @@ import {
 } from '../../../../components/ui';
 import { humanize, relativeTime, statusTone } from '../../../../lib/format';
 import { haptics } from '../../../../lib/haptics';
+import {
+  sendOrQueueAction,
+  usePendingActions,
+} from '../../../../lib/offline-queue';
+import { MOBILE_OFFLINE_ACTION } from '../../../../lib/offline-queue-core';
 import { useSession } from '../../../../lib/session';
 import { useWorkspace } from '../../../../lib/workspace';
 import { useTheme } from '../../../../theme/theme';
@@ -82,21 +87,33 @@ export default function TasksScreen() {
       queryKey: [...queryKeys.workTools.all(workspaceId), 'tasks'],
     });
 
+  const queuedNewTasks = usePendingActions(workspaceId).filter(
+    (a) => a.kind === MOBILE_OFFLINE_ACTION.TaskCreate,
+  ).length;
+
   const createTaskMutation = useMutation({
     mutationFn: (input: {
       title: string;
       description?: string;
       status: TaskStatus;
       priority: TaskPriority;
-    }) => workToolsApi.createTask(workspaceId, input),
-    onSuccess: () => {
+    }) =>
+      sendOrQueueAction({
+        kind: MOBILE_OFFLINE_ACTION.TaskCreate,
+        workspaceId,
+        // Each create is distinct; never merged with another queued task.
+        dedupeKey: `task.create:${Date.now()}:${Math.random().toString(36).slice(2)}`,
+        payload: { input },
+        send: () => workToolsApi.createTask(workspaceId, input),
+      }),
+    onSuccess: (outcome) => {
       haptics.success();
       setCreateModalOpen(false);
       setNewTitle('');
       setNewDesc('');
       setNewStatus('TODO');
       setNewPriority('MEDIUM');
-      void invalidateTasks();
+      if (outcome.status === 'sent') void invalidateTasks();
     },
     onError: (err) => {
       haptics.warning();
@@ -106,9 +123,24 @@ export default function TasksScreen() {
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ taskId, status }: { taskId: string; status: TaskStatus }) =>
-      workToolsApi.updateTask(workspaceId, taskId, { status }),
-    onSuccess: () => {
+      sendOrQueueAction({
+        kind: MOBILE_OFFLINE_ACTION.TaskUpdate,
+        workspaceId,
+        // Same key as the detail screen's status change: last move wins.
+        dedupeKey: `task.update:${taskId}:status`,
+        payload: { taskId, input: { status } },
+        send: () => workToolsApi.updateTask(workspaceId, taskId, { status }),
+      }),
+    onSuccess: (outcome, { taskId, status }) => {
       haptics.light();
+      if (outcome.status === 'queued') {
+        queryClient.setQueryData(
+          queryKeys.workTools.tasks(workspaceId),
+          (old: typeof tasksQuery.data) =>
+            old?.map((t) => (t.id === taskId ? { ...t, status } : t)),
+        );
+        return;
+      }
       void invalidateTasks();
     },
     onError: (err) => {
@@ -339,6 +371,14 @@ export default function TasksScreen() {
             clearButtonMode="while-editing"
           />
         </View>
+        {queuedNewTasks > 0 ? (
+          <AppText
+            variant="caption"
+            style={[styles.queuedNote, { color: colors.subtle }]}
+          >
+            {`${queuedNewTasks} new ${queuedNewTasks === 1 ? 'task' : 'tasks'} saved on this device — created when you're back online`}
+          </AppText>
+        ) : null}
       </View>
 
       {/* Main Content: Board or List */}
@@ -708,6 +748,9 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     marginBottom: spacing.xs,
+  },
+  queuedNote: {
+    paddingTop: spacing.xs,
   },
   boardScroll: {
     paddingHorizontal: spacing.md,

@@ -14,6 +14,8 @@
     "src/lib/deep-links.ts",
     "src/lib/direct-rooms.ts",
     "src/lib/format.ts",
+    "src/lib/due-date.ts",
+    "src/lib/offline-queue-core.ts",
     "src/lib/matrix.ts",
     "src/lib/room-timeline.ts",
     "src/lib/session-core.ts",

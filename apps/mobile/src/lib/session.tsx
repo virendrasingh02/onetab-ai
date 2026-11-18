@@ -25,6 +25,7 @@ import { authenticate } from './biometrics';
 import { appConfig } from './config';
 import { queryClient } from './query';
 import { secureStore } from './secure-store';
+import { clearAllAiChatHistory } from './ai-chat-history';
 import {
   clearSessionStorage,
   createRefreshProvider,
@@ -104,6 +105,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const resetLocal = useCallback(async () => {
     setAccessToken(null);
     await clearSessionStorage(secureStore);
+    clearAllAiChatHistory();
     queryClient.clear();
     setUser(null);
     setLocked(false);

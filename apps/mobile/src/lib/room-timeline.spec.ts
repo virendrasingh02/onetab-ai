@@ -3,6 +3,7 @@ import { MatrixError, type MatrixEvent, type SyncResponse } from './matrix';
 import {
   applyRoomSync,
   backoffMs,
+  describeTyping,
   INITIAL_ROOM_TIMELINE,
   RoomTimeline,
   roomSyncFilter,
@@ -37,6 +38,53 @@ const batch = (
       },
     },
   },
+});
+
+describe('typing indicators', () => {
+  it('takes the latest m.typing list and keeps it across batches without one', () => {
+    const typing = (ids: string[]) => ({
+      next_batch: 's',
+      rooms: {
+        join: {
+          [ROOM]: {
+            ephemeral: {
+              events: [{ type: 'm.typing', content: { user_ids: ids } }],
+            },
+          },
+        },
+      },
+    });
+    let state = applyRoomSync(INITIAL_ROOM_TIMELINE, typing(['@a:x']), ROOM);
+    expect(state.typingUserIds).toEqual(['@a:x']);
+    state = applyRoomSync(
+      state,
+      { next_batch: 's2', rooms: { join: { [ROOM]: {} } } },
+      ROOM,
+    );
+    expect(state.typingUserIds).toEqual(['@a:x']);
+    state = applyRoomSync(state, typing([]), ROOM);
+    expect(state.typingUserIds).toEqual([]);
+  });
+
+  it('describes who else is typing', () => {
+    const name = (id: string) => id.slice(1, 2).toUpperCase();
+    expect(describeTyping(['@me:x'], '@me:x', name)).toBeNull();
+    expect(describeTyping(['@a:x', '@me:x'], '@me:x', name)).toBe(
+      'A is typing…',
+    );
+    expect(describeTyping(['@a:x', '@b:x'], '@me:x', name)).toBe(
+      'A and B are typing…',
+    );
+    expect(describeTyping(['@a:x', '@b:x', '@c:x'], '@me:x', name)).toBe(
+      'Several people are typing…',
+    );
+  });
+
+  it('asks the server for m.typing only', () => {
+    expect(roomSyncFilter(ROOM)).toMatchObject({
+      room: { ephemeral: { types: ['m.typing'] } },
+    });
+  });
 });
 
 describe('roomSyncFilter', () => {

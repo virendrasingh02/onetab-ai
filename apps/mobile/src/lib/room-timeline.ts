@@ -37,6 +37,8 @@ export interface RoomTimelineState {
   error: unknown;
   /** The loop gave up (revoked token, no access to the room). */
   fatal: boolean;
+  /** Users the latest `m.typing` event lists (includes this user). */
+  typingUserIds: string[];
 }
 
 export const INITIAL_ROOM_TIMELINE: RoomTimelineState = {
@@ -48,7 +50,41 @@ export const INITIAL_ROOM_TIMELINE: RoomTimelineState = {
   loadingOlder: false,
   error: null,
   fatal: false,
+  typingUserIds: [],
 };
+
+/** "Ana is typing…", "Ana and Ben are typing…", "Several people are typing…". */
+export function describeTyping(
+  typingUserIds: string[],
+  selfId: string,
+  nameOf: (userId: string) => string,
+): string | null {
+  const others = typingUserIds.filter((id) => id !== selfId);
+  if (others.length === 0) return null;
+  if (others.length === 1) return `${nameOf(others[0])} is typing…`;
+  if (others.length === 2)
+    return `${nameOf(others[0])} and ${nameOf(others[1])} are typing…`;
+  return 'Several people are typing…';
+}
+
+/** `m.typing` carries the full current list, so the latest one wins. */
+function typingFrom(
+  joined: {
+    ephemeral?: { events?: Array<{ type: string; content: unknown }> };
+  },
+  previous: string[],
+): string[] {
+  const events = joined.ephemeral?.events ?? [];
+  for (let i = events.length - 1; i >= 0; i -= 1) {
+    const event = events[i];
+    if (event.type !== 'm.typing') continue;
+    const ids = (event.content as { user_ids?: unknown } | null)?.user_ids;
+    return Array.isArray(ids)
+      ? ids.filter((id): id is string => typeof id === 'string')
+      : [];
+  }
+  return previous;
+}
 
 export function roomSyncFilter(
   roomId: string,
@@ -59,7 +95,7 @@ export function roomSyncFilter(
       rooms: [roomId],
       timeline: { limit: timelineLimit },
       state: { lazy_load_members: true, types: ['m.room.encryption'] },
-      ephemeral: { types: [] },
+      ephemeral: { types: ['m.typing'] },
       account_data: { types: [] },
       include_leave: false,
     },
@@ -87,6 +123,7 @@ export function applyRoomSync(
     error: null,
   };
   if (!joined) return next;
+  next.typingUserIds = typingFrom(joined, state.typingUserIds);
 
   const timeline = joined.timeline?.events ?? [];
   const encrypted =

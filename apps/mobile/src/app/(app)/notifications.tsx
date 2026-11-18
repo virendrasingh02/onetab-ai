@@ -7,12 +7,7 @@ import {
 } from '@tanstack/react-query';
 import * as Notifications from 'expo-notifications';
 import { Stack, useRouter, type Href } from 'expo-router';
-import {
-  ActivityIndicator,
-  FlatList,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 import {
   AppRefreshControl,
   Avatar,
@@ -24,6 +19,8 @@ import {
   LoadingState,
 } from '../../components/ui';
 import { routeForDeepLink } from '../../lib/deep-links';
+import { sendOrQueueAction } from '../../lib/offline-queue';
+import { MOBILE_OFFLINE_ACTION } from '../../lib/offline-queue-core';
 import { relativeTime } from '../../lib/format';
 import { useWorkspace } from '../../lib/workspace';
 import { useTheme } from '../../theme/theme';
@@ -50,17 +47,53 @@ export default function NotificationsScreen() {
     });
   };
 
+  // Offline, read state is shown locally right away and synced later.
+  const markReadLocally = (id?: string) =>
+    queryClient.setQueryData(
+      queryKeys.notifications.list(workspaceId),
+      (old: typeof list.data) =>
+        old
+          ? {
+              ...old,
+              pages: old.pages.map((page) => ({
+                ...page,
+                items: page.items.map((n) =>
+                  !id || n.id === id ? { ...n, read: true } : n,
+                ),
+              })),
+            }
+          : old,
+    );
+
   const markAll = useMutation({
-    mutationFn: () => notificationApi.markAllRead(workspaceId),
-    onSuccess: () => {
-      invalidate();
+    mutationFn: () =>
+      sendOrQueueAction({
+        kind: MOBILE_OFFLINE_ACTION.NotificationMarkAllRead,
+        workspaceId,
+        dedupeKey: 'notification.markAllRead',
+        payload: {},
+        send: () => notificationApi.markAllRead(workspaceId),
+      }),
+    onSuccess: (outcome) => {
+      if (outcome.status === 'queued') markReadLocally();
+      else invalidate();
       void Notifications.setBadgeCountAsync(0);
     },
   });
 
   const open = (item: NotificationView) => {
     if (!item.read)
-      void notificationApi.markRead(workspaceId, item.id).then(invalidate);
+      void sendOrQueueAction({
+        kind: MOBILE_OFFLINE_ACTION.NotificationMarkRead,
+        workspaceId,
+        dedupeKey: `notification.markRead:${item.id}`,
+        payload: { notificationId: item.id },
+        send: () => notificationApi.markRead(workspaceId, item.id),
+      })
+        .then((outcome) =>
+          outcome.status === 'queued' ? markReadLocally(item.id) : invalidate(),
+        )
+        .catch(() => undefined);
     const route = routeForDeepLink(item.deepLink);
     if (route.pathname !== '/notifications') {
       router.push({ pathname: route.pathname, params: route.params } as Href);
@@ -102,7 +135,7 @@ export default function NotificationsScreen() {
           <AppRefreshControl
             refreshing={list.isRefetching}
             onRefresh={() => void list.refetch()}
-            />
+          />
         }
         ListFooterComponent={
           list.isFetchingNextPage ? (

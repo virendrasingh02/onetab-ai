@@ -84,6 +84,8 @@ export interface JoinedRoomSync {
     prev_batch?: string;
   };
   state?: SyncStateEvents;
+  /** Room ephemeral events; only `m.typing` is requested. */
+  ephemeral?: { events?: Array<{ type: string; content: unknown }> };
   summary?: {
     'm.heroes'?: string[];
     'm.joined_member_count'?: number;
@@ -304,6 +306,18 @@ export class MatrixRestClient {
       'PUT',
       `${room(roomId)}/redact/${encodeURIComponent(eventId)}/${encodeURIComponent(txnId)}`,
       {},
+    );
+  }
+
+  /**
+   * Typing notification. The server clears it after `timeoutMs` on its own,
+   * so a lost "stopped" call can never leave a stale indicator.
+   */
+  setTyping(roomId: string, typing: boolean, timeoutMs = 20_000) {
+    return this.call<Record<string, never>>(
+      'PUT',
+      `${room(roomId)}/typing/${encodeURIComponent(this.userId)}`,
+      typing ? { typing: true, timeout: timeoutMs } : { typing: false },
     );
   }
 
@@ -547,8 +561,11 @@ export function toTimeline(
     }
 
     const extras: Partial<TimelineItem> = {};
-    const relData = event.content['m.relates_to'] as Record<string, unknown> | undefined;
-    const inReplyTo = (relData?.['m.in_reply_to'] as Record<string, unknown> | undefined)?.['event_id'];
+    const relData = event.content['m.relates_to'] as
+      Record<string, unknown> | undefined;
+    const inReplyTo = (
+      relData?.['m.in_reply_to'] as Record<string, unknown> | undefined
+    )?.['event_id'];
     if (typeof inReplyTo === 'string') {
       extras.replyToId = inReplyTo;
     }

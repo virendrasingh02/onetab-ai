@@ -38,6 +38,7 @@ import {
 } from '../lib/matrix';
 import { useAuthedImageSource } from '../lib/use-authed-uri';
 import { useRoomTimeline } from '../lib/use-room-timeline';
+import { describeTyping } from '../lib/room-timeline';
 import { secureStore } from '../lib/secure-store';
 import { useTheme } from '../theme/theme';
 import { queryKeys, safetyApi } from '@org/api-client';
@@ -67,6 +68,7 @@ import {
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 const DRAFT_SAVE_DELAY_MS = 400;
 const MAX_DRAFT_CHARS = 2000;
+const TYPING_RESEND_MS = 4000;
 
 interface PendingItem extends TimelineItem {
   /** Set once the homeserver accepted it; hidden when sync delivers it. */
@@ -172,12 +174,28 @@ export function Conversation({
     };
   }, [draftStorageKey, flushDraftWrite]);
 
+  // Typing notifications: re-announce at most every few seconds while typing
+  // (the server expires each after 20 s) and clear on send / empty / leave.
+  const typingSentAt = useRef(0);
+  const sendTyping = useCallback(
+    (typing: boolean) => {
+      if (!typing && typingSentAt.current === 0) return;
+      typingSentAt.current = typing ? Date.now() : 0;
+      void client.setTyping(roomId, typing).catch(() => undefined);
+    },
+    [client, roomId],
+  );
+  useEffect(() => () => sendTyping(false), [sendTyping]);
+
   const handleDraftChange = useCallback(
     (text: string) => {
       setDraft(text);
       persistDraft(text);
+      if (!text.trim()) sendTyping(false);
+      else if (Date.now() - typingSentAt.current > TYPING_RESEND_MS)
+        sendTyping(true);
     },
-    [persistDraft],
+    [persistDraft, sendTyping],
   );
 
   const handleMatrixError = useCallback(
@@ -202,6 +220,12 @@ export function Conversation({
     staleTime: 5 * 60_000,
     queryFn: () => client.joinedMembers(roomId),
   });
+
+  const typingLabel = describeTyping(
+    state.typingUserIds,
+    client.userId,
+    (id) => members.data?.[id]?.displayName ?? localpartOf(id),
+  );
 
   const allItems = useMemo(() => {
     const events = threadRootId
@@ -261,6 +285,7 @@ export function Conversation({
     }
     setDraft('');
     persistDraft('', true);
+    sendTyping(false);
     const id = `pending:${newTxnId()}`;
     const replyTargetId = replyingTo?.id;
     setReplyingTo(null);
@@ -583,6 +608,18 @@ export function Conversation({
           );
         }}
       />
+
+      {typingLabel ? (
+        <View
+          style={styles.typingRow}
+          accessibilityLiveRegion="polite"
+          accessibilityRole="text"
+        >
+          <AppText variant="caption" style={{ color: colors.subtle }}>
+            {typingLabel}
+          </AppText>
+        </View>
+      ) : null}
 
       {/* Replying Banner Above Composer */}
       {replyingTo ? (
@@ -1622,6 +1659,13 @@ const styles = StyleSheet.create({
   },
 
   // Reply Banner
+  typingRow: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 2,
+    width: '100%',
+    maxWidth: maxContentWidth,
+    alignSelf: 'center',
+  },
   replyBanner: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { queryKeys, workToolsApi } from '@org/api-client';
-import type { TaskStatus } from '@org/types';
+import { memberApi, queryKeys, workToolsApi } from '@org/api-client';
+import type { TaskPriority, TaskStatus } from '@org/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -14,11 +14,13 @@ import {
 import { Alert } from '../../../lib/alert';
 import { copyToClipboard } from '../../../lib/clipboard';
 import { showActionSheet } from '../../../components/action-sheet';
+import { BottomSheet } from '../../../components/mobile-ui';
 import { useKeyboardAvoidingProps } from '../../../components/navigation';
 import {
   AppText,
   Avatar,
   Badge,
+  Button,
   Card,
   Divider,
   ErrorState,
@@ -31,10 +33,18 @@ import {
   TextField,
 } from '../../../components/ui';
 import { relativeTime } from '../../../lib/format';
+import { dueDatePresets, formatDueDate } from '../../../lib/due-date';
+import {
+  sendOrQueueAction,
+  usePendingActions,
+} from '../../../lib/offline-queue';
+import { MOBILE_OFFLINE_ACTION } from '../../../lib/offline-queue-core';
 import { haptics } from '../../../lib/haptics';
 import { useWorkspace } from '../../../lib/workspace';
 import { useTheme } from '../../../theme/theme';
 import { radius, spacing } from '../../../theme/tokens';
+
+type UpdateTaskInput = Parameters<typeof workToolsApi.updateTask>[2];
 
 const STATUS_OPTIONS: Array<{ key: TaskStatus; label: string }> = [
   { key: 'BACKLOG', label: 'Backlog' },
@@ -73,22 +83,75 @@ export default function TaskDetailScreen() {
       queryKey: [...queryKeys.workTools.all(workspaceId), 'tasks'],
     });
 
-  const updateStatusMutation = useMutation({
-    mutationFn: (status: TaskStatus) =>
-      workToolsApi.updateTask(workspaceId, taskId, { status }),
-    onSuccess: () => {
+  const pendingActions = usePendingActions(workspaceId);
+  const queuedComments = pendingActions.filter(
+    (a) =>
+      a.kind === MOBILE_OFFLINE_ACTION.TaskCommentCreate &&
+      (a.payload as { taskId?: string }).taskId === taskId,
+  );
+  const hasQueuedTaskChanges = pendingActions.some(
+    (a) =>
+      a.kind === MOBILE_OFFLINE_ACTION.TaskUpdate &&
+      (a.payload as { taskId?: string }).taskId === taskId,
+  );
+
+  const updateTaskMutation = useMutation({
+    mutationFn: (input: UpdateTaskInput) =>
+      sendOrQueueAction({
+        kind: MOBILE_OFFLINE_ACTION.TaskUpdate,
+        workspaceId,
+        // One queued entry per task + field set: the latest choice wins.
+        dedupeKey: `task.update:${taskId}:${Object.keys(input).sort().join(',')}`,
+        payload: { taskId, input },
+        send: () => workToolsApi.updateTask(workspaceId, taskId, input),
+      }),
+    onSuccess: (outcome, input) => {
       haptics.light();
+      if (outcome.status === 'queued') {
+        // Show the change now; the server copy replaces it after replay.
+        const { assigneeIds, ...scalar } = input;
+        queryClient.setQueryData(
+          queryKeys.workTools.task(workspaceId, taskId),
+          (old: typeof taskQuery.data) =>
+            old
+              ? {
+                  ...old,
+                  ...scalar,
+                  ...(assigneeIds ? { assigneeIds } : {}),
+                }
+              : old,
+        );
+        return;
+      }
       void invalidateTasks();
     },
-    onError: (err) => Alert.alert('Could not update status', err.message),
+    onError: (err) => Alert.alert('Could not update task', err.message),
+  });
+
+  // Members load only once the assignee sheet opens.
+  const [assigneeSheetOpen, setAssigneeSheetOpen] = useState(false);
+  const [draftAssignees, setDraftAssignees] = useState<string[]>([]);
+  const membersQuery = useQuery({
+    queryKey: queryKeys.members.list(workspaceId),
+    queryFn: () => memberApi.list(workspaceId),
+    enabled: Boolean(workspaceId) && assigneeSheetOpen,
   });
 
   const addCommentMutation = useMutation({
     mutationFn: (content: string) =>
-      workToolsApi.addTaskComment(workspaceId, taskId, { content }),
-    onSuccess: () => {
+      sendOrQueueAction({
+        kind: MOBILE_OFFLINE_ACTION.TaskCommentCreate,
+        workspaceId,
+        // Each comment is its own creation — never collapsed into another.
+        dedupeKey: `comment:${taskId}:${Date.now()}:${Math.random().toString(36).slice(2)}`,
+        payload: { taskId, input: { content } },
+        send: () =>
+          workToolsApi.addTaskComment(workspaceId, taskId, { content }),
+      }),
+    onSuccess: (outcome) => {
       haptics.success();
       setNewComment('');
+      if (outcome.status === 'queued') return;
       void queryClient.invalidateQueries({
         queryKey: queryKeys.workTools.taskComments(workspaceId, taskId),
       });
@@ -129,9 +192,94 @@ export default function TaskDetailScreen() {
     showActionSheet({
       options: STATUS_OPTIONS.map((opt) => ({
         label: opt.label,
-        onPress: () => updateStatusMutation.mutate(opt.key),
+        onPress: () => updateTaskMutation.mutate({ status: opt.key }),
       })),
     });
+  };
+
+  const handleChangePriority = () => {
+    haptics.selection();
+    showActionSheet({
+      title: 'Priority',
+      options: [
+        ...PRIORITY_OPTIONS.map((opt) => ({
+          label: opt.key === task.priority ? `${opt.label} ✓` : opt.label,
+          onPress: () => updateTaskMutation.mutate({ priority: opt.key }),
+        })),
+        {
+          label: 'No priority',
+          onPress: () => updateTaskMutation.mutate({ priority: null }),
+        },
+      ],
+    });
+  };
+
+  const handleChangeDueDate = () => {
+    haptics.selection();
+    showActionSheet({
+      title: 'Due date',
+      options: [
+        ...dueDatePresets(new Date()).map((preset) => ({
+          label: preset.label,
+          onPress: () =>
+            updateTaskMutation.mutate({ dueDate: preset.date.toISOString() }),
+        })),
+        ...(task.dueDate
+          ? [
+              {
+                label: 'Clear due date',
+                destructive: true,
+                onPress: () => updateTaskMutation.mutate({ dueDate: null }),
+              },
+            ]
+          : []),
+      ],
+    });
+  };
+
+  const currentAssigneeIds =
+    task.assigneeIds && task.assigneeIds.length > 0
+      ? task.assigneeIds
+      : task.assigneeId
+        ? [task.assigneeId]
+        : [];
+  const assigneeLabel = (() => {
+    const people =
+      task.assignees && task.assignees.length > 0
+        ? task.assignees
+        : task.assignee
+          ? [task.assignee]
+          : [];
+    if (people.length === 0) return 'Unassigned';
+    const names = people.map((p) => p.displayName || p.name);
+    return names.length <= 2
+      ? names.join(', ')
+      : `${names.slice(0, 2).join(', ')} +${names.length - 2}`;
+  })();
+
+  const openAssigneeSheet = () => {
+    haptics.selection();
+    setDraftAssignees(currentAssigneeIds);
+    setAssigneeSheetOpen(true);
+  };
+
+  const toggleDraftAssignee = (userId: string) => {
+    haptics.selection();
+    setDraftAssignees((prev) =>
+      prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId],
+    );
+  };
+
+  const saveAssignees = () => {
+    setAssigneeSheetOpen(false);
+    const unchanged =
+      draftAssignees.length === currentAssigneeIds.length &&
+      draftAssignees.every((id, i) => id === currentAssigneeIds[i]);
+    if (unchanged) return;
+    // First entry is the primary assignee (server keeps assigneeId in sync).
+    updateTaskMutation.mutate({ assigneeIds: draftAssignees });
   };
 
   const confirmDelete = () => {
@@ -211,16 +359,23 @@ export default function TaskDetailScreen() {
               <Ionicons name="chevron-down" size={14} color={colors.primary} />
             </Pressable>
 
-            <Badge
-              label={task.priority ?? 'No priority'}
-              tone={
-                task.priority === 'URGENT'
-                  ? 'danger'
-                  : task.priority === 'HIGH'
-                    ? 'warning'
-                    : 'neutral'
-              }
-            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Priority: ${task.priority ?? 'none'}. Change priority`}
+              onPress={handleChangePriority}
+              hitSlop={8}
+            >
+              <Badge
+                label={task.priority ?? 'No priority'}
+                tone={
+                  task.priority === 'URGENT'
+                    ? 'danger'
+                    : task.priority === 'HIGH'
+                      ? 'warning'
+                      : 'neutral'
+                }
+              />
+            </Pressable>
           </View>
 
           <AppText style={[styles.title, { color: colors.foreground }]}>
@@ -236,6 +391,19 @@ export default function TaskDetailScreen() {
               No description provided.
             </AppText>
           )}
+
+          {hasQueuedTaskChanges ? (
+            <View style={styles.queuedRow} accessibilityLiveRegion="polite">
+              <Ionicons
+                name="cloud-upload-outline"
+                size={16}
+                color={colors.subtle}
+              />
+              <AppText style={[styles.commentTime, { color: colors.subtle }]}>
+                Changes saved on this device — they sync when you're online
+              </AppText>
+            </View>
+          ) : null}
         </Card>
 
         {/* Task Properties */}
@@ -243,14 +411,18 @@ export default function TaskDetailScreen() {
         <Card>
           <ListRow
             icon="person-outline"
-            title="Assignee"
-            subtitle={task.assignee?.displayName ?? 'Unassigned'}
+            title={currentAssigneeIds.length > 1 ? 'Assignees' : 'Assignee'}
+            subtitle={assigneeLabel}
+            onPress={openAssigneeSheet}
           />
           <Divider inset={rowDividerInset} />
           <ListRow
             icon="calendar-outline"
             title="Due Date"
-            subtitle={task.dueDate ? relativeTime(task.dueDate) : 'No due date'}
+            subtitle={
+              task.dueDate ? formatDueDate(task.dueDate) : 'No due date'
+            }
+            onPress={handleChangeDueDate}
           />
           <Divider inset={rowDividerInset} />
           <ListRow
@@ -315,6 +487,42 @@ export default function TaskDetailScreen() {
             ))}
           </Card>
         )}
+
+        {queuedComments.length > 0 ? (
+          <>
+            <SectionHeader title="Waiting to send" />
+            <Card>
+              {queuedComments.map((action, idx) => (
+                <View key={action.id}>
+                  {idx > 0 ? <Divider inset={rowDividerInset} /> : null}
+                  <View style={styles.commentItem}>
+                    <View style={styles.queuedRow}>
+                      <Ionicons
+                        name="cloud-upload-outline"
+                        size={16}
+                        color={colors.subtle}
+                        accessibilityLabel="Not sent yet"
+                      />
+                      <AppText
+                        style={[styles.commentTime, { color: colors.subtle }]}
+                      >
+                        Sends when you're back online
+                      </AppText>
+                    </View>
+                    <AppText
+                      style={[styles.commentBody, { color: colors.foreground }]}
+                    >
+                      {
+                        (action.payload as { input?: { content?: string } })
+                          .input?.content
+                      }
+                    </AppText>
+                  </View>
+                </View>
+              ))}
+            </Card>
+          </>
+        ) : null}
       </ScrollView>
 
       {/* Add Comment Input Bar */}
@@ -340,11 +548,84 @@ export default function TaskDetailScreen() {
           disabled={!newComment.trim() || addCommentMutation.isPending}
         />
       </View>
+
+      <BottomSheet
+        visible={assigneeSheetOpen}
+        onClose={() => setAssigneeSheetOpen(false)}
+        title="Assignees"
+      >
+        {membersQuery.isPending ? (
+          <LoadingState label="Loading members…" />
+        ) : membersQuery.error ? (
+          <ErrorState
+            error={membersQuery.error}
+            onRetry={() => void membersQuery.refetch()}
+          />
+        ) : (
+          <>
+            {(membersQuery.data ?? []).map((member) => {
+              const selected = draftAssignees.includes(member.user.id);
+              return (
+                <ListRow
+                  key={member.user.id}
+                  avatar={{
+                    name: member.user.name,
+                    uri: member.user.avatarUrl,
+                  }}
+                  title={member.user.displayName || member.user.name}
+                  subtitle={
+                    selected && draftAssignees[0] === member.user.id
+                      ? 'Primary assignee'
+                      : member.user.jobTitle
+                  }
+                  chevron={false}
+                  onPress={() => toggleDraftAssignee(member.user.id)}
+                  right={
+                    <Ionicons
+                      name={selected ? 'checkmark-circle' : 'ellipse-outline'}
+                      size={22}
+                      color={selected ? colors.primary : colors.subtle}
+                      accessibilityLabel={
+                        selected ? 'Selected' : 'Not selected'
+                      }
+                    />
+                  }
+                />
+              );
+            })}
+            <View style={styles.sheetActions}>
+              <Button
+                label={
+                  draftAssignees.length === 0
+                    ? 'Save as unassigned'
+                    : `Save (${draftAssignees.length})`
+                }
+                onPress={saveAssignees}
+              />
+            </View>
+          </>
+        )}
+      </BottomSheet>
     </KeyboardAvoidingView>
   );
 }
 
+const PRIORITY_OPTIONS: Array<{ key: TaskPriority; label: string }> = [
+  { key: 'URGENT', label: 'Urgent' },
+  { key: 'HIGH', label: 'High' },
+  { key: 'MEDIUM', label: 'Medium' },
+  { key: 'LOW', label: 'Low' },
+];
+
 const styles = StyleSheet.create({
+  sheetActions: {
+    paddingTop: spacing.md,
+  },
+  queuedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
   container: {
     flex: 1,
   },

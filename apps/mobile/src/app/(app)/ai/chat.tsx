@@ -40,7 +40,12 @@ import {
 } from '../../../components/ui';
 import { useKeyboardAvoidingProps } from '../../../components/navigation';
 import { haptics } from '../../../lib/haptics';
-import { secureStore } from '../../../lib/secure-store';
+import {
+  clearAiChatHistory,
+  loadAiChatHistory,
+  saveAiChatHistory,
+} from '../../../lib/ai-chat-history';
+import { useSession } from '../../../lib/session';
 import { useWorkspace } from '../../../lib/workspace';
 import { useTheme, type Theme } from '../../../theme/theme';
 import { radius, spacing } from '../../../theme/tokens';
@@ -237,27 +242,25 @@ function AIChatScreen() {
   const [personaPickerOpen, setPersonaPickerOpen] = useState(false);
   const [promptsOpen, setPromptsOpen] = useState(false);
 
-  const storageKey = `ai_chat_history:${workspaceId}`;
+  const { user } = useSession();
+  const userId = user?.id ?? '';
 
-  // Load chat history from secure storage
+  // Load this user's on-device history for the workspace.
   useEffect(() => {
-    void secureStore.get(storageKey).then((saved) => {
-      if (saved) {
-        try {
-          const list = JSON.parse(saved);
-          if (Array.isArray(list) && list.length > 0) {
-            setMessages(list);
-          }
-        } catch {
-          // ignore
-        }
-      }
+    if (!userId || !workspaceId) return;
+    let active = true;
+    void loadAiChatHistory<ChatItem>(userId, workspaceId).then((list) => {
+      if (active && list.length > 0) setMessages(list);
     });
-  }, [storageKey]);
+    return () => {
+      active = false;
+    };
+  }, [userId, workspaceId]);
 
   const saveHistory = (items: ChatItem[]) => {
     setMessages(items);
-    void secureStore.set(storageKey, JSON.stringify(items.slice(-50)));
+    if (userId && workspaceId)
+      void saveAiChatHistory(userId, workspaceId, items);
   };
 
   // Fetch available AI models
@@ -451,7 +454,8 @@ function AIChatScreen() {
           onPress: () => {
             haptics.selection();
             setMessages([]);
-            void secureStore.remove(storageKey);
+            if (userId && workspaceId)
+              void clearAiChatHistory(userId, workspaceId);
           },
         },
       ],

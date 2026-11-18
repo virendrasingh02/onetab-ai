@@ -22,6 +22,9 @@
       "path": "../../libs/shared/types/tsconfig.lib.json"
     },
     {
+      "path": "../../libs/shared/sync/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/shared/api-client/tsconfig.lib.json"
     }
   ]

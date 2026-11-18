@@ -73,8 +73,10 @@ export class OfflineActionQueue {
 
   constructor(
     private readonly persistence: Persistence = localStoragePersistence,
-    private readonly onChange: (workspaceId: string, pending: number) => void = () =>
-      undefined,
+    private readonly onChange: (
+      workspaceId: string,
+      pending: number,
+    ) => void = () => undefined,
     /**
      * Fired when a queued action is dropped without ever applying — a
      * terminal failure (permission/validation/conflict) or an unknown kind.
@@ -113,9 +115,7 @@ export class OfflineActionQueue {
     return this.load(workspaceId).length;
   }
 
-  enqueue(
-    action: Omit<QueuedAction, 'id' | 'enqueuedAt' | 'attempts'>,
-  ): void {
+  enqueue(action: Omit<QueuedAction, 'id' | 'enqueuedAt' | 'attempts'>): void {
     const list = this.load(action.workspaceId).filter(
       (a) => a.dedupeKey !== action.dedupeKey,
     );
@@ -168,7 +168,9 @@ export class OfflineActionQueue {
           syncMetrics.log('queue', 'replayed', next.kind);
         } catch (error) {
           const { retryable, class: errorClass } = classifyError(error);
-          next.attempts += 1;
+          // Still no network is not a failed attempt: a flaky connection must
+          // never use up the retry budget and drop what the user did.
+          if (errorClass !== 'network') next.attempts += 1;
           if (!retryable || next.attempts >= MAX_ATTEMPTS) {
             this.save(workspaceId, list.slice(1));
             syncMetrics.bump('queueDropped');

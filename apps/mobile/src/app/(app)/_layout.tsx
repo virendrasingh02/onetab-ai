@@ -13,6 +13,7 @@ import {
 } from '../../components/navigation';
 import { appConfig } from '../../lib/config';
 import { usePushNotifications } from '../../lib/push';
+import { useOfflineQueueSync } from '../../lib/offline-queue';
 import { useSession } from '../../lib/session';
 import { useWorkspace, WorkspaceProvider } from '../../lib/workspace';
 
@@ -34,6 +35,7 @@ function WorkspaceGate() {
   const stackOptions = useStackScreenOptions();
   const modal = useModalScreenOptions();
   usePushNotifications();
+  useOfflineQueueSync();
 
   if (isPending) {
     return (
