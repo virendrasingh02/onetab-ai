@@ -110,6 +110,7 @@ import {
   NavMoreMenu,
   type NavMoreItem,
   Section,
+  showTitleIfTruncated,
 } from './nav-primitives.js';
 import {
   InactiveItemsDropdown,
@@ -1613,6 +1614,8 @@ export function ChannelNav({
       {/* TODO: restore <ScrollArea> (SimpleBar) here later */}
       <div
         ref={scrollRef}
+        // Full-name tooltip only on rows whose name is cut off.
+        onPointerOver={showTitleIfTruncated}
         className="min-h-0 p-3 px-1.5 flex-1 scrollbar-on-hover overflow-y-auto overscroll-none-touch"
       >
         <div className="p-2 space-y-4">

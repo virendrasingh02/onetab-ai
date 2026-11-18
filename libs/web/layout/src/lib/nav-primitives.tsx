@@ -34,6 +34,7 @@ import {
   useRef,
   useState,
   type ComponentProps,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
 import {
@@ -97,6 +98,29 @@ export function navIconClass(depth: NavDepth = 0, extra?: string) {
  */
 export const NAV_ROW_ACTIONS_PADDING =
   'pr-2 group-hover/row:pr-14 group-focus-within/row:pr-14 pointer-coarse:pr-14';
+
+/**
+ * Delegated `onPointerOver` for a sidebar container: gives the hovered row a
+ * native tooltip with its full name *only* when the `.truncate` label is cut
+ * off. Rows whose name fits get no tooltip. Titles a row sets itself are left
+ * alone — only titles this handler added (`data-auto-title`) are managed.
+ */
+export function showTitleIfTruncated(event: ReactPointerEvent<HTMLElement>) {
+  const row = (event.target as Element | null)?.closest<HTMLElement>(
+    'a, button, [role="button"]',
+  );
+  if (!row || !event.currentTarget.contains(row)) return;
+  if (row.hasAttribute('title') && !row.dataset['autoTitle']) return;
+  const label = row.querySelector<HTMLElement>('.truncate');
+  const clipped = !!label && label.scrollWidth > label.clientWidth;
+  if (clipped && label.textContent) {
+    row.title = label.textContent;
+    row.dataset['autoTitle'] = '1';
+  } else if (row.dataset['autoTitle']) {
+    row.removeAttribute('title');
+    delete row.dataset['autoTitle'];
+  }
+}
 
 export function navRowClass(
   isActive: boolean,

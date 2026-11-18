@@ -293,7 +293,6 @@ function NavAddGlyph() {
 function ResourceRowShell({
   to,
   name,
-  title,
   isSelected,
   isFavorite,
   onToggleFavorite,
@@ -306,7 +305,6 @@ function ResourceRowShell({
 }: {
   to: string;
   name: string;
-  title?: string;
   isSelected: boolean;
   isFavorite: boolean;
   onToggleFavorite: () => void;
@@ -334,7 +332,6 @@ function ResourceRowShell({
               extra: NAV_ROW_ACTIONS_PADDING,
             })
           }
-          title={title}
         >
           {children}
         </NavLink>
@@ -435,11 +432,6 @@ export function CoworkerNavRow({
     <ResourceRowShell
       to={path}
       name={coworker.name}
-      title={
-        coworker.detail
-          ? `${coworker.name} — ${coworker.detail}`
-          : coworker.name
-      }
       isSelected={isSelected}
       isFavorite={isFavorite}
       onToggleFavorite={onToggleFavorite}
@@ -522,7 +514,6 @@ export function AgentNavRow({
     <ResourceRowShell
       to={chatPath}
       name={agent.name}
-      title={agent.detail ? `${agent.name} — ${agent.detail}` : agent.name}
       isSelected={isSelected}
       isFavorite={isFavorite}
       onToggleFavorite={onToggleFavorite}
@@ -611,7 +602,6 @@ export function AppNavRow({
     <ResourceRowShell
       to={chatPath}
       name={app.name}
-      title={app.detail ? `${app.name} — ${app.detail}` : app.name}
       isSelected={isSelected}
       isFavorite={isFavorite}
       onToggleFavorite={onToggleFavorite}
@@ -697,11 +687,6 @@ export function WorkflowNavRow({
     <ResourceRowShell
       to={path}
       name={workflow.name}
-      title={
-        workflow.detail
-          ? `${workflow.name} — ${workflow.detail}`
-          : workflow.name
-      }
       isSelected={isSelected}
       isFavorite={isFavorite}
       onToggleFavorite={onToggleFavorite}
