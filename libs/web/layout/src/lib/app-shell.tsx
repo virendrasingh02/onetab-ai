@@ -8,6 +8,11 @@ import {
   ErrorBoundary,
   HuddleDock,
   LoadingState,
+  ResizableGroup,
+  ResizableHandle,
+  ResizablePanel,
+  type ResizableLayout,
+  type ResizableLayoutChangedMeta,
   Sheet,
   SheetContent,
   SheetTitle,
@@ -16,6 +21,7 @@ import {
   TeamWorldClockModal,
   TooltipProvider,
   useCommandPalette,
+  usePanelRef,
   useRightPanelStore,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -52,11 +58,6 @@ import {
 } from './split-view/split-view-store.js';
 import { ChannelSplitView } from './split-view/channel-split-view.js';
 import { SplitRoutePane } from './split-view/split-route-pane.js';
-import {
-  SPLIT_MIN_WIDTH,
-  splitMaxWidth,
-  useSplitViewWidth,
-} from './split-view/use-split-view-width.js';
 import { WorkspaceSearchPanel } from '@org/web-search';
 import { GlobalInviteMembersDialog } from '@org/web-invitations';
 import {
@@ -90,6 +91,7 @@ import {
   useRef,
   useState,
   type ReactNode,
+  type SyntheticEvent,
 } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AddAccountDialog } from './add-account-dialog.js';
@@ -113,7 +115,6 @@ import {
   toSidebarActivityConfig,
   useSidebarStore,
 } from './navigation/sidebar-store.js';
-import { ResizeHandle } from './resize-handle.js';
 import { RightPanel } from './right-panel.js';
 import { useResizableLayout } from './use-resizable-layout.js';
 import { WorkspaceMenu } from './workspace-switcher.js';
@@ -131,6 +132,14 @@ export interface AppShellProps {
    */
   splitPages?: ReactNode;
 }
+
+/** Icon-only sidebar width. */
+const SIDEBAR_COLLAPSED_WIDTH = 64;
+/** The routed page never gets narrower than this while side panels are dragged. */
+const CONTENT_MIN_WIDTH = 360;
+/** Split view pane bounds: a minimum in pixels, a ceiling as a share of the shell. */
+const SPLIT_MIN_WIDTH = 320;
+const SPLIT_MAX_SIZE = '70%';
 
 export function AppShell({ splitPages }: AppShellProps = {}) {
   const user = useCurrentUser();
@@ -164,17 +173,88 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
     leftWidth,
     rightWidth,
     sidebarOpen,
-    isResizing,
     isMobile,
     bounds,
     setSidebarOpen,
-    startLeftResize,
-    startRightResize,
-    resetLeftWidth,
-    resetRightWidth,
-    stepLeftWidth,
-    stepRightWidth,
+    commitWidths,
+    widthsRef,
   } = useResizableLayout();
+  const sidebarPanelRef = usePanelRef();
+  const rightPanelRef = usePanelRef();
+  const contentPanelRef = usePanelRef();
+
+  /*
+   * Collapsing pins the sidebar panel to the icon-only width (its min and max
+   * both become `SIDEBAR_COLLAPSED_WIDTH`); expanding has to put the user's
+   * width back explicitly, since the library would otherwise stop at the new
+   * minimum.
+   */
+  useEffect(() => {
+    const panel = sidebarPanelRef.current;
+    if (!panel) return;
+    panel.resize(
+      isSidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : widthsRef.current.left,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only on collapse/expand; drags already own the width.
+  }, [isSidebarCollapsed]);
+
+  /*
+   * Save the widths a resize left behind. `onLayoutChanged` fires once per
+   * finished drag / key press — the drag itself never touches React state, so
+   * the shell does not re-render while a handle is moving.
+   */
+  /*
+   * Only the side whose handle the user moved is saved. When the page hits its
+   * minimum, a sidebar drag borrows from the right rail (and vice versa) —
+   * that squeeze is temporary and must not overwrite the rail's preference.
+   */
+  const activeHandleRef = useRef<'left' | 'right' | null>(null);
+  const markActiveHandle = useCallback(
+    (event: SyntheticEvent<HTMLElement>) => {
+      activeHandleRef.current =
+        event.currentTarget.id === 'sidebar-handle' ? 'left' : 'right';
+    },
+    [],
+  );
+  const shellGroupRef = useRef<HTMLDivElement>(null);
+  const handleShellLayoutChanged = useCallback(
+    (layout: ResizableLayout, meta: ResizableLayoutChangedMeta) => {
+      const side = activeHandleRef.current;
+      activeHandleRef.current = null;
+      if (!meta.isUserInteraction || !side) return;
+      if (side === 'left' && isSidebarCollapsed) return;
+      const percent = layout[side === 'left' ? 'sidebar' : 'right'];
+      const group = shellGroupRef.current;
+      if (percent === undefined || !group) return;
+      /* Layout percentages are of the group's width minus its handles. The
+         callback runs before the new sizes are painted, so the panels'
+         measured widths would still be the previous ones. */
+      let handles = 0;
+      for (const child of Array.from(group.children)) {
+        if (child.hasAttribute('data-separator')) {
+          handles += child.getBoundingClientRect().width;
+        }
+      }
+      const px =
+        (percent / 100) * (group.getBoundingClientRect().width - handles);
+      commitWidths(side === 'left' ? { left: px } : { right: px });
+    },
+    [commitWidths, isSidebarCollapsed],
+  );
+
+  /*
+   * Double-click returns a side column to its *default* width. The library's
+   * built-in reset goes to the panel's `defaultSize`, which here is the saved
+   * width (so it can restore it on mount) — that would make the reset a no-op.
+   */
+  const resetSidebarWidth = useCallback(() => {
+    sidebarPanelRef.current?.resize(bounds.leftDefault);
+    commitWidths({ left: bounds.leftDefault });
+  }, [bounds.leftDefault, commitWidths, sidebarPanelRef]);
+  const resetRightWidth = useCallback(() => {
+    rightPanelRef.current?.resize(bounds.rightDefault);
+    commitWidths({ right: bounds.rightDefault });
+  }, [bounds.rightDefault, commitWidths, rightPanelRef]);
 
   /* The rail's open state is shared app-wide — see `right-panel-store`. */
   const rightPanelOpen = useRightPanelStore((s) => s.open);
@@ -199,9 +279,22 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
   useDesktopJumpList(workspacesQuery.data);
   const { slug, workspace, workspaceId, isLoading } = useCurrentWorkspace();
   const splitChannel = useSplitViewChannel(workspaceId);
-  const split = useSplitViewWidth();
   const closeSplit = useSplitViewStore((s) => s.close);
-  const splitPaneRef = useRef<HTMLDivElement>(null);
+  /*
+   * The split pane opens as an even 50 / 50 with the routed page: half of what
+   * the page panel measures the moment the split is opened. Both panels keep
+   * their relative sizes as the window changes, and double-clicking the
+   * handle returns to this size. Nothing is persisted.
+   */
+  const splitKey = splitChannel
+    ? `${splitChannel.kind}:${splitChannel.id}`
+    : '';
+  const splitDefaultWidth = useMemo(() => {
+    if (!splitKey) return SPLIT_MIN_WIDTH;
+    const contentWidth = contentPanelRef.current?.getSize().inPixels ?? 0;
+    return Math.max(SPLIT_MIN_WIDTH, Math.floor(contentWidth / 2));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- measured once per opened split.
+  }, [splitKey]);
   const channelsQuery = useChannels(workspaceId);
   const membersQuery = useMembers(workspaceId);
   const { client: matrixClient } = useMatrix();
@@ -649,7 +742,6 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
 
   const workspaces = workspacesQuery.data ?? [];
 
-  const effectiveLeftWidth = isSidebarCollapsed ? 64 : leftWidth;
 
   const channelNav = (
     <ChannelNav
@@ -730,31 +822,66 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
               className="m-1.5"
             />
 
-            <div
-              className={cn(
-                'min-h-0 gap-1.5 p-1.5 pt-0 relative flex flex-1 overflow-hidden',
-                (isResizing || split.isResizing) &&
-                  'cursor-col-resize select-none',
-              )}
-            >
+            <div className="min-h-0 p-1.5 pt-0 relative flex flex-1 overflow-hidden">
               {/*
-            Column 1 / Box 1: app rail + channels sidebar in one box.
-            The rail is the box's first column and stays when the sidebar is
-            collapsed or hidden (the box then holds the rail alone). Both sit
-            one step *below* the editor panel — `surface-muted` against the
-            panel's `card` — which is the only tonal difference in the shell.
+            Column 1 / Box 1: app rail + channels sidebar, drawn as one box.
+            The rail is fixed-width and sits outside the resizable group; the
+            sidebar is the group's first panel and continues the rail's box
+            (shared border, rounded only on the outer corners). When the
+            sidebar is hidden the rail is the whole box. Both sit one step
+            *below* the editor panel — `surface-muted` against the panel's
+            `card` — which is the only tonal difference in the shell.
           */}
               {!isMobile ? (
-                <>
-                  <div className="flex h-full shrink-0 overflow-hidden rounded-xl border border-border bg-surface-muted">
-                    <AppRail
-                      workspaceSlug={slug}
-                      inboxUnread={totalUnreadBadge}
-                    />
-                    {sidebarOpen ? (
+                <div
+                  className={cn(
+                    'flex h-full shrink-0 overflow-hidden border border-border bg-surface-muted',
+                    sidebarOpen ? 'rounded-l-xl border-r-0' : 'mr-1.5 rounded-xl',
+                  )}
+                >
+                  <AppRail
+                    workspaceSlug={slug}
+                    inboxUnread={totalUnreadBadge}
+                  />
+                </div>
+              ) : null}
+
+              {/*
+            Everything that resizes lives in one group: sidebar | page |
+            split view | side rail. Side columns keep their pixel width when
+            the window changes; the page (and split view) absorb the rest.
+            The 6px handles double as the gutters between the boxes.
+          */}
+              <ResizableGroup
+                id="app-shell"
+                elementRef={shellGroupRef}
+                className="min-w-0 flex-1"
+                onLayoutChanged={handleShellLayoutChanged}
+              >
+                {!isMobile && sidebarOpen ? (
+                  <>
+                    <ResizablePanel
+                      id="sidebar"
+                      panelRef={sidebarPanelRef}
+                      defaultSize={
+                        isSidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : leftWidth
+                      }
+                      minSize={
+                        isSidebarCollapsed
+                          ? SIDEBAR_COLLAPSED_WIDTH
+                          : bounds.leftMin
+                      }
+                      maxSize={
+                        isSidebarCollapsed
+                          ? SIDEBAR_COLLAPSED_WIDTH
+                          : bounds.leftMax
+                      }
+                      disabled={isSidebarCollapsed}
+                      groupResizeBehavior="preserve-pixel-size"
+                      className="h-full overflow-hidden rounded-r-xl border border-border bg-surface-muted"
+                    >
                       <aside
-                        className="group/sidebar flex h-full shrink-0 flex-col overflow-hidden border-l border-border text-sidebar-foreground transition-[width] duration-150"
-                        style={{ width: `${effectiveLeftWidth}px` }}
+                        className="group/sidebar flex h-full flex-col overflow-hidden text-sidebar-foreground"
                         aria-label="Sidebar navigation"
                       >
                         <div className="min-h-0 flex flex-1 flex-col">
@@ -766,135 +893,120 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
                           <AppDownloadBanner workspaceId={workspaceId} />
                         ) : null}
                       </aside>
-                    ) : null}
-                  </div>
-
-                  {sidebarOpen && !isSidebarCollapsed && (
-                    <ResizeHandle
-                      side="left"
-                      isResizing={isResizing === 'left'}
-                      currentWidth={leftWidth}
-                      minWidth={bounds.leftMin}
-                      maxWidth={bounds.leftMax}
-                      onPointerDown={startLeftResize}
-                      onDoubleClick={resetLeftWidth}
-                      onStepWidth={stepLeftWidth}
-                      onResetWidth={resetLeftWidth}
+                    </ResizablePanel>
+                    <ResizableHandle
+                      id="sidebar-handle"
+                      onPointerDownCapture={markActiveHandle}
+                      onKeyDownCapture={markActiveHandle}
+                      onDoubleClick={resetSidebarWidth}
+                      disableDoubleClick
+                      aria-label="Resize left sidebar"
+                      disabled={isSidebarCollapsed}
+                      gutter
                     />
-                  )}
-                </>
-              ) : null}
+                  </>
+                ) : null}
 
-              {/* Column 2 / Box 2: the editor panel — the one lifted surface.
+                {/* Column 2 / Box 2: the editor panel — the one lifted surface.
               `app-content-panel` pins its `--background` to pure white in light
               mode so every routed view reads as one clean white sheet; dark
               mode is unaffected (see theme.css). */}
-              <div className="app-content-panel min-w-0 shadow-2xs flex h-full flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground">
-                {/*
-              The page scroller. `min-h-full` on the content keeps the column
-              full-height for pages that fill it (chat) without capping the ones
-              that outgrow it, so those pages size themselves with `flex-1
-              min-h-0` rather than `h-full` — a percentage height has nothing
-              definite to resolve against inside a scrolled content box.
-            */}
-                <main className="min-w-0 flex flex-1 flex-col overflow-hidden">
-                  <div className="min-h-0 flex min-h-full flex-1 flex-col overflow-y-auto">
-                    <ErrorBoundary resetKeys={[location.pathname]}>
-                      <Suspense fallback={<LoadingState fullPage />}>
-                        <Outlet />
-                      </Suspense>
-                    </ErrorBoundary>
-                  </div>
-                </main>
-              </div>
+                <ResizablePanel
+                  id="content"
+                  panelRef={contentPanelRef}
+                  minSize={isMobile ? undefined : CONTENT_MIN_WIDTH}
+                  className="app-content-panel shadow-2xs flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground"
+                >
+                  {/*
+                The page scroller. `min-h-full` on the content keeps the column
+                full-height for pages that fill it (chat) without capping the ones
+                that outgrow it, so those pages size themselves with `flex-1
+                min-h-0` rather than `h-full` — a percentage height has nothing
+                definite to resolve against inside a scrolled content box.
+              */}
+                  <main className="min-w-0 flex flex-1 flex-col overflow-hidden">
+                    <div className="min-h-0 flex min-h-full flex-1 flex-col overflow-y-auto">
+                      <ErrorBoundary resetKeys={[location.pathname]}>
+                        <Suspense fallback={<LoadingState fullPage />}>
+                          <Outlet />
+                        </Suspense>
+                      </ErrorBoundary>
+                    </div>
+                  </main>
+                </ResizablePanel>
 
-              {/* Split view: a second channel conversation in its own panel beside
+                {/* Split view: a second channel conversation in its own panel beside
               the page ("Open in split view"). Desktop only — a phone has no
               room for two conversations side by side. */}
-              {splitChannel && workspaceId && !isMobile ? (
-                <>
-                  <ResizeHandle
-                    side="right"
-                    isResizing={split.isResizing}
-                    currentWidth={
-                      split.width ??
-                      splitPaneRef.current?.offsetWidth ??
-                      SPLIT_MIN_WIDTH
-                    }
-                    minWidth={SPLIT_MIN_WIDTH}
-                    maxWidth={splitMaxWidth()}
-                    onPointerDown={split.startResize}
-                    onDoubleClick={split.reset}
-                    onStepWidth={(delta) =>
-                      split.step(
-                        delta,
-                        splitPaneRef.current?.offsetWidth ?? SPLIT_MIN_WIDTH,
-                      )
-                    }
-                    onResetWidth={split.reset}
-                    label="Resize split view"
-                  />
-                  <div
-                    ref={splitPaneRef}
-                    className={cn(
-                      'app-content-panel min-w-80 shadow-2xs flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground',
-                      // Default: an even 50 / 50 with the page; a dragged width is pinned.
-                      split.width === null ? 'flex-1' : 'shrink-0',
-                    )}
-                    style={
-                      split.width === null
-                        ? undefined
-                        : { width: `${split.width}px` }
-                    }
-                  >
-                    {splitChannel.kind === 'route' ? (
-                      <SplitRoutePane
-                        key={splitChannel.id}
-                        initialPath={splitChannel.id}
-                        title={splitChannel.name}
-                        pages={splitPages}
-                        onClose={() => closeSplit(workspaceId)}
-                      />
-                    ) : (
-                      <ChannelSplitView
-                        workspaceId={workspaceId}
-                        workspaceSlug={slug}
-                        channel={splitChannel}
-                      />
-                    )}
-                  </div>
-                </>
-              ) : null}
-
-              {/* Column 3 / Box 3: the switchable side rail — assistant, a
-              person, the page's details, or an open Kanban card. */}
-              {rightPanelOpen && !isMobile ? (
-                <>
-                  <ResizeHandle
-                    side="right"
-                    isResizing={isResizing === 'right'}
-                    currentWidth={rightWidth}
-                    minWidth={bounds.rightMin}
-                    maxWidth={bounds.rightMax}
-                    onPointerDown={startRightResize}
-                    onDoubleClick={resetRightWidth}
-                    onStepWidth={stepRightWidth}
-                    onResetWidth={resetRightWidth}
-                  />
-
-                  <aside
-                    className="flex h-full shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-surface-muted text-foreground"
-                    style={{ width: `${rightWidth}px` }}
-                    aria-label="Side panel"
-                  >
-                    <RightPanel
-                      currentUser={user}
-                      workspaceSlug={slug}
-                      onClose={closeAssistant}
+                {splitChannel && workspaceId && !isMobile ? (
+                  <>
+                    <ResizableHandle
+                      id="split-handle"
+                      aria-label="Resize split view"
+                      gutter
                     />
-                  </aside>
-                </>
-              ) : null}
+                    <ResizablePanel
+                      id="split"
+                      defaultSize={splitDefaultWidth}
+                      minSize={SPLIT_MIN_WIDTH}
+                      maxSize={SPLIT_MAX_SIZE}
+                      className="app-content-panel shadow-2xs flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground"
+                    >
+                      {splitChannel.kind === 'route' ? (
+                        <SplitRoutePane
+                          key={splitChannel.id}
+                          initialPath={splitChannel.id}
+                          title={splitChannel.name}
+                          pages={splitPages}
+                          onClose={() => closeSplit(workspaceId)}
+                        />
+                      ) : (
+                        <ChannelSplitView
+                          workspaceId={workspaceId}
+                          workspaceSlug={slug}
+                          channel={splitChannel}
+                        />
+                      )}
+                    </ResizablePanel>
+                  </>
+                ) : null}
+
+                {/* Column 3 / Box 3: the switchable side rail — assistant, a
+              person, the page's details, or an open Kanban card. */}
+                {rightPanelOpen && !isMobile ? (
+                  <>
+                    <ResizableHandle
+                      id="right-handle"
+                      onPointerDownCapture={markActiveHandle}
+                      onKeyDownCapture={markActiveHandle}
+                      onDoubleClick={resetRightWidth}
+                      disableDoubleClick
+                      aria-label="Resize right panel"
+                      gutter
+                    />
+                    <ResizablePanel
+                      id="right"
+                      panelRef={rightPanelRef}
+                      defaultSize={rightWidth}
+                      minSize={bounds.rightMin}
+                      maxSize={bounds.rightMax}
+                      groupResizeBehavior="preserve-pixel-size"
+                      className="h-full overflow-hidden rounded-xl border border-border bg-surface-muted text-foreground"
+                    >
+                      <aside
+                        className="flex h-full flex-col overflow-hidden"
+                        aria-label="Side panel"
+                      >
+                        <RightPanel
+                          currentUser={user}
+                          workspaceSlug={slug}
+                          onClose={closeAssistant}
+                        />
+                      </aside>
+                    </ResizablePanel>
+                  </>
+                ) : null}
+              </ResizableGroup>
             </div>
 
             {/* A running huddle opens full-width here, below all three boxes —

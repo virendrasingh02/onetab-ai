@@ -60,6 +60,7 @@
     "emojibase-data": "^17.0.0",
     "frimousse": "^0.3.0",
     "lucide-react": "^1.28.0",
+    "react-resizable-panels": "4.17.0",
     "simplebar-react": "^3.3.2"
   }
 }

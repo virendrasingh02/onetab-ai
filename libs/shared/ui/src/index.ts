@@ -784,6 +784,19 @@ export {
   ResizablePanels,
   ResizablePanelLayout,
   type ResizablePanelsProps,
+  ResizableGroup,
+  ResizablePanel,
+  ResizableHandle,
+  useGroupRef,
+  usePanelRef,
+  type ResizableGroupProps,
+  type ResizablePanelProps,
+  type ResizableHandleProps,
+  type ResizableGroupHandle,
+  type ResizablePanelHandle,
+  type ResizableLayout,
+  type ResizableLayoutChangedMeta,
+  type ResizablePanelSize,
 } from './lib/components/resizable-panels.js';
 
 export {
