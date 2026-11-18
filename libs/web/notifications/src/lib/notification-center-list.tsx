@@ -1,5 +1,5 @@
 import type { NotificationView } from '@org/types';
-import { Button, EmptyState, Hint, Skeleton } from '@org/ui';
+import { Button, EmptyState, Hint, SegmentedControl, Skeleton } from '@org/ui';
 import { cn, formatRelative, toPlainMessageText } from '@org/utils';
 import {
   AtSign,
@@ -41,7 +41,7 @@ const FILTER_TABS: Array<{ id: NotificationFilterTab; label: string }> = [
 
 function getCategoryIcon(kind?: string) {
   if (!kind) return null;
-  if (/^AI_/i.test(kind)) return <Bot className="size-3 text-primary" />;
+  if (/^AI_/i.test(kind)) return <Bot className="size-3 text-foreground/70" />;
   if (/MENTION/i.test(kind)) return <AtSign className="size-3 text-info-text" />;
   if (kind === 'CHAT_MESSAGE') return <MessageSquare className="size-3 text-info-text" />;
   if (/^TASK_/i.test(kind)) return <CheckSquare className="size-3 text-success-text" />;
@@ -91,7 +91,6 @@ export function NotificationCenterList({
 
   const { markRead, markAllRead, dismiss } = useNotificationMutations(workspaceId);
 
-  const badge = unread > 99 ? '99+' : String(unread);
 
   const filteredItems = useMemo(() => {
     const raw = list.items;
@@ -122,38 +121,17 @@ export function NotificationCenterList({
     <div className={cn('space-y-3.5', className)}>
       {/* Filter strip + mark all */}
       <div className="gap-2.5 pb-1 flex flex-wrap items-center justify-between">
-        <div className="gap-1.5 py-0.5 no-scrollbar flex items-center overflow-x-auto">
-          {FILTER_TABS.map((tab) => {
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  'px-2.5 py-1 text-xs font-medium shrink-0 cursor-pointer rounded-lg transition-colors',
-                  isActive
-                    ? 'bg-primary text-primary-foreground shadow-xs'
-                    : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground',
-                )}
-              >
-                <span>{tab.label}</span>
-                {tab.id === 'unread' && unread > 0 ? (
-                  <span
-                    className={cn(
-                      'ml-1.5 px-1.5 text-2xs font-bold inline-flex items-center justify-center rounded-full',
-                      isActive
-                        ? 'bg-primary-foreground/20 text-primary-foreground'
-                        : 'bg-primary text-primary-foreground',
-                    )}
-                  >
-                    {badge}
-                  </span>
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
+        <SegmentedControl
+          aria-label="Filter notifications"
+          className="no-scrollbar max-w-full overflow-x-auto"
+          value={activeTab}
+          onChange={setActiveTab}
+          options={FILTER_TABS.map((tab) => ({
+            value: tab.id,
+            label: tab.label,
+            count: tab.id === 'unread' ? unread : undefined,
+          }))}
+        />
 
         <Button
           variant="outline"
@@ -213,7 +191,8 @@ export function NotificationCenterList({
           }
         />
       ) : (
-        <ul className="divide-y divide-border/40 overflow-hidden rounded-xl border border-border/70 bg-surface">
+        // `.theme-fixed`: rows are content, not chrome — same neutral look in every workspace theme.
+        <ul className="theme-fixed divide-y divide-border/40 overflow-hidden rounded-xl border border-border/70 bg-background">
           {filteredItems.map((n) => {
             const categoryIcon = getCategoryIcon(n.kind);
             const categoryLabel = getCategoryLabel(n.kind);
@@ -222,8 +201,8 @@ export function NotificationCenterList({
               <li
                 key={n.id}
                 className={cn(
-                  'group gap-3 px-4 py-3 relative flex cursor-pointer items-start transition-colors hover:bg-accent/40',
-                  !n.read && 'bg-primary/[0.04]',
+                  'group gap-3 px-4 py-3 relative flex cursor-pointer items-start transition-colors',
+                  n.read ? 'hover:bg-muted/50' : 'bg-muted/40 hover:bg-muted/70',
                 )}
                 onClick={() => openRow(n)}
               >
@@ -282,7 +261,7 @@ export function NotificationCenterList({
                         type="button"
                         onClick={(e) => handleMarkItemRead(e, n)}
                         aria-label="Mark notification read"
-                        className="p-1 cursor-pointer rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        className="p-1 cursor-pointer rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                       >
                         <Check className="size-3.5" />
                       </button>
@@ -293,7 +272,7 @@ export function NotificationCenterList({
                       type="button"
                       onClick={(e) => handleDismissItem(e, n)}
                       aria-label="Dismiss notification"
-                      className="p-1 cursor-pointer rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                      className="p-1 cursor-pointer rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     >
                       <X className="size-3.5" />
                     </button>

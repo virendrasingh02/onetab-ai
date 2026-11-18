@@ -7,6 +7,8 @@ export interface SegmentedOption<T extends string | number> {
   icon?: ReactNode;
   /** Optional longer description for assistive technology. */
   hint?: string;
+  /** Small count pill after the label (e.g. unread); hidden when 0/undefined. */
+  count?: number;
 }
 
 export interface SegmentedControlProps<T extends string | number> {
@@ -47,7 +49,8 @@ export function SegmentedControl<T extends string | number>({
       role="radiogroup"
       aria-label={ariaLabel}
       className={cn(
-        'gap-0.5 p-0.5 relative rounded-lg border bg-surface-inset',
+        // `.theme-fixed`: a control, not chrome — identical in every workspace theme.
+        'theme-fixed gap-0.5 p-0.5 relative rounded-lg border bg-surface-inset',
         layout === 'inline'
           ? 'inline-flex items-center'
           : 'grid w-full auto-cols-fr grid-flow-col',
@@ -73,7 +76,8 @@ export function SegmentedControl<T extends string | number>({
             <label
               htmlFor={id}
               className={cn(
-                'font-medium rounded-md transition-colors duration-(--duration-fast)',
+                'shrink-0 font-medium rounded-md transition-colors duration-(--duration-fast)',
+                option.count ? 'inline-flex items-center' : null,
                 'peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring/40',
                 size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-xs',
                 layout !== 'inline' &&
@@ -91,6 +95,16 @@ export function SegmentedControl<T extends string | number>({
             >
               {option.icon}
               {option.label}
+              {option.count ? (
+                <span
+                  className={cn(
+                    'ml-1.5 min-w-4 px-1 h-4 text-2xs font-semibold tabular-nums inline-flex items-center justify-center rounded-full',
+                    selected ? 'bg-foreground text-background' : 'bg-foreground/10 text-foreground/80',
+                  )}
+                >
+                  {option.count > 99 ? '99+' : option.count}
+                </span>
+              ) : null}
             </label>
             {option.hint ? (
               <span id={`${id}-hint`} className="sr-only">

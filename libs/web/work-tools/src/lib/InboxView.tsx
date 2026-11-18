@@ -16,6 +16,7 @@ import {
   TabsContent,
   TabsTrigger,
   PageTabBar,
+  SegmentedControl,
   UserAvatar,
 } from '@org/ui';
 import { cn, formatDate, formatRelative } from '@org/utils';
@@ -422,7 +423,7 @@ function FeedRow({
 /** Grouped list container — same shell as the "For you" notification list. */
 function InboxList({ children }: { children: React.ReactNode }) {
   return (
-    <ul className="divide-y divide-border/40 overflow-hidden rounded-xl border border-border/70 bg-surface">
+    <ul className="theme-fixed divide-y divide-border/40 overflow-hidden rounded-xl border border-border/70 bg-background">
       {children}
     </ul>
   );
@@ -443,8 +444,9 @@ function InboxRow({
 }) {
   const className = cn(
     'group gap-3 px-4 py-3 relative flex items-start transition-colors',
-    href && 'cursor-pointer hover:bg-accent/40',
-    unread && 'bg-primary/[0.04]',
+    // Neutral, theme-independent tints (the list carries `.theme-fixed`).
+    unread ? 'bg-muted/40' : null,
+    href && (unread ? 'cursor-pointer hover:bg-muted/70' : 'cursor-pointer hover:bg-muted/50'),
   );
   const content = (
     <>
@@ -773,28 +775,18 @@ export function InboxView() {
             <TabsContent value="activity" className="space-y-3.5 mt-0">
               {/* Category & Search Toolbar */}
               <div className="sm:flex-row sm:items-center gap-2.5 pb-1 flex flex-col items-stretch justify-between">
-                <div className="gap-1.5 py-0.5 no-scrollbar flex items-center overflow-x-auto">
-                  {[
-                    { id: 'all', label: 'All' },
-                    { id: 'tasks', label: 'Tasks' },
-                    { id: 'mentions', label: 'Mentions' },
-                    { id: 'channels', label: 'Channels & Chat' },
-                  ].map((cat) => (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => setNotificationCategory(cat.id)}
-                      className={cn(
-                        'px-2.5 py-1 text-xs font-medium shrink-0 cursor-pointer rounded-lg transition-colors',
-                        notificationCategory === cat.id
-                          ? 'bg-primary text-primary-foreground shadow-xs'
-                          : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground',
-                      )}
-                    >
-                      {cat.label}
-                    </button>
-                  ))}
-                </div>
+                <SegmentedControl
+                  aria-label="Filter activity by category"
+                  className="no-scrollbar max-w-full self-start overflow-x-auto sm:self-auto"
+                  value={notificationCategory}
+                  onChange={setNotificationCategory}
+                  options={[
+                    { value: 'all', label: 'All' },
+                    { value: 'tasks', label: 'Tasks' },
+                    { value: 'mentions', label: 'Mentions' },
+                    { value: 'channels', label: 'Channels & Chat' },
+                  ]}
+                />
 
                 <div className="min-w-48 sm:w-60 relative flex items-center">
                   <Search className="size-3.5 left-2.5 pointer-events-none absolute text-muted-foreground" />
@@ -953,29 +945,19 @@ export function InboxView() {
             <TabsContent value="tasks" className="space-y-3.5 mt-0">
               {/* Task Filters & Search */}
               <div className="sm:flex-row sm:items-center gap-2.5 pb-1 flex flex-col items-stretch justify-between">
-                <div className="gap-1.5 py-0.5 no-scrollbar flex items-center overflow-x-auto">
-                  {[
-                    { id: 'all', label: 'All Assigned' },
-                    { id: 'in_progress', label: 'In Progress' },
-                    { id: 'todo', label: 'Planned' },
-                    { id: 'in_review', label: 'In Review' },
-                    { id: 'overdue', label: 'Overdue' },
-                  ].map((filter) => (
-                    <button
-                      key={filter.id}
-                      type="button"
-                      onClick={() => setTaskStatusFilter(filter.id)}
-                      className={cn(
-                        'px-2.5 py-1 text-xs font-medium shrink-0 cursor-pointer rounded-lg transition-colors',
-                        taskStatusFilter === filter.id
-                          ? 'bg-primary text-primary-foreground shadow-xs'
-                          : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground',
-                      )}
-                    >
-                      {filter.label}
-                    </button>
-                  ))}
-                </div>
+                <SegmentedControl
+                  aria-label="Filter assigned tasks by status"
+                  className="no-scrollbar max-w-full self-start overflow-x-auto sm:self-auto"
+                  value={taskStatusFilter}
+                  onChange={setTaskStatusFilter}
+                  options={[
+                    { value: 'all', label: 'All Assigned' },
+                    { value: 'in_progress', label: 'In Progress' },
+                    { value: 'todo', label: 'Planned' },
+                    { value: 'in_review', label: 'In Review' },
+                    { value: 'overdue', label: 'Overdue' },
+                  ]}
+                />
 
                 <div className="min-w-48 sm:w-60 relative flex items-center">
                   <Search className="size-3.5 left-2.5 pointer-events-none absolute text-muted-foreground" />
