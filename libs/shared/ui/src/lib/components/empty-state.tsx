@@ -16,6 +16,8 @@ const emptyStateVariants = cva(
   },
 );
 
+type EmptyStateSize = NonNullable<VariantProps<typeof emptyStateVariants>['size']>;
+
 export interface EmptyStateProps
   extends ComponentProps<'div'>, VariantProps<typeof emptyStateVariants> {
   icon?: ReactNode;
@@ -25,48 +27,85 @@ export interface EmptyStateProps
   action?: ReactNode;
   /** Secondary affordance, e.g. a docs link or secondary button. */
   secondaryAction?: ReactNode;
-  /** Hide the layered card graphic if needed */
+  /** Drop the decorative rings and show only a plain icon tile. */
   hideGraphic?: boolean;
 }
 
+const tileSize: Record<EmptyStateSize, string> = {
+  sm: 'size-10 rounded-xl [&_svg]:size-4.5',
+  md: 'size-14 rounded-2xl [&_svg]:size-6',
+  lg: 'size-16 rounded-2xl [&_svg]:size-7',
+};
+
+const titleSize: Record<EmptyStateSize, string> = {
+  sm: 'text-sm',
+  md: 'text-base',
+  lg: 'text-lg',
+};
+
 /**
- * Layered card-stack graphic for the empty state. Built entirely from theme
- * tokens so it tracks light / dark and any workspace palette instead of
- * rendering a fixed dark card.
+ * Icon medallion shown above the title: a raised tile holding the icon, set
+ * inside two faint concentric rings with a soft glow. Built only from theme
+ * tokens so it follows light / dark and every workspace palette.
  */
-function EmptyStateGraphic({ icon }: { icon?: ReactNode }) {
-  return (
-    <div className="relative mb-5 flex items-center justify-center" aria-hidden>
-      {/* Stack Layer 1 (topmost back) */}
-      <div className="absolute -top-3 w-36 sm:w-44 h-12 rounded-t-xl bg-surface-muted border-t border-x border-border/60 shadow-xs pointer-events-none" />
-      {/* Stack Layer 2 (middle back) */}
-      <div className="absolute -top-1.5 w-42 sm:w-50 h-14 rounded-t-xl bg-surface-raised border-t border-x border-border shadow-xs pointer-events-none" />
-      {/* Front Card Container */}
-      <div className="relative z-10 w-48 sm:w-56 h-18 sm:h-20 rounded-xl bg-card border border-border shadow-md p-3 flex items-center gap-3">
-        {/* Left icon / thumbnail block */}
-        <div className="size-10 sm:size-11 rounded-lg bg-surface-inset border border-border flex items-center justify-center text-muted-foreground shrink-0 shadow-inner">
-          {icon ? (
-            <div className="[&_svg]:size-5 [&_svg]:text-muted-foreground flex items-center justify-center">
-              {icon}
-            </div>
-          ) : (
-            <div className="size-4.5 rounded-xs bg-muted-foreground/30" />
-          )}
-        </div>
-        {/* Right skeleton placeholder lines */}
-        <div className="flex flex-col gap-1.5 min-w-0 flex-1">
-          <div className="h-2.5 w-3/4 bg-muted-foreground/30 rounded-full" />
-          <div className="h-2 w-1/2 bg-muted-foreground/20 rounded-full" />
-        </div>
+function EmptyStateGraphic({
+  icon,
+  size,
+  plain,
+}: {
+  icon?: ReactNode;
+  size: EmptyStateSize;
+  plain: boolean;
+}) {
+  const tile = (
+    <div
+      className={cn(
+        'relative z-10 flex shrink-0 items-center justify-center border border-border bg-card text-muted-foreground shadow-sm',
+        'bg-linear-to-b from-card to-surface-muted',
+        tileSize[size],
+      )}
+    >
+      {icon ?? <div className="size-2/5 rounded-md bg-muted-foreground/25" />}
+    </div>
+  );
+
+  if (plain || size === 'sm') {
+    return (
+      <div aria-hidden className={size === 'sm' ? 'mb-3' : 'mb-4'}>
+        {tile}
       </div>
+    );
+  }
+
+  const lg = size === 'lg';
+  return (
+    <div
+      aria-hidden
+      className={cn(
+        'relative mb-5 flex items-center justify-center',
+        lg ? 'size-36' : 'size-28',
+      )}
+    >
+      {/* soft glow */}
+      <div className="absolute inset-4 rounded-full bg-primary/8 blur-xl" />
+      {/* outer ring */}
+      <div className="absolute inset-0 rounded-full border border-dashed border-border" />
+      {/* inner ring */}
+      <div
+        className={cn(
+          'absolute rounded-full border border-border bg-surface-muted/60',
+          lg ? 'inset-5' : 'inset-4',
+        )}
+      />
+      {tile}
     </div>
   );
 }
 
 /**
  * Shown when a collection or view is legitimately empty.
- * Minimalist layered-card graphic, clean typography, and action buttons —
- * all theme-aware, so it reads correctly in light and dark.
+ * Icon medallion on top, then title, description and actions — all
+ * theme-aware, so it reads correctly in light and dark.
  */
 export function EmptyState({
   icon,
@@ -79,6 +118,7 @@ export function EmptyState({
   className,
   ...props
 }: EmptyStateProps) {
+  const s: EmptyStateSize = size ?? 'md';
   return (
     <div
       role="region"
@@ -86,29 +126,37 @@ export function EmptyState({
       className={cn(emptyStateVariants({ size }), className)}
       {...props}
     >
-      {!hideGraphic ? (
-        <EmptyStateGraphic icon={icon} />
-      ) : icon ? (
-        <div
-          aria-hidden
-          className="mb-3 size-10 [&_svg]:size-5 flex items-center justify-center rounded-xl border border-border bg-card text-muted-foreground"
-        >
-          {icon}
-        </div>
-      ) : null}
+      {hideGraphic && !icon ? null : (
+        <EmptyStateGraphic icon={icon} size={s} plain={hideGraphic} />
+      )}
 
-      <h3 className="text-base sm:text-lg font-semibold tracking-tight text-foreground text-center">
+      <h3
+        className={cn(
+          'font-semibold tracking-tight text-foreground text-balance',
+          titleSize[s],
+        )}
+      >
         {title}
       </h3>
 
       {description ? (
-        <p className="max-w-sm sm:max-w-md text-xs sm:text-sm leading-relaxed text-muted-foreground mt-1.5 text-center font-normal">
+        <p
+          className={cn(
+            'mt-1.5 max-w-sm leading-relaxed text-muted-foreground text-pretty',
+            s === 'sm' ? 'text-xs' : 'text-sm',
+          )}
+        >
           {description}
         </p>
       ) : null}
 
       {action || secondaryAction ? (
-        <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+        <div
+          className={cn(
+            'flex flex-wrap items-center justify-center gap-2',
+            s === 'sm' ? 'mt-4' : 'mt-5',
+          )}
+        >
           {action}
           {secondaryAction}
         </div>
