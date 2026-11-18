@@ -9,7 +9,6 @@ import { TaskPriority, TaskStatus, type ActivityFeedItem } from '@org/types';
 import {
   Badge,
   Button,
-  Card,
   EmptyState,
   ProjectGlyph,
   SkeletonList,
@@ -22,7 +21,6 @@ import {
 import { cn, formatDate, formatRelative } from '@org/utils';
 import {
   ArrowDown,
-  ArrowRight,
   ArrowUp,
   AtSign,
   Activity,
@@ -30,7 +28,6 @@ import {
   Calendar,
   CheckCircle2,
   CheckSquare,
-  Clock,
   FileText,
   FileUp,
   Flame,
@@ -162,9 +159,7 @@ function renderHeadlineDescription(
         <span>
           <strong className="font-semibold text-foreground">{userName}</strong>{' '}
           assigned you to{' '}
-          <span className="font-semibold text-primary underline underline-offset-2">
-            {taskTitle}
-          </span>
+          <span className="font-medium text-foreground">{taskTitle}</span>
         </span>
       );
     }
@@ -355,114 +350,150 @@ function FeedRow({
   const { icon: KindIcon, label: kindLabel, tone } = getKindMeta(item);
 
   return (
-    <li>
-      <Card
-        className={cn(
-          'group p-3.5 sm:p-4 relative rounded-xl border transition-all duration-(--duration-fast)',
-          isUnread
-            ? 'border-primary/40 bg-primary/5 shadow-xs'
-            : 'border-border/70 bg-surface hover:border-border-strong hover:bg-surface-raised',
-          href && 'cursor-pointer hover:shadow-md',
-        )}
-      >
-        <div className="gap-4 flex items-center justify-between">
-          <div className="gap-3.5 min-w-0 flex flex-1 items-start">
-            {/* User Avatar with action badge overlay */}
-            <div className="mt-0.5 relative shrink-0">
-              {user ? (
-                <UserAvatar
-                  name={userName}
-                  src={user.avatarUrl}
-                  seed={user.id}
-                  size="sm"
-                  indicator={false}
-                  className="font-bold shadow-xs ring-2 ring-background"
-                />
-              ) : (
-                <div
-                  className={cn(
-                    'size-8 flex items-center justify-center rounded-full',
-                    tone,
-                  )}
-                >
-                  <KindIcon className="size-4" />
-                </div>
-              )}
-              {user ? (
-                <span
-                  className={cn(
-                    '-bottom-1 -right-1 size-4 absolute flex items-center justify-center rounded-full border-2 border-background shadow-xs',
-                    tone,
-                  )}
-                  title={kindLabel}
-                >
-                  <KindIcon className="size-2.5" />
-                </span>
-              ) : null}
-            </div>
-
-            {/* Content Details */}
-            <div className="min-w-0 space-y-1 flex-1">
-              <div className="gap-2 flex flex-wrap items-center">
-                <span className="text-xs font-semibold truncate text-foreground">
-                  {userName}
-                </span>
-                <Badge
-                  variant="neutral"
-                  className="px-1.5 py-0 h-4 font-semibold tracking-wide text-2xs uppercase"
-                >
-                  {kindLabel}
-                </Badge>
-                {isUnread && (
-                  <Badge
-                    variant="primary"
-                    className="px-1.5 py-0 h-4 font-bold text-2xs"
-                  >
-                    New
-                  </Badge>
-                )}
-              </div>
-
-              {/* Main descriptive headline */}
-              <div className="text-xs leading-snug text-foreground/90">
-                {renderHeadlineDescription(item, userName)}
-              </div>
-
-              {/* Meta information: Channel / Timestamp */}
-              <div className="gap-3 pt-0.5 flex flex-wrap items-center text-meta text-muted-foreground">
-                {item.channel ? (
-                  <span className="gap-1 font-medium inline-flex items-center text-primary">
-                    <Hash className="size-3" aria-hidden />
-                    <span>{item.channel.name}</span>
-                  </span>
-                ) : null}
-                <span className="gap-1 inline-flex items-center font-mono text-2xs text-muted-foreground/80">
-                  <Clock className="size-3 text-muted-foreground/60" />
-                  <span>{formatRelative(item.occurredAt)}</span>
-                </span>
-              </div>
-            </div>
+    <InboxRow href={href} unread={isUnread}>
+      {/* User Avatar with action badge overlay */}
+      <div className="relative shrink-0">
+        {user ? (
+          <UserAvatar
+            name={userName}
+            src={user.avatarUrl}
+            seed={user.id}
+            size="sm"
+            indicator={false}
+            className="font-bold shadow-xs ring-2 ring-background"
+          />
+        ) : (
+          <div
+            className={cn(
+              'size-8 flex items-center justify-center rounded-full',
+              tone,
+            )}
+          >
+            <KindIcon className="size-4" />
           </div>
+        )}
+        {user ? (
+          <span
+            className={cn(
+              '-bottom-1 -right-1 size-4 absolute flex items-center justify-center rounded-full border-2 border-background shadow-xs',
+              tone,
+            )}
+            title={kindLabel}
+          >
+            <KindIcon className="size-2.5" />
+          </span>
+        ) : null}
+      </div>
 
-          {/* Right Redirection Button */}
-          {href ? (
-            <div className="pl-2 flex shrink-0 items-center self-center">
-              <Button
-                asChild
-                variant="outline"
-                size="sm"
-                className="h-7 px-2.5 text-xs gap-1.5 font-medium cursor-pointer rounded-lg border-border/80 transition-all group-hover:border-primary/40 group-hover:bg-primary/10 group-hover:text-primary"
-              >
-                <Link to={href}>
-                  <span>Open</span>
-                  <ArrowRight className="size-3 group-hover:translate-x-0.5 transition-transform" />
-                </Link>
-              </Button>
-            </div>
+      <span className="min-w-0 flex-1">
+        <div className="gap-2 flex items-center justify-between">
+          <span
+            className={cn(
+              'text-sm leading-snug block truncate text-foreground',
+              isUnread ? 'font-medium' : 'font-normal',
+            )}
+          >
+            {userName}
+          </span>
+          <span className="shrink-0 text-meta whitespace-nowrap text-muted-foreground">
+            {formatRelative(item.occurredAt)}
+          </span>
+        </div>
+
+        <span className="mt-0.5 text-xs leading-relaxed line-clamp-2 block text-muted-foreground">
+          {renderHeadlineDescription(item, userName)}
+        </span>
+
+        <div className="mt-1.5 gap-1.5 flex flex-wrap items-center">
+          <InboxChip icon={<KindIcon className="size-3" />}>
+            {kindLabel}
+          </InboxChip>
+          {item.channel ? (
+            <InboxChip icon={<Hash className="size-3" aria-hidden />}>
+              {item.channel.name}
+            </InboxChip>
           ) : null}
         </div>
-      </Card>
+      </span>
+    </InboxRow>
+  );
+}
+
+/** Grouped list container — same shell as the "For you" notification list. */
+function InboxList({ children }: { children: React.ReactNode }) {
+  return (
+    <ul className="divide-y divide-border/40 overflow-hidden rounded-xl border border-border/70 bg-surface">
+      {children}
+    </ul>
+  );
+}
+
+/**
+ * One inbox row, matching NotificationCenterList: unread dot gutter, tinted
+ * background while unread, whole row is the link.
+ */
+function InboxRow({
+  href,
+  unread = false,
+  children,
+}: {
+  href?: string | null;
+  unread?: boolean;
+  children: React.ReactNode;
+}) {
+  const className = cn(
+    'group gap-3 px-4 py-3 relative flex items-start transition-colors',
+    href && 'cursor-pointer hover:bg-accent/40',
+    unread && 'bg-primary/[0.04]',
+  );
+  const content = (
+    <>
+      <div className="pt-1 flex shrink-0 flex-col items-center justify-center">
+        <span
+          className={cn(
+            'size-2 rounded-full',
+            unread ? 'bg-activity shadow-xs' : 'opacity-0',
+          )}
+          title={unread ? 'Unread' : undefined}
+          aria-label={unread ? 'Unread' : undefined}
+        />
+      </div>
+      {children}
+    </>
+  );
+  return (
+    <li>
+      {href ? (
+        <Link to={href} className={className}>
+          {content}
+        </Link>
+      ) : (
+        <div className={className}>{content}</div>
+      )}
     </li>
+  );
+}
+
+/** Muted meta chip — same recipe as the notification category chip. */
+function InboxChip({
+  icon,
+  className,
+  children,
+}: {
+  icon?: React.ReactNode;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <span
+      className={cn(
+        'gap-1 px-1.5 py-0.5 font-medium inline-flex items-center rounded-md bg-muted text-2xs text-muted-foreground',
+        className,
+      )}
+    >
+      {icon}
+      <span className="truncate">{children}</span>
+    </span>
   );
 }
 
@@ -817,7 +848,7 @@ export function InboxView() {
                   }
                 />
               ) : (
-                <ul className="space-y-2.5">
+                <InboxList>
                   {filteredFeed.map((item) => (
                     <FeedRow
                       key={item.id}
@@ -829,7 +860,7 @@ export function InboxView() {
                       }
                     />
                   ))}
-                </ul>
+                </InboxList>
               )}
             </TabsContent>
 
@@ -844,7 +875,7 @@ export function InboxView() {
                   description="When someone @mentions you in any channel or task comment, it will appear here."
                 />
               ) : (
-                <ul className="space-y-2.5">
+                <InboxList>
                   {mentions.map((item) => (
                     <FeedRow
                       key={item.id}
@@ -856,7 +887,7 @@ export function InboxView() {
                       }
                     />
                   ))}
-                </ul>
+                </InboxList>
               )}
             </TabsContent>
 
@@ -871,74 +902,50 @@ export function InboxView() {
                   description="All channels you have joined are completely up to date."
                 />
               ) : (
-                <ul className="space-y-2.5">
-                  {unreadChannels.map(({ channel, unread, latest }) => (
-                    <li key={channel.id}>
-                      <Card className="group p-4 rounded-xl border border-border/70 bg-surface transition-all duration-(--duration-fast) hover:border-border-strong hover:bg-surface-raised hover:shadow-md">
-                        <div className="gap-4 flex items-center justify-between">
-                          <div className="min-w-0 flex-1">
-                            <div className="gap-2 flex items-center">
-                              <span className="gap-1 text-sm font-semibold inline-flex items-center text-primary">
-                                <Hash className="size-3.5" />
-                                <span>{channel.name}</span>
+                <InboxList>
+                  {unreadChannels.map(({ channel, unread, latest }) => {
+                    const latestName =
+                      latest?.user?.displayName ??
+                      latest?.user?.name ??
+                      'A teammate';
+                    return (
+                      <InboxRow
+                        key={channel.id}
+                        href={`/w/${slug}/channels/${channel.slug}`}
+                        unread
+                      >
+                        <span className="size-8 flex shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                          <Hash className="size-4" aria-hidden />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <div className="gap-2 flex items-center justify-between">
+                            <span className="gap-2 min-w-0 flex items-center">
+                              <span className="text-sm leading-snug font-medium truncate text-foreground">
+                                {channel.name}
                               </span>
-                              <Badge variant="count" className="font-bold">
-                                {unread} unread
+                              <Badge variant="count" className="shrink-0">
+                                {unread}
                               </Badge>
-                            </div>
-
+                            </span>
                             {latest ? (
-                              <div className="mt-1.5 gap-2 min-w-0 flex items-center">
-                                {latest.user ? (
-                                  <UserAvatar
-                                    name={
-                                      latest.user.displayName ??
-                                      latest.user.name
-                                    }
-                                    src={latest.user.avatarUrl}
-                                    seed={latest.user.id}
-                                    size="xs"
-                                    indicator={false}
-                                    className="font-bold shrink-0"
-                                  />
-                                ) : null}
-                                <p className="text-xs min-w-0 truncate text-muted-foreground">
-                                  <span className="font-semibold mr-1 text-foreground/90">
-                                    {latest.user?.displayName ??
-                                      latest.user?.name ??
-                                      'A teammate'}
-                                    :
-                                  </span>
-                                  <span>
-                                    {latest.summary || 'sent a message'}
-                                  </span>
-                                </p>
-                              </div>
-                            ) : null}
-
-                            {latest ? (
-                              <span className="mt-1 block font-mono text-2xs text-muted-foreground/70">
+                              <span className="shrink-0 text-meta whitespace-nowrap text-muted-foreground">
                                 {formatRelative(latest.occurredAt)}
                               </span>
                             ) : null}
                           </div>
-
-                          <Button
-                            asChild
-                            variant="outline"
-                            size="sm"
-                            className="h-8 px-3 text-xs gap-1.5 font-medium shrink-0 cursor-pointer rounded-lg border-border/80 transition-all group-hover:border-primary/40 group-hover:bg-primary/10 group-hover:text-primary"
-                          >
-                            <Link to={`/w/${slug}/channels/${channel.slug}`}>
-                              <span>Open channel</span>
-                              <ArrowRight className="size-3 group-hover:translate-x-0.5 transition-transform" />
-                            </Link>
-                          </Button>
-                        </div>
-                      </Card>
-                    </li>
-                  ))}
-                </ul>
+                          {latest ? (
+                            <span className="mt-0.5 text-xs leading-relaxed line-clamp-2 block text-muted-foreground">
+                              <span className="font-medium text-foreground/90">
+                                {latestName}:
+                              </span>{' '}
+                              {latest.summary || 'sent a message'}
+                            </span>
+                          ) : null}
+                        </span>
+                      </InboxRow>
+                    );
+                  })}
+                </InboxList>
               )}
             </TabsContent>
 
@@ -1016,108 +1023,97 @@ export function InboxView() {
                   }
                 />
               ) : (
-                <ul className="space-y-2.5">
+                <InboxList>
                   {myTasks.map((task) => {
                     const isOverdue =
                       !!task.dueDate && Date.parse(task.dueDate) < Date.now();
                     const taskHref = `/w/${slug}/projects?card=${task.id}`;
 
                     return (
-                      <li key={task.id}>
-                        <Card className="group p-3.5 sm:p-4 gap-4 flex items-center justify-between rounded-xl border border-border/70 bg-surface transition-all duration-(--duration-fast) hover:border-border-strong hover:bg-surface-raised hover:shadow-md">
-                          <Link to={taskHref} className="min-w-0 block flex-1">
-                            <div className="gap-2 flex flex-wrap items-center">
+                      <InboxRow key={task.id} href={taskHref}>
+                        {task.assignee ? (
+                          <UserAvatar
+                            name={
+                              task.assignee.displayName ?? task.assignee.name
+                            }
+                            src={task.assignee.avatarUrl}
+                            seed={task.assignee.id}
+                            size="sm"
+                            indicator={false}
+                            className="shrink-0"
+                          />
+                        ) : (
+                          <span className="size-8 flex shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                            <CheckSquare className="size-4" aria-hidden />
+                          </span>
+                        )}
+                        <span className="min-w-0 flex-1">
+                          <div className="gap-2 flex items-center justify-between">
+                            <span className="gap-2 min-w-0 flex items-center">
                               {task.identifier ? (
-                                <span className="font-bold px-1.5 py-0.2 rounded bg-brand/10 font-mono text-meta text-brand-text">
+                                <span className="shrink-0 font-mono text-meta text-muted-foreground">
                                   {task.identifier}
                                 </span>
                               ) : null}
-                              <h4 className="text-xs font-semibold truncate text-foreground transition-colors group-hover:text-primary">
+                              <span className="text-sm leading-snug truncate text-foreground">
                                 {task.title}
-                              </h4>
-                              <Badge
-                                variant="neutral"
-                                className="px-1.5 py-0 h-4 font-medium text-2xs capitalize"
+                              </span>
+                            </span>
+                            {task.dueDate ? (
+                              <span
+                                className={cn(
+                                  'gap-1 inline-flex shrink-0 items-center text-meta whitespace-nowrap',
+                                  isOverdue
+                                    ? 'font-medium text-destructive'
+                                    : 'text-muted-foreground',
+                                )}
                               >
-                                {task.status.toLowerCase().replace(/_/g, ' ')}
-                              </Badge>
-                              {task.priority ? (
-                                <PriorityBadge priority={task.priority} />
-                              ) : null}
-                            </div>
+                                <Calendar className="size-3" aria-hidden />
+                                {isOverdue ? 'Overdue · ' : 'Due '}
+                                {formatDate(task.dueDate)}
+                              </span>
+                            ) : null}
+                          </div>
 
-                            <div className="mt-1.5 gap-3 text-xs flex flex-wrap items-center text-muted-foreground">
-                              {task.project ? (
-                                <span className="gap-1 font-medium inline-flex items-center align-middle">
+                          <div className="mt-1.5 gap-1.5 flex flex-wrap items-center">
+                            <InboxChip className="capitalize">
+                              {task.status.toLowerCase().replace(/_/g, ' ')}
+                            </InboxChip>
+                            {task.priority ? (
+                              <PriorityBadge priority={task.priority} />
+                            ) : null}
+                            {task.project ? (
+                              <InboxChip
+                                icon={
                                   <ProjectGlyph
                                     icon={task.project.icon}
                                     iconColor={task.project.iconColor}
                                     color={task.project.color}
                                     size="xs"
                                   />
-                                  <span>{task.project.name}</span>
-                                </span>
-                              ) : (
-                                <span>No project</span>
-                              )}
-
-                              {task.dueDate ? (
-                                <span
-                                  className={cn(
-                                    'gap-1 font-medium inline-flex items-center',
-                                    isOverdue
-                                      ? 'font-semibold text-destructive'
-                                      : 'text-muted-foreground',
-                                  )}
-                                >
-                                  <Calendar className="size-3" />
-                                  <span>
-                                    Due {formatDate(task.dueDate)}
-                                    {isOverdue ? ' (Overdue)' : ''}
-                                  </span>
-                                </span>
-                              ) : null}
-
-                              {task._count?.comments ? (
-                                <span className="gap-1 inline-flex items-center font-mono text-2xs text-muted-foreground/80">
-                                  <MessageSquare className="size-3" />
-                                  <span>{task._count.comments}</span>
-                                </span>
-                              ) : null}
-                            </div>
-                          </Link>
-
-                          <div className="gap-2 flex shrink-0 items-center">
-                            {task.assignee ? (
-                              <UserAvatar
-                                name={
-                                  task.assignee.displayName ??
-                                  task.assignee.name
                                 }
-                                src={task.assignee.avatarUrl}
-                                seed={task.assignee.id}
-                                size="xs"
-                                indicator={false}
-                                className="font-bold shrink-0"
-                              />
+                              >
+                                {task.project.name}
+                              </InboxChip>
                             ) : null}
-                            <Button
-                              asChild
-                              variant="outline"
-                              size="sm"
-                              className="h-7 px-2.5 text-xs gap-1 font-medium cursor-pointer rounded-lg border-border/80 transition-all group-hover:border-primary/40 group-hover:bg-primary/10 group-hover:text-primary"
-                            >
-                              <Link to={taskHref}>
-                                <span>View task</span>
-                                <ArrowRight className="size-3 group-hover:translate-x-0.5 transition-transform" />
-                              </Link>
-                            </Button>
+                            {task._count?.comments ? (
+                              <InboxChip
+                                icon={
+                                  <MessageSquare
+                                    className="size-3"
+                                    aria-hidden
+                                  />
+                                }
+                              >
+                                {task._count.comments}
+                              </InboxChip>
+                            ) : null}
                           </div>
-                        </Card>
-                      </li>
+                        </span>
+                      </InboxRow>
                     );
                   })}
-                </ul>
+                </InboxList>
               )}
             </TabsContent>
           </Tabs>
