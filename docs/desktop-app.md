@@ -129,6 +129,10 @@ IPv6-only listener and hand back a port something else is already using.
 | `navigator.clipboard` | Needs a secure context and a permission prompt | `copyText()` uses the native clipboard in the shell |
 | Web `Notification` API | Only fires while the window is alive | `notify()` uses OS notifications, which survive a hidden window and can carry a route to open on click |
 | Downloads via `<a download>` | No "Save as…", lands in the default folder | `saveFile()` opens a real save dialog and writes the file |
+| Download progress / "show in folder" | Nothing visible — the file just appears in Downloads | `downloads.ts`: progress on the taskbar/Dock icon, a notification when done (click reveals the file), Dock Downloads bounce on macOS |
+| Find in page (Ctrl/Cmd+F) | No browser find bar in an Electron window | Edit → Find… opens a native overlay (`find-bar.ts`, its own `WebContentsView` + `find-preload.ts`) top-right; Enter / Shift+Enter step, Esc closes. Not a React component: Chromium also matches the query inside an in-page text box and stepping steals its focus |
+| Print (Ctrl/Cmd+P) | No browser menu | File → Print… opens the system print dialog |
+| Hung renderer | Frozen window, kill the process | `unresponsive` asks "Wait / Reload"; Reload kills the renderer and the crash handler reloads it |
 | Camera / microphone | ✅ **Allowed** | Voice messages, huddles and calls use `getUserMedia`, so `media` (and `speaker-selection` for the device picker) is allowed for the app's own page — see `permissions.ts`. macOS additionally needs the usage strings and entitlements already in `electron-builder.json` / `entitlements.mac.plist`, and the main process asks for OS access before answering. Screen sharing (`display-capture`) is allowed the same way, and Electron has no built-in "choose what to share" sheet, so `display-media.ts` forwards the request to `ScreenSharePicker` (in `DesktopChrome`) and matches the answer back — only to a source it actually offered, cancelled after a minute. macOS 15+ uses the system picker; older macOS needs Screen Recording permission, which the picker explains and links to. |
 | `<webview>` / nested frames | ❌ Denied | `will-attach-webview` is blocked; nothing in the app uses it |
 | Multiple windows | ❌ Not supported | Single-window by design; a second launch focuses the running one |
@@ -322,13 +326,24 @@ new `if (isWindows)`/`if (isMacAppStore)` check at the call site.
   gives the asar the desktop workspace's own manifest (`main`, and a `dependencies` of
   just `electron-updater`); `extraMetadata` supplies `productName`, `author` and the
   rest. `files` patterns are relative to that folder.
-- **`electronDist` points at `node_modules/electron/dist`.** The packaged
-  Electron is then by construction the same build as the pinned `electron`
-  devDependency, and packaging neither re-downloads a second 225 MB copy nor
-  extracts one — which on Windows is also what avoids `EPERM: rename
-  win-unpacked.tmp → win-unpacked`, where the on-access virus scanner still
-  holds the freshly written `electron.exe` when electron-builder renames the
-  directory.
+- **Building every platform.** `nx package @org/desktop` runs
+  `apps/desktop/scripts/package.mjs`, which builds every platform the current machine
+  can: Windows → Windows (NSIS, x64); macOS → macOS (dmg + zip, x64 and arm64) and Linux;
+  Linux → Linux (AppImage, deb, tar.gz, x64 and arm64). Pick targets with
+  `npm run desktop:package:win|mac|linux` or `nx package @org/desktop -- --linux --arm64`;
+  `--dir` builds only the unpacked app. A target the host cannot build (macOS anywhere
+  but a Mac, Linux on Windows) is skipped with a warning. The
+  **Desktop release** workflow (`.github/workflows/desktop-release.yml`, manual or a
+  `desktop-v*` tag) builds all three on native runners and uploads the installers and
+  `latest*.yml`; it reads `DESKTOP_API_URL` / `DESKTOP_WEB_URL` / `DESKTOP_UPDATE_URL`
+  repository variables and optional signing secrets (listed at the top of the file).
+- **Electron binary per target.** `electron-builder.json` has no `electronDist`: a
+  fixed `node_modules/electron/dist` is the *host's* Electron, so it shipped the wrong
+  binary in any macOS-arm64, Linux or cross-arch build. `package.mjs` passes a hook that
+  reuses the installed copy only when the target platform and arch match the host —
+  which keeps the Windows fix (no second 225 MB download, and no `EPERM: rename
+  win-unpacked.tmp → win-unpacked` from the virus scanner holding the fresh
+  `electron.exe`) — and lets electron-builder download the matching zip otherwise.
 - **`files` lists the compiled output file by file** rather than
   `apps/desktop/dist/**/*`. A glob over the whole directory sweeps in anything
   else that has ever been written there — Nx caches `dist` as a build output, so
@@ -351,8 +366,10 @@ new `if (isWindows)`/`if (isMacAppStore)` check at the call site.
   `latest.yml` from that folder, downloads on request and installs on restart; without
   it — or if that download fails — the installer's page opens in the browser and the
   dialog says so, so the button is never a no-op. Store builds (MAS / Microsoft Store)
-  skip all of this. To publish a release, upload `release/latest.yml`, the installer
-  and its `.blockmap` to the update folder. `electron-builder` is a declared
+  skip all of this. To publish a release, upload `release/latest*.yml`, the installers
+  and their `.blockmap`s to the update folder. With `ONETAB_UPDATE_URL` set, `package.mjs`
+  adds a `generic` publish provider at that URL, so electron-builder writes the
+  `app-update.yml` itself on every platform. `electron-builder` is a declared
   devDependency, so `nx package` works from a clean install. electron-updater can
   *check* a feed it was given at runtime but will not *download* without
   `app-update.yml` beside the asar (it takes its cache folder name from it), so

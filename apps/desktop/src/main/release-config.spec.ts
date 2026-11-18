@@ -2,6 +2,9 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+// @ts-expect-error -- plain ESM build script, no type declarations
+import * as pkg from '../../scripts/package.mjs';
+
 /** Packaging rules a store or Gatekeeper review would catch, checked on every test run. */
 const desktopRoot = join(import.meta.dirname, '..', '..');
 const builder = JSON.parse(
@@ -59,5 +62,61 @@ describe('renderer isolation', () => {
     expect(windowSource).toContain('webSecurity: true');
     expect(windowSource).toContain('webviewTag: false');
     expect(windowSource).toContain('devTools: !app.isPackaged');
+  });
+});
+
+describe('cross-platform packaging', () => {
+  it('builds installers for Windows, macOS and Linux', () => {
+    expect(builder.win.target).toBeTruthy();
+    expect(builder.mac.target).toBeTruthy();
+    expect(builder.linux.target).toBeTruthy();
+    const macArchs = builder.mac.target.flatMap((t: { arch: string[] }) => t.arch);
+    expect(macArchs).toEqual(expect.arrayContaining(['x64', 'arm64']));
+  });
+
+  it('never pins every target to the host Electron binary', () => {
+    // A fixed `electronDist` packs the host's Electron into macOS/Linux/arm64 builds;
+    // scripts/package.mjs decides per target instead.
+    expect(builder.electronDist).toBeUndefined();
+  });
+
+  it('gives each platform/arch its own artifact name', () => {
+    expect(builder.artifactName).toContain('${arch}');
+    expect(builder.artifactName).toContain('${os}');
+  });
+});
+
+describe('scripts/package.mjs', () => {
+
+  it('reuses the installed Electron only for the host platform and arch', () => {
+    const host = { platform: 'win32', arch: 'x64' } as const;
+    expect(pkg.electronDistFor({ platformName: 'darwin', arch: 'arm64' }, host)).toBeNull();
+    expect(pkg.electronDistFor({ platformName: 'win32', arch: 'arm64' }, host)).toBeNull();
+    expect(pkg.electronDistFor({ platformName: 'linux', arch: 'x64' }, host)).toBeNull();
+  });
+
+  it('builds only what the host can, and says what it skipped', () => {
+    expect(pkg.planTargets([], 'win')).toEqual({ build: ['win'], skipped: [] });
+    expect(pkg.planTargets([], 'mac')).toEqual({ build: ['mac', 'linux'], skipped: [] });
+    expect(pkg.planTargets(['win', 'mac', 'linux'], 'win')).toEqual({
+      build: ['win'],
+      skipped: ['mac', 'linux'],
+    });
+  });
+
+  it('parses platform and arch flags', () => {
+    expect(pkg.parseArgs(['--all', '--arm64'])).toEqual({
+      platforms: ['win', 'mac', 'linux'],
+      archs: ['arm64'],
+      dir: false,
+    });
+    expect(() => pkg.parseArgs(['--windoze'])).toThrow(/Unknown option/);
+  });
+
+  it('adds a generic publish feed when an update URL is given', () => {
+    const config = pkg.buildConfig(builder, { updateUrl: 'https://dl.example.com/desktop' });
+    expect(config.publish).toEqual([{ provider: 'generic', url: 'https://dl.example.com/desktop' }]);
+    expect(JSON.stringify(config.extraResources)).not.toContain('app-update.yml');
+    expect(pkg.buildConfig(builder).publish).toBeUndefined();
   });
 });

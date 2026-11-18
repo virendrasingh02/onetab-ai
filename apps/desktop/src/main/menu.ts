@@ -1,5 +1,6 @@
 import { app, Menu, shell, type MenuItemConstructorOptions } from 'electron';
 import { IPC_EVENT, type DesktopCommand } from '../shared/ipc.js';
+import { openFindBar } from './find-bar.js';
 import { getMainWindow, markQuitting, showMainWindow } from './window.js';
 
 function send(command: DesktopCommand): void {
@@ -62,6 +63,12 @@ export function buildAppMenu(isDev: boolean): Menu {
           click: () => send('open-invite'),
         },
         { type: 'separator' },
+        {
+          label: 'Print…',
+          accelerator: 'CmdOrCtrl+P',
+          click: () => getMainWindow()?.webContents.print(),
+        },
+        { type: 'separator' },
         ...(isMac
           ? [{ role: 'close' as const }]
           : [
@@ -95,6 +102,16 @@ export function buildAppMenu(isDev: boolean): Menu {
         { role: 'delete' },
         { role: 'selectAll' },
         { type: 'separator' },
+        {
+          label: 'Find…',
+          accelerator: 'CmdOrCtrl+F',
+          click: () => {
+            const window = getMainWindow();
+            if (!window) return;
+            showMainWindow();
+            openFindBar(window);
+          },
+        },
         {
           label: 'Search…',
           accelerator: 'CmdOrCtrl+K',
@@ -136,7 +153,19 @@ export function buildAppMenu(isDev: boolean): Menu {
             { type: 'separator' },
             { role: 'front' },
           ]
-        : [{ role: 'minimize' }, { role: 'zoom' }, { role: 'close' }],
+        : [
+            { role: 'minimize' },
+            {
+              label: 'Maximize',
+              click: () => {
+                const window = getMainWindow();
+                if (!window) return;
+                if (window.isMaximized()) window.unmaximize();
+                else window.maximize();
+              },
+            },
+            { role: 'close' },
+          ],
     },
     {
       label: 'Help',

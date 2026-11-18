@@ -93,11 +93,7 @@
           "@org/web:build"
         ],
         "options": {
-          "commands": [
-            "node apps/desktop/scripts/write-config.mjs",
-            "electron-builder --config apps/desktop/electron-builder.json --publish never"
-          ],
-          "parallel": false,
+          "command": "node apps/desktop/scripts/package.mjs",
           "cwd": "{workspaceRoot}"
         }
       }

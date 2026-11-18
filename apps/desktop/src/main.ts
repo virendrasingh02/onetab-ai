@@ -26,6 +26,7 @@ import {
   dispatchHandoffActivity,
   flushPendingHandoff,
 } from './main/handoff.js';
+import { registerFindBarIpc } from './main/find-bar.js';
 import { registerIpcHandlers } from './main/ipc.js';
 import { applyDisplayMediaPolicy } from './main/display-media.js';
 import { applySessionPolicy } from './main/permissions.js';
@@ -206,6 +207,7 @@ async function initializeApp(): Promise<string> {
   applySessionPolicy(appUrl);
   applyDisplayMediaPolicy(appUrl);
   registerIpcHandlers(isDev, config);
+  registerFindBarIpc();
   installAppMenu(isDev);
   configureAboutPanel();
 
@@ -236,6 +238,7 @@ function openWindow(appUrl: string, startHidden: boolean): void {
   const window = createMainWindow({
     appUrl,
     preloadPath: join(here, 'preload.js'),
+    iconPath: join(resolveResourcesDir(), 'icon.png'),
     startHidden,
   });
 

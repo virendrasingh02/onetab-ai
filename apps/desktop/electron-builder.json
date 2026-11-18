@@ -8,17 +8,18 @@
     "output": "apps/desktop/release",
     "buildResources": "apps/desktop/resources"
   },
-  "electronDist": "node_modules/electron/dist",
   "extraMetadata": {
     "name": "onetab-ai",
     "productName": "Onetab AI",
     "version": "0.0.1",
     "description": "Onetab AI desktop application",
-    "author": "Onetab AI Inc."
+    "author": "Onetab AI Inc.",
+    "homepage": "https://onetab.ai"
   },
   "files": [
     "dist/main.js",
     "dist/preload.js",
+    "dist/find-preload.js",
     "dist/main/**/*",
     "dist/shared/**/*",
     "resources/**/*",
@@ -31,7 +32,12 @@
     {
       "from": "apps/web/dist",
       "to": "web",
-      "filter": ["**/*", "!**/*.map", "!**/*.br", "!**/*.gz"]
+      "filter": [
+        "**/*",
+        "!**/*.map",
+        "!**/*.br",
+        "!**/*.gz"
+      ]
     },
     {
       "from": "apps/desktop/resources/app-update.yml",
@@ -42,7 +48,10 @@
   "protocols": [
     {
       "name": "Onetab AI Protocol",
-      "schemes": ["onetab", "mie"]
+      "schemes": [
+        "onetab",
+        "mie"
+      ]
     }
   ],
   "electronFuses": {
@@ -57,7 +66,14 @@
     "resetAdHocDarwinSignature": true
   },
   "win": {
-    "target": ["nsis"],
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      }
+    ],
     "icon": "apps/desktop/resources/icon.png",
     "legalTrademarks": "Onetab AI"
   },
@@ -66,17 +82,24 @@
     "perMachine": false,
     "allowToChangeInstallationDirectory": true,
     "createDesktopShortcut": true,
-    "createStartMenuShortcut": true
+    "createStartMenuShortcut": true,
+    "artifactName": "${name}-${version}-setup-${arch}.${ext}"
   },
   "mac": {
     "target": [
       {
         "target": "dmg",
-        "arch": ["x64", "arm64"]
+        "arch": [
+          "x64",
+          "arm64"
+        ]
       },
       {
         "target": "zip",
-        "arch": ["x64", "arm64"]
+        "arch": [
+          "x64",
+          "arm64"
+        ]
       }
     ],
     "category": "public.app-category.productivity",
@@ -90,14 +113,39 @@
     }
   },
   "linux": {
-    "target": ["AppImage", "deb"],
+    "target": [
+      {
+        "target": "AppImage",
+        "arch": [
+          "x64",
+          "arm64"
+        ]
+      },
+      {
+        "target": "deb",
+        "arch": [
+          "x64",
+          "arm64"
+        ]
+      },
+      {
+        "target": "tar.gz",
+        "arch": [
+          "x64",
+          "arm64"
+        ]
+      }
+    ],
     "category": "Office",
     "icon": "apps/desktop/resources/icon.png",
     "desktop": {
       "entry": {
-        "MimeType": "x-scheme-handler/onetab;x-scheme-handler/mie;"
+        "MimeType": "x-scheme-handler/onetab;x-scheme-handler/mie;",
+        "StartupWMClass": "Onetab AI"
       }
     },
-    "maintainer": "Onetab AI Inc."
-  }
+    "maintainer": "Onetab AI Inc.",
+    "synopsis": "Onetab AI desktop app"
+  },
+  "artifactName": "${name}-${version}-${os}-${arch}.${ext}"
 }

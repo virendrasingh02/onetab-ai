@@ -2,6 +2,7 @@ import {
   app,
   BrowserWindow,
   clipboard,
+  dialog,
   Menu,
   nativeTheme,
   screen,
@@ -9,6 +10,7 @@ import {
 } from 'electron';
 import { IPC_EVENT, type DesktopWindowState } from '../shared/ipc.js';
 import { buildContextMenuTemplate } from './context-menu.js';
+import { applyDownloadHandling } from './downloads.js';
 import { logger } from './logger.js';
 import {
   getPreference,
@@ -173,10 +175,48 @@ function applyContextMenu(window: BrowserWindow): void {
   });
 }
 
+/**
+ * A renderer stuck in a long task leaves a frozen window with no way out but
+ * killing the process. Browsers offer "Wait / Reload"; so does this, once per
+ * hang.
+ */
+function applyHangRecovery(window: BrowserWindow): void {
+  let prompting = false;
+  window.on('unresponsive', () => {
+    if (prompting || quitting || window.isDestroyed()) return;
+    prompting = true;
+    logger.warn('Window', 'Renderer became unresponsive');
+    void dialog
+      .showMessageBox(window, {
+        type: 'warning',
+        title: 'Onetab AI is not responding',
+        message: 'Onetab AI is not responding',
+        detail: 'You can wait for it to recover, or reload the window.',
+        buttons: ['Wait', 'Reload'],
+        defaultId: 0,
+        cancelId: 0,
+        noLink: true,
+      })
+      .then(({ response }) => {
+        if (response === 1 && !window.isDestroyed()) {
+          logger.info('Window', 'Reloading unresponsive renderer');
+          // `render-process-gone` (below) reloads the page once the renderer is down.
+          window.webContents.forcefullyCrashRenderer();
+        }
+      })
+      .finally(() => {
+        prompting = false;
+      });
+  });
+  window.on('responsive', () => logger.info('Window', 'Renderer is responsive again'));
+}
+
 export interface CreateWindowOptions {
   /** URL the renderer loads — Vite in dev, the internal static server in prod. */
   appUrl: string;
   preloadPath: string;
+  /** Window icon. Only Linux uses it — Windows and macOS take the icon from the executable/bundle. */
+  iconPath?: string;
   /** Launched by the OS at login: stay in the tray until the user asks for the window. */
   startHidden?: boolean;
 }
@@ -184,6 +224,7 @@ export interface CreateWindowOptions {
 export function createMainWindow({
   appUrl,
   preloadPath,
+  iconPath,
   startHidden = false,
 }: CreateWindowOptions): BrowserWindow {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -204,6 +245,7 @@ export function createMainWindow({
     show: false,
     backgroundColor: windowBackground(),
     autoHideMenuBar: process.platform !== 'darwin',
+    ...(process.platform === 'linux' && iconPath ? { icon: iconPath } : {}),
     titleBarStyle: 'hidden',
     ...(process.platform === 'darwin'
       ? { trafficLightPosition: { x: 16, y: 14 } }
@@ -228,6 +270,8 @@ export function createMainWindow({
   void window.loadURL(appUrl);
   applyNavigationPolicy(window, appUrl);
   applyContextMenu(window);
+  applyDownloadHandling(window.webContents.session);
+  applyHangRecovery(window);
 
   window.webContents.on('render-process-gone', (_event, details) => {
     logger.error(
